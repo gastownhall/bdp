@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { replica as createReplica } from "../test-support/transaction-replica.js";
 import { constants } from "node:buffer";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -36,6 +36,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   for (const fn of cleanup.splice(0).reverse()) await fn();
 });
+const replica = (context: TransactionReadContext) => createReplica(context, linkType);
 const scope = "https://example.test/feed/",
   beadType = `${scope}types/bead`,
   linkType = `${scope}types/link`;
@@ -151,59 +152,6 @@ function authority(owner: ReturnType<typeof openTransactionStore>) {
   );
   if (observed.kind !== "read") throw Error("read");
   return observed.value;
-}
-/** Test replica oracle: stage complete changes; publish graph+cursor only together.
- * Positions are compared exclusively by equality, never parsed or ordered. */
-function replica(context: TransactionReadContext) {
-  let graph = new Map<string, ResourceRecord>(),
-    checkpoint = "genesis",
-    position = "pos-0";
-  const applied = new Map<string, string>();
-  return {
-    state: () => ({ graph, checkpoint, position }),
-    apply(group: TransactionChangeGroup, failBeforePublish = false) {
-      assert.equal(group.scopeEpoch, context.scopeEpoch);
-      assert.equal(group.authorizationView, context.authorizationView);
-      const bytes = stringifyJsonValue(group),
-        duplicate = applied.get(group.checkpoint);
-      if (duplicate !== undefined) {
-        assert.equal(bytes, duplicate);
-        return;
-      }
-      assert.equal(group.previousPosition, position);
-      const staged = new Map(graph);
-      for (const change of group.changes) {
-        if (change.operation === "upsert")
-          staged.set(change.resource.id, structuredClone(change.resource) as ResourceRecord);
-        else staged.delete(change.resource.id);
-      }
-      for (const resource of staged.values())
-        for (const links of Object.values(
-          "ownedLinks" in resource ? (resource.ownedLinks ?? {}) : {},
-        )) {
-          for (const link of links) {
-            assert.equal(link.source, resource.id);
-            assert.deepEqual(staged.get(link.id), link);
-          }
-        }
-      for (const resource of staged.values())
-        if ("source" in resource && resource.type === linkType) {
-          const source = staged.get(
-            typeof resource.source === "string" ? resource.source : resource.source.uri,
-          );
-          assert.ok(source && "ownedLinks" in source);
-          assert.deepEqual(
-            source.ownedLinks?.[linkType]?.find((link) => link.id === resource.id),
-            resource,
-          );
-        }
-      if (failBeforePublish) throw Error("replica publication failed");
-      graph = staged;
-      checkpoint = group.checkpoint;
-      position = group.position;
-      applied.set(checkpoint, bytes);
-    },
-  };
 }
 it("serves normalized whole groups and identical Scope facts for atomic replica reconstruction", () => {
   const f = fixture();
@@ -674,9 +622,11 @@ it("serves actual HTTP finite GET/HEAD, absolute navigation, native conditions a
   const now = await f.request("changes/?start=now", { headers: { "last-event-id": "genesis" } });
   expect(await now.json()).toMatchObject({ after: secondPage.groups[0]?.checkpoint, groups: [] });
   const sse = await f.request("changes/?after=genesis", {
+    method: "HEAD",
     headers: { accept: "text/event-stream" },
   });
-  expect(sse.status).toBe(406);
+  expect(sse.status).toBe(200);
+  expect(sse.headers.get("content-type")).toBe("text/event-stream");
   expect(await sse.text()).toBe("");
   const forbiddenMethod = await f.request("changes/?after=genesis", {
     method: "POST",

@@ -2,6 +2,7 @@ import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import {
   transactionChangefeedRequest,
   TransactionChangefeedParameterError,
+  type TransactionChangefeedPage,
 } from "./transaction-changefeed.js";
 import {
   transactionEventRequest,
@@ -24,7 +25,12 @@ import {
   type ReadUpdateOperation,
 } from "@bdp/protocol";
 import { createReadHttpRoute, jsonResponse, scopeDataResponse } from "./read-http-routing.js";
-import { acceptsJson, applyReadHttpSemantics } from "./read-http.js";
+import {
+  acceptsJson,
+  applyReadHttpSemantics,
+  selectChangefeedMedia,
+  conditionalReadStatus,
+} from "./read-http.js";
 import type { HttpResponse } from "./index.js";
 import {
   prepareTransactionSequence,
@@ -33,7 +39,11 @@ import {
   TRANSACTION_MAXIMUM_OPERATIONS,
 } from "./transaction-batch.js";
 import type { createTransactionService } from "./transaction-service.js";
-import { classifyAliasPath, requestFromUrl } from "./read-request.js";
+import {
+  classifyAliasPath,
+  requestFromUrl,
+  ScopeServerOperationAbortedError,
+} from "./read-request.js";
 import { TransactionMinimumVisibilityGap, transactionReadContexts } from "./transaction-read.js";
 import type { TransactionReadContext } from "./transaction-store.js";
 import type { TransactionSubmission } from "./transaction-submission.js";
@@ -57,6 +67,11 @@ export type TransactionReceivedBody =
   | { readonly text: string }
   | { readonly failure: "request-too-large" | "malformed-request" };
 export const TRANSACTION_HTTP_TARGET_BYTES = 8192;
+type ChangefeedStream = HttpResponse & {
+  readonly kind: "changefeed-stream";
+  readonly page: TransactionChangefeedPage;
+};
+export type TransactionHttpResult = (HttpResponse & { readonly kind: "finite" }) | ChangefeedStream;
 type Service = ReturnType<typeof createTransactionService>;
 function empty(status: number, allow?: string): HttpResponse {
   return {
@@ -212,7 +227,8 @@ export function createTransactionHttpHandler(
     request: Request,
     authorization: TransactionHttpAuthorization,
     received: TransactionReceivedBody,
-  ): Promise<HttpResponse> {
+    lastEventIds?: readonly string[],
+  ): Promise<HttpResponse | ChangefeedStream> {
     const url = new URL(request.url),
       operation = names.get(url.href);
     if (
@@ -379,11 +395,40 @@ export function createTransactionHttpHandler(
       const minimum = hasMinimumControls(request)
         ? (transactionMinimumHeaders(request.headers) ?? "unsupported")
         : undefined;
-      // Last-Event-ID is not a finite-JSON starting intent or override. The
-      // shared response semantics refuse SSE-only negotiation until SSE exists.
-      const observed = await service.changes(changefeed, minimum, request.signal);
+      const media = selectChangefeedMedia(request.headers.get("accept"));
+      // URL grammar is always required. Only selected SSE consults the raw
+      // reconnect field; JSON ignores it, including repeated/malformed values.
+      const fields =
+        lastEventIds ??
+        (request.headers.has("last-event-id") ? [request.headers.get("last-event-id")!] : []);
+      if (media === "sse" && "start" in changefeed && fields.length > 0)
+        return developmentGap("start-now-last-event-id");
+      if (media === "sse" && fields.length > 1)
+        throw new TransactionChangefeedParameterError("repeated Last-Event-ID");
+      const effective = media === "sse" && fields.length === 1 ? { after: fields[0]! } : changefeed;
+      const observed = await service.changes(effective, minimum, request.signal);
       if (observed.kind === "unsupported") return developmentGap("minimum-position");
-      return context(jsonResponse(observed.page), observed.context);
+      if (media !== "sse") return context(jsonResponse(observed.page), observed.context);
+      const response = context(
+        {
+          status: 200,
+          headers: new Headers({
+            "content-type": "text/event-stream",
+            "cache-control": "no-store, no-transform",
+            vary: "Accept",
+          }),
+        },
+        observed.context,
+      );
+      const status = conditionalReadStatus(request.headers, null);
+      if (status !== 200) {
+        response.headers.delete("content-type");
+        if (status !== 304) response.headers.set("content-length", "0");
+        return { status, headers: response.headers };
+      }
+      return request.method === "HEAD"
+        ? response
+        : { ...response, kind: "changefeed-stream", page: observed.page };
     }
     // Alias query refusals and receipt identity checks own these routes, even
     // when a query happens to spell view=events. Do not reclassify them as Events.
@@ -468,11 +513,13 @@ export function createTransactionHttpHandler(
       request: Request,
       authorization: TransactionHttpAuthorization,
       received: TransactionReceivedBody = { text: "" },
-    ): Promise<HttpResponse> {
-      let response: HttpResponse;
+      lastEventIds?: readonly string[],
+    ): Promise<TransactionHttpResult> {
+      let response: HttpResponse | ChangefeedStream;
       try {
-        response = await route(request, authorization, received);
+        response = await route(request, authorization, received, lastEventIds);
       } catch (error) {
+        if (error instanceof ScopeServerOperationAbortedError) throw error;
         if (error instanceof TransactionMinimumFailure && error.reason !== "behind") {
           response = context(
             problem(
@@ -500,9 +547,13 @@ export function createTransactionHttpHandler(
       }
       response.headers.set("x-bdp-development", "non-attesting");
       if (request.method === "POST") response.headers.set("vary", "Accept");
-      return request.method === "GET" || request.method === "HEAD"
-        ? applyReadHttpSemantics(request, response)
-        : response;
+      if ("kind" in response && response.kind === "changefeed-stream") return response;
+      return {
+        ...(request.method === "GET" || request.method === "HEAD"
+          ? applyReadHttpSemantics(request, response)
+          : response),
+        kind: "finite",
+      };
     },
   });
 }
