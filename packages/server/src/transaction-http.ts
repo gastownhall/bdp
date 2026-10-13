@@ -389,7 +389,7 @@ export function createTransactionHttpHandler(
       const parsed = requestFromUrl(url, scope);
       if (isReadProblem(parsed) && parsed.status === 400) return problem(parsed);
       if (
-        classifyAliasPath(url, scope) !== undefined ||
+        alias !== undefined ||
         isReadProblem(parsed) ||
         (parsed.kind !== "resource" && parsed.kind !== "properties") ||
         (parsed.resource !== "bead" && parsed.resource !== "link")
