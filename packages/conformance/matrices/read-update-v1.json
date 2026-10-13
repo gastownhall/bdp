@@ -7833,6 +7833,16 @@
                   "op": "add",
                   "path": "/added",
                   "value": null
+                },
+                {
+                  "op": "add",
+                  "path": "/ordered",
+                  "value": "first"
+                },
+                {
+                  "op": "replace",
+                  "path": "/ordered",
+                  "value": "second"
                 }
               ],
               "metadataChange": [
@@ -7857,6 +7867,16 @@
                   "op": "add",
                   "path": "/added",
                   "value": null
+                },
+                {
+                  "op": "add",
+                  "path": "/ordered",
+                  "value": "first"
+                },
+                {
+                  "op": "replace",
+                  "path": "/ordered",
+                  "value": "second"
                 }
               ]
             },
@@ -7939,7 +7959,8 @@
                 },
                 "array": ["insert", "old", "tail", "append"],
                 "keep": "properties",
-                "added": null
+                "added": null,
+                "ordered": "second"
               }
             },
             {
@@ -7953,7 +7974,8 @@
                 },
                 "array": ["insert-meta", "meta", "tail", "append-meta"],
                 "keep": "metadata",
-                "added": null
+                "added": null,
+                "ordered": "second"
               }
             }
           ]
@@ -8009,6 +8031,366 @@
               "pointer": "/body",
               "exists": true,
               "equalsBinding": "patched"
+            }
+          ]
+        },
+        {
+          "id": "excluded-move",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "move",
+                  "from": "/keep",
+                  "path": "/relocated"
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "add",
+                  "path": "/must-not-commit",
+                  "value": true
+                }
+              ]
+            },
+            "idempotencyKey": "excluded-move",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "bead": "w1.a"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-code",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "problem-retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "after-excluded-move",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1.a",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "before-invalid"
+            }
+          ]
+        },
+        {
+          "id": "excluded-copy",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "metadataChange": [
+                {
+                  "op": "copy",
+                  "from": "/keep",
+                  "path": "/relocated"
+                }
+              ],
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/must-not-commit",
+                  "value": true
+                }
+              ]
+            },
+            "idempotencyKey": "excluded-copy",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "bead": "w1.a"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-code",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "problem-retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "after-excluded-copy",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1.a",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "before-invalid"
+            }
+          ]
+        },
+        {
+          "id": "excluded-test",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "test",
+                  "path": "/keep",
+                  "value": "properties"
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "add",
+                  "path": "/must-not-commit",
+                  "value": true
+                }
+              ]
+            },
+            "idempotencyKey": "excluded-test",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "bead": "w1.a"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-code",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "problem-retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "after-excluded-test",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1.a",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "before-invalid"
             }
           ]
         },
@@ -9025,6 +9407,16 @@
                   "op": "add",
                   "path": "/added",
                   "value": null
+                },
+                {
+                  "op": "add",
+                  "path": "/ordered",
+                  "value": "first"
+                },
+                {
+                  "op": "replace",
+                  "path": "/ordered",
+                  "value": "second"
                 }
               ],
               "metadataChange": [
@@ -9049,6 +9441,16 @@
                   "op": "add",
                   "path": "/added",
                   "value": null
+                },
+                {
+                  "op": "add",
+                  "path": "/ordered",
+                  "value": "first"
+                },
+                {
+                  "op": "replace",
+                  "path": "/ordered",
+                  "value": "second"
                 }
               ]
             },
@@ -9131,7 +9533,8 @@
                 },
                 "array": ["insert", "old", "tail", "append"],
                 "keep": "properties",
-                "added": null
+                "added": null,
+                "ordered": "second"
               }
             },
             {
@@ -9145,7 +9548,8 @@
                 },
                 "array": ["insert-meta", "meta", "tail", "append-meta"],
                 "keep": "metadata",
-                "added": null
+                "added": null,
+                "ordered": "second"
               }
             }
           ]
@@ -9201,6 +9605,366 @@
               "pointer": "/body",
               "exists": true,
               "equalsBinding": "link-patched"
+            }
+          ]
+        },
+        {
+          "id": "link-excluded-move",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "move",
+                  "from": "/keep",
+                  "path": "/relocated"
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "add",
+                  "path": "/must-not-commit",
+                  "value": true
+                }
+              ]
+            },
+            "idempotencyKey": "link-excluded-move",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.unowned-link"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-code",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "problem-retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "after-link-excluded-move",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.unowned-link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-before-invalid"
+            }
+          ]
+        },
+        {
+          "id": "link-excluded-copy",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "metadataChange": [
+                {
+                  "op": "copy",
+                  "from": "/keep",
+                  "path": "/relocated"
+                }
+              ],
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/must-not-commit",
+                  "value": true
+                }
+              ]
+            },
+            "idempotencyKey": "link-excluded-copy",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.unowned-link"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-code",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "problem-retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "after-link-excluded-copy",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.unowned-link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-before-invalid"
+            }
+          ]
+        },
+        {
+          "id": "link-excluded-test",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "test",
+                  "path": "/keep",
+                  "value": "properties"
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "add",
+                  "path": "/must-not-commit",
+                  "value": true
+                }
+              ]
+            },
+            "idempotencyKey": "link-excluded-test",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.unowned-link"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-code",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "problem-retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "after-link-excluded-test",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.unowned-link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-before-invalid"
             }
           ]
         },
@@ -12500,7 +13264,7 @@
           ]
         },
         {
-          "id": "link-metadata-remove",
+          "id": "link-metadata-scalar",
           "family": "client",
           "operation": "installed.exact-request",
           "input": {
@@ -12510,8 +13274,9 @@
             "body": {
               "metadataChange": [
                 {
-                  "op": "remove",
-                  "path": ""
+                  "op": "replace",
+                  "path": "",
+                  "value": "not-an-object"
                 }
               ],
               "propertiesChange": [
@@ -12522,7 +13287,7 @@
                 }
               ]
             },
-            "idempotencyKey": "link-metadata-remove",
+            "idempotencyKey": "link-metadata-scalar",
             "targetBaseBinding": "operations",
             "bodyBindings": {
               "link": "w1b.unowned-link"
@@ -12606,7 +13371,7 @@
           ]
         },
         {
-          "id": "after-link-metadata-remove",
+          "id": "after-link-metadata-scalar",
           "family": "client",
           "operation": "installed.exact-request",
           "input": {
@@ -12645,7 +13410,7 @@
           ]
         },
         {
-          "id": "after-link-metadata-remove-endpoint-a",
+          "id": "after-link-metadata-scalar-endpoint-a",
           "family": "client",
           "operation": "installed.exact-request",
           "input": {
@@ -12684,7 +13449,7 @@
           ]
         },
         {
-          "id": "after-link-metadata-remove-endpoint-b",
+          "id": "after-link-metadata-scalar-endpoint-b",
           "family": "client",
           "operation": "installed.exact-request",
           "input": {

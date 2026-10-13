@@ -107,6 +107,8 @@ type W2Counterfactual =
   | "link-name"
   | "alias-index";
 type PatchControl =
+  | "link-order"
+  | "link-clear"
   | "link-result"
   | "link-get"
   | "refusal-get"
@@ -367,6 +369,12 @@ async function run(
           currentScenario === "read-update.singleton.document-patch-validation";
         const patchHit =
           (patchMerge &&
+            patchControl === "link-order" &&
+            w1Input.idempotencyKey === "link-merge-replace") ||
+          (patchMerge &&
+            patchControl === "link-clear" &&
+            w1Input.idempotencyKey === "link-clear-properties") ||
+          (patchMerge &&
             patchControl === "link-result" &&
             w1Input.idempotencyKey === "link-merge-replace") ||
           (patchMerge &&
@@ -393,6 +401,8 @@ async function run(
             };
           };
           counterfactualApplications++;
+          if (patchControl === "link-order") changed.body.resource.properties.ordered = "first";
+          if (patchControl === "link-clear") changed.body.resource.properties.resurrected = true;
           if (patchControl === "link-result") changed.body.resource.properties.keep = "corrupt";
           if (patchControl === "link-get") changed.body.properties.keep = "corrupt";
           if (patchControl === "refusal-get") changed.body.properties.n = 9;
@@ -784,7 +794,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.reportBinding.exactConfigurationDigest).toBe(
     "be0e83fb1663e2fd91b6c5b90b5b18e3ba0b65887b18479b880d9edec88290f9",
   );
-  expect(report.uncoveredIds).toHaveLength(101);
+  expect(report.uncoveredIds).toHaveLength(102);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
   expect(report.sessions).toHaveLength(report.plannedIds.length);
   expect(report.observations.length).toBeGreaterThan(30);
@@ -1271,6 +1281,8 @@ it("stops the aggregate runner on cancellation without awarding a scenario pass"
 }, 30000);
 
 it.each([
+  ["link-order", "merge-replace", "link-merge-replace", ["properties"]],
+  ["link-clear", "merge-replace", "link-clear-properties", ["properties"]],
   ["link-result", "merge-replace", "link-merge-replace", ["properties"]],
   ["link-get", "merge-replace", "link-read-patched", ["postimage"]],
   ["refusal-get", "validation", "after-bead-metadata-array", ["unchanged"]],
