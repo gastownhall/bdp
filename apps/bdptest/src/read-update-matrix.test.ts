@@ -131,6 +131,13 @@ type PatchControl =
   | "diagnostic-document"
   | "diagnostic-type"
   | "problem-tuple";
+type RetryControl = {
+  scenario: string;
+  action: string;
+  path: readonly string[];
+  value?: unknown;
+  binding?: string;
+};
 async function run(
   manifestValue?: unknown,
   selectedIds?: string[],
@@ -142,6 +149,7 @@ async function run(
   w2Counterfactual?: W2Counterfactual,
   signal?: AbortSignal,
   patchControl?: PatchControl,
+  retryControl?: RetryControl,
 ) {
   const selection = loadProfileContractSelection("read-update");
   const fixtureSource =
@@ -306,11 +314,13 @@ async function run(
   let counterfactualApplications = 0;
   let aliasPutObserved = false;
   let sequenceCalls = 0;
+  let retryClientIndex = 0;
   let lastPatchKey = "";
   const target = createRawHttpScenarioTarget(
     async (scenario, _scope, _seed, fixture, signal) => {
       currentScenario = scenario.id;
       sequenceCalls = 0;
+      retryClientIndex = 0;
       lastPatchKey = "";
       const configuration = cohortConfiguration(
         path.join(directory, scenario.id),
@@ -374,6 +384,34 @@ async function run(
       exactExecution: { execute: target.execute, configuration: target.exactConfiguration },
       actionExecutor: async (execution) => {
         const actual = await executeClient(execution);
+        const clientAction = bundle.manifest.scenarios
+          .find((row) => row.id === currentScenario)
+          ?.actions?.filter((action) => action.family === "client")[retryClientIndex++];
+        if (
+          retryControl?.scenario === currentScenario &&
+          retryControl.action === clientAction?.id
+        ) {
+          // Positional selection must still identify the exact executed client input.
+          if (clientAction.family !== "client") throw Error("control requires client action");
+          expect(clientAction.input).toEqual(execution.input);
+          // Corrupt assertion input only, after the real wire observation was recorded.
+          const changed = structuredClone(actual) as Record<string, unknown>;
+          let parent = changed;
+          for (const key of retryControl.path.slice(0, -1)) {
+            const child = parent[key];
+            if (child === null || typeof child !== "object") throw Error("missing control path");
+            parent = child as Record<string, unknown>;
+          }
+          const key = retryControl.path.at(-1);
+          if (key === undefined) throw Error("missing control field");
+          parent[key] = structuredClone(
+            retryControl.binding === undefined
+              ? retryControl.value
+              : execution.bindings[retryControl.binding],
+          );
+          counterfactualApplications++;
+          return changed;
+        }
         const w1Input = execution.input as {
           method?: string;
           targetBinding?: string;
@@ -763,7 +801,7 @@ async function run(
 }
 
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  // One aggregate job starts 41 isolated authorities; Linux CI exceeded 30s.
+  // One aggregate job starts 45 isolated authorities; Linux CI previously exceeded 30s.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(Error("cumulative run budget exceeded")), 90000);
@@ -876,7 +914,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
   // Pin the existing runner projection; credential identity is bound separately in configuration.
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "bdffd6f957401222f6e5ffc928c7769d23976e8a8a8d5eb16dfa1bb7ce836a07",
+    "092b9ac9abf64dcd02f592059bc6333b0a6dfc69efe9d50332086335474c8f3c",
   );
   expect(report.uncoveredIds).toHaveLength(103);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
@@ -1193,7 +1231,7 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "bdffd6f957401222f6e5ffc928c7769d23976e8a8a8d5eb16dfa1bb7ce836a07",
+    "092b9ac9abf64dcd02f592059bc6333b0a6dfc69efe9d50332086335474c8f3c",
   );
 }, 30000);
 
@@ -1501,6 +1539,239 @@ it.each([
     expect(failures).toEqual(
       control === "schema-afterstate" ? ["postimage", "properties"] : [assertion],
     );
+  },
+  30000,
+);
+
+const retryRows = [
+  "read-update.sequence.idempotent-retry",
+  "read-update.idempotency.cross-carrier",
+];
+it("observes retained retry dispositions across actual installed carriers and current positions", async () => {
+  const report = await run(undefined, retryRows);
+  if (process.env.BDP_RETRY_REPORT_PATH)
+    writeFileSync(process.env.BDP_RETRY_REPORT_PATH, JSON.stringify(report, null, 2));
+  for (const id of retryRows)
+    expect(
+      report.result.scenarios.find((row) => row.id === id),
+      JSON.stringify(report.result),
+    ).toMatchObject({ state: "pass" });
+  expect(report.uncoveredIds).toHaveLength(103);
+  expect(report.result.claimEligible).toBe(false);
+}, 30000);
+
+// Problem title/instance/extensions are legal; these deterministic original failures have none.
+// Controls require exact fixture equality, not a narrower protocol Problem schema.
+const retryControls: (RetryControl & { label: string; failed: string })[] = [
+  {
+    label: "initial failure gains title",
+    scenario: retryRows[0]!,
+    action: "initial",
+    path: ["body", "results", "1", "title"],
+    value: "new initial title",
+    failed: "complete-problem-body-results-1",
+  },
+  {
+    label: "retained failure gains title",
+    scenario: retryRows[1]!,
+    action: "f-replay",
+    path: ["body", "results", "0", "title"],
+    value: "new title",
+    failed: "complete-problem-body-results-0",
+  },
+  {
+    label: "retained failure gains extension",
+    scenario: retryRows[1]!,
+    action: "f-replay",
+    path: ["body", "results", "0", "vendorExtension"],
+    value: { changed: true },
+    failed: "complete-problem-body-results-0",
+  },
+  {
+    label: "retained failure gains instance",
+    scenario: retryRows[1]!,
+    action: "g-replay",
+    path: ["body", "instance"],
+    value: "https://reference.invalid/other",
+    failed: "complete-problem-body",
+  },
+  {
+    label: "reordered failure gains extension",
+    scenario: retryRows[0]!,
+    action: "reordered",
+    path: ["body", "results", "2", "vendorExtension"],
+    value: "new",
+    failed: "complete-problem-body-results-2",
+  },
+  {
+    label: "fresh image instead of retained",
+    scenario: retryRows[1]!,
+    action: "a-replay",
+    path: ["body", "results", "0", "resource"],
+    binding: "a-live",
+    failed: "retained-body-results-0",
+  },
+  {
+    label: "retained revision",
+    scenario: retryRows[1]!,
+    action: "a-replay",
+    path: ["body", "results", "0", "resource", "revision"],
+    value: "corrupt-revision",
+    failed: "retained-body-results-0",
+  },
+  {
+    label: "old failure executes successfully",
+    scenario: retryRows[1]!,
+    action: "f-replay",
+    path: ["body", "results", "0"],
+    value: {
+      operationIndex: 0,
+      outcome: "updated",
+      resource: {
+        id: `${scope}beads/retry-cross-f`,
+        type: `${scope}types/task`,
+        revision: "corrupt-revision",
+        properties: { n: 5 },
+        metadata: { tag: "retry" },
+      },
+    },
+    failed: "problem-code-body-results-0",
+  },
+  {
+    label: "singleton carries sequence index",
+    scenario: retryRows[1]!,
+    action: "b-replay",
+    path: ["body", "operationIndex"],
+    value: 0,
+    failed: "schema",
+  },
+  {
+    label: "final GET silently rolled back",
+    scenario: retryRows[1]!,
+    action: "a-after-replay",
+    path: ["body"],
+    binding: "a-original",
+    failed: "postimage",
+  },
+  {
+    label: "conflict body replaced while HTTP status remains 409",
+    scenario: retryRows[1]!,
+    action: "b-conflict",
+    path: ["body"],
+    value: {
+      type: "https://github.com/gastownhall/bdp/problems/not-found",
+      code: "resource-not-found",
+      status: 404,
+      retry: "after-state-change",
+    },
+    failed: "complete-problem-body",
+  },
+  {
+    label: "cross-carrier name changed",
+    scenario: retryRows[1]!,
+    action: "a-replay",
+    path: ["body", "results", "0", "operationName"],
+    value: "wrong",
+    failed: "name-0",
+  },
+  {
+    label: "repeated replay changes retained result",
+    scenario: retryRows[0]!,
+    action: "reordered-again",
+    path: ["body", "results", "0", "resource"],
+    binding: "position-b-live",
+    failed: "same-results",
+  },
+  {
+    label: "fresh member GET loses committed value",
+    scenario: retryRows[0]!,
+    action: "d-after",
+    path: ["body", "properties", "n"],
+    value: 0,
+    failed: "postimage",
+  },
+  {
+    label: "conflict overwrites retained image",
+    scenario: retryRows[1]!,
+    action: "a-final-replay",
+    path: ["body", "resource"],
+    binding: "a-live",
+    failed: "retained-body",
+  },
+  {
+    label: "old sequence index",
+    scenario: retryRows[0]!,
+    action: "reordered",
+    path: ["body", "results", "0", "operationIndex"],
+    value: 2,
+    failed: "indices",
+  },
+  {
+    label: "removed name returns",
+    scenario: retryRows[0]!,
+    action: "reordered",
+    path: ["body", "results", "0", "operationName"],
+    value: "oldTail",
+    failed: "name-0",
+  },
+  {
+    label: "added name lost",
+    scenario: retryRows[0]!,
+    action: "reordered",
+    path: ["body", "results", "3", "operationName"],
+    value: "wrong",
+    failed: "name-3",
+  },
+  {
+    label: "failure gains detail",
+    scenario: retryRows[0]!,
+    action: "reordered",
+    path: ["body", "results", "2", "detail"],
+    value: "not retained",
+    failed: "absent-detail-body-results-2",
+  },
+  {
+    label: "sequence replay refreshes image",
+    scenario: retryRows[0]!,
+    action: "reordered",
+    path: ["body", "results", "0", "resource"],
+    binding: "position-b-live",
+    failed: "retained-body-results-0",
+  },
+  {
+    label: "sequence GET regresses",
+    scenario: retryRows[0]!,
+    action: "b-after",
+    path: ["body"],
+    binding: "position-b-original",
+    failed: "postimage",
+  },
+];
+it.each(retryControls)(
+  "detects retained-retry $label after actual wire capture",
+  async (control) => {
+    const report = await run(
+      undefined,
+      [control.scenario],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    const row = report.result.scenarios.find((row) => row.id === control.scenario);
+    expect(row?.state).toBe("fail");
+    const exchange = row?.actions?.find((action) => action.action.id === control.action);
+    expect(
+      exchange?.assertions
+        .filter((assertion) => !assertion.passed)
+        .map((assertion) => assertion.id),
+    ).toContain(control.failed);
   },
   30000,
 );
