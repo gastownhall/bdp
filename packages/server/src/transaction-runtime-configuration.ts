@@ -158,7 +158,7 @@ function captureSeams(value: unknown) {
     }
   }
   if (own.scheduler !== undefined) {
-    const scheduler = fields(own.scheduler, ["turn", "delay"], ["turn"]);
+    const scheduler = fields(own.scheduler, ["turn"], ["turn"]);
     if (typeof scheduler.turn !== "function") throw new TypeError("invalid runtime scheduler");
     result.scheduler = Object.freeze(scheduler);
   }
@@ -211,7 +211,12 @@ export function captureTransactionRuntimeConfiguration(
   }));
   const associations = freeze(
     credentials
-      .map(({ token, ...rest }) => ({ tokenDigest: transactionRuntimeDigest(token), ...rest }))
+      .map(({ token, ...rest }) => ({
+        // Domain separation binds this credential use; it does not prevent
+        // guessing low-entropy tokens. Metadata digests are not secrecy guarantees.
+        tokenDigest: transactionRuntimeDigest({ revision: "transaction-credential-1", token }),
+        ...rest,
+      }))
       .sort((a, b) => (a.tokenDigest < b.tokenDigest ? -1 : a.tokenDigest > b.tokenDigest ? 1 : 0)),
   );
   const authenticationIdentity = transactionRuntimeDigest({
@@ -341,6 +346,7 @@ export function captureTransactionRuntimeConfiguration(
         history: false,
       });
       return Object.freeze({
+        authorityMode,
         runtimeConfigurationIdentity,
         artifactIdentity: contracts.identity,
         policyIdentity,
