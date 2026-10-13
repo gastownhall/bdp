@@ -795,7 +795,7 @@ async function run(
     });
     const report = {
       claimEligible: false,
-      cleanupComplete: true,
+      cleanupComplete: false,
       exactConfiguration: target.exactConfiguration,
       counterfactualApplications,
       sourceCommit,
@@ -818,7 +818,10 @@ async function run(
       plannedIds: bundle.manifest.scenarios.map((row) => row.id),
       uncoveredIds: selection.required
         .map((row) => row.id)
-        .filter((id) => !coverage.rows.find((row) => row.id === id)?.wholeContract),
+        .filter(
+          (id) =>
+            !(artifact?.set.coverage ?? coverage).rows.find((row) => row.id === id)?.wholeContract,
+        ),
       sessions,
       observations,
       setupObservations,
@@ -846,15 +849,29 @@ async function run(
   } catch (error) {
     cleanupErrors.push(error);
   }
+  const cleanupComplete =
+    cleanupErrors.length === 0 &&
+    (!execution.ok ||
+      execution.report.result.scenarios.every((row) => row.cleanupError === undefined));
+  if (execution.ok) execution.report.cleanupComplete = cleanupComplete;
   try {
-    lifecycle?.cleaned?.(cleanupErrors.length ? "failed" : "complete");
+    lifecycle?.cleaned?.(cleanupComplete ? "complete" : "failed");
   } catch (error) {
     cleanupErrors.push(error);
   }
-  if (cleanupErrors.length) {
-    const prior = !execution.ok ? execution.error : signal?.aborted ? signal.reason : undefined;
+  if (
+    cleanupErrors.length ||
+    (!execution.ok && signal?.aborted && execution.error !== signal.reason)
+  ) {
+    const prior = signal?.aborted ? signal.reason : !execution.ok ? execution.error : undefined;
     throw new AggregateError(
-      [...(!execution.ok || signal?.aborted ? [prior] : []), ...cleanupErrors],
+      [
+        ...new Set([
+          ...(signal?.aborted ? [signal.reason] : []),
+          ...(!execution.ok ? [execution.error] : []),
+          ...cleanupErrors,
+        ]),
+      ],
       "artifact execution or cleanup failed",
       { cause: prior ?? cleanupErrors[0] },
     );
@@ -922,16 +939,24 @@ async function runShard(
     signal.throwIfAborted();
     return report;
   } catch (error) {
+    const original =
+      signal.aborted &&
+      error !== signal.reason &&
+      !(error instanceof Error && error.cause === signal.reason)
+        ? new AggregateError([signal.reason, error], "artifact abort and execution failed", {
+            cause: signal.reason,
+          })
+        : error;
     try {
       evidence?.failed(index, signal.aborted);
     } catch (persistence) {
       throw new AggregateError(
-        [error, persistence],
+        [original, persistence],
         "artifact failure evidence could not be saved",
-        { cause: error },
+        { cause: original },
       );
     }
-    throw error;
+    throw original;
   }
 }
 
@@ -939,25 +964,69 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   // One aggregate budget for both shards and 50 isolated scenario authorities.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
-  const set = installedArtifactSet();
-  const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd: root,
-    encoding: "utf8",
-  }).trim();
-  const filename = process.env.BDP_CUMULATIVE_REPORT_PATH;
-  const evidence = createArtifactEvidenceWriter(set, sourceCommit, filename, [token, wrongToken]);
-  const timer = setTimeout(() => controller.abort(Error("cumulative run budget exceeded")), 90000);
-  const reports: Awaited<ReturnType<typeof run>>[] = [];
   const started = performance.now();
-  const timing: { id: string; elapsedMs: number; remainingMs: number }[] = [];
+  const timer = setTimeout(() => controller.abort(Error("cumulative run budget exceeded")), 90000);
+  let evidence: ArtifactEvidenceWriter | undefined;
   try {
+    const set = installedArtifactSet();
+    const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim();
+    const filename = process.env.BDP_CUMULATIVE_REPORT_PATH;
+    evidence = createArtifactEvidenceWriter(set, sourceCommit, filename, [token, wrongToken]);
+    const reports: Awaited<ReturnType<typeof run>>[] = [];
+    const timing: {
+      id: string;
+      budgetRemainingMsAtStart: number;
+      elapsedMs: number;
+      remainingMs: number;
+      outcome: "running" | "pass" | "failed" | "aborted";
+    }[] = [];
     for (let index = 0; index < set.shards.length; index++) {
-      reports.push(await runShard(set, index, controller.signal, undefined, reports[0], evidence));
-      timing.push({
+      const stage = {
         id: set.shards[index]!.id,
+        budgetRemainingMsAtStart: Math.max(0, 90000 - (performance.now() - started)),
         elapsedMs: performance.now() - started,
         remainingMs: Math.max(0, 90000 - (performance.now() - started)),
-      });
+        outcome: "running" as "running" | "pass" | "failed" | "aborted",
+      };
+      timing.push(stage);
+      evidence.timed(index, stage);
+      const observed = await runShard(
+        set,
+        index,
+        controller.signal,
+        undefined,
+        reports[0],
+        evidence,
+      ).then(
+        (report) => ({ ok: true as const, report }),
+        (error: unknown) => ({ ok: false as const, error }),
+      );
+      stage.elapsedMs = performance.now() - started;
+      stage.remainingMs = Math.max(0, 90000 - stage.elapsedMs);
+      stage.outcome = controller.signal.aborted
+        ? "aborted"
+        : observed.ok &&
+            set.shards[index]!.scenarioIds.every(
+              (id) => observed.report.result.scenarios.find((r) => r.id === id)?.state === "pass",
+            )
+          ? "pass"
+          : "failed";
+      try {
+        evidence.timed(index, stage);
+      } catch (persistence) {
+        if (!observed.ok)
+          throw new AggregateError(
+            [observed.error, persistence],
+            "stage failure evidence could not be saved",
+            { cause: observed.error },
+          );
+        throw persistence;
+      }
+      if (!observed.ok) throw observed.error;
+      reports.push(observed.report);
     }
     controller.signal.throwIfAborted();
     const progress = associateArtifactObservations(
@@ -1078,6 +1147,51 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(progress.reviewedWholeIds).toHaveLength(30);
     expect(progress.omittedRequiredIds).toHaveLength(79);
     expect(progress.shards[1]!.selectedIds).toEqual(["read-update.alias.unknown-subject"]);
+    // Independent inventory: C's fixed six client GETs, eleven raw GETs and
+    // the installed client's nine mandatory mutation carriers. No route helper.
+    expect(progress.shards[1]!.routes).toEqual([
+      { method: "GET", url: `${scope}operations/` },
+      { method: "GET", url: `${scope}beads/rc-source` },
+      { method: "GET", url: `${scope}beads/rc-target` },
+      { method: "GET", url: `${scope}links/rc-live` },
+      { method: "GET", url: `${scope}beads/rc-rc-sequence-wrong-tail` },
+      { method: "GET", url: `${scope}beads/rc-missing` },
+      { method: "GET", url: `${scope}` },
+      { method: "GET", url: `${scope}bdp.json` },
+      { method: "GET", url: `${scope}types/task` },
+      { method: "GET", url: `${scope}types/relates` },
+      { method: "GET", url: `${scope}alias/rc-locator-live` },
+      { method: "GET", url: `${scope}beads/?limit=100` },
+      { method: "GET", url: `${scope}links/?limit=100` },
+      { method: "GET", url: `${scope}alias/rc-locator-put-local` },
+      { method: "GET", url: `${scope}alias/rc-locator-put-absolute` },
+      { method: "GET", url: `${scope}alias/rc-locator-missing` },
+      { method: "GET", url: `${scope}alias/rc-locator-missing-absolute` },
+      { method: "POST", url: `${scope}operations/sequence` },
+      { method: "POST", url: `${scope}operations/create-bead` },
+      { method: "POST", url: `${scope}operations/update-bead` },
+      { method: "POST", url: `${scope}operations/delete-bead` },
+      { method: "POST", url: `${scope}operations/create-link` },
+      { method: "POST", url: `${scope}operations/update-link` },
+      { method: "POST", url: `${scope}operations/delete-link` },
+      { method: "POST", url: `${scope}operations/put-alias` },
+      { method: "POST", url: `${scope}operations/delete-alias` },
+    ]);
+    expect(progress.shards[1]!.routes).toHaveLength(26);
+    expect(progress.shards[1]!.routeDigest).toBe(
+      "59c70c9f22238cd7711a19034139c404136564ad50c58b7f3ef795a385cc990e",
+    );
+    expect(progress.observedStatePartitions.pass).toEqual(progress.authoredIds);
+    expect(progress.observedStatePartitions.fail).toEqual([]);
+    expect(progress.observedStatePartitions.notRun).toEqual([]);
+    expect(progress.observedStatePartitions.notImplemented).toEqual(progress.omittedRequiredIds);
+    expect(progress.observedStatePartitions.unobserved).toEqual([]);
+    expect(progress.uncoveredIds).toEqual(
+      set.coverage.rows.filter((r) => !r.wholeContract).map((r) => r.id),
+    );
+    expect(progress.uncoveredIds).toHaveLength(99);
+    expect(JSON.stringify(progress)).not.toContain(token);
+    expect(JSON.stringify(progress)).not.toContain(wrongToken);
     controller.signal.throwIfAborted();
     expect(performance.now() - started).toBeLessThan(90000);
     evidence.succeeded({
@@ -1089,7 +1203,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     });
   } catch (error) {
     try {
-      evidence.failedSet();
+      evidence?.failedSet();
     } catch (persistence) {
       throw new AggregateError([error, persistence], "set failure evidence could not be saved", {
         cause: error,
@@ -2916,6 +3030,7 @@ it.each([
           if (when === "startup-failure") throw original;
         },
         returned(report: ArtifactObservation) {
+          expect(report.cleanupComplete).toBe(false);
           actual = report;
         },
       };
@@ -3006,6 +3121,14 @@ it.each([
       } else {
         const partial = JSON.parse(readFileSync(`${filename}.${set.shards[1]!.id}.json`, "utf8"));
         expect(partial.result).toEqual(actual!.result);
+        const mapped = attempt.requiredObservations.find(
+          (r: { id: string }) => r.id === continuationId,
+        );
+        expect(mapped.observation).toMatchObject({
+          shardId: set.shards[1]!.id,
+          rowIndex: 0,
+          state: partial.result.scenarios[0].state,
+        });
         expect(partial.result.scenarios[0].state).not.toBe("pass");
         expect(partial.result.scenarios[0].actions.length).toBeGreaterThan(0);
         expect(partial.cleanupStatus).toBe(when === "cleanup-failure" ? "failed" : "complete");
@@ -3078,3 +3201,83 @@ it("retains actual returned continuation assertion failure without a successful 
     rmSync(directory, { recursive: true, force: true });
   }
 }, 30000);
+
+it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+  "preserves actual abort and IO causes when returned-evidence persistence is denied",
+  async () => {
+    const { chmodSync } = await import("node:fs");
+    const directory = mkdtempSync(path.join(tmpdir(), "native-abort-io-"));
+    const filename = path.join(directory, "summary.json");
+    const children: ChildProcess[] = [];
+    const set = smallExecutionSet();
+    const controller = new AbortController();
+    const original = Error("native original cancellation");
+    const writer = createArtifactEvidenceWriter(
+      set,
+      execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+      filename,
+      [token, wrongToken],
+    );
+    let caught: unknown;
+    try {
+      const first = await runShard(
+        set,
+        0,
+        controller.signal,
+        {
+          launched(child) {
+            children.push(child);
+          },
+        },
+        undefined,
+        writer,
+      );
+      const before = readFileSync(`${filename}.${set.shards[0]!.id}.json`, "utf8");
+      try {
+        await runShard(
+          set,
+          1,
+          controller.signal,
+          {
+            launched(child) {
+              children.push(child);
+            },
+            observed() {
+              controller.abort(original);
+              chmodSync(directory, 0o500);
+            },
+          },
+          first,
+          writer,
+        );
+      } catch (error) {
+        caught = error;
+      } finally {
+        chmodSync(directory, 0o700);
+      }
+      const causes: unknown[] = [];
+      const visit = (error: unknown) => {
+        if (causes.includes(error)) return;
+        causes.push(error);
+        if (error instanceof Error && error.cause !== undefined) visit(error.cause);
+        if (error instanceof AggregateError) error.errors.forEach(visit);
+      };
+      visit(caught);
+      expect(readFileSync(`${filename}.${set.shards[0]!.id}.json`, "utf8")).toBe(before);
+      expect(existsSync(filename)).toBe(false);
+      expect(
+        children.every((child) => child.exitCode === 0 || child.signalCode === "SIGTERM"),
+      ).toBe(true);
+      expect(
+        causes.some(
+          (error) => error instanceof Error && "code" in error && error.code === "EACCES",
+        ),
+      ).toBe(true);
+      expect(causes).toContain(original);
+    } finally {
+      chmodSync(directory, 0o700);
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+  30000,
+);

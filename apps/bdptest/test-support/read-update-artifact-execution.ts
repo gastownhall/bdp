@@ -111,6 +111,73 @@ function digest(value: unknown) {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 
+/** Maps actual returned rows. Missing observations stay null; no runner result is invented. */
+function requiredObservations(
+  set: ReadUpdateArtifactSet,
+  results: readonly (ConformanceRunResult | undefined)[],
+) {
+  const resultDigests = results.map((result) =>
+    result === undefined ? undefined : digest(result),
+  );
+  const required = set.requirements.map(({ id, owner }) => {
+    const index = owner === null ? 0 : set.shards.findIndex((s) => s.id === owner);
+    const result = results[index];
+    const rowIndex = result?.scenarios.findIndex((r) => r.id === id) ?? -1;
+    const row = rowIndex < 0 ? undefined : result?.scenarios[rowIndex];
+    return {
+      id,
+      owner,
+      observation:
+        row === undefined
+          ? null
+          : {
+              shardId: set.shards[index]!.id,
+              resultDigest: resultDigests[index],
+              rowIndex,
+              state: row.state,
+              ...(row.category ? { category: row.category } : {}),
+            },
+      ...(owner === null
+        ? { reason: "not-planned" as const }
+        : row === undefined
+          ? { reason: "unobserved" as const }
+          : {}),
+    };
+  });
+  const partitions = {
+    pass: required.filter((r) => r.observation?.state === "pass").map((r) => r.id),
+    fail: required.filter((r) => r.observation?.state === "fail").map((r) => r.id),
+    notRun: required.filter((r) => r.observation?.category === "not-run").map((r) => r.id),
+    notImplemented: required
+      .filter((r) => r.observation?.category === "not-implemented")
+      .map((r) => r.id),
+    other: required
+      .filter(
+        (r) =>
+          r.observation &&
+          !["pass", "fail"].includes(r.observation.state) &&
+          !["not-run", "not-implemented"].includes(r.observation.category ?? ""),
+      )
+      .map((r) => r.id),
+    unobserved: required.filter((r) => r.observation === null).map((r) => r.id),
+  };
+  return {
+    requiredObservations: required,
+    // Returned owner outcomes, excluding missing-plan/not-run placeholders. State
+    // partitions expose aborted/skipped outcomes without calling them passes.
+    observedIds: required
+      .filter(
+        (r) =>
+          r.owner !== null &&
+          r.observation !== null &&
+          !["not-run", "not-implemented"].includes(r.observation.category ?? ""),
+      )
+      .map((r) => r.id),
+    observedStatePartitions: partitions,
+    uncoveredIds: set.coverage.rows.filter((r) => !r.wholeContract).map((r) => r.id),
+  };
+}
+
 export function associateArtifactObservations(
   set: ReadUpdateArtifactSet,
   sourceCommit: string,
@@ -162,6 +229,7 @@ export function associateArtifactObservations(
     );
     const owned = new Set(shard.scenarioIds);
     for (const row of result.scenarios) {
+      if (row.cleanupError !== undefined) throw Error(`artifact-set row cleanup failure ${row.id}`);
       if (owned.has(row.id)) equal(row.state, "pass", `owned outcome ${row.id}`);
       else {
         equal(row.state, "harness-error", `unplanned outcome ${row.id}`);
@@ -237,11 +305,11 @@ export function associateArtifactObservations(
       manifestDigest: shard.bundle.digests.manifestDigest,
       routeDigest,
       routes: exact.routes,
-      reportDigest: digest(result),
-      reportBytes: Buffer.byteLength(JSON.stringify(result)),
+      resultDigest: digest(result),
+      resultBytes: Buffer.byteLength(canonicalJson(result)),
       actualBootstrap: readySummary(report.baselineReceipt),
       actualSessions: report.sessions.map((s) => ({ scenario: s.scenario, ...readySummary(s) })),
-      cleanupComplete: true,
+      cleanupComplete: report.cleanupComplete,
     };
   });
   return {
@@ -253,7 +321,10 @@ export function associateArtifactObservations(
     runtimeConfigurationIdentity: first.baselineReceipt.configurationIdentity,
     requiredOwnership: set.requirements,
     authoredIds: set.requirements.filter((r) => r.owner !== null).map((r) => r.id),
-    observedIds: set.requirements.filter((r) => r.owner !== null).map((r) => r.id),
+    ...requiredObservations(
+      set,
+      observations.map((r) => r.result),
+    ),
     reviewedWholeIds: set.coverage.rows.filter((r) => r.wholeContract).map((r) => r.id),
     omittedRequiredIds: set.requirements.filter((r) => r.owner === null).map((r) => r.id),
     optionalCatalogIds: first.result.selectedScenarioIds.filter(
@@ -291,7 +362,16 @@ export function createArtifactEvidenceWriter(
     status: "unobserved" as "unobserved" | "running" | "returned" | "aborted" | "failed",
     cleanup: "not-started" as Cleanup,
     evidence: "absent" as "absent" | "retained" | "withheld-credential",
-    reportDigest: undefined as string | undefined,
+    resultDigest: undefined as string | undefined,
+    writtenReportDigest: undefined as string | undefined,
+    writtenReportBytes: undefined as number | undefined,
+    timing: undefined as
+      | {
+          budgetRemainingMsAtStart: number;
+          elapsedMs: number;
+          outcome: "running" | "pass" | "aborted" | "failed";
+        }
+      | undefined,
   }));
   const snapshots = new Map<number, Record<string, unknown>>();
   let failed = false;
@@ -350,6 +430,12 @@ export function createArtifactEvidenceWriter(
         : {}),
       sourceCommit,
       ...set.digests,
+      ...requiredObservations(
+        set,
+        set.shards.map(
+          (_, index) => snapshots.get(index)?.result as ConformanceRunResult | undefined,
+        ),
+      ),
       shards: rows.map((r) => ({
         ...r,
         ...(r.evidence === "retained" && filename ? { report: `${filename}.${r.id}.json` } : {}),
@@ -367,6 +453,8 @@ export function createArtifactEvidenceWriter(
     const encoded = safeJson(snapshot);
     if (filename) replaceFile(`${filename}.${rows[index]!.id}.json`, encoded);
     rows[index]!.evidence = "retained";
+    rows[index]!.writtenReportDigest = createHash("sha256").update(encoded).digest("hex");
+    rows[index]!.writtenReportBytes = Buffer.byteLength(encoded);
   }
   const api = {
     start(index: number) {
@@ -424,7 +512,7 @@ export function createArtifactEvidenceWriter(
       }
       snapshots.set(index, captured);
       rows[index]!.status = "returned";
-      rows[index]!.reportDigest = digest(report.result);
+      rows[index]!.resultDigest = digest(report.result);
       persist(index);
       ledger("running");
     },
@@ -442,11 +530,19 @@ export function createArtifactEvidenceWriter(
       failed = true;
       ledger("failed", "execution");
     },
+    timed(index: number, timing: NonNullable<(typeof rows)[number]["timing"]>) {
+      rows[index]!.timing = {
+        budgetRemainingMsAtStart: timing.budgetRemainingMsAtStart,
+        elapsedMs: timing.elapsedMs,
+        outcome: timing.outcome,
+      };
+      ledger(failed ? "failed" : "running");
+    },
     failedSet() {
       failed = true;
       ledger("failed", "assertion");
     },
-    succeeded(summary: unknown) {
+    succeeded(summary: Record<string, unknown>) {
       if (
         failed ||
         rows.some(
@@ -454,7 +550,20 @@ export function createArtifactEvidenceWriter(
         )
       )
         throw Error("cannot publish incomplete artifact evidence");
-      const encoded = safeJson(summary);
+      const encoded = safeJson({
+        ...summary,
+        writtenReports: rows.map((r) => ({
+          id: r.id,
+          resultDigest: r.resultDigest,
+          ...(filename
+            ? {
+                report: `${filename}.${r.id}.json`,
+                writtenReportDigest: r.writtenReportDigest,
+                writtenReportBytes: r.writtenReportBytes,
+              }
+            : {}),
+        })),
+      });
       ledger("observed");
       if (filename) replaceFile(filename, encoded);
     },

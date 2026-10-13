@@ -167,38 +167,51 @@ describe("private installed artifact report association (synthetic metadata only
     expect(summary.claimEligible).toBe(false);
     expect(summary.authoredIds).toEqual(ids);
     expect(summary.observedIds).toEqual(ids);
+    expect(summary.observedStatePartitions.pass).toEqual(ids);
+    expect(summary.observedStatePartitions.fail).toEqual([]);
+    expect(summary.uncoveredIds).toEqual(selection.required.map((r) => r.id));
+    for (const mapped of summary.requiredObservations) {
+      const owning = observations[mapped.owner === "shard-1" ? 1 : 0]!;
+      const observation = mapped.observation!;
+      expect(observation.resultDigest).toBe(hash(owning.result));
+      expect(owning.result.scenarios[observation.rowIndex]!.id).toBe(mapped.id);
+      expect(observation.state).toBe(owning.result.scenarios[observation.rowIndex]!.state);
+      if (mapped.owner === null) expect(mapped).toMatchObject({ reason: "not-planned" });
+    }
     expect(summary.omittedRequiredIds).toHaveLength(selection.required.length - 2);
     expect(summary.reviewedWholeIds).toEqual([]);
     expect(summary.shards[0]!.resultIds).toContain(ids[1]);
     expect(summary.shards[1]!.resultIds).toEqual([ids[1]]);
     expect(summary.shards[0]!.routes.some((r) => r.url.endsWith("unused"))).toBe(false);
-    expect(summary.shards[0]!.reportDigest).toBe(hash(observations[0]!.result));
-    expect(summary.shards[1]!.reportDigest).toBe(hash(observations[1]!.result));
+    expect(summary.shards[0]!.resultDigest).toBe(hash(observations[0]!.result));
+    expect(summary.shards[1]!.resultDigest).toBe(hash(observations[1]!.result));
   });
   it.each([
-    "missing",
-    "extra",
-    "duplicate",
-    "source",
-    "catalog",
-    "fixture",
-    "manifest",
-    "routes",
-    "route-digest",
-    "ready-configuration",
-    "ready-policy",
-    "session-configuration",
-    "cleanup",
-    "missing-result",
-    "duplicate-result",
-    "extra-continuation",
-    "false-pass",
-    "missing-unplanned",
-    "unplanned-exchange",
-    "owned-failure",
-    "selection",
-    "selected-order",
-  ])("rejects %s association", (kind) => {
+    ["missing", `missing or extra report`],
+    ["extra", `missing or extra report`],
+    ["duplicate", `owned plans mismatch`],
+    ["source", `source mismatch`],
+    ["catalog", `catalog source map mismatch`],
+    ["fixture", `report artifacts mismatch`],
+    ["manifest", `report artifacts mismatch`],
+    ["planned-manifest", `planned manifest mismatch`],
+    ["routes", `routes mismatch`],
+    ["route-digest", `route digest mismatch`],
+    ["ready-configuration", `actual runtime configuration mismatch`],
+    ["ready-policy", `actual policy mismatch`],
+    ["session-configuration", `actual runtime configuration mismatch`],
+    ["cleanup", `cleanup incomplete`],
+    ["missing-result", `result IDs mismatch`],
+    ["duplicate-result", `result IDs mismatch`],
+    ["extra-continuation", `result IDs mismatch`],
+    ["false-pass", `unplanned outcome ${ids[1]}`],
+    ["missing-unplanned", `result IDs mismatch`],
+    ["unplanned-exchange", `unplanned exchanges ${ids[1]}`],
+    ["owned-failure", `owned outcome ${ids[1]}`],
+    ["selection", `requested selection mismatch`],
+    ["selected-order", `selected IDs mismatch`],
+    ["row-cleanup", `row cleanup failure ${ids[1]}`],
+  ])("rejects %s association at its intended discriminator", (kind, label) => {
     const { set, observations } = setup();
     // Keep genuinely branded served configuration objects; mutate plain observation
     // metadata only, exactly where the association boundary compares it.
@@ -214,6 +227,7 @@ describe("private installed artifact report association (synthetic metadata only
     if (kind === "catalog") second.catalogSources = {};
     if (kind === "fixture") second.result.artifacts.fixtureDigest = "0".repeat(64);
     if (kind === "manifest") second.result.artifacts.manifestDigest = "0".repeat(64);
+    if (kind === "planned-manifest") second.plannedManifestDigest = "0".repeat(64);
     if (kind === "routes") second.exactConfiguration.routes.pop();
     if (kind === "route-digest")
       second.result.declarations.exactConfigurationDigest = "0".repeat(64);
@@ -222,6 +236,8 @@ describe("private installed artifact report association (synthetic metadata only
     if (kind === "ready-policy") second.baselineReceipt.policyIdentity = "0".repeat(64);
     if (kind === "session-configuration") second.sessions[0].configurationIdentity = "0".repeat(64);
     if (kind === "cleanup") second.cleanupComplete = false;
+    if (kind === "row-cleanup")
+      second.result.scenarios[0].cleanupError = "synthetic cleanup failed";
     if (kind === "missing-result") second.result.scenarios = [];
     if (kind === "duplicate-result") second.result.scenarios.push(second.result.scenarios[0]);
     if (kind === "extra-continuation") second.result.scenarios.push(input[0].result.scenarios[0]);
@@ -233,7 +249,7 @@ describe("private installed artifact report association (synthetic metadata only
     if (kind === "owned-failure") second.result.scenarios[0].state = "fail";
     if (kind === "selection") second.result.scenarioSelection = undefined;
     if (kind === "selected-order") input[0].result.selectedScenarioIds.reverse();
-    expect(() => associateArtifactObservations(set, sourceCommit, input)).toThrow();
+    expect(() => associateArtifactObservations(set, sourceCommit, input)).toThrow(label);
   });
 });
 
@@ -325,6 +341,57 @@ describe("private attempt persistence (synthetic metadata only)", () => {
       }
     },
   );
+  it("binds the exact written wrapper bytes separately from canonical genuine results", () => {
+    const files = output();
+    try {
+      const { set, observations } = setup();
+      const writer = createArtifactEvidenceWriter(set, sourceCommit, files.filename, ["sentinel"]);
+      for (const [index, report] of observations.entries()) {
+        writer.start(index);
+        writer.acquired(index);
+        writer.returned(index, report);
+        writer.cleaned(index, "complete");
+      }
+      writer.succeeded(associateArtifactObservations(set, sourceCommit, observations));
+      const summary = files.read("");
+      for (const bound of summary.writtenReports) {
+        const bytes = readFileSync(bound.report);
+        expect(bound.writtenReportBytes).toBe(bytes.length);
+        expect(bound.writtenReportDigest).toBe(createHash("sha256").update(bytes).digest("hex"));
+        expect(bound.resultDigest).toBe(hash(JSON.parse(bytes.toString()).result));
+        expect(bound.writtenReportDigest).not.toBe(bound.resultDigest);
+      }
+      expect(files.read(".attempt.json").observedStatePartitions.pass).toEqual(ids);
+    } finally {
+      files.close();
+    }
+  });
+  it("screens the actual successful summary before creating its output file", () => {
+    const files = output();
+    try {
+      const { set, observations } = setup();
+      const secret = "success-summary-secret";
+      const writer = createArtifactEvidenceWriter(set, sourceCommit, files.filename, [secret]);
+      for (const [index, report] of observations.entries()) {
+        writer.start(index);
+        writer.acquired(index);
+        writer.returned(index, report);
+        writer.cleaned(index, "complete");
+      }
+      expect(() =>
+        writer.succeeded({
+          ...associateArtifactObservations(set, sourceCommit, observations),
+          unexpected: secret,
+        }),
+      ).toThrow("credential-bearing evidence withheld");
+      writer.failedSet();
+      expect(existsSync(files.filename)).toBe(false);
+      expect(JSON.stringify(files.read(".attempt.json"))).not.toContain(secret);
+      expect(files.read(".attempt.json").outcome).toBe("failed");
+    } finally {
+      files.close();
+    }
+  });
   it.each(["literal", "base64", "percent", "key"])(
     "withholds credential-bearing genuine %s result before writing it",
     (encoding) => {
