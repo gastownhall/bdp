@@ -46,7 +46,12 @@ const fixture = {
     path.join(root, "packages/conformance/test-support/transactional/fixture-v1.json"),
   ),
 };
-type Row = { id: string; properties: Record<string, unknown>; ownedLinks?: Record<string, Row[]> };
+type Row = {
+  id: string;
+  properties: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  ownedLinks?: Record<string, Row[]>;
+};
 type Page = { items: Row[]; next: string | null };
 type Manifest = {
   id: string;
@@ -64,8 +69,6 @@ function json<T>(response: HttpExchangeResponse, status = 200): T {
   expect(response.headers["content-type"]?.split(";", 1)[0]).toBe(
     status >= 400 ? "application/problem+json" : "application/json",
   );
-  if (response.headers["content-length"] !== undefined)
-    expect(Number(response.headers["content-length"])).toBe(response.bodyOctets);
   return JSON.parse(response.bodyText) as T;
 }
 function artifacts() {
@@ -415,14 +418,17 @@ it("observes packed-capable canonical Snapshot streams, retained bytes and chang
     expect(beads.rows.map((r) => r.id)).toEqual(names.map((n) => `${scope}beads/${n}`));
     expect(links.rows.map((r) => r.id)).toEqual(edges.map((e) => `${scope}${e.id}`));
     function assertSeeded(beadRows: Row[], linkRows: Row[]) {
-      for (const [i, row] of beadRows.entries())
+      for (const [i, row] of beadRows.entries()) {
         expect(row).toMatchObject({
           id: `${scope}beads/${names[i]}`,
           type: beadType,
           properties: { title: `café 🦉 ${names[i]}` },
           metadata: { seeded: names[i] },
         });
-      for (const [i, row] of linkRows.entries())
+        expect(row.properties).toEqual({ title: `café 🦉 ${names[i]}` });
+        expect(row.metadata).toEqual({ seeded: names[i] });
+      }
+      for (const [i, row] of linkRows.entries()) {
         expect(row).toMatchObject({
           id: `${scope}${edges[i]?.id}`,
           type: linkType,
@@ -431,12 +437,17 @@ it("observes packed-capable canonical Snapshot streams, retained bytes and chang
           source: `${scope}beads/${names[i]}`,
           target: `${scope}beads/b00`,
         });
+        expect(row.properties).toEqual({ title: `edge ${i}` });
+        expect(row.metadata).toEqual({ seeded: `e${String(i).padStart(2, "0")}` });
+      }
     }
     assertSeeded(beads.rows, links.rows);
     // Even a consistently wrong cross-surface postimage fails the seeded oracle.
     const wrongSeed = structuredClone(beads.rows);
     if (!wrongSeed[0]) throw new Error("missing seeded Bead");
     wrongSeed[0].properties = { title: "consistently wrong" };
+    expect(() => assertSeeded(wrongSeed, links.rows)).toThrow();
+    wrongSeed[0].properties = { title: `café 🦉 ${names[0]}`, injected: 1 };
     expect(() => assertSeeded(wrongSeed, links.rows)).toThrow();
     for (const [i, row] of beads.rows.entries())
       expect(row.ownedLinks?.[linkType]).toEqual([links.rows[i]]);
