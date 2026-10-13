@@ -1,3 +1,4 @@
+import { observeInstalledReference } from "./installed-reference-observation.mjs";
 import { createRequire } from "node:module";
 import { assertServerExports, isolatedWorkspace } from "./smoke-safety.mjs";
 import { spawn } from "node:child_process";
@@ -247,6 +248,22 @@ async function installPackedWorkspace() {
       "development.d.ts.map",
       "development.js",
       "development.js.map",
+      "installed-reference-configuration.d.ts",
+      "installed-reference-configuration.d.ts.map",
+      "installed-reference-configuration.js",
+      "installed-reference-configuration.js.map",
+      "installed-reference.d.ts",
+      "installed-reference.d.ts.map",
+      "installed-reference.js",
+      "installed-reference.js.map",
+      "installed-reference-process.d.ts",
+      "installed-reference-process.d.ts.map",
+      "installed-reference-process.js",
+      "installed-reference-process.js.map",
+      "development-contracts.d.ts",
+      "development-contracts.d.ts.map",
+      "development-contracts.js",
+      "development-contracts.js.map",
       "development-runtime.d.ts",
       "development-runtime.d.ts.map",
       "development-runtime.js",
@@ -393,6 +410,14 @@ async function installPackedWorkspace() {
       "@bdp/server/dist/read-http-routing.js",
       "@bdp/server/read-pagination",
       "@bdp/server/dist/read-pagination.js",
+      "@bdp/server/installed-reference-configuration",
+      "@bdp/server/dist/installed-reference-configuration.js",
+      "@bdp/server/installed-reference",
+      "@bdp/server/dist/installed-reference.js",
+      "@bdp/server/installed-reference-process",
+      "@bdp/server/dist/installed-reference-process.js",
+      "@bdp/server/development-contracts",
+      "@bdp/server/dist/development-contracts.js",
       "@bdp/server/development-runtime",
       "@bdp/server/dist/development-runtime.js",
       "@bdp/server/development-authority",
@@ -422,6 +447,11 @@ async function installPackedWorkspace() {
         return path.join(installRoot, "node_modules", ".bin", executable);
       },
       temporaryRoot,
+      installedReferenceEntry: path.join(
+        installedServerRoot,
+        "dist",
+        "installed-reference-process.js",
+      ),
       hasReadConformanceEvidence,
       async version(executable) {
         const manifestPath = path.join(
@@ -921,6 +951,12 @@ try {
     }
     console.log(`${executable}: public profile admission fails closed before bind`);
   }
+
+  const installedObservation = await observeInstalledReference(
+    installed.installedReferenceEntry,
+    installed.temporaryRoot,
+  );
+  console.log(JSON.stringify({ event: "installed.reference.observed", ...installedObservation }));
 
   // Role isolation: an invalid value in a section this role does not read
   // must not block startup. `--version` short-circuits before loadStartupConfig

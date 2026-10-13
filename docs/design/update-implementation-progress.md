@@ -364,3 +364,168 @@ lifecycle. The saved non-attesting report records all 797 assertions passing.
 Build, typecheck, dependency boundaries, formatting and both executable smokes
 passed on Node 24.16.0/pnpm 11.20.0. Lint retains the baseline three warnings and
 one informational finding. No full repository suite was run for this slice.
+
+## Private installed-contract and trusted-principal composition (U2)
+
+The source-only canonical HTTP fixture can now supply an internal deployment
+configuration to the existing mutable owner. Ordinary installed startup and the
+public development facade keep their original fixed contract, credential and
+admission behavior. Neither accepts the new configuration, advertises another
+profile, nor acquires new package exports.
+
+`development-contracts.ts` captures exact offline descriptor/schema bytes with
+the existing artifact ingester and compiles them with the existing guarded
+schema evaluator. Every schema reference must resolve from that captured bundle
+or the evaluator's immutable built-ins. The registry matches exact installed
+Type bytes. The installation identity binds the captured closure and fixed
+aggregate policies; reopening under different bytes or aggregate configuration
+is refused. This supplies no network fetch or Type installation lifecycle API.
+
+The adapter emits confirmed property diagnostics and stops when the receiver's
+own diagnostic bound is reached. If the compiler truncated its prefix before
+the receiver stopped, the adapter refuses to claim completeness. Local evaluation
+refusal also fails closed; neither case becomes successful validation or invented
+complete diagnostics. Final Resource evaluation attaches the effective Type
+and applies its own advertised diagnostic count/byte budget. This fixture does
+not qualify every schema dialect keyword, every compiler budget refusal, or
+production compiler resource consumption.
+
+The private deployment captures a bounded token-to-principal map. The actual
+Authorization credential selects the stable principal; writer-supplied actor
+attribution has no authority. Administrative policy snapshots independently
+control creation, writes, hidden Resources and read-only Resources. A private
+operator handle can replace a principal's snapshot between owner turns, and
+pagination authorization views change with that snapshot. Policies are supplied
+again on startup; this slice adds neither a policy persistence subsystem nor a
+remote administration endpoint. Fixed aggregate policy changes require a new
+installation, rather than silently tightening a live graph.
+
+Eight focused observations cover inherited schema failure and retained replay;
+immutable captured schema bytes; owned-Link source revisions, provenance and
+no-op preservation; aggregate refusal without effects; source write permission;
+principal-separated keys and actor non-authority; hidden versus forbidden
+responses and current-policy retained disclosure; whole owned-Resource
+withholding and pagination view invalidation; exact-config durable reopen;
+administrative accessor/credential rejection; and refusal to claim completeness for truncated
+compiler diagnostics when the receiver has not stopped. Seven run real HTTP against the same disposable mutable
+owner; the eighth directly tests the compiler-to-diagnostic adapter's refusal
+boundary. The schema fixture uses an open object with an inherited integer
+property constraint and an external schema reference supplied as pinned bytes.
+
+These are bounded source-only observations, not installed profile qualification.
+The later served profile still needs an installed mutable payload, applicable
+cumulative Read receiving/CORS behavior and profile-specific executable evidence.
+No conformance row, profile guard or existing evidence artifact is relabeled.
+
+## Installed mutable candidate factory (P1a)
+
+The server package now contains a private installed reference factory and an IPC
+qualification process entry. They are neither package exports nor executable
+bins or ordinary `bdptest` switches. The packed-package smoke starts the actual
+installed entry outside the workspace. It supplies configuration through an
+inherited IPC channel, never argv, and observes the same factory intended for
+later evidence-gated startup. IPC possession is process control, not admission.
+Readiness explicitly reports `claimEligible: false`.
+
+The closed configuration captures a canonical Scope, separate loopback listener,
+explicit create/reopen choice and store directory, trusted credential/principal
+mapping, administrative policy snapshots, fixed aggregate policy and exact
+Type/schema artifact bytes. Empty descriptor input selects the full current
+reference Type family instantiated at Scope-local identities. All conformance,
+endpoint and ownership references are remapped together; these identities do
+not claim to host the original work.example URLs. Actual Type reads use the
+installed registry. Optional local schema routes serve exact captured bytes
+from a closed manifest, with no network fetch or arbitrary routing callback.
+
+The factory reports three distinct identities: the captured contract artifact
+identity, the configuration identity including principal/policy/credential
+mapping and actual fixed limits, and a hash of the actual installed server and
+protocol JavaScript payload. Store invariants bind Scope, contracts and aggregate
+configuration; changing live credential/policy configuration on a later reopen
+changes qualification identity without changing the contract installation.
+Listener port and provisioning choice are separate from persistent Scope
+identity. Factory hashes are observation metadata, not signed or independently
+verified conformance evidence. The eventual evidence artifact still needs its
+own target/configuration/source binding and verification.
+
+The installed transport normalizes raw targets before classifying every route,
+including singleton and sequence targets. Valid absolute-form requests retain
+only their validated path/query; configured Scope remains the identity authority.
+Host and forwarding headers cannot rebind it. Disabled CORS processes Origin
+normally without grant headers and retains endpoint-specific OPTIONS refusal.
+Ordinary development transport restrictions remain unchanged. Both transports
+share the actual receiver, mutable owner, Read projection and HTTP semantics.
+
+Startup and shutdown now close the durable owner even when listener cleanup
+fails; startup preserves the original and cleanup failures together. The private
+entry accepts one startup, handles SIGTERM/parent disconnect, drains accepted
+work through the existing owner and closes unadmitted partial bodies. No clock,
+scheduler, synthetic outcome, fault, database mutation or policy-replacement
+control is exposed through IPC.
+
+Packed and emitted process observations cover all nine targets, actual afterstate,
+Type closure navigation, stable Scope across different listener ports, exact-key
+reopen, negotiation/conditional/HEAD/method behavior, disabled CORS, raw targets,
+pre-admission rejection and corrected-key reuse. Additional tests cover exact
+schema bytes and real validation, detached captured credentials/policy, second
+owner/installation mismatch, one-start/bind failure, partial-body disconnect and
+an injected listener-cleanup failure followed by a successful real-store reopen.
+
+P1a does not activate public Write profiles or refresh/relabel existing Read
+evidence. The packed smoke still proves ordinary Read startup and write-profile
+refusal. No deterministic installed between-member interruption or power-loss
+durability claim follows from this slice; existing separate owner/process tests
+retain their original scope. Full cumulative executable requirements, broader
+schema applicability, independent profile-specific evidence and its public
+admission gate remain prerequisites for activation. The listener is an explicit
+loopback candidate; deployment TLS and optional CORS-enabled/History behavior
+are not newly provided here.
+
+
+### Configuration and diagnostic boundary corrections
+
+A compiler-produced diagnostic prefix can be longer than the receiver permits.
+The adapter now emits that confirmed prefix until the receiver stops and returns
+invalid/incomplete at that point. A real 1025-branch schema produces a retained
+422 with 32 diagnostics and `diagnosticsTruncated`, rather than a local error.
+If the receiver accepts the entire truncated compiler prefix, the adapter still
+throws instead of inventing completeness. An actual evaluator work-budget
+refusal remains a local 500 with no effects or retained key; a corrected request
+can use the same key successfully.
+
+Aggregate constraints require positive maxima and are captured as sorted,
+exact-deduplicated semantic entries before hashing or provisioning. Credential
+principals must already have policy snapshots before store creation. Contract
+identity now also covers captured artifact/compiler limits and the fixed graph
+and evaluator bounds. This changes private custom-installation identities;
+previous U2 custom stores are not silently adopted. The ordinary default
+installation remains unchanged.
+
+Captured Scope configuration is frozen. Its policy digest describes all
+administrative policy snapshots; a separate per-principal snapshot identity
+controls pagination authorization. Configured authorities expose only explicit
+principal facets; duplicate credentials for one principal share one route.
+Hidden/read-only policies accept the protocol's actual canonical local IDs,
+including nested and encoded IDs, and use private Sets for membership checks.
+Read remains an explicit bounded deny-list fixture rather than a general
+whole-Scope deny-read policy. No broader IAM capability is claimed.
+
+### Whole-startup readiness and fixed owner-limit identity
+
+The listener now refuses all requests until every configured principal's Read
+view and discovery routes have initialized. A deterministic second-principal
+barrier observes real GET and mutation refusals, then tests both successful
+startup and later startup failure. In both cases the Resource remains absent and
+the original mutation key can be used after readiness or durable reopen.
+
+The private installed process module is inert when imported, including by a
+process with inherited IPC. Only direct execution installs the IPC lifecycle;
+direct execution without IPC refuses with the fixed redacted diagnostic.
+
+One frozen private tuple supplies the actual owner, member, receiver and
+pagination limits and the installed configuration identity. This includes patch
+and representation bounds, retention and maintenance, pagination capacity and
+token limits. Existing values and advertised limits are unchanged; there are no
+new configuration overrides. Hash-sensitivity tests vary captured limit groups
+in the test import only. This changes qualification configuration identities,
+not persisted installation identities, and does not relabel historical evidence.
