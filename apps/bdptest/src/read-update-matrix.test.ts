@@ -2275,6 +2275,13 @@ it.each([
     failed: "source-0",
   },
   {
+    scenario: referenceRows[1],
+    action: "rb-seed-link",
+    path: ["body", "resource", "target", "revision"],
+    value: "wrong-pin",
+    failed: "target-0",
+  },
+  {
     scenario: referenceRows[0],
     action: "ra-create-link-source-pin-corrected",
     path: ["body", "resource", "source", "revision"],
@@ -2457,11 +2464,15 @@ it("pins admitted absolute alias target and opaque pinned endpoint comparators i
   });
   const link = row.actions.find((a: { id: string }) => a.id === "rb-seed-link");
   expect(link.input.body.source).toEqual({ uri: "beads/rb-source", revision: "fixture-pin" });
+  expect(link.input.body.target).toEqual({ uri: "beads/rb-target", revision: "fixture-pin" });
   expect(link.assertions.find((a: { id: string }) => a.id === "status")).toMatchObject({
     equals: 200,
   });
   expect(link.assertions.find((a: { id: string }) => a.id === "source-0")).toMatchObject({
     equals: { uri: `${scope}beads/rb-source`, revision: "fixture-pin" },
+  });
+  expect(link.assertions.find((a: { id: string }) => a.id === "target-0")).toMatchObject({
+    equals: { uri: `${scope}beads/rb-target`, revision: "fixture-pin" },
   });
   expect(link.input.bodyBindings).toBeUndefined();
 });

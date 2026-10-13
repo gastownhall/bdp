@@ -86459,7 +86459,10 @@
                 "uri": "beads/rb-source",
                 "revision": "fixture-pin"
               },
-              "target": "beads/rb-target",
+              "target": {
+                "uri": "beads/rb-target",
+                "revision": "fixture-pin"
+              },
               "properties": {
                 "edge": 1
               },
@@ -86527,7 +86530,10 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/rb-target"
+              "equals": {
+                "uri": "https://reference.invalid/acme/beads/rb-target",
+                "revision": "fixture-pin"
+              }
             },
             {
               "id": "properties-0",
