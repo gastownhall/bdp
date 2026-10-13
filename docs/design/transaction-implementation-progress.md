@@ -790,9 +790,10 @@ Set deletion accepts the bundle's revisionProvenance input for either collection
 Syntax validation reuses the existing deleteLink root, which admits that same input;
 its synthetic Link subject never reaches identity or evaluation. Deletion mints no
 version for either supported collection (Beads and unowned Links), so supplied
-provenance is inert in both. Owned-Link transitions remain unsupported. Tests cross operation, collection,
-cardinality and provenance inputs against the canonical bundle, then execute all four
-operation/collection pairs against the real owner and inspect results and afterstate.
+provenance is inert in both. Owned-Link transitions remain unsupported. Tests cross
+operation, collection, cardinality and provenance inputs against the canonical
+bundle, then execute all four operation/collection pairs against the real owner and
+inspect results and afterstate.
 
 Set candidates now use the shared isResourceVisible closure before selection and
 cardinality, including local endpoint visibility. Evaluator probes run the real owner
@@ -811,9 +812,13 @@ same selection exceeds the private match cap. Passing the guard still subjects t
 request to that cap. Tests prove rollback, retained replay across reopen, the cap
 refusal when the guard permits the selection, and fresh-key success after shrinking
 the live collection. Compiler probes require type, status and typed retry on both
-failure branches; the local evaluator boundary refuses missing required receipt
-fields as an integrity failure rather than fabricating them or retaining an invalid
-receipt. Valid evaluator Problems keep their existing fields and values.
+failure branches, including the receipt-specific code and status subsets. The local
+evaluator boundary refuses missing required fields and out-of-subset codes/statuses
+as integrity failures rather than retaining invalid receipts. Tests prove immediate
+same-key reuse without reopening, followed separately by durable valid-failure
+replay. These checks narrow required fields; existing evaluator validation still
+owns code/status/retry combinations and optional diagnostic semantics. Valid
+Problems keep their existing fields and values.
 
 The suite now observes the actual 4,096-match default without lowering it: 128 Beads
 matched by 32 no-op sets produce 4,128 flat result entries and no graph effects. A
@@ -826,9 +831,13 @@ request at most 60,138 bytes, by growing metadata across requests. Its 32 repeat
 no-op matches produced an 8,392,367-byte receipt and replayed after reopen. At 4,096
 matches, just those maximum-sized Resource postimages total 1,073,741,824 bytes,
 before result/envelope overhead. That figure is an arithmetic projection, not an
-attempt to allocate or persist a GiB receipt. It demonstrates that the current count
-and request bounds do not guarantee materializability: full receipt JSON is still
-built, stored and reparsed despite paged serving. No byte condition is relabeled as
+attempt to allocate or persist a GiB receipt. On the pinned Node 24.16.0 runtime,
+V8's 536,870,888-code-unit string ceiling is lower than SQLite's 1,000,000,000-byte
+limit. For the measured ASCII payload family, 2,048 maximum-sized postimages alone
+already exceed V8's ceiling, before receipt overhead. This is a size projection,
+not an attempted allocation failure. The current count and request bounds do not
+guarantee materializability: full receipt JSON is still built, stored and reparsed
+despite paged serving. No byte condition is relabeled as
 transaction.matchedResources or transaction.mutatedResources; those remain counts.
 The fixed cap stays at 4,096 pending a separate bounded delivery design.
 
@@ -837,3 +846,8 @@ repeats local-endpoint visibility reads without a projection cache. The shared
 visibility predicate does not supply Read's checkedGraph body/index integrity
 validation for corrupted rows. This slice changes neither behavior and makes no
 whole-projection equivalence or installed profile qualification claim.
+
+The induced-Event lower-only evaluator seam now rejects zero, negative, fractional,
+infinite and above-authority bounds in permanent tests. Its real 4,096 default
+boundary remains deferred to the owned-transition/materialization stage; current
+lowered-cap tests prove refusal/rollback but do not qualify that default boundary.
