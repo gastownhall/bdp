@@ -11,6 +11,7 @@ import {
   type ReadRequest,
   type MaximumEndpointMultiplicityPolicy,
 } from "@bdp/protocol";
+import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
 import { openRecoveryStore } from "./recovery-store.js";
 import {
   createSequenceLifecycle,
@@ -104,7 +105,9 @@ const descriptors = Object.freeze([
     target: { conformsTo: [DEVELOPMENT_BEAD_TYPE], external: "opaque" },
   }),
 ]);
-const types = Object.fromEntries(descriptors.map((d) => [d.id, stringifyJsonValue(d)]));
+const types = Object.freeze(
+  Object.fromEntries(descriptors.map((d) => [d.id, stringifyJsonValue(d)])),
+);
 
 export interface DevelopmentAuthorityConfiguration {
   readonly contracts: DevelopmentContracts;
@@ -177,7 +180,18 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
       canWriteBead: canWrite,
     });
   };
+  // Capture is immutable compiler evidence, not access/authentication policy.
+  // Account for independent URI escaping and base64 artifact bytes plus entry overhead.
+  const contractCapture = configured ? stringifyJsonValue(configured.contracts.capture) : "null";
+  const maximumCaptureBytes =
+    8 * CONTRACT_ARTIFACT_CEILINGS.totalBytes +
+    1024 * CONTRACT_ARTIFACT_CEILINGS.submittedArtifacts +
+    4096;
+  if (Buffer.byteLength(contractCapture) > maximumCaptureBytes)
+    throw new TypeError("development installation capture exceeds private bound");
   const store = openRecoveryStore({
+    contractCapture,
+    expectedTypes: installedTypes,
     scope,
     directory: options.directory,
     installationId: installationIdentity,
@@ -187,14 +201,9 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
   });
   let owner: SequenceLifecycle | undefined;
   try {
-    // Administrative artifacts are compiled before opening. Exact installed
-    // descriptor bytes and the closure-derived installation identity must match.
-    const installed = new Set<string>();
-    store.visitInstalledTypes(({ id, bodyJson }) => {
-      if (installedTypes[id] !== bodyJson) throw new Error("unexpected installed development Type");
-      installed.add(id);
-    });
-    if (installed.size !== installedDescriptors.length) throw new Error("missing development Type");
+    // Capture and complete Type inventory were checked before claimed-key recovery.
+    // Resource-Type and retained-runtime-limit checks below remain post-open checks.
+    const installed = new Set(Object.keys(installedTypes));
     store.read((reader) => {
       for (const row of reader.resources()) {
         const resource = readStoredResource(row, scope);
