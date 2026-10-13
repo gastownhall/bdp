@@ -173,6 +173,7 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
     "read-update.singleton.delete-link",
     "read-update.singleton.owned-link-source-revision",
     "read-update.singleton.owned-link-no-op",
+    "read-update.singleton.attribution",
     "read-update.singleton.expected-revision",
     "read-update.singleton.idempotency-key-required",
     "read-update.singleton.idempotency-conflict",

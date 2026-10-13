@@ -176,7 +176,7 @@ async function run(
     // Source-test-only fault after the real target has drained; no fake child close.
     afterClose?(): void;
   },
-  numericControl?: "digest" | "changed-number" | "refusal-success",
+  numericControl?: "digest" | "changed-number" | "refusal-success" | "metadata-refusal-success",
   admissionControl?: (typeof numericAdmissionRawControls)[number],
 ) {
   signal?.throwIfAborted();
@@ -403,7 +403,18 @@ async function run(
       numericControl &&
       currentScenario === "read-update.numeric-model.same-value-no-op" &&
       key ===
-        (numericControl === "refusal-success" ? "num-subject-inadmissible" : "num-subject-decimal");
+        (numericControl === "metadata-refusal-success"
+          ? "num-subject-metadata-closure-refused"
+          : numericControl === "refusal-success"
+            ? "num-subject-inadmissible"
+            : "num-subject-decimal");
+    if (hit && numericControl === "metadata-refusal-success") {
+      // The raw executor exposes no action ID; the unique authored key is pinned
+      // to this action in the closure ledger below.
+      expect(key).toBe("num-subject-metadata-closure-refused");
+      expect(request.method).toBe("POST");
+      expect(request.url).toBe(`${scope}operations/update-bead`);
+    }
     const admissionHit =
       admissionControl &&
       currentScenario === admissionControl.scenario &&
@@ -475,7 +486,8 @@ async function run(
         },
       };
     }
-    if (numericControl === "refusal-success") {
+    if (numericControl === "refusal-success" || numericControl === "metadata-refusal-success") {
+      if (numericControl === "metadata-refusal-success") expect(actual.status).toBe(422);
       if (!numericControlRecord) throw Error("missing independently observed prior Resource");
       const bodyText = JSON.stringify({ outcome: "updated", resource: numericControlRecord });
       // Assertion-input control after a real refused exchange; not a wire-transparent target.
@@ -506,13 +518,29 @@ async function run(
           .find((row) => row.id === currentScenario)
           ?.actions?.filter((action) => action.family === "client")[retryClientIndex++];
         if (
-          numericControl === "refusal-success" &&
+          (numericControl === "refusal-success" || numericControl === "metadata-refusal-success") &&
           currentScenario === "read-update.numeric-model.same-value-no-op" &&
-          clientAction?.id === "num-subject-restored-read"
+          clientAction?.id ===
+            (numericControl === "metadata-refusal-success"
+              ? "num-subject-distinct-read"
+              : "num-subject-restored-read")
         ) {
           if (clientAction.family !== "client") throw Error("control requires client action");
           expect(clientAction.input).toEqual(execution.input);
-          numericControlRecord = structuredClone((actual as { body: unknown }).body);
+          const record = structuredClone((actual as { body: unknown }).body);
+          if (numericControl === "metadata-refusal-success") {
+            // Repeated GET inputs cannot identify the preimage on their own.
+            // Check the actual clone before retaining it for the refusal control.
+            expect(record, "metadata control captured distinct preimage").toMatchObject({
+              id: `${scope}beads/num-subject`,
+              type: `${scope}types/task`,
+              properties: { one: 9007199254740994 },
+              revisionProvenance: {
+                actor: { id: "writer:num-distinct", basis: "writer-supplied" },
+              },
+            });
+          }
+          numericControlRecord = record;
         }
         if (
           retryControl?.scenario === currentScenario &&
@@ -1228,7 +1256,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(report.reportBinding.exactConfigurationDigest).toBe(
       "3224c31c83988dc0606cb76ee1f4ba8e6394159bdf7daaccc301461316cc2477",
     );
-    expect(report.uncoveredIds).toHaveLength(99);
+    expect(report.uncoveredIds).toHaveLength(98);
     expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
     expect(report.sessions).toHaveLength(report.plannedIds.length);
     expect(report.observations.length).toBeGreaterThan(30);
@@ -1245,7 +1273,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
         expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(65536);
     }
     expect(progress.authoredIds).toHaveLength(54);
-    expect(progress.reviewedWholeIds).toHaveLength(30);
+    expect(progress.reviewedWholeIds).toHaveLength(31);
     expect(progress.omittedRequiredIds).toHaveLength(75);
     expect(progress.shards[1]!.selectedIds).toEqual([
       attributionId,
@@ -1319,7 +1347,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(progress.uncoveredIds).toEqual(
       set.coverage.rows.filter((r) => !r.wholeContract).map((r) => r.id),
     );
-    expect(progress.uncoveredIds).toHaveLength(99);
+    expect(progress.uncoveredIds).toHaveLength(98);
     expect(JSON.stringify(progress)).not.toContain(token);
     expect(JSON.stringify(progress)).not.toContain(wrongToken);
     controller.signal.throwIfAborted();
@@ -1979,7 +2007,7 @@ it("observes retained retry dispositions across actual installed carriers and cu
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(99);
+  expect(report.uncoveredIds).toHaveLength(98);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -2212,7 +2240,7 @@ it("observes key and media admission against installed HTTP with paired aftersta
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(99);
+  expect(report.uncoveredIds).toHaveLength(98);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -2642,7 +2670,7 @@ it("observes reference syntax and retained category failures against installed H
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(99);
+  expect(report.uncoveredIds).toHaveLength(98);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -3439,7 +3467,7 @@ it.each([attributionId, numericId])(
     expect(report.cleanupComplete).toBe(true);
     if (id === numericId) {
       const raw = report.result.scenarios[0]!.exchanges.filter((e) => e.request.method === "POST");
-      expect(raw).toHaveLength(10);
+      expect(raw).toHaveLength(14);
       for (const exchange of raw) {
         expect(exchange.request.exact).toMatchObject({
           source: "raw-http1-serializer",
@@ -3692,9 +3720,10 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
   }
   const keys: string[] = [];
   let totalActions = 0;
-  for (const [id, count, ids] of [
+  for (const [id, count, ceiling, ids] of [
     [
       attributionId,
+      75,
       75,
       [
         "beads/att-subject",
@@ -3704,11 +3733,11 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
         "links/att-owned",
       ],
     ],
-    [numericId, 73, ["beads/num-subject", "beads/num-target", "links/num-link"]],
+    [numericId, 81, 81, ["beads/num-subject", "beads/num-target", "links/num-link"]],
   ] as const) {
     const row = set.shards[1]!.bundle.manifest.scenarios.find((r) => r.id === id)!;
     expect(row.actions).toHaveLength(count);
-    expect(row.actions!.length).toBeLessThanOrEqual(75);
+    expect(row.actions!.length).toBeLessThanOrEqual(ceiling);
     totalActions += row.actions!.length;
     const created: unknown[] = [];
     for (const action of row.actions!) {
@@ -3740,7 +3769,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
     }
     expect(created).toEqual(ids);
     const coverage = set.coverage.rows.find((r) => r.id === id)!;
-    expect(coverage.wholeContract).toBe(false);
+    expect(coverage.wholeContract).toBe(id === attributionId);
     expect(coverage.bindings).toEqual([
       {
         scenario: id,
@@ -3748,7 +3777,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
       },
     ]);
   }
-  expect(totalActions).toBeLessThanOrEqual(150);
+  expect(totalActions).toBeLessThanOrEqual(156);
   expect(new Set(keys).size).toBe(keys.length);
   const numeric = manifest.scenarios.find((r: { id: string }) => r.id === numericId);
   for (const name of ["subject", "link"]) {
@@ -3969,13 +3998,24 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
   expect(fixtureBytes.length - NUMERIC_ADMISSION_FIXTURE_BYTES_BASE).toBeLessThanOrEqual(8192);
   const text = bytes.toString();
   for (const [id, digest] of [
-    [attributionId, "1b81ae03b7aea896732e001291bb2ef92edd6bf5586c13a7e91afaf563f3e769"],
-    [continuationId, "39eb2fe22d25eada2c43490f37b6cb5d66950bd90042af1ae954036426e07f2a"],
-    [numericId, "368c2d3d2aead864bfe925f8777b55ce9b09a107c81429820ac390d6d0a8550d"],
+    [
+      "read-update.singleton.attribution",
+      "1b81ae03b7aea896732e001291bb2ef92edd6bf5586c13a7e91afaf563f3e769",
+    ],
+    [
+      "read-update.alias.unknown-subject",
+      "39eb2fe22d25eada2c43490f37b6cb5d66950bd90042af1ae954036426e07f2a",
+    ],
+    [
+      "read-update.numeric-model.round-trip-admission",
+      "942b71435685816f83ea128ae5ffdd07dd3e3d235346f5600b17d15d750a7bc4",
+    ],
+    [
+      "read-update.numeric-model.nested-refusal",
+      "068f02059e00c89130eb6be9683768e4828812e22371645d58540942f60f1d56",
+    ],
   ]) {
-    const start = text.lastIndexOf("    {", text.indexOf(`      "id": "${id}"`));
-    const end = text.indexOf("\n    },\n    {", start) + "\n    }".length;
-    expect(createHash("sha256").update(text.slice(start, end)).digest("hex")).toBe(digest);
+    expect(createHash("sha256").update(numericScenarioSpan(text, id!)).digest("hex")).toBe(digest);
   }
   const set = installedArtifactSet();
   const keys: string[] = [];
@@ -4180,3 +4220,266 @@ it.each(["bead", "link"] as const)(
     ).toThrow("precision literal");
   },
 );
+
+// Accepted 06b0e04a921c8501e36a8a68480cee72dc4c54b3 source anchors.
+// Evidence-authoring fences, not receiver limits.
+const METADATA_CLOSURE_CONTINUATION_BYTES_BASE = 823730;
+const METADATA_CLOSURE_CONTINUATION_NODES_BASE = 21614;
+const METADATA_CLOSURE_COVERAGE_BYTES_BASE = 698614;
+const METADATA_CLOSURE_MAX_NEW_ASSERTIONS = 100;
+const metadataClosureClientControls: (RetryControl & { failed: string[] })[] = [
+  {
+    scenario: numericId,
+    action: "num-subject-metadata-closure-unchanged",
+    path: ["body", "properties", "zero"],
+    value: 7,
+    failed: ["postimage"],
+  },
+];
+const metadataClosureRawControls = [
+  {
+    mode: "metadata-refusal-success",
+    action: "num-subject-metadata-closure-refused",
+    failed: ["status", "body-schema", "complete-problem"],
+  },
+] as const;
+it.each(metadataClosureClientControls)(
+  "detects metadata closure state $action",
+  async (control) => {
+    const report = await run(
+      JSON.parse(source(continuationSource).bytes.toString()),
+      [numericId],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    expect(report.cleanupComplete).toBe(true);
+    const row = report.result.scenarios[0]!;
+    expect(row.state).toBe("fail");
+    expect(
+      row.actions
+        ?.find((a) => a.action.id === control.action)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toEqual(control.failed);
+    expect(
+      row.actions
+        ?.filter((a) => a.action.id !== control.action)
+        .every((a) => a.assertions.every((q) => q.passed)),
+    ).toBe(true);
+    expect(row.exchanges.every((e) => e.assertions.every((q) => q.passed))).toBe(true);
+  },
+  30000,
+);
+it.each(metadataClosureRawControls)(
+  "detects metadata closure Problem $mode",
+  async ({ mode, action, failed }) => {
+    const report = await run(
+      JSON.parse(source(continuationSource).bytes.toString()),
+      [numericId],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      mode,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    expect(report.cleanupComplete).toBe(true);
+    const row = report.result.scenarios[0]!;
+    expect(row.state).toBe("fail");
+    // Capture runs before assertions. This returned evidence proves the captured Resource's
+    // independent literal/schema checks passed; a clone alone would not establish that fact.
+    const prior = row.actions?.find((a) => a.action.id === "num-subject-distinct-read");
+    expect(prior?.assertions.map((a) => a.id)).toEqual([
+      "status",
+      "written",
+      "body-schema",
+      "identity",
+      "type",
+      "properties",
+      "metadata",
+      "no-owned-plane",
+      "actor-only",
+      "postimage",
+    ]);
+    expect(prior?.assertions.every((a) => a.passed)).toBe(true);
+    expect(row.actions?.every((a) => a.assertions.every((q) => q.passed))).toBe(true);
+    expect(
+      row.exchanges
+        .filter((e) => e.request.id !== action)
+        .every((e) => e.assertions.every((q) => q.passed)),
+    ).toBe(true);
+    expect(
+      row.exchanges
+        .find((e) => e.request.id === action)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toEqual(failed);
+  },
+  30000,
+);
+
+// Bounded local source span, including the distinct final-N terminator. Never offset -1.
+function numericScenarioSpan(text: string, id: string): string {
+  const needle = `      "id": "${id}"`;
+  expect(text.split(needle)).toHaveLength(2);
+  const start = text.lastIndexOf("    {", text.indexOf(needle));
+  expect(start).toBeGreaterThanOrEqual(0);
+  const sibling = text.indexOf("\n    },\n    {", start);
+  const terminal = sibling >= 0 ? sibling : text.indexOf("\n    }\n  ]", start);
+  expect(terminal).toBeGreaterThan(start);
+  const span = text.slice(start, terminal + "\n    }".length);
+  expect(span.trimStart().startsWith("{")).toBe(true);
+  expect(span.endsWith("}")).toBe(true);
+  const parsed = JSON.parse(span);
+  expect(parsed.id).toBe(id);
+  expect(parsed).toEqual(JSON.parse(text).scenarios.find((r: { id: string }) => r.id === id));
+  return span;
+}
+
+it("pins metadata closure growth, old B actions and final N preservation", () => {
+  const bytes = source(continuationSource).bytes;
+  const text = bytes.toString();
+  const manifest = JSON.parse(text);
+  const countNodes = (value: unknown): number =>
+    1 +
+    (value !== null && typeof value === "object"
+      ? Object.values(value).reduce<number>((n, v) => n + countNodes(v), 0)
+      : 0);
+  expect(bytes.length - METADATA_CLOSURE_CONTINUATION_BYTES_BASE).toBeLessThanOrEqual(81920);
+  expect(countNodes(manifest) - METADATA_CLOSURE_CONTINUATION_NODES_BASE).toBeLessThanOrEqual(2000);
+  expect(
+    source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.length -
+      METADATA_CLOSURE_COVERAGE_BYTES_BASE,
+  ).toBeLessThanOrEqual(12288);
+  expect(
+    createHash("sha256")
+      .update(source("packages/conformance/fixtures/read-update-reference-v1.json").bytes)
+      .digest("hex"),
+  ).toBe("f89932d68e3bf5867d79eb3de680af4bc67b761b3c3bce5da127f6ca75e27765");
+  expect(
+    createHash("sha256")
+      .update(source("packages/conformance/test-support/read-update-artifact-set-v1.json").bytes)
+      .digest("hex"),
+  ).toBe("7277980894dd0955a8fcd22ba5d2845b0a6801b7e7e13a937018e11d3a65de37");
+  const rowText = numericScenarioSpan(text, numericId);
+  const row = JSON.parse(rowText);
+  const { actions, ...fields } = row;
+  expect(fields).toEqual({
+    id: "read-update.numeric-model.same-value-no-op",
+    requiredProfile: "read-update",
+    setup: { fixture: "reference-read-update-schema-v1", requires: ["installed-read-update-http"] },
+    applicability: { requires: [] },
+    cleanup: { resetFixture: true },
+  });
+  const start = rowText.indexOf('\n      "actions": [') + '\n      "actions": ['.length;
+  expect(start).toBeGreaterThan('\n      "actions": ['.length);
+  const firstNew = rowText.indexOf('          "id": "num-subject-metadata-closure-refused"');
+  expect(firstNew).toBeGreaterThan(start);
+  const end = rowText.lastIndexOf(",\n        {", firstNew);
+  expect(end).toBeGreaterThan(start);
+  expect(createHash("sha256").update(rowText.slice(start, end)).digest("hex")).toBe(
+    "ad6a9d2807f86f6a07df8718ac451ae72ed9dc7dad12309a9d98710182ab50d6",
+  );
+  expect(createHash("sha256").update(rowText).digest("hex")).toBe(
+    "7e2f42ea630bb38bf3d31d02a0ad68a88172cfe394439a42498cd77036763972",
+  );
+  expect(actions.slice(73).map((a: { id: string }) => a.id)).toEqual([
+    "num-subject-metadata-closure-refused",
+    "num-subject-metadata-closure-unchanged",
+    "num-subject-metadata-closure-corrected",
+    "num-subject-metadata-closure-read",
+    "num-link-metadata-closure-refused",
+    "num-link-metadata-closure-unchanged",
+    "num-link-metadata-closure-corrected",
+    "num-link-metadata-closure-read",
+  ]);
+  expect(
+    actions
+      .slice(73)
+      .reduce((n: number, a: { assertions: unknown[] }) => n + a.assertions.length, 0),
+  ).toBeLessThanOrEqual(METADATA_CLOSURE_MAX_NEW_ASSERTIONS);
+  expect(actions.every((a: { id: string }) => a.id.length <= 80)).toBe(true);
+  expect(actions.filter((a: { family: string }) => a.family === "http")).toHaveLength(19);
+  expect(actions.filter((a: { family: string }) => a.family === "client")).toHaveLength(62);
+  for (const name of ["subject", "link"]) {
+    const refusal = actions.find(
+      (a: { id: string }) => a.id === `num-${name}-metadata-closure-refused`,
+    );
+    const correction = actions.find(
+      (a: { id: string }) => a.id === `num-${name}-metadata-closure-corrected`,
+    );
+    expect(refusal.raw.body.value.match(/9007199254740993/g)).toHaveLength(1);
+    expect(correction.raw.body.value).toBe(
+      refusal.raw.body.value.replace("9007199254740993", "9007199254740992"),
+    );
+    expect(correction.target).toEqual(refusal.target);
+    expect(correction.raw.headerLines[0]).toEqual(refusal.raw.headerLines[0]);
+    expect(correction.raw.headerLines[1].value).toBe(correction.id);
+    expect(refusal.raw.headerLines[1].value).toBe(refusal.id);
+  }
+  const oldKeys = manifest.scenarios.flatMap(
+    (r: {
+      id: string;
+      actions: {
+        family: string;
+        raw?: { headerLines: { name: string; value: string }[] };
+        input?: { idempotencyKey?: string };
+      }[];
+    }) =>
+      (r.id === numericId ? r.actions.slice(0, 73) : r.actions).flatMap((a) =>
+        a.family === "http"
+          ? (a.raw?.headerLines
+              .filter((h) => h.name.toLowerCase() === "idempotency-key")
+              .map((h) => h.value) ?? [])
+          : a.input?.idempotencyKey
+            ? [a.input.idempotencyKey]
+            : [],
+      ),
+  );
+  const newKeys = actions
+    .slice(73)
+    .filter((a: { family: string }) => a.family === "http")
+    .map((a: { raw: { headerLines: { name: string; value: string }[] } }) => {
+      const header = a.raw.headerLines.find((h) => h.name === "Idempotency-Key");
+      if (!header) throw Error("metadata closure action is missing its key");
+      return header.value;
+    });
+  expect(new Set(newKeys).size).toBe(4);
+  expect(newKeys.every((key: string) => !oldKeys.includes(key))).toBe(true);
+  expect(metadataClosureClientControls).toHaveLength(1);
+  expect(metadataClosureRawControls).toHaveLength(1);
+  expect(
+    attributionNumericControls.length +
+      attributionNumericRawControls.length +
+      metadataClosureClientControls.length +
+      metadataClosureRawControls.length,
+  ).toBeLessThanOrEqual(18);
+  const finalDigest = (value: string) =>
+    createHash("sha256").update(numericScenarioSpan(value, numericNestedId)).digest("hex");
+  const finalExpected = "068f02059e00c89130eb6be9683768e4828812e22371645d58540942f60f1d56";
+  expect(finalDigest(text)).toBe(finalExpected);
+  const n = numericScenarioSpan(text, numericNestedId);
+  expect(n.match(/"nn-bead-properties-create-refused"/g)).toHaveLength(2);
+  const changed = text.replace(
+    n,
+    n.replace('"nn-bead-properties-create-refused"', '"nn-bead-properties-create-drift"'),
+  );
+  expect(() =>
+    expect(finalDigest(changed), "final N raw preservation").toBe(finalExpected),
+  ).toThrow("final N raw preservation");
+});
