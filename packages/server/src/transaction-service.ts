@@ -25,6 +25,7 @@ import {
 import type {
   openTransactionStore,
   TransactionReadContext,
+  TransactionEventScan,
   TransactionReceipt,
   TransactionReceiptPage,
 } from "./transaction-store.js";
@@ -290,6 +291,31 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           signal,
         ),
       );
+    },
+    beginEvents(
+      source: string,
+      after?: string,
+      supplied?: TransactionMinimum | "unsupported",
+      signal?: AbortSignal,
+      invalidReconnect = false,
+    ) {
+      const minimum =
+        supplied === undefined || supplied === "unsupported"
+          ? supplied
+          : snapshotTransactionMinimum(supplied);
+      return run(() =>
+        waitForTransactionMinimum(
+          () => owner.beginEventScan(source, after, minimum, invalidReconnect),
+          minimumReads,
+          signal,
+        ),
+      );
+    },
+    nextEvents(scan: TransactionEventScan, signal?: AbortSignal) {
+      return run(async () => {
+        signal?.throwIfAborted();
+        return owner.advanceEventScan(scan);
+      });
     },
     receiptPage(
       access:

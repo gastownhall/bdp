@@ -1,3 +1,4 @@
+import type { TransactionEventPacket } from "./transaction-store.js";
 import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import {
   transactionChangefeedRequest,
@@ -70,8 +71,17 @@ export const TRANSACTION_HTTP_TARGET_BYTES = 8192;
 type ChangefeedStream = HttpResponse & {
   readonly kind: "changefeed-stream";
   readonly page: TransactionChangefeedPage;
+  readonly context: TransactionReadContext;
 };
-export type TransactionHttpResult = (HttpResponse & { readonly kind: "finite" }) | ChangefeedStream;
+type EventStream = HttpResponse & {
+  readonly kind: "event-stream";
+  readonly packet: TransactionEventPacket;
+  readonly context: TransactionReadContext;
+};
+export type TransactionHttpResult =
+  | (HttpResponse & { readonly kind: "finite" })
+  | ChangefeedStream
+  | EventStream;
 type Service = ReturnType<typeof createTransactionService>;
 function empty(status: number, allow?: string): HttpResponse {
   return {
@@ -101,14 +111,37 @@ function problem(
   if (value.retry === "after-delay") response.headers.set("retry-after", "1");
   return { ...response, status: value.status ?? 500 };
 }
-export function transactionHttpProblem(code: ReadProblemCode): HttpResponse {
-  return problem(readProblem(code));
+export function transactionHttpProblem(
+  code: ReadProblemCode,
+  observation?: TransactionReadContext,
+): HttpResponse {
+  const response = problem(readProblem(code));
+  return observation ? context(response, observation) : response;
 }
 function context(response: HttpResponse, observation: TransactionReadContext): HttpResponse {
   response.headers.set("bdp-scope-epoch", observation.scopeEpoch);
   response.headers.set("bdp-authorization-view", observation.authorizationView);
   response.headers.set("bdp-scope-position", observation.scopePosition);
   return response;
+}
+function streamResponse(request: Request, observation: TransactionReadContext): HttpResponse {
+  const response = context(
+    {
+      status: 200,
+      headers: new Headers({
+        "content-type": "text/event-stream",
+        "cache-control": "no-store, no-transform",
+        vary: "Accept",
+      }),
+    },
+    observation,
+  );
+  const status = conditionalReadStatus(request.headers, null);
+  if (status !== 200) {
+    response.headers.delete("content-type");
+    if (status !== 304) response.headers.set("content-length", "0");
+  }
+  return { status, headers: response.headers };
 }
 function developmentGap(feature: string): HttpResponse {
   const response = empty(500);
@@ -228,7 +261,7 @@ export function createTransactionHttpHandler(
     authorization: TransactionHttpAuthorization,
     received: TransactionReceivedBody,
     lastEventIds?: readonly string[],
-  ): Promise<HttpResponse | ChangefeedStream> {
+  ): Promise<HttpResponse | ChangefeedStream | EventStream> {
     const url = new URL(request.url),
       operation = names.get(url.href);
     if (
@@ -409,26 +442,15 @@ export function createTransactionHttpHandler(
       const observed = await service.changes(effective, minimum, request.signal);
       if (observed.kind === "unsupported") return developmentGap("minimum-position");
       if (media !== "sse") return context(jsonResponse(observed.page), observed.context);
-      const response = context(
-        {
-          status: 200,
-          headers: new Headers({
-            "content-type": "text/event-stream",
-            "cache-control": "no-store, no-transform",
-            vary: "Accept",
-          }),
-        },
-        observed.context,
-      );
-      const status = conditionalReadStatus(request.headers, null);
-      if (status !== 200) {
-        response.headers.delete("content-type");
-        if (status !== 304) response.headers.set("content-length", "0");
-        return { status, headers: response.headers };
-      }
-      return request.method === "HEAD"
+      const response = streamResponse(request, observed.context);
+      return response.status !== 200 || request.method === "HEAD"
         ? response
-        : { ...response, kind: "changefeed-stream", page: observed.page };
+        : {
+            ...response,
+            kind: "changefeed-stream",
+            page: observed.page,
+            context: observed.context,
+          };
     }
     // Alias query refusals and receipt identity checks own these routes, even
     // when a query happens to spell view=events. Do not reclassify them as Events.
@@ -442,15 +464,33 @@ export function createTransactionHttpHandler(
       const minimum = hasMinimumControls(request)
         ? (transactionMinimumHeaders(request.headers) ?? "unsupported")
         : undefined;
-      const observed = await service.events(
+      if (selectChangefeedMedia(request.headers.get("accept")) !== "sse") {
+        const observed = await service.events(
+          eventRequest.source.url,
+          eventRequest.after,
+          minimum,
+          request.signal,
+        );
+        if (observed.kind === "missing") return transactionHttpProblem("resource-not-found");
+        if (observed.kind === "unsupported") return developmentGap("minimum-position");
+        return context(jsonResponse(observed.page), observed.context);
+      }
+      const fields =
+        lastEventIds ??
+        (request.headers.has("last-event-id") ? [request.headers.get("last-event-id")!] : []);
+      const observed = await service.beginEvents(
         eventRequest.source.url,
-        eventRequest.after,
+        fields.length === 1 ? fields[0] : eventRequest.after,
         minimum,
         request.signal,
+        fields.length > 1,
       );
       if (observed.kind === "missing") return transactionHttpProblem("resource-not-found");
       if (observed.kind === "unsupported") return developmentGap("minimum-position");
-      return context(jsonResponse(observed.page), observed.context);
+      const response = streamResponse(request, observed.context);
+      return response.status !== 200 || request.method === "HEAD"
+        ? response
+        : { ...response, kind: "event-stream", packet: observed, context: observed.context };
     }
     if (receiptRoute) {
       const minimum = hasMinimumControls(request)
@@ -515,7 +555,7 @@ export function createTransactionHttpHandler(
       received: TransactionReceivedBody = { text: "" },
       lastEventIds?: readonly string[],
     ): Promise<TransactionHttpResult> {
-      let response: HttpResponse | ChangefeedStream;
+      let response: HttpResponse | ChangefeedStream | EventStream;
       try {
         response = await route(request, authorization, received, lastEventIds);
       } catch (error) {
@@ -538,7 +578,10 @@ export function createTransactionHttpHandler(
           error instanceof TransactionEventParameterError ||
           error instanceof TransactionChangefeedParameterError
         )
-          response = transactionHttpProblem("invalid-parameter");
+          response = transactionHttpProblem(
+            "invalid-parameter",
+            error instanceof TransactionEventParameterError ? error.context : undefined,
+          );
         else if (error instanceof TransactionEventProjectionGap)
           response = developmentGap(error.message);
         else if (error instanceof TransactionMinimumVisibilityGap)
@@ -547,7 +590,11 @@ export function createTransactionHttpHandler(
       }
       response.headers.set("x-bdp-development", "non-attesting");
       if (request.method === "POST") response.headers.set("vary", "Accept");
-      if ("kind" in response && response.kind === "changefeed-stream") return response;
+      if (
+        "kind" in response &&
+        (response.kind === "changefeed-stream" || response.kind === "event-stream")
+      )
+        return response;
       return {
         ...(request.method === "GET" || request.method === "HEAD"
           ? applyReadHttpSemantics(request, response)

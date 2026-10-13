@@ -1350,3 +1350,101 @@ page before matching frame indices. Numeric-like key sensitivity belongs to that
 source witness; the installed witness checks raw byte containment with its simpler
 numeric property fixture. Its observer imports source-only server test support,
 while the target remains a separate process loading the exact installed payload.
+
+## Private Event Source SSE owner scan (G2b, owner checkpoint)
+
+The owner now offers source-private immutable scan continuations. Each observation
+projects at most one committed group and carries source/context plus the next
+exclusive ordinal in an owner-local WeakMap. Caught-up observations do not construct
+a group reader. No iterator, parsed group or SQLite transaction escapes, and no
+durable format, public cursor or Event membership rule changes.
+
+Finite reads retain their exact envelope/continuation byte reservation and
+lookahead. The bounded stream packet conservatively reuses that charge. Known-source
+parameter errors can carry the same owner entry's context; early query validation
+and unknown-source nondisclosure remain distinct. HTTP serving and the shared pump
+are subsequent G2b steps; this checkpoint does not enable Event Source SSE.
+
+## Private Event Source SSE serving (G2b)
+
+The subsequent serving slice connects Scope `events/` and retained Bead/Link
+`?view=events` Sources to the same cancellable pump and one-live-stream capacity
+as G2a. Finite JSON keeps its original collector, membership, byte reservation,
+lookahead and `next` behavior. Live delivery uses only the current opaque scan
+successor, adopting it after the packet's last drained frame. The HTTP result
+releases its initial packet after transferring it to the pump. The WeakMap retains
+no enumerable token inventory, parsed group, iterator or transaction.
+
+Each owner observation examines at most one group. A packet that fills in the
+middle of a group retains its exclusive last included ordinal; later facts in
+that group are not skipped. Sparse Sources traverse unrelated groups once per
+live scan. Caught-up idle polling prepares no group reader and performs no group
+body GET. Constant metadata/identity reads and preparations for a newly inspected
+group remain. Multiple packets may reparse the same large group; these are bounded
+packet/group limits, not universal latency or heap promises. Append-only history
+is assumed; already traversed rows are not periodically revalidated for arbitrary
+out-of-owner modifications.
+
+Heartbeat checks remain active during empty historical backlog as well as idle
+polling. Every frame and comment shares one write/drain barrier. A blocked write
+prevents another owner pull or queued heartbeat while leaving the SQLite owner
+available for finite mutations. Event frames use the existing lossless JSON
+serializer; the conservative frame bound is 4 MiB plus 512 bytes, below the pinned
+Node string ceiling. The actual group-step/packet settings enter the private
+runtime configuration digest; all four existing transport/stream timers are
+unchanged.
+
+SSE reconnect accepts one `Last-Event-ID` in place of `after`, including when the
+query omits `after`; JSON ignores that header. Existing query grammar is still
+validated. Known-source cursor errors and stream-capacity refusals preserve the
+original captured entry's context, including when another commit occurs before
+HTTP projection. Authentication, unknown Source and early query errors do not
+acquire such context. HEAD/304/412 validate the observation but allocate no stream
+slot. Deleted Resources remain retained Event Sources while canonical GET is404.
+
+Positive finite/SSE equivalence is restricted to gap-free histories. A metadata-only
+incident-Link update still refuses a Bead Source; Scope and Link projections remain
+available. A live encounter closes the socket without a second response or error
+Event and retains the first genuine cause for close-time reporting. Reconnect from
+the same last complete Event deterministically encounters the same unresolved
+group. This slice does not silently skip that history or settle its membership.
+
+The private installed witness records actual packed Scope/Bead/Link responses and
+raw finite-byte comparisons. A sparse Bead Source with unrelated historical groups
+stays live for at least15 seconds under default timers, emits comments without IDs,
+and then delivers a relevant mutation. Its recorder25s/cohort45s/cleanup10s bounds
+remain separate from finite5s requests. Dirty preliminary runs are distinct from
+final source-bound tarball evidence. The source tests additionally cover self-Link
+ordinals across count/byte boundaries, exact sparse body-read counts, backpressure,
+minimum cancellation, half-frame reconnect, captured error contexts and faults.
+
+No public export, profile advertisement, schema/catalog credit or sealed Read
+evidence changes. Fixed owner epoch/view cannot perform mutable grant transitions;
+foreign/stale cursor and corruption tests do not qualify such transitions. Erasure
+publication fences, set HTTP admission, remaining consistency/discovery obligations
+and complete Transactional qualification remain open. `claimEligible` remains false.
+
+### G2b review closure
+
+The captured one-group Event scan constant is now a structural owner invariant:
+a value other than one refuses module initialization, instead of hashing a bound
+the one-group algorithm does not implement. The sparse owner witness derives
+per-entry body-read and total observation counts from that shared constant.
+`eventStream` contains owner scan/packet bounds only; Event and changefeed pumps
+share `changefeedStream` cadence and live-slot capacity. A deterministic runtime
+interception verifies the Event adapter receives the captured cadence object,
+without treating elapsed timer observations as a settings-binding proof.
+
+The both-valid cursor GET witness uses a later committed marker Event to bound
+observation. A later header cursor suppresses the earlier query suffix; the mirror
+case delivers that suffix. This pins delivered frames in both precedence directions.
+
+Packet lifetime evidence is structural, not a GC or universal heap claim. The
+owner WeakMap value contains source/context/position/ordinal/head and no group
+body. The resolved initial HTTP result transfers its packet to the pump and the
+runtime clears `selected`; the thin adapter returns the pump Promise without
+retaining the input across an await. The pump clears its initial parameter and
+clears each delivered packet before the next heartbeat/poll/pull, retaining only
+its continuation and a prospective successor during advancement. Stream closures
+retain the service and signal, not a registry of prior packets. No WeakRef/forced-GC
+claim or engine-specific release deadline is inferred from those reference chains.

@@ -16,6 +16,7 @@ import {
 } from "./transaction-changefeed.js";
 import {
   TRANSACTION_EVENT_PAGE_BYTES,
+  TRANSACTION_EVENT_STREAM,
   TRANSACTION_EVENT_GROUP_BYTES,
   TransactionEventParameterError,
   transactionEventRequest,
@@ -25,6 +26,7 @@ import {
   eventContinuation,
   freezeEventPage,
   type TransactionEventPage,
+  type TransactionEventSource,
 } from "./transaction-events.js";
 import {
   checkTransactionMinimum,
@@ -54,6 +56,7 @@ import {
   type PreparedTransactionSequence,
   type NormalizedTransaction,
   type TransactionMutationContext,
+  type TransactionEvent,
 } from "./transaction-batch.js";
 
 import {
@@ -65,12 +68,37 @@ import {
   type ReferenceBindings,
 } from "./transaction-dependencies.js";
 
+// eventPacket structurally reads one group; changing the captured bound must
+// fail closed until that algorithm and its count evidence are deliberately revised.
+if (TRANSACTION_EVENT_STREAM.maximumGroupsPerObservation !== 1)
+  throw new Error("owner scan implements exactly one group per entry");
+
 /** Actual fixed-view owner observation; not a receipt effect checkpoint. */
 export type TransactionReadContext = {
   readonly scopeEpoch: string;
   readonly authorizationView: string;
   readonly scopePosition: string;
 };
+
+/** Source-private immutable read continuation, authenticated by its owner. */
+declare const eventScanBrand: unique symbol;
+export interface TransactionEventScan {
+  readonly [eventScanBrand]: true;
+}
+export interface TransactionEventPacket {
+  readonly kind: "packet";
+  readonly context: TransactionReadContext;
+  readonly events: readonly TransactionEvent[];
+  readonly scan: TransactionEventScan;
+  readonly caughtUp: boolean;
+}
+interface EventScanState {
+  readonly source: TransactionEventSource;
+  readonly context: TransactionReadContext;
+  readonly at: number;
+  readonly ordinal: number;
+  readonly head: number;
+}
 
 interface ReceiptCore {
   readonly id: string;
@@ -280,6 +308,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   let maintenanceTimer: ReturnType<typeof setInterval> | undefined;
   let maintenanceFailure: { readonly cause: unknown } | undefined;
   let ownerFailure: Error | undefined;
+  const eventScans = new WeakMap<TransactionEventScan, EventScanState>();
   const claims = new WeakMap<
     TransactionClaim,
     {
@@ -579,6 +608,108 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       if (typeof body !== "string") throw new Error("invalid retained Event group body");
       return { position, value: JSON.parse(body) as unknown };
     };
+  }
+  function eventSourceKnown(source: TransactionEventSource): boolean {
+    return (
+      !source.subject ||
+      Boolean(
+        db.prepare("SELECT id FROM identities WHERE id=?").get(source.subject.slice(scope.length)),
+      )
+    );
+  }
+  function eventSource(sourceUrl: string): TransactionEventSource {
+    const request = transactionEventRequest(new URL(sourceUrl), scope);
+    if (!request || request.after !== undefined || request.source.url !== sourceUrl)
+      throw new TransactionEventParameterError();
+    return request.source;
+  }
+  function eventCandidateBytes(
+    envelopeBytes: number,
+    source: string,
+    event: TransactionEvent,
+    priorBytes: number,
+    count: number,
+  ) {
+    const eventBytes = priorBytes + (count === 0 ? 0 : 1) + Buffer.byteLength(json(event));
+    return {
+      eventBytes,
+      pageBytes:
+        envelopeBytes + eventBytes + Buffer.byteLength(json(eventContinuation(source, event.id))),
+    };
+  }
+  function eventProjection(
+    row: { position: number; value: unknown },
+    context: TransactionReadContext,
+    source: TransactionEventSource,
+    cursor?: { position: number; ordinal: number; id: string },
+  ) {
+    const projected = projectTransactionEventGroup(row.value, context, source, scope, row.position);
+    if (
+      cursor &&
+      (row.position !== cursor.position ||
+        !projected.some((event) => event.ordinal === cursor.ordinal && event.id === cursor.id))
+    )
+      throw new TransactionEventParameterError(undefined, context);
+    return projected;
+  }
+  /** Called only inside enter. One group, no iterator or group body in its token. */
+  function eventPacket(
+    state: EventScanState,
+    context: TransactionReadContext,
+    cursor?: { position: number; ordinal: number; id: string },
+  ): TransactionEventPacket {
+    const head = Number(context.scopePosition.slice(4));
+    let at = state.at,
+      ordinal = state.ordinal;
+    const events: TransactionEvent[] = [];
+    if (at > head && cursor) throw new TransactionEventParameterError(undefined, context);
+    if (at <= head) {
+      const row = retainedGroupReader()(at, head);
+      if (!row || row.position !== at) {
+        if (cursor) throw new TransactionEventParameterError(undefined, context);
+        throw new Error("missing retained Event group");
+      }
+      const projected = eventProjection(row, context, state.source, cursor);
+      const envelopeBytes =
+        Buffer.byteLength(json({ source: state.source.url, events: [], next: null })) - 4;
+      let eventBytes = 0,
+        complete = true;
+      for (const event of projected) {
+        if (event.ordinal <= state.ordinal) continue;
+        const candidate = eventCandidateBytes(
+          envelopeBytes,
+          state.source.url,
+          event,
+          eventBytes,
+          events.length,
+        );
+        if (
+          events.length + 1 > receiptMaximumItems ||
+          candidate.pageBytes > TRANSACTION_EVENT_STREAM.packetBytes
+        ) {
+          if (events.length === 0)
+            throw new Error("finite Event page cannot hold first retained Event");
+          complete = false;
+          break;
+        }
+        events.push(event);
+        eventBytes = candidate.eventBytes;
+        ordinal = event.ordinal;
+      }
+      if (complete) {
+        at++;
+        ordinal = -1;
+      }
+    }
+    const scan = Object.freeze({}) as TransactionEventScan;
+    eventScans.set(scan, Object.freeze({ source: state.source, context, at, ordinal, head }));
+    return Object.freeze({
+      kind: "packet",
+      context,
+      scan,
+      caughtUp: at > head,
+      events: freezeEventPage({ source: state.source.url, events, next: null }).events,
+    });
   }
   function createPagePlan(principal: string, key: string, receipt: TransactionReceipt): void {
     const entries = receipt.results as readonly unknown[];
@@ -1383,10 +1514,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       | { readonly kind: "unsupported" } {
       if (typeof sourceUrl !== "string" || (after !== undefined && typeof after !== "string"))
         throw new TypeError("Event source and cursor must be strings");
-      const request = transactionEventRequest(new URL(sourceUrl), scope);
-      if (!request || request.after !== undefined || request.source.url !== sourceUrl)
-        throw new TransactionEventParameterError();
-      const source = request.source;
+      const source = eventSource(sourceUrl);
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
@@ -1394,20 +1522,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       return enter(() => {
         // Reference convention: unknown sources are nondisclosing before minimum
         // checks. A retained identity remains a source after Resource deletion.
-        if (
-          source.subject &&
-          !db
-            .prepare("SELECT id FROM identities WHERE id=?")
-            .get(source.subject.slice(scope.length))
-        )
-          return Object.freeze({ kind: "missing" as const });
+        if (!eventSourceKnown(source)) return Object.freeze({ kind: "missing" as const });
         if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
         const context = readContext(),
           head = Number(context.scopePosition.slice(4));
         // This owner entry cannot advance while scanning. Refuse/wait before any
         // group read rather than repeating projection work on every wait attempt.
         if (minimum !== undefined) checkTransactionMinimum(minimum, context);
-        const start = after === undefined ? undefined : parseTransactionEventCursor(after);
+        const start = after === undefined ? undefined : parseTransactionEventCursor(after, context);
         if (start) checkTransactionEventCursor(start, context, source.url);
         let cursorMatched = start === undefined;
         const events: import("./transaction-batch.js").TransactionEvent[] = [];
@@ -1427,24 +1549,23 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           }
           const p = row.position;
           if (cursorMatched && p !== at) throw new Error("missing retained Event group");
-          const projected = projectTransactionEventGroup(row.value, context, source, scope, p);
-          if (!cursorMatched) {
-            if (
-              p !== start?.position ||
-              !projected.some((event) => event.ordinal === start.ordinal && event.id === after)
-            )
-              throw new TransactionEventParameterError();
-            cursorMatched = true;
-          }
+          const projected = eventProjection(
+            row,
+            context,
+            source,
+            !cursorMatched && start && after !== undefined ? { ...start, id: after } : undefined,
+          );
+          cursorMatched = true;
           for (const event of projected) {
             if (start && p === start.position && event.ordinal <= start.ordinal) continue;
-            const candidateBytes =
-              eventBytes + (events.length === 0 ? 0 : 1) + Buffer.byteLength(json(event));
             // Reserve the exact continuation even if this Event is currently last.
-            const bytes =
-              envelopeBytes +
-              candidateBytes +
-              Buffer.byteLength(json(eventContinuation(source.url, event.id)));
+            const { eventBytes: candidateBytes, pageBytes: bytes } = eventCandidateBytes(
+              envelopeBytes,
+              source.url,
+              event,
+              eventBytes,
+              events.length,
+            );
             if (events.length + 1 > receiptMaximumItems || bytes > TRANSACTION_EVENT_PAGE_BYTES) {
               const last = events.at(-1);
               if (!last) throw new Error("finite Event page cannot hold first retained Event");
@@ -1457,12 +1578,67 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           if (next !== null) break;
           at = p + 1;
         }
-        if (!cursorMatched) throw new TransactionEventParameterError();
+        if (!cursorMatched) throw new TransactionEventParameterError(undefined, context);
         return Object.freeze({
           kind: "page" as const,
           context,
           page: freezeEventPage({ source: source.url, events, next }),
         });
+      });
+    },
+    /** Initial source/minimum/cursor observation, never a wire or durable cursor. */
+    beginEventScan(
+      sourceUrl: string,
+      after?: string,
+      supplied?: TransactionMinimum | "unsupported",
+      invalidReconnect = false,
+    ): TransactionEventPacket | { readonly kind: "missing" } | { readonly kind: "unsupported" } {
+      if (
+        typeof sourceUrl !== "string" ||
+        (after !== undefined && typeof after !== "string") ||
+        typeof invalidReconnect !== "boolean"
+      )
+        throw new TypeError("invalid Event scan controls");
+      const source = eventSource(sourceUrl);
+      const minimum =
+        supplied === undefined || supplied === "unsupported"
+          ? supplied
+          : snapshotTransactionMinimum(supplied);
+      return enter(() => {
+        if (!eventSourceKnown(source)) return Object.freeze({ kind: "missing" as const });
+        if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
+        const context = readContext();
+        if (minimum !== undefined) checkTransactionMinimum(minimum, context);
+        if (invalidReconnect) throw new TransactionEventParameterError(undefined, context);
+        const cursor =
+          after === undefined ? undefined : parseTransactionEventCursor(after, context);
+        if (cursor) checkTransactionEventCursor(cursor, context, source.url);
+        return eventPacket(
+          {
+            source,
+            context,
+            head: Number(context.scopePosition.slice(4)),
+            at: cursor?.position ?? 1,
+            ordinal: cursor?.ordinal ?? -1,
+          },
+          context,
+          cursor && after !== undefined ? { ...cursor, id: after } : undefined,
+        );
+      });
+    },
+    advanceEventScan(scan: TransactionEventScan): TransactionEventPacket {
+      return enter(() => {
+        const state = eventScans.get(scan);
+        if (!state) throw new TypeError("foreign or fabricated Event scan");
+        if (!eventSourceKnown(state.source)) throw new Error("retained Event source identity lost");
+        const context = readContext();
+        if (
+          context.scopeEpoch !== state.context.scopeEpoch ||
+          context.authorizationView !== state.context.authorizationView ||
+          Number(context.scopePosition.slice(4)) < state.head
+        )
+          throw new Error("Event scan context changed or head regressed");
+        return eventPacket(state, context);
       });
     },
     /** Request intent anchor only; the eventual page captures its own current context. */

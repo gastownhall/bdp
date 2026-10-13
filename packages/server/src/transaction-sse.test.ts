@@ -257,7 +257,7 @@ it("HEAD and preconditions do not consume a slot; capacity/disconnect/shutdown p
   await f.reopen();
   expect((await f.request("beads/b")).status).toBe(200);
 });
-it("raw reconnect grammar, finite header ignorance, Event Source exclusions and auth precedence stay bounded", async () => {
+it("raw reconnect grammar, finite header ignorance, Event Source sharing and auth precedence stay bounded", async () => {
   const f = await fixture();
   await f.create("a");
   for (const [target, headers, status] of [
@@ -272,8 +272,8 @@ it("raw reconnect grammar, finite header ignorance, Event Source exclusions and 
       400,
     ],
     ["changes/?start=now", [["Last-Event-ID", "genesis"]], 500],
-    ["events/", [], 406],
-    ["beads/a?view=events", [], 406],
+    ["events/", [], 200],
+    ["beads/a?view=events", [], 200],
   ] as [string, [string, string][], number][]) {
     const r = f.stream(target, headers);
     await r.ready;

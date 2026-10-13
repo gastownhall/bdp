@@ -568,6 +568,11 @@ it("hashes actual stream defaults and all four transport timers; timing seams re
     keepAliveTimeout: 1000,
   });
   expect(Object.isFrozen(captured.settings.changefeedStream)).toBe(true);
+  expect(captured.settings.eventStream).toEqual({
+    maximumGroupsPerObservation: 1,
+    packetBytes: 4194304,
+  });
+  expect(Object.isFrozen(captured.settings.eventStream)).toBe(true);
   const runtime = await startTransactionRuntime(options, { transport: { timeout: 100 } });
   cleanup.push(() => runtime.close());
   expect(runtime.configurationMetadata).toBeUndefined();
@@ -604,5 +609,10 @@ it("effective stream availability preserves finite-only idle seams at the strict
       TRANSACTION_RUNTIME_DEFAULTS.changefeedStream,
     );
     expect(Object.isFrozen(captured.settings.changefeedStream)).toBe(true);
+    expect(captured.settings.eventStream).toEqual({
+      maximumGroupsPerObservation: 1,
+      packetBytes: 4194304,
+    });
+    expect(Object.isFrozen(captured.settings.eventStream)).toBe(true);
   }
 });

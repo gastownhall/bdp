@@ -15,6 +15,7 @@ import { prepareTransaction } from "./transaction-batch.js";
 import * as batch from "./transaction-batch.js";
 import {
   TRANSACTION_EVENT_PAGE_BYTES,
+  TRANSACTION_EVENT_STREAM,
   TRANSACTION_EVENT_GROUP_BYTES,
   TRANSACTION_EVENT_FIRST_PAGE_BYTES,
   TransactionEventParameterError,
@@ -471,7 +472,7 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
       if (status !== 200) expect(await r.text()).toBe("");
     }
     for (const method of ["GET", "HEAD"]) {
-      const r = await get("events/", { accept: "text/event-stream" }, method);
+      const r = await get("events/", { accept: "text/plain" }, method);
       expect(r.status).toBe(406);
       expect(await r.text()).toBe("");
     }
@@ -750,4 +751,242 @@ it("accounts exact UTF8 and escaped Event bytes once rather than repeatedly seri
     TRANSACTION_EVENT_PAGE_BYTES,
   );
   expect(validPage(result.page)).toBe(true);
+});
+
+function packet(value: ReturnType<ReturnType<typeof openTransactionStore>["beginEventScan"]>) {
+  if (value.kind !== "packet") throw new Error(`expected Event packet: ${value.kind}`);
+  return value;
+}
+function scanEvents(
+  owner: ReturnType<typeof openTransactionStore>,
+  source: string,
+  after?: string,
+) {
+  let current = packet(owner.beginEventScan(source, after));
+  const packets = [current];
+  for (let guard = 0; !current.caughtUp; guard++) {
+    if (guard > 1000) throw new Error("unbounded Event test scan");
+    current = owner.advanceEventScan(current.scan);
+    packets.push(current);
+  }
+  return { packets, events: packets.flatMap((p) => p.events), last: current };
+}
+it("private one-group scans preserve self-Link ordinals, partial packets and immutable replay", () => {
+  const f = fixture(scope, true, 1);
+  f.run([bead("a")]);
+  f.run([link("l", "beads/a", "beads/a"), patch, remove]);
+  for (const source of [
+    `${scope}events/`,
+    `${scope}beads/a?view=events`,
+    `${scope}links/l?view=events`,
+  ]) {
+    const finite = collect(f.owner, source).events;
+    const scanned = scanEvents(f.owner, source);
+    expect(scanned.events).toEqual(finite);
+    expect(scanned.packets.every((p) => p.events.length <= 1)).toBe(true);
+    expect(scanned.packets.every((p) => Object.isFrozen(p.scan))).toBe(true);
+    expect(scanned.packets.every((p) => Object.keys(p.scan).length === 0)).toBe(true);
+    const first = scanned.packets[0]!;
+    expect(f.owner.advanceEventScan(first.scan)).toEqual(f.owner.advanceEventScan(first.scan));
+    for (const [index, event] of finite.entries())
+      expect(scanEvents(f.owner, source, event.id).events).toEqual(finite.slice(index + 1));
+  }
+});
+it("idle scan advances do not construct group readers or reread unrelated historical bodies", () => {
+  const f = fixture();
+  f.run([bead("a"), bead("b")]);
+  const source = `${scope}beads/a?view=events`,
+    first = collect(f.owner, source).events[0]!;
+  for (let n = 1; n <= 12; n++)
+    f.run([
+      {
+        operation: "updateBead",
+        bead: "beads/b",
+        propertiesChange: [{ op: "replace", path: "/n", value: n }],
+      },
+    ]);
+  const prepare = DatabaseSync.prototype.prepare;
+  let bodyGets = 0,
+    groupPrepares = 0;
+  vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql,
+  ) {
+    const statement = prepare.call(this, sql);
+    if (/FROM groups/.test(sql)) groupPrepares++;
+    if (sql === "SELECT body FROM groups WHERE position=?") {
+      const get = statement.get.bind(statement);
+      vi.spyOn(statement, "get").mockImplementation((...args) => {
+        bodyGets++;
+        return get(...args);
+      });
+    }
+    return statement;
+  });
+  const step = TRANSACTION_EVENT_STREAM.maximumGroupsPerObservation;
+  let observations = 1;
+  let current = packet(f.owner.beginEventScan(source, first.id));
+  expect(bodyGets).toBe(step); // Actual initial cursor membership in its group.
+  while (!current.caughtUp) {
+    const before = [bodyGets, groupPrepares];
+    current = f.owner.advanceEventScan(current.scan);
+    observations++;
+    expect(bodyGets - before[0]!).toBe(Math.min(step, 13 - before[0]!));
+    expect(groupPrepares - before[1]!).toBe(2);
+    expect(current.events).toEqual([]);
+  }
+  expect(bodyGets).toBe(13);
+  expect(observations).toBe(Math.ceil(13 / step));
+  const counts = [bodyGets, groupPrepares];
+  for (let n = 0; n < 5; n++) current = f.owner.advanceEventScan(current.scan);
+  expect([bodyGets, groupPrepares]).toEqual(counts);
+  f.run([
+    {
+      operation: "updateBead",
+      bead: "beads/b",
+      propertiesChange: [{ op: "replace", path: "/n", value: 99 }],
+    },
+  ]);
+  const before = bodyGets;
+  current = f.owner.advanceEventScan(current.scan);
+  expect(bodyGets - before).toBe(1);
+  expect(current.events).toEqual([]);
+  f.run([
+    {
+      operation: "updateBead",
+      bead: "beads/a",
+      propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
+    },
+  ]);
+  current = f.owner.advanceEventScan(current.scan);
+  expect(current.events.map((e) => e.type)).toEqual(["updated"]);
+  expect(current.context.scopePosition).toBe("pos-15");
+});
+it("scan handles cannot be fabricated, moved between owners or reused across reopen/close", () => {
+  const a = fixture(),
+    b = fixture();
+  const initial = packet(a.owner.beginEventScan(`${scope}events/`));
+  expect(initial).toMatchObject({
+    events: [],
+    caughtUp: true,
+    context: { scopePosition: "pos-0" },
+  });
+  expect(() => b.owner.advanceEventScan(initial.scan)).toThrow("foreign or fabricated");
+  expect(() => a.owner.advanceEventScan({} as typeof initial.scan)).toThrow(
+    "foreign or fabricated",
+  );
+  a.reopen();
+  expect(() => a.owner.advanceEventScan(initial.scan)).toThrow("foreign or fabricated");
+  const live = packet(a.owner.beginEventScan(`${scope}events/`));
+  a.owner.close();
+  expect(() => a.owner.advanceEventScan(live.scan)).toThrow("closed");
+});
+it("scan initial identity and minimum precede reconnect validity; contextual errors preserve the observed entry", () => {
+  const f = fixture();
+  f.run([bead("a")]);
+  const current = packet(f.owner.beginEventScan(`${scope}events/`));
+  const minimum = {
+    scopeEpoch: current.context.scopeEpoch,
+    authorizationView: current.context.authorizationView,
+    minimumPosition: "pos-9",
+  };
+  expect(f.owner.beginEventScan(`${scope}beads/missing?view=events`, "bad", minimum, true)).toEqual(
+    { kind: "missing" },
+  );
+  expect(() => f.owner.beginEventScan(`${scope}beads/a?view=events`, "bad", minimum, true)).toThrow(
+    expect.objectContaining({ reason: "behind", context: current.context }),
+  );
+  for (const after of ["", "genesis", current.events[0]!.id.replace(/pos-1_/, "pos-99_")]) {
+    expect(() => f.owner.beginEventScan(`${scope}events/`, after)).toThrow(
+      expect.objectContaining({ context: current.context }),
+    );
+  }
+  expect(() => f.owner.readEvents(`${scope}beads/a?view=events`, current.events[0]!.id)).toThrow(
+    expect.objectContaining({ context: current.context }),
+  );
+});
+it("byte-bound scan packets preserve the exact finite reservation and within-group suffix", () => {
+  const s = `https://example.test/${"s".repeat(60000)}/`;
+  const f = fixture(s, false, 64);
+  expect(f.run([bead("a", s)]).status).toBe("completed");
+  const source = `${s}events/`,
+    before = collect(f.owner, source).events.at(-1)!.id;
+  expect(
+    f.run(
+      Array.from({ length: 32 }, (_, n) => ({
+        operation: "updateBead",
+        bead: "beads/a",
+        propertiesChange: [{ op: "replace", path: "/n", value: n + 1 }],
+      })),
+    ),
+  ).toMatchObject({ status: "completed" });
+  const finite = f.owner.readEvents(source, before);
+  if (finite.kind !== "page") throw new Error("expected finite page");
+  // The first stream entry validates the original cursor, then yields at the
+  // group boundary. The next one uses the same exact finite byte reservation.
+  const initial = packet(f.owner.beginEventScan(source, before));
+  expect(initial.events).toEqual([]);
+  const bounded = f.owner.advanceEventScan(initial.scan);
+  expect(bounded.events).toEqual(finite.page.events);
+  expect(bounded.events.length).toBeGreaterThan(0);
+  expect(bounded.events.length).toBeLessThan(32);
+  expect(finite.page.next).toBe(new URL(`events/?after=${bounded.events.at(-1)!.id}`, s).href);
+  expect(bounded.caughtUp).toBe(false);
+  const all = scanEvents(f.owner, source, before).events;
+  expect(all).toHaveLength(32);
+  expect(new Set(all.map((e) => e.id)).size).toBe(32);
+  expect(all.map((e) => e.ordinal)).toEqual(Array.from({ length: 32 }, (_, n) => n));
+});
+
+it("scan refuses a regressed captured head and a sticky fenced owner", () => {
+  const f = fixture();
+  f.run([bead("a")]);
+  const scan = packet(f.owner.beginEventScan(`${scope}events/`)).scan;
+  const prepare = DatabaseSync.prototype.prepare;
+  vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql,
+  ) {
+    const statement = prepare.call(this, sql);
+    if (sql === "SELECT value FROM metadata WHERE name=?") {
+      const get = statement.get.bind(statement);
+      vi.spyOn(statement, "get").mockImplementation((...args) =>
+        (args[0] as unknown) === "position" ? { value: "0" } : get(...args),
+      );
+    }
+    return statement;
+  });
+  expect(() => f.owner.advanceEventScan(scan)).toThrow("head regressed");
+  vi.restoreAllMocks();
+  const exec = DatabaseSync.prototype.exec;
+  vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql) {
+    if (sql === "COMMIT") throw new Error("injected uncertain commit");
+    return exec.call(this, sql);
+  });
+  expect(() => f.run([bead("b")])).toThrow();
+  expect(() => f.owner.advanceEventScan(scan)).toThrow("owner fenced");
+  vi.restoreAllMocks();
+});
+
+it("refuses configuration whose group step differs from the structural owner implementation", async () => {
+  vi.resetModules();
+  vi.doMock("./transaction-events.js", async () => {
+    const actual =
+      await vi.importActual<typeof import("./transaction-events.js")>("./transaction-events.js");
+    return {
+      ...actual,
+      TRANSACTION_EVENT_STREAM: Object.freeze({
+        ...actual.TRANSACTION_EVENT_STREAM,
+        maximumGroupsPerObservation: 2,
+      }),
+    };
+  });
+  try {
+    await expect(import("./transaction-store.js")).rejects.toThrow(
+      "owner scan implements exactly one group per entry",
+    );
+  } finally {
+    vi.doUnmock("./transaction-events.js");
+    vi.resetModules();
+  }
 });
