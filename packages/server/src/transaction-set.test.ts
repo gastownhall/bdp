@@ -491,3 +491,108 @@ it("set Link updates share ordinary no-op and fact behavior without endpoint-lin
   expect(body(noOp).results[1]?.resource).toEqual(body(receipt).results[1]?.resource);
   expect(f.owner.inspect().groups).toHaveLength(2);
 });
+it("counts all outer set members before new-key admission without a filtered Resource count", () => {
+  const f = fixture();
+  const prepared = batch.prepareTransactionSetCore(
+    scope,
+    JSON.stringify({ operations: [create("a"), update(), update()] }),
+  );
+  expect(prepared.carrier.operations).toHaveLength(3);
+  expect(
+    f.owner.admit("p", "outer", prepared, { acceptsJson: true, maximumOperations: 2 }),
+  ).toEqual({ kind: "operation-limit" });
+  expect(f.owner.inspect()).toMatchObject({ resources: [], groups: [] });
+  f.owner.close();
+  const stored = new DatabaseSync(f.options.file, { readOnly: true });
+  try {
+    expect(stored.prepare("SELECT * FROM receipts").all()).toEqual([]);
+  } finally {
+    stored.close();
+  }
+  f.reopen();
+  const corrected = f.admit([create("a")], "outer");
+  if (corrected.kind !== "owned") throw new Error("refusal captured key");
+  f.owner.execute(corrected.claim);
+  const large = batch.prepareTransactionSetCore(
+    scope,
+    JSON.stringify({ operations: Array.from({ length: 33 }, () => update()) }),
+  );
+  expect(f.owner.admit("p", "large", large, { acceptsJson: true, maximumOperations: 32 })).toEqual({
+    kind: "operation-limit",
+  });
+  expect(f.admit([update()], "large").kind).toBe("owned");
+});
+it.each(["updateWhere", "deleteWhere"] as const)(
+  "checks %s shapes against the normative bundle, including cardinality",
+  (operation) => {
+    const schema = ajv.compile({ $ref: `${bundle.$id}#/$defs/${operation}Operation` });
+    for (const cardinality of [
+      undefined,
+      { min: 0 },
+      { max: 100 },
+      { min: 2, max: 1 },
+      {},
+      { min: -1 },
+      { max: 0.5 },
+      { max: false },
+      { extra: 1 },
+    ]) {
+      const member = {
+        ...(operation === "updateWhere" ? update() : remove()),
+        ...(cardinality === undefined ? {} : { cardinality }),
+      };
+      let accepted = true;
+      try {
+        batch.prepareTransactionSetCore(scope, JSON.stringify({ operations: [member] }));
+      } catch {
+        accepted = false;
+      }
+      expect(accepted, JSON.stringify(member)).toBe(schema(member));
+    }
+  },
+);
+it("preserves outer witness/alias indices and result pages with a set before alias-referenced mutation", () => {
+  const f = fixture();
+  f.run([create("a"), create("b")], "seed");
+  function alias(target: string, key: string) {
+    const admitted = f.owner.admit(
+      "p",
+      key,
+      batch.prepareTransactionSingleton(
+        scope,
+        "putAlias",
+        JSON.stringify({ alias: "alias/current", target }),
+      ),
+    );
+    if (admitted.kind !== "owned") throw new Error("alias owner");
+    f.owner.execute(admitted.claim);
+  }
+  alias("beads/a", "alias-first");
+  const ops = [
+    update(`$[?@.id == "${scope}beads/b"]`),
+    {
+      operation: "updateBead",
+      bead: "alias/current",
+      propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
+    },
+  ];
+  const admitted = f.admit(ops);
+  if (admitted.kind !== "owned") throw new Error("owner");
+  alias("beads/b", "alias-moved");
+  const observed = f.owner.executeObserved(admitted.claim);
+  expect(observed.receipt.results).toMatchObject([
+    { operationIndex: 0, outcome: "matched", count: 1 },
+    { operationIndex: 0, resource: { id: `${scope}beads/b` } },
+  ]);
+  if (typeof observed.receipt.next !== "string") throw new Error("page");
+  expect(f.owner.readReceiptPage("p", observed.receipt.next)).toMatchObject({
+    kind: "page",
+    page: {
+      results: [{ operationIndex: 1, resource: { id: `${scope}beads/a`, properties: { n: 2 } } }],
+    },
+  });
+  f.reopen();
+  expect(f.admit(ops)).toMatchObject({ kind: "existing", receipt: { id: observed.receipt.id } });
+  const direct = [ops[0], { ...ops[1], bead: "beads/a" }];
+  expect(f.admit(direct)).toMatchObject({ kind: "existing", receipt: { id: observed.receipt.id } });
+});
