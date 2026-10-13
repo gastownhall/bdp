@@ -536,6 +536,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     scopeEpoch: epoch,
     authorizationView: view,
     receiptMaximumItems,
+    scopeSnapshot: Object.freeze({
+      limits: TRANSACTION_SNAPSHOT_LIMITS,
+      tokenPolicy: TRANSACTION_SNAPSHOT_TOKEN_POLICY,
+    }),
     installedTypes: Object.freeze(descriptors),
     scopeConfiguration: Object.freeze({
       policyIdentity: view,

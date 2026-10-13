@@ -400,6 +400,55 @@ it("binds the live closure and fixed policy, not compatibility JSON; credential 
   expect(captured.settings.selector).toBe(captured.readOptions(scope).selectorLimits);
   expect(captured.readOptions(scope).advertisedLimits.selector).toBe(captured.settings.selector);
 });
+it("binds the owner Scope Snapshot tuple separately from query pagination and store compatibility", () => {
+  const options = fixture(),
+    captured = captureTransactionRuntimeConfiguration(options);
+  const owner = openTransactionStore({
+    file: path.join(options.directory, "transaction.sqlite"),
+    scope,
+    create: true,
+    types: captured.types,
+    contracts: present(captured.contracts),
+  });
+  cleanup.push(() => owner.close());
+  const actual = owner.readConfiguration(),
+    metadata = present(captured.metadata(actual, scope));
+  expect(actual.scopeSnapshot).toEqual(captured.settings.scopeSnapshot);
+  expect(Object.isFrozen(actual.scopeSnapshot)).toBe(true);
+  expect(Object.isFrozen(actual.scopeSnapshot.limits)).toBe(true);
+  const stored = JSON.parse(actual.scopeConfiguration.configurationIdentity);
+  expect(stored.snapshotLimits).toEqual(actual.scopeSnapshot.limits);
+  expect(stored.snapshotTokenPolicy).toBe(actual.scopeSnapshot.tokenPolicy);
+  expect(captured.settings.scopeSnapshot.limits.lifetimeMs).not.toBe(
+    captured.settings.pagination.cursorTtlMs,
+  );
+  expect(metadata.runtimeConfigurationIdentity).toBe(
+    transactionRuntimeDigest({
+      revision: "transaction-runtime-1",
+      scope,
+      artifactIdentity: metadata.artifactIdentity,
+      settings: captured.settings,
+      authorityMode: metadata.authorityMode,
+      policyIdentity: metadata.policyIdentity,
+      authenticationIdentity: metadata.authenticationIdentity,
+      profile: "transactional",
+      history: false,
+    }),
+  );
+  for (const scopeSnapshot of [
+    {
+      ...actual.scopeSnapshot,
+      limits: {
+        ...actual.scopeSnapshot.limits,
+        lifetimeMs: actual.scopeSnapshot.limits.lifetimeMs + 1,
+      },
+    },
+    { ...actual.scopeSnapshot, tokenPolicy: "different-policy" },
+  ])
+    expect(() => captured.metadata({ ...actual, scopeSnapshot } as typeof actual, scope)).toThrow(
+      "Snapshot configuration mismatch",
+    );
+});
 it("binds every default tuple leaf in the pure digest dependency test (not a served override)", () => {
   const original = transactionRuntimeDigest(TRANSACTION_RUNTIME_DEFAULTS);
   function visit(value: unknown, keys: string[] = []) {

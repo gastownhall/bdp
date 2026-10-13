@@ -1,6 +1,7 @@
 /** Private captured runtime inputs. No installed launcher or profile admission. */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { isProxy } from "node:util/types";
 import { parseCanonicalScope, parseTypeDescriptor, stringifyJsonValue } from "@bdp/protocol";
 import {
@@ -27,6 +28,10 @@ import type {
   TransactionRuntimeTestSeams,
 } from "./transaction-runtime.js";
 import type { TransactionReadOptions } from "./transaction-read.js";
+import {
+  TRANSACTION_SNAPSHOT_LIMITS,
+  TRANSACTION_SNAPSHOT_TOKEN_POLICY,
+} from "./transaction-snapshot.js";
 
 function fields(value: unknown, allowed: readonly string[], required: readonly string[] = []) {
   if (
@@ -81,6 +86,10 @@ function boundedString(value: unknown, maximum: number): string {
 }
 export const TRANSACTION_RUNTIME_DEFAULTS = freeze({
   mutation: TRANSACTION_RUNTIME_LIMITS,
+  scopeSnapshot: {
+    limits: TRANSACTION_SNAPSHOT_LIMITS,
+    tokenPolicy: TRANSACTION_SNAPSHOT_TOKEN_POLICY,
+  },
   receiptMaximumItems: transactionReceiptMaximum(),
   readDefaultItems: 2,
   selector: { bytes: 4096, depth: 32, nodes: 256 },
@@ -315,6 +324,8 @@ export function captureTransactionRuntimeConfiguration(
     ) {
       if (configuredScope !== undefined && scope !== configuredScope)
         throw new Error("live transaction Scope mismatch");
+      if (!isDeepStrictEqual(actual.scopeSnapshot, settings.scopeSnapshot))
+        throw new Error("live transaction Snapshot configuration mismatch");
       if (
         actual.authorizationView !== "development-all-visible" ||
         actual.scopeConfiguration.policyIdentity !== actual.authorizationView ||
