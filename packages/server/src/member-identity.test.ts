@@ -1325,10 +1325,7 @@ describe("paired create numeric diagnostic locations", () => {
       expect(result.ok).toBe(false);
       if (result.ok) throw Error("expected numeric rejection");
       const expected = { message: "bad", instanceLocation: pointer };
-      expect(result.diagnostics).toEqual([
-        expected,
-        { message: "bad", instanceLocation: "/" },
-      ]);
+      expect(result.diagnostics).toEqual([expected, { message: "bad", instanceLocation: "/" }]);
       expect(result.offending.map((o) => o.pointer)).toEqual([
         `/properties${pointer}`,
         "/properties/",
