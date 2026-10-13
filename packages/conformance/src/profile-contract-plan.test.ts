@@ -455,6 +455,38 @@ describe("truthful executable readiness", () => {
       get.mockRestore();
     }
   });
+  it("does not turn supported prerequisites into blockers when only the carrier is unsupported", () => {
+    const selected = loadProfileContractSelection("read-update");
+    const config = configuration();
+    const ids = new Set(selected.required.map((row) => row.id));
+    const scenarios = readManifest.scenarios.filter((row) => ids.has(row.id));
+    // Use two independent ready rows and an actual declared dependency between
+    // them; carrier support and graph readiness are separate explanations.
+    const first = scenarios[0];
+    const second = scenarios[1];
+    if (!first || !second || !first.requests?.[0]) throw new Error("missing Read probes");
+    const own = { ...first.requests[0], id: "own", captures: [], prerequisiteScenario: undefined };
+    const pair = [
+      { ...first, requests: [own] },
+      { ...second, requests: [{ ...own, id: "dependency", prerequisiteScenario: first.id }, own] },
+    ];
+    for (const manifestVersion of [1, 2]) {
+      const plan = planProfileExecution(selected, config, {
+        configuration: config,
+        manifest: source({ ...readManifest, manifestVersion, scenarios: pair }),
+      });
+      const rows = plan.requirements.filter((row) => [first.id, second.id].includes(row.id));
+      expect(rows.every((row) => row.blockedPrerequisites.length === 0)).toBe(true);
+      expect(
+        rows.every(
+          (row) =>
+            row.readiness === (manifestVersion === 1 ? "carrier-unsupported" : "ready-unexecuted"),
+        ),
+      ).toBe(true);
+      expect(plan.claimEligible).toBe(false);
+      expect(plan.unobservedIds).toHaveLength(selected.required.length);
+    }
+  });
   it("rejects retired, diagnostic, History, misprofiled or wrong-fixture rows", () => {
     const config = configuration();
     const selected = loadProfileContractSelection(config.profile);

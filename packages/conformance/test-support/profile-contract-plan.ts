@@ -340,11 +340,14 @@ export function planProfileExecution(
           source.label,
         );
   if (manifest) validateFixtureOraclePointers(manifest, fixture);
-  // Current ordinary artifact factory admits only read-v1. Its runner refuses
-  // that v1 carrier at non-Read profiles; v2 also refuses Transactional. No
-  // normative writer bundle/executor has been admitted by this groundwork.
+  // The current ordinary artifact factory accepts read-v1. The runner permits
+  // v2 Read+Update only with matching exact execution configuration; this plan
+  // is not execution, qualification or proof that such a target was observed.
   const carrierBlocker =
-    manifest === undefined || (manifest.catalogId === "read-v1" && bound.profile === "read")
+    manifest === undefined ||
+    (manifest.catalogId === "read-v1" &&
+      (bound.profile === "read" ||
+        (bound.profile === "read-update" && manifest.manifestVersion === 2)))
       ? undefined
       : `current normative artifact/runner carrier does not support ${manifest.catalogId} version ${manifest.manifestVersion} on ${bound.profile}`;
   const required = new Map(selection.required.map((row) => [row.id, row]));
@@ -397,7 +400,6 @@ export function planProfileExecution(
       !!row &&
         !missingApplicability.length &&
         !missingSetup.length &&
-        !carrierBlocker &&
         (dependencies.get(id) ?? []).every(
           (dependency) => earlier(id, dependency) && dependencyReady.get(dependency) === true,
         ),
