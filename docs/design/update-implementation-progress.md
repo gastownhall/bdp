@@ -364,3 +364,54 @@ lifecycle. The saved non-attesting report records all 797 assertions passing.
 Build, typecheck, dependency boundaries, formatting and both executable smokes
 passed on Node 24.16.0/pnpm 11.20.0. Lint retains the baseline three warnings and
 one informational finding. No full repository suite was run for this slice.
+
+## Private installed-contract and trusted-principal composition (U2)
+
+The source-only canonical HTTP fixture can now supply an internal deployment
+configuration to the existing mutable owner. Ordinary installed startup and the
+public development facade keep their original fixed contract, credential and
+admission behavior. Neither accepts the new configuration, advertises another
+profile, nor acquires new package exports.
+
+`development-contracts.ts` captures exact offline descriptor/schema bytes with
+the existing artifact ingester and compiles them with the existing guarded
+schema evaluator. Every schema reference must resolve from that captured bundle
+or the evaluator's immutable built-ins. The registry matches exact installed
+Type bytes. The installation identity binds the captured closure and fixed
+aggregate policies; reopening under different bytes or aggregate configuration
+is refused. This supplies no network fetch or Type installation lifecycle API.
+
+The adapter emits standardized property diagnostics only after a complete
+compiler evaluation. Incomplete evaluation and local work-budget refusal fail
+closed as local errors; they cannot become successful validation or invented
+complete diagnostics. Final Resource evaluation attaches the effective Type
+and applies its own advertised diagnostic count/byte budget. This fixture does
+not qualify every schema dialect keyword, every compiler budget refusal, or
+production compiler resource consumption.
+
+The private deployment captures a bounded token-to-principal map. The actual
+Authorization credential selects the stable principal; writer-supplied actor
+attribution has no authority. Administrative policy snapshots independently
+control creation, writes, hidden Resources and read-only Resources. A private
+operator handle can replace a principal's snapshot between owner turns, and
+pagination authorization views change with that snapshot. Policies are supplied
+again on startup; this slice adds neither a policy persistence subsystem nor a
+remote administration endpoint. Fixed aggregate policy changes require a new
+installation, rather than silently tightening a live graph.
+
+Eight focused observations cover inherited schema failure and retained replay;
+immutable captured schema bytes; owned-Link source revisions, provenance and
+no-op preservation; aggregate refusal without effects; source write permission;
+principal-separated keys and actor non-authority; hidden versus forbidden
+responses and current-policy retained disclosure; whole owned-Resource
+withholding and pagination view invalidation; exact-config durable reopen;
+administrative accessor/credential rejection; and refusal to bridge incomplete
+schema diagnostics. Seven run real HTTP against the same disposable mutable
+owner; the eighth directly tests the compiler-to-diagnostic adapter's refusal
+boundary. The schema fixture uses an open object with an inherited integer
+property constraint and an external schema reference supplied as pinned bytes.
+
+These are bounded source-only observations, not installed profile qualification.
+The later served profile still needs an installed mutable payload, applicable
+cumulative Read receiving/CORS behavior and profile-specific executable evidence.
+No conformance row, profile guard or existing evidence artifact is relabeled.

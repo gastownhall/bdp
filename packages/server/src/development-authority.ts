@@ -1,5 +1,5 @@
 /** Mutable reference authority for explicit development use. No profile admission. */
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import {
   isReadProblem,
   parseCanonicalScope,
@@ -9,6 +9,7 @@ import {
   stringifyJsonValue,
   type ReadUpdateOperation,
   type ReadRequest,
+  type MaximumEndpointMultiplicityPolicy,
 } from "@bdp/protocol";
 import { openRecoveryStore } from "./recovery-store.js";
 import {
@@ -21,6 +22,15 @@ import {
   assertReadUpdateRuntimeCompatibility,
   snapshotReadUpdateRuntimeLimits,
 } from "./read-update-runtime-limits.js";
+import type { StablePrincipal } from "./member-executor.js";
+import {
+  administrativeData,
+  administrativeArray,
+  assertDevelopmentContracts,
+  assertDevelopmentAccessPolicy,
+  type DevelopmentContracts,
+  type DevelopmentAccessPolicy,
+} from "./development-contracts.js";
 import { readStoredResource } from "./resource-evaluator.js";
 import { requestFromUrl, classifyAliasPath } from "./read-request.js";
 
@@ -65,6 +75,11 @@ const descriptors = Object.freeze([
 ]);
 const types = Object.fromEntries(descriptors.map((d) => [d.id, stringifyJsonValue(d)]));
 
+export interface DevelopmentAuthorityConfiguration {
+  readonly contracts: DevelopmentContracts;
+  readonly access: DevelopmentAccessPolicy;
+  readonly maximumEndpointMultiplicity: readonly MaximumEndpointMultiplicityPolicy[];
+}
 export interface DevelopmentAuthorityOptions {
   readonly scope: string;
   readonly directory: string;
@@ -74,29 +89,96 @@ export interface DevelopmentAuthorityOptions {
   readonly scheduler?: LifecycleScheduler;
   /** Private retention clock; absent in public development configuration. */
   readonly clock?: () => number;
+  readonly configuration?: DevelopmentAuthorityConfiguration;
 }
 
 export async function openDevelopmentAuthority(options: DevelopmentAuthorityOptions) {
   const scope = parseCanonicalScope(options.scope);
   const clock = options.clock ?? Date.now;
+  const configured =
+    options.configuration === undefined
+      ? undefined
+      : (Object.freeze(
+          administrativeData(options.configuration, [
+            "contracts",
+            "access",
+            "maximumEndpointMultiplicity",
+          ]),
+        ) as unknown as DevelopmentAuthorityConfiguration);
+  if (configured) {
+    assertDevelopmentContracts(configured.contracts);
+    assertDevelopmentAccessPolicy(configured.access);
+  }
+  const installedDescriptors = configured?.contracts.descriptors ?? descriptors;
+  const installedTypes = configured?.contracts.types ?? types;
+  const contractIdentity = configured?.contracts.identity ?? installation;
+  const aggregate = configured
+    ? Object.freeze(
+        administrativeArray(configured.maximumEndpointMultiplicity, 1000).map((value) => {
+          const item = administrativeData(value, [
+            "endpoint",
+            "linkConformsTo",
+            "max",
+          ]) as unknown as MaximumEndpointMultiplicityPolicy;
+          if (
+            !item ||
+            !["source", "target"].includes(item.endpoint) ||
+            !Number.isSafeInteger(item.max) ||
+            item.max < 0 ||
+            !installedDescriptors.some(
+              (d) => d.id === item.linkConformsTo && d.describes === "link",
+            )
+          )
+            throw new TypeError("invalid installed aggregate policy");
+          return Object.freeze({
+            endpoint: item.endpoint,
+            linkConformsTo: item.linkConformsTo,
+            max: item.max,
+          });
+        }),
+      )
+    : configuration.maximumEndpointMultiplicity;
+  const installationIdentity = configured
+    ? `${contractIdentity}-${createHash("sha256").update(stringifyJsonValue(aggregate)).digest("hex")}`
+    : installation;
+  const capturedConfiguration = () => ({
+    policyIdentity: configured?.access.identity() ?? installation,
+    configurationIdentity: installationIdentity,
+    maximumEndpointMultiplicity: aggregate,
+  });
+  const capturedPolicy = (principal: StablePrincipal) => {
+    if (!configured) return policy;
+    const snapshot = configured.access.capture(principal.id);
+    const local = (id: string) => (id.startsWith(scope) ? id.slice(scope.length) : id);
+    const canRead = (record: import("./resource-evaluator.js").ResourceRecord) =>
+      !snapshot.hidden.includes(local(record.id));
+    const canWrite = (record: import("./resource-evaluator.js").ResourceRecord) =>
+      snapshot.write && !snapshot.readOnly.includes(local(record.id));
+    return Object.freeze({
+      canRead,
+      canCreate: () => snapshot.create,
+      canWrite,
+      canWriteBead: canWrite,
+    });
+  };
   const store = openRecoveryStore({
     scope,
     directory: options.directory,
-    installationId: installation,
-    lineageId: installation,
+    installationId: installationIdentity,
+    lineageId: installationIdentity,
     minimumRetentionMs: day,
-    ...(options.create ? { create: { types } } : {}),
+    ...(options.create ? { create: { types: installedTypes } } : {}),
   });
   let owner: SequenceLifecycle | undefined;
   try {
-    // This closed reference contract set has no schema compiler callbacks or
-    // mutable policy. Refuse foreign installations rather than silently adopt them.
+    // Administrative artifacts are compiled before opening. Exact installed
+    // descriptor bytes and the closure-derived installation identity must match.
     const installed = new Set<string>();
     store.visitInstalledTypes(({ id, bodyJson }) => {
-      if (types[id] !== bodyJson) throw new Error("unexpected installed development Type");
+      if (installedTypes[id] !== bodyJson) throw new Error("unexpected installed development Type");
       installed.add(id);
     });
-    if (installed.size !== descriptors.length) throw new Error("missing development Type");
+    if (installed.size !== installedDescriptors.length) throw new Error("missing development Type");
     store.read((reader) => {
       for (const row of reader.resources()) {
         const resource = readStoredResource(row, scope);
@@ -133,15 +215,19 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
         retentionMs: day,
         minimumRetentionMs: day,
         clock,
-        contracts: {
+        contracts: configured?.contracts.registry ?? {
           get(id, bytes) {
             if (types[id] !== bytes) return undefined;
             const descriptor = descriptors.find((candidate) => candidate.id === id);
             return descriptor === undefined ? undefined : { descriptor };
           },
         },
-        captureMemberContext() {
-          return { ...configuration, recordChangeContext: false, policy };
+        captureMemberContext(_reader, principal) {
+          return {
+            ...capturedConfiguration(),
+            recordChangeContext: false,
+            policy: capturedPolicy(principal),
+          };
         },
       },
     });
@@ -155,8 +241,8 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
       owner,
       read: {
         scopeEpoch: epoch,
-        scopeConfiguration: { capture: () => configuration },
-        installedTypes: descriptors,
+        scopeConfiguration: { capture: capturedConfiguration },
+        installedTypes: installedDescriptors,
         selectorLimits: readLimits.selector,
         advertisedLimits: readLimits,
         pagination: {
@@ -174,55 +260,69 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
           clock: Date.now,
           generateOpaqueToken: () => randomBytes(24).toString("base64url"),
         },
-        captureReadAuthorization() {
+        captureReadAuthorization(_reader, readPrincipal) {
+          if (readPrincipal.kind !== "authenticated")
+            throw new TypeError("authenticated development Read required");
+          const principal = readPrincipal.principal;
           return {
             kind: "authorized",
             authorization: {
-              authorizationView: epoch,
+              authorizationView: `${epoch}:${principal.id}:${configured?.access.capture(principal.id).identity ?? installation}`,
               scopeEpoch: epoch,
-              policy,
+              policy: capturedPolicy(principal),
               canReadType: () => true,
             },
           };
         },
       },
     });
-    const reads = lifecycle.readFor({ kind: "authenticated", principal });
+    const forPrincipal = (principal: StablePrincipal) => {
+      const reads = lifecycle.readFor({ kind: "authenticated", principal });
+      return Object.freeze({
+        scope,
+        // Private HTTP composition reads the very configuration used by this owner.
+        limits: DEVELOPMENT_LIMITS,
+        discover: () => reads.perform({ kind: "scope-discovery", scope }),
+        resolveAlias: (url: string) => reads.resolveAlias(url),
+        async perform(request: ReadRequest) {
+          const result = await reads.perform(request);
+          return result.kind === "success" ? { ...result, request } : result;
+        },
+        async mutate(
+          operation: ReadUpdateOperation,
+          text: string,
+          key: string,
+          acceptsJson = true,
+        ) {
+          const carrier = prepareReadUpdateSingleton(scope, operation, text, key);
+          const submission = lifecycle.submit(carrier, principal, { acceptsJson });
+          if (submission.kind === "refused") return submission.problem;
+          if (submission.kind === "not-acceptable") return submission;
+          const result = await submission.completion;
+          if (result.kind !== "singleton") throw new Error("unexpected development completion");
+          return result.disposition;
+        },
+        async sequence(text: string, acceptsJson = true) {
+          const carrier = prepareReadUpdateSequence(scope, text);
+          const submission = lifecycle.submit(carrier, principal, { acceptsJson });
+          if (submission.kind === "refused") return submission.problem;
+          if (submission.kind === "not-acceptable") return submission;
+          const result = await submission.completion;
+          if (result.kind !== "sequence") throw new Error("unexpected development completion");
+          return result.response;
+        },
+        async read(url: URL) {
+          if (classifyAliasPath(url, scope) !== undefined) return reads.resolveAlias(url.href);
+          const request = requestFromUrl(url, scope);
+          if (isReadProblem(request)) return { kind: "problem" as const, problem: request };
+          const result = await reads.perform(request);
+          return result.kind === "success" ? { ...result, request } : result;
+        },
+      });
+    };
     return Object.freeze({
-      scope,
-      // Private HTTP composition reads the very configuration used by this owner.
-      limits: DEVELOPMENT_LIMITS,
-      discover: () => reads.perform({ kind: "scope-discovery", scope }),
-      resolveAlias: (url: string) => reads.resolveAlias(url),
-      async perform(request: ReadRequest) {
-        const result = await reads.perform(request);
-        return result.kind === "success" ? { ...result, request } : result;
-      },
-      async mutate(operation: ReadUpdateOperation, text: string, key: string, acceptsJson = true) {
-        const carrier = prepareReadUpdateSingleton(scope, operation, text, key);
-        const submission = lifecycle.submit(carrier, principal, { acceptsJson });
-        if (submission.kind === "refused") return submission.problem;
-        if (submission.kind === "not-acceptable") return submission;
-        const result = await submission.completion;
-        if (result.kind !== "singleton") throw new Error("unexpected development completion");
-        return result.disposition;
-      },
-      async sequence(text: string, acceptsJson = true) {
-        const carrier = prepareReadUpdateSequence(scope, text);
-        const submission = lifecycle.submit(carrier, principal, { acceptsJson });
-        if (submission.kind === "refused") return submission.problem;
-        if (submission.kind === "not-acceptable") return submission;
-        const result = await submission.completion;
-        if (result.kind !== "sequence") throw new Error("unexpected development completion");
-        return result.response;
-      },
-      async read(url: URL) {
-        if (classifyAliasPath(url, scope) !== undefined) return reads.resolveAlias(url.href);
-        const request = requestFromUrl(url, scope);
-        if (isReadProblem(request)) return { kind: "problem" as const, problem: request };
-        const result = await reads.perform(request);
-        return result.kind === "success" ? { ...result, request } : result;
-      },
+      ...forPrincipal(principal),
+      forPrincipal,
       close: () => lifecycle.close(),
     });
   } catch (error) {

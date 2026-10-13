@@ -18,6 +18,8 @@ import {
 import { applyReadHttpSemantics, resourceRevisionEtag, acceptsJson } from "./read-http.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
 import type { HttpResponse, HttpHandler } from "./index.js";
+import { administrativeArray, administrativeData } from "./development-contracts.js";
+import type { DevelopmentAuthorityConfiguration } from "./development-authority.js";
 import { DEVELOPMENT_LIMITS, openDevelopmentAuthority } from "./development-authority.js";
 import type { LifecycleScheduler } from "./sequence-executor.js";
 
@@ -50,6 +52,10 @@ export interface DevelopmentHttpComposition {
     >,
     directory: ReadUpdateOperationDirectory,
   ): HttpHandler;
+}
+export interface DevelopmentDeployment {
+  readonly configuration: DevelopmentAuthorityConfiguration;
+  readonly credentials: readonly { readonly token: string; readonly principal: string }[];
 }
 class ReceivingError extends Error {
   constructor(readonly code: ReadProblemCode | "unsupported-media-type") {
@@ -149,6 +155,7 @@ export async function startDevelopmentReferenceRuntime(
   scheduler?: LifecycleScheduler,
   clock?: () => number,
   composition?: DevelopmentHttpComposition,
+  deployment?: DevelopmentDeployment,
 ) {
   if (!path.isAbsolute(options.directory) || typeof options.create !== "boolean")
     throw new TypeError("explicit absolute store directory and provisioning choice required");
@@ -179,8 +186,38 @@ export async function startDevelopmentReferenceRuntime(
     ),
     sequence: "sequence",
   });
-  let composedRead: HttpHandler | undefined;
-  const credential = Buffer.from(`Bearer ${options.token}`);
+  const configuredDeployment =
+    deployment === undefined
+      ? undefined
+      : administrativeData(deployment, ["configuration", "credentials"]);
+  const credentials =
+    configuredDeployment === undefined
+      ? [
+          {
+            credential: Buffer.from(`Bearer ${options.token}`),
+            principal: "bdptest-development-operator",
+          },
+        ]
+      : administrativeArray(configuredDeployment.credentials, 32).map((value) => {
+          const input = administrativeData(value, ["token", "principal"]);
+          if (
+            typeof input.token !== "string" ||
+            !/^[A-Za-z0-9_-]{32,256}$/.test(input.token) ||
+            typeof input.principal !== "string" ||
+            !/^[A-Za-z0-9_-]{1,128}$/.test(input.principal)
+          )
+            throw new TypeError("invalid trusted credential mapping");
+          return Object.freeze({
+            credential: Buffer.from(`Bearer ${input.token}`),
+            principal: input.principal,
+          });
+        });
+  if (
+    !credentials.length ||
+    new Set(credentials.map((c) => c.credential.toString())).size !== credentials.length
+  )
+    throw new TypeError("unique trusted credentials required");
+  const composedReads = new Map<string, HttpHandler>();
   let authority: Awaited<ReturnType<typeof openDevelopmentAuthority>> | undefined;
   let closing = false;
   const pending = new Set<Promise<void>>();
@@ -189,8 +226,14 @@ export async function startDevelopmentReferenceRuntime(
     try {
       if (closing || !authority) throw new ReceivingError("temporarily-unavailable");
       const authorization = Buffer.from(header(request, "authorization") ?? "");
-      if (authorization.length !== credential.length || !timingSafeEqual(authorization, credential))
-        throw new ReceivingError("unauthenticated");
+      const authenticated = credentials.find(
+        ({ credential }) =>
+          authorization.length === credential.length && timingSafeEqual(authorization, credential),
+      );
+      if (!authenticated) throw new ReceivingError("unauthenticated");
+      const principal = Object.freeze({ id: authenticated.principal });
+      const principalAuthority = authority.forPrincipal(principal);
+      const composedRead = composedReads.get(principal.id);
       if (header(request, "host") !== new URL(scope).host)
         throw new ReceivingError("malformed-request");
       if (header(request, "origin") !== undefined) throw new ReceivingError("forbidden");
@@ -251,7 +294,7 @@ export async function startDevelopmentReferenceRuntime(
         }
         // No service-desc or BDP discovery profile. Reads use the same authority
         // as writes and reuse the qualified Read HTTP projection helpers.
-        const result = await authority.read(url);
+        const result = await principalAuthority.read(url);
         if (result.kind === "problem")
           json(response, result.problem.status ?? 500, result.problem, true);
         else if (result.kind === "success") {
@@ -295,13 +338,13 @@ export async function startDevelopmentReferenceRuntime(
       // committed/admitted work; an exact-key retry retrieves its disposition.
       const result =
         operation !== undefined && key !== undefined
-          ? await authority.mutate(
+          ? await principalAuthority.mutate(
               operation,
               text,
               key,
               acceptsJson(request.headers.accept ?? null),
             )
-          : await authority.sequence(text, acceptsJson(request.headers.accept ?? null));
+          : await principalAuthority.sequence(text, acceptsJson(request.headers.accept ?? null));
       if ("kind" in result && result.kind === "not-acceptable") {
         response.setHeader("vary", "Accept");
         empty(response, 406);
@@ -349,19 +392,30 @@ export async function startDevelopmentReferenceRuntime(
       create: options.create,
       ...(scheduler === undefined ? {} : { scheduler }),
       ...(clock === undefined ? {} : { clock }),
+      ...(configuredDeployment === undefined
+        ? {}
+        : {
+            configuration: configuredDeployment.configuration as DevelopmentAuthorityConfiguration,
+          }),
     });
-    if (createReadRoute !== undefined) {
-      composedRead = createReadRoute(
-        Object.freeze({
-          scope: authority.scope,
-          limits: authority.limits,
-          discover: authority.discover,
-          resolveAlias: authority.resolveAlias,
-          perform: authority.perform,
-        }),
-        directory,
-      );
-      if (typeof composedRead !== "function") throw new TypeError("invalid private Read route");
+    for (const { principal } of credentials) {
+      const view = authority.forPrincipal(Object.freeze({ id: principal }));
+      // Validate the configured principal against the actual authority before serving.
+      await view.discover();
+      if (createReadRoute !== undefined) {
+        const route = createReadRoute(
+          Object.freeze({
+            scope: view.scope,
+            limits: view.limits,
+            discover: view.discover,
+            resolveAlias: view.resolveAlias,
+            perform: view.perform,
+          }),
+          directory,
+        );
+        if (typeof route !== "function") throw new TypeError("invalid private Read route");
+        composedReads.set(principal, route);
+      }
     }
   } catch (error) {
     if (server.listening) await closeListener();
