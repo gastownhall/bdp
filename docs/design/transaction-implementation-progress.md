@@ -1350,3 +1350,17 @@ page before matching frame indices. Numeric-like key sensitivity belongs to that
 source witness; the installed witness checks raw byte containment with its simpler
 numeric property fixture. Its observer imports source-only server test support,
 while the target remains a separate process loading the exact installed payload.
+
+## Private Event Source SSE owner scan (G2b, owner checkpoint)
+
+The owner now offers source-private immutable scan continuations. Each observation
+projects at most one committed group and carries source/context plus the next
+exclusive ordinal in an owner-local WeakMap. Caught-up observations do not construct
+a group reader. No iterator, parsed group or SQLite transaction escapes, and no
+durable format, public cursor or Event membership rule changes.
+
+Finite reads retain their exact envelope/continuation byte reservation and
+lookahead. The bounded stream packet conservatively reuses that charge. Known-source
+parameter errors can carry the same owner entry's context; early query validation
+and unknown-source nondisclosure remain distinct. HTTP serving and the shared pump
+are subsequent G2b steps; this checkpoint does not enable Event Source SSE.
