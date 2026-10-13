@@ -460,6 +460,150 @@ it("expands owned sets in canonical order, versions shared source per member and
   expect(f.admit(operations)).toMatchObject({ kind: "existing", receipt: full });
 });
 
+it("carries native attribution through owned creation, update and both deletion carriers", () => {
+  let now = Date.parse("2026-10-13T12:00:00Z");
+  const f = fixture({ clock: () => now });
+  seed(f);
+  for (const [name, operation] of [
+    ["create", edge()],
+    ["update", patch(1)],
+    ["delete", remove()],
+  ] as const) {
+    now += 1000;
+    const expected = {
+      committedAt: { state: "present", value: new Date(now).toISOString() },
+      agent: { state: "present", value: `agent-${name}` },
+      message: { state: "present", value: name },
+    };
+    const receipt = f.run(
+      [{ ...operation, revisionProvenance: { agent: `agent-${name}`, message: name } }],
+      name,
+    );
+    const source = f.record("beads/a"),
+      events = f.group().events,
+      sourceEvent = events.at(-1);
+    if (!sourceEvent) throw new Error("missing source Event");
+    const nested = (sourceEvent.data.ownedLink as { link: Record<string, unknown> }).link;
+    expect(source.revisionProvenance).toEqual(expected);
+    expect(sourceEvent?.data.revisionProvenance).toEqual(expected);
+    expect(results(receipt)[0]?.sourceRevision).toBe(source.revision);
+    if (name === "delete") {
+      expect(nested).toEqual({
+        id: `${scope}links/l`,
+        type: link,
+        revision: events[0]?.data.revision,
+      });
+      expect(events[0]?.data).not.toHaveProperty("revisionProvenance");
+    } else {
+      expect(f.record("links/l").revisionProvenance).toEqual(expected);
+      expect(nested.revisionProvenance).toEqual(expected);
+      expect(events[0]?.data.revisionProvenance).toEqual(expected);
+    }
+  }
+  f.run([edge("a"), edge("z")], "set-seed");
+  const before = f.record("beads/a");
+  now += 1000;
+  const receipt = f.run(
+    [
+      {
+        operation: "deleteWhere",
+        collection: "links",
+        selector: "$[?@.properties.n == 0]",
+        revisionProvenance: { agent: "set-worker", message: "delete-set" },
+      },
+    ],
+    "delete-set",
+  );
+  const expected = {
+    committedAt: { state: "present", value: new Date(now).toISOString() },
+    agent: { state: "present", value: "set-worker" },
+    message: { state: "present", value: "delete-set" },
+  };
+  const sourceEvents = f.group().events.filter((event) => event.subject === before.id);
+  expect(sourceEvents).toHaveLength(2);
+  expect(results(receipt).map((result) => result.outcome)).toEqual([
+    "matched",
+    "deleted",
+    "deleted",
+  ]);
+  for (const [index, event] of sourceEvents.entries()) {
+    expect(event.data.revisionProvenance).toEqual(expected);
+    expect(event.data.previousRevision).toBe(
+      index === 0 ? before.revision : sourceEvents[index - 1]?.data.revision,
+    );
+    expect(results(receipt)[index + 1]?.sourceRevision).toBe(event.data.revision);
+    expect((event.data.ownedLink as { link: unknown }).link).not.toHaveProperty(
+      "revisionProvenance",
+    );
+  }
+  expect(f.record("beads/a").revisionProvenance).toEqual(expected);
+  expect(inline(f.record("beads/a"))?.[link]).toEqual([]);
+});
+
+it("preserves mixed set no-ops and each staged owned source version across later operations", () => {
+  const f = fixture();
+  seed(f);
+  f.run([{ ...edge("a"), properties: { n: 1 } }, edge("z")], "edges");
+  const initial = f.record("beads/a"),
+    unchanged = f.record("links/a");
+  const receipt = f.run([
+    {
+      operation: "updateWhere",
+      collection: "links",
+      selector: "$[?@.properties.n >= 0]",
+      change: [{ op: "replace", path: "/n", value: 1 }],
+    },
+    {
+      operation: "updateWhere",
+      collection: "links",
+      selector: "$[?@.properties.n == 1]",
+      change: [{ op: "replace", path: "/n", value: 2 }],
+      cardinality: { min: 2, max: 2 },
+    },
+    patch(3, "a"),
+  ]);
+  const entries = results(receipt),
+    events = f.group().events,
+    sourceEvents = events.filter((event) => event.subject === initial.id);
+  expect(
+    entries.map((entry) => [
+      entry.operationIndex,
+      entry.outcome,
+      entry.count ?? entry.resource?.id,
+    ]),
+  ).toEqual([
+    [0, "matched", 2],
+    [0, "updated", `${scope}links/a`],
+    [0, "updated", `${scope}links/z`],
+    [1, "matched", 2],
+    [1, "updated", `${scope}links/a`],
+    [1, "updated", `${scope}links/z`],
+    [2, "updated", `${scope}links/a`],
+  ]);
+  expect(entries[1]?.resource).toEqual(unchanged);
+  expect(entries[1]?.sourceRevision).toBe(initial.revision);
+  expect(events).toHaveLength(8);
+  expect(sourceEvents).toHaveLength(4);
+  expect(
+    events.filter((event) => event.subject !== initial.id).map((event) => event.subject),
+  ).toEqual([`${scope}links/z`, `${scope}links/a`, `${scope}links/z`, `${scope}links/a`]);
+  for (const [index, receiptIndex] of [2, 4, 5, 6].entries()) {
+    expect(entries[receiptIndex]?.sourceRevision).toBe(sourceEvents[index]?.data.revision);
+    expect(sourceEvents[index]?.data.previousRevision).toBe(
+      index === 0 ? initial.revision : sourceEvents[index - 1]?.data.revision,
+    );
+  }
+  expect(
+    entries.filter((entry) => entry.resource).map((entry) => entry.resource?.properties.n),
+  ).toEqual([1, 1, 2, 2, 3]);
+  expect(f.record("links/a").properties.n).toBe(3);
+  expect(f.record("links/z").properties.n).toBe(2);
+  expect(f.record("beads/a").revision).toBe(sourceEvents.at(-1)?.data.revision);
+  expect(f.group().changes).toHaveLength(3);
+  for (const change of f.group().changes)
+    expect(change.resource).toEqual(f.record(change.resource.id.slice(scope.length)));
+});
+
 it("charges the source fact to the same total Event cap and retains atomic failure across retry", () => {
   const f = fixture();
   seed(f);
