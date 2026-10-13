@@ -62,27 +62,67 @@ describe("draft numeric-model catalog", () => {
     }
   });
 
+  const approvedBindings: Record<string, readonly string[]> = {
+    "read-v1.json": ["read.numeric-model.declared-token-model"],
+    "read-update-reference-continuation-v1.json": [
+      "read-update.numeric-model.same-value-no-op",
+      "read-update.numeric-model.round-trip-admission",
+      "read-update.numeric-model.nested-refusal",
+    ],
+  };
+  const assertBindings = (
+    entry: string,
+    manifest: ReturnType<typeof loadExecutableScenarioManifestJson>,
+  ): void => {
+    expect(manifest.catalogId, entry).not.toBe("numeric-model-v1");
+    if (entry === "read-update-reference-continuation-v1.json") {
+      expect(manifest.catalogId, "numeric continuation catalogId guard").toBe("read-update-v1");
+      expect(manifest.manifestVersion, "numeric continuation manifestVersion guard").toBe(2);
+    }
+    const bound = new Set(manifest.scenarios.map(({ id }) => id));
+    for (const row of catalog.scenarios)
+      expect(bound.has(row.id), `${entry} binds ${row.id}`).toBe(
+        approvedBindings[entry]?.includes(row.id) ?? false,
+      );
+  };
   it("binds numeric rows only in their explicitly approved profile artifacts", () => {
     const manifests = readdirSync(path.resolve(root, MATRICES_DIRECTORY)).filter((entry) =>
       entry.endsWith(".json"),
     );
-    expect(manifests.length).toBeGreaterThan(0);
-    const approvedBindings: Record<string, readonly string[]> = {
-      "read-v1.json": ["read.numeric-model.declared-token-model"],
-      "read-update-reference-continuation-v1.json": ["read-update.numeric-model.same-value-no-op"],
-    };
-    for (const entry of manifests) {
-      const manifest = loadExecutableScenarioManifestJson(
-        readText(path.join(MATRICES_DIRECTORY, entry)),
+    for (const entry of Object.keys(approvedBindings)) expect(manifests).toContain(entry);
+    for (const entry of manifests)
+      assertBindings(
         entry,
+        loadExecutableScenarioManifestJson(readText(path.join(MATRICES_DIRECTORY, entry)), entry),
       );
-      expect(manifest.catalogId, entry).not.toBe("numeric-model-v1");
-      const bound = new Set(manifest.scenarios.map(({ id }) => id));
-      for (const row of catalog.scenarios)
-        expect(bound.has(row.id), `${entry} binds ${row.id}`).toBe(
-          approvedBindings[entry]?.includes(row.id) ?? false,
-        );
-    }
+  });
+  it.each([
+    "read-update.numeric-model.round-trip-admission",
+    "read-update.numeric-model.nested-refusal",
+  ])("rejects unapproved artifact ownership for %s", (id) => {
+    const entry = "read-update-reference-continuation-v1.json";
+    const manifest = loadExecutableScenarioManifestJson(
+      readText(path.join(MATRICES_DIRECTORY, entry)),
+      entry,
+    );
+    const selected = manifest.scenarios.filter((r) => r.id === id);
+    expect(selected).toHaveLength(1);
+    expect(() =>
+      assertBindings("unapproved-numeric.json", { ...manifest, scenarios: selected }),
+    ).toThrow(id);
+    const read = loadExecutableScenarioManifestJson(
+      readText(path.join(MATRICES_DIRECTORY, "read-v1.json")),
+      "read-v1.json",
+    );
+    expect(() =>
+      assertBindings("read-v1.json", { ...read, scenarios: [...read.scenarios, ...selected] }),
+    ).toThrow(id);
+    expect(() => assertBindings(entry, { ...manifest, catalogId: "read-v1" })).toThrow(
+      "numeric continuation catalogId guard",
+    );
+    expect(() => assertBindings(entry, { ...manifest, manifestVersion: 1 })).toThrow(
+      "numeric continuation manifestVersion guard",
+    );
   });
 
   it("mirrors the specification's Numeric-model conformance rows exactly and in order", () => {
