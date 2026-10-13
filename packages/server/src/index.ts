@@ -1,5 +1,4 @@
 import {
-  requestFromUrl,
   notFound,
   invalidParameter,
   isPageOperation,
@@ -8,7 +7,6 @@ import {
   continuationDetails,
   inCanonicalUriOrder,
   resolveReadRequestVariant,
-  classifyAliasPath,
   ScopeServerLocalError,
   ScopeServerClosedError,
   ScopeServerOperationAbortedError,
@@ -64,7 +62,8 @@ import {
   ReadPaginationError,
   type ReadPaginationOptions,
 } from "./read-pagination.js";
-import { applyReadHttpSemantics, resourceRevisionEtag } from "./read-http.js";
+import { applyReadHttpSemantics } from "./read-http.js";
+import { createReadHttpRoute, jsonResponse, scopeDataResponse } from "./read-http-routing.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
 import {
   ReadSelectorError,
@@ -698,59 +697,31 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
   if (!verifiedReadServers.has(server)) {
     throw new TypeError("createHttpHandler requires a server created by createReadServer");
   }
-  const route: HttpHandler = async (request) => {
-    try {
-      if (request.method !== "GET" && request.method !== "HEAD") {
-        return {
-          status: 405,
-          headers: new Headers({ allow: "GET, HEAD", "content-length": "0" }),
-        };
-      }
-      const url = new URL(request.url);
-      const scopeUrl = new URL(server.scope);
-      if (url.origin !== scopeUrl.origin) return problemResponse(notFound());
-      const probe = await server.probe({ signal: request.signal, httpRequest: request });
-      const aliasPath = classifyAliasPath(url, server.scope);
-      if (aliasPath !== undefined) {
-        // Alias resolution runs inside the same authorization projection as
-        // any read at this Scope, and strictly in this order: classify the
-        // URL (no table access), apply the identity gate, and only then
-        // consult the table — so neither the response nor its timing can
-        // disclose alias existence to a caller the projection refuses.
-        // Alias routing also precedes every representation-bearing route:
-        // nothing is ever served at an alias URL.
-        const gate = await server.perform(
-          { kind: "scope-discovery", scope: server.scope },
-          { signal: request.signal, httpRequest: request },
-        );
-        if (isReadServerProblem(gate)) return problemResponse(gate);
-        if (isReadProblem(aliasPath)) return problemResponse(aliasPath);
-        const aliasTarget = server.aliases?.get(aliasPath) ?? notFound();
-        if (isReadProblem(aliasTarget)) return problemResponse(aliasTarget);
-        return {
-          status: 307,
-          headers: new Headers({ location: aliasTarget, "content-length": "0" }),
-        };
-      }
-      if (url.pathname === scopeUrl.pathname) {
-        return {
-          status: 204,
-          headers: new Headers({
-            link: `<${probe.serviceDescription}>; rel="service-desc"; type="application/json"`,
-          }),
-        };
-      }
-      if (url.href === probe.serviceDescription) {
-        const discovery = await server.perform(
-          { kind: "scope-discovery", scope: server.scope },
-          { signal: request.signal, httpRequest: request },
-        );
-        return isReadServerProblem(discovery)
-          ? problemResponse(discovery)
-          : jsonResponse(discovery);
-      }
-      const parsed = requestFromUrl(url, server.scope);
-      if (isReadProblem(parsed)) return problemResponse(parsed);
+  const route = createReadHttpRoute({
+    scope: server.scope,
+    probe: (request) => server.probe({ signal: request.signal, httpRequest: request }),
+    problem: problemResponse,
+    async discover(request) {
+      const result = await server.perform(
+        { kind: "scope-discovery", scope: server.scope },
+        { signal: request.signal, httpRequest: request },
+      );
+      return isReadServerProblem(result) ? problemResponse(result) : jsonResponse(result);
+    },
+    async alias(aliasPath, request) {
+      // Gate before consulting the static table, even for invalid alias paths.
+      const gate = await server.perform(
+        { kind: "scope-discovery", scope: server.scope },
+        { signal: request.signal, httpRequest: request },
+      );
+      if (isReadServerProblem(gate)) return problemResponse(gate);
+      if (isReadProblem(aliasPath)) return problemResponse(aliasPath);
+      const target = server.aliases?.get(aliasPath) ?? notFound();
+      return isReadProblem(target)
+        ? problemResponse(target)
+        : { status: 307, headers: new Headers({ location: target, "content-length": "0" }) };
+    },
+    async perform(parsed, request) {
       const result = await server.perform(parsed, {
         signal: request.signal,
         httpRequest: request,
@@ -758,43 +729,22 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
       return isReadServerProblem(result)
         ? problemResponse(result)
         : scopeDataResponse(parsed, result);
+    },
+  });
+  return async (request) => {
+    let response: HttpResponse;
+    try {
+      response = await route(request);
     } catch (error) {
       if (error instanceof ScopeServerLocalError) {
         if (error.code === "operation-aborted") {
           throw error;
         }
-        return problemResponse(readProblem("temporarily-unavailable", error.message));
-      }
-      throw error;
+        response = problemResponse(readProblem("temporarily-unavailable", error.message));
+      } else throw error;
     }
+    return applyReadHttpSemantics(request, response);
   };
-  return async (request) => applyReadHttpSemantics(request, await route(request));
-}
-
-function jsonResponse(body: unknown): HttpResponse {
-  return {
-    status: 200,
-    headers: new Headers({
-      "content-type": "application/json",
-      "cache-control": "private, no-store",
-    }),
-    body,
-  };
-}
-
-function scopeDataResponse(operation: ReadRequest, body: unknown): HttpResponse {
-  const response = jsonResponse(body);
-  if (
-    operation.kind === "resource" &&
-    operation.resource !== "type" &&
-    typeof body === "object" &&
-    body !== null &&
-    "revision" in body &&
-    typeof body.revision === "string"
-  ) {
-    response.headers.set("etag", resourceRevisionEtag(body.revision));
-  }
-  return response;
 }
 
 function problemResponse(problem: ReadProblem): HttpResponse {

@@ -23,6 +23,7 @@ import {
   type ReadPrincipal,
   type ScopeReadConfiguration,
   type ReadObservation,
+  type AuthorityReadReader,
   type ResourceReadObservation,
 } from "./authority-read.js";
 import { runMember, type MemberExecutorOptions, type MemberTurn } from "./member-executor.js";
@@ -125,7 +126,7 @@ function fixture(descriptors = [descriptor(), edgeDescriptor()]) {
     }) as ScopeReadConfiguration,
     gate: undefined as ReturnType<typeof readProblem> | undefined,
     captureHook: undefined as
-      | ((r: StoreReader, p: ReadPrincipal, intent: ReadIntent) => void)
+      | ((r: AuthorityReadReader, p: ReadPrincipal, intent: ReadIntent) => void)
       | undefined,
     wrap: (reader: StoreReader): StoreReader => reader,
   };
@@ -135,7 +136,7 @@ function fixture(descriptors = [descriptor(), edgeDescriptor()]) {
     return actualRead(callback);
   });
   const source = {
-    capture(reader: StoreReader) {
+    capture(reader: AuthorityReadReader) {
       expect(this).toBe(source);
       reader.policy("fixture-policy");
       state.configurations++;
@@ -1658,10 +1659,10 @@ describe("G10 delivery, callback origin and plane-owned cleanup", () => {
   });
   it("closes only its pagination once, keeps one rejected close Promise and cleans partial construction", async () => {
     const f = fixture();
-    const realFactory = paginationModule.createReadPagination;
+    const realFactory = paginationModule.createContextualReadPagination;
     const failure = Error("pagination cleanup");
     const closes: ReturnType<typeof vi.fn>[] = [];
-    vi.spyOn(paginationModule, "createReadPagination").mockImplementation(((options) => {
+    vi.spyOn(paginationModule, "createContextualReadPagination").mockImplementation(((options) => {
       const engine = realFactory(options);
       const close = vi.fn(() => {
         engine.close();
@@ -1720,9 +1721,9 @@ describe("additional authority receiving and observer cleanup controls", () => {
 describe("remaining construction, idle memory and captured-provider boundaries", () => {
   it("cleans the actual partial pagination engine after a labeled controlled Type-conformance RangeError", () => {
     const f = fixture();
-    const original = paginationModule.createReadPagination;
+    const original = paginationModule.createContextualReadPagination;
     const closed: ReturnType<typeof vi.fn>[] = [];
-    vi.spyOn(paginationModule, "createReadPagination").mockImplementation(((options) => {
+    vi.spyOn(paginationModule, "createContextualReadPagination").mockImplementation(((options) => {
       const engine = original(options);
       const close = vi.fn(engine.close.bind(engine));
       closed.push(close);
@@ -2420,9 +2421,9 @@ describe("G11 partial plane construction error ownership", () => {
       const f = fixture();
       const original = Error("controlled conformance construction"),
         cleanup = Error("controlled pagination disposal");
-      const realFactory = paginationModule.createReadPagination;
+      const realFactory = paginationModule.createContextualReadPagination;
       let calls = 0;
-      vi.spyOn(paginationModule, "createReadPagination").mockImplementation((options) => {
+      vi.spyOn(paginationModule, "createContextualReadPagination").mockImplementation((options) => {
         const engine = realFactory(options);
         return {
           ...engine,
@@ -2462,4 +2463,28 @@ describe("G11 partial plane construction error ownership", () => {
       expect(Object.isFrozen(cleanup)).toBe(false);
     },
   );
+});
+
+describe("source-private read context capture", () => {
+  it("snapshots owner context before callbacks and keeps basic Read context optional", async () => {
+    const f = fixture();
+    f.createBead("a");
+    const sourceContext = { source: "before" },
+      original = f.options.entry;
+    const entry: AuthorityReadOptions["entry"] = {
+      scope,
+      withRead: (callback) => original.withRead((reader) => callback(reader, sourceContext)),
+    };
+    Object.assign(f.options, { entry });
+    f.state.captureHook = () => {
+      sourceContext.source = "after";
+    };
+    const plane = f.open(),
+      facet = plane.readFor({ kind: "anonymous" });
+    const result = await facet.perform(resourceRequest());
+    expect(observation(result).sourceContext).toEqual({ source: "before" });
+    expect(Object.isFrozen(observation(result).sourceContext)).toBe(true);
+    expect(observation(result)).not.toHaveProperty("snapshotSourceContext");
+    expect(body(result)).not.toHaveProperty("sourceContext");
+  });
 });
