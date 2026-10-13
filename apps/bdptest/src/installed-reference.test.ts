@@ -1,4 +1,13 @@
-import { mkdtempSync, rmSync, cpSync, mkdirSync, appendFileSync, symlinkSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  cpSync,
+  mkdirSync,
+  appendFileSync,
+  symlinkSync,
+  renameSync,
+  existsSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -355,15 +364,12 @@ it("refuses a second IPC start and occupied listener without leaving another own
   expect((await helpers.requestInstalled(config, token, config.scope)).status).toBe(204);
 });
 
-it("binds resolved fast-uri runtime bytes in an isolated installed payload", async () => {
+function isolatedPayload() {
   const modules = path.join(directory(), "node_modules");
   const require = createRequire(entry);
-  for (const name of ["@bdp/server"]) {
-    const root =
-      name === "@bdp/server"
-        ? path.resolve(path.dirname(entry), "..")
-        : path.resolve(path.dirname(require.resolve(name)), "..");
-    const destination = path.join(modules, name);
+  {
+    const root = path.resolve(path.dirname(entry), "..");
+    const destination = path.join(modules, "@bdp/server");
     mkdirSync(destination, { recursive: true });
     cpSync(path.join(root, "package.json"), path.join(destination, "package.json"));
     cpSync(path.join(root, "dist"), path.join(destination, "dist"), { recursive: true });
@@ -379,6 +385,10 @@ it("binds resolved fast-uri runtime bytes in an isolated installed payload", asy
     dereference: true,
   });
   const copiedEntry = path.join(modules, "@bdp/server/dist/installed-reference-process.js");
+  return { dependency, copiedEntry };
+}
+it("binds resolved fast-uri runtime bytes in an isolated installed payload", async () => {
+  const { dependency, copiedEntry } = isolatedPayload();
   const config = helpers.referenceConfiguration(directory(), await helpers.availablePort(), token);
   const first = await helpers.launchInstalledReference(copiedEntry, config);
   children.push(first);
@@ -436,3 +446,38 @@ it("reports actual captured policy and authentication bindings over private IPC"
       }),
     ).toThrow();
 });
+
+it.each(["file", "directory", "manifest"] as const)(
+  "refuses an internal dependency %s symlink before listener or store provisioning",
+  async (kind) => {
+    const { dependency, copiedEntry } = isolatedPayload();
+    const relative =
+      kind === "file" ? "lib/utils.js" : kind === "directory" ? "lib" : "package.json";
+    const target = path.join(
+      directory(),
+      kind === "file"
+        ? "actual-utils.cjs"
+        : kind === "directory"
+          ? "actual-lib"
+          : "actual-package.json",
+    );
+    const original = path.join(dependency, relative);
+    renameSync(original, target);
+    symlinkSync(target, original, kind === "directory" ? "dir" : "file");
+    const store = path.join(directory(), "unprovisioned");
+    const config = helpers.referenceConfiguration(store, await helpers.availablePort(), token);
+    await expect(helpers.launchInstalledReference(copiedEntry, config)).rejects.toThrow(
+      "installed reference qualification failed",
+    );
+    expect(existsSync(store)).toBe(false);
+    // The child exits without publishing readiness or retaining its configured listener.
+    const listener = new Server();
+    await new Promise<void>((resolve, reject) => {
+      listener.once("error", reject);
+      listener.listen(config.listener.port, config.listener.host, resolve);
+    });
+    await new Promise<void>((resolve, reject) =>
+      listener.close((error) => (error ? reject(error) : resolve())),
+    );
+  },
+);

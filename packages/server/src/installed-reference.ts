@@ -1,7 +1,7 @@
 /** Exact installed candidate factory. Public startup may call this only behind
  * independently verified profile evidence; P1a provides no such admission. */
 import { createHash } from "node:crypto";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, lstat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,15 +18,23 @@ export async function startInstalledReferenceCandidate(input: unknown) {
     if (ancestors.includes(root) || ancestors.length >= 32)
       throw new TypeError("unsupported runtime dependency cycle/depth");
     const manifestPath = path.join(root, "package.json");
+    if ((await lstat(manifestPath)).isSymbolicLink())
+      throw new TypeError("internal runtime payload symlink unsupported");
     const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
       name: string;
       dependencies?: Record<string, string>;
     };
     async function bindFiles(relative: string) {
+      // Package roots have already been resolved by Node (including pnpm links).
+      // Internal links are unsupported rather than silently omitted from identity.
+      if (relative && (await lstat(path.join(root, relative))).isSymbolicLink())
+        throw new TypeError("internal runtime payload symlink unsupported");
       for (const entry of (await readdir(path.join(root, relative), { withFileTypes: true })).sort(
         (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
       )) {
         if (entry.name === "node_modules" || entry.name === ".git") continue;
+        if (entry.isSymbolicLink())
+          throw new TypeError("internal runtime payload symlink unsupported");
         const file = path.posix.join(relative, entry.name);
         if (entry.isDirectory()) await bindFiles(file);
         else if (entry.isFile() && /\.(?:[cm]?js|json|node|wasm)$/.test(entry.name)) {
