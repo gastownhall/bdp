@@ -433,7 +433,8 @@ The Transactional owner now supplies an expiring synchronous Resource/configurat
 reader to the existing AuthorityReadPlane. The shared Read contract contains only
 resource, resources, incidentLinks, alias and policy; it does not require or fabricate
 Read+Update key outcomes. The owner's actual immutable installation supplies the
-Type inventory and fixed all-visible, schema-free/unowned configuration. Named
+Type inventory and fixed all-visible configuration (schema-free/unowned at this
+initial slice; compiled and owned support is recorded below). Named
 policy lookups are absent in this private installation.
 
 The private transaction-read module composes canonical Resource/properties reads,
@@ -751,9 +752,11 @@ writer to establish byte-identical incompatible-format refusal. Paging crash-rec
 repairs are integrated: SQLite may recover a hot journal before the locked
 configuration check, which still precedes BDP cleanup and retention.
 
-The supported installation remains all-visible, schema-free and unowned. Installed
-contract/policy composition, owned-source fanout, full set HTTP admission, remaining
-consistency routes, replication and truthful Transactional discovery remain open.
+At this historical set-core slice the installation was all-visible, schema-free
+and unowned; compiled and owned successors below supersede those restrictions.
+Installed contract/policy composition and owned-source fanout were then open. Full
+set HTTP admission, remaining consistency routes, replication and truthful
+Transactional discovery remain separately tracked.
 Recovery regressions kill a process inside maintenance and terminal execution,
 not merely after a response. Sixty committed three-result receipts and their page
 URLs survive hot-journal rollback; the terminal crash's pending admission is
@@ -789,9 +792,10 @@ process-crash evidence, not power-loss durability.
 Set deletion accepts the bundle's revisionProvenance input for either collection.
 Syntax validation reuses the existing deleteLink root, which admits that same input;
 its synthetic Link subject never reaches identity or evaluation. Deletion mints no
-version for either supported collection (Beads and unowned Links), so supplied
-provenance is inert in both. Owned-Link transitions remain unsupported. Tests cross
-operation, collection, cardinality and provenance inputs against the canonical
+version for either collection supported at this historical slice (Beads and
+unowned Links), so supplied provenance was inert in both. The owned successor
+below mints a source Bead version on owned-Link deletion and carries its attribution.
+Tests cross operation, collection, cardinality and provenance inputs against the canonical
 bundle, then execute all four operation/collection pairs against the real owner and
 inspect results and afterstate.
 
@@ -799,16 +803,16 @@ Set candidates now use the shared isResourceVisible closure before selection and
 cardinality, including local endpoint visibility. Evaluator probes run the real owner
 with a narrowed per-turn policy to prove hidden-endpoint Links are not matched or
 mutated. This is not an installed variable-policy qualification: the actual owner
-remains all-visible, schema-free and unowned, and owned-source fanout and nonwritable
-match behavior remain outside this slice. Negative Selector wire admission remains
-closed. Operation-local failures require an operation index at the type boundary;
+was all-visible, schema-free and unowned at this slice. The owned successor below
+adds owned-source fanout and nonwritable-match evidence; the installed policy remains
+all-visible. Negative Selector wire admission remains closed. Operation-local failures require an operation index at the type boundary;
 only the currently implemented transaction-wide Event and match limits can omit it.
 
 ### Private compiled-contract installation and retention
 
 The Transactional owner can now accept the existing branded DevelopmentContracts
-for schema-backed unowned Types. Its installed descriptor bytes, effective property
-validators and same-owner Read inventory come from that one authority. The older
+for schema-backed Types (unowned at this installation slice; owned support follows
+below). Its installed descriptor bytes, effective property validators and same-owner Read inventory come from that one authority. The older
 schema-free administrative path remains available for newly provisioned stores.
 Compiled Types must be Scope-local; a separately supplied descriptor inventory must
 match the installed bytes exactly. JSON serialization retains property order and is
@@ -844,9 +848,10 @@ and selected-set rollback, independent sequence prefix/tail commits, Type invent
 and Resource reads, exact saved-capture reconstruction, tampered metadata refusal,
 actual process-loss restart and a real predecessor-format file refusal.
 
-This remains a private all-visible installation with empty aggregate policy and
-owned Types refused. Schema references are served in Type descriptors; schema-byte
-GET/HEAD hosting is not implemented here. No HTTP set admission, new Type lifecycle,
+This installation slice initially refused owned Types; the owned successor below
+removes that restriction. The installation remains private and all-visible with
+empty aggregate policy. Schema references are served in Type descriptors;
+schema-byte GET/HEAD hosting is not implemented here. No HTTP set admission, new Type lifecycle,
 Snapshot/changefeed, public configuration/profile admission or conformance claim is
 added. Read+Update durable artifact retention remains a separate follow-up.
 
@@ -982,3 +987,19 @@ HTTP set admission, Snapshot/changefeed, schema hosting, public profile or evide
 claim follows. The actual service still has fixed all-visible policy and empty
 aggregate policy. Retained variable-grant projection, mutated-Resource accounting
 and receipt/group byte materialization remain separate work.
+
+### Owned transition evidence follow-up
+
+Native agent/message inputs are now exercised through owned creation, update,
+singleton deletion and deleteWhere. Creation/update assertions compare exact
+committedAt-bearing source and Link provenance with both Event levels. Deletion
+assertions compare the newly minted source's attribution while keeping the deleted
+Link identity delta free of provenance. A mixed no-op/effectful updateWhere is
+followed by a staged second set and an explicit owned update in the same batch;
+receipt entries pin every member's sourceRevision, including the unchanged no-op,
+and the Event chain pins the corresponding intermediate source versions.
+
+These tests add evidence without changing evaluator, writer, budgets or serving.
+The earlier 4,096-Event boundary is preserved as historical evidence, not relabeled
+for a later materialization configuration. Reducing repeated Resource parsing in
+the owned writer is deferred while separate materialization measurements proceed.

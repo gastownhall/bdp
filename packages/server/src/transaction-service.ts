@@ -7,7 +7,7 @@ import {
 /** Source-private same-owner lifecycle. No HTTP receiver, directory or profile
  * advertisement. Passing ownerLifetime:"service" transfers owner shutdown to
  * this service after successful construction; callers must stop using the owner.
- * Only the existing fixed all-visible, schema-free/unowned configuration applies. */
+ * Only the existing fixed all-visible installation policy applies. */
 import { createNodeLifecycleScheduler, type LifecycleScheduler } from "./sequence-executor.js";
 import type { PreparedTransactionSequence } from "./transaction-batch.js";
 import {
