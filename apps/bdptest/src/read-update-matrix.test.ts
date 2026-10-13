@@ -1,4 +1,5 @@
 import { execFileSync, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -801,7 +802,7 @@ async function run(
 }
 
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  // One aggregate job starts 47 isolated authorities; Linux CI previously exceeded 30s.
+  // One aggregate job starts 49 isolated authorities; Linux CI previously exceeded 30s.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(Error("cumulative run budget exceeded")), 90000);
@@ -914,9 +915,9 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
   // Pin the existing runner projection; credential identity is bound separately in configuration.
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "a8d5687519da4040d2f23989f86f9bc804d30ac6c91a85074397eaf7c92de712",
+    "3224c31c83988dc0606cb76ee1f4ba8e6394159bdf7daaccc301461316cc2477",
   );
-  expect(report.uncoveredIds).toHaveLength(101);
+  expect(report.uncoveredIds).toHaveLength(99);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
   expect(report.sessions).toHaveLength(report.plannedIds.length);
   expect(report.observations.length).toBeGreaterThan(30);
@@ -1231,7 +1232,7 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "a8d5687519da4040d2f23989f86f9bc804d30ac6c91a85074397eaf7c92de712",
+    "3224c31c83988dc0606cb76ee1f4ba8e6394159bdf7daaccc301461316cc2477",
   );
 }, 30000);
 
@@ -1556,7 +1557,7 @@ it("observes retained retry dispositions across actual installed carriers and cu
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(101);
+  expect(report.uncoveredIds).toHaveLength(99);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -1789,7 +1790,7 @@ it("observes key and media admission against installed HTTP with paired aftersta
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(101);
+  expect(report.uncoveredIds).toHaveLength(99);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -1797,9 +1798,35 @@ it("pins admission action, request-byte and live-identity budgets without hidden
   const manifest = JSON.parse(
     source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
   );
+  const fixture = JSON.parse(
+    source("packages/conformance/fixtures/read-update-reference-v1.json").bytes.toString(),
+  );
+  const fixtureValue = (pointer: string): unknown =>
+    pointer
+      .split("/")
+      .slice(1)
+      .reduce<unknown>(
+        (value, field) =>
+          (value as Record<string, unknown>)[field.replaceAll("~1", "/").replaceAll("~0", "~")],
+        fixture,
+      );
   const ledgers = [
     { id: admissionRows[0], actions: 284, raw: 196, client: 88, peak: { beads: 36, links: 3 } },
     { id: admissionRows[1], actions: 183, raw: 149, client: 34, peak: { beads: 11, links: 4 } },
+    {
+      id: "read-update.singleton.no-local-bindings",
+      actions: 99,
+      raw: 46,
+      client: 53,
+      peak: { beads: 5, links: 6 },
+    },
+    {
+      id: "read-update.alias.non-canonical-target",
+      actions: 72,
+      raw: 43,
+      client: 29,
+      peak: { beads: 4, links: 2 },
+    },
   ];
   const kinds: Record<string, string> = {
     "create-bead": "createBead",
@@ -1838,9 +1865,10 @@ it("pins admission action, request-byte and live-identity budgets without hidden
           pointer: "/next",
           equals: null,
         });
-        expect(action.assertions.find((a: { id: string }) => a.id === "identities").equals).toEqual(
-          [...live[collection]!].sort().map((id) => [`${scope}${id}`]),
-        );
+        const identities = action.assertions.find((a: { id: string }) => a.id === "identities");
+        expect(
+          identities.fixturePointer ? fixtureValue(identities.fixturePointer) : identities.equals,
+        ).toEqual([...live[collection]!].sort().map((id) => [`${scope}${id}`]));
       }
       const success = action.assertions.some(
         (a: { id: string; equals?: unknown }) => a.id === "status" && a.equals === 200,
@@ -1850,7 +1878,20 @@ it("pins admission action, request-byte and live-identity budgets without hidden
       const body = action.raw?.body ? JSON.parse(action.raw.body.value) : action.input.body;
       const kind = kinds[action.target?.path ?? action.input.targetBinding];
       const records = kind === "sequence" ? body.operations : [{ ...body, operation: kind }];
-      for (const operation of records) {
+      for (const [index, operation] of records.entries()) {
+        // A reached failure in a mixed Sequence is not a successful Resource creation.
+        if (
+          kind === "sequence" &&
+          action.assertions.some(
+            (a: { pointer?: string; equals?: { status?: number }; fixturePointer?: string }) =>
+              a.pointer === `/body/results/${index}` &&
+              ((a.fixturePointer
+                ? (fixtureValue(a.fixturePointer) as { status?: number })
+                : a.equals
+              )?.status ?? 0) >= 400,
+          )
+        )
+          continue;
         const collection = operation.operation.includes("Bead") ? "beads" : "links";
         if (operation.operation.startsWith("create")) live[collection]!.add(operation.id);
         if (operation.operation === "deleteBead") live.beads!.delete(operation.bead);
@@ -2165,3 +2206,307 @@ it("pins admission carrier completion, same-body key corrections and same-key me
       );
   }
 });
+
+const referenceRows = [
+  "read-update.singleton.no-local-bindings",
+  "read-update.alias.non-canonical-target",
+] as const;
+it("observes reference syntax and retained category failures against installed HTTP", async () => {
+  const report = await run(undefined, [...referenceRows]);
+  if (process.env.BDP_REFERENCE_REPORT_PATH)
+    writeFileSync(process.env.BDP_REFERENCE_REPORT_PATH, JSON.stringify(report, null, 2));
+  for (const id of referenceRows)
+    expect(
+      report.result.scenarios.find((row) => row.id === id),
+      JSON.stringify(report.result),
+    ).toMatchObject({ state: "pass" });
+  expect(report.uncoveredIds).toHaveLength(99);
+  expect(report.result.claimEligible).toBe(false);
+}, 30000);
+
+it.each([
+  [0, "ra-create-link-source-pin", "source-pin", 200],
+  [1, "rb-alias-local", "missing-bead", 404],
+  [1, "rb-endpoint-source", "valid-endpoint", 200],
+  [1, "rb-seed-alias", "wrong-absolute-category", 422],
+  [1, "rb-seed-link", "wrong-pinned-category", 422],
+] as const)(
+  "detects reference input correction %s/%s/%s",
+  async (index, actionId, control, status) => {
+    const manifest = JSON.parse(
+      source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+    );
+    const id = referenceRows[index];
+    const row = manifest.scenarios.find((r: { id: string }) => r.id === id);
+    const action = row.actions.find((a: { id: string }) => a.id === actionId);
+    if (control === "source-pin") action.input.body.source.uri = "beads/ra-source";
+    else if (control === "missing-bead") action.input.body.target = "beads/rb-missing-control";
+    else if (control === "wrong-absolute-category")
+      action.input.body.target = `${scope}links/rb-live`;
+    else if (control === "wrong-pinned-category") action.input.body.source.uri = "links/rb-live";
+    else action.input.body.source = "beads/rb-source";
+    const report = await run(manifest, [id]);
+    const observed = report.result.scenarios.find((r) => r.id === id);
+    expect(observed?.state).toBe("fail");
+    expect(
+      observed?.actions
+        ?.find((a) => a.action.id === actionId)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toContain("status");
+    const clientIndex = row.actions
+      .filter((a: { family: string }) => a.family === "client")
+      .findIndex((a: { id: string }) => a.id === actionId);
+    expect(
+      (report.observations as { scenario: string; observation: { status: number } }[]).filter(
+        (o) => o.scenario === id,
+      )[clientIndex]?.observation,
+    ).toMatchObject({ status });
+  },
+  30000,
+);
+
+it.each([
+  {
+    scenario: referenceRows[1],
+    action: "rb-seed-link",
+    path: ["body", "resource", "source", "revision"],
+    value: "wrong-pin",
+    failed: "source-0",
+  },
+  {
+    scenario: referenceRows[1],
+    action: "rb-seed-link",
+    path: ["body", "resource", "target", "revision"],
+    value: "wrong-pin",
+    failed: "target-0",
+  },
+  {
+    scenario: referenceRows[0],
+    action: "ra-create-link-source-pin-corrected",
+    path: ["body", "resource", "source", "revision"],
+    value: "wrong-pin",
+    failed: "source-0",
+  },
+  {
+    scenario: referenceRows[0],
+    action: "ra-update-bead-corrected-0-read",
+    path: ["body", "properties", "n"],
+    value: 1,
+    failed: "postimage",
+  },
+  {
+    scenario: referenceRows[0],
+    action: "ra-metadata-literal",
+    path: ["body", "resource", "metadata", "tag"],
+    value: "wrong",
+    failed: "metadata-0",
+  },
+  {
+    scenario: referenceRows[1],
+    action: "rb-alias-replay",
+    path: ["body", "title"],
+    value: "added",
+    failed: "complete-problem",
+  },
+  {
+    scenario: referenceRows[1],
+    action: "rb-alias-conflict",
+    path: ["body", "code"],
+    value: "resource-not-found",
+    failed: "complete-problem",
+  },
+  {
+    scenario: referenceRows[1],
+    action: "rb-sequence-alias",
+    path: ["status"],
+    value: 422,
+    failed: "status",
+  },
+  {
+    scenario: referenceRows[1],
+    action: "rb-sequence-endpoint",
+    path: ["body", "results", "1", "resource", "properties", "n"],
+    value: 999,
+    failed: "properties-0",
+  },
+])(
+  "detects reference post-wire corruption $action",
+  async (control) => {
+    const report = await run(
+      undefined,
+      [control.scenario],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    const row = report.result.scenarios.find((r) => r.id === control.scenario);
+    expect(row?.state).toBe("fail");
+    expect(
+      row?.actions
+        ?.find((a) => a.action.id === control.action)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toContain(control.failed);
+  },
+  30000,
+);
+
+it("binds a changed reference fixture oracle and rejects its wrong complete Problem expectation", async () => {
+  const fixtureSource = source("packages/conformance/fixtures/read-update-reference-v1.json");
+  const fixture = JSON.parse(fixtureSource.bytes.toString());
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const row = manifest.scenarios.find((r: { id: string }) => r.id === referenceRows[1]);
+  const assertion = row.actions
+    .find((a: { id: string }) => a.id === "rb-alias-local")
+    .assertions.find((a: { id: string }) => a.id === "complete-problem");
+  const name = assertion.fixturePointer.split("/").at(-1);
+  fixture.oracles.referenceEvidence[name].diagnostics[0].message = "incorrect independent oracle";
+  const report = await run(undefined, [referenceRows[1]], false, false, fixture);
+  const changedDigest = createHash("sha256").update(JSON.stringify(fixture)).digest("hex");
+  expect(changedDigest).not.toBe(createHash("sha256").update(fixtureSource.bytes).digest("hex"));
+  expect(report.configuration.fixtureDigest).toBe(changedDigest);
+  expect(report.reportBinding.artifacts.fixtureDigest).toBe(changedDigest);
+  const observed = report.result.scenarios.find((r) => r.id === referenceRows[1]);
+  expect(observed?.state).toBe("fail");
+  expect(
+    observed?.actions
+      ?.find((a) => a.action.id === "rb-alias-local")
+      ?.assertions.filter((a) => !a.passed)
+      .map((a) => a.id),
+  ).toContain("complete-problem");
+}, 30000);
+
+it("pins all thirteen reference syntax vectors and literal opaque pin corrections", () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const row = manifest.scenarios.find((r: { id: string }) => r.id === referenceRows[0]);
+  const vectors = [
+    ["update-bead", "bead"],
+    ["delete-bead", "bead"],
+    ["create-link-source", "source"],
+    ["create-link-source-pin", "source"],
+    ["create-link-target", "target"],
+    ["create-link-target-pin", "target"],
+    ["update-link", "link"],
+    ["delete-link", "link"],
+    ["put-target", "target"],
+    ["put-alias", "alias"],
+    ["delete-alias", "alias"],
+    ["create-bead-id", "id"],
+    ["create-link-id", "id"],
+  ];
+  for (const [label, field] of vectors) {
+    const bad = row.actions.find((a: { id: string }) => a.id === `ra-${label}`);
+    const good = row.actions.find((a: { id: string }) => a.id === `ra-${label}-corrected`);
+    expect(bad.input.idempotencyKey).toBe(good.input.idempotencyKey);
+    expect(bad.input.targetBinding).toBe(good.input.targetBinding);
+    const expected = structuredClone(bad.input.body);
+    if (label!.endsWith("-pin")) {
+      expect(expected[field!]).toEqual({ uri: "@made", revision: "fixture-pin" });
+      expect(good.input.body[field!].revision).toBe("fixture-pin");
+      expected[field!].uri = good.input.body[field!].uri;
+    } else {
+      expect(expected[field!]).toBe("@made");
+      expected[field!] = good.input.body[field!];
+    }
+    expect(good.input.body).toEqual(expected);
+    expect(bad.input.bodyBindings).toBeUndefined();
+    expect(good.input.bodyBindings).toBeUndefined();
+  }
+});
+
+it("detects reference live alias oracle corruption after fresh corrected put", async () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const row = manifest.scenarios.find((r: { id: string }) => r.id === referenceRows[1]);
+  const action = row.actions.find((a: { id: string }) => a.id === "rb-alias-fresh-0-read");
+  action.assertions.find((a: { id: string }) => a.id === "location").equals =
+    `${scope}beads/rb-source`;
+  const report = await run(manifest, [referenceRows[1]]);
+  const observed = report.result.scenarios.find((r) => r.id === referenceRows[1]);
+  expect(observed?.state).toBe("fail");
+  expect(
+    observed?.exchanges
+      .find((a) => a.request.id === action.id)
+      ?.assertions.filter((a) => !a.passed)
+      .map((a) => a.id),
+  ).toEqual(["location"]);
+}, 30000);
+
+it("pins admitted absolute alias target and opaque pinned endpoint comparators in category row", () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const row = manifest.scenarios.find((r: { id: string }) => r.id === referenceRows[1]);
+  const alias = row.actions.find((a: { id: string }) => a.id === "rb-seed-alias");
+  expect(alias.input.body.target).toBe(`${scope}beads/rb-source`);
+  expect(alias.assertions.find((a: { id: string }) => a.id === "status")).toMatchObject({
+    equals: 200,
+  });
+  const aliasRead = row.actions.find((a: { id: string }) => a.id === "rb-seed-alias-0-read");
+  expect(aliasRead.assertions.find((a: { id: string }) => a.id === "status")).toMatchObject({
+    equals: 307,
+  });
+  expect(aliasRead.assertions.find((a: { id: string }) => a.id === "location")).toMatchObject({
+    equals: `${scope}beads/rb-source`,
+  });
+  const link = row.actions.find((a: { id: string }) => a.id === "rb-seed-link");
+  expect(link.input.body.source).toEqual({ uri: "beads/rb-source", revision: "fixture-pin" });
+  expect(link.input.body.target).toEqual({ uri: "beads/rb-target", revision: "fixture-pin" });
+  expect(link.assertions.find((a: { id: string }) => a.id === "status")).toMatchObject({
+    equals: 200,
+  });
+  expect(link.assertions.find((a: { id: string }) => a.id === "source-0")).toMatchObject({
+    equals: { uri: `${scope}beads/rb-source`, revision: "fixture-pin" },
+  });
+  expect(link.assertions.find((a: { id: string }) => a.id === "target-0")).toMatchObject({
+    equals: { uri: `${scope}beads/rb-target`, revision: "fixture-pin" },
+  });
+  expect(link.input.bodyBindings).toBeUndefined();
+});
+
+it.each(["identities", "stale-record"] as const)(
+  "detects named reference collection oracle corruption %s",
+  async (control) => {
+    const manifest = JSON.parse(
+      source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+    );
+    const row = manifest.scenarios.find((r: { id: string }) => r.id === referenceRows[0]);
+    const action = row.actions.find((a: { id: string }) => a.id === "ra-final-beads");
+    const assertionId = control === "identities" ? "identities" : "record-4";
+    const assertion = action.assertions.find((a: { id: string }) => a.id === assertionId);
+    if (control === "identities") {
+      expect(assertion.fixturePointer).toBe("/oracles/referenceEvidence/identities-9");
+      const fixture = JSON.parse(
+        source("packages/conformance/fixtures/read-update-reference-v1.json").bytes.toString(),
+      );
+      assertion.equals = structuredClone(fixture.oracles.referenceEvidence["identities-9"]);
+      assertion.equals[0][0] = `${scope}beads/incorrect-collection-identity`;
+      delete assertion.fixturePointer;
+    } else {
+      expect(assertion.equalsBinding).toBe("ra-update-bead-corrected-0-record");
+      // Same Resource identity, stale properties and revision from the actual earlier create.
+      assertion.equalsBinding = "ra-seed-update-0-record";
+    }
+    const report = await run(manifest, [referenceRows[0]]);
+    const observed = report.result.scenarios.find((r) => r.id === referenceRows[0]);
+    expect(observed?.state).toBe("fail");
+    expect(observed?.exchanges.at(-1)?.request.id).toBe(action.id);
+    const exchange = observed?.exchanges.find((a) => a.request.id === action.id);
+    expect(exchange?.response?.status).toBe(200);
+    expect(exchange?.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
+  },
+  30000,
+);
