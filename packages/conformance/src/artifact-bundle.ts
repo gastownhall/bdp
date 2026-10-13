@@ -15,6 +15,8 @@ import {
 const ARTIFACT_ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const ARTIFACT_ID_MAX_LENGTH = 128;
 const ARTIFACT_MAX_BYTES = 1_048_576;
+/** Internal cumulative manifest budget; public artifact and fixture budgets stay unchanged. */
+export const CUMULATIVE_MANIFEST_MAX_BYTES = 4_194_304;
 const ARTIFACT_MAX_JSON_DEPTH = 128;
 const ARTIFACT_MAX_JSON_NODES = 100_000;
 const ARTIFACT_MAX_CONTAINER_ENTRIES = 10_000;
@@ -126,7 +128,11 @@ function createBoundArtifactBundle(
   cumulative?: ProfileContractSelection,
 ): ConformanceArtifactBundle {
   const catalogBytes = copySourceBytes(sources.catalog, "catalog");
-  const manifestBytes = copySourceBytes(sources.manifest, "manifest");
+  const manifestBytes = copySourceBytes(
+    sources.manifest,
+    "manifest",
+    cumulative === undefined ? undefined : CUMULATIVE_MANIFEST_MAX_BYTES,
+  );
   const fixtureBytes = copySourceBytes(sources.fixture, "fixture");
   const catalog = parseScenarioCatalog(
     parseBoundedJson(catalogBytes, "catalog", sources.catalog.label),
@@ -352,6 +358,7 @@ export function assertFactoryCreatedArtifactBundle(
 export function copySourceBytes(
   source: ConformanceArtifactSource,
   kind: keyof ConformanceArtifactBundleSources,
+  maximumBytes = ARTIFACT_MAX_BYTES,
 ): Uint8Array {
   const bytes = source.bytes;
   let byteLength: number;
@@ -364,9 +371,9 @@ export function copySourceBytes(
   } catch {
     throw new ConformanceArtifactBundleError(`${kind} source bytes must be a Uint8Array`);
   }
-  if (byteLength > ARTIFACT_MAX_BYTES) {
+  if (byteLength > maximumBytes) {
     throw new ConformanceArtifactBundleError(
-      `${kind} source must not exceed ${ARTIFACT_MAX_BYTES} bytes`,
+      `${kind} source must not exceed ${maximumBytes} bytes`,
     );
   }
   const copy = new Uint8Array(byteLength);

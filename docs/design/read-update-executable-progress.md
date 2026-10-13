@@ -81,3 +81,11 @@ Whole-contract accounting excludes create-link until its opaque-pin equality com
 The fixed client GET allowlist derives only from actual authored client actions and known fixture targets. Captured Bead identities still use the existing restricted per-request gate. Adding an unused fixture binding must not change the exact configuration digest. The oracle port is allocated before creating its temporary store, and configuration/launch remain inside cleanup.
 
 Alias scenario trimming is deferred: the existing repeated workflows discriminate the cited clauses; reducing that duplication now would churn evidence while profile completion remains unfinished. No runner/inventory contract or public schema changed.
+
+## Owned-Link review follow-up
+
+The three owned-Link rows now directly test matching and superseded Link guards after properties and metadata updates, and around the retained no-op. The unowned update has its own matching/stale Link guard pair. Independent complete GETs follow both acceptance and refusal; owner advancement alone is not evidence of Link revision advancement. The update-link catalog now restores the existing normative fresh-revision obligation and the full spec matrix title.
+
+The observed Decision ownership map is pinned in full: wildcard max8, explicit relates max1, and explicit cites max8. Explicit entries take precedence over the wildcard; these observations do not qualify wildcard behavior. Added controls target stale-Link problem discrimination, a nonempty plane after deletion, and a lone source field whose missing sourceRevision must fail the canonical schema. Attribution's uncovered reason names the actual cross-row observations without awarding row-local credit.
+
+The expanded private cumulative manifest exceeded the ordinary 1 MiB source bound. Only the canonical private cumulative manifest loader and its matching planner now permit up to 4 MiB; other carriers, public Read/development bundles, fixtures and catalogs keep 1 MiB. JSON node, depth and container limits are unchanged. Boundary tests exercise 1 MiB+1, exactly 4 MiB and 4 MiB+1 and preserve the ordinary rejection paths. This is harness capacity, not target capability or profile admission.

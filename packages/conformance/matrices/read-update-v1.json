@@ -11888,11 +11888,22 @@
               "equals": "bead"
             },
             {
-              "id": "explicit-owner",
+              "id": "owner-ownership",
               "kind": "json-pointer",
-              "pointer": "/ownsOutgoing/https:~1~1reference.invalid~1acme~1types~1relates/max",
+              "pointer": "/ownsOutgoing",
               "exists": true,
-              "equals": 1
+              "equals": {
+                "*": {
+                  "max": 8
+                },
+                "https://reference.invalid/acme/types/relates": {
+                  "max": 1
+                },
+                "https://reference.invalid/acme/types/cites": {
+                  "label": "cites",
+                  "max": 8
+                }
+              }
             }
           ]
         },
@@ -13687,6 +13698,164 @@
           ]
         },
         {
+          "id": "matching-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "matching-link-properties",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-properties-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "link-properties"
+            }
+          ]
+        },
+        {
+          "id": "read-after-matching-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-properties"
+            }
+          ]
+        },
+        {
+          "id": "stale-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "stale-link-properties",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-created-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "revision-mismatch",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            }
+          ]
+        },
+        {
+          "id": "read-after-stale-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-properties"
+            }
+          ]
+        },
+        {
           "id": "owner-after-properties",
           "family": "client",
           "operation": "installed.exact-request",
@@ -14341,6 +14510,164 @@
               "pointer": "/body/revisionProvenance/committedAt/state",
               "exists": true,
               "equals": "present"
+            }
+          ]
+        },
+        {
+          "id": "matching-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "matching-link-metadata",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-metadata-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "link-metadata"
+            }
+          ]
+        },
+        {
+          "id": "read-after-matching-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-metadata"
+            }
+          ]
+        },
+        {
+          "id": "stale-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "stale-link-metadata",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-properties-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "revision-mismatch",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            }
+          ]
+        },
+        {
+          "id": "read-after-stale-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-metadata"
             }
           ]
         },
@@ -15166,6 +15493,164 @@
             },
             {
               "id": "complete-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "unowned-update-result"
+            }
+          ]
+        },
+        {
+          "id": "matching-link-unowned-update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "matching-link-unowned-update",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.unowned-link",
+              "expectedRevision": "unowned-update-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "unowned-update-result"
+            }
+          ]
+        },
+        {
+          "id": "read-after-matching-link-unowned-update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.unowned-link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "unowned-update-result"
+            }
+          ]
+        },
+        {
+          "id": "stale-link-unowned-update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "stale-link-unowned-update",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.unowned-link",
+              "expectedRevision": "unowned-create-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "revision-mismatch",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            }
+          ]
+        },
+        {
+          "id": "read-after-stale-link-unowned-update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.unowned-link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
               "kind": "json-pointer",
               "pointer": "/body",
               "exists": true,
@@ -16956,11 +17441,22 @@
               "equals": "bead"
             },
             {
-              "id": "explicit-owner",
+              "id": "owner-ownership",
               "kind": "json-pointer",
-              "pointer": "/ownsOutgoing/https:~1~1reference.invalid~1acme~1types~1relates/max",
+              "pointer": "/ownsOutgoing",
               "exists": true,
-              "equals": 1
+              "equals": {
+                "*": {
+                  "max": 8
+                },
+                "https://reference.invalid/acme/types/relates": {
+                  "max": 1
+                },
+                "https://reference.invalid/acme/types/cites": {
+                  "label": "cites",
+                  "max": 8
+                }
+              }
             }
           ]
         },
@@ -18755,6 +19251,164 @@
           ]
         },
         {
+          "id": "matching-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "matching-link-properties",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-properties-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "link-properties"
+            }
+          ]
+        },
+        {
+          "id": "read-after-matching-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-properties"
+            }
+          ]
+        },
+        {
+          "id": "stale-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "stale-link-properties",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-created-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "revision-mismatch",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            }
+          ]
+        },
+        {
+          "id": "read-after-stale-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-properties"
+            }
+          ]
+        },
+        {
           "id": "owner-after-properties",
           "family": "client",
           "operation": "installed.exact-request",
@@ -19409,6 +20063,164 @@
               "pointer": "/body/revisionProvenance/committedAt/state",
               "exists": true,
               "equals": "present"
+            }
+          ]
+        },
+        {
+          "id": "matching-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "matching-link-metadata",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-metadata-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "link-metadata"
+            }
+          ]
+        },
+        {
+          "id": "read-after-matching-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-metadata"
+            }
+          ]
+        },
+        {
+          "id": "stale-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "stale-link-metadata",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-properties-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "revision-mismatch",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            }
+          ]
+        },
+        {
+          "id": "read-after-stale-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-metadata"
             }
           ]
         },
@@ -20807,6 +21619,164 @@
           ]
         },
         {
+          "id": "matching-link-unowned-update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "matching-link-unowned-update",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.unowned-link",
+              "expectedRevision": "unowned-update-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "unowned-update-result"
+            }
+          ]
+        },
+        {
+          "id": "read-after-matching-link-unowned-update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.unowned-link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "unowned-update-result"
+            }
+          ]
+        },
+        {
+          "id": "stale-link-unowned-update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "stale-link-unowned-update",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.unowned-link",
+              "expectedRevision": "unowned-create-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "revision-mismatch",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            }
+          ]
+        },
+        {
+          "id": "read-after-stale-link-unowned-update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.unowned-link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "unowned-update-result"
+            }
+          ]
+        },
+        {
           "id": "unowned-source-after-update",
           "family": "client",
           "operation": "installed.exact-request",
@@ -21414,11 +22384,22 @@
               "equals": "bead"
             },
             {
-              "id": "explicit-owner",
+              "id": "owner-ownership",
               "kind": "json-pointer",
-              "pointer": "/ownsOutgoing/https:~1~1reference.invalid~1acme~1types~1relates/max",
+              "pointer": "/ownsOutgoing",
               "exists": true,
-              "equals": 1
+              "equals": {
+                "*": {
+                  "max": 8
+                },
+                "https://reference.invalid/acme/types/relates": {
+                  "max": 1
+                },
+                "https://reference.invalid/acme/types/cites": {
+                  "label": "cites",
+                  "max": 8
+                }
+              }
             }
           ]
         },
@@ -23213,6 +24194,164 @@
           ]
         },
         {
+          "id": "matching-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "matching-link-properties",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-properties-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "link-properties"
+            }
+          ]
+        },
+        {
+          "id": "read-after-matching-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-properties"
+            }
+          ]
+        },
+        {
+          "id": "stale-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "stale-link-properties",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-created-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "revision-mismatch",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            }
+          ]
+        },
+        {
+          "id": "read-after-stale-link-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-properties"
+            }
+          ]
+        },
+        {
           "id": "owner-after-properties",
           "family": "client",
           "operation": "installed.exact-request",
@@ -23871,6 +25010,164 @@
           ]
         },
         {
+          "id": "matching-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "matching-link-metadata",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-metadata-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "link-metadata"
+            }
+          ]
+        },
+        {
+          "id": "read-after-matching-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-metadata"
+            }
+          ]
+        },
+        {
+          "id": "stale-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "stale-link-metadata",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-properties-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "revision-mismatch",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            }
+          ]
+        },
+        {
+          "id": "read-after-stale-link-metadata",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-metadata"
+            }
+          ]
+        },
+        {
           "id": "owner-after-metadata",
           "family": "client",
           "operation": "installed.exact-request",
@@ -24438,6 +25735,164 @@
               "pointer": "/body/revisionProvenance/committedAt/state",
               "exists": true,
               "equals": "present"
+            }
+          ]
+        },
+        {
+          "id": "matching-link-noop",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "matching-link-noop",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-metadata-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "link-metadata"
+            }
+          ]
+        },
+        {
+          "id": "read-after-matching-link-noop",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-metadata"
+            }
+          ]
+        },
+        {
+          "id": "stale-link-noop",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "stale-link-noop",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "w1b.link",
+              "expectedRevision": "link-properties-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "revision-mismatch",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            }
+          ]
+        },
+        {
+          "id": "read-after-stale-link-noop",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w1b.link",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "retained-link",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "link-metadata"
             }
           ]
         },
