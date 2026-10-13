@@ -186,7 +186,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(244);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(242);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
   expect(() => planProfileExecution(selected, configuration("read-update"))).toThrow("disagree");
@@ -691,6 +691,16 @@ function objectSlices(text: string, key: "scenarios" | "rows") {
 const originalObjectPins = {
   manifest: [
     [
+      "transactional.set.cardinality",
+      "205af1c54d62efb09c9eadf20147a1730909e788c0d4763ce9718b8648f24ede",
+      28546,
+    ],
+    [
+      "transactional.set.singleton-targets",
+      "561b8ebc21106628918111332a9ab7b47be7350935925ed1e76a6cb5bed576b9",
+      40018,
+    ],
+    [
       "transactional.batch.atomic-commit",
       "0dfd3b9ed02d01f76ecac08c00b009b4bb9f03e57f7e15a2266eed82fc144747",
       14936,
@@ -712,6 +722,16 @@ const originalObjectPins = {
     ],
   ],
   coverage: [
+    [
+      "transactional.set.cardinality",
+      "2a255ed4d364c435c9f985d7a770386bc7b20b2865887b9c8cc2d6cc5f0dd116",
+      5800,
+    ],
+    [
+      "transactional.set.singleton-targets",
+      "0c9008bac3e2c047d9aa8d47d343b7ed936c9c9352bb140c6422127c71b156b1",
+      7314,
+    ],
     [
       "transactional.batch.atomic-commit",
       "ffd77a9d34ac41a6e1f960671bea6880eb5b2ab7b11b3af4ccf0177363d7f4d7",
@@ -752,15 +772,40 @@ it("preserves every original TX scenario and coverage object while adding two bo
   expect(manifest.scenarios.map((r: { id: string }) => r.id)).toEqual([
     "transactional.batch.atomic-commit",
     "transactional.batch.rollback",
+    "transactional.set.mutation",
+    "transactional.set.zero-match",
     "transactional.set.cardinality",
     "transactional.set.singleton-targets",
     "transactional.receipt.readable",
     "transactional.idempotency.failed-retained",
   ]);
+  const counts = new Map<string, number>();
+  for (const [id, expected] of [
+    ["transactional.set.cardinality", 16],
+    ["transactional.set.singleton-targets", 22],
+    ["transactional.set.mutation", 30],
+    ["transactional.set.zero-match", 17],
+  ] as const) {
+    const rows = manifest.scenarios.filter((r: { id: string }) => r.id === id);
+    expect(rows, id).toHaveLength(1);
+    expect(rows[0].actions, id).toHaveLength(expected);
+    counts.set(id, rows[0].actions.length);
+  }
   expect(
-    manifest.scenarios.slice(2, 4).flatMap((r: { actions: unknown[] }) => r.actions).length,
+    counts.get("transactional.set.cardinality")! +
+      counts.get("transactional.set.singleton-targets")!,
   ).toBe(38);
-  expect(read("manifest").byteLength).toBeLessThanOrEqual(128 * 1024);
+  expect(
+    counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
+  ).toBe(47);
+  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(121);
+  expect(read("manifest").byteLength - 130887).toBeLessThanOrEqual(112 * 1024);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(240 * 1024);
+  expect(read("coverage").byteLength - 23604).toBeLessThanOrEqual(24 * 1024);
+  expect(read("fixture").byteLength).toBe(716);
+  expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
+    "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
+  );
   let nodes = 0;
   const pending: unknown[] = [manifest];
   while (pending.length) {
@@ -768,9 +813,11 @@ it("preserves every original TX scenario and coverage object while adding two bo
     nodes++;
     if (value && typeof value === "object") pending.push(...Object.values(value));
   }
-  expect(nodes).toBeLessThanOrEqual(5000);
+  expect(nodes).toBeLessThanOrEqual(7000);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
+    "transactional.set.mutation": ["#set-mutation-objects", "#mutation-receipt-responses"],
+    "transactional.set.zero-match": ["#events-and-event-sources", "#mutation-receipt-responses"],
     "transactional.set.cardinality": ["#set-mutation", "#transactional-problem-details"],
     "transactional.set.singleton-targets": ["#batch-operation-target"],
   };
@@ -778,4 +825,38 @@ it("preserves every original TX scenario and coverage object while adding two bo
     expect(
       selected.catalog.scenarios.find((r) => r.id === id)?.requirements.map((r) => r.anchor),
     ).toEqual(anchors);
+});
+
+it("pins required context presence before equality in both new set rows", () => {
+  const headers = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"];
+  for (const row of manifest.scenarios.filter((r: { id: string }) =>
+    ["transactional.set.mutation", "transactional.set.zero-match"].includes(r.id),
+  )) {
+    for (const action of row.actions) {
+      if (action.family === "client" && action.operation === "transactional.receipt-read") {
+        for (const name of headers)
+          expect(action.assertions).toContainEqual(
+            expect.objectContaining({
+              kind: "json-pointer",
+              pointer: `/headers/${name}`,
+              exists: true,
+            }),
+          );
+      }
+      for (const [index, assertion] of action.assertions.entries()) {
+        if (assertion.kind !== "response-metadata-equals") continue;
+        const prior = row.actions.find((a: { id: string }) => a.id === assertion.request);
+        expect(prior).toBeDefined();
+        expect(assertion.headers).toEqual(headers);
+        for (const name of headers) {
+          expect(prior.assertions).toContainEqual(
+            expect.objectContaining({ kind: "header", name, absent: false }),
+          );
+          expect(action.assertions.slice(0, index)).toContainEqual(
+            expect.objectContaining({ kind: "header", name, absent: false }),
+          );
+        }
+      }
+    }
+  }
 });
