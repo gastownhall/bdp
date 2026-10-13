@@ -1027,7 +1027,7 @@ pending the specification disposition; Scope and Link views support that fact.
 
 Finite pages may split groups. They preserve ordinals, bound the complete encoded
 page to 4 MiB, and return an exclusive continuation after the last returned Event.
-The admitted materialization tuple below bounds one encoded group to 253493248
+The admitted materialization tuple below bounds one encoded group to 169345024
 bytes. SQLite's `length(CAST(body AS BLOB))` is checked before selecting and parsing
 that row's body. This is a byte bound, not a general heap-safety claim. With the
 same R/Q bounds, one largest owned update plus Resource-source URL substitution,
@@ -1101,8 +1101,9 @@ inconclusive. At 128 matches no-op work passed at 802800 KiB child high-water RS
 At that 64-match tuple, repeated no-ops produced a 16,782,715-byte receipt,
 with 480000 KiB high-water RSS through replay/pages/reopen. Dense transient numeric
 patches on 64 owned Links with full-size source Beads produced 128 Events and a
-45,059,033-byte group, with 557584 KiB high-water RSS. That case measures 128 Events;
-the distinct permanent boundary test exercises all 256 Events using 64 owned deletes.
+45,059,033-byte group, with 557584 KiB high-water RSS. That case measured 128 Events;
+under that superseded 64-match tuple, the then-current boundary test exercised all
+256 Events using 64 owned deletes.
 These finite workloads do not prove general heap safety. Candidate selection still
 materializes the complete collection before count checks; C*R scan memory, dense
 object overhead, unbounded trusted principal/other SQLite-row fields, accumulated
@@ -1149,7 +1150,8 @@ effects. TX tests pin closed create/update/delete results and upsert wrappers,
 and permanently exercise extremal admitted numeric normalization through stored
 Events. Current default match tests observe 32/33. The 32-owned-delete test observes
 128/129 Events using a deliberately lowered evaluator Event cap; 256 remains the
-owner cap, but the earlier 256/257 and 4,096 observations are historical, not
+owner cap, validated as a configured bound; its default refusal is not observed
+by this lowered-cap fixture. The earlier 256/257 and 4,096 observations are historical, not
 relabelled as current default-boundary tests. E>=4M is a usability relationship,
 not a premise needed for the serialized bound.
 
@@ -1190,3 +1192,45 @@ bootstrap, erasure, pruning/late-cursor, hidden-view or SSE qualification. Remai
 unsupported minimum forms stay explicit development gaps. Cold discovery changes,
 headPosition/minimumReplayPosition and cumulative installed Transactional evidence
 remain separate completion work.
+
+
+### Mixed explicit/set workload and reproducible emitted-tuple witnesses
+
+A further bounded run exercised 31 explicit owned Link updates plus one set update
+matching 32 other Links: 32 carrier operations, 63 affected owned pairs and 64
+receipt entries including the set summary. These are the reachable explicit-plus-set
+units absent from the earlier set-only measurement. All 63 source Beads were exactly
+262,144 bytes, and Links were 261,849–261,850 bytes. The single 65,536-byte carrier
+included 3,287 bytes of explicit operation-array serialization; its remaining set
+payload contained 12,403 numbers, normalizing to a 272,985-byte combined patch.
+The measurement does not allocate a full Q patch to each explicit operation.
+
+The mixed run completed execution, exact-key retry, receipt-page and finite Link
+Event reads, and the corresponding checks after reopen in 8.073 seconds. The group
+was 50,568,556 bytes and receipt 16,507,992 bytes. Child self-reported maxRSS was
+886,912 KiB; supervisor sampled peak was 832,480 KiB against the predeclared
+1,048,576 KiB/120-second gate. This is substantially less margin than the set-only
+case, not a universal heap-safety or comfortable-all-workloads claim. The tuple
+remains M32/E256; no further count change was made from this measurement.
+
+Fresh repeats on the same actual emitted tuple completed the 32-match set-only
+case (551,504 KiB self / 523,040 KiB sampled) and 32 repeated no-op matches
+(288,544 KiB self / 261,840 KiB sampled). Each new script imports and asserts the
+emitted tuple and logs all its fields, source commit/status, relevant source hashes,
+emitted server/protocol JS/JSON file hashes and tree digest, and script/helper hashes.
+A separate old-M64/new-M32 probe records both actual tuples, verifies refusal leaves
+database bytes unchanged, and reopens/replays the receipt under the old owner.
+It makes no stronger claim about an unobserved internal maintenance execution path.
+
+Each new named variant and its exact script remain beside its output; the supervisor
+refuses to overwrite an existing run log. Earlier intermediate variants retained
+outputs but overwrote script versions. Those historical scripts cannot be recovered
+by asserting their contents now; that reproducibility limitation remains. New runs
+provide independent evidence rather than retroactively repairing their provenance.
+
+The permanent owned-update assertion now checks the exact two-entry changes array
+against independently read Link and source records. All four extremal numeric
+normalization cases pin exact serialized literals as well as the factor-seven bound.
+These changes strengthen observations only; no store, runtime or Event implementation
+changed in this follow-up. The default E256 refusal is still not directly observed;
+actual refusal tests use the lowered evaluator cap described above.
