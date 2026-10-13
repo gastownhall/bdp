@@ -76,8 +76,8 @@ describe("draft numeric-model catalog", () => {
   ): void => {
     expect(manifest.catalogId, entry).not.toBe("numeric-model-v1");
     if (entry === "read-update-reference-continuation-v1.json") {
-      expect(manifest.catalogId, entry).toBe("read-update-v1");
-      expect(manifest.manifestVersion, entry).toBe(2);
+      expect(manifest.catalogId, "numeric continuation catalogId guard").toBe("read-update-v1");
+      expect(manifest.manifestVersion, "numeric continuation manifestVersion guard").toBe(2);
     }
     const bound = new Set(manifest.scenarios.map(({ id }) => id));
     for (const row of catalog.scenarios)
@@ -118,10 +118,10 @@ describe("draft numeric-model catalog", () => {
       assertBindings("read-v1.json", { ...read, scenarios: [...read.scenarios, ...selected] }),
     ).toThrow(id);
     expect(() => assertBindings(entry, { ...manifest, catalogId: "read-v1" })).toThrow(
-      /read-update-reference-continuation-v1.json/,
+      "numeric continuation catalogId guard",
     );
     expect(() => assertBindings(entry, { ...manifest, manifestVersion: 1 })).toThrow(
-      /read-update-reference-continuation-v1.json/,
+      "numeric continuation manifestVersion guard",
     );
   });
 
