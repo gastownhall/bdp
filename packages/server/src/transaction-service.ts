@@ -122,6 +122,33 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       ? undefined
       : Object.freeze({ kind: "receipt", ...observed, receipt: observed.receipt });
   }
+  async function executeSequence(
+    principal: string,
+    sequence: PreparedTransactionSequence,
+  ): Promise<TransactionSequenceResponse> {
+    const stepper = createTransactionSequenceStepper(owner, principal, sequence);
+    try {
+      for (;;) {
+        await nextTurn();
+        const step = stepper.step();
+        if (step.done) {
+          if (!step.response) throw new Error("completed sequence lost response");
+          return step.response;
+        }
+      }
+    } catch (error) {
+      try {
+        stepper.abort();
+      } catch (cleanup) {
+        cleanupFailure = new AggregateError(
+          [...(cleanupFailure ? [cleanupFailure] : []), error, cleanup],
+          "transaction sequence and cleanup failed",
+        );
+        throw cleanupFailure;
+      }
+      throw error;
+    }
+  }
   return Object.freeze({
     closed: completion.promise,
     /** Actual fixed-owner Read configuration; no Transactional discovery claims. */
@@ -153,29 +180,27 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       principal: string,
       sequence: PreparedTransactionSequence,
     ): Promise<TransactionSequenceResponse> {
+      return run(() => executeSequence(principal, sequence));
+    },
+    /** The fixed all-visible owner projects stable member execution facts and
+     * captures the current serving context together, after ordered execution.
+     * This does not project mutable grants or erasure; those remain unsupported. */
+    sequenceObserved(principal: string, sequence: PreparedTransactionSequence) {
       return run(async () => {
-        const stepper = createTransactionSequenceStepper(owner, principal, sequence);
-        try {
-          for (;;) {
-            await nextTurn();
-            const step = stepper.step();
-            if (step.done) {
-              if (!step.response) throw new Error("completed sequence lost response");
-              return step.response;
+        const response = await executeSequence(principal, sequence);
+        const observed = owner.withRead((_reader, context) => {
+          const freeze = (value: unknown): void => {
+            if (value !== null && typeof value === "object") {
+              for (const child of Object.values(value)) freeze(child);
+              Object.freeze(value);
             }
-          }
-        } catch (error) {
-          try {
-            stepper.abort();
-          } catch (cleanup) {
-            cleanupFailure = new AggregateError(
-              [...(cleanupFailure ? [cleanupFailure] : []), error, cleanup],
-              "transaction sequence and cleanup failed",
-            );
-            throw cleanupFailure;
-          }
-          throw error;
-        }
+          };
+          freeze(response);
+          return Object.freeze({ body: response, context });
+        });
+        if (observed.kind === "entry-refused")
+          throw new Error("transaction sequence observation refused", { cause: observed.cause });
+        return observed.value;
       });
     },
     /** Authentication is transport-supplied, never inferred from actor or URL.

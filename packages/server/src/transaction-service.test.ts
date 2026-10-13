@@ -574,4 +574,62 @@ describe("private same-owner Transactional service", () => {
     ).toMatchObject({ kind: "refused", status: 404 });
     expect(service.receipt(access, result.receipt.id)).toEqual(result);
   });
+  it("projects sequence retained member facts and current serving context in the owner entry", async () => {
+    const f = fixture(),
+      scheduler = manualScheduler(),
+      service = f.open({ scheduler });
+    const job = service.sequenceObserved("p", sequence());
+    await scheduler.tick();
+    await service.submit(
+      batch(
+        [
+          {
+            operation: "updateBead",
+            bead: "beads/a",
+            propertiesChange: [{ op: "replace", path: "/title", value: "changed" }],
+          },
+        ],
+        "interleave",
+      ),
+    );
+    const closing = service.close();
+    await scheduler.tick();
+    const result = await job;
+    expect(result.context.scopePosition).toBe("pos-3");
+    expect(result.body.results).toMatchObject([
+      { resource: { properties: { title: "a" } } },
+      { resource: { properties: { title: "b" } } },
+    ]);
+    expect(Object.isFrozen(result.body.results[0])).toBe(true);
+    const row = result.body.results[0] as { resource: { properties: object } };
+    expect(Object.isFrozen(row.resource.properties)).toBe(true);
+    await closing;
+    expect(() => service.sequenceObserved("p", sequence())).toThrow("closing");
+  });
+
+  it("does not return an observed sequence when the final owner observation fails", async () => {
+    const f = fixture(),
+      scheduler = manualScheduler();
+    const failure = new Error("final context unavailable");
+    let failRead = false;
+    const prepare = DatabaseSync.prototype.prepare;
+    const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (failRead && sql === "SELECT value FROM metadata WHERE name=?") throw failure;
+      return prepare.call(this, sql);
+    });
+    const service = f.open({ scheduler });
+    const job = service.sequenceObserved("p", sequence([create()]));
+    // Actual execution completes first. Its final same-owner observation then
+    // encounters a read failure; no guessed context may escape.
+    const callback = scheduler.callbacks.shift();
+    callback?.();
+    await Promise.resolve();
+    failRead = true;
+    await expect(job).rejects.toBe(failure);
+    spy.mockRestore();
+    expect(f.owner.inspect().groups).toHaveLength(1);
+  });
 });
