@@ -34,7 +34,7 @@ At this change's source, there are 44 normative Read obligations (the 49-row cat
 | `fixtureId` | That fixture's ID; every planned executable row must name it. |
 | `capabilities` | That fixture's declared capabilities, unique and nonempty strings. These are not passing-row declarations. |
 
-The binding validates format/equality, not the truth of supplied values. The launcher still must establish payload/configuration capture and pair those observations with the run. This record is **not a new persisted evidence format**, public schema or credential container. A later evidence change requires separate review.
+The boundary rejects proxies, accessors, non-plain records and coercible non-string identities. It captures own data descriptors once, copies dense primitive capability elements without custom iteration, then validates and freezes detached data. Caller records and arrays remain unfrozen and later caller mutation cannot change a binding. The binding validates format/equality, not the truth of supplied values. The launcher still must establish payload/configuration capture and pair those observations with the run. This record is **not a new persisted evidence format**, public schema or credential container. A later evidence change requires separate review.
 
 ## Executable planning contract
 

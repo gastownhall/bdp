@@ -334,3 +334,168 @@ describe("same served configuration planning", () => {
     );
   });
 });
+
+describe("served configuration is detached data, never caller behavior", () => {
+  it("rejects the changing sourceCommit getter without invoking it", () => {
+    const input = configuration();
+    let reads = 0;
+    Object.defineProperty(input, "sourceCommit", {
+      enumerable: true,
+      get() {
+        return ++reads === 1 ? "a".repeat(40) : "invalid";
+      },
+    });
+    expect(() => bindServedProfileConfiguration(input)).toThrow("own enumerable data");
+    expect(reads).toBe(0);
+  });
+
+  it("rejects the changing ownKeys proxy before it can introduce a secret field", () => {
+    const target = { ...configuration(), token: "secret" };
+    let calls = 0;
+    const input = new Proxy(target, {
+      ownKeys(value) {
+        return ++calls === 1
+          ? Reflect.ownKeys(value).filter((key) => key !== "token")
+          : Reflect.ownKeys(value);
+      },
+    });
+    expect(() => bindServedProfileConfiguration(input)).toThrow("plain data record");
+    expect(calls).toBe(0);
+    const revoked = Proxy.revocable(configuration(), {});
+    revoked.revoke();
+    expect(() => bindServedProfileConfiguration(revoked.proxy)).toThrow("plain data record");
+  });
+
+  it("rejects distinct coercible digest objects instead of comparing them as empty objects", () => {
+    let coercions = 0;
+    const coercible = (text: string) =>
+      Object.create({
+        toString() {
+          coercions++;
+          return text;
+        },
+      });
+    const left = { ...configuration(), policyDigest: coercible("1".repeat(64)) };
+    const right = { ...configuration(), policyDigest: coercible("2".repeat(64)) };
+    expect(() => assertSameServedProfileConfiguration(left, right)).toThrow("primitive string");
+    expect(() => bindServedProfileConfiguration(right)).toThrow("primitive string");
+    expect(coercions).toBe(0);
+  });
+
+  it.each([
+    "scope",
+    "profile",
+    "sourceCommit",
+    "installedPayloadDigest",
+    "installedContractsDigest",
+    "policyDigest",
+    "authenticationDigest",
+    "fixtureDigest",
+    "fixtureId",
+  ] as const)("rejects a boxed %s without coercing it", (field) => {
+    const input = configuration();
+    const bad = { ...input, [field]: Object(input[field]) } as ServedProfileConfiguration;
+    expect(() => bindServedProfileConfiguration(bad)).toThrow();
+  });
+
+  it.each(["fixtureId", "fixtureDigest", "capabilities"] as const)(
+    "rejects accessor %s without reading it",
+    (field) => {
+      const input = configuration();
+      let reads = 0;
+      Object.defineProperty(input, field, {
+        enumerable: true,
+        get() {
+          reads++;
+          return configuration()[field];
+        },
+      });
+      expect(() => bindServedProfileConfiguration(input)).toThrow("own enumerable data");
+      expect(reads).toBe(0);
+    },
+  );
+
+  it("does not invoke capability proxy traps, indexed getters or custom iteration", () => {
+    let calls = 0;
+    const proxy = new Proxy(["public-http"], {
+      get(value, key) {
+        calls++;
+        return Reflect.get(value, key);
+      },
+    });
+    expect(() =>
+      bindServedProfileConfiguration({ ...configuration(), capabilities: proxy }),
+    ).toThrow("plain data array");
+    const accessor = ["public-http"];
+    Object.defineProperty(accessor, "0", {
+      enumerable: true,
+      get() {
+        calls++;
+        return "hidden-policy";
+      },
+    });
+    expect(() =>
+      bindServedProfileConfiguration({ ...configuration(), capabilities: accessor }),
+    ).toThrow("own data elements");
+    const iterator = ["public-http"];
+    Object.defineProperty(iterator, Symbol.iterator, {
+      value() {
+        calls++;
+        return ["different"].values();
+      },
+    });
+    expect(() =>
+      bindServedProfileConfiguration({ ...configuration(), capabilities: iterator }),
+    ).toThrow("dense data array");
+    expect(calls).toBe(0);
+  });
+
+  it("rejects malformed nested capabilities rather than freezing caller objects", () => {
+    const object = Object.create({ toString: () => "public-http" });
+    for (const capabilities of [
+      [object],
+      Array(1),
+      Object.assign(["public-http"], { token: "secret" }),
+    ]) {
+      expect(() => bindServedProfileConfiguration({ ...configuration(), capabilities })).toThrow();
+      expect(Object.isFrozen(capabilities)).toBe(false);
+    }
+    expect(Object.isFrozen(object)).toBe(false);
+    class Capabilities extends Array<string> {}
+    expect(() =>
+      bindServedProfileConfiguration({
+        ...configuration(),
+        capabilities: new Capabilities("public-http"),
+      }),
+    ).toThrow("plain data array");
+  });
+
+  it("captures independent primitives and array storage without freezing the caller", () => {
+    const capabilities = ["public-http", "owned-links"];
+    const input = { ...configuration(), capabilities };
+    const bound = bindServedProfileConfiguration(input);
+    input.fixtureDigest = "0".repeat(64);
+    capabilities[0] = "changed";
+    capabilities.push("another");
+    expect(bound.fixtureDigest).toBe("f".repeat(64));
+    expect(bound.capabilities).toEqual(["owned-links", "public-http"]);
+    expect(Object.isFrozen(input)).toBe(false);
+    expect(Object.isFrozen(capabilities)).toBe(false);
+    expect(bound.capabilities).not.toBe(capabilities);
+    expect(Object.isFrozen(bound)).toBe(true);
+    expect(Object.isFrozen(bound.capabilities)).toBe(true);
+  });
+
+  it("rejects inherited or hidden extra fields and accepts null-prototype data", () => {
+    expect(() => bindServedProfileConfiguration(Object.create(configuration()))).toThrow(
+      "plain data record",
+    );
+    for (const key of ["token", Symbol("secret")]) {
+      const input = configuration();
+      Object.defineProperty(input, key, { value: "secret" });
+      expect(() => bindServedProfileConfiguration(input)).toThrow("exactly");
+    }
+    const nullPrototype = Object.assign(Object.create(null), configuration());
+    expect(bindServedProfileConfiguration(nullPrototype)).toEqual(configuration());
+  });
+});

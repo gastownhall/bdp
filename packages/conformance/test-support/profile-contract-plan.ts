@@ -1,6 +1,7 @@
 /** Source-only planning for future served runners. Never evidence or admission. */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { types } from "node:util";
 import { isProtocolProfile, type ProtocolProfile } from "@bdp/protocol";
 import type { ConformanceArtifactSource } from "../src/artifact-bundle.js";
 import { canonicalJson } from "../src/canonical-json.js";
@@ -134,18 +135,90 @@ const configurationKeys = [
   "capabilities",
 ] as const;
 
+/** Inspect only own data descriptors; never invoke a caller getter or proxy trap. */
+function configurationData(value: unknown): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || types.isProxy(value))
+    throw new Error("served configuration must be a plain data record");
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null)
+    throw new Error("served configuration must be a plain data record");
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  if (Reflect.ownKeys(descriptors).length !== configurationKeys.length)
+    throw new Error("served configuration must contain exactly the planning binding fields");
+  const captured: Record<string, unknown> = Object.create(null);
+  for (const key of configurationKeys) {
+    const descriptor = descriptors[key];
+    if (!descriptor || !("value" in descriptor) || !descriptor.enumerable)
+      throw new Error("served configuration requires own enumerable data fields");
+    captured[key] = descriptor.value;
+  }
+  return captured;
+}
+
+function primitiveString(value: unknown, field: string): string {
+  if (typeof value !== "string") throw new Error(`invalid ${field}: primitive string required`);
+  return value;
+}
+
+function capabilitySnapshot(value: unknown): readonly string[] {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    types.isProxy(value) ||
+    !Array.isArray(value) ||
+    Object.getPrototypeOf(value) !== Array.prototype
+  )
+    throw new Error("fixture capabilities must be a plain data array");
+  const descriptors = Object.getOwnPropertyDescriptors(value as object);
+  const length = descriptors.length?.value as number;
+  // Reject holes, custom iterators/properties and indexed accessors without
+  // reading array elements, length or invoking caller-controlled iteration.
+  if (Reflect.ownKeys(descriptors).length !== length + 1)
+    throw new Error("fixture capabilities must be a dense data array");
+  const result: string[] = [];
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = descriptors[String(index)];
+    if (!descriptor || !("value" in descriptor) || !descriptor.enumerable)
+      throw new Error("fixture capabilities require own data elements");
+    const capability = primitiveString(descriptor.value, "capability");
+    if (capability.trim().length === 0) throw new Error("unique fixture capabilities required");
+    result.push(capability);
+  }
+  if (new Set(result).size !== result.length)
+    throw new Error("unique fixture capabilities required");
+  return Object.freeze(result.sort());
+}
+
 export function bindServedProfileConfiguration(
   input: ServedProfileConfiguration,
 ): ServedProfileConfiguration {
-  if (
-    Object.keys(input).length !== configurationKeys.length ||
-    configurationKeys.some((key) => !Object.hasOwn(input, key))
-  )
-    throw new Error("served configuration must contain exactly the planning binding fields");
-  const url = new URL(input.scope);
+  // Capture once before validating. Only detached primitives/arrays can reach
+  // canonicalJson/freeze; no later spread or read touches caller-owned input.
+  const captured = configurationData(input);
+  const scope = primitiveString(captured.scope, "scope");
+  const profile = captured.profile;
+  const history = captured.history;
+  const sourceCommit = primitiveString(captured.sourceCommit, "source commit");
+  const installedPayloadDigest = primitiveString(
+    captured.installedPayloadDigest,
+    "installedPayloadDigest",
+  );
+  const installedContractsDigest = primitiveString(
+    captured.installedContractsDigest,
+    "installedContractsDigest",
+  );
+  const policyDigest = primitiveString(captured.policyDigest, "policyDigest");
+  const authenticationDigest = primitiveString(
+    captured.authenticationDigest,
+    "authenticationDigest",
+  );
+  const fixtureDigest = primitiveString(captured.fixtureDigest, "fixtureDigest");
+  const fixtureId = primitiveString(captured.fixtureId, "fixtureId");
+  const capabilities = capabilitySnapshot(captured.capabilities);
+  const url = new URL(scope);
   if (
     !["http:", "https:"].includes(url.protocol) ||
-    url.href !== input.scope ||
+    url.href !== scope ||
     url.username ||
     url.password ||
     url.search ||
@@ -153,26 +226,31 @@ export function bindServedProfileConfiguration(
     !url.pathname.endsWith("/")
   )
     throw new Error("served configuration requires a canonical HTTP Scope");
-  if (!isProtocolProfile(input.profile) || typeof input.history !== "boolean")
+  if (!isProtocolProfile(profile) || typeof history !== "boolean")
     throw new Error("served configuration requires profile and History selection");
-  if (!/^[0-9a-f]{40}$/.test(input.sourceCommit)) throw new Error("invalid source commit");
-  for (const key of [
-    "installedPayloadDigest",
-    "installedContractsDigest",
-    "policyDigest",
-    "authenticationDigest",
-    "fixtureDigest",
-  ] as const)
-    if (!/^[0-9a-f]{64}$/.test(input[key])) throw new Error(`invalid ${key}`);
-  if (typeof input.fixtureId !== "string" || input.fixtureId.trim().length === 0)
-    throw new Error("fixture identity required");
-  if (
-    !Array.isArray(input.capabilities) ||
-    input.capabilities.some((value) => typeof value !== "string" || value.trim().length === 0) ||
-    new Set(input.capabilities).size !== input.capabilities.length
-  )
-    throw new Error("unique fixture capabilities required");
-  return freeze({ ...input, capabilities: [...input.capabilities].sort() });
+  if (!/^[0-9a-f]{40}$/.test(sourceCommit)) throw new Error("invalid source commit");
+  for (const [key, value] of Object.entries({
+    installedPayloadDigest,
+    installedContractsDigest,
+    policyDigest,
+    authenticationDigest,
+    fixtureDigest,
+  }))
+    if (!/^[0-9a-f]{64}$/.test(value)) throw new Error(`invalid ${key}`);
+  if (fixtureId.trim().length === 0) throw new Error("fixture identity required");
+  return Object.freeze({
+    scope,
+    profile,
+    history,
+    sourceCommit,
+    installedPayloadDigest,
+    installedContractsDigest,
+    policyDigest,
+    authenticationDigest,
+    fixtureDigest,
+    fixtureId,
+    capabilities,
+  });
 }
 
 export function assertSameServedProfileConfiguration(
