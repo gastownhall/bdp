@@ -132,7 +132,9 @@ export function createInstalledExactClient(
             ? []
             : [
                 { name: "content-type", value: "application/json" },
-                { name: "idempotency-key", value: string(input.idempotencyKey) },
+                ...(input.idempotencyKey === undefined
+                  ? []
+                  : [{ name: "idempotency-key", value: string(input.idempotencyKey) }]),
               ],
         ...(body === undefined ? {} : { bodyBytes: Buffer.from(JSON.stringify(body)) }),
       },

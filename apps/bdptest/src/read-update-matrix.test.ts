@@ -79,9 +79,24 @@ type W1bCounterfactual =
   | "link-metadata"
   | "unowned-source-pair"
   | "target-postimage"
+  | "retained-noop-link"
+  | "stale-unowned-link"
   | "stale-link"
   | "owned-plane"
   | "unowned-source-only";
+type W2Counterfactual =
+  | "index"
+  | "missing-name"
+  | "extra-name"
+  | "wrong-name"
+  | "problem"
+  | "swap"
+  | "binding-id"
+  | "dependent-success"
+  | "retained-failure"
+  | "tail-state"
+  | "prefix-present"
+  | "corrected-conflict";
 async function run(
   manifestValue?: unknown,
   selectedIds?: string[],
@@ -90,6 +105,7 @@ async function run(
   fixtureValue?: unknown,
   w1Counterfactual?: W1Counterfactual,
   w1bCounterfactual?: W1bCounterfactual,
+  w2Counterfactual?: W2Counterfactual,
 ) {
   const selection = loadProfileContractSelection("read-update");
   const fixtureSource =
@@ -153,18 +169,14 @@ async function run(
   const mode: ExactHttpModeOptions = {
     scope,
     profile: "read-update",
-    maximumRequestBodyBytes: 65536,
+    // Harness capacity exceeds installed65536 only to observe its actual body-size refusal.
+    maximumRequestBodyBytes: 131072,
     maximumRequestHeaderBytes: 16384,
     routes: [
       ...clientReadRoutes,
-      ...readRoutes.filter(
-        (route, index) =>
-          readRoutes.findIndex(
-            (other) => other.method === route.method && other.url === route.url,
-          ) === index,
-      ),
-      { method: "POST" as const, url: scope },
+      ...readRoutes,
       ...[
+        "sequence",
         "create-bead",
         "update-bead",
         "delete-bead",
@@ -257,9 +269,11 @@ async function run(
   let currentScenario = "";
   let counterfactualApplications = 0;
   let aliasPutObserved = false;
+  let sequenceCalls = 0;
   const target = createRawHttpScenarioTarget(
     async (scenario, _scope, _seed, fixture, signal) => {
       currentScenario = scenario.id;
+      sequenceCalls = 0;
       const configuration = helpers.referenceConfiguration(
         path.join(directory, scenario.id),
         port,
@@ -326,6 +340,83 @@ async function run(
           targetBinding?: string;
           idempotencyKey?: string;
         };
+        if (w1Input.method === "POST" && w1Input.targetBinding === "sequence") sequenceCalls++;
+        const memberControl = [
+          "index",
+          "missing-name",
+          "extra-name",
+          "wrong-name",
+          "problem",
+          "swap",
+        ].includes(w2Counterfactual ?? "");
+        const w2SequenceControl =
+          w1Input.method === "POST" &&
+          w1Input.targetBinding === "sequence" &&
+          ((memberControl && currentScenario === "read-update.sequence.member-problem-shape") ||
+            (currentScenario === "read-update.sequence.local-bindings" &&
+              ((w2Counterfactual === "binding-id" && sequenceCalls === 1) ||
+                (w2Counterfactual === "dependent-success" && sequenceCalls === 2) ||
+                (w2Counterfactual === "retained-failure" && sequenceCalls === 3))) ||
+            (currentScenario === "read-update.sequence.carrier-rejection" &&
+              w2Counterfactual === "corrected-conflict" &&
+              sequenceCalls === 1));
+        const w2ReadControl =
+          w1Input.method === "GET" &&
+          ((currentScenario === "read-update.sequence.local-bindings" &&
+            w2Counterfactual === "tail-state" &&
+            w1Input.targetBinding === "w2.beads.w2-independent") ||
+            (currentScenario === "read-update.sequence.carrier-rejection" &&
+              w2Counterfactual === "prefix-present" &&
+              w1Input.targetBinding === "w2.beads.w2-count-0"));
+        if (
+          w2Counterfactual &&
+          counterfactualApplications === 0 &&
+          (w2SequenceControl || w2ReadControl)
+        ) {
+          // Sensitivity control after exact HTTP capture; the authority is untouched.
+          const changed = structuredClone(actual) as {
+            status: number;
+            body: {
+              results: (Record<string, unknown> & { resource?: { id: string } })[];
+              properties: Record<string, unknown>;
+            };
+          };
+          counterfactualApplications++;
+          const results = changed.body.results;
+          if (w2Counterfactual === "index") results[1]!.operationIndex = 9;
+          if (w2Counterfactual === "missing-name") delete results[1]!.operationName;
+          if (w2Counterfactual === "extra-name") results[2]!.operationName = "invented";
+          if (w2Counterfactual === "wrong-name") results[0]!.operationName = "wrong";
+          if (w2Counterfactual === "problem")
+            Object.assign(results[1]!, {
+              status: 404,
+              type: "https://github.com/gastownhall/bdp/problems/not-found",
+              code: "resource-not-found",
+              retry: "after-state-change",
+            });
+          if (w2Counterfactual === "swap") [results[0], results[3]] = [results[3]!, results[0]!];
+          if (w2Counterfactual === "binding-id")
+            results[1]!.resource!.id = `${scope}beads/wrong-dependent`;
+          if (w2Counterfactual === "dependent-success")
+            results[1] = {
+              operationIndex: 1,
+              outcome: "created",
+              resource: structuredClone(results[2]!.resource!),
+            };
+          if (w2Counterfactual === "retained-failure")
+            results[1]!.detail = "not-the-retained-detail";
+          if (w2Counterfactual === "tail-state") changed.body.properties.n = 999;
+          if (w2Counterfactual === "prefix-present") changed.status = 200;
+          if (w2Counterfactual === "corrected-conflict")
+            results[0] = {
+              operationIndex: 0,
+              type: "https://github.com/gastownhall/bdp/problems/conflict",
+              code: "idempotency-conflict",
+              status: 409,
+              retry: "never",
+            };
+          return changed;
+        }
         if (w1Input.idempotencyKey === "put-alias") aliasPutObserved = true;
         if (
           w1Counterfactual === "target-revision" &&
@@ -412,6 +503,8 @@ async function run(
           method: string;
         };
         const w1bKey: Partial<Record<W1bCounterfactual, string>> = {
+          "retained-noop-link": "matching-link-noop",
+          "stale-unowned-link": "stale-link-unowned-update",
           "stale-link": "stale-link-properties",
           "unowned-source-only": "unowned-create",
           "source-revision": "owned-create",
@@ -441,13 +534,18 @@ async function run(
             w1bCounterfactual === "noop-source-revision"
           )
             body.sourceRevision = "wrong-source-revision";
-          if (w1bCounterfactual === "stale-link") body.code = "alias-path-taken";
+          if (w1bCounterfactual === "stale-link" || w1bCounterfactual === "stale-unowned-link")
+            body.code = "alias-path-taken";
+          if (w1bCounterfactual === "retained-noop-link")
+            (body.resource as { revision: string }).revision = "freshly-minted-on-noop";
           if (w1bCounterfactual === "unowned-source-only")
             body.source = `${scope}beads/w1b-unowned-source`;
           if (w1bCounterfactual === "owned-plane") {
-            (body.ownedLinks as Record<string, unknown[]>)[`${scope}types/relates`]?.push(
-              structuredClone(execution.bindings["link-metadata"]),
-            );
+            const plane = (body.ownedLinks as Record<string, unknown[]> | undefined)?.[
+              `${scope}types/relates`
+            ];
+            if (!plane) throw Error("actual owner owned-Link plane missing");
+            plane.push(structuredClone(execution.bindings["link-metadata"]));
           }
           if (w1bCounterfactual === "link-metadata")
             (body.resource as { metadata: Record<string, unknown> }).metadata.tag =
@@ -520,24 +618,53 @@ async function run(
 
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
   const report = await run();
+  if (process.env.BDP_CUMULATIVE_REPORT_PATH)
+    writeFileSync(process.env.BDP_CUMULATIVE_REPORT_PATH, JSON.stringify(report, null, 2));
   for (const row of report.result.scenarios)
     expect(row, JSON.stringify(row)).toMatchObject({
       state: !report.plannedIds.includes(row.id) ? "harness-error" : "pass",
     });
+  const carrierId = "read-update.sequence.carrier-rejection";
+  const authored = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  ) as {
+    scenarios: {
+      id: string;
+      actions: { id: string; family: string; raw?: { body?: { value: string } } }[];
+    }[];
+  };
+  const carrier = authored.scenarios.find((row) => row.id === carrierId)!;
+  const observed = report.result.scenarios.find((row) => row.id === carrierId)!;
+  for (const action of carrier.actions.filter(
+    (action) => action.family === "http" && action.raw?.body,
+  )) {
+    expect(
+      observed.exchanges.find((exchange) => exchange.request.id === action.id)?.request.exact
+        ?.bodyOctets,
+    ).toBe(Buffer.byteLength(action.raw!.body!.value));
+  }
+  const countBody = carrier.actions.find((action) => action.id === "count-33")!.raw!.body!.value;
+  const countMembers = JSON.parse(countBody).operations as { idempotencyKey: string }[];
+  expect(countMembers).toHaveLength(33);
+  expect(new Set(countMembers.map((member) => member.idempotencyKey)).size).toBe(33);
+  expect(Buffer.byteLength(countBody)).toBeLessThan(65536);
+  expect(
+    Buffer.byteLength(
+      carrier.actions.find((action) => action.id === "body-size")!.raw!.body!.value,
+    ),
+  ).toBeGreaterThan(65536);
   expect(report.result.claimEligible).toBe(false);
   expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
   // Pin the existing runner projection; credential identity is bound separately in configuration.
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "f04e98d80971e813b73d1b57d225c0a6bfb0669647d6bbf9b026a908bbf37f26",
+    "3d36a5222635858592d92c2b79df03bae8b0c9ac1deeb9e5c176498c9f6b94e9",
   );
-  expect(report.uncoveredIds).toHaveLength(102);
+  expect(report.uncoveredIds).toHaveLength(101);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
   expect(report.sessions).toHaveLength(report.plannedIds.length);
   expect(report.observations.length).toBeGreaterThan(30);
   expect(JSON.stringify(report)).not.toContain(token);
   expect(JSON.stringify(report)).not.toContain(wrongToken);
-  if (process.env.BDP_CUMULATIVE_REPORT_PATH)
-    writeFileSync(process.env.BDP_CUMULATIVE_REPORT_PATH, JSON.stringify(report, null, 2));
 }, 30000);
 
 it("fails actual response comparisons for mutated captures and postimages", async () => {
@@ -721,6 +848,18 @@ it.each([
 
 it.each([
   [
+    "retained-noop-link",
+    "read-update.singleton.owned-link-no-op",
+    "matching-link-noop",
+    ["retained-link"],
+  ],
+  [
+    "stale-unowned-link",
+    "read-update.singleton.update-link",
+    "stale-link-unowned-update",
+    ["revision-mismatch"],
+  ],
+  [
     "stale-link",
     "read-update.singleton.owned-link-source-revision",
     "stale-link-properties",
@@ -835,6 +974,117 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "f04e98d80971e813b73d1b57d225c0a6bfb0669647d6bbf9b026a908bbf37f26",
+    "3d36a5222635858592d92c2b79df03bae8b0c9ac1deeb9e5c176498c9f6b94e9",
   );
+}, 30000);
+
+it.each([
+  ["index", "member-problem-shape", "member-shapes", ["indices", "index-1"]],
+  ["missing-name", "member-problem-shape", "member-shapes", ["name-1"]],
+  ["extra-name", "member-problem-shape", "member-shapes", ["name-2"]],
+  ["wrong-name", "member-problem-shape", "member-shapes", ["name-0"]],
+  ["problem", "member-problem-shape", "member-shapes", ["1-code", "1-status", "1-type", "1-retry"]],
+  [
+    "swap",
+    "member-problem-shape",
+    "member-shapes",
+    ["indices", "index-0", "name-0", "index-3", "name-3"],
+  ],
+  ["binding-id", "local-bindings", "allocated-read", ["dependent-identity", "postimage"]],
+  [
+    "dependent-success",
+    "local-bindings",
+    "failed-bindings",
+    ["1-code", "1-status", "1-type", "1-retry", "1-no-outcome"],
+  ],
+  ["retained-failure", "local-bindings", "retained-bindings", ["retained-results"]],
+  ["tail-state", "local-bindings", "independent-read", ["properties", "postimage"]],
+  ["prefix-present", "carrier-rejection", "count-absent-0", ["status"]],
+  ["corrected-conflict", "carrier-rejection", "count-32", ["created-0"]],
+] as const)(
+  "detects W2 %s after real sequence HTTP",
+  async (control, suffix, actionId, expected) => {
+    const id = `read-update.sequence.${suffix}`;
+    const report = await run(
+      undefined,
+      [id],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    const row = report.result.scenarios.find((row) => row.id === id);
+    expect(row?.state).toBe("fail");
+    expect(
+      row?.actions
+        ?.find((action) => action.action.id === actionId)
+        ?.assertions.filter((assertion) => !assertion.passed)
+        .map((assertion) => assertion.id),
+    ).toEqual(expected);
+  },
+  30000,
+);
+
+it.each(["wrong-status", "wrong-code", "below-count-boundary"])(
+  "detects W2 raw carrier %s control",
+  async (control) => {
+    const manifest = JSON.parse(
+      source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+    );
+    const id = "read-update.sequence.carrier-rejection";
+    const scenario = manifest.scenarios.find((row: { id: string }) => row.id === id);
+    const action = scenario.actions.find((row: { id: string }) => row.id === "count-33");
+    if (control === "below-count-boundary") {
+      const body = JSON.parse(action.raw.body.value);
+      body.operations.pop();
+      action.raw.body.value = JSON.stringify(body);
+    } else
+      action.assertions.find(
+        (assertion: { id: string }) =>
+          assertion.id === (control === "wrong-status" ? "status" : "code"),
+      ).equals = control === "wrong-status" ? 400 : "request-too-large";
+    const report = await run(manifest, [id]);
+    const row = report.result.scenarios.find((row) => row.id === id);
+    expect(row?.state).toBe("fail");
+    const exchange = row?.exchanges.find((exchange) => exchange.request.id === "count-33");
+    const failures = exchange?.assertions
+      .filter((assertion) => !assertion.passed)
+      .map((assertion) => assertion.id);
+    if (control === "below-count-boundary") {
+      expect(exchange?.response?.status).toBe(200);
+      expect(failures).toContain("status");
+    } else expect(failures).toEqual([control === "wrong-status" ? "status" : "code"]);
+    expect(exchange?.request.exact?.bodyOctets).toBe(Buffer.byteLength(action.raw.body.value));
+  },
+  30000,
+);
+
+it("leaves singleton missing-key refusal to the actual authority after optional header omission", async () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const id = "read-update.singleton.create-bead";
+  const scenario = manifest.scenarios.find((row: { id: string }) => row.id === id);
+  const original = scenario.actions.find((row: { id: string }) => row.id === "create");
+  const refused = structuredClone(original);
+  refused.id = "missing-key";
+  delete refused.input.idempotencyKey;
+  refused.captures = [];
+  refused.assertions = [
+    { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 400 },
+    {
+      id: "problem",
+      kind: "json-pointer",
+      pointer: "/body/code",
+      exists: true,
+      equals: "malformed-request",
+    },
+    { id: "schema", kind: "json-schema", schema: "#/$defs/harnessInstalled_readUpdateProblem" },
+  ];
+  scenario.actions.splice(scenario.actions.indexOf(original), 0, refused);
+  const report = await run(manifest, [id]);
+  expect(report.result.scenarios.find((row) => row.id === id)?.state).toBe("pass");
 }, 30000);

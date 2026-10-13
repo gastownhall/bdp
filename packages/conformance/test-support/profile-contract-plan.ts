@@ -247,7 +247,11 @@ export function planProfileExecution(
           parseBoundedJson(source.bytes, "manifest", source.label),
           source.label,
         );
-  if (manifest && source && manifest.catalogId !== "read-update-v1")
+  if (
+    manifest &&
+    source &&
+    !(manifest.catalogId === "read-update-v1" && manifest.manifestVersion === 2)
+  )
     copySourceBytes({ bytes: source.bytes }, "manifest"); // Other carriers retain the ordinary source budget.
   if (manifest) validateFixtureOraclePointers(manifest, fixture);
   // The current ordinary artifact factory accepts read-v1. The runner permits

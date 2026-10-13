@@ -8,6 +8,7 @@ export const installedObservationSchema = {
     ...Object.fromEntries(
       [
         "mutationResult",
+        "sequenceResponse",
         "aliasResult",
         "currentBeadRecord",
         "currentLinkRecord",
