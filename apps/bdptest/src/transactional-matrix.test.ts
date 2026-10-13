@@ -189,6 +189,7 @@ async function observe(control?: {
       { method: "GET", url: `${scope}events/` },
       { method: "GET", url: `${scope}beads/new` },
       { method: "GET", url: `${scope}beads/b` },
+      { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
       { method: "POST", url: `${scope}operations/delete-where` },
     ]);
@@ -325,7 +326,7 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes six partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+it("observes eight partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
   const observed = await observe({ children });
@@ -334,15 +335,15 @@ it("observes six partial Transactional contracts through packed-capable actual i
   expect(observed.result.scenarios).toHaveLength(255); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(6);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(8);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(9);
-  expect(children).toHaveLength(10); // Nine scenario/reopen sessions plus separate bootstrap.
+  expect(observed.sessions).toHaveLength(13);
+  expect(children).toHaveLength(14); // Thirteen scenario/reopen sessions plus separate bootstrap.
   expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
     true,
   );
   expect(observed.result.declarations).toMatchObject({
-    exactConfigurationDigest: "d5a731626ec5d3f6d2fd84ede17d8c2c74239cba1231813faa5218b7bbbc3d51",
+    exactConfigurationDigest: "634214546089490d235fa404166dc868a0feb5dc2a8af2a566a6ad33664b4b1a",
   });
   const dynamic = observed.result.scenarios
     .flatMap((s) => s.exchanges)
@@ -359,9 +360,13 @@ it("observes six partial Transactional contracts through packed-capable actual i
   expect(reopened.map((e) => e.request.id).sort()).toEqual([
     "reopened-completed",
     "reopened-failed",
+    "reopened-m-delete",
+    "reopened-m-update",
     "reopened-set-cardinality-failed",
     "reopened-set-delete-completed",
     "reopened-set-update-completed",
+    "reopened-z-delete",
+    "reopened-z-update",
   ]);
   for (const exchange of reopened) {
     expect(exchange.servedSession?.generation).toBeGreaterThan(
@@ -374,9 +379,19 @@ it("observes six partial Transactional contracts through packed-capable actual i
       exchange.sourceReceiptObservation!.session.configurationDigest,
     );
   }
+  const newRows = observed.result.scenarios.filter(
+    (row) => row.id === "transactional.set.mutation" || row.id === "transactional.set.zero-match",
+  );
+  for (const row of newRows)
+    for (const exchange of row.exchanges) {
+      if (exchange.request.method === "POST")
+        expect(exchange.request.exact!.bodyOctets).toBeLessThanOrEqual(2048);
+      expect(exchange.response!.decodedBodyBytes).toBeLessThanOrEqual(32768);
+    }
+  expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
     JSON.stringify({
-      kind: "installed-tx-six-partial-summary",
+      kind: "installed-tx-eight-partial-summary",
       sourceCommit,
       elapsedMs: performance.now() - started,
       actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
@@ -931,6 +946,80 @@ it.each(["set-update", "set-delete"] as const)(
     expect(exchange.request.exact?.writeState).toBe("complete");
     expect(exchange.response?.status).toBe(401);
     expect(exchange.assertions.find((a) => a.id === "actual-status")?.passed).toBe(false);
+  },
+  120000,
+);
+
+it.each([
+  [
+    "second postimage",
+    "transactional.set.mutation",
+    "m-updated-b",
+    "properties",
+    { title: "never-observed" },
+  ],
+  [
+    "rollback metadata",
+    "transactional.set.mutation",
+    "m-rollback-a",
+    "metadata",
+    { tag: "never-observed" },
+  ],
+  ["receipt order", "transactional.set.mutation", "m-update", "a-id", `${scope}beads/b`],
+  [
+    "Event order",
+    "transactional.set.mutation",
+    "m-update-events",
+    "ordered-facts",
+    [
+      ["created", `${scope}beads/b`, 0],
+      ["created", `${scope}beads/c`, 1],
+      ["created", `${scope}beads/a`, 2],
+      ["updated", `${scope}beads/b`, 0],
+      ["updated", `${scope}beads/a`, 1],
+    ],
+  ],
+  [
+    "zero results",
+    "transactional.set.zero-match",
+    "z-update",
+    "exact-results",
+    [{ operationIndex: 0, outcome: "matched", count: 1 }],
+  ],
+  [
+    "zero Events",
+    "transactional.set.zero-match",
+    "z-update-events",
+    "ordered-facts",
+    [
+      ["created", `${scope}beads/a`, 0],
+      ["updated", `${scope}beads/a`, 0],
+    ],
+  ],
+  ["no effect", "transactional.set.zero-match", "z-update", "no-effect", true],
+] as const)(
+  "discriminates actual set effects against wrong %s expectation",
+  async (kind, id, actionId, assertionId, wrong) => {
+    const observed = await observe({
+      manifest(value) {
+        const row = value.scenarios.find((s) => s.id === id)!;
+        const action = row.actions.find((a) => a.id === actionId)!;
+        const assertion = (action.assertions as { id: string }[]).find(
+          (a) => a.id === assertionId,
+        ) as {
+          equals?: unknown;
+          exists?: boolean;
+        };
+        if (kind === "no effect") assertion.exists = true;
+        else assertion.equals = wrong;
+      },
+    });
+    const row = observed.result.scenarios.find((s) => s.id === id)!;
+    expect(row.state).toBe("fail");
+    const exchange = row.exchanges.find((e) => e.request.id === actionId)!;
+    expect(exchange.request.exact?.writeState).toBe("complete");
+    expect(exchange.response?.status).toBe(200);
+    expect(exchange.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
   },
   120000,
 );
