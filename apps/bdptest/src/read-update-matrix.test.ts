@@ -3640,7 +3640,7 @@ it.each(attributionNumericRawControls)(
   30000,
 );
 
-it("pins attribution/numeric source budgets, raw literals and prior scenario bytes", () => {
+it("pins attribution/numeric action ledgers, raw literals and prior scenario bytes", () => {
   const bytes = source(continuationSource).bytes;
   const manifest = JSON.parse(bytes.toString());
   expect(
@@ -4081,9 +4081,12 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
       expect(created).not.toBe(updated);
       expect(body("create-corrected")).toContain('"one":1.0');
       expect(body("create-corrected")).toContain('"zero":-0.0');
+      expect(body("create-corrected")).toContain('"large":1e300');
       expect(body("create-corrected")).toContain('"expanded":1' + "0".repeat(300));
     }
   }
+  for (const kind of ["bead", "link"] as const)
+    assertNestedNumericLexemes(nestedNumericLexemes(kind));
   expect(actions).toBeLessThanOrEqual(124);
   expect(assertions).toBeLessThanOrEqual(1300);
   expect(new Set(keys).size).toBe(keys.length);
@@ -4093,3 +4096,87 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
     numericAdmissionRawControls.length + numericAdmissionClientControls.length,
   ).toBeLessThanOrEqual(9);
 });
+
+function nestedNumericLexemes(kind: "bead" | "link") {
+  const row = installedArtifactSet().shards[1]!.bundle.manifest.scenarios.find(
+    (r) => r.id === numericNestedId,
+  )!;
+  const body = (suffix: string) => {
+    const action = row.actions!.find((a) => a.id === `nn-${kind}-${suffix}`)!;
+    if (action.family !== "http") throw Error("nested numeric corpus requires raw HTTP");
+    expect(action.raw!.body!.encoding).toBe("utf8");
+    return action.raw!.body!.value;
+  };
+  return {
+    propertiesCreate: body("properties-create-refused"),
+    propertiesPatch: body("properties-patch-refused"),
+    metadataCreate: body("metadata-create-refused"),
+    metadataPatch: body("metadata-patch-refused"),
+  };
+}
+function assertNestedNumericLexemes(bodies: ReturnType<typeof nestedNumericLexemes>) {
+  // Independently authored chain and exact decimal spellings; never parse numbers
+  // through binary64, which would erase the very refusal classes being pinned.
+  const deep =
+    '"deep":{' +
+    Array.from({ length: 14 }, (_, n) => `"d${n}":{`).join("") +
+    '"a/b~c":9007199254740993' +
+    "}".repeat(15);
+  expect(bodies.propertiesCreate, "nested properties shallow integer").toContain(
+    '"shallow":9007199254740993',
+  );
+  expect(bodies.propertiesCreate, "nested properties fourteen-segment escaped chain").toContain(
+    deep,
+  );
+  expect(bodies.propertiesPatch, "nested properties patch integer").toContain(
+    '"a/b~c":9007199254740993',
+  );
+  expect(bodies.metadataCreate, "nested metadata underflow literal").toContain('"a/b~c":1e-400');
+  expect(bodies.metadataPatch, "nested metadata precision literal").toContain(
+    '"a/b~c":0.12345678901234567891',
+  );
+}
+it.each(["bead", "link"] as const)(
+  "rejects shortened or drifted nested numeric lexemes for %s",
+  (kind) => {
+    const bodies = nestedNumericLexemes(kind);
+    expect(() => assertNestedNumericLexemes(bodies)).not.toThrow();
+    const longChain =
+      Array.from({ length: 14 }, (_, n) => `"d${n}":{`).join("") +
+      '"a/b~c":9007199254740993' +
+      "}".repeat(14);
+    const shortChain = '"d0":{"d1":{"a/b~c":9007199254740993}}';
+    const shortened = bodies.propertiesCreate.replace(longChain, shortChain);
+    expect(shortened).not.toBe(bodies.propertiesCreate);
+    expect(() => assertNestedNumericLexemes({ ...bodies, propertiesCreate: shortened })).toThrow(
+      "fourteen-segment escaped chain",
+    );
+    expect(() =>
+      assertNestedNumericLexemes({
+        ...bodies,
+        propertiesCreate: bodies.propertiesCreate.replace(
+          '"shallow":9007199254740993',
+          '"shallow":9007199254740992',
+        ),
+      }),
+    ).toThrow("shallow integer");
+    expect(() =>
+      assertNestedNumericLexemes({
+        ...bodies,
+        propertiesPatch: bodies.propertiesPatch.replace("9007199254740993", "9007199254740992"),
+      }),
+    ).toThrow("properties patch integer");
+    expect(() =>
+      assertNestedNumericLexemes({
+        ...bodies,
+        metadataCreate: bodies.metadataCreate.replace("1e-400", "9007199254740993"),
+      }),
+    ).toThrow("underflow literal");
+    expect(() =>
+      assertNestedNumericLexemes({
+        ...bodies,
+        metadataPatch: bodies.metadataPatch.replace("0.12345678901234567891", "9007199254740993"),
+      }),
+    ).toThrow("precision literal");
+  },
+);
