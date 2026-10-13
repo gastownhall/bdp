@@ -10,6 +10,7 @@ import {
   createJsonSchemaValidator,
   runConformanceMatrix,
   type ExactHttpModeOptions,
+  type RawHttpExchangeExecutor,
 } from "@bdp/conformance";
 import {
   createCumulativeReadUpdateArtifactBundle,
@@ -175,6 +176,7 @@ async function run(
     // Source-test-only fault after the real target has drained; no fake child close.
     afterClose?(): void;
   },
+  numericControl?: "digest" | "changed-number" | "refusal-success",
 ) {
   signal?.throwIfAborted();
   if (artifact) assertReadUpdateArtifactSet(artifact.set);
@@ -391,6 +393,48 @@ async function run(
     },
     { exactMode, requestTimeoutMs: 5000 },
   );
+  let numericControlRecord: unknown;
+  const executeExact: RawHttpExchangeExecutor = async (request) => {
+    const key = request.raw?.headerLines.find(
+      (h) => h.name.toLowerCase() === "idempotency-key",
+    )?.value;
+    const hit =
+      numericControl &&
+      currentScenario === "read-update.numeric-model.same-value-no-op" &&
+      key ===
+        (numericControl === "refusal-success" ? "num-subject-inadmissible" : "num-subject-decimal");
+    let sent = request;
+    if (hit && numericControl === "changed-number") {
+      if (!request.raw?.bodyBytes) throw Error("numeric control requires authored bytes");
+      const original = Buffer.from(request.raw.bodyBytes).toString("utf8");
+      expect(original).toContain('"one":1.0');
+      sent = {
+        ...request,
+        raw: { ...request.raw, bodyBytes: Buffer.from(original.replace('"one":1.0', '"one":2.0')) },
+      };
+    }
+    const actual = await target.execute(sent);
+    if (!hit) return actual;
+    counterfactualApplications++;
+    if (numericControl === "digest") {
+      if (!actual.exactRequest?.bodyDigest) throw Error("missing actual serializer digest");
+      return {
+        ...actual,
+        exactRequest: {
+          ...actual.exactRequest,
+          bodyDigest:
+            actual.exactRequest.bodyDigest === "0".repeat(64) ? "1".repeat(64) : "0".repeat(64),
+        },
+      };
+    }
+    if (numericControl === "refusal-success") {
+      if (!numericControlRecord) throw Error("missing independently observed prior Resource");
+      const bodyText = JSON.stringify({ outcome: "updated", resource: numericControlRecord });
+      // Assertion-input control after a real refused exchange; not a wire-transparent target.
+      return { ...actual, status: 200, bodyText, bodyOctets: Buffer.byteLength(bodyText) };
+    }
+    return actual;
+  };
   async function observe() {
     if (!target.exactConfiguration) throw Error("exact target configuration missing");
     const executeClient = createInstalledExactClient(exactMode, dialRoute, (observation) =>
@@ -406,13 +450,20 @@ async function run(
       execute: exactNativeReadAdapter(target.execute, (observation) =>
         nativeReadObservations.push({ scenario: currentScenario, observation }),
       ),
-      exactExecution: { execute: target.execute, configuration: target.exactConfiguration },
+      exactExecution: { execute: executeExact, configuration: target.exactConfiguration },
       actionExecutor: async (execution) => {
         const actual = await executeClient(execution);
         lifecycle?.observed?.();
         const clientAction = bundle.manifest.scenarios
           .find((row) => row.id === currentScenario)
           ?.actions?.filter((action) => action.family === "client")[retryClientIndex++];
+        if (
+          numericControl === "refusal-success" &&
+          currentScenario === "read-update.numeric-model.same-value-no-op" &&
+          clientAction?.id === "num-subject-restored-read"
+        ) {
+          numericControlRecord = structuredClone((actual as { body: unknown }).body);
+        }
         if (
           retryControl?.scenario === currentScenario &&
           retryControl.action === clientAction?.id
@@ -961,7 +1012,7 @@ async function runShard(
 }
 
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  // One aggregate budget for both shards and 50 isolated scenario authorities.
+  // One aggregate budget for both shards and 52 isolated scenario authorities.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
   const started = performance.now();
@@ -1143,23 +1194,32 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       }[])
         expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(65536);
     }
-    expect(progress.authoredIds).toHaveLength(50);
+    expect(progress.authoredIds).toHaveLength(52);
     expect(progress.reviewedWholeIds).toHaveLength(30);
-    expect(progress.omittedRequiredIds).toHaveLength(79);
-    expect(progress.shards[1]!.selectedIds).toEqual(["read-update.alias.unknown-subject"]);
-    // Independent inventory: C's fixed six client GETs, eleven raw GETs and
-    // the installed client's nine mandatory mutation carriers. No route helper.
+    expect(progress.omittedRequiredIds).toHaveLength(77);
+    expect(progress.shards[1]!.selectedIds).toEqual([attributionId, continuationId, numericId]);
+    // Independently enumerated fixed client GETs, raw discovery/alias GETs,
+    // numeric raw mutations and the nine mandatory carriers. No route helper.
     expect(progress.shards[1]!.routes).toEqual([
       { method: "GET", url: `${scope}operations/` },
+      { method: "GET", url: `${scope}beads/att-subject` },
+      { method: "GET", url: `${scope}beads/att-owner` },
+      { method: "GET", url: `${scope}beads/att-target` },
+      { method: "GET", url: `${scope}links/att-unowned` },
+      { method: "GET", url: `${scope}links/att-owned` },
       { method: "GET", url: `${scope}beads/rc-source` },
       { method: "GET", url: `${scope}beads/rc-target` },
       { method: "GET", url: `${scope}links/rc-live` },
       { method: "GET", url: `${scope}beads/rc-rc-sequence-wrong-tail` },
       { method: "GET", url: `${scope}beads/rc-missing` },
+      { method: "GET", url: `${scope}beads/num-subject` },
+      { method: "GET", url: `${scope}beads/num-target` },
+      { method: "GET", url: `${scope}links/num-link` },
       { method: "GET", url: `${scope}` },
       { method: "GET", url: `${scope}bdp.json` },
       { method: "GET", url: `${scope}types/task` },
       { method: "GET", url: `${scope}types/relates` },
+      { method: "GET", url: `${scope}types/decision` },
       { method: "GET", url: `${scope}alias/rc-locator-live` },
       { method: "GET", url: `${scope}beads/?limit=100` },
       { method: "GET", url: `${scope}links/?limit=100` },
@@ -1167,19 +1227,19 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       { method: "GET", url: `${scope}alias/rc-locator-put-absolute` },
       { method: "GET", url: `${scope}alias/rc-locator-missing` },
       { method: "GET", url: `${scope}alias/rc-locator-missing-absolute` },
+      { method: "POST", url: `${scope}operations/update-bead` },
+      { method: "POST", url: `${scope}operations/update-link` },
       { method: "POST", url: `${scope}operations/sequence` },
       { method: "POST", url: `${scope}operations/create-bead` },
-      { method: "POST", url: `${scope}operations/update-bead` },
       { method: "POST", url: `${scope}operations/delete-bead` },
       { method: "POST", url: `${scope}operations/create-link` },
-      { method: "POST", url: `${scope}operations/update-link` },
       { method: "POST", url: `${scope}operations/delete-link` },
       { method: "POST", url: `${scope}operations/put-alias` },
       { method: "POST", url: `${scope}operations/delete-alias` },
     ]);
-    expect(progress.shards[1]!.routes).toHaveLength(26);
+    expect(progress.shards[1]!.routes).toHaveLength(35);
     expect(progress.shards[1]!.routeDigest).toBe(
-      "59c70c9f22238cd7711a19034139c404136564ad50c58b7f3ef795a385cc990e",
+      "6713ab2c41b09869b664f372de1ef1390c00cfd24b154ea717f7ee6d62c35059",
     );
     expect(progress.observedStatePartitions.pass).toEqual(progress.authoredIds);
     expect(progress.observedStatePartitions.fail).toEqual([]);
@@ -2845,9 +2905,9 @@ it.each([
 );
 it("detects restored C retained-delete live-alias Location corruption", async () => {
   const manifest = JSON.parse(source(continuationSource).bytes.toString());
-  const action = manifest.scenarios[0].actions.find(
-    (a: { id: string }) => a.id === "rc-delete-replay-alias",
-  );
+  const action = manifest.scenarios
+    .find((r: { id: string }) => r.id === continuationId)
+    .actions.find((a: { id: string }) => a.id === "rc-delete-replay-alias");
   action.assertions.find((a: { id: string }) => a.id === "location").equals =
     `${scope}beads/rc-source`;
   const report = await run(manifest, [continuationId]);
@@ -2863,7 +2923,9 @@ it("binds restored C independent oracle corruption and fails its actual comparis
   const fixture = JSON.parse(
     source("packages/conformance/fixtures/read-update-reference-v1.json").bytes.toString(),
   );
-  const action = manifest.scenarios[0].actions.find((a: { id: string }) => a.id === "rc-put-local");
+  const action = manifest.scenarios
+    .find((r: { id: string }) => r.id === continuationId)
+    .actions.find((a: { id: string }) => a.id === "rc-put-local");
   const pointer = action.assertions.find(
     (a: { id: string }) => a.id === "complete-problem",
   ).fixturePointer;
@@ -2888,6 +2950,13 @@ function smallExecutionSet() {
   manifest.scenarios = manifest.scenarios.filter(
     (r: { id: string }) => r.id === "read-update.singleton.create-bead",
   );
+  const continuationName = set.shards[1]!.source;
+  const continuation = JSON.parse(
+    Buffer.from(captured.manifests[continuationName]!.bytes).toString(),
+  );
+  continuation.scenarios = continuation.scenarios.filter(
+    (r: { id: string }) => r.id === continuationId,
+  );
   const ids = new Set([manifest.scenarios[0].id, continuationId]);
   const coverage = JSON.parse(Buffer.from(captured.coverage.bytes).toString());
   coverage.rows = coverage.rows.map((row: { id: string }) =>
@@ -2898,7 +2967,11 @@ function smallExecutionSet() {
   return createReadUpdateArtifactSet(loadProfileContractSelection("read-update"), {
     ...captured,
     coverage: { bytes: Buffer.from(JSON.stringify(coverage)) },
-    manifests: { ...captured.manifests, [name]: { bytes: Buffer.from(JSON.stringify(manifest)) } },
+    manifests: {
+      ...captured.manifests,
+      [name]: { bytes: Buffer.from(JSON.stringify(manifest)) },
+      [continuationName]: { bytes: Buffer.from(JSON.stringify(continuation)) },
+    },
   });
 }
 it.each(["before-continuation", "after-continuation-launch", "during-continuation"] as const)(
@@ -3281,3 +3354,316 @@ it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
   },
   30000,
 );
+
+const attributionId = "read-update.singleton.attribution";
+const numericId = "read-update.numeric-model.same-value-no-op";
+it.each([attributionId, numericId])(
+  "observes installed attribution/numeric row %s",
+  async (id) => {
+    const manifest = JSON.parse(source(continuationSource).bytes.toString());
+    const report = await run(manifest, [id]);
+    expect(report.result.scenarios[0], JSON.stringify(report.result.scenarios[0])).toMatchObject({
+      state: "pass",
+    });
+    expect(report.result.claimEligible).toBe(false);
+    expect(report.cleanupComplete).toBe(true);
+    if (id === numericId) {
+      const raw = report.result.scenarios[0]!.exchanges.filter((e) => e.request.method === "POST");
+      expect(raw).toHaveLength(10);
+      for (const exchange of raw) {
+        expect(exchange.request.exact).toMatchObject({
+          source: "raw-http1-serializer",
+          writeState: "complete",
+          bodyPresent: true,
+        });
+        expect(exchange.request.exact).not.toHaveProperty("bodyDigest");
+        expect(exchange.request.exact!.bodyOctets).toBeLessThan(4096);
+      }
+    }
+    const filename = process.env.BDP_ATTRIBUTION_NUMERIC_REPORT_PATH;
+    if (filename) {
+      const safe = JSON.stringify(report, null, 2);
+      expect(safe).not.toContain(token);
+      expect(safe).not.toContain(wrongToken);
+      writeFileSync(`${filename}.${id === attributionId ? "attribution" : "numeric"}.json`, safe);
+    }
+  },
+  30000,
+);
+
+const attributionNumericControls: (RetryControl & { label: string; failed: string[] })[] = [
+  {
+    label: "minted actor basis",
+    scenario: attributionId,
+    action: "att-subject-metadata",
+    path: ["body", "resource", "revisionProvenance", "actor", "basis"],
+    value: "writer-supplied",
+    failed: ["actor-only"],
+  },
+  {
+    label: "owner attribution fanout",
+    scenario: attributionId,
+    action: "att-owned-create-owner",
+    path: ["body", "revisionProvenance", "actor", "id"],
+    value: "writer:wrong",
+    failed: ["actor", "same-envelope"],
+  },
+  {
+    label: "entire no-op context",
+    scenario: attributionId,
+    action: "att-subject-context-noop",
+    path: ["body", "resource", "revisionProvenance", "message", "value"],
+    value: "changed despite no-op",
+    failed: ["postimage"],
+  },
+  {
+    label: "omitted envelope",
+    scenario: attributionId,
+    action: "att-subject-absence-0",
+    path: ["body", "resource", "revisionProvenance"],
+    value: { actor: { id: "writer:injected", basis: "unknown" } },
+    failed: ["no-provenance"],
+  },
+  {
+    label: "context-only absent actor",
+    scenario: attributionId,
+    action: "att-unowned-absence-3",
+    path: ["body", "resource", "revisionProvenance", "actor"],
+    value: { id: "writer:injected", basis: "unknown" },
+    failed: ["actor"],
+  },
+  {
+    label: "owned inline Link",
+    scenario: attributionId,
+    action: "att-owned-properties-owner",
+    path: ["body", "ownedLinks", `${scope}types/relates`, "0", "properties", "n"],
+    value: 999,
+    failed: ["inline-link"],
+  },
+  {
+    label: "unchanged target",
+    scenario: attributionId,
+    action: "att-owned-create-target",
+    path: ["body", "properties", "target"],
+    value: "mutated",
+    failed: ["postimage"],
+  },
+  {
+    label: "deletion owner attribution",
+    scenario: attributionId,
+    action: "att-owned-delete-owner",
+    path: ["body", "revisionProvenance"],
+    binding: "att-owned-metadata-owner-provenance",
+    failed: ["actor", "agent", "message"],
+  },
+  {
+    label: "numeric no-op revision",
+    scenario: numericId,
+    action: "num-subject-current-noop",
+    path: ["body", "resource", "revision"],
+    value: "opaque-corruption",
+    failed: ["postimage"],
+  },
+  {
+    label: "numeric no-op GET envelope",
+    scenario: numericId,
+    action: "num-subject-decimal-read",
+    path: ["body", "revisionProvenance", "actor", "id"],
+    value: "writer:corruption",
+    failed: ["postimage"],
+  },
+  {
+    label: "numeric real change old state",
+    scenario: numericId,
+    action: "num-subject-properties-change",
+    path: ["body", "resource"],
+    binding: "num-subject-initial",
+    failed: ["properties", "actor-only"],
+  },
+  {
+    label: "numeric refusal unchanged GET",
+    scenario: numericId,
+    action: "num-subject-after-inadmissible",
+    path: ["body", "metadata", "number"],
+    value: 99,
+    failed: ["postimage"],
+  },
+];
+it.each(attributionNumericControls)(
+  "detects attribution/numeric post-wire $label",
+  async (control) => {
+    const manifest = JSON.parse(source(continuationSource).bytes.toString());
+    const report = await run(
+      manifest,
+      [control.scenario],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    expect(report.cleanupComplete).toBe(true);
+    const row = report.result.scenarios[0]!;
+    expect(row.state).toBe("fail");
+    expect(
+      row.actions
+        ?.find((a) => a.action.id === control.action)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toEqual(control.failed);
+  },
+  30000,
+);
+it.each([
+  { mode: "digest", action: "num-subject-decimal", failed: ["authored-body"] },
+  { mode: "changed-number", action: "num-subject-decimal", failed: ["authored-body", "postimage"] },
+  {
+    mode: "refusal-success",
+    action: "num-subject-inadmissible",
+    failed: ["status", "body-schema", "complete-problem"],
+  },
+] as const)(
+  "detects attribution/numeric exact raw $mode",
+  async ({ mode, action, failed }) => {
+    const manifest = JSON.parse(source(continuationSource).bytes.toString());
+    const report = await run(
+      manifest,
+      [numericId],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      mode,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    expect(report.cleanupComplete).toBe(true);
+    const row = report.result.scenarios[0]!;
+    expect(row.state).toBe("fail");
+    expect(
+      row.exchanges
+        .find((e) => e.request.id === action)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toEqual(failed);
+  },
+  30000,
+);
+
+it("pins attribution/numeric source budgets, raw literals and prior scenario bytes", () => {
+  const bytes = source(continuationSource).bytes;
+  const manifest = JSON.parse(bytes.toString());
+  const fixtureBytes = source("packages/conformance/fixtures/read-update-reference-v1.json").bytes;
+  const coverageBytes = source(
+    "packages/conformance/test-support/read-update-coverage-v1.json",
+  ).bytes;
+  const nodes = (value: unknown): number =>
+    1 +
+    (value !== null && typeof value === "object"
+      ? Object.values(value).reduce<number>((sum, entry) => sum + nodes(entry), 0)
+      : 0);
+  expect(bytes.length - 114182).toBeLessThanOrEqual(650 * 1024);
+  expect(nodes(manifest) - 3158).toBeLessThanOrEqual(24000);
+  expect(fixtureBytes.length - 28753).toBeLessThanOrEqual(32768);
+  expect(coverageBytes.length - 590847).toBeLessThanOrEqual(65536);
+  expect(
+    createHash("sha256")
+      .update(source("packages/conformance/matrices/read-update-v1.json").bytes)
+      .digest("hex"),
+  ).toBe("c86b33535f25a1d117ce021a3bb70164f5635bdaee50758e3428c130ccc3227f");
+  const text = bytes.toString();
+  const start = text.lastIndexOf(
+    "    {",
+    text.indexOf('      "id": "read-update.alias.unknown-subject"'),
+  );
+  const end = text.indexOf("\n    },\n    {", start) + "\n    }".length;
+  expect(createHash("sha256").update(text.slice(start, end)).digest("hex")).toBe(
+    "39eb2fe22d25eada2c43490f37b6cb5d66950bd90042af1ae954036426e07f2a",
+  );
+  const set = installedArtifactSet();
+  expect(set.shards[1]!.scenarioIds).toEqual([attributionId, continuationId, numericId]);
+  const keys: string[] = [];
+  let totalActions = 0;
+  for (const [id, count, ids] of [
+    [
+      attributionId,
+      69,
+      [
+        "beads/att-subject",
+        "beads/att-owner",
+        "beads/att-target",
+        "links/att-unowned",
+        "links/att-owned",
+      ],
+    ],
+    [numericId, 73, ["beads/num-subject", "beads/num-target", "links/num-link"]],
+  ] as const) {
+    const row = set.shards[1]!.bundle.manifest.scenarios.find((r) => r.id === id)!;
+    expect(row.actions).toHaveLength(count);
+    expect(row.actions!.length).toBeLessThanOrEqual(75);
+    totalActions += row.actions!.length;
+    const created: unknown[] = [];
+    for (const action of row.actions!) {
+      if (action.family === "client") {
+        const input = action.input as {
+          method: string;
+          idempotencyKey?: string;
+          body?: { id?: string };
+          targetBinding: string;
+        };
+        if (input.method === "POST") {
+          keys.push(input.idempotencyKey!);
+          expect(Buffer.byteLength(JSON.stringify(input.body))).toBeLessThan(4096);
+          if (input.targetBinding.startsWith("create-")) created.push(input.body!.id);
+        }
+      } else if (action.family === "http" && action.method === "POST") {
+        keys.push(
+          action.raw!.headerLines.find((h) => h.name.toLowerCase() === "idempotency-key")!.value,
+        );
+        expect(action.raw!.body!.encoding).toBe("utf8");
+        expect(Buffer.byteLength(action.raw!.body!.value)).toBeLessThan(4096);
+        expect(action.assertions.filter((a) => a.kind === "request-authored-body")).toHaveLength(1);
+        expect(action.assertions).toContainEqual({
+          id: "complete-write",
+          kind: "request-write-state",
+          equals: "complete",
+        });
+      }
+    }
+    expect(created).toEqual(ids);
+    const coverage = set.coverage.rows.find((r) => r.id === id)!;
+    expect(coverage.wholeContract).toBe(false);
+    expect(coverage.bindings).toEqual([
+      {
+        scenario: id,
+        assertions: row.actions!.flatMap((a) => a.assertions.map((q) => `${a.id}.${q.id}`)),
+      },
+    ]);
+  }
+  expect(totalActions).toBeLessThanOrEqual(150);
+  expect(new Set(keys).size).toBe(keys.length);
+  const numeric = manifest.scenarios.find((r: { id: string }) => r.id === numericId);
+  for (const name of ["subject", "link"]) {
+    const raw = (id: string) =>
+      numeric.actions.find((a: { id: string }) => a.id === `num-${name}-${id}`).raw.body
+        .value as string;
+    expect(raw("decimal")).toContain('"one":1.0');
+    expect(raw("decimal")).toContain('"large":1E300');
+    expect(raw("decimal")).toContain('"zero":-0.0');
+    expect(raw("exponent")).toContain('"one":1e0');
+    expect(raw("exponent")).toContain('"large":1' + "0".repeat(300));
+    expect(raw("inadmissible")).toContain('"bad":9007199254740993');
+  }
+  expect(attributionNumericControls.length + 3).toBeLessThanOrEqual(16);
+});
