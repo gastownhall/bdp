@@ -152,6 +152,157 @@ function sizedManifest(
 }
 
 describe("private two-artifact Read+Update set", () => {
+  it.each(["setup", "applicability"] as const)(
+    "rejects absent owned %s capabilities, including hidden missing oracles",
+    (gate) => {
+      for (const name of names) {
+        const input = change(
+          sources([[row(first, "client")], [row(second, "client")]]),
+          name,
+          (manifest) => {
+            const plan = manifest.scenarios[0];
+            plan[gate].requires = ["absent-capability"];
+            const assertion = plan.actions[0].assertions[0];
+            delete assertion.equals;
+            assertion.fixturePointer = "/oracles/missing";
+          },
+        );
+        // An applicable missing oracle is already refused by the bundle. The
+        // applicability-gated variant used to bypass that check and acquire ownership.
+        expect(() => createReadUpdateArtifactSet(selection, input)).toThrow();
+        const withoutPointer = change(input, name, (manifest) => {
+          const assertion = manifest.scenarios[0].actions[0].assertions[0];
+          delete assertion.fixturePointer;
+          assertion.equals = 200;
+        });
+        expect(() => createReadUpdateArtifactSet(selection, withoutPointer)).toThrow(/capabilit/);
+      }
+    },
+  );
+  it("accepts the actual current corpus split with unchanged prerequisite groups and coverage", () => {
+    const read = (name: string) => ({
+      bytes: readFileSync(new URL(`../${name}`, import.meta.url)),
+    });
+    const manifest = decode(read("matrices/read-update-v1.json"));
+    const last = manifest.scenarios.at(-1);
+    expect(
+      (last.actions ?? last.requests).every(
+        (a: { prerequisiteScenario?: string }) => a.prerequisiteScenario === undefined,
+      ),
+    ).toBe(true);
+    const input = sources();
+    const set = createReadUpdateArtifactSet(selection, {
+      ...input,
+      fixture: read("fixtures/read-update-reference-v1.json"),
+      coverage: read("test-support/read-update-coverage-v1.json"),
+      manifests: {
+        [names[0]]: bytes({ ...manifest, scenarios: manifest.scenarios.slice(0, -1) }),
+        [names[1]]: bytes({ ...manifest, scenarios: [last] }),
+      },
+    });
+    expect(set.shards.flatMap((s) => s.scenarioIds)).toEqual(
+      manifest.scenarios.map((s: { id: string }) => s.id),
+    );
+    expect(set.coverage.rows).toEqual(
+      decode(read("test-support/read-update-coverage-v1.json")).rows,
+    );
+    expect(set.claimEligible).toBe(false);
+  });
+  it.each(["index", "fixture", "coverage", ...names] as const)(
+    "attributes safely captured %s failures",
+    (field) => {
+      const original = sources();
+      const role = field.startsWith("matrices/")
+        ? `shard-${names.indexOf(field as (typeof names)[number])} (${field})`
+        : `artifact-set ${field}`;
+      for (const body of [
+        Buffer.from("!"),
+        Buffer.alloc(field === "index" ? 16385 : field.startsWith("matrices/") ? 4194305 : 1048577),
+      ]) {
+        const bad = { bytes: body, label: "caller label is not the attribution authority" };
+        const input = field.startsWith("matrices/")
+          ? { ...original, manifests: { ...original.manifests, [field]: bad } }
+          : { ...original, [field]: bad };
+        expect(() => createReadUpdateArtifactSet(selection, input)).toThrow(role);
+      }
+    },
+  );
+  it("detaches continuation bytes without reading hostile byte properties", () => {
+    const input = sources();
+    let calls = 0;
+    for (const key of ["byteLength", "length", "buffer", Symbol.iterator])
+      Object.defineProperty(input.manifests[names[1]]!.bytes, key, {
+        get() {
+          calls++;
+          throw Error("getter ran");
+        },
+      });
+    const set = createReadUpdateArtifactSet(selection, input);
+    const captured = copyReadUpdateArtifactSetSources(set);
+    input.manifests[names[1]]!.bytes[0] = 0;
+    expect(calls).toBe(0);
+    expect(() => createReadUpdateArtifactSet(selection, captured)).not.toThrow();
+    expect(createReadUpdateArtifactSet(selection, captured).digests).toEqual(set.digests);
+  });
+  it("rejects an ambiguous joined binding within one row while allowing dotted grammar", () => {
+    let input = change(sources(), names[0], (manifest) => {
+      const a = manifest.scenarios[0].requests[0];
+      a.id = "observe.status";
+      a.assertions[0].id = "code";
+      manifest.scenarios[0].requests.push({
+        ...a,
+        id: "observe",
+        assertions: [{ ...a.assertions[0], id: "status.code" }],
+      });
+    });
+    input = change(
+      input,
+      "coverage",
+      (coverage) =>
+        (coverage.rows[0].bindings[0].assertions = ["observe.status.code", "observe.status.code"]),
+    );
+    expect(() => createReadUpdateArtifactSet(selection, input)).toThrow("duplicate joined");
+  });
+  it("binds alternative legal dotted splits through manifest and set identity despite equal coverage", () => {
+    let left = change(sources(), names[0], (m) => {
+      m.scenarios[0].requests[0].id = "observe.status";
+      m.scenarios[0].requests[0].assertions[0].id = "code";
+    });
+    left = change(
+      left,
+      "coverage",
+      (c) => (c.rows[0].bindings[0].assertions = ["observe.status.code"]),
+    );
+    const right = change(left, names[0], (m) => {
+      m.scenarios[0].requests[0].id = "observe";
+      m.scenarios[0].requests[0].assertions[0].id = "status.code";
+    });
+    const a = createReadUpdateArtifactSet(selection, left);
+    const b = createReadUpdateArtifactSet(selection, right);
+    expect(a.coverage).toEqual(b.coverage);
+    expect(a.digests.coverageDigest).toBe(b.digests.coverageDigest);
+    expect(a.shards[0]!.bundle.digests.manifestDigest).not.toBe(
+      b.shards[0]!.bundle.digests.manifestDigest,
+    );
+    expect(a.digests.setDigest).not.toBe(b.digests.setDigest);
+  });
+  it("records whole credit as inert authored data with a distinct identity", () => {
+    const input = sources();
+    const before = createReadUpdateArtifactSet(selection, input);
+    const after = createReadUpdateArtifactSet(
+      selection,
+      change(input, "coverage", (c) => (c.rows[0].wholeContract = true)),
+    );
+    expect(after.coverage.rows[0]!.wholeContract).toBe(true);
+    expect(after.claimEligible).toBe(false);
+    expect(after.requirements).toEqual(before.requirements);
+    expect(after.shards.map((s) => s.bundle.digests)).toEqual(
+      before.shards.map((s) => s.bundle.digests),
+    );
+    expect(after.digests.coverageDigest).not.toBe(before.digests.coverageDigest);
+    expect(after.digests.setDigest).not.toBe(before.digests.setDigest);
+  });
+
   it("binds genuine independent bundles, complete inventory and exact descriptor digests", () => {
     const input = sources();
     const set = createReadUpdateArtifactSet(selection, input);
@@ -343,6 +494,7 @@ describe("private two-artifact Read+Update set", () => {
     "assertions-missing",
     "extra-field",
     "claim",
+    "blank-reason",
   ])("rejects coverage %s", (kind) => {
     const input = change(sources(), "coverage", (x) => {
       if (kind === "missing-row") x.rows.pop();
@@ -361,6 +513,7 @@ describe("private two-artifact Read+Update set", () => {
       if (kind === "assertions-missing") x.rows[0].bindings[0].assertions = [];
       if (kind === "extra-field") x.rows[0].extra = true;
       if (kind === "claim") x.claimEligible = true;
+      if (kind === "blank-reason") x.rows[0].reason = " \t\n";
     });
     expect(() => createReadUpdateArtifactSet(selection, input)).toThrow();
   });
@@ -380,7 +533,7 @@ describe("private two-artifact Read+Update set", () => {
       ).toThrow("ordered");
     }
   });
-  it.each(["index", "fixture", "coverage", names[0]] as const)(
+  it.each(["index", "fixture", "coverage", ...names] as const)(
     "binds exact %s bytes, including insignificant whitespace",
     (field) => {
       const original = sources();
@@ -415,6 +568,7 @@ describe("private two-artifact Read+Update set", () => {
     ["fixture", 1048576],
     ["coverage", 1048576],
     [names[0], 4194304],
+    [names[1], 4194304],
   ] as const)("retains exact %s byte ceiling", (field, maximum) => {
     const input = sources();
     const src = field.startsWith("matrices/")
@@ -440,9 +594,10 @@ describe("private two-artifact Read+Update set", () => {
     let input = sources([[row(first, "client")], [row(second, "client")]]);
     input = sizedManifest(sizedManifest(input, names[0], 60000), names[1], 60000);
     expect(() => createReadUpdateArtifactSet(selection, input)).not.toThrow();
-    expect(() =>
-      createReadUpdateArtifactSet(selection, sizedManifest(input, names[0], 100001)),
-    ).toThrow("100000 nodes");
+    for (const name of names)
+      expect(() =>
+        createReadUpdateArtifactSet(selection, sizedManifest(input, name, 100001)),
+      ).toThrow("100000 nodes");
   });
   it("retains fixture and coverage depth/container/node guards", () => {
     for (const field of ["fixture", "coverage"] as const) {
@@ -461,7 +616,7 @@ describe("private two-artifact Read+Update set", () => {
       }
     }
   });
-  it("preserves fixture-pointer validation and public factory/package guards", () => {
+  it("preserves fixture-pointer validation and public factory/package guards", async () => {
     const input = change(sources(), names[1], (x) => {
       const assertion = x.scenarios[0].actions[0].assertions[0];
       delete assertion.equals;
@@ -483,8 +638,14 @@ describe("private two-artifact Read+Update set", () => {
     expect(readFileSync(new URL("./index.ts", import.meta.url), "utf8")).not.toContain(
       "read-update-artifact-set",
     );
-    expect(
-      readFileSync(new URL("../test-support/testing.ts", import.meta.url), "utf8"),
-    ).not.toContain("ownData");
+    for (const module of [await import("./index.js"), await import("../test-support/testing.js")]) {
+      for (const name of [
+        "ownData",
+        "createReadUpdateArtifactSet",
+        "assertReadUpdateArtifactSet",
+        "copyReadUpdateArtifactSetSources",
+      ])
+        expect(Object.keys(module)).not.toContain(name);
+    }
   });
 });

@@ -78,12 +78,22 @@ const sets = new WeakMap<ReadUpdateArtifactSet, ReadUpdateArtifactSetSources>();
 function source(
   input: unknown,
   kind: "manifest" | "fixture",
+  role: string,
   limit?: number,
 ): ConformanceArtifactSource {
-  const fields = ownData(input, ["bytes", "label"], ["bytes"]);
-  if (fields.label !== undefined && typeof fields.label !== "string")
-    throw Error("source label must be a string");
-  return { bytes: copySourceBytes({ bytes: fields.bytes as Uint8Array }, kind, limit) };
+  try {
+    const fields = ownData(input, ["bytes", "label"], ["bytes"]);
+    if (fields.label !== undefined && typeof fields.label !== "string")
+      throw Error("source label must be a string");
+    // Role is fixed or derived from the validated index. Caller labels are not
+    // attribution authority; intrinsic copying performs all byte/type/size checks.
+    return {
+      bytes: copySourceBytes({ bytes: fields.bytes as Uint8Array }, kind, limit),
+      label: role,
+    };
+  } catch (cause) {
+    throw Error(`${role}: ${cause instanceof Error ? cause.message : "invalid source"}`, { cause });
+  }
 }
 function digest(bytes: string | Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
@@ -131,18 +141,23 @@ export function createReadUpdateArtifactSet(
   if (selection.profile !== "read-update" || selection.history)
     throw Error("artifact set requires canonical baseline Read+Update selection");
   const fields = ownData(input, ["index", "fixture", "coverage", "manifests"]);
-  const indexSource = source(fields.index, "manifest", INDEX_MAX_BYTES);
+  const indexSource = source(fields.index, "manifest", "artifact-set index", INDEX_MAX_BYTES);
   const index = parseIndex(indexSource.bytes);
   const manifestFields = ownData(
     fields.manifests,
     index.shards.map((s) => s.source),
   );
-  const fixture = source(fields.fixture, "fixture");
-  const coverage = source(fields.coverage, "fixture");
+  const fixture = source(fields.fixture, "fixture", "artifact-set fixture");
+  const coverage = source(fields.coverage, "fixture", "artifact-set coverage");
   const manifests = Object.fromEntries(
     index.shards.map((s) => [
       s.source,
-      source(manifestFields[s.source], "manifest", CUMULATIVE_MANIFEST_MAX_BYTES),
+      source(
+        manifestFields[s.source],
+        "manifest",
+        `${s.id} (${s.source})`,
+        CUMULATIVE_MANIFEST_MAX_BYTES,
+      ),
     ]),
   );
   // Every caller source has been captured. The factories only see detached bytes below.
@@ -158,6 +173,14 @@ export function createReadUpdateArtifactSet(
     if (bundle.manifest.scenarios.length === 0) throw Error("artifact-set shard must not be empty");
     let previous = -1;
     for (const row of bundle.manifest.scenarios) {
+      for (const gate of ["setup", "applicability"] as const) {
+        if (
+          row[gate].requires.some((capability) => !bundle.fixture.capabilities.includes(capability))
+        )
+          throw Error(
+            `${entry.id} (${entry.source}): owned scenario ${row.id} has unavailable ${gate} capabilities`,
+          );
+      }
       const position = positions.get(row.id)!; // Ordinary cumulative factory validates membership.
       if (position <= previous) throw Error("shard scenarios must follow canonical required order");
       previous = position;
@@ -206,7 +229,7 @@ export function createReadUpdateArtifactSet(
       row.id !== selection.required[n]!.id ||
       typeof row.wholeContract !== "boolean" ||
       typeof row.reason !== "string" ||
-      row.reason.length === 0 ||
+      row.reason.trim().length === 0 ||
       !Array.isArray(row.bindings)
     )
       throw Error("invalid or out-of-order coverage row");
@@ -225,6 +248,11 @@ export function createReadUpdateArtifactSet(
     const expected = (plan.actions ?? plan.requests).flatMap((action) =>
       action.assertions.map((a) => `${action.id}.${a.id}`),
     );
+    // Dots remain legal in both IDs. Joined names must be unique within this
+    // artifact; across artifacts the exact manifest digest pins their split.
+    // Coverage and manifest identities jointly bind the authored assertions.
+    if (new Set(expected).size !== expected.length)
+      throw Error("duplicate joined action/assertion binding identifier");
     if (row.status !== "bounded-observation" || row.bindings.length !== 1 || expected.length === 0)
       throw Error("planned requirement needs exactly one nonempty ordered coverage binding");
     const binding = ownData(row.bindings[0], ["scenario", "assertions"]);
