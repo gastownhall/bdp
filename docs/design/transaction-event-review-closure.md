@@ -38,3 +38,9 @@ test. No new capacity or worst-case heap claim follows from the serialized bound
 The metadata-only incident projection still returns the documented private gap;
 Scope and Link Event sources remain available. No semantics for that unresolved
 membership case are inferred here.
+
+## Integrated changefeed review
+
+The external review of `d907a1e` found no correctness defect in merge resolution, per-observation group-reader preparation, checkpoint tamper controls, retry-from-cursor behavior or the current served bound. The stale sibling group bound is corrected in the materialization follow-up. The old external `transaction-changefeed-bound.mjs` probe and its output belong to source `8569b85` and the superseded M64 tuple; they are retained historical artifacts, not an executable proof of the current M32 tuple. The current derivation of record is the source-driven `TRANSACTION_CHANGEFEED_BYTES` formula and the in-suite exact `186334744` assertion. Two now-single-iteration seed loops are flattened without changing the workload.
+
+Informational observations remain bounded: corruption controls assert fail-closed rather than every individual error string; prototype spy restoration follows existing test conventions; changefeed cursor lookup precedes the minimum check but reads no body. None was identified as a correctness defect or claimed as a new observation.

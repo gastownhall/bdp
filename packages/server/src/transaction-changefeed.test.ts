@@ -401,12 +401,8 @@ it("does not classify a missing previously committed cursor row as never issued 
 });
 it("serves128 Events from32 selected owned Links as one group despite a two-item receipt page setting", () => {
   const f = fixture();
-  for (let start = 0; start < 32; start += 32)
-    f.run(Array.from({ length: 32 }, (_, i) => create(`a${start + i}`)));
-  for (let start = 0; start < 32; start += 32)
-    f.run(
-      Array.from({ length: 32 }, (_, i) => edge(`l${start + i}`, `a${start + i}`, `a${start + i}`)),
-    );
+  f.run(Array.from({ length: 32 }, (_, i) => create(`a${i}`)));
+  f.run(Array.from({ length: 32 }, (_, i) => edge(`l${i}`, `a${i}`, `a${i}`)));
   const checkpoint = f.owner.captureChangesStart();
   expect(
     f.run([{ operation: "deleteWhere", collection: "links", selector: "$[?@.properties.n == 0]" }])
