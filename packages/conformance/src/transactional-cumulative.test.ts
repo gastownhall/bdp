@@ -186,7 +186,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(246);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(244);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
   expect(() => planProfileExecution(selected, configuration("read-update"))).toThrow("disagree");
@@ -491,14 +491,20 @@ it("uses preparation rather than HTTP timeout for private reopen lifecycle", asy
   expect(generation).toBe(2);
 });
 
-it.each([
-  ["wire", "harness-error", "receipt wire headers mismatch"],
-  ["validator", "harness-error", "source receipt validator unavailable"],
-  ["source-schema", "fail", "source receipt schema invalid"],
-  ["retained", "fail", "retained receipt differs from original wire facts"],
-] as const)(
-  "retains safe %s receipt reason with correct attribution over raw HTTP",
-  async (kind, state, reason) => {
+it.each(
+  [
+    ["wire", "harness-error", "receipt wire headers mismatch"],
+    ["validator", "harness-error", "source receipt validator unavailable"],
+    ["wire-id", "harness-error", "receipt wire body mismatch"],
+    ["source-id", "fail", "source receipt identity invalid"],
+    ["source-schema", "fail", "source receipt schema invalid"],
+    ["retained", "fail", "retained receipt differs from original wire facts"],
+  ].flatMap(([kind, state, reason]) =>
+    ["batch", "update-where"].map((target) => [kind, state, reason, target] as const),
+  ),
+)(
+  "retains safe %s receipt reason with correct attribution over raw HTTP (%s/%s/%s)",
+  async (kind, state, reason, target) => {
     const scope = fixture.scope,
       id = `${scope}receipts/r1`;
     const body = {
@@ -519,11 +525,13 @@ it.each([
       request.resume();
       if (request.method === "GET") reads++;
       const text = JSON.stringify(
-        kind === "source-schema"
-          ? { ...body, unexpected: "private-target-body" }
-          : kind === "retained" && request.method === "GET"
-            ? { ...body, requiredPosition: "pos-1" }
-            : body,
+        kind === "source-id"
+          ? { ...body, id: "https://other.invalid/receipts/r1" }
+          : kind === "source-schema"
+            ? { ...body, unexpected: "private-target-body" }
+            : kind === "retained" && request.method === "GET"
+              ? { ...body, requiredPosition: "pos-1" }
+              : body,
       );
       response.writeHead(200, {
         "content-type": "application/json",
@@ -539,7 +547,7 @@ it.each([
     const mode = {
       scope,
       profile: "transactional" as const,
-      routes: [{ method: "POST" as const, url: fixture.bindings.batch }],
+      routes: [{ method: "POST" as const, url: fixture.bindings[target!] }],
       maximumRequestHeaderBytes: 16384,
       maximumRequestBodyBytes: 65536,
       defaultCredentialRef: "operator",
@@ -558,7 +566,7 @@ it.each([
           id: "source",
           family: "http",
           method: "POST",
-          target: { binding: "batch" },
+          target: { binding: target },
           raw: { headerLines: [], body: { encoding: "utf8", value: "{}" } },
           captures: [{ binding: "receipt", from: { kind: "json-pointer", pointer: "/id" } }],
           assertions: [{ id: "status", kind: "status", equals: 200 }],
@@ -595,6 +603,11 @@ it.each([
             configuration,
             execute: async (request) => {
               const observed = await raw(request);
+              if (kind === "wire-id")
+                return {
+                  ...observed,
+                  bodyText: JSON.stringify({ ...body, id: `${scope}receipts/r2` }),
+                };
               return kind === "wire"
                 ? {
                     ...observed,
@@ -640,3 +653,129 @@ it.each([
     }
   },
 );
+
+/** Source-only preservation check: braces inside quoted strings do not end an
+ * object. The trusted artifacts use a root array named here; no runtime parser. */
+function objectSlices(text: string, key: "scenarios" | "rows") {
+  const start = text.indexOf("[", text.indexOf(JSON.stringify(key))) + 1;
+  const objects = new Map<string, string>();
+  let depth = 0,
+    begin = -1,
+    quoted = false,
+    escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') quoted = false;
+      continue;
+    }
+    if (char === '"') {
+      quoted = true;
+      continue;
+    }
+    if (char === "{" || char === "[") {
+      if (depth === 0) begin = i;
+      depth++;
+    } else if (char === "}" || char === "]") {
+      if (depth === 0) break;
+      if (--depth === 0) {
+        const raw = text.slice(begin, i + 1);
+        objects.set((JSON.parse(raw) as { id: string }).id, raw);
+      }
+    }
+  }
+  return objects;
+}
+const originalObjectPins = {
+  manifest: [
+    [
+      "transactional.batch.atomic-commit",
+      "0dfd3b9ed02d01f76ecac08c00b009b4bb9f03e57f7e15a2266eed82fc144747",
+      14936,
+    ],
+    [
+      "transactional.batch.rollback",
+      "be24067358af7b5acf7bc1beae2eb6534cbc0effa6f65406ab61b139310bfc37",
+      16319,
+    ],
+    [
+      "transactional.receipt.readable",
+      "ddb97e450e233b941f7d905d49f48648d9965ed1b361dcdc5dee6f810038a1e0",
+      12545,
+    ],
+    [
+      "transactional.idempotency.failed-retained",
+      "a867694406dde07da71ac70197c60c478dd0fb3344cf2c8160795d1aa62d3378",
+      18404,
+    ],
+  ],
+  coverage: [
+    [
+      "transactional.batch.atomic-commit",
+      "ffd77a9d34ac41a6e1f960671bea6880eb5b2ab7b11b3af4ccf0177363d7f4d7",
+      2383,
+    ],
+    [
+      "transactional.batch.rollback",
+      "9e4f5cdb45f0133f1c6d23caa402701981db2e6f4198e23c667579622ace6769",
+      2857,
+    ],
+    [
+      "transactional.receipt.readable",
+      "684eba200912ccb0932c0a8286e350a6e545262a205b3ea3df47a12fc6dd18ec",
+      2142,
+    ],
+    [
+      "transactional.idempotency.failed-retained",
+      "63918cbb495a504fd2043f52b60e7cd8ef1518b8022a96edb0d02660c7df1a8e",
+      2917,
+    ],
+  ],
+} as const;
+function assertOriginalObjects(text: string, name: keyof typeof originalObjectPins) {
+  const objects = objectSlices(text, name === "manifest" ? "scenarios" : "rows");
+  for (const [id, hash, bytes] of originalObjectPins[name]) {
+    const raw = objects.get(id)!;
+    expect(Buffer.byteLength(raw), id).toBe(bytes);
+    expect(createHash("sha256").update(raw).digest("hex"), id).toBe(hash);
+  }
+}
+it("preserves every original TX scenario and coverage object while adding two bounded partial rows", () => {
+  for (const name of ["manifest", "coverage"] as const)
+    assertOriginalObjects(read(name).toString(), name);
+  const changed = read("manifest").toString().replace('"equals": 401', '"equals": 402');
+  expect(() => assertOriginalObjects(changed, "manifest")).toThrow(
+    "transactional.batch.atomic-commit",
+  );
+  expect(manifest.scenarios.map((r: { id: string }) => r.id)).toEqual([
+    "transactional.batch.atomic-commit",
+    "transactional.batch.rollback",
+    "transactional.set.cardinality",
+    "transactional.set.singleton-targets",
+    "transactional.receipt.readable",
+    "transactional.idempotency.failed-retained",
+  ]);
+  expect(
+    manifest.scenarios.slice(2, 4).flatMap((r: { actions: unknown[] }) => r.actions).length,
+  ).toBe(38);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(128 * 1024);
+  let nodes = 0;
+  const pending: unknown[] = [manifest];
+  while (pending.length) {
+    const value = pending.pop();
+    nodes++;
+    if (value && typeof value === "object") pending.push(...Object.values(value));
+  }
+  expect(nodes).toBeLessThanOrEqual(5000);
+  // Clause ownership is independent from the exhaustive mechanical assertion mirror.
+  const clauseMap = {
+    "transactional.set.cardinality": ["#set-mutation", "#transactional-problem-details"],
+    "transactional.set.singleton-targets": ["#batch-operation-target"],
+  };
+  for (const [id, anchors] of Object.entries(clauseMap))
+    expect(
+      selected.catalog.scenarios.find((r) => r.id === id)?.requirements.map((r) => r.anchor),
+    ).toEqual(anchors);
+});

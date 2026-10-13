@@ -278,3 +278,67 @@ it.each([201, 202, "missing", "oversize"])(
     expect(() => f.register(changed)).toThrow("source receipt wire unavailable");
   },
 );
+
+it.each(["update-where", "delete-where"])(
+  "grants completed and failed %s receipt authority only from matching actual source bytes",
+  (suffix) => {
+    const { results: _results, next: _next, ...common } = body;
+    const failed = {
+      ...common,
+      status: "failed",
+      problem: {
+        type: "https://github.com/gastownhall/bdp/problems/conflict",
+        status: 409,
+        code: "cardinality-violated",
+        retry: "after-state-change",
+        operationIndex: 0,
+        pointer: "/cardinality/min",
+      },
+    };
+    const url = scope + "operations/" + suffix;
+    for (const value of [body, failed]) {
+      const f = fixture();
+      const r = { ...response(value), url };
+      f.register(r, value, "/id", { method: "POST", url });
+      const resolved = f.observations.resolve("receipt", id);
+      expect(resolved.source.action).toBe("post");
+      expect(resolved.source.credentialRef).toBe("operator");
+      expect(() => resolved.validate(response(value), "GET")).not.toThrow();
+      const ordinary = { ...response(value), url: scope + "beads/a" };
+      f.register(ordinary, value, "/id", { method: "GET", url: ordinary.url });
+      expect(() => f.observations.resolve("receipt", id)).toThrow("not authorized");
+    }
+    const f = fixture();
+    const { wireResponseBytes: _wire, ...withoutWire } = response();
+    expect(() =>
+      f.register({ ...withoutWire, url }, body, "/id", {
+        method: "POST",
+        url,
+      }),
+    ).toThrow(TransactionalHarnessError);
+    const invalid = { ...body, unexpected: true };
+    expect(() =>
+      f.register({ ...response(invalid), url }, invalid, "/id", { method: "POST", url }),
+    ).toThrow(TransactionalReceiptFailure);
+  },
+);
+
+it.each(["GET", "HEAD", "query", "slash", "foreign", "other-scope", "sequence"])(
+  "does not grant set authority from %s source variants",
+  (variant) => {
+    for (const suffix of ["update-where", "delete-where"]) {
+      const f = fixture();
+      let url = scope + "operations/" + suffix;
+      if (variant === "query") url += "?x=1";
+      if (variant === "slash") url += "/";
+      if (variant === "foreign") url = url.replace("reference.invalid", "other.invalid");
+      if (variant === "other-scope") url = url.replace("/acme/", "/other/");
+      if (variant === "sequence") url = scope + "operations/sequence";
+      f.register({ ...response(), url }, body, "/id", {
+        method: variant === "GET" || variant === "HEAD" ? variant : "POST",
+        url,
+      });
+      expect(() => f.observations.resolve("receipt", id)).toThrow("not authorized");
+    }
+  },
+);

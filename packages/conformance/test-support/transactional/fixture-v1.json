@@ -6,6 +6,8 @@
   "bindings": {
     "batch": "https://reference.invalid/acme/operations/batch",
     "subject": "https://reference.invalid/acme/beads/a",
+    "update-where": "https://reference.invalid/acme/operations/update-where",
+    "delete-where": "https://reference.invalid/acme/operations/delete-where",
     "created": "https://reference.invalid/acme/beads/new"
   },
   "scope": "https://reference.invalid/acme/",
