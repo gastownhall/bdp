@@ -108,6 +108,7 @@ export interface TransactionStoreOptions {
   readonly create: boolean;
   readonly types: readonly TypeDescriptor[];
   readonly clock?: () => number;
+  readonly receiptMaximumItems?: number;
   /** Private maintenance cadence; not a discovery or receipt retention duration. */
   readonly maintenanceIntervalMs?: number;
   /** Test-only fault injection; not exported from the package surface. */
@@ -132,7 +133,7 @@ interface Row {
   dependency: string | null;
 }
 const day = 86400000;
-const format = "bdp-private-transaction-provenance-5";
+const format = "bdp-private-transaction-receipt-pages-6";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
 const identityPolicy = "transaction-revision-provenance-4";
@@ -142,9 +143,31 @@ CREATE TABLE resources(id TEXT PRIMARY KEY, body TEXT NOT NULL, kind TEXT NOT NU
 CREATE TABLE identities(id TEXT PRIMARY KEY) STRICT;
 CREATE TABLE aliases(path TEXT PRIMARY KEY, target TEXT NOT NULL) STRICT;
 CREATE TABLE receipts(principal TEXT NOT NULL, key TEXT NOT NULL, identity TEXT NOT NULL, witnesses TEXT NOT NULL, owner TEXT, receipt TEXT NOT NULL, dependency TEXT, PRIMARY KEY(principal,key)) STRICT;
+CREATE TABLE receipt_pages(receipt TEXT PRIMARY KEY, principal TEXT NOT NULL, key TEXT NOT NULL, entries INTEGER NOT NULL, maximum INTEGER NOT NULL) STRICT;
+CREATE TABLE receipt_page_ranges(token TEXT PRIMARY KEY, receipt TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, UNIQUE(receipt,start)) STRICT;
 CREATE TABLE creator_facts(attempt TEXT NOT NULL, member INTEGER NOT NULL, fact TEXT, PRIMARY KEY(attempt,member)) STRICT;
 CREATE TABLE groups(position INTEGER PRIMARY KEY, body TEXT NOT NULL) STRICT;
 `;
+/** Shared private page bound, validated before provisioning or recovery. */
+export function transactionReceiptMaximum(value: number = TRANSACTION_MAXIMUM_OPERATIONS): number {
+  if (!Number.isSafeInteger(value) || value < 1)
+    throw new TypeError("positive receipt page maximum required");
+  return value;
+}
+export interface TransactionReceiptPage {
+  readonly receipt: string;
+  readonly results: readonly unknown[];
+  readonly next: string | null;
+}
+interface ReceiptPagePlan {
+  readonly entries: number;
+  readonly maximum: number;
+  readonly pages: readonly {
+    readonly token: string;
+    readonly start: number;
+    readonly end: number;
+  }[];
+}
 /** Owns a single SQLite connection under persistent EXCLUSIVE locking. Admission
  * is durable separately; graph/positions/group/terminal receipt are one commit.
  * Startup retracts abandoned pending receipts instead of running requests itself.
@@ -164,8 +187,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       throw new TypeError("first transaction slice supports schema-free unowned Types only");
   }
   const installed = new Map(descriptors.map((d) => [d.id, json(d)]));
+  const receiptMaximumItems = transactionReceiptMaximum(options.receiptMaximumItems);
   const configuration = json({
     format,
+    receiptMaximumItems,
     identityPolicy,
     scope,
     types: [...installed].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
@@ -187,6 +212,23 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   if (options.create) closeSync(openSync(options.file, "wx", 0o600));
   else if (!existsSync(options.file))
     throw new Error("transaction store missing; explicit provisioning required");
+  if (!options.create) {
+    // Refuse incompatible installations using a read-only connection, before a
+    // writable owner can run SQLite recovery, pragmas or receipt maintenance.
+    const preflight = new DatabaseSync(options.file, { readOnly: true });
+    try {
+      const prior = String(
+        preflight.prepare("SELECT value FROM metadata WHERE name='configuration'").get()?.value,
+      );
+      if (JSON.parse(prior).identityPolicy !== identityPolicy)
+        throw new Error(
+          "transaction identity policy mismatch; explicit new-store provisioning required",
+        );
+      if (prior !== configuration) throw new Error("transaction installation mismatch");
+    } finally {
+      preflight.close();
+    }
+  }
   const db = new DatabaseSync(options.file);
   let closed = false,
     busy = false;
@@ -432,6 +474,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   const readConfiguration = Object.freeze({
     scopeEpoch: epoch,
     authorizationView: view,
+    receiptMaximumItems,
     installedTypes: Object.freeze(descriptors),
     scopeConfiguration: Object.freeze({
       policyIdentity: view,
@@ -448,6 +491,86 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       authorizationView: view,
       scopePosition: `pos-${position}`,
     });
+  }
+  function createPagePlan(principal: string, key: string, receipt: TransactionReceipt): void {
+    const entries = receipt.results as readonly unknown[];
+    db.prepare("INSERT INTO receipt_pages VALUES(?,?,?,?,?)").run(
+      receipt.id,
+      principal,
+      key,
+      entries.length,
+      receiptMaximumItems,
+    );
+    for (let start = receiptMaximumItems; start < entries.length; start += receiptMaximumItems)
+      db.prepare("INSERT INTO receipt_page_ranges VALUES(?,?,?,?)").run(
+        randomUUID(),
+        receipt.id,
+        start,
+        Math.min(start + receiptMaximumItems, entries.length),
+      );
+  }
+  function pagePlan(receipt: TransactionReceipt): ReceiptPagePlan {
+    const saved = db.prepare("SELECT * FROM receipt_pages WHERE receipt=?").get(receipt.id);
+    if (!saved) throw new Error("receipt page plan missing");
+    const parent = row(String(saved.principal), String(saved.key));
+    if (
+      !parent ||
+      String(saved.key) !== receipt.idempotencyKey ||
+      parseReceipt(parent.receipt).id !== receipt.id
+    )
+      throw new Error("receipt page plan parent mismatch");
+    const plan: ReceiptPagePlan = {
+      entries: Number(saved.entries),
+      maximum: Number(saved.maximum),
+      pages: db
+        .prepare("SELECT token,start,end FROM receipt_page_ranges WHERE receipt=? ORDER BY start")
+        .all(receipt.id)
+        .map((value) => ({
+          token: String(value.token),
+          start: Number(value.start),
+          end: Number(value.end),
+        })),
+    };
+    if (
+      !Number.isSafeInteger(plan.entries) ||
+      plan.entries < 1 ||
+      plan.maximum !== receiptMaximumItems ||
+      !Array.isArray(plan.pages) ||
+      (receipt.detail === "available" &&
+        (!Array.isArray(receipt.results) || receipt.results.length !== plan.entries))
+    )
+      throw new Error("invalid receipt page plan");
+    let start = receiptMaximumItems;
+    const tokens = new Set<string>();
+    for (const page of plan.pages) {
+      if (
+        !page ||
+        typeof page.token !== "string" ||
+        !/^[A-Za-z0-9_-]{1,256}$/.test(page.token) ||
+        tokens.has(page.token) ||
+        page.start !== start ||
+        start >= plan.entries ||
+        page.end !== Math.min(start + receiptMaximumItems, plan.entries)
+      )
+        throw new Error("invalid receipt page chain");
+      tokens.add(page.token);
+      start = page.end;
+    }
+    if (start !== Math.max(receiptMaximumItems, plan.entries))
+      throw new Error("incomplete receipt page chain");
+    return plan;
+  }
+  function pageUrl(receipt: string, token: string): string {
+    return `${receipt}/pages/${token}`;
+  }
+  function receiptPrefix(receipt: TransactionReceipt): TransactionReceipt {
+    if (receipt.status !== "completed" || receipt.detail !== "available") return receipt;
+    const plan = pagePlan(receipt);
+    return {
+      ...receipt,
+      results: (receipt.results as readonly unknown[]).slice(0, plan.maximum),
+      next: plan.pages[0] ? pageUrl(receipt.id, plan.pages[0].token) : null,
+    };
   }
   // Fixed all-visible projection and current position are captured before this
   // authoritative transaction releases. No second clock/retention observation.
@@ -479,18 +602,24 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         Object.freeze(value);
       }
     };
-    freeze(receipt);
-    return Object.freeze({ receipt, context });
+    const projected = receiptPrefix(receipt);
+    freeze(projected);
+    return Object.freeze({ receipt: projected, context });
   }
   // Called only inside the guarded owner's transaction. The fixed all-visible
   // policy projects retained facts, including postimages since updated/deleted.
-  function retainedReceipt(principal: string, id: string): TransactionReceipt | undefined {
+  function retainedReceipt(
+    principal: string,
+    id: string,
+    beforeRetention?: () => void,
+  ): TransactionReceipt | undefined {
     for (const stored of db
       .prepare("SELECT * FROM receipts WHERE principal=?")
       .all(principal) as unknown as Row[]) {
       const value = parseReceipt(stored.receipt);
       if (value.id !== id) continue;
       if (value.scopeEpoch !== epoch) return undefined;
+      beforeRetention?.();
       const remaining = expireRow(stored, instant()).row;
       return remaining ? parseReceipt(remaining.receipt) : undefined;
     }
@@ -903,6 +1032,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               owned.creator.member,
               creatorFact(owned.creator.operation, receipt),
             );
+          if (receipt.status === "completed") createPagePlan(owned.principal, owned.key, receipt);
           options.fault?.("after-terminal");
           return observed ? observeReceipt(receipt) : receipt;
         });
@@ -1265,6 +1395,86 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     /** Trusted authenticated principal, never actor/provenance. Lookup, retention
      * cleanup, fixed current projection and source context share one owner entry.
      * No serving authorization callbacks run inside this observation. */
+    readReceiptPage(
+      principal: string,
+      id: string,
+      minimum?: TransactionMinimum | "unsupported",
+    ):
+      | {
+          readonly kind: "page";
+          readonly page: TransactionReceiptPage;
+          readonly context: TransactionReadContext;
+        }
+      | { readonly kind: "expired"; readonly context: TransactionReadContext }
+      | { readonly kind: "missing" }
+      | { readonly kind: "unsupported" } {
+      if (
+        typeof principal !== "string" ||
+        !principal ||
+        !principal.isWellFormed() ||
+        typeof id !== "string"
+      )
+        throw new TypeError("trusted principal and page URL required");
+      const condition =
+        minimum === undefined || minimum === "unsupported"
+          ? minimum
+          : snapshotTransactionMinimum(minimum);
+      return enter(() =>
+        atomic(() => {
+          const marker = id.lastIndexOf("/pages/");
+          if (marker < 0) return { kind: "missing" as const };
+          const parentId = id.slice(0, marker),
+            token = id.slice(marker + 7);
+          const saved = db
+            .prepare("SELECT * FROM receipt_pages WHERE receipt=? AND principal=?")
+            .get(parentId, principal);
+          if (!saved) {
+            // A visible completed parent must have its durable plan, even after expiry.
+            const parent = retainedReceipt(principal, parentId);
+            if (parent?.status === "completed") throw new Error("receipt page plan missing");
+            return { kind: "missing" as const };
+          }
+          const stored = row(principal, String(saved.key));
+          if (!stored) throw new Error("receipt page parent missing");
+          const original = parseReceipt(stored.receipt);
+          if (original.id !== parentId) throw new Error("receipt page parent mismatch");
+          if (original.scopeEpoch !== epoch) return { kind: "missing" as const };
+          const plan = pagePlan(original),
+            index = plan.pages.findIndex((page) => page.token === token);
+          if (index < 0 || id !== pageUrl(parentId, token)) return { kind: "missing" as const };
+          if (condition === "unsupported") return { kind: "unsupported" as const };
+          const context = readContext();
+          // Identity/nondisclosure precedes minimum; expiry is checked only afterwards.
+          if (condition) checkTransactionMinimum(condition, context);
+          const remaining = expireRow(stored, instant()).row;
+          if (!remaining) throw new Error("completed page parent was forgotten");
+          const receipt = parseReceipt(remaining.receipt);
+          if (receipt.detail === "expired") return { kind: "expired" as const, context };
+          observeReceipt(receipt, context); // same projection/integrity policy, no second clock
+          const boundary = plan.pages[index];
+          if (!boundary) throw new Error("receipt page boundary missing");
+          const results = (receipt.results as readonly unknown[]).slice(
+            boundary.start,
+            boundary.end,
+          );
+          // The immutable full facts are frozen by this entry's projection.
+          const freeze = (value: unknown): void => {
+            if (value && typeof value === "object") {
+              Object.values(value).forEach(freeze);
+              Object.freeze(value);
+            }
+          };
+          const next = plan.pages[index + 1];
+          const page = {
+            receipt: parentId,
+            results,
+            next: next ? pageUrl(parentId, next.token) : null,
+          };
+          freeze(page);
+          return Object.freeze({ kind: "page" as const, page, context });
+        }),
+      );
+    },
     readReceipt(
       principal: string,
       id: string,
@@ -1279,13 +1489,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       const condition = minimum === undefined ? undefined : snapshotTransactionMinimum(minimum);
       return enter(() =>
         atomic(() => {
-          const receipt = retainedReceipt(principal, id);
           const context = readContext();
+          const receipt = retainedReceipt(principal, id, () => {
+            if (condition !== undefined) checkTransactionMinimum(condition, context);
+          });
           // No minimum-context diagnosis is disclosed for a hidden receipt.
           if (receipt === undefined) return Object.freeze({ receipt, context });
-          // Preserve owner integrity diagnostics before deciding to wait.
+          // Project only after this disclosed row satisfies its minimum.
           const observed = observeReceipt(receipt, context);
-          if (condition !== undefined) checkTransactionMinimum(condition, context);
           return observed;
         }),
       );

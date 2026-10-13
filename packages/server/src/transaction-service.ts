@@ -9,10 +9,7 @@ import {
  * this service after successful construction; callers must stop using the owner.
  * Only the existing fixed all-visible, schema-free/unowned configuration applies. */
 import { createNodeLifecycleScheduler, type LifecycleScheduler } from "./sequence-executor.js";
-import {
-  TRANSACTION_MAXIMUM_OPERATIONS,
-  type PreparedTransactionSequence,
-} from "./transaction-batch.js";
+import type { PreparedTransactionSequence } from "./transaction-batch.js";
 import {
   createTransactionSequenceStepper,
   type TransactionSequenceResponse,
@@ -27,6 +24,7 @@ import type {
   openTransactionStore,
   TransactionReadContext,
   TransactionReceipt,
+  TransactionReceiptPage,
 } from "./transaction-store.js";
 
 type Owner = ReturnType<typeof openTransactionStore>;
@@ -56,11 +54,12 @@ export interface TransactionServiceOptions {
 export function createTransactionService(owner: Owner, options: TransactionServiceOptions) {
   if (options.ownerLifetime !== "service")
     throw new TypeError("explicit service owner lifetime required");
-  // This owner only implements <=32 single-Resource operations, each yielding
-  // one entry (alias singleton: one). Until durable receipt pages are added, the
-  // advertised per-page bound must fit every result, including retained replay.
-  if (options.read.advertisedLimits.page.maximumItems < TRANSACTION_MAXIMUM_OPERATIONS)
-    throw new TypeError("inline transaction receipts require page.maximumItems >= 32");
+  const maximum = owner.readConfiguration().receiptMaximumItems;
+  if (
+    options.read.advertisedLimits.page.maximumItems !== maximum ||
+    options.read.pagination.maxPageItems !== maximum
+  )
+    throw new TypeError("receipt page maximum differs from installed owner");
   const scheduler = options.scheduler ?? createNodeLifecycleScheduler();
   const turn = scheduler.turn.bind(scheduler);
   const comparison = Object.freeze({ ...options.comparison });
@@ -137,9 +136,12 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       observed.receipt.status === "completed" &&
       observed.receipt.detail === "available" &&
       (!Array.isArray(results) ||
-        results.length > TRANSACTION_MAXIMUM_OPERATIONS ||
+        results.length === 0 ||
         results.length > options.read.advertisedLimits.page.maximumItems ||
-        observed.receipt.next !== null)
+        (observed.receipt.next !== null &&
+          (typeof observed.receipt.next !== "string" ||
+            !observed.receipt.next.startsWith(`${observed.receipt.id}/pages/`) ||
+            results.length !== maximum)))
     )
       throw new Error("transaction receipt exceeds supported inline result bound", {
         cause: { id: observed.receipt.id, key: observed.receipt.idempotencyKey },
@@ -210,6 +212,47 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         resolveAlias: () => Promise.reject(new TypeError("minimum-read aliases unsupported")),
       };
       return Object.freeze(guarded);
+    },
+    receiptPage(
+      access:
+        | { readonly kind: "unauthenticated" }
+        | { readonly kind: "authenticated"; readonly principal: string },
+      id: string,
+      supplied?: TransactionMinimum | "unsupported",
+    ): Promise<
+      | {
+          readonly kind: "page";
+          readonly page: TransactionReceiptPage;
+          readonly context: TransactionReadContext;
+        }
+      | { readonly kind: "refused"; readonly code: "unauthenticated" | "resource-not-found" }
+      | { readonly kind: "expired"; readonly context: TransactionReadContext }
+      | { readonly kind: "unsupported" }
+    > {
+      return run(async () => {
+        if (access.kind === "unauthenticated") return { kind: "refused", code: "unauthenticated" };
+        const principal = access.principal,
+          minimum =
+            supplied === undefined || supplied === "unsupported"
+              ? supplied
+              : snapshotTransactionMinimum(supplied);
+        return waitForTransactionMinimum(() => {
+          const result = owner.readReceiptPage(principal, id, minimum);
+          if (
+            result.kind === "page" &&
+            (result.page.results.length < 1 ||
+              result.page.results.length > maximum ||
+              !id.startsWith(`${result.page.receipt}/pages/`) ||
+              (result.page.next !== null &&
+                (!result.page.next.startsWith(`${result.page.receipt}/pages/`) ||
+                  result.page.results.length !== maximum)))
+          )
+            throw new Error("invalid receipt page projection");
+          return result.kind === "missing"
+            ? { kind: "refused" as const, code: "resource-not-found" as const }
+            : result;
+        }, minimumReads);
+      });
     },
     receiptAtMinimum(
       access:

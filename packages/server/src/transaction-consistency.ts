@@ -12,6 +12,7 @@ export interface TransactionMinimum {
 }
 const token = /^[A-Za-z0-9_-]{1,256}$/;
 const position = (value: unknown): number | undefined => {
+  if (value === "genesis") return 0;
   if (typeof value !== "string" || !/^pos-(0|[1-9][0-9]*)$/.test(value)) return undefined;
   const number = Number(value.slice(4));
   return Number.isSafeInteger(number) ? number : undefined;
