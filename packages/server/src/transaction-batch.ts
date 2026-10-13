@@ -51,20 +51,24 @@ import {
 } from "./resource-evaluator.js";
 
 export { TransactionDevelopmentLimitError } from "./transaction-set.js";
-export const TRANSACTION_MAXIMUM_OPERATIONS = 32;
-const maximumInducedEvents = 4096;
-const maximumMatchedResources = 4096;
+
 class EventExpansionLimit extends Error {}
 class MatchExpansionLimit extends Error {}
 
 /** Private owner bounds. Check first-diagnostic feasibility against the same
  * receiving/property caps, including pointer escaping. No profile advertisement. */
 export const TRANSACTION_RUNTIME_LIMITS = Object.freeze({
+  maximumOperations: 32,
+  inducedEvents: 256,
+  matchedResources: 64,
+  representationBytes: 256 * 1024,
+  scopeSourceBytes: 64 * 1024,
   requestBodyBytes: 64 * 1024,
   propertiesBytes: 64 * 1024,
   diagnosticBytes: 512 * 1024,
   diagnosticCount: 16,
 });
+export const TRANSACTION_MAXIMUM_OPERATIONS: number = TRANSACTION_RUNTIME_LIMITS.maximumOperations;
 snapshotReadUpdateRuntimeLimits(TRANSACTION_RUNTIME_LIMITS);
 
 export interface PreparedTransaction {
@@ -529,6 +533,12 @@ export type TransactionMutationContext = ResourceTransaction &
     ): readonly NonNullable<ReturnType<ResourceTransaction["resource"]>>[];
   };
 export interface TransactionEvaluationOptions extends ResourceEvaluationOptions {
+  /** TX materialization proof requires finite complete-Resource bounds.
+   * The owner passes the captured tuple; this does not change RU optionality. */
+  readonly limits: ResourceEvaluationOptions["limits"] & {
+    readonly propertiesBytes: number;
+    readonly representationBytes: number;
+  };
   readonly aliasPolicy: AliasEvaluationOptions["policy"];
   /** Evaluator-only test seam; cannot raise the private authority cap. */
   readonly maximumInducedEvents?: number;
@@ -542,21 +552,27 @@ export function evaluateTransaction(
   position: string,
   now: number,
 ): BatchEvaluation {
+  for (const field of ["propertiesBytes", "representationBytes"] as const) {
+    const value = options.limits[field];
+    if (!Number.isSafeInteger(value) || value < 1 || value > TRANSACTION_RUNTIME_LIMITS[field])
+      throw new TypeError(`invalid transaction evaluator ${field} bound`);
+  }
   const state = normalizedState.get(normalized);
   if (!state || state.batch.carrier.scope !== options.scope)
     throw new TypeError("expected normalized transaction for this Scope");
-  const eventMaximum = options.maximumInducedEvents ?? maximumInducedEvents;
+  const eventMaximum = options.maximumInducedEvents ?? TRANSACTION_RUNTIME_LIMITS.inducedEvents;
   if (
     !Number.isSafeInteger(eventMaximum) ||
     eventMaximum < 1 ||
-    eventMaximum > maximumInducedEvents
+    eventMaximum > TRANSACTION_RUNTIME_LIMITS.inducedEvents
   )
     throw new TypeError("invalid evaluator Event bound");
-  const matchMaximum = options.maximumMatchedResources ?? maximumMatchedResources;
+  const matchMaximum =
+    options.maximumMatchedResources ?? TRANSACTION_RUNTIME_LIMITS.matchedResources;
   if (
     !Number.isSafeInteger(matchMaximum) ||
     matchMaximum < 1 ||
-    matchMaximum > maximumMatchedResources
+    matchMaximum > TRANSACTION_RUNTIME_LIMITS.matchedResources
   )
     throw new TypeError("invalid evaluator matched Resource bound");
   let matchedResources = 0;

@@ -188,6 +188,8 @@ interface ReceiptPagePlan {
  * Fixed all-visible private policy only; this is not an authentication boundary. */
 export function openTransactionStore(options: TransactionStoreOptions) {
   const scope = parseCanonicalScope(options.scope);
+  if (Buffer.byteLength(json(`${scope}events/`)) > TRANSACTION_RUNTIME_LIMITS.scopeSourceBytes)
+    throw new TypeError("transaction Scope exceeds private materialization bound");
   if (!path.isAbsolute(options.file))
     throw new TypeError("absolute transaction store file required");
   const compiled = options.contracts;
@@ -1032,12 +1034,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                   maximumEndpointMultiplicity: [],
                   observeCommitTime: instant,
                   recordChangeContext: false,
-                  limits: {
-                    propertiesBytes: TRANSACTION_RUNTIME_LIMITS.propertiesBytes,
-                    representationBytes: 262144,
-                    diagnosticCount: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
-                    diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
-                  },
+                  limits: TRANSACTION_RUNTIME_LIMITS,
                 },
                 core.transaction,
                 position,
