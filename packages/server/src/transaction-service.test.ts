@@ -127,7 +127,9 @@ function manualScheduler() {
 }
 const access = { kind: "authenticated", principal: "p" } as const;
 function requireReceipt(
-  result: ReturnType<ReturnType<typeof createTransactionService>["receipt"]>,
+  result:
+    | ReturnType<ReturnType<typeof createTransactionService>["receipt"]>
+    | Awaited<ReturnType<ReturnType<typeof createTransactionService>["submit"]>>,
 ) {
   if (result.kind !== "receipt") throw new Error("expected receipt");
   return result;
@@ -681,5 +683,105 @@ describe("same-entry direct receipt delivery", () => {
     expect(first).toMatchObject({ kind: "receipt", context: { scopePosition: "pos-1" } });
     expect(f.owner.inspect().groups).toHaveLength(1);
     spy.mockRestore();
+  });
+});
+
+describe("private minimum-read owner/lifecycle", () => {
+  const point = {
+    kind: "resource",
+    resource: "bead",
+    id: `${scope}beads/a` as AbsoluteHttpUrl,
+  } as const;
+  it("isolates concurrent immutable controls and never holds SQLite during a wait", async () => {
+    const f = fixture();
+    const entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>();
+    let waits = 0;
+    const service = f.open({
+      minimumReads: {
+        budgetMs: 1000,
+        wait: async () => {
+          waits++;
+          entered.resolve();
+          await release.promise;
+        },
+      },
+    });
+    const first = requireReceipt(await service.submit(batch()));
+    const supplied = {
+      scopeEpoch: first.context.scopeEpoch,
+      authorizationView: first.context.authorizationView,
+      minimumPosition: "pos-2",
+    };
+    const waiting = service.readAtMinimum({ kind: "anonymous" }, supplied).perform(point);
+    await entered.promise;
+    supplied.minimumPosition = "pos-999";
+    const immediate = await service
+      .readAtMinimum({ kind: "anonymous" }, { ...supplied, minimumPosition: "pos-1" })
+      .perform(point);
+    expect(immediate.kind).toBe("success");
+    const advanced = await service.submit(batch([create("b")], "advance"));
+    expect(advanced).toMatchObject({ kind: "receipt", context: { scopePosition: "pos-2" } });
+    release.resolve();
+    const result = await waiting;
+    expect(result).toMatchObject({
+      kind: "success",
+      observation: { sourceContext: { scopePosition: "pos-2" } },
+    });
+    expect(waits).toBe(1);
+  });
+  it("rechecks receipt retention and principal nondisclosure on each attempt", async () => {
+    const f = fixture();
+    let waits = 0;
+    const service = f.open({
+      minimumReads: {
+        wait: async () => {
+          waits++;
+          f.setTime(86401001);
+        },
+      },
+    });
+    const failed = requireReceipt(
+      await service.submit(batch([{ operation: "deleteBead", bead: "beads/missing" }])),
+    );
+    const minimum = {
+      scopeEpoch: failed.context.scopeEpoch,
+      authorizationView: failed.context.authorizationView,
+      minimumPosition: "pos-1",
+    };
+    expect(
+      await service.receiptAtMinimum(
+        { kind: "authenticated", principal: "other" },
+        failed.receipt.id,
+        { ...minimum, scopeEpoch: "foreign" },
+      ),
+    ).toMatchObject({ status: 404 });
+    expect(waits).toBe(0);
+    expect(await service.receiptAtMinimum(access, failed.receipt.id, minimum)).toMatchObject({
+      status: 404,
+    });
+    expect(waits).toBe(1);
+  });
+  it("drains a bounded pending read on close and respects an aborted reader", async () => {
+    const f = fixture();
+    let tick = 0;
+    const service = f.open({
+      minimumReads: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+    });
+    const first = requireReceipt(await service.submit(batch()));
+    const minimum = {
+      scopeEpoch: first.context.scopeEpoch,
+      authorizationView: first.context.authorizationView,
+      minimumPosition: "pos-9",
+    };
+    const facet = service.readAtMinimum({ kind: "anonymous" }, minimum);
+    const aborted = new AbortController();
+    aborted.abort();
+    await expect(facet.perform(point, { signal: aborted.signal })).rejects.toThrow();
+    const pending = facet.perform(point);
+    const closing = service.close();
+    await expect(pending).rejects.toMatchObject({ reason: "catch-up-timeout" });
+    await closing;
+    expect(() => facet.perform(point)).toThrow("closed");
   });
 });

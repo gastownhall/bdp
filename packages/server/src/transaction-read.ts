@@ -1,10 +1,17 @@
-/** Same-owner private Read composition. This does not supply Transactional HTTP
- * context, minimum-position barriers, receipt reads or replication Snapshots. */
+/** Same-owner private Read composition with source conditions for canonical
+ * current point reads. The service owns finite waits; collection minimums,
+ * receipt serving and replication Snapshots are separate contracts. */
+import {
+  checkTransactionMinimum,
+  snapshotTransactionMinimum,
+  type TransactionMinimum,
+} from "./transaction-consistency.js";
 import { isProxy } from "node:util/types";
 import {
   createAuthorityReadPlane,
   type AuthorityReadOptions,
   type AuthorityReadPlane,
+  type AuthorityReadFacet,
   type AuthorityReadResult,
   type AuthorityAliasResult,
   type ReadObservation,
@@ -12,6 +19,8 @@ import {
 import type { ReadRequest } from "@bdp/protocol";
 import type { TransactionReadContext } from "./transaction-store.js";
 import type { openTransactionStore } from "./transaction-store.js";
+
+export class TransactionMinimumVisibilityGap extends Error {}
 
 export type TransactionReadOptions = Pick<
   AuthorityReadOptions,
@@ -34,6 +43,17 @@ export function createTransactionReadPlane(
     selectorLimits: options.selectorLimits,
     pagination: options.pagination,
     advertisedLimits: options.advertisedLimits,
+    checkSourceCondition: (condition, observation, refusal) => {
+      // Absence/visibility versus minimum ordering is not yet specified.
+      if (refusal?.code === "resource-not-found")
+        throw new TransactionMinimumVisibilityGap(
+          "minimum-position visibility ordering unqualified",
+        );
+      checkTransactionMinimum(
+        snapshotTransactionMinimum(condition),
+        transactionReadContexts(observation).current,
+      );
+    },
     captureReadAuthorization: () => ({
       kind: "authorized",
       authorization: {
@@ -67,7 +87,33 @@ export function createTransactionReadPlane(
       };
     },
   };
-  return Object.freeze(composed);
+  return Object.freeze({
+    ...composed,
+    minimumFor(
+      principal: Parameters<AuthorityReadPlane["readFor"]>[0],
+      supplied: TransactionMinimum,
+    ): AuthorityReadFacet {
+      const minimum = snapshotTransactionMinimum(supplied),
+        facet = plane.readFor(principal);
+      return Object.freeze({
+        perform: (request, options) => {
+          if (
+            (request.kind !== "resource" && request.kind !== "properties") ||
+            (request.resource !== "bead" && request.resource !== "link")
+          )
+            return Promise.reject(
+              new TypeError("minimum-read route outside supported point subset"),
+            );
+          return observe(
+            facet
+              .perform(request, { ...options, sourceCondition: minimum })
+              .then((result) => checked(result)),
+          );
+        },
+        resolveAlias: () => Promise.reject(new TypeError("minimum-read aliases unsupported")),
+      } satisfies AuthorityReadFacet);
+    },
+  });
 }
 
 /** Validated TX interpretation of the generic private Read observation. A

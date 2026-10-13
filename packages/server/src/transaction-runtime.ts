@@ -38,6 +38,7 @@ export interface TransactionRuntimeTestSeams {
   /** Direct transaction.operations only; sequence.operations retains its own32 bound. */
   readonly maximumOperations?: number;
   readonly comparison?: TransactionServiceOptions["comparison"];
+  readonly minimumReads?: TransactionServiceOptions["minimumReads"];
 }
 async function receive(request: IncomingMessage): Promise<TransactionReceivedBody> {
   const length = request.headers["content-length"];
@@ -231,6 +232,7 @@ export async function startTransactionRuntime(
       ownerLifetime: "service",
       ...(seams.scheduler ? { scheduler: seams.scheduler } : {}),
       ...(seams.comparison ? { comparison: seams.comparison } : {}),
+      ...(seams.minimumReads ? { minimumReads: seams.minimumReads } : {}),
       read: {
         selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
         advertisedLimits: {

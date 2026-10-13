@@ -1,3 +1,4 @@
+import { transactionMinimumHeaders, TransactionMinimumFailure } from "./transaction-consistency.js";
 /** Source-private partial Transactional HTTP projection. No discovery/profile
  * advertisement: required sets, replication and consistency barriers are absent. */
 import {
@@ -22,7 +23,8 @@ import {
   TRANSACTION_MAXIMUM_OPERATIONS,
 } from "./transaction-batch.js";
 import type { createTransactionService } from "./transaction-service.js";
-import { transactionReadContexts } from "./transaction-read.js";
+import { classifyAliasPath, requestFromUrl } from "./read-request.js";
+import { TransactionMinimumVisibilityGap, transactionReadContexts } from "./transaction-read.js";
 import type { TransactionReadContext } from "./transaction-store.js";
 import type { TransactionSubmission } from "./transaction-submission.js";
 
@@ -56,7 +58,17 @@ function empty(status: number, allow?: string): HttpResponse {
     }),
   };
 }
-function problem(value: ReadProblem | ReturnType<typeof parseReadUpdateProblem>): HttpResponse {
+function problem(
+  value:
+    | ReadProblem
+    | ReturnType<typeof parseReadUpdateProblem>
+    | {
+        readonly type: string;
+        readonly code: "catch-up-timeout";
+        readonly status: 503;
+        readonly retry: "after-delay";
+      },
+): HttpResponse {
   const response = jsonResponse(value);
   response.headers.set("content-type", "application/problem+json");
   if (value.code === "unauthenticated")
@@ -147,8 +159,12 @@ export function createTransactionHttpHandler(
         ? context(response, transactionReadContexts(result.observation).current)
         : response;
     },
-    async perform(parsed) {
-      const result = await service.readFor({ kind: "anonymous" }).perform(parsed);
+    async perform(parsed, request) {
+      const minimum = transactionMinimumHeaders(request.headers);
+      const facet = minimum
+        ? service.readAtMinimum({ kind: "anonymous" }, minimum)
+        : service.readFor({ kind: "anonymous" });
+      const result = await facet.perform(parsed);
       const response =
         result.kind === "problem"
           ? problem(result.problem)
@@ -221,7 +237,12 @@ export function createTransactionHttpHandler(
       // Unsupported controls cannot be silently ignored while admitting a key
       // or executing effects. This is an internal development gap, not a new
       // command-precondition or catch-up protocol rule.
-      if (hasMinimumControls(request)) return developmentGap("minimum-position");
+      if (hasMinimumControls(request)) {
+        if (authorization.kind === "unauthenticated")
+          return transactionHttpProblem("unauthenticated");
+        if (!authorization.canMutate) return transactionHttpProblem("forbidden");
+        return developmentGap("minimum-position");
+      }
       if (operation === "sequence") {
         if (request.headers.has("idempotency-key"))
           return transactionHttpProblem("malformed-request");
@@ -293,17 +314,33 @@ export function createTransactionHttpHandler(
       url.pathname.startsWith(`${scopeUrl.pathname}receipts/`) ||
       url.pathname === `${scopeUrl.pathname}receipts`
     ) {
-      const result = service.receipt(
-        { kind: "authenticated", principal: authorization.principal },
-        url.href,
-      );
+      const minimum = hasMinimumControls(request)
+        ? transactionMinimumHeaders(request.headers)
+        : undefined;
+      const access = { kind: "authenticated" as const, principal: authorization.principal };
+      const result = minimum
+        ? await service.receiptAtMinimum(access, url.href, minimum)
+        : service.receipt(access, url.href);
       if (result.kind === "refused") return transactionHttpProblem(result.code);
       // Missing barrier support cannot disclose a foreign receipt, nor permit a
       // conditional shortcut to serve an unchecked minimum checkpoint.
-      if (hasMinimumControls(request)) return developmentGap("minimum-position");
+      if (hasMinimumControls(request) && !minimum) return developmentGap("minimum-position");
       return receiptResponse(result, false);
     }
-    if (hasMinimumControls(request)) return developmentGap("minimum-position");
+    const minimum = hasMinimumControls(request)
+      ? transactionMinimumHeaders(request.headers)
+      : undefined;
+    if (hasMinimumControls(request) && !minimum) return developmentGap("minimum-position");
+    if (minimum) {
+      const parsed = requestFromUrl(url, scope);
+      if (
+        classifyAliasPath(url, scope) !== undefined ||
+        isReadProblem(parsed) ||
+        (parsed.kind !== "resource" && parsed.kind !== "properties") ||
+        (parsed.resource !== "bead" && parsed.resource !== "link")
+      )
+        return developmentGap("minimum-position-route");
+    }
     // No fabricated discovery or incomplete Operation Directory is exposed. The
     // source fixture gives tests actual canonical targets out of band.
     if (
@@ -325,8 +362,24 @@ export function createTransactionHttpHandler(
       let response: HttpResponse;
       try {
         response = await route(request, authorization, received);
-      } catch {
-        response = empty(500);
+      } catch (error) {
+        if (error instanceof TransactionMinimumFailure && error.reason !== "behind") {
+          response = context(
+            problem(
+              error.reason === "catch-up-timeout"
+                ? {
+                    ...readProblem("temporarily-unavailable"),
+                    code: "catch-up-timeout",
+                    status: 503,
+                    retry: "after-delay",
+                  }
+                : readProblem(error.reason),
+            ),
+            error.context,
+          );
+        } else if (error instanceof TransactionMinimumVisibilityGap)
+          response = developmentGap("minimum-position-visibility");
+        else response = empty(500);
       }
       response.headers.set("x-bdp-development", "non-attesting");
       if (request.method === "POST") response.headers.set("vary", "Accept");

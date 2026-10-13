@@ -248,6 +248,10 @@ async function installPackedWorkspace() {
       "transaction-runtime.d.ts.map",
       "transaction-runtime.js",
       "transaction-runtime.js.map",
+      "transaction-consistency.d.ts",
+      "transaction-consistency.d.ts.map",
+      "transaction-consistency.js",
+      "transaction-consistency.js.map",
       "transaction-service.d.ts",
       "transaction-service.d.ts.map",
       "transaction-service.js",
@@ -361,7 +365,10 @@ async function installPackedWorkspace() {
     if (
       "createTransactionService" in publicServer ||
       "createTransactionHttpHandler" in publicServer ||
-      "startTransactionRuntime" in publicServer
+      "startTransactionRuntime" in publicServer ||
+      "snapshotTransactionMinimum" in publicServer ||
+      "waitForTransactionMinimum" in publicServer ||
+      "checkTransactionMinimum" in publicServer
     )
       throw new Error("packed root exposes private transaction service");
     if ("createContextualReadPagination" in publicServer)

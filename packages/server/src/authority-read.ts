@@ -111,6 +111,12 @@ export interface AuthorityReadOptions {
     readonly idleCleanup: "timer" | "on-demand";
   };
   readonly advertisedLimits: ServerAdvertisedReadLimits;
+  /** Source-private fixed owner condition hook; request input is data, not code. */
+  readonly checkSourceCondition?: (
+    condition: unknown,
+    observation: ReadObservation,
+    refusal?: ReadProblem,
+  ) => void;
   captureReadAuthorization(
     reader: AuthorityReadReader,
     principal: ReadPrincipal,
@@ -177,15 +183,16 @@ export type AuthorityAliasResult =
       readonly observation: ReadObservation;
     }
   | ReadRefusal;
+export interface AuthorityReadDeliveryOptions {
+  readonly signal?: AbortSignal;
+  readonly sourceCondition?: unknown;
+}
 export interface AuthorityReadFacet {
   perform<O extends ReadRequest>(
     request: O,
-    options?: { readonly signal?: AbortSignal },
+    options?: AuthorityReadDeliveryOptions,
   ): Promise<AuthorityReadResult<O>>;
-  resolveAlias(
-    url: string,
-    options?: { readonly signal?: AbortSignal },
-  ): Promise<AuthorityAliasResult>;
+  resolveAlias(url: string, options?: AuthorityReadDeliveryOptions): Promise<AuthorityAliasResult>;
 }
 export interface AuthorityReadPlane {
   readFor(principal: ReadPrincipal): AuthorityReadFacet;
@@ -244,6 +251,7 @@ interface Prepared {
   readonly scopeEpoch: string;
   readonly enter: AuthorityReadEntry["withRead"];
   readonly capture: AuthorityReadOptions["captureReadAuthorization"];
+  readonly checkSourceCondition?: AuthorityReadOptions["checkSourceCondition"];
   readonly configuration: ScopeConfigurationSource["capture"];
   readonly types: readonly TypeDescriptor[];
   readonly conformance: TypeConformanceIndex;
@@ -330,7 +338,10 @@ function prepare(options: AuthorityReadOptions): Prepared {
     pagination: suppliedPagination,
     advertisedLimits,
     captureReadAuthorization,
+    checkSourceCondition,
   } = options;
+  if (checkSourceCondition !== undefined && typeof checkSourceCondition !== "function")
+    throw new AuthorityReadError("configuration", "invalid source condition hook");
   const scope = parseCanonicalScope(entry.scope);
   const scopeEpoch = identity(epoch, "Scope epoch");
   const enter = entry.withRead;
@@ -397,6 +408,7 @@ function prepare(options: AuthorityReadOptions): Prepared {
       scopeEpoch,
       enter: enter.bind(entry),
       capture: captureReadAuthorization.bind(options),
+      ...(checkSourceCondition ? { checkSourceCondition: checkSourceCondition.bind(options) } : {}),
       configuration: configuration.bind(scopeConfiguration),
       types,
       conformance,
@@ -954,7 +966,11 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
     if (busy) throw new AuthorityReadError("reentrant", "authority Read plane is already active");
     if (stopped) throw new ScopeServerClosedError();
   };
-  const observe = (principal: ReadPrincipal, intent: ReadIntent): ConcreteResult => {
+  const observe = (
+    principal: ReadPrincipal,
+    intent: ReadIntent,
+    condition?: unknown,
+  ): ConcreteResult => {
     let calls = 0;
     let captured: Materialized | undefined;
     const entry = synchronous(
@@ -964,6 +980,17 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
           throw new AuthorityReadError("integrity", "owner invoked Read callback more than once");
         const context = captureContext(prepared, reader, principal, intent, sourceContext);
         captured = isRefusal(context) ? context : materialize(prepared, reader, context, intent);
+        if (!isRefusal(context) && condition !== undefined) {
+          if (!prepared.checkSourceCondition)
+            throw new AuthorityReadError("invalid-input", "source conditions unsupported by owner");
+          synchronous(
+            prepared.checkSourceCondition(
+              condition,
+              context.observation,
+              isRefusal(captured) ? captured.problem : undefined,
+            ),
+          );
+        }
         return captured;
       }),
     );
@@ -997,7 +1024,7 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
       const principal = principalSnapshot(value);
       const deliver = <T>(
         makeIntent: () => ReadIntent,
-        supplied?: { readonly signal?: AbortSignal },
+        supplied?: AuthorityReadDeliveryOptions,
       ): Promise<T> => {
         // Even early receiving/state faults belong to this observed promise.
         // Allocation itself does not mutate shared owner/plane state.
@@ -1009,6 +1036,7 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
         });
         void delivery.catch(() => undefined);
         let signal: AbortSignal | undefined;
+        let sourceCondition: unknown;
         let aborted = false;
         let entered = false;
         let listening = false;
@@ -1023,8 +1051,9 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
           entered = true;
           if (supplied !== undefined) {
             const receiving = ownData(supplied, "Read delivery options");
-            if (Object.keys(receiving).some((key) => key !== "signal"))
+            if (Object.keys(receiving).some((key) => key !== "signal" && key !== "sourceCondition"))
               throw new AuthorityReadError("invalid-input", "unknown Read delivery option");
+            sourceCondition = receiving.sourceCondition;
             const candidate = receiving.signal;
             if (
               candidate !== undefined &&
@@ -1046,7 +1075,8 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
             signal.addEventListener("abort", onAbort, { once: true });
           }
           let result: ConcreteResult;
-          if (intent.kind === "alias") result = observe(principal.principal, intent);
+          if (intent.kind === "alias")
+            result = observe(principal.principal, intent, sourceCondition);
           else {
             const variant = resolveReadRequestVariant(intent);
             if (variant === undefined)
@@ -1055,7 +1085,10 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
               scope: prepared.scope,
               controlsEnabled: true,
             });
-            result = issue === undefined ? observe(principal.principal, intent) : preContext(issue);
+            result =
+              issue === undefined
+                ? observe(principal.principal, intent, sourceCondition)
+                : preContext(issue);
           }
           outcome = result as T;
         } catch (error) {
@@ -1087,13 +1120,13 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
       return Object.freeze({
         perform<O extends ReadRequest>(
           request: O,
-          receiving?: { readonly signal?: AbortSignal },
+          receiving?: AuthorityReadDeliveryOptions,
         ): Promise<AuthorityReadResult<O>> {
           return deliver(() => snapshotRequest(request), receiving);
         },
         resolveAlias(
           url: string,
-          receiving?: { readonly signal?: AbortSignal },
+          receiving?: AuthorityReadDeliveryOptions,
         ): Promise<AuthorityAliasResult> {
           return deliver(() => {
             if (typeof url !== "string")

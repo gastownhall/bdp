@@ -1,3 +1,9 @@
+import {
+  snapshotTransactionMinimum,
+  waitForTransactionMinimum,
+  type TransactionMinimum,
+  type TransactionMinimumWaitOptions,
+} from "./transaction-consistency.js";
 /** Source-private same-owner lifecycle. No HTTP receiver, directory or profile
  * advertisement. Passing ownerLifetime:"service" transfers owner shutdown to
  * this service after successful construction; callers must stop using the owner.
@@ -44,6 +50,7 @@ export interface TransactionServiceOptions {
   readonly scheduler?: Pick<LifecycleScheduler, "turn">;
   /** Existing finite comparison policy; never a fresh deadline on each retry. */
   readonly comparison?: Parameters<typeof submitTransaction>[2];
+  readonly minimumReads?: TransactionMinimumWaitOptions;
 }
 
 export function createTransactionService(owner: Owner, options: TransactionServiceOptions) {
@@ -57,6 +64,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
   const scheduler = options.scheduler ?? createNodeLifecycleScheduler();
   const turn = scheduler.turn.bind(scheduler);
   const comparison = Object.freeze({ ...options.comparison });
+  const minimumReads = Object.freeze({ ...options.minimumReads });
   const read = createTransactionReadPlane(owner, options.read);
   const active = new Set<Promise<unknown>>();
   let accepting = true;
@@ -138,8 +146,12 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       });
     return Object.freeze({ kind: "receipt", ...observed });
   }
-  function receipt(principal: string, id: string): ReceiptObservation | undefined {
-    const observed = owner.readReceipt(principal, id);
+  function receipt(
+    principal: string,
+    id: string,
+    minimum?: TransactionMinimum,
+  ): ReceiptObservation | undefined {
+    const observed = owner.readReceipt(principal, id, minimum);
     return observed.receipt === undefined
       ? undefined
       : checked({ ...observed, receipt: observed.receipt });
@@ -182,6 +194,46 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         resolveAlias: (url, options) => run(() => facet.resolveAlias(url, options)),
       };
       return Object.freeze(guarded);
+    },
+    readAtMinimum(principal: Parameters<typeof read.readFor>[0], minimum: TransactionMinimum) {
+      check();
+      const facet = read.minimumFor(principal, snapshotTransactionMinimum(minimum));
+      const guarded: ReturnType<typeof read.readFor> = {
+        perform: (request, receiving) =>
+          run(() =>
+            waitForTransactionMinimum(
+              () => facet.perform(request, receiving),
+              minimumReads,
+              receiving?.signal,
+            ),
+          ),
+        resolveAlias: () => Promise.reject(new TypeError("minimum-read aliases unsupported")),
+      };
+      return Object.freeze(guarded);
+    },
+    receiptAtMinimum(
+      access:
+        | { readonly kind: "unauthenticated" }
+        | { readonly kind: "authenticated"; readonly principal: string },
+      id: string,
+      supplied: TransactionMinimum,
+    ): Promise<TransactionServiceReceiptResult> {
+      return run(async () => {
+        if (access.kind === "unauthenticated")
+          return Object.freeze({ kind: "refused", status: 401, code: "unauthenticated" });
+        const principal = access.principal,
+          minimum = snapshotTransactionMinimum(supplied);
+        return waitForTransactionMinimum(
+          () =>
+            receipt(principal, id, minimum) ??
+            Object.freeze({
+              kind: "refused" as const,
+              status: 404 as const,
+              code: "resource-not-found" as const,
+            }),
+          minimumReads,
+        );
+      });
     },
     submit(request: TransactionSubmission): Promise<TransactionServiceSubmissionResult> {
       return run(async () => {
