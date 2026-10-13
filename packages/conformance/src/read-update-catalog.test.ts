@@ -119,8 +119,16 @@ describe("draft Read+Update catalog", () => {
     expect(() => assertManifestBinding("unapproved-ru.json", manifest)).toThrow(
       /unapproved-ru.json/,
     );
+    const unknownSubject = manifest.scenarios.filter(
+      (row) => row.id === "read-update.alias.unknown-subject",
+    );
+    expect(unknownSubject).toHaveLength(1);
     expect(() =>
-      assertManifestBinding("read-v1.json", { ...manifest, catalogId: "read-v1" }),
+      assertManifestBinding("read-v1.json", {
+        ...manifest,
+        catalogId: "read-v1",
+        scenarios: unknownSubject,
+      }),
     ).toThrow(/read-v1.json binds read-update.alias.unknown-subject/);
   });
 
