@@ -487,3 +487,11 @@ This supplies internal observations, not HTTP consistency qualification. Selecti
 and enforcing response fields/minimum barriers, conditional/HEAD ordering, receipt
 serving context, replication Snapshots and changefeeds remain separate work. No
 public profile advertisement or historical evidence relabeling is implied.
+
+The source-context capability uses a package-private pagination factory over the
+same engine. Public `createReadPagination` retains its original facade and input
+type: it does not consume an extra context property or argument, and exposes no
+context accessor. The private helper is absent from root exports and remains
+behind the package's deep-import boundary. Emitted public declarations, an actual
+Node package-root import and installed-package smoke tests cover this separation;
+internal context/retention tests continue to exercise the same engine.

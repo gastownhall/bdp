@@ -41,7 +41,6 @@ export interface ReadFirstPageInput<Item> {
   readonly projection: string;
   /** Absolute in-Scope URL retaining all parameters required by this projection. */
   readonly continuationUrl: string;
-  readonly sourceContext?: ReadSourceContext;
 }
 
 export interface ReadContinuationInput {
@@ -117,11 +116,28 @@ export interface ReadPagination<Item> {
   validateLimit(limit: number | undefined): number;
   firstPage(input: ReadFirstPageInput<Item>): ReadPage<Item>;
   continuePage(input: ReadContinuationInput): ReadPage<Item>;
-  /** Metadata paired with this authority's immutable page. This is not an
-   * authorization/expiry check; only firstPage/continuePage admit traversal. */
-  sourceContext(page: ReadPage<Item>): ReadSourceContext | undefined;
   cleanupExpired(): ReadPaginationCleanup;
   close(): ReadPaginationCleanup;
+}
+
+/** Package-private companion used by same-owner authority composition only. */
+export interface ContextualReadPagination<Item> extends ReadPagination<Item> {
+  firstPageWithContext(
+    input: ReadFirstPageInput<Item>,
+    context?: ReadSourceContext,
+  ): ReadPage<Item>;
+  /** Paired metadata is not a traversal or expiry capability. */
+  sourceContext(page: ReadPage<Item>): ReadSourceContext | undefined;
+}
+
+/** Preserve the original public facade. Extra properties/arguments on a public
+ * firstPage call are never read as a source-context capability. */
+export function createReadPagination<Item = unknown>(
+  options: ReadPaginationOptions,
+): ReadPagination<Item> {
+  const engine = createContextualReadPagination<Item>(options);
+  const { limits, validateLimit, firstPage, continuePage, cleanupExpired, close } = engine;
+  return Object.freeze({ limits, validateLimit, firstPage, continuePage, cleanupExpired, close });
 }
 
 interface PreparedOptions {
@@ -149,9 +165,9 @@ const OPAQUE_TOKEN = /^[A-Za-z0-9_-]+$/;
  * active snapshot. The token generator receives no snapshot data and must supply unpredictable
  * opaque entropy suitable for a public URL.
  */
-export function createReadPagination<Item = unknown>(
+export function createContextualReadPagination<Item = unknown>(
   options: ReadPaginationOptions,
-): ReadPagination<Item> {
+): ContextualReadPagination<Item> {
   const prepared = prepareOptions(options);
   const snapshots = new Set<Snapshot<Item>>();
   // Values do not point back to snapshots/pages. Externally retained pages may
@@ -302,7 +318,7 @@ export function createReadPagination<Item = unknown>(
     return page;
   };
 
-  const pagination: ReadPagination<Item> = {
+  const pagination: ContextualReadPagination<Item> = {
     limits: Object.freeze({
       defaultPageItems: prepared.defaultPageItems,
       maxPageItems: prepared.maxPageItems,
@@ -320,6 +336,12 @@ export function createReadPagination<Item = unknown>(
     },
 
     firstPage(input: ReadFirstPageInput<Item>): ReadPage<Item> {
+      return pagination.firstPageWithContext(input);
+    },
+    firstPageWithContext(
+      input: ReadFirstPageInput<Item>,
+      sourceContext?: ReadSourceContext,
+    ): ReadPage<Item> {
       requireOpen();
       const now = clock();
       cleanupAt(now);
@@ -346,10 +368,10 @@ export function createReadPagination<Item = unknown>(
         ? prepared.retainedSnapshotNodeCapacity - retainedSnapshotNodes
         : prepared.retainedSnapshotNodeCapacity;
       const contextCopy =
-        input.sourceContext === undefined
+        sourceContext === undefined
           ? undefined
-          : snapshotJson(input.sourceContext, byteCapacity, nodeCapacity);
-      let sourceContext: ReadSourceContext | undefined;
+          : snapshotJson(sourceContext, byteCapacity, nodeCapacity);
+      let capturedContext: ReadSourceContext | undefined;
       if (contextCopy !== undefined) {
         const value = contextCopy.value;
         if (
@@ -359,7 +381,7 @@ export function createReadPagination<Item = unknown>(
           Object.values(value).some((entry) => typeof entry !== "string")
         )
           throw localError("invalid-snapshot", "source context must be a string record");
-        sourceContext = value as ReadSourceContext;
+        capturedContext = value as ReadSourceContext;
       }
       const copied = snapshotItems(
         input.items,
@@ -372,7 +394,7 @@ export function createReadPagination<Item = unknown>(
 
       if (items.length <= limit) {
         const page = Object.freeze({ items: Object.freeze(items.slice()), next: null });
-        pageContexts.set(page, sourceContext);
+        pageContexts.set(page, capturedContext);
         return page;
       }
 
@@ -401,7 +423,7 @@ export function createReadPagination<Item = unknown>(
         expiresAt,
         retainedBytes,
         retainedNodes,
-        ...(sourceContext === undefined ? {} : { sourceContext }),
+        ...(capturedContext === undefined ? {} : { sourceContext: capturedContext }),
         reservedCursorPositions,
         cursors: new Map(),
         pages: new Map(),
