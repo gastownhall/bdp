@@ -893,10 +893,10 @@ visibility predicate does not supply Read's checkedGraph body/index integrity
 validation for corrupted rows. This slice changes neither behavior and makes no
 whole-projection equivalence or installed profile qualification claim.
 
-The induced-Event lower-only evaluator seam now rejects zero, negative, fractional,
-infinite and above-authority bounds in permanent tests. Its real 4,096 default
-boundary remains deferred to the owned-transition/materialization stage; current
-lowered-cap tests prove refusal/rollback but do not qualify that default boundary.
+The induced-Event lower-only evaluator seam rejects zero, negative, fractional,
+infinite and above-authority bounds in permanent tests. The owned-transition tests
+below additionally observe its actual 4,096 default with small Resource bodies;
+this count evidence does not qualify arbitrary materialization workloads.
 
 
 ### Compiled-contract evidence and storage bounds clarification
@@ -926,3 +926,54 @@ pre-capture compiler and checks deep capture immutability. TX regressions recrea
 rolled-back tentative Resource ID, replay the exact failed-set receipt, and compare
 Type HEAD status/content length with GET. These strengthen evidence without changing
 runtime behavior or broadening any profile claim.
+
+### Atomic owned-Link projection
+
+The private Transactional owner now accepts installed owning Bead descriptors and
+projects the existing Resource evaluator's owned transitions. The evaluator remains
+the sole source of ownership rules, schema checks, revisions and provenance. A local
+same-turn write wrapper captures each Resource's previous state before forwarding
+the evaluator's write. It neither exposes version recipes nor adds another allocator
+or owner. An owned mutation changes at most its Link and source Bead; an ordinary
+target does not version, and a self-Link still versions the source once.
+
+Every evaluator changed/deleted Resource contributes a canonical-ID group entry.
+Repeated operations preserve intermediate receipt results and Event revision chains,
+while the group's changes retain only each Resource's final postimage or tombstone.
+The source's complete inline owned state agrees with the first-class Link. No-op
+updates preserve both revisions/provenance and report the unchanged sourceRevision
+without a group or effect position.
+
+Owned facts use existing Event types: Link lifecycle first, source/target incidence
+when creating/deleting, and the source's ownedLink updated fact last. An in-Scope
+owned creation/deletion induces four Events, including both self-Link incidences;
+an owned update induces two. The source Event carries its own revisions/provenance,
+with a complete created Link, field-built update delta, or deleted identity nested
+under ownedLink. The update delta never carries full properties and contains a patch;
+the source fact never combines ownedLink with a direct properties/metadata patch.
+All facts charge the existing total Event cap. A real default-bound test deletes
+1,024 owned self-Links on separate sources: 4,096 ordered Events succeed; a selection
+of 1,025 fails atomically and retains that failure across restart. Resource bodies
+are small in this count test; it supplies no high-fanout or byte-size qualification.
+No count or materialization budget was changed.
+
+The same application path serves the private staged-set evaluator. Selected Links
+remain canonical-ID ordered, each effective member versions its source, and the
+existing visibility-closure predicate and cardinality-before-cap behavior remain.
+Source write refusal, stale Link/Bead guards, schema failures, ownership bounds and
+late failures roll back both Resources and all group/page effects while preserving
+an ordinary failed receipt. Real SIGKILL probes at staged effects and terminal
+receipt boundaries reopen without either partial Resource or group effects. Tests
+also cover exact durable pages/replay, transitive cyclic visibility, compiled actual
+HTTP Reads/mutations and inherited-schema failure replay. This is process-loss test
+evidence, not a power-loss or mutable-policy qualification.
+
+The installation format and semantic identity stay unchanged: no durable record
+shape changed, old accepted stores contained no owning descriptors, and descriptor
+configuration changes already fail closed. Owning compiled bundles must still
+include the complete Link/endpoint descriptor closure; the legacy schema-free path
+continues to use the existing evaluator registry fallback. No new Type lifecycle,
+HTTP set admission, Snapshot/changefeed, schema hosting, public profile or evidence
+claim follows. The actual service still has fixed all-visible policy and empty
+aggregate policy. Retained variable-grant projection, mutated-Resource accounting
+and receipt/group byte materialization remain separate work.

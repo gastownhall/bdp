@@ -103,8 +103,8 @@ function fixture(extra: Partial<Parameters<typeof openTransactionStore>[0]> = {}
       if (admitted.kind !== "owned") throw new Error("expected new admission");
       const receipt = owner.execute(admitted.claim);
       expect(receiptSchema(receipt), JSON.stringify(receiptSchema.errors)).toBe(true);
-      for (const group of owner.inspect().groups)
-        expect(groupSchema(group), JSON.stringify(groupSchema.errors)).toBe(true);
+      const group = owner.inspect().groups.at(-1);
+      if (group) expect(groupSchema(group), JSON.stringify(groupSchema.errors)).toBe(true);
       return receipt;
     },
     record(id: string): RecordBody {
@@ -216,7 +216,9 @@ it("projects owned lifecycle, property and metadata deltas with exact source ver
         },
       },
     });
-    const nested = (events[1]?.data.ownedLink as { link: Record<string, unknown> }).link;
+    const sourceEvent = events[1];
+    if (!sourceEvent) throw new Error("missing source Event");
+    const nested = (sourceEvent.data.ownedLink as { link: Record<string, unknown> }).link;
     expect(nested).toEqual({ id: linked.id, type: link, ...events[0]?.data });
     expect(nested).not.toHaveProperty("properties");
     expect(nested.change !== undefined || nested.metadataChange !== undefined).toBe(true);
@@ -712,3 +714,40 @@ it("serves complete compiled owned records and atomically retains inherited-sche
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+it("observes the real 4096-Event boundary with four facts per owned self-Link deletion", () => {
+  const f = fixture({ types: descriptors({ [link]: { max: 32 } }), receiptMaximumItems: 32 });
+  // One Link per source avoids testing unrelated high-fanout closure cost.
+  // Every body stays small; the boundary is a fact count, not a byte allowance.
+  for (let start = 0; start < 1025; start += 16) {
+    const operations: unknown[] = [];
+    for (let index = start; index < Math.min(start + 16, 1025); index++) {
+      const id = `owner${index}`;
+      operations.push(create(id), {
+        ...edge(`edge${index}`, `beads/${id}`, `beads/${id}`),
+        properties: { n: index === 1024 ? 1 : 0 },
+      });
+    }
+    f.run(operations, `seed${start}`);
+  }
+  const before = f.owner.inspect();
+  const all = [
+    { operation: "deleteWhere", collection: "links", selector: "$[?@.properties.n >= 0]" },
+  ];
+  const failed = f.run(all, "too-many");
+  expect(failed).toMatchObject({
+    status: "failed",
+    problem: { code: "limit-exceeded", limit: "transaction.inducedEvents" },
+  });
+  expect(failed.problem).not.toHaveProperty("operationIndex");
+  expect(f.owner.inspect().resources).toEqual(before.resources);
+  expect(f.owner.inspect().groups).toEqual(before.groups);
+  const passed = f.run([{ ...all[0], selector: "$[?@.properties.n == 0]" }], "exact");
+  expect(passed.status).toBe("completed");
+  expect(results(passed)).toHaveLength(1025);
+  expect(f.group().events).toHaveLength(4096);
+  expect(f.group().events.at(-1)?.ordinal).toBe(4095);
+  expect(f.group().changes).toHaveLength(2048);
+  f.reopen();
+  expect(f.admit(all, "too-many")).toMatchObject({ kind: "existing", receipt: failed });
+}, 30000);
