@@ -18,7 +18,7 @@ import {
   planProfileExecution,
 } from "@bdp/conformance/testing";
 import { expect, it } from "vitest";
-import schema from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import { installedObservationSchema } from "../test-support/installed-body-schema.js";
 import { installedContractsDigest } from "../test-support/installed-contract-identity.js";
 import { createInstalledExactClient } from "../test-support/read-update-exact-client.js";
 import {
@@ -59,12 +59,22 @@ const configModule = (await import(
     history: false;
   };
 };
+type W1Counterfactual =
+  | "patch-array"
+  | "noop-provenance"
+  | "link-pin"
+  | "deleted-revision"
+  | "alias-target"
+  | "resource-header"
+  | "alias-header"
+  | "closed-body";
 async function run(
   manifestValue?: unknown,
   selectedIds?: string[],
   mismatchedPolicy = false,
   corruptNoopResponse = false,
   fixtureValue?: unknown,
+  w1Counterfactual?: W1Counterfactual,
 ) {
   const selection = loadProfileContractSelection("read-update");
   const fixtureSource =
@@ -97,58 +107,33 @@ async function run(
     beads: `${scope}beads/`,
     links: `${scope}links/`,
     types: `${scope}types/`,
+    operations: `${scope}operations/`,
   };
-  const readRoutes = bundle.manifest.scenarios
-    .filter((row) => row.requiredProfile === "read")
-    .flatMap((row) =>
-      (row.actions ?? []).flatMap((action) => {
-        if (action.family !== "http") return [];
-        const base = knownReadBindings[action.target.binding];
-        if (!base) throw Error("Read target binding is not in the fixed fixture");
-        const url = new URL(action.target.path ?? "", base);
-        for (const [key, input] of Object.entries(action.target.query ?? {})) {
-          for (const value of Array.isArray(input) ? input : [input]) {
-            if (typeof value !== "string")
-              throw Error("Read fixture query requires literal strings");
-            url.searchParams.append(key, value);
-          }
+  const readRoutes = bundle.manifest.scenarios.flatMap((row) =>
+    (row.actions ?? []).flatMap((action) => {
+      if (action.family !== "http") return [];
+      const base = knownReadBindings[action.target.binding];
+      if (!base) throw Error("Read target binding is not in the fixed fixture");
+      const url = new URL(action.target.path ?? "", base);
+      for (const [key, input] of Object.entries(action.target.query ?? {})) {
+        for (const value of Array.isArray(input) ? input : [input]) {
+          if (typeof value !== "string") throw Error("Read fixture query requires literal strings");
+          url.searchParams.append(key, value);
         }
-        return [{ method: action.method, url: url.href }];
-      }),
-    );
+      }
+      return [{ method: action.method, url: url.href }];
+    }),
+  );
   const mode: ExactHttpModeOptions = {
     scope,
     profile: "read-update",
     maximumRequestBodyBytes: 65536,
     maximumRequestHeaderBytes: 16384,
     routes: [
-      ...[
-        "",
-        "bdp.json",
-        "operations/",
-        "beads/",
-        "types/",
-        ...[
-          "tracked-item",
-          "work-item",
-          "task",
-          "bug",
-          "feature",
-          "chore",
-          "epic",
-          "decision",
-          "relationship",
-          "dependency",
-          "blocks",
-          "relates",
-          "cites",
-        ].map((name) => `types/${name}`),
-        "beads/?unsupported=1",
-        "beads/?limit=1&limit=2",
-        "links/?selector=%24%5B%3F%40.id%5D&selector=%24%5B%3F%40.type%5D",
-      ].map((suffix) => ({
+      { method: "GET" as const, url: `${scope}operations/` },
+      ...Object.values(bundle.fixture.bindings).map((value) => ({
         method: "GET" as const,
-        url: scope + suffix,
+        url: new URL(value, scope).href,
       })),
       ...readRoutes.filter(
         (route, index) =>
@@ -157,9 +142,16 @@ async function run(
           ) === index,
       ),
       { method: "POST" as const, url: scope },
-      ...["create-bead", "update-bead", "delete-bead", "create-link", "delete-link"].map(
-        (suffix) => ({ method: "POST" as const, url: `${scope}operations/${suffix}` }),
-      ),
+      ...[
+        "create-bead",
+        "update-bead",
+        "delete-bead",
+        "create-link",
+        "update-link",
+        "delete-link",
+        "put-alias",
+        "delete-alias",
+      ].map((suffix) => ({ method: "POST" as const, url: `${scope}operations/${suffix}` })),
     ],
     defaultCredentialRef: "operator",
     credentialHandles: [
@@ -241,6 +233,7 @@ async function run(
   const setupObservations: unknown[] = [];
   const nativeReadObservations: unknown[] = [];
   let currentScenario = "";
+  let counterfactualApplications = 0;
   const target = createRawHttpScenarioTarget(
     async (scenario, _scope, _seed, fixture, signal) => {
       currentScenario = scenario.id;
@@ -317,14 +310,65 @@ async function run(
           corrupted.body.resource.revision = "incorrect-noop-response-revision";
           return corrupted;
         }
+        const selectedKey: Record<W1Counterfactual, string> = {
+          "patch-array": "merge-replace",
+          "noop-provenance": "combined-noop",
+          "link-pin": "create-local-pin",
+          "deleted-revision": "delete-link",
+          "alias-target": "repoint-alias",
+          "resource-header": "update-bead",
+          "alias-header": "put-alias",
+          "closed-body": "create-a",
+        };
+        if (
+          w1Counterfactual &&
+          (execution.input as { idempotencyKey?: string }).idempotencyKey ===
+            selectedKey[w1Counterfactual]
+        ) {
+          // Counterfactual output after actual HTTP and observation capture. Never
+          // mutate the authority or claim these substituted values as wire facts.
+          const corrupted = structuredClone(actual) as {
+            headers: Record<string, string>;
+            body: {
+              resource: {
+                properties: { array: unknown[] };
+                revisionProvenance: { actor: unknown };
+                source: { revision: string };
+              };
+              deleted: { resource: { revision: string } };
+              target: string;
+              unexpected?: boolean;
+            };
+          };
+          counterfactualApplications++;
+          if (w1Counterfactual === "patch-array")
+            corrupted.body.resource.properties.array.reverse();
+          if (w1Counterfactual === "noop-provenance")
+            corrupted.body.resource.revisionProvenance.actor = {
+              id: "writer:corrupted",
+              basis: "writer-supplied",
+            };
+          if (w1Counterfactual === "link-pin")
+            corrupted.body.resource.source.revision = "different opaque pin";
+          if (w1Counterfactual === "deleted-revision")
+            corrupted.body.deleted.resource.revision = "newly-minted-wrong-delete-revision";
+          if (w1Counterfactual === "alias-target") corrupted.body.target = `${scope}beads/w1-a`;
+          if (w1Counterfactual === "resource-header")
+            corrupted.headers.etag = '"incorrect-mutation-etag"';
+          if (w1Counterfactual === "alias-header")
+            corrupted.headers.location = `${scope}alias/w1-locator`;
+          if (w1Counterfactual === "closed-body") corrupted.body.unexpected = true;
+          return corrupted;
+        }
         return actual;
       },
       harness: target.harness,
-      schemaValidator: createJsonSchemaValidator(schema),
+      schemaValidator: createJsonSchemaValidator(installedObservationSchema),
       declaredTargetLabel: "installed-cumulative-read-update-candidate",
     });
     return {
       claimEligible: false,
+      counterfactualApplications,
       sourceCommit,
       configuration: baseline,
       baselineReceipt,
@@ -368,9 +412,9 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
   // Pin the existing runner projection; credential identity is bound separately in configuration.
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "ae2f29b8cfe45a180057e387bfef03aa1f31957be0b32760f5d7217ad81fca13",
+    "700da44d1d4cab0784973a1f011306d778fbebcdf22e4750d205ddaf9941008c",
   );
-  expect(report.uncoveredIds).toHaveLength(112);
+  expect(report.uncoveredIds).toHaveLength(104);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
   expect(report.sessions).toHaveLength(report.plannedIds.length);
   expect(report.observations.length).toBeGreaterThan(30);
@@ -523,4 +567,38 @@ it.each(["properties", "collection", "condition"] as const)(
         .map((row) => row.id),
     ).toEqual([assertion.id]);
   },
+);
+
+it.each([
+  [
+    "patch-array",
+    "read-update.singleton.document-patch-merge-replace",
+    "merge-replace",
+    "properties",
+  ],
+  [
+    "noop-provenance",
+    "read-update.singleton.document-patch-atomicity",
+    "combined-noop",
+    "retained-envelope",
+  ],
+  ["link-pin", "read-update.singleton.create-link", "create-local-pin", "source"],
+  ["deleted-revision", "read-update.singleton.delete-link", "delete-link", "final-revision"],
+  ["alias-target", "read-update.alias.put-repoints", "repoint-alias", "alias-result"],
+  ["resource-header", "read-update.singleton.result-headers", "update-bead", "no-etag"],
+  ["alias-header", "read-update.singleton.result-headers", "put-alias", "no-location"],
+  ["closed-body", "read-update.singleton.document-patch-atomicity", "create-a", "body-schema"],
+] as const)(
+  "detects W1 %s response corruption after actual HTTP",
+  async (control, id, actionId, assertionId) => {
+    const report = await run(undefined, [id], false, false, undefined, control);
+    expect(report.counterfactualApplications).toBe(1);
+    const row = report.result.scenarios.find((row) => row.id === id);
+    expect(row?.state).toBe("fail");
+    const action = row?.actions?.find((action) => action.action.id === actionId);
+    expect(
+      action?.assertions.filter((assertion) => !assertion.passed).map((assertion) => assertion.id),
+    ).toEqual([assertionId]);
+  },
+  30000,
 );

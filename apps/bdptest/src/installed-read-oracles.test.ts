@@ -18,7 +18,7 @@ import {
   loadProfileContractSelection,
 } from "@bdp/conformance/testing";
 import { seedInstalledReadFixture } from "../test-support/installed-read-fixture.js";
-import schema from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import { installedObservationSchema } from "../test-support/installed-body-schema.js";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const entry =
   process.env.BDP_CUMULATIVE_INSTALLED_ENTRY ??
@@ -46,23 +46,33 @@ const cases = [
   ["beads", "missing-open-property"],
   ["beads", "wrong-metadata"],
   ["beads", "wrong-type"],
+  ["beads", "embedded-links"],
   ["types", "unchanged"],
   ["types", "wrong-name"],
   ["types", "wrong-describes"],
+  ["resource", "unchanged"],
+  ["resource", "embedded-links"],
 ] as const;
 
 it.each(cases)(
   "checks actual %s collection response: %s",
   async (collection, mutation) => {
-    const id = collection === "beads" ? "read.collections.beads" : "read.types.inventory";
+    const id =
+      collection === "beads"
+        ? "read.collections.beads"
+        : collection === "types"
+          ? "read.types.inventory"
+          : "read.resource.default-bounded";
+    const suffix = collection === "resource" ? "beads/read-a" : `${collection}/`;
     const dir = mkdtempSync(path.join(tmpdir(), "bdp-read-oracle-"));
     const port = await helpers.availablePort();
     const config = helpers.referenceConfiguration(dir, port, token, scope);
-    const child = await helpers.launchInstalledReference(entry, config);
+    let child: Awaited<ReturnType<typeof helpers.launchInstalledReference>> | undefined;
     let target: ReturnType<typeof createRawHttpScenarioTarget> | undefined;
     let changed = 0;
-    // Forward actual authority bytes; alter only the selected collection response.
-    // Exact response decoding must therefore see these bytes on the actual socket.
+    // Forward authority values; selected JSON responses are reserialized with
+    // recomputed framing. This proves assertion sensitivity over real sockets,
+    // not octet-transparent forwarding of the original authority response.
     const proxy = createServer((request, response) => {
       const upstream = httpRequest(
         {
@@ -80,33 +90,46 @@ it.each(cases)(
             text += chunk;
           });
           received.on("end", () => {
-            if (request.url === `/acme/${collection}/` && received.statusCode === 200) {
-              const body = JSON.parse(text) as {
-                items: {
-                  properties: Record<string, unknown>;
-                  metadata: unknown;
-                  type: string;
-                  name: string;
-                  describes: string;
-                }[];
-              };
-              for (const item of body.items) {
-                if (mutation === "swapped-title")
-                  item.properties.title = item.properties.title === "a" ? "z" : "a";
-                if (mutation === "missing-open-property") delete item.properties.open;
-                if (mutation === "wrong-metadata") item.metadata = { unstored: true };
-                if (mutation === "wrong-type") item.type = `${scope}types/bug`;
-                if (mutation === "wrong-name") item.name = "wrong inventory name";
-                if (mutation === "wrong-describes")
-                  item.describes = item.describes === "bead" ? "link" : "bead";
+            try {
+              if (request.url === `/acme/${suffix}` && received.statusCode === 200) {
+                const body = JSON.parse(text) as {
+                  items: {
+                    properties: Record<string, unknown>;
+                    metadata: unknown;
+                    type: string;
+                    name: string;
+                    describes: string;
+                  }[];
+                };
+                if (mutation === "embedded-links" && collection === "resource")
+                  Object.assign(body, { links: { items: [], next: null } });
+                for (const item of body.items ?? []) {
+                  if (mutation === "embedded-links")
+                    Object.assign(item, { links: { items: [], next: null } });
+                  if (mutation === "swapped-title")
+                    item.properties.title = item.properties.title === "a" ? "z" : "a";
+                  if (mutation === "missing-open-property") delete item.properties.open;
+                  if (mutation === "wrong-metadata") item.metadata = { unstored: true };
+                  if (mutation === "wrong-type") item.type = `${scope}types/bug`;
+                  if (mutation === "wrong-name") item.name = "wrong inventory name";
+                  if (mutation === "wrong-describes")
+                    item.describes = item.describes === "bead" ? "link" : "bead";
+                }
+                text = JSON.stringify(body);
+                changed += 1;
               }
-              text = JSON.stringify(body);
-              changed += 1;
+              const headers = { ...received.headers };
+              delete headers["transfer-encoding"];
+              if (received.statusCode === 204 || received.statusCode === 304)
+                delete headers["content-length"];
+              else headers["content-length"] = String(Buffer.byteLength(text));
+              response.writeHead(received.statusCode ?? 502, headers);
+              response.end(text);
+            } catch {
+              if (!response.headersSent)
+                response.writeHead(502, { "content-type": "application/json" });
+              response.end(JSON.stringify({ error: "counterfactual proxy failed" }));
             }
-            const headers = { ...received.headers, "content-length": Buffer.byteLength(text) };
-            delete headers["transfer-encoding"];
-            response.writeHead(received.statusCode ?? 502, headers);
-            response.end(text);
           });
         },
       );
@@ -115,6 +138,7 @@ it.each(cases)(
       request.pipe(upstream);
     });
     try {
+      child = await helpers.launchInstalledReference(entry, config);
       proxy.listen(0, "127.0.0.1");
       await once(proxy, "listening");
       const address = proxy.address();
@@ -125,7 +149,7 @@ it.each(cases)(
         maximumRequestBodyBytes: 65536,
         maximumRequestHeaderBytes: 16384,
         routes: [
-          ...["", "bdp.json", `${collection}/`].map((suffix) => ({
+          ...["", "bdp.json", suffix].map((suffix) => ({
             method: "GET" as const,
             url: scope + suffix,
           })),
@@ -138,7 +162,7 @@ it.each(cases)(
         credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
         resolveCredentials: () => ({ authorization: `Bearer ${token}` }),
       };
-      if (collection === "beads") {
+      if (collection !== "types") {
         const seed: unknown[] = [];
         await seedInstalledReadFixture(
           bundle.fixture,
@@ -173,7 +197,7 @@ it.each(cases)(
         execute,
         exactExecution: { execute, configuration: target.exactConfiguration },
         harness: target.harness,
-        schemaValidator: createJsonSchemaValidator(schema),
+        schemaValidator: createJsonSchemaValidator(installedObservationSchema),
       });
       expect(changed).toBe(1);
       expect(result.scenarios[0]?.state).toBe("pass");
@@ -187,7 +211,15 @@ it.each(cases)(
       expect(failures).toEqual(
         mutation === "unchanged"
           ? []
-          : [collection === "beads" ? "fixture-bead-records" : "fixture-type-summaries"],
+          : mutation === "embedded-links" && collection === "beads"
+            ? ["no-embedded-links-0", "no-embedded-links-1"]
+            : [
+                collection === "beads"
+                  ? "fixture-bead-records"
+                  : collection === "types"
+                    ? "fixture-type-summaries"
+                    : "no-embedded-links",
+              ],
       );
       expect(result.claimEligible).toBe(false);
     } finally {
@@ -197,7 +229,7 @@ it.each(cases)(
           proxy.close(() => resolve());
           proxy.closeAllConnections();
         });
-      await child.close();
+      await child?.close();
       rmSync(dir, { recursive: true, force: true });
     }
   },

@@ -14,7 +14,7 @@ The manifest `packages/conformance/matrices/read-update-v1.json` is version 2 an
 | `read-update.singleton.idempotent-retry` | Retained retry preserves allocated identity and complete disposition, independent GET | Incomplete: in-flight/expired and sequence comparison remain |
 | `read-update.singleton.idempotency-conflict` | Changed semantic input refused, unchanged independent GET, original disposition still retained | Yes |
 
-A passing authored probe is not a completed required row when the inventory names an unobserved branch. Seventeen whole-contract rows are bounded implementation observations, not an admission decision. Of 129 required IDs, 112 remain uncovered; twenty-four rows have bounded observations.
+A passing authored probe is not a completed required row when the inventory names an unobserved branch. Twenty-five whole-contract rows are bounded implementation observations, not an admission decision. Of 129 required IDs, 104 remain uncovered; thirty-three rows have bounded observations.
 
 Six additional inherited Read cases observe Scope service-desc, canonical navigation, Type inventory, all thirteen hosted closed Type descriptors, invalid/repeated query rejection and unsupported Read-endpoint method handling. They reuse existing Read request/assertion forms with fixture oracles specific to the installed configuration. Each discovery request validates the RU discovery schema locally; the retired Read discovery row is absent and no forward prerequisite is introduced. The original Read manifest/evidence remain unchanged. These six cases use finite exact routes and require no graph seeding.
 
@@ -37,3 +37,28 @@ The shared JSON-pointer assertion now supports exclusive `equalsBinding` against
 Build first, then run `apps/bdptest/src/read-update-matrix.test.ts` with pinned Node24.16.0 and pnpm11.20.0. By default it runs emitted reference factory bytes. To run packed/installed bytes, pack the server/protocol packages, install their tarballs into an isolated prefix with scripts disabled, then set `BDP_CUMULATIVE_INSTALLED_ENTRY` to that installation's `@bdp/server/dist/installed-reference-process.js`. Optional `BDP_CUMULATIVE_REPORT_PATH` saves the private progress record. Tests verify that the record contains no fixture credential bytes.
 
 Next, add the remaining inherited Read and companion bindings and the remaining RU contracts against this same configured factory. Preserve the closed Read schema in its own Read matrix; any inherited RU discovery prerequisite must bind the RU replacement and satisfy execution ordering. Remaining ownership, aliases, sequence admission/concurrency, authorization-view/retention and error contracts are not inferred from these singleton observations. Transactional execution remains separate.
+
+
+## W1 baseline write observations
+
+The same installed configuration now has nine additional authored rows. Eight are assessed complete for their cited clauses; alias deletion remains incomplete for fragment handling. The exact reviewed ID list and uncovered inventory are machine-pinned. A passing row alone does not award whole-contract credit.
+
+| Required row | Row-local evidence and boundary |
+| --- | --- |
+| document-patch-merge-replace | Both document-relative patches replace object members, insert/append arrays, preserve untouched sentinels, replace roots and clear either object. Nonexistent replace/remove paths fail without changing the independently read record. |
+| document-patch-atomicity | Both partial-failure directions retain the full preceding record. A combined effectful update establishes independently checked actor/agent/message context before capture. Reordered object keys with unchanged arrays and different supplied actor/agent/message form a semantic no-op; its actual returned envelope and independent GET must equal the saved version. |
+| create-link | Relative endpoints resolve under the non-root Scope; a missing local endpoint leaves no Link. Deliberately noncurrent local and external URN pins are echoed unchanged with complete postimage checks and independent GET. Task endpoints are unowned. |
+| delete-link | An effectfully updated Link is independently read before deletion. A stale guard fails; successful deletion reports its final live revision and no postimage. Both Link views become404 and endpoint records remain unchanged. |
+| result-headers | Actual normalized response headers omit ETag/Location for all eight singleton targets, including aliases and Resource/alias no-ops. Alias GET/HEAD redirects separately require Location. |
+| alias.put-creates | Closed exact created result and canonical target, followed by actual bodyless GET/HEAD307. |
+| alias.put-repoints | Different keys distinguish repoint and same-target put from replay; both report updated, intermediate redirects are checked, and a deleted path is reused. |
+| alias.delete-releases | Closed deletion result, reuse, unknown and live-query404 are observed. Fragment-bearing raw targets remain unobserved. The no-aliases antecedent is inapplicable because Read+Update requires aliases. This row remains incomplete. |
+| alias.no-version-minted | Both target records remain exactly equal through create/repoint/same-target/delete/reuse. Complete Bead and Link collections (`next:null`) exclude alias membership; alias results carry no revision or representation. |
+
+The existing update-bead row additionally observes metadata updates but remains incomplete until effective-Type-schema rejection is exercised. Owned-Link, schema-configuration, authorization and sequence obligations are not inferred from these unowned baseline operations.
+
+Mutation client observations wrap actual status, headers and body. The source-private `apps/bdptest/test-support/installed-body-schema.ts` clones the canonical schema unchanged and adds only harness definitions that require `body` and reference the existing normative mutation/alias/record/problem definitions. These harness refs validate complete bodies independently of static semantic and afterstate oracles. The wrapper source is bound by the reviewed harness source commit, not claimed as part of the target's installed payload identity. Neither normative schemas nor the shared runner/public package API change.
+
+Negative controls substitute values only after actual client HTTP observation: array order, retained provenance, pins, deleted revision, alias target, mutation ETag/Location and an extra closed-body field. They prove assertion sensitivity and are never recorded as authority wire behavior. The Read counterfactual proxy separately sends altered response values over a real socket after reserializing headers/body and recomputing framing; it is not an octet-transparent forwarder. Both collection items and the point Bead reject an embedded links plane, with closed record schemas and independent identities retained.
+
+Scope service-desc now dereferences its captured URL within the same row. Semantic and raw Read paths use the exact mode's default credential; real anonymous/operator wire controls pin that agreement. HTTP setup compares properties/metadata by deep JSON value equality, accepting reordered keys but rejecting changed values. Read routes derive from authored actions, with only required client observation/mutation paths added explicitly.
