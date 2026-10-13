@@ -8,6 +8,7 @@ import {
   createCumulativeTransactionalArtifactBundle,
 } from "./artifact-bundle.js";
 import { canonicalJson } from "./canonical-json.js";
+import { snapshotExactHttpMode } from "./http-executor.js";
 import { loadProfileContractSelection } from "./profile-contract-selection.js";
 import {
   bindServedProfileConfiguration,
@@ -96,7 +97,8 @@ it("binds the canonical cumulative TX selection and exact source digests without
     expect(row.wholeContract).toBe(false);
     expect(row.reason).toContain("No target observed");
     const plan = actual.manifest.scenarios.find((r) => r.id === row.id);
-    expect(row.bindings).toEqual([
+    expect(Array.isArray(plan?.actions)).toBe(true);
+    expect(row.bindings).toStrictEqual([
       {
         scenario: row.id,
         assertions: plan?.actions?.flatMap((a) => a.assertions.map((x) => `${a.id}:${x.id}`)),
@@ -175,6 +177,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   });
   expect(plan.claimEligible).toBe(false);
   expect(plan.carrierBlocker).toBeUndefined();
+  expect(plan.transportAdmission).toBe("pending");
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
@@ -310,19 +313,38 @@ it("private runner refuses lookalikes, RU bundles, wrong profiles and absent exa
       ...input,
       exactExecution: invalidExact as unknown as NonNullable<ScenarioRunOptions["exactExecution"]>,
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow("Exact HTTP execution binding is invalid");
+  const mode = {
+    ...invalidExact.configuration,
+    profile: "read-update" as const,
+    routes: [{ method: "POST" as const, url: fixture.bindings.batch }],
+    resolveCredentials: () => ({}),
+  };
+  expect(snapshotExactHttpMode(mode).profile).toBe("read-update");
+  expect(() =>
+    snapshotExactHttpMode({ ...mode, profile: "transactional" } as unknown as Parameters<
+      typeof snapshotExactHttpMode
+    >[0]),
+  ).toThrow("exact HTTP request configuration is invalid");
   expect(input.harness.prepare).not.toHaveBeenCalled();
   expect(input.execute).not.toHaveBeenCalled();
 });
 
-it("leaves all private symbols and TX artifacts out of public package admission", () => {
-  const root = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+it("leaves all private symbols and TX artifacts out of public package admission", async () => {
+  const root = await import("./index.js");
   for (const symbol of [
     "createCumulativeTransactionalArtifactBundle",
     "runCumulativeTransactionalMatrix",
     "isCumulativeTransactionalArtifactBundle",
   ])
-    expect(root).not.toContain(symbol);
+    expect(Object.keys(root)).not.toContain(symbol);
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   expect(pkg.files).not.toContain("test-support");
+  expect(Object.keys(pkg.exports)).toEqual([
+    ".",
+    "./catalog/read-v1.json",
+    "./fixtures/read-reference-v1.json",
+    "./fixtures/read-bdpbd-v1.json",
+    "./matrices/read-v1.json",
+  ]);
 });

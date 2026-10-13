@@ -198,6 +198,7 @@ export interface ProfileExecutionPlan {
   readonly catalogDigests: Readonly<Record<string, string>>;
   readonly manifestDigest?: string;
   readonly carrierBlocker?: string;
+  readonly transportAdmission?: "pending";
   readonly retiredIds: readonly string[];
   /** Every selected obligation remains here, including absent manifest rows. */
   readonly requirements: readonly PlannedProfileRequirement[];
@@ -360,6 +361,7 @@ export function planProfileExecution(
     catalogDigests: selection.catalogDigests,
     ...(source === undefined ? {} : { manifestDigest: digest(source.bytes) }),
     ...(carrierBlocker === undefined ? {} : { carrierBlocker }),
+    ...(bound.profile === "transactional" ? { transportAdmission: "pending" as const } : {}),
     retiredIds: selection.retiredIds,
     requirements,
     unobservedIds: requirements.map(({ id }) => id),
