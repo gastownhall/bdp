@@ -240,6 +240,18 @@ async function installPackedWorkspace() {
       "transaction-store.d.ts.map",
       "transaction-store.js",
       "transaction-store.js.map",
+      "transaction-http.d.ts",
+      "transaction-http.d.ts.map",
+      "transaction-http.js",
+      "transaction-http.js.map",
+      "transaction-runtime.d.ts",
+      "transaction-runtime.d.ts.map",
+      "transaction-runtime.js",
+      "transaction-runtime.js.map",
+      "transaction-service.d.ts",
+      "transaction-service.d.ts.map",
+      "transaction-service.js",
+      "transaction-service.js.map",
       "transaction-submission.d.ts",
       "transaction-submission.d.ts.map",
       "transaction-submission.js",
@@ -346,6 +358,12 @@ async function installPackedWorkspace() {
     // The public root must preserve its original pagination surface even though
     // the same private engine also supports Transactional source context.
     const publicServer = await import(pathToFileURL(consumer.resolve("@bdp/server")).href);
+    if (
+      "createTransactionService" in publicServer ||
+      "createTransactionHttpHandler" in publicServer ||
+      "startTransactionRuntime" in publicServer
+    )
+      throw new Error("packed root exposes private transaction service");
     if ("createContextualReadPagination" in publicServer)
       throw new Error("packed root exposes private contextual pagination factory");
     const pagination = publicServer.createReadPagination({

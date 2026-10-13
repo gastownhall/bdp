@@ -495,3 +495,126 @@ context accessor. The private helper is absent from root exports and remains
 behind the package's deep-import boundary. Source public declarations, an actual
 Node package-root import and installed-package smoke tests cover this separation;
 internal context/retention tests continue to exercise the same engine.
+
+## Private Transactional service and receipt observations
+
+The source-private `transaction-service` composes one existing Transactional owner
+with its Read plane, direct submission boundary and sequence stepper. Construction
+requires `ownerLifetime: "service"`: successful construction transfers shutdown
+responsibility, and callers stop using the raw owner. Failed construction leaves
+ownership with the caller. Closing stops new work, drains accepted work, releases
+Read cursors and closes that same database. A detached response does not cancel
+admitted execution. Scheduler failure retracts only the affected sequence's
+unexecuted reservations; committed members and another attempt's reservations
+remain. Failed cleanup fences service entry and retains original/cleanup causes.
+
+The owner now offers an atomic receipt observation. Principal-filtered lookup,
+retention cleanup, fixed all-visible projection, detached immutable receipt bytes
+and current epoch/view/position share one guarded SQLite entry. Direct delivery
+and later receipt reads use that observation, never an earlier receipt object
+paired with a later `inspect()`/`withRead()` position. The body's original execution
+view/positions/postimages remain unchanged when the serving head advances or a
+Resource is deleted. Trusted transport identity supplies receipt access; writer
+attribution does not. Unknown, foreign, forgotten and retracted receipts remain
+uniformly absent. Current policy is still the fixed all-visible development view;
+this does not qualify changing grants, withheld/erased projection or owned Types.
+
+This bounded service inlines all supported results with `next: null`. The spec's
+Mutation Receipt responses section applies advertised `page.maximumItems` to
+receipt results as well as pages. Accordingly, this interim service refuses a
+configuration below 32 entries, the existing private batch limit. That restriction
+is a supported-configuration limit, not a protocol minimum. Sets and durable
+receipt pages remain unimplemented. No maximum representation-byte limit or
+complete Transactional directory/profile is advertised.
+
+Tests cover shared singleton/batch/sequence key identity, canonical afterstate,
+receipt immutability/current context, principal nondisclosure, retention and exact
+retry, finite unresolved comparison, drain after detached delivery, scheduler
+failures, and abrupt process exits before and after commit. Process exits and SQL
+fault injections are not disk/power-loss qualification. The receipt reader inherits
+the owner's reentrancy and sticky fencing checks. HTTP routing, raw sequence
+receiving order, minimum-position barriers/conditional fields, required Snapshot
+and changefeed paths, receipt pages/erasure, installed contracts and public evidence
+remain subsequent slices. No public API, storage format or normative change is
+part of this service layer.
+
+### Private actual HTTP service and atomic receipt delivery
+
+A source-private loopback runtime now composes one Transactional owner, Read
+plane and service. It serves the ten implemented operation targets, canonical
+Resource/collection/alias reads, and receipt GET/HEAD. Its credentials supply
+principal and mutation permission independently of carried actor attribution.
+A configured canonical Scope can stay fixed across listener addresses; receipt
+identities and navigation are never rewritten. Omitting this private fixture
+setting retains the disposable same-port behavior only.
+
+Direct admission retains the established bounds/syntax/auth/key/limits/Accept
+order. Exact pending retries return 202 with the receipt's own Location;
+original accepted submissions execute to terminal before returning. POST
+conditions do not suppress execution or its receipt. Sequence uses one runner,
+independent member commits and canonical dependencies; current response context
+is observed after that runner completes. Closing the listener prevents new work
+and drains admitted work even after delivery disconnect, before closing the
+service-owned database. A supplied test scheduler must eventually deliver each
+uncancelled turn; no new protocol timeout is implied.
+
+Executed and replayed direct receipts are projected with current context inside
+their original authoritative execution/admission entry. Delivery does not make a
+second retention-clock observation or scan receipts by ID. Receipt GET continues
+to apply retention in its own entry; its current ID lookup is still a linear
+principal-scoped scan. Serving asserts current position covers required/effect
+positions. Prior-epoch stored receipts are hidden; the test injects stored facts,
+not a production epoch-rotation capability. Fixed all-visible projection does
+not implement variable grants or erasure.
+
+The unchanged 32-operation development bound is shared by preparation, owner,
+service and HTTP. Available completed receipts must fit the configured inline
+page bound and have next:null. No set expansion or durable receipt paging was
+added. The minimum configured receipt page bound is an interim implementation
+limit, not a protocol-wide minimum.
+
+This increment does not advertise Transactional discovery or a profile. Valid
+unsupported set/depth/Resource-alias-sequence requests fail before key capture or
+effects with a bodyless internal 500, labeled as a development gap. Minimum
+context controls likewise cannot yield success or a conditional shortcut; their
+bodyless internal failure is explicitly **not** a normative catch-up outcome.
+Full minimum-position/epoch/view/expiry ordering remains required next work.
+Discovery, Directory, snapshot/changes/events, set operations, installed
+contracts, Resource-alias sequence timing, variable authorization/erasure,
+receipt pagination and complete executable qualification remain open. Public
+exports, installed profile admission, schemas and pinned Read evidence are
+unchanged.
+
+Verification includes real loopback precedence and receipt conditions, finite
+comparison 503, no key capture for unsupported valid requests, listener
+close/reopen, a child-process SIGKILL/restart after a completed response, client
+disconnect with admitted work, and an injected post-commit failure followed by
+sticky refusal/reopen. These are bounded executable witnesses, not disk or
+power-loss qualification. External exact-command results accompany the frozen
+candidate.
+
+#### HTTP review follow-up boundaries
+
+Unsupported minimum-context fields on commands also fail before any key binding
+or effect; no command barrier semantics are inferred. Operation routing accepts
+exact canonical target URLs. Unimplemented set/unknown targets, encoded alternate
+spellings and query-bearing command URLs are not registered targets and return
+404, rather than advertising a Read method table. Sequence depth failures use the
+same development-composition marker as batch depth failures; the alias marker is
+reserved for the actual Resource-alias sequence restriction.
+
+The private receiving maximumOperations setting controls transaction.operations
+only; sequence.operations retains its separate 32-member bound. Tests exercise
+both limits together. This is explicit private configuration, not new discovery.
+
+Runtime close aborts in-flight socket delivery, including connected clients, and
+then drains accepted durable work. Clients recover outcomes by key replay after
+reopen; “drain” does not promise completion of response delivery. Sequence response
+context still comes from the post-runner owner observation. A fault in that entry
+can lose delivery after member commits; replay recovers the original member
+outcomes. Moving that observation into the final turn remains separate work.
+
+HTTP internal faults are deliberately bodyless and disclose no causes or stored
+identifiers. The owner/service preserve causes, but this private HTTP fixture has
+not yet added a bounded internal diagnostic channel for those caught exceptions.
+That diagnosability gap remains open; it is not a claim that causes reach clients.
