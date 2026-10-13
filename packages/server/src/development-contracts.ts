@@ -3,7 +3,13 @@
  */
 import { createHash } from "node:crypto";
 import { isProxy } from "node:util/types";
-import { stringifyJsonValue, type PropertyValidator, type TypeDescriptor } from "@bdp/protocol";
+import {
+  stringifyJsonValue,
+  assertCanonicalPathSegments,
+  type MaximumEndpointMultiplicityPolicy,
+  type PropertyValidator,
+  type TypeDescriptor,
+} from "@bdp/protocol";
 import {
   ingestContractArtifacts,
   type ContractArtifactBundleInput,
@@ -90,9 +96,13 @@ export function compileDevelopmentContracts(
         throw new TypeError(`administrative schema refused: ${compiled.reason}`);
       validateProperties = (properties, emitter) => {
         const outcome = compiled.evaluateUtf8(Buffer.from(stringifyJsonValue(properties)));
-        if (outcome.kind !== "evaluated" || !outcome.diagnosticsComplete)
+        if (outcome.kind !== "evaluated")
           throw new Error("installed schema evaluation did not complete");
-        if (outcome.valid) return { valid: true };
+        if (outcome.valid) {
+          if (!outcome.diagnosticsComplete)
+            throw new Error("installed schema evaluation did not complete");
+          return { valid: true };
+        }
         if (!outcome.diagnostics.length) throw new Error("invalid schema result lacks diagnostics");
         for (const diagnostic of outcome.diagnostics) {
           if (
@@ -102,6 +112,10 @@ export function compileDevelopmentContracts(
             throw new Error("installed diagnostic metadata exceeds qualified bound");
           if (!emitter.emit(diagnostic)) return { valid: false, diagnosticsComplete: false };
         }
+        // A confirmed prefix can satisfy a tighter receiver bound. Only claim
+        // completeness when the evaluator actually reached its end.
+        if (!outcome.diagnosticsComplete)
+          throw new Error("installed schema evaluation did not complete");
         return { valid: false, diagnosticsComplete: true };
       };
     }
@@ -111,7 +125,16 @@ export function compileDevelopmentContracts(
     );
   }
   const value: DevelopmentContracts = Object.freeze({
-    identity: `development-schema5-${captured.sha256}`,
+    identity: `development-schema5-${createHash("sha256")
+      .update(
+        stringifyJsonValue({
+          artifacts: captured.sha256,
+          artifactLimits: captured.receipt.limits,
+          graphLimits: SCHEMA_GRAPH_CEILINGS,
+          evaluatorLimits: EVALUATOR_CEILINGS,
+        }),
+      )
+      .digest("hex")}`,
     descriptors: captured.descriptors,
     types: Object.freeze(types),
     registry: Object.freeze({
@@ -154,8 +177,9 @@ function access(value: DevelopmentAccess): DevelopmentAccessSnapshot {
     throw new TypeError("invalid access flags");
   const ids = (v: unknown): readonly string[] => {
     const values = administrativeArray(v, 1000).map((id) => {
-      if (typeof id !== "string" || !/^(beads|links)\/[A-Za-z0-9_-]+$/.test(id))
+      if (typeof id !== "string" || (!id.startsWith("beads/") && !id.startsWith("links/")))
         throw new TypeError("invalid access resource identity");
+      assertCanonicalPathSegments(id, "access resource identity");
       return id;
     });
     return Object.freeze([...new Set(values)].sort());
@@ -201,4 +225,34 @@ export function createDevelopmentAccessPolicy(
   });
   policies.add(policy);
   return Object.freeze({ policy, replace });
+}
+
+/** Canonical semantic set shared by persisted installation and Read/write policy. */
+export function captureDevelopmentAggregatePolicy(
+  input: unknown,
+  descriptors: readonly TypeDescriptor[],
+): readonly MaximumEndpointMultiplicityPolicy[] {
+  const entries = administrativeArray(input, 1000).map((item) => {
+    const value = administrativeData(item, ["endpoint", "linkConformsTo", "max"]);
+    if (
+      (value.endpoint !== "source" && value.endpoint !== "target") ||
+      typeof value.linkConformsTo !== "string" ||
+      !descriptors.some((d) => d.id === value.linkConformsTo && d.describes === "link") ||
+      typeof value.max !== "number" ||
+      !Number.isSafeInteger(value.max) ||
+      value.max < 1
+    )
+      throw new TypeError("invalid installed aggregate policy");
+    return Object.freeze({
+      endpoint: value.endpoint,
+      linkConformsTo: value.linkConformsTo,
+      max: value.max,
+    }) as MaximumEndpointMultiplicityPolicy;
+  });
+  const canonical = new Map(entries.map((entry) => [stringifyJsonValue(entry), entry]));
+  return Object.freeze(
+    [...canonical.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([, entry]) => entry),
+  );
 }

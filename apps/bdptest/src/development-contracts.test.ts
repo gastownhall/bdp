@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -6,6 +6,7 @@ import {
   parseReadUpdateDiscovery,
   parseReadUpdateOperationDirectory,
   parseCanonicalHttpUrl,
+  type MaximumEndpointMultiplicityPolicy,
 } from "@bdp/protocol";
 import { CONTRACT_ARTIFACT_CEILINGS } from "../../../packages/server/src/installed-contract-artifact.js";
 import type { DevelopmentAccess } from "../../../packages/server/src/development-contracts.js";
@@ -75,8 +76,12 @@ function bundle() {
     ],
   };
 }
-async function fixture() {
-  const input = bundle();
+async function fixture(
+  input = bundle(),
+  aggregate: readonly MaximumEndpointMultiplicityPolicy[] = [
+    { linkConformsTo: parseCanonicalHttpUrl(edge), endpoint: "target", max: 1 },
+  ],
+) {
   const installed = contracts.compileDevelopmentContracts(input);
   const access = contracts.createDevelopmentAccessPolicy({
     alice: allow,
@@ -86,9 +91,7 @@ async function fixture() {
     configuration: {
       contracts: installed,
       access: access.policy,
-      maximumEndpointMultiplicity: [
-        { linkConformsTo: parseCanonicalHttpUrl(edge), endpoint: "target" as const, max: 1 },
-      ],
+      maximumEndpointMultiplicity: aggregate,
     },
     credentials: [
       { token: alice, principal: "alice" },
@@ -463,7 +466,7 @@ it("requires write permission on an owned Link's source and preserves state on r
   expect(changed.value.sourceRevision).not.toBe(before.revision);
 });
 
-it("refuses incomplete guarded evaluation before emitting any standardized Type diagnostics", () => {
+it("refuses to claim complete diagnostics when the receiver accepts the entire truncated compiler prefix", () => {
   const input = bundle();
   input.schemas[0] = artifact(schema, {
     type: "object",
@@ -486,5 +489,227 @@ it("refuses incomplete guarded evaluation before emitting any standardized Type 
       },
     ),
   ).toThrow("did not complete");
-  expect(emitted).toBe(0);
+  expect(emitted).toBe(1024);
+});
+
+it("emits a receiver-bounded 422 from a truncated compiler prefix, retains it and accepts a corrected fresh key", async () => {
+  const input = bundle();
+  input.schemas[0] = artifact(schema, {
+    type: "object",
+    allOf: Array.from({ length: 1025 }, (_, i) => ({ required: [`p${i}`] })),
+  });
+  const f = await fixture(input);
+  const invalid = { id: "beads/truncated", type: base, properties: {} };
+  const failure = await f.post("createBead", invalid, "truncated");
+  expect(failure.status).toBe(422);
+  expect(failure.value.code).toBe("validation-failed");
+  expect(failure.value.diagnostics).toHaveLength(32);
+  expect(failure.value.diagnosticsTruncated).toBe(true);
+  expect((await f.wire("beads/truncated")).status).toBe(404);
+  expect((await f.post("createBead", invalid, "truncated")).value).toEqual(failure.value);
+  const corrected = {
+    ...invalid,
+    properties: Object.fromEntries(Array.from({ length: 1025 }, (_, i) => [`p${i}`, true])),
+  };
+  expect((await f.post("createBead", corrected, "truncated")).value.code).toBe(
+    "idempotency-conflict",
+  );
+  const created = await f.post("createBead", corrected, "corrected");
+  expect(created.status).toBe(200);
+  expect((await f.wire("beads/truncated")).value).toEqual(created.value.resource);
+});
+
+it("rejects invalid aggregate and missing principal configuration before provisioning", async () => {
+  const f = await fixture();
+  for (const variant of ["aggregate", "principal"]) {
+    const root = mkdtempSync(path.join(tmpdir(), "bdp-config-refusal-"));
+    dirs.push(root);
+    const directory = path.join(root, "store");
+    const deployment =
+      variant === "aggregate"
+        ? {
+            ...f.deployment,
+            configuration: {
+              ...f.deployment.configuration,
+              maximumEndpointMultiplicity: [
+                {
+                  endpoint: "target" as const,
+                  linkConformsTo: parseCanonicalHttpUrl(edge),
+                  max: 0,
+                },
+              ],
+            },
+          }
+        : { ...f.deployment, credentials: [{ token: alice, principal: "carol" }] };
+    await expect(
+      startPrivateRuntime(
+        { ...f.options, directory },
+        undefined,
+        undefined,
+        canonicalDevelopmentComposition,
+        deployment,
+      ),
+    ).rejects.toThrow();
+    expect(existsSync(path.join(directory, "reference.sqlite"))).toBe(false);
+    const valid = await startPrivateRuntime(
+      { ...f.options, directory },
+      undefined,
+      undefined,
+      canonicalDevelopmentComposition,
+      f.deployment,
+    );
+    servers.push(valid);
+    await valid.close();
+  }
+});
+
+it("reopens after aggregate reordering and exact duplicates, and binds all compiler input limits", async () => {
+  const target = {
+    endpoint: "target" as const,
+    linkConformsTo: parseCanonicalHttpUrl(edge),
+    max: 1,
+  };
+  const source = { ...target, endpoint: "source" as const, max: 2 };
+  const f = await fixture(bundle(), [target, source]);
+  const a = await f.bead("a");
+  const port = Number(new URL(f.server.scope).port);
+  await f.server.close();
+  const reopened = await startPrivateRuntime(
+    { ...f.options, port, create: false },
+    undefined,
+    undefined,
+    canonicalDevelopmentComposition,
+    {
+      ...f.deployment,
+      configuration: {
+        ...f.deployment.configuration,
+        maximumEndpointMultiplicity: [source, target, source],
+      },
+    },
+  );
+  servers.push(reopened);
+  expect((await f.wire(a.id)).value).toEqual(a);
+  const input = bundle();
+  expect(
+    contracts.compileDevelopmentContracts({
+      ...input,
+      limits: { ...input.limits, descriptors: 128 },
+    }).identity,
+  ).not.toBe(contracts.compileDevelopmentContracts(input).identity);
+});
+
+it("supports actual canonical nested/dotted/encoded IDs in hidden and read-only policy", async () => {
+  const f = await fixture();
+  for (const id of ["beads/team/a.b", "beads/a%20b"]) {
+    const created = await f.post(
+      "createBead",
+      { id, type: owner, properties: { n: 1 } },
+      `create_${id.length}`,
+    );
+    expect(created.status).toBe(200);
+    f.access.replace("alice", { ...allow, readOnly: [id] });
+    expect(
+      (
+        await f.post(
+          "updateBead",
+          { bead: id, metadataChange: [{ op: "add", path: "/x", value: true }] },
+          `denied_${id.length}`,
+        )
+      ).value.code,
+    ).toBe("forbidden");
+    f.access.replace("alice", { ...allow, hidden: [id] });
+    expect((await f.wire(id)).status).toBe(404);
+    f.access.replace("alice", allow);
+    expect((await f.wire(id)).value).toEqual(created.value.resource);
+  }
+  expect(() => f.access.replace("alice", { ...allow, hidden: ["beads/a/../b"] })).toThrow();
+});
+
+it("keeps an actual evaluator work refusal local and permits correction using the same unclaimed key", async () => {
+  const input = bundle();
+  input.schemas[0] = artifact(schema, {
+    type: "object",
+    properties: { values: { type: "array", uniqueItems: true } },
+  });
+  const properties = { values: Array.from({ length: 4000 }, (_, i) => i) };
+  const compiler = (await import(
+    new URL("../../../packages/server/dist/installed-schema-evaluator.js", import.meta.url).href
+  )) as typeof import("../../../packages/server/src/installed-schema-evaluator.js");
+  const shape = (await import(
+    new URL("../../../packages/server/dist/installed-schema-shape.js", import.meta.url).href
+  )) as typeof import("../../../packages/server/src/installed-schema-shape.js");
+  const compiled = compiler.compilePrivateSchemaEvaluator({
+    bundle: input,
+    entry: { kind: "descriptor", typeId: base },
+    graphLimits: shape.SCHEMA_GRAPH_CEILINGS,
+    limits: compiler.EVALUATOR_CEILINGS,
+  });
+  if (compiled.kind !== "compiled") throw Error("fixture failed to compile");
+  expect(compiled.evaluateUtf8(Buffer.from(JSON.stringify(properties)))).toMatchObject({
+    kind: "refused",
+    phase: "instance",
+    reason: "limit-work",
+  });
+  const f = await fixture(input);
+  const failed = await f.post("createBead", { id: "beads/work", type: base, properties }, "work");
+  expect(failed.status).toBe(500);
+  expect(failed.text).toBe("");
+  expect((await f.wire("beads/work")).status).toBe(404);
+  const corrected = await f.post(
+    "createBead",
+    { id: "beads/work", type: base, properties: { values: [1, 2] } },
+    "work",
+  );
+  expect(corrected.status).toBe(200);
+  expect((await f.wire("beads/work")).value).toEqual(corrected.value.resource);
+});
+
+it("configured authorities expose only explicit principal facets and duplicate credential principals share one route", async () => {
+  const f = await fixture();
+  const module = (await import(
+    new URL("../../../packages/server/dist/development-authority.js", import.meta.url).href
+  )) as typeof import("../../../packages/server/src/development-authority.js");
+  const dir = mkdtempSync(path.join(tmpdir(), "bdp-explicit-principal-"));
+  dirs.push(dir);
+  const authority = await module.openDevelopmentAuthority({
+    scope: "https://explicit.invalid/",
+    directory: dir,
+    create: true,
+    configuration: f.deployment.configuration,
+  });
+  try {
+    expect(authority).not.toHaveProperty("mutate");
+    expect(authority).not.toHaveProperty("discover");
+    expect((await authority.forPrincipal({ id: "alice" }).discover()).kind).toBe("discovery");
+  } finally {
+    await authority.close();
+  }
+  await f.server.close();
+  let constructed = 0;
+  const composition = {
+    ...canonicalDevelopmentComposition,
+    createReadRoute(...args: Parameters<typeof canonicalDevelopmentComposition.createReadRoute>) {
+      constructed++;
+      return canonicalDevelopmentComposition.createReadRoute(...args);
+    },
+  };
+  const second = await startPrivateRuntime(
+    { ...f.options, create: false, port: Number(new URL(f.server.scope).port) },
+    undefined,
+    undefined,
+    composition,
+    {
+      ...f.deployment,
+      credentials: [
+        ...f.deployment.credentials,
+        { token: "alternate_alice_credential_0123456789012345", principal: "alice" },
+      ],
+    },
+  );
+  servers.push(second);
+  expect(constructed).toBe(2);
+  expect(
+    (await f.wire("", "GET", undefined, undefined, "alternate_alice_credential_0123456789012345"))
+      .status,
+  ).toBe(204);
 });

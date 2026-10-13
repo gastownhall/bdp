@@ -19,7 +19,13 @@ import {
 import { applyReadHttpSemantics, resourceRevisionEtag, acceptsJson } from "./read-http.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
 import type { HttpResponse, HttpHandler } from "./index.js";
-import { administrativeArray, administrativeData } from "./development-contracts.js";
+import {
+  administrativeArray,
+  administrativeData,
+  assertDevelopmentContracts,
+  assertDevelopmentAccessPolicy,
+  captureDevelopmentAggregatePolicy,
+} from "./development-contracts.js";
 import type { DevelopmentAuthorityConfiguration } from "./development-authority.js";
 import { DEVELOPMENT_LIMITS, openDevelopmentAuthority } from "./development-authority.js";
 import type { LifecycleScheduler } from "./sequence-executor.js";
@@ -48,7 +54,7 @@ export interface DevelopmentHttpComposition {
   readonly scopePath: string;
   createReadRoute(
     authority: Pick<
-      Awaited<ReturnType<typeof openDevelopmentAuthority>>,
+      ReturnType<Awaited<ReturnType<typeof openDevelopmentAuthority>>["forPrincipal"]>,
       "scope" | "limits" | "discover" | "resolveAlias" | "perform"
     >,
     directory: ReadUpdateOperationDirectory,
@@ -258,6 +264,34 @@ export async function startDevelopmentReferenceRuntime(
     new Set(credentials.map((c) => c.credential.toString())).size !== credentials.length
   )
     throw new TypeError("unique trusted credentials required");
+  const configuredAuthority =
+    configuredDeployment === undefined
+      ? undefined
+      : (administrativeData(configuredDeployment.configuration, [
+          "contracts",
+          "access",
+          "maximumEndpointMultiplicity",
+        ]) as unknown as DevelopmentAuthorityConfiguration);
+  if (configuredAuthority !== undefined) {
+    assertDevelopmentContracts(configuredAuthority.contracts);
+    assertDevelopmentAccessPolicy(configuredAuthority.access);
+    for (const { principal } of credentials) configuredAuthority.access.capture(principal);
+  }
+  const authorityConfiguration =
+    configuredAuthority === undefined
+      ? undefined
+      : Object.freeze({
+          contracts: configuredAuthority.contracts,
+          access: configuredAuthority.access,
+          maximumEndpointMultiplicity: captureDevelopmentAggregatePolicy(
+            configuredAuthority.maximumEndpointMultiplicity,
+            configuredAuthority.contracts.descriptors,
+          ),
+        });
+  const principalViews = new Map<
+    string,
+    ReturnType<Awaited<ReturnType<typeof openDevelopmentAuthority>>["forPrincipal"]>
+  >();
   const composedReads = new Map<string, HttpHandler>();
   let authority: Awaited<ReturnType<typeof openDevelopmentAuthority>> | undefined;
   let closing = false;
@@ -273,12 +307,13 @@ export async function startDevelopmentReferenceRuntime(
       );
       if (!authenticated) throw new ReceivingError("unauthenticated");
       const principal = Object.freeze({ id: authenticated.principal });
-      const principalAuthority = authority.forPrincipal(principal);
+      const principalAuthority = principalViews.get(principal.id);
+      if (!principalAuthority) throw new ReceivingError("unauthenticated");
       const composedRead = composedReads.get(principal.id);
       const host = header(request, "host");
       if (
         host === undefined ||
-        normalizationSafeRawRequestPath(`http://${host}/`) === undefined ||
+        normalizationSafeRawRequestPath(`http://${host}/`) !== "/" ||
         (transport === undefined && host !== new URL(scope).host)
       )
         throw new ReceivingError("malformed-request");
@@ -481,16 +516,15 @@ export async function startDevelopmentReferenceRuntime(
       create: options.create,
       ...(scheduler === undefined ? {} : { scheduler }),
       ...(clock === undefined ? {} : { clock }),
-      ...(configuredDeployment === undefined
-        ? {}
-        : {
-            configuration: configuredDeployment.configuration as DevelopmentAuthorityConfiguration,
-          }),
+      ...(authorityConfiguration === undefined ? {} : { configuration: authorityConfiguration }),
     });
     for (const { principal } of credentials) {
+      if (principalViews.has(principal)) continue;
       const view = authority.forPrincipal(Object.freeze({ id: principal }));
       // Validate the configured principal against the actual authority before serving.
-      await view.discover();
+      if ((await view.discover()).kind !== "discovery")
+        throw new Error("configured principal Read refused");
+      principalViews.set(principal, view);
       if (createReadRoute !== undefined) {
         const route = createReadRoute(
           Object.freeze({

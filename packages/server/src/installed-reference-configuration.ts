@@ -6,13 +6,13 @@ import {
   REFERENCE_TYPE_DESCRIPTORS,
   stringifyJsonValue,
   type TypeDescriptor,
-  type MaximumEndpointMultiplicityPolicy,
 } from "@bdp/protocol";
 import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
 import {
   administrativeArray,
   administrativeData,
   compileDevelopmentContracts,
+  captureDevelopmentAggregatePolicy,
   createDevelopmentAccessPolicy,
   type DevelopmentAccess,
 } from "./development-contracts.js";
@@ -146,19 +146,10 @@ export function captureInstalledReferenceConfiguration(input: unknown) {
       throw new TypeError("installed schema hosting must be Scope-local");
     return Object.freeze({ uri: artifact.retrievalUri, utf8: artifact.utf8Bytes.toString("utf8") });
   });
-  const aggregate = administrativeArray(fields.maximumEndpointMultiplicity, 1000).map((item) => {
-    const value = administrativeData(item, ["endpoint", "linkConformsTo", "max"]);
-    if (
-      (value.endpoint !== "source" && value.endpoint !== "target") ||
-      typeof value.linkConformsTo !== "string" ||
-      !contracts.descriptors.some((d) => d.id === value.linkConformsTo && d.describes === "link") ||
-      typeof value.max !== "number" ||
-      !Number.isSafeInteger(value.max) ||
-      value.max < 0
-    )
-      throw new TypeError("invalid aggregate policy");
-    return Object.freeze(value) as unknown as MaximumEndpointMultiplicityPolicy;
-  });
+  const aggregate = captureDevelopmentAggregatePolicy(
+    fields.maximumEndpointMultiplicity,
+    contracts.descriptors,
+  );
   const configuration = Object.freeze({
     contracts,
     access: access.policy,

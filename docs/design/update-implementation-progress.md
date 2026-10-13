@@ -381,9 +381,10 @@ Type bytes. The installation identity binds the captured closure and fixed
 aggregate policies; reopening under different bytes or aggregate configuration
 is refused. This supplies no network fetch or Type installation lifecycle API.
 
-The adapter emits standardized property diagnostics only after a complete
-compiler evaluation. Incomplete evaluation and local work-budget refusal fail
-closed as local errors; they cannot become successful validation or invented
+The adapter emits confirmed property diagnostics and stops when the receiver's
+own diagnostic bound is reached. If the compiler truncated its prefix before
+the receiver stopped, the adapter refuses to claim completeness. Local evaluation
+refusal also fails closed; neither case becomes successful validation or invented
 complete diagnostics. Final Resource evaluation attaches the effective Type
 and applies its own advertised diagnostic count/byte budget. This fixture does
 not qualify every schema dialect keyword, every compiler budget refusal, or
@@ -405,8 +406,8 @@ no-op preservation; aggregate refusal without effects; source write permission;
 principal-separated keys and actor non-authority; hidden versus forbidden
 responses and current-policy retained disclosure; whole owned-Resource
 withholding and pagination view invalidation; exact-config durable reopen;
-administrative accessor/credential rejection; and refusal to bridge incomplete
-schema diagnostics. Seven run real HTTP against the same disposable mutable
+administrative accessor/credential rejection; and refusal to claim completeness for truncated
+compiler diagnostics when the receiver has not stopped. Seven run real HTTP against the same disposable mutable
 owner; the eighth directly tests the compiler-to-diagnostic adapter's refusal
 boundary. The schema fixture uses an open object with an inherited integer
 property constraint and an external schema reference supplied as pinned bytes.
@@ -479,3 +480,32 @@ schema applicability, independent profile-specific evidence and its public
 admission gate remain prerequisites for activation. The listener is an explicit
 loopback candidate; deployment TLS and optional CORS-enabled/History behavior
 are not newly provided here.
+
+
+### Configuration and diagnostic boundary corrections
+
+A compiler-produced diagnostic prefix can be longer than the receiver permits.
+The adapter now emits that confirmed prefix until the receiver stops and returns
+invalid/incomplete at that point. A real 1025-branch schema produces a retained
+422 with 32 diagnostics and `diagnosticsTruncated`, rather than a local error.
+If the receiver accepts the entire truncated compiler prefix, the adapter still
+throws instead of inventing completeness. An actual evaluator work-budget
+refusal remains a local 500 with no effects or retained key; a corrected request
+can use the same key successfully.
+
+Aggregate constraints require positive maxima and are captured as sorted,
+exact-deduplicated semantic entries before hashing or provisioning. Credential
+principals must already have policy snapshots before store creation. Contract
+identity now also covers captured artifact/compiler limits and the fixed graph
+and evaluator bounds. This changes private custom-installation identities;
+previous U2 custom stores are not silently adopted. The ordinary default
+installation remains unchanged.
+
+Captured Scope configuration is frozen. Its policy digest describes all
+administrative policy snapshots; a separate per-principal snapshot identity
+controls pagination authorization. Configured authorities expose only explicit
+principal facets; duplicate credentials for one principal share one route.
+Hidden/read-only policies accept the protocol's actual canonical local IDs,
+including nested and encoded IDs, and use private Sets for membership checks.
+Read remains an explicit bounded deny-list fixture rather than a general
+whole-Scope deny-read policy. No broader IAM capability is claimed.

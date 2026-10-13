@@ -25,7 +25,7 @@ import {
 import type { StablePrincipal } from "./member-executor.js";
 import {
   administrativeData,
-  administrativeArray,
+  captureDevelopmentAggregatePolicy,
   assertDevelopmentContracts,
   assertDevelopmentAccessPolicy,
   type DevelopmentContracts,
@@ -119,47 +119,32 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
   const installedTypes = configured?.contracts.types ?? types;
   const contractIdentity = configured?.contracts.identity ?? installation;
   const aggregate = configured
-    ? Object.freeze(
-        administrativeArray(configured.maximumEndpointMultiplicity, 1000).map((value) => {
-          const item = administrativeData(value, [
-            "endpoint",
-            "linkConformsTo",
-            "max",
-          ]) as unknown as MaximumEndpointMultiplicityPolicy;
-          if (
-            !item ||
-            !["source", "target"].includes(item.endpoint) ||
-            !Number.isSafeInteger(item.max) ||
-            item.max < 0 ||
-            !installedDescriptors.some(
-              (d) => d.id === item.linkConformsTo && d.describes === "link",
-            )
-          )
-            throw new TypeError("invalid installed aggregate policy");
-          return Object.freeze({
-            endpoint: item.endpoint,
-            linkConformsTo: item.linkConformsTo,
-            max: item.max,
-          });
-        }),
+    ? captureDevelopmentAggregatePolicy(
+        configured.maximumEndpointMultiplicity,
+        installedDescriptors,
       )
     : configuration.maximumEndpointMultiplicity;
   const installationIdentity = configured
     ? `${contractIdentity}-${createHash("sha256").update(stringifyJsonValue(aggregate)).digest("hex")}`
     : installation;
-  const capturedConfiguration = () => ({
-    policyIdentity: configured?.access.identity() ?? installation,
-    configurationIdentity: installationIdentity,
-    maximumEndpointMultiplicity: aggregate,
-  });
+  // Scope-wide configuration digest; per-principal pagination authorization
+  // uses the acting principal's separate snapshot identity below.
+  const capturedConfiguration = () =>
+    Object.freeze({
+      policyIdentity: configured?.access.identity() ?? installation,
+      configurationIdentity: installationIdentity,
+      maximumEndpointMultiplicity: aggregate,
+    });
   const capturedPolicy = (principal: StablePrincipal) => {
     if (!configured) return policy;
     const snapshot = configured.access.capture(principal.id);
     const local = (id: string) => (id.startsWith(scope) ? id.slice(scope.length) : id);
+    const hidden = new Set(snapshot.hidden),
+      readOnly = new Set(snapshot.readOnly);
     const canRead = (record: import("./resource-evaluator.js").ResourceRecord) =>
-      !snapshot.hidden.includes(local(record.id));
+      !hidden.has(local(record.id));
     const canWrite = (record: import("./resource-evaluator.js").ResourceRecord) =>
-      snapshot.write && !snapshot.readOnly.includes(local(record.id));
+      snapshot.write && !readOnly.has(local(record.id));
     return Object.freeze({
       canRead,
       canCreate: () => snapshot.create,
@@ -323,7 +308,7 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
       });
     };
     return Object.freeze({
-      ...forPrincipal(principal),
+      ...(configured === undefined ? forPrincipal(principal) : {}),
       forPrincipal,
       close: () => lifecycle.close(),
     });
