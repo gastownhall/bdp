@@ -1311,12 +1311,15 @@ it("checks a stored failed receipt minimum before read-triggered retention dispo
 });
 
 it("refuses unsupported root controls after nondisclosure but before read-triggered retention", async () => {
-  const f = await fixture();
+  const f = await fixture({ maintenanceIntervalMs: 60000 });
   const completed = await body(await f.post());
   const failed = await body(
     await f.post(batch([{ operation: "deleteBead", bead: "beads/missing" }]), "failed"),
   );
   f.setTime(86401001);
+  // Cross the ordinary one-second sweep interval using real timers/sockets.
+  // This test isolates read-triggered retention from independent maintenance.
+  await new Promise((resolve) => setTimeout(resolve, 1100));
   for (const receipt of [completed, failed]) {
     for (const method of ["GET", "HEAD"]) {
       for (const [credential, status] of [
