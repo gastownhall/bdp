@@ -69,7 +69,7 @@ const configurationKeys = [
 ] as const;
 
 /** Own data only. Callers never supply behavior through a binding or source. */
-function ownData(
+export function ownData(
   value: unknown,
   allowed: readonly string[],
   required = allowed,
