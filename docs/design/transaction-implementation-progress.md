@@ -1639,7 +1639,6 @@ Fresh pack/install execution, actual source/configuration/payload bindings and
 cleanup are recorded separately in the C3 implementation report; emitted tests
 alone do not establish an installed result or cold-client usability.
 
-
 ### Internal discovery minimum observation
 
 The private discoveryObserved accessor accepts an optional canonical minimum and
@@ -1655,7 +1654,7 @@ Without a minimum, the existing synchronous observation path is preserved and
 the optional signal is inert. This internal preparation adds no HTTP caller:
 Scope, descriptor and directory discovery remain refused, including the existing
 minimum-route gap. Source and direct emitted-module proof are recorded separately
-in transaction-discovery-minimum-service-implementation/report.md. The emitted
+in the [frozen implementation report](https://github.com/donnabox/beads/blob/4925b1b2d37de792b6ec35f89f29ba23fb1210d9/docs/architecture/bdp-client-v2/transaction-discovery-minimum-service-implementation-report.md). The emitted
 ordinary discovery-refusal regression and the separate packed12/1 boundary cohort
 are not proof of the new accessor. No wire-ready profile, installed discovery,
 public admission, catalog credit or completed cumulative qualification is claimed.
