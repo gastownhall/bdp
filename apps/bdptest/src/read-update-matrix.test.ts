@@ -179,7 +179,8 @@ async function run(
   numericControl?: "digest" | "changed-number" | "refusal-success" | "metadata-refusal-success",
   admissionControl?:
     | (typeof numericAdmissionRawControls)[number]
-    | (typeof numericRClosureRawControls)[number],
+    | (typeof numericRClosureRawControls)[number]
+    | Extract<(typeof schemaPropertyControls)[number], { transport: "raw" }>,
 ) {
   signal?.throwIfAborted();
   if (artifact) assertReadUpdateArtifactSet(artifact.set);
@@ -4079,10 +4080,10 @@ it.each([numericRoundTripId, numericNestedId])(
     expect(row, JSON.stringify(row)).toMatchObject({ state: "pass" });
     expect(report.result.claimEligible).toBe(false);
     expect(report.cleanupComplete).toBe(true);
-    expect(row.exchanges).toHaveLength(id === numericRoundTripId ? 41 : 21);
-    expect(row.actions).toHaveLength(id === numericRoundTripId ? 47 : 31);
+    expect(row.exchanges).toHaveLength(id === numericRoundTripId ? 43 : 21);
+    expect(row.actions).toHaveLength(id === numericRoundTripId ? 53 : 31);
     const raw = row.exchanges.filter((e) => e.request.method === "POST");
-    expect(raw).toHaveLength(id === numericRoundTripId ? 32 : 16);
+    expect(raw).toHaveLength(id === numericRoundTripId ? 36 : 16);
     for (const exchange of raw) {
       expect(exchange.request.exact).toMatchObject({
         source: "raw-http1-serializer",
@@ -4204,7 +4205,8 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
     ],
     [
       "read-update.numeric-model.round-trip-admission",
-      "12982a61faf2f6710ad165d69022ba2e8c9cc083e599118910a173c52fb9aa6c",
+      // Reviewed parent R span: 12982a61faf2f6710ad165d69022ba2e8c9cc083e599118910a173c52fb9aa6c
+      "b21d827713dd553a7f1dccda8fac82b13a6741cd7273d5bf0b4fecf39bee25cd",
     ],
     [
       "read-update.numeric-model.nested-refusal",
@@ -4220,7 +4222,7 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
   for (const [id, count, resourceIds] of [
     [
       numericRoundTripId,
-      88,
+      96,
       [
         "beads/nr-source",
         "beads/nr-target",
@@ -4333,7 +4335,11 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
   for (const kind of ["bead", "link"] as const)
     assertNestedNumericLexemes(nestedNumericLexemes(kind));
   assertRRefusalPairs(roundTrip.actions!);
-  expect(actions).toBeLessThanOrEqual(140);
+  // Root-approved authoring amendment: exactly eight additional PropertyChange observations.
+  const ROOT_APPROVED_R_N_ACTION_CEILING = 148;
+  expect(actions).toBe(148);
+  expect(actions).toBeLessThanOrEqual(ROOT_APPROVED_R_N_ACTION_CEILING);
+  expect(assertions).toBe(1060);
   expect(assertions).toBeLessThanOrEqual(1300);
   expect(new Set(keys).size).toBe(keys.length);
   expect(numericAdmissionRawControls).toHaveLength(6);
@@ -4568,10 +4574,12 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
       : 0);
   expect(bytes.length - METADATA_CLOSURE_CONTINUATION_BYTES_BASE).toBeLessThanOrEqual(81920);
   expect(countNodes(manifest) - METADATA_CLOSURE_CONTINUATION_NODES_BASE).toBeLessThanOrEqual(2000);
+  // Root-approved schema slice amendment: 698614+12288 -> 698614+14336.
+  // The 06b0e04 anchor predates this +2048 coverage allowance.
   expect(
     source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.length -
       METADATA_CLOSURE_COVERAGE_BYTES_BASE,
-  ).toBeLessThanOrEqual(12288);
+  ).toBeLessThanOrEqual(14336);
   expect(
     createHash("sha256")
       .update(source("packages/conformance/fixtures/read-update-reference-v1.json").bytes)
@@ -4801,6 +4809,12 @@ function rRefusalPairs() {
         bad: '"n":-1',
         good: '"n":0',
       },
+      {
+        refused: `nr-${kind}-schema-patch-refused`,
+        corrected: `nr-${kind}-schema-patch-corrected`,
+        bad: '"path":"/n","value":-1',
+        good: '"path":"/n","value":1',
+      },
     );
   }
   return pairs;
@@ -4811,8 +4825,8 @@ function assertRRefusalPairs(actions: readonly NumericRAction[]) {
   const refused = actions.filter(
     (a) => a.family === "http" && a.method === "POST" && a.id.endsWith("-refused"),
   );
-  expect(pairs).toHaveLength(18);
-  expect(new Set(pairs.map((p) => p.refused)).size).toBe(18);
+  expect(pairs).toHaveLength(20);
+  expect(new Set(pairs.map((p) => p.refused)).size).toBe(20);
   expect(pairs.map((p) => p.refused).sort()).toEqual(refused.map((a) => a.id).sort());
   const body = (id: string) => {
     const found = actions.filter((a) => a.id === id);
@@ -4888,6 +4902,31 @@ it("rejects incomplete R comparator maps, other-document differences and flatten
   ];
   expect(() => assertRRefusalPairs(duplicate)).toThrow("unique refusal/comparator");
   for (const kind of ["bead", "link"]) {
+    const correctedId = `nr-${kind}-schema-patch-corrected`;
+    const corrected = actions.find((a) => a.id === correctedId)!;
+    expect(() => assertRRefusalPairs(actions.filter((a) => a.id !== correctedId))).toThrow(
+      "unique refusal/comparator",
+    );
+    expect(() => assertRRefusalPairs([...clone(), structuredClone(corrected)])).toThrow(
+      "unique refusal/comparator",
+    );
+    const companion = [...clone()];
+    const target = companion.find((a) => a.id === correctedId)!;
+    if (target.family !== "http" || !target.raw?.body) throw Error("raw fixture required");
+    const at = companion.indexOf(target);
+    companion[at] = {
+      ...target,
+      raw: {
+        ...target.raw,
+        body: {
+          ...target.raw.body,
+          value: target.raw.body.value.replace('"value":"updated"', '"value":"wrong"'),
+        },
+      },
+    };
+    expect(() => assertRRefusalPairs(companion)).toThrow("numbers-stripped companion equality");
+  }
+  for (const kind of ["bead", "link"]) {
     const action = actions.find((a) => a.id === `nr-${kind}-precision-create-refused`)!;
     if (action.family !== "http") throw Error("raw fixture required");
     assertRPrecisionStructure(action.raw!.body!.value, "0.12345678901234567891", false);
@@ -4916,7 +4955,9 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
   expect(Buffer.byteLength(text) - 844551).toBeLessThanOrEqual(57344);
   expect(countNodes(manifest) - 22146).toBeLessThanOrEqual(1400);
   const coverage = source("packages/conformance/test-support/read-update-coverage-v1.json").bytes;
-  expect(coverage.length - 703415).toBeLessThanOrEqual(7168);
+  // Root-approved schema slice amendment: 703415+7168 -> 703415+9728.
+  // The b604 anchor above predates this +2560 coverage allowance.
+  expect(coverage.length - 703415).toBeLessThanOrEqual(9728);
   const row = manifest.scenarios.find((r: { id: string }) => r.id === numericRoundTripId) as {
     actions: readonly NumericRAction[];
   };
@@ -4966,8 +5007,32 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
   ];
   expect(addedIds).toHaveLength(16);
   expect(row.actions!.filter((a) => addedIds.includes(a.id)).map((a) => a.id)).toEqual(addedIds);
+  const schemaPatchIds = [
+    "nr-bead-schema-patch-refused",
+    "nr-bead-schema-patch-unchanged",
+    "nr-bead-schema-patch-corrected",
+    "nr-bead-schema-updated-read",
+    "nr-link-schema-patch-refused",
+    "nr-link-schema-patch-unchanged",
+    "nr-link-schema-patch-corrected",
+    "nr-link-schema-updated-read",
+  ];
+  expect(schemaPatchIds).toHaveLength(8);
+  expect(row.actions.filter((a) => schemaPatchIds.includes(a.id)).map((a) => a.id)).toEqual(
+    schemaPatchIds,
+  );
+  const schemaBindings = row.actions
+    .filter((a) => schemaPatchIds.includes(a.id))
+    .flatMap((a) => a.assertions.map((q) => a.id + "." + q.id));
+  expect(schemaBindings).toHaveLength(66);
+  expect(
+    schemaBindings.reduce(
+      (n, binding) => n + Buffer.byteLength("            " + JSON.stringify(binding) + ",\n"),
+      0,
+    ),
+  ).toBe(3700);
   const unchanged = row.actions!.filter(
-    (a) => !changedIds.includes(a.id) && !addedIds.includes(a.id),
+    (a) => !changedIds.includes(a.id) && !addedIds.includes(a.id) && !schemaPatchIds.includes(a.id),
   );
   expect(unchanged.map((a) => a.id)).toEqual([
     "scope",
@@ -5028,15 +5093,15 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
   const additional = row
     .actions!.filter((a) => addedIds.includes(a.id))
     .flatMap((a) => a.assertions.map((q) => a.id + "." + q.id));
-  expect(additional).toHaveLength(98);
+  expect(additional).toHaveLength(100);
   expect(
     additional.reduce(
       (n, binding) => n + Buffer.byteLength("            " + JSON.stringify(binding) + ",\n"),
       0,
     ),
-  ).toBe(5460);
-  expect(coverage.length - 703415 - 5460).toBeLessThanOrEqual(1708);
-  expect(row.actions!.reduce((n, a) => n + a.assertions.length, 0)).toBe(619);
+  ).toBe(5546);
+  expect(coverage.length - 703415 - 5546 - 3700).toBeLessThanOrEqual(1708);
+  expect(row.actions!.reduce((n, a) => n + a.assertions.length, 0)).toBe(687);
   expect(numericRClosureRawControls).toHaveLength(3);
   expect(
     numericRClosureRawControls.length +
@@ -5058,4 +5123,155 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
     .shards[1]!.bundle.manifest.scenarios.filter((r) => r.id !== numericRoundTripId)
     .flatMap((r) => r.actions!.flatMap(keys));
   for (const key of row.actions!.flatMap(keys)) expect(otherKeys).not.toContain(key);
+});
+
+// Four separate assertion-sensitivity witnesses after actual schema PropertyChange HTTP.
+const schemaPropertyControls = [
+  {
+    number: 1,
+    transport: "raw",
+    mode: "schema-location",
+    scenario: numericRoundTripId,
+    action: "nr-bead-schema-patch-refused",
+    operation: "update-bead",
+    failed: "complete-problem",
+  },
+  {
+    number: 2,
+    transport: "client",
+    scenario: numericRoundTripId,
+    action: "nr-link-schema-patch-unchanged",
+    path: ["body", "metadata", "phase"],
+    original: "created",
+    value: "updated",
+    failed: "postimage",
+  },
+  {
+    number: 3,
+    transport: "client",
+    scenario: numericRoundTripId,
+    action: "nr-bead-schema-updated-read",
+    path: ["body", "properties", "n"],
+    original: 1,
+    value: 0,
+    failed: "properties",
+  },
+  {
+    number: 4,
+    transport: "client",
+    scenario: numericRoundTripId,
+    action: "nr-link-schema-updated-read",
+    path: ["body", "metadata", "phase"],
+    original: "updated",
+    value: "created",
+    failed: "metadata",
+  },
+] as const;
+it.each(schemaPropertyControls)(
+  "detects schema PropertyChange control $number at $action",
+  async (control) => {
+    const report = await run(
+      JSON.parse(source(continuationSource).bytes.toString()),
+      [numericRoundTripId],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control.transport === "client" ? control : undefined,
+      undefined,
+      undefined,
+      undefined,
+      control.transport === "raw" ? control : undefined,
+    );
+    const row = report.result.scenarios[0]!;
+    expect(report.counterfactualApplications, JSON.stringify(row)).toBe(1);
+    expect(report.cleanupComplete).toBe(true);
+    expect(row.state).toBe("fail");
+    const failures = [
+      ...row.exchanges.map((e) => ({ id: e.request.id, assertions: e.assertions })),
+      ...(row.actions ?? []).map((a) => ({ id: a.action.id, assertions: a.assertions })),
+    ].flatMap((a) => a.assertions.filter((q) => !q.passed).map((q) => `${a.id}.${q.id}`));
+    expect(failures).toEqual([`${control.action}.${control.failed}`]);
+    if (control.transport === "raw") {
+      const exchange = row.exchanges.find((e) => e.request.id === control.action)!;
+      expect(exchange.request.exact?.writeState).toBe("complete");
+      expect(exchange.response?.status).toBe(422);
+    } else {
+      // observe() stores the real client output before the assertion-input mutation.
+      // The selected action's exact input was checked by the existing RetryControl seam.
+      const actual = (report.observations.at(-1) as { observation: Record<string, unknown> })
+        .observation;
+      expect(actual.status).toBe(200);
+      expect(actual.observation).toMatchObject({ writeState: "complete" });
+      let original: unknown = actual;
+      for (const key of control.path) original = (original as Record<string, unknown>)[key];
+      expect(original).toBe(control.original);
+    }
+  },
+  30000,
+);
+it("pins schema PropertyChange preimage capture, complete corrections and four controls", () => {
+  const row = installedArtifactSet().shards[1]!.bundle.manifest.scenarios.find(
+    (r) => r.id === numericRoundTripId,
+  )!;
+  expect(row.actions).toHaveLength(96);
+  expect(schemaPropertyControls).toHaveLength(4);
+  // Preservation is defined over source JSON, before factory normalization.
+  const sourceRow = JSON.parse(source(continuationSource).bytes.toString()).scenarios.find(
+    (r: { id: string }) => r.id === numericRoundTripId,
+  ) as { actions: readonly NumericRAction[] };
+  const unchangedParentActions = sourceRow.actions.filter(
+    (a) =>
+      !/^nr-(bead|link)-schema-(create-corrected|read|patch-refused|patch-unchanged|patch-corrected|updated-read)$/.test(
+        a.id,
+      ),
+  );
+  expect(unchangedParentActions).toHaveLength(84);
+  expect(createHash("sha256").update(JSON.stringify(unchangedParentActions)).digest("hex")).toBe(
+    "393f9c3cab0cbfd501e863a75a243a28fa40806c648993eaf2068916cf488c20",
+  );
+  for (const kind of ["bead", "link"]) {
+    const prefix = `nr-${kind}-schema`;
+    const find = (suffix: string) => row.actions!.find((a) => a.id === prefix + suffix)!;
+    expect(find("-create-corrected").captures).toEqual([
+      { binding: `${prefix}.url`, from: { kind: "json-pointer", pointer: "/resource/id" } },
+    ]);
+    const preimage = find("-read");
+    expect(preimage.family).toBe("client");
+    expect(preimage.captures).toEqual([
+      { binding: `${prefix}.before`, from: { kind: "json-pointer", pointer: "/body" } },
+    ]);
+    expect(preimage.assertions).toContainEqual({
+      id: "properties",
+      kind: "json-pointer",
+      pointer: "/body/properties",
+      exists: true,
+      equals: { n: 0, enabled: true, detail: "ok" },
+    });
+    expect(preimage.assertions).toContainEqual({
+      id: "metadata",
+      kind: "json-pointer",
+      pointer: "/body/metadata",
+      exists: true,
+      equals: { phase: "created" },
+    });
+    expect(find("-patch-unchanged").assertions).toContainEqual({
+      id: "postimage",
+      kind: "json-pointer",
+      pointer: "/body",
+      exists: true,
+      equalsBinding: `${prefix}.before`,
+    });
+    const corrected = find("-patch-corrected");
+    expect(corrected.assertions).toHaveLength(kind === "bead" ? 13 : 15);
+    for (const id of ["no-owned-plane", "no-provenance", "no-source", "no-source-revision"])
+      expect(corrected.assertions.find((a) => a.id === id)).toMatchObject({
+        kind: "json-pointer",
+        exists: false,
+      });
+  }
 });
