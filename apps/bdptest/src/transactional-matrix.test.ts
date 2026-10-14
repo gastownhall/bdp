@@ -189,6 +189,7 @@ async function observe(control?: {
       { method: "GET", url: `${scope}events/` },
       { method: "GET", url: `${scope}beads/new` },
       { method: "GET", url: `${scope}changes/?after=genesis` },
+      { method: "GET", url: `${scope}links/?limit=32` },
       { method: "GET", url: `${scope}beads/b` },
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
@@ -327,7 +328,7 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes eleven partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+it("observes twelve partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
   const observed = await observe({ children });
@@ -336,15 +337,15 @@ it("observes eleven partial Transactional contracts through packed-capable actua
   expect(observed.result.scenarios).toHaveLength(255); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(11);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(12);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(18);
-  expect(children).toHaveLength(19); // Eighteen scenario/reopen sessions plus separate bootstrap.
+  expect(observed.sessions).toHaveLength(19);
+  expect(children).toHaveLength(20); // Nineteen scenario/reopen sessions plus separate bootstrap.
   expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
     true,
   );
   expect(observed.result.declarations).toMatchObject({
-    exactConfigurationDigest: "906199051adc043408d64c0879a3d3f2cce32b06faa08b9458f4a270ce31a6ce",
+    exactConfigurationDigest: "1ba7cbbffc4fb40df2c3f12640bc636e70076cfa25bdd6952b83ec1bb1fe0035",
   });
   const dynamic = observed.result.scenarios
     .flatMap((s) => s.exchanges)
@@ -409,6 +410,7 @@ it("observes eleven partial Transactional contracts through packed-capable actua
       "transactional.set.mutation",
       "transactional.set.zero-match",
       "transactional.batch.no-op-entries",
+      "transactional.batch.deletion-safety",
     ].includes(row.id),
   );
   for (const row of newRows)
@@ -470,11 +472,46 @@ it("observes eleven partial Transactional contracts through packed-capable actua
   // assertions. Presence alone would still accept a null continuation.
   expect(noop.state).toBe("pass");
   expect(noop.exchanges.at(-1)!.request.id).toBe("n-changed-groups");
-  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(159);
+  const deletion = observed.result.scenarios.find(
+    (row) => row.id === "transactional.batch.deletion-safety",
+  )!;
+  expect(deletion.exchanges.map((e) => e.request.id)).toEqual([
+    "d-seed",
+    "d-seed-facts",
+    "d-seed-events",
+    "d-seed-groups",
+    "d-incoming-survives",
+    "d-incoming-survives-beads",
+    "d-incoming-survives-links",
+    "d-incoming-survives-events",
+    "d-incoming-survives-groups",
+    "d-outgoing-survives",
+    "d-outgoing-survives-beads",
+    "d-outgoing-survives-links",
+    "d-outgoing-survives-events",
+    "d-outgoing-survives-groups",
+    "d-delete",
+    "d-delete-facts",
+    "d-final-beads",
+    "d-final-links",
+    "d-deleted-a",
+    "d-final-events",
+    "d-final-groups",
+  ]);
+  expect(deletion.actions!.map((a) => a.action.id)).toEqual(["d-seed-facts", "d-delete-facts"]);
+  for (const exchange of deletion.exchanges)
+    expect(exchange.assertions.every((a) => a.passed)).toBe(true);
+  for (const action of deletion.actions!) {
+    expect(action.assertions.every((a) => a.passed)).toBe(true);
+    expect(deletion.exchanges.find((e) => e.request.id === action.action.id)).toBeDefined();
+  }
+  expect(deletion.state).toBe("pass");
+  expect(deletion.exchanges.at(-1)!.request.id).toBe("d-final-groups");
+  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(180);
   expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
     JSON.stringify({
-      kind: "installed-tx-eleven-partial-summary",
+      kind: "installed-tx-twelve-partial-summary",
       sourceCommit,
       elapsedMs: performance.now() - started,
       actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
@@ -1225,6 +1262,7 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
       { method: "GET", url: `${scope}events/` },
       { method: "GET", url: `${scope}beads/new` },
       { method: "GET", url: `${scope}changes/?after=genesis` },
+      { method: "GET", url: `${scope}links/?limit=32` },
       { method: "GET", url: `${scope}beads/b` },
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
@@ -1233,7 +1271,7 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
     scope,
   });
   expect(createHash("sha256").update(preimage).digest("hex")).toBe(
-    "906199051adc043408d64c0879a3d3f2cce32b06faa08b9458f4a270ce31a6ce",
+    "1ba7cbbffc4fb40df2c3f12640bc636e70076cfa25bdd6952b83ec1bb1fe0035",
   );
   const row = bundle.manifest.scenarios.find((r) => r.id === "transactional.batch.no-op-entries")!;
   expect(row.actions!.map((a) => a.id)).toEqual([
@@ -1309,9 +1347,9 @@ it.each(["bead-property", "link-metadata", "group-inventory-and-head"] as const)
       expect([...failed].sort()).toEqual([...intended].sort());
     expect(row.exchanges.at(-1)!.request.id).toBe(actionId);
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(19);
+    expect(children.length).toBeLessThanOrEqual(20);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBeLessThanOrEqual(159);
+    expect(exchanges).toBeLessThanOrEqual(180);
     console.log(
       JSON.stringify({
         kind: "installed-tx-matching-noop-control",
@@ -1335,6 +1373,333 @@ it.each(["bead-property", "link-metadata", "group-inventory-and-head"] as const)
     if (process.env.BDP_TRANSACTIONAL_NOOP_CONTROL_OUTPUT)
       writeFileSync(
         `${process.env.BDP_TRANSACTIONAL_NOOP_CONTROL_OUTPUT}-${control}.json`,
+        JSON.stringify({ sourceCommit, entry, ...observed }, null, 2) + "\n",
+      );
+  },
+  120000,
+);
+
+const deletionControlNames = [
+  "incoming-order",
+  "outgoing-order",
+  "committed-prefix-state",
+] as const;
+type DeletionControl = (typeof deletionControlNames)[number];
+// Only these three fixed derivative carriers are supported. The positive request
+// and response facts are authored independently; no observed body supplies an oracle.
+function applyDeletionControl(
+  value: { scenarios: { id: string; actions: Record<string, unknown>[] }[] },
+  control: DeletionControl,
+) {
+  const direction = control === "outgoing-order" ? "outgoing" : "incoming";
+  const actionId = `d-${direction}-survives`;
+  const row = value.scenarios.find((r) => r.id === "transactional.batch.deletion-safety")!;
+  const action = row.actions.find((a) => a.id === actionId)!;
+  const oldAssertions = action.assertions as Record<string, unknown>[];
+  const task = `${scope}types/task`,
+    relationship = `${scope}types/relationship`;
+  const prefix = `${direction}-survives-prefix`;
+  const links = direction === "incoming" ? ["l", "r"] : ["r", "l"];
+  const operations = [
+    {
+      operation: "updateBead",
+      bead: "beads/b",
+      propertiesChange: [{ op: "replace", path: "/title", value: prefix }],
+      metadataChange: [{ op: "replace", path: "", value: { phase: prefix } }],
+    },
+    ...links.map((id) => ({ operation: "deleteLink", link: `links/${id}` })),
+    ...(control === "committed-prefix-state" ? [] : [{ operation: "deleteBead", bead: "beads/a" }]),
+  ];
+  const raw = action.raw as { body: { encoding: string; value: string } };
+  raw.body = { encoding: "utf8", value: JSON.stringify({ operations }) };
+  const pointer = (id: string, pointer: string, equals: unknown) => ({
+    id: `control-${id}`,
+    kind: "json-pointer",
+    pointer,
+    exists: true,
+    equals,
+  });
+  const deleted = [...links, ...(control === "committed-prefix-state" ? [] : ["a"])];
+  const positive: Record<string, unknown>[] = [
+    { id: "control-position", kind: "header", name: "bdp-scope-position", equals: "pos-2" },
+    pointer("completed", "/status", "completed"),
+    pointer("detail", "/detail", "available"),
+    pointer("required", "/requiredPosition", "pos-2"),
+    pointer("effect", "/effectPosition", "pos-2"),
+    pointer("inline", "/next", null),
+    {
+      id: "control-ordered-results",
+      kind: "json-array-tuples",
+      pointer: "/results",
+      ordered: true,
+      projections: [{ pointer: "/operationIndex" }, { pointer: "/outcome" }],
+      equals: [[0, "updated"], ...deleted.map((_, i) => [i + 1, "deleted"])],
+    },
+    pointer("updated-id", "/results/0/resource/id", `${scope}beads/b`),
+    pointer("updated-type", "/results/0/resource/type", task),
+    pointer("updated-properties", "/results/0/resource/properties", { title: prefix }),
+    pointer("updated-metadata", "/results/0/resource/metadata", { phase: prefix }),
+    ...deleted.flatMap((id, i) => [
+      pointer(`${id}-kind`, `/results/${i + 1}/deleted/resourceKind`, id === "a" ? "bead" : "link"),
+      pointer(
+        `${id}-id`,
+        `/results/${i + 1}/deleted/resource/id`,
+        `${scope}${id === "a" ? "beads" : "links"}/${id}`,
+      ),
+      pointer(
+        `${id}-type`,
+        `/results/${i + 1}/deleted/resource/type`,
+        id === "a" ? task : relationship,
+      ),
+      {
+        id: `control-${id}-revision`,
+        kind: "json-pointer",
+        pointer: `/results/${i + 1}/deleted/resource/revision`,
+        exists: true,
+        equalsBinding: `d-${id}-revision`,
+      },
+    ]),
+  ];
+  const stableIds = [
+    "http-status",
+    "present-bdp-scope-epoch",
+    "present-bdp-authorization-view",
+    "present-bdp-scope-position",
+    "schema",
+    "request-headers",
+    "request-body",
+  ];
+  // Control3 must pass every POST assertion before the next real state GET can
+  // reveal its changed b. Retaining baseline context/failed-receipt facts here
+  // would stop too early and invalidate the state sensitivity claim.
+  action.assertions =
+    control === "committed-prefix-state"
+      ? [...oldAssertions.filter((a) => stableIds.includes(a.id as string)), ...positive]
+      : [...oldAssertions, ...positive];
+  const assertions = action.assertions as Record<string, unknown>[];
+  const added = assertions
+    .filter((a) => !oldAssertions.some((o) => o.id === a.id))
+    .map((a) => a.id as string);
+  const removed = oldAssertions
+    .filter((a) => !assertions.some((o) => o.id === a.id))
+    .map((a) => a.id as string);
+  return {
+    actionId,
+    finalActionId: control === "committed-prefix-state" ? "d-incoming-survives-beads" : actionId,
+    positiveIds: positive.map((a) => a.id as string),
+    stableIds,
+    added,
+    removed,
+    netAssertions: assertions.length - oldAssertions.length,
+  };
+}
+
+it("pins deletion-safety derivative carriers, complete positives, and measured source bounds", () => {
+  const canonical = JSON.parse(manifestSource.bytes.toString());
+  const canonicalCount = canonical.scenarios.flatMap(
+    (r: { actions: { assertions: unknown[] }[] }) => r.actions.flatMap((a) => a.assertions),
+  ).length;
+  const rows = [];
+  for (const control of deletionControlNames) {
+    const changed = structuredClone(canonical);
+    const description = applyDeletionControl(changed, control);
+    const row = changed.scenarios.find(
+      (r: { id: string }) => r.id === "transactional.batch.deletion-safety",
+    )!;
+    const action = row.actions.find((a: { id: string }) => a.id === description.actionId)!;
+    const body = JSON.parse(action.raw.body.value);
+    const direction = control === "outgoing-order" ? "outgoing" : "incoming";
+    expect(
+      body.operations.map((op: { operation: string; bead?: string; link?: string }) => [
+        op.operation,
+        op.bead ?? op.link,
+      ]),
+    ).toEqual([
+      ["updateBead", "beads/b"],
+      ["deleteLink", direction === "incoming" ? "links/l" : "links/r"],
+      ["deleteLink", direction === "incoming" ? "links/r" : "links/l"],
+      ...(control === "committed-prefix-state" ? [] : [["deleteBead", "beads/a"]]),
+    ]);
+    expect(body.operations[0]).toEqual({
+      operation: "updateBead",
+      bead: "beads/b",
+      propertiesChange: [{ op: "replace", path: "/title", value: `${direction}-survives-prefix` }],
+      metadataChange: [
+        { op: "replace", path: "", value: { phase: `${direction}-survives-prefix` } },
+      ],
+    });
+    expect(description.positiveIds).toEqual([
+      "control-position",
+      "control-completed",
+      "control-detail",
+      "control-required",
+      "control-effect",
+      "control-inline",
+      "control-ordered-results",
+      "control-updated-id",
+      "control-updated-type",
+      "control-updated-properties",
+      "control-updated-metadata",
+      ...(direction === "incoming" ? ["l", "r"] : ["r", "l"]).flatMap((id) => [
+        `control-${id}-kind`,
+        `control-${id}-id`,
+        `control-${id}-type`,
+        `control-${id}-revision`,
+      ]),
+      ...(control === "committed-prefix-state"
+        ? []
+        : ["control-a-kind", "control-a-id", "control-a-type", "control-a-revision"]),
+    ]);
+    if (control === "committed-prefix-state") {
+      expect(description.removed).toEqual([
+        "serving-context",
+        "disposition",
+        "detail",
+        "required-position",
+        "no-effect",
+        "no-results",
+        "no-next",
+        "problem",
+      ]);
+      expect(action.assertions.map((a: { id: string }) => a.id)).toEqual([
+        ...description.stableIds,
+        ...description.positiveIds,
+      ]);
+      expect(row.actions.find((a: { id: string }) => a.id === description.finalActionId)).toEqual(
+        canonical.scenarios
+          .find((r: { id: string }) => r.id === row.id)
+          .actions.find((a: { id: string }) => a.id === description.finalActionId),
+      );
+    } else {
+      expect(description.removed).toEqual([]);
+      expect(action.assertions.find((a: { id: string }) => a.id === "disposition").equals).toBe(
+        "failed",
+      );
+    }
+    expect(row.actions).toHaveLength(21);
+    const count = changed.scenarios.flatMap((r: { actions: { assertions: unknown[] }[] }) =>
+      r.actions.flatMap((a) => a.assertions),
+    ).length;
+    expect(count).toBe(canonicalCount + description.netAssertions);
+    const normal = JSON.stringify(changed, null, 2) + "\n",
+      wire = JSON.stringify(changed);
+    let nodes = 0;
+    const pending: unknown[] = [changed];
+    while (pending.length) {
+      const value = pending.pop();
+      nodes++;
+      if (value && typeof value === "object") pending.push(...Object.values(value));
+    }
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(650386);
+    expect(nodes).toBeLessThanOrEqual(17275);
+    const loaded = createCumulativeTransactionalArtifactBundle(
+      loadProfileContractSelection("transactional"),
+      { fixture: fixtureSource, manifest: { bytes: Buffer.from(wire) } },
+    );
+    rows.push({
+      control,
+      ...description,
+      normalBytes: Buffer.byteLength(normal),
+      wireBytes: Buffer.byteLength(wire),
+      nodes,
+      canonicalAssertions: canonicalCount,
+      derivativeAssertions: count,
+      normalDigest: createHash("sha256").update(normal).digest("hex"),
+      executionManifestDigest: loaded.digests.manifestDigest,
+      rawRequestBytes: Buffer.byteLength(action.raw.body.value),
+      actionAssertionIds: action.assertions.map((a: { id: string }) => a.id),
+    });
+    if (process.env.BDP_TRANSACTIONAL_DELETION_PREFLIGHT_OUTPUT)
+      writeFileSync(
+        `${process.env.BDP_TRANSACTIONAL_DELETION_PREFLIGHT_OUTPUT}-${control}.json`,
+        normal,
+      );
+  }
+  expect(new Set(rows.map((r) => r.executionManifestDigest)).size).toBe(3);
+  if (process.env.BDP_TRANSACTIONAL_DELETION_PREFLIGHT_OUTPUT)
+    writeFileSync(
+      `${process.env.BDP_TRANSACTIONAL_DELETION_PREFLIGHT_OUTPUT}-ledger.json`,
+      JSON.stringify(rows, null, 2) + "\n",
+    );
+});
+
+it.each(deletionControlNames)(
+  "discriminates operation-time deletion evidence against %s",
+  async (control) => {
+    const children: ChildProcess[] = [];
+    let description: ReturnType<typeof applyDeletionControl> | undefined;
+    const observed = await observe({
+      children,
+      manifest(value) {
+        description = applyDeletionControl(value, control);
+      },
+    });
+    expect(observed.result.claimEligible).toBe(false);
+    expect(observed.result.artifacts.manifestDigest).not.toBe(bundle.digests.manifestDigest);
+    const row = observed.result.scenarios.find(
+      (r) => r.id === "transactional.batch.deletion-safety",
+    )!;
+    expect(row.state).toBe("fail");
+    const post = row.exchanges.find((e) => e.request.id === description!.actionId)!;
+    expect(post.request.exact?.writeState).toBe("complete");
+    expect(post.response?.status).toBe(200);
+    for (const id of [...description!.stableIds, ...description!.positiveIds])
+      expect(post.assertions.find((a) => a.id === id)?.passed, id).toBe(true);
+    const failedPost = post.assertions.filter((a) => !a.passed).map((a) => a.id);
+    const final = row.exchanges.at(-1)!;
+    expect(final.request.id).toBe(description!.finalActionId);
+    const failures = final.assertions.filter((a) => !a.passed).map((a) => a.id);
+    if (control === "committed-prefix-state") {
+      expect(failedPost).toEqual([]);
+      expect(row.exchanges.slice(0, -1).every((e) => e.assertions.every((a) => a.passed))).toBe(
+        true,
+      );
+      expect(row.actions!.every((a) => a.assertions.every((s) => s.passed))).toBe(true);
+      expect(final.response?.status).toBe(200);
+      expect(final.assertions.find((a) => a.id === "schema")?.passed).toBe(true);
+      expect(failures).toContain("complete-b");
+      expect(failures).toContain("ordered-identities");
+    } else {
+      expect(failedPost).toContain("disposition");
+      expect([...failedPost].sort()).toEqual(
+        [
+          "serving-context",
+          "disposition",
+          "required-position",
+          "no-effect",
+          "no-results",
+          "no-next",
+          "problem",
+        ].sort(),
+      );
+    }
+    expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
+    expect(children.length).toBeLessThanOrEqual(20);
+    const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
+    expect(exchanges).toBeLessThanOrEqual(180);
+    console.log(
+      JSON.stringify({
+        kind: "installed-tx-deletion-control",
+        control,
+        sourceCommit,
+        ...description,
+        failedPost,
+        finalAction: final.request.id,
+        finalStatus: final.response?.status,
+        failures,
+        exchanges,
+        sessions: observed.sessions.length,
+        childLaunches: children.length,
+        closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
+        artifacts: observed.result.artifacts,
+        declarations: observed.result.declarations,
+        baseline: observed.baseline,
+        claimEligible: observed.result.claimEligible,
+      }),
+    );
+    if (process.env.BDP_TRANSACTIONAL_DELETION_CONTROL_OUTPUT)
+      writeFileSync(
+        `${process.env.BDP_TRANSACTIONAL_DELETION_CONTROL_OUTPUT}-${control}.json`,
         JSON.stringify({ sourceCommit, entry, ...observed }, null, 2) + "\n",
       );
   },
