@@ -149,8 +149,9 @@ persisted witnesses are owner faults, not ordinary missing aliases or key
 conflicts. These are internal metadata, not new receipt or wire fields.
 
 Alias operations remain forbidden in batches, as required by the normative
-contract. There are no HTTP alias routes, redirects, replica alias projections
-or new profile claims.
+contract. These alias singletons add no HTTP alias routes, redirects, replica
+alias projections or new profile claims; current alias read routing is described
+under the private HTTP receiver and current alias minimums below.
 
 ## First private sequence adapter
 
