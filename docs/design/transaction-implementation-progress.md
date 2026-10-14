@@ -661,8 +661,9 @@ still fail before mutation admission, after authentication/authorization.
 
 This remains a named subset, not complete minimum-position qualification.
 Compatible, already-satisfied minimums on absent/deleted canonical Bead/Link
-records and properties now return the actual observed404 with same-entry current
-context. Simultaneous missing/hidden and behind/foreign conditions retain the
+records and properties, unknown canonical in-Scope Type points, and absent/deleted
+incident anchors return the actual observed404 with same-entry current context.
+Simultaneous missing/hidden and behind/foreign conditions retain the
 private visibility gap; their arbitration remains unqualified. The ordinary
 in-process Read facet now forwards only signal, ignoring generic sourceCondition;
 only minimumFor honors a minimum. Corrupt owner context propagates as an integrity
@@ -676,9 +677,24 @@ Per-step source revisions prove the owned deletion sequence; no earlier create
 image is represented as the final owner image. Supporting source-bound evidence
 and three source-mutant controls are recorded in the
 [frozen implementation report](https://github.com/donnabox/beads/blob/30cdcf30f0488f9d400343a9141c5c314eb9f02e/docs/architecture/bdp-client-v2/transaction-compatible-missing-minimum-implementation-report.md).
-Collection and incident-view continuations, external Type points,
-aliases and discovery retain the development gap when minimum
-controls are supplied. Partial/malformed tuples, bare epoch/view fields and
+
+The current Type/incident increment reuses the same owner entry, finite wait and
+compatible observed404 callback. Canonical in-Scope Type points and initial Type
+inventory/incident views are supported; ordinary external Type reads remain
+unchanged. Unknown Types and absent/deleted incident anchors return compatible404
+with actual context, while missing+behind/foreign cases retain the explicit gap.
+The ordinary facet's descriptor-safe delivery-option boundary is preserved.
+Source/HTTP tests and a separate installed20-request/one-child/seven-URL scenario
+are recorded in the
+[frozen implementation report](https://github.com/donnabox/beads/blob/d573ce1ca7501a97a394c6ff3061771ec97e73f7/docs/architecture/bdp-client-v2/transaction-current-type-incident-minimum-implementation-report.md).
+This fixed all-visible evidence does not qualify hidden policy, retained minima,
+Type lifecycle, discovery activation or a full profile.
+
+External Type identities are outside the private minimum subset and are not
+addressable Scope HTTP routes; ordinary private external-Type reads are unchanged.
+Collection and incident-view continuations, aliases and discovery retain the
+development gap when minimum controls are supplied. Partial/malformed tuples,
+bare epoch/view fields and
 unknown opaque position spellings also retain that gap; no normative error rule
 is invented for them. In particular, whether a minimum constrains an old retained
 query page's anchor or its current serving observation remains unresolved. Normal
@@ -1658,18 +1674,6 @@ Fresh pack/install execution, actual source/configuration/payload bindings and
 cleanup are recorded separately in the C3 implementation report; emitted tests
 alone do not establish an installed result or cold-client usability.
 
-
-The current Type/incident increment reuses the same owner entry, finite wait and
-compatible observed404 callback. Canonical in-Scope Type points and initial Type
-inventory/incident views are supported; ordinary external Type reads remain
-unchanged. Unknown Types and absent/deleted incident anchors return compatible404
-with actual context, while missing+behind/foreign cases retain the explicit gap.
-The ordinary facet's descriptor-safe delivery-option boundary is preserved.
-Source/HTTP tests and a separate installed20-request/one-child/seven-URL scenario
-are recorded in the
-[frozen implementation report](https://github.com/donnabox/beads/blob/d573ce1ca7501a97a394c6ff3061771ec97e73f7/docs/architecture/bdp-client-v2/transaction-current-type-incident-minimum-implementation-report.md).
-This fixed all-visible evidence does not qualify hidden policy, retained minima,
-Type lifecycle, discovery activation or a full profile.
 ### Internal discovery minimum observation
 
 The private discoveryObserved accessor accepts an optional canonical minimum and
