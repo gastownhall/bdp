@@ -4,12 +4,13 @@ Draft for discussion, October 13, 2026. **Neither approach is selected.** MUST,
 SHOULD and MAY below describe the respective candidate, not adopted BDP law.
 This file contains the Type definitions and their observable consequences in two
 sections. It is the working specification for this comparison; earlier design
-notes are background, not a third candidate.
+notes are background. A.11 tests a hybrid of the two written candidates; neither
+full approach nor the hybrid has been selected.
 
 Inputs: [Chris’s Memory proposal, revision 4](https://github.com/gastownhall/beads/issues/5877),
 including R1–R31/R27a and its [relationship/applicability follow-up](https://github.com/gastownhall/beads/issues/5877#issuecomment-5963448303);
 [Provenance V2](https://github.com/gastownhall/beads/issues/7510);
-and [BDP main checked at 77b683b](https://github.com/gastownhall/bdp/blob/77b683b264f6e5c02904c869843f70b429b147b5/docs/specs/bdp.md).
+and [BDP main checked at 627b560](https://github.com/gastownhall/bdp/blob/627b560c0daf1a76b292615718c86670255ac9af/docs/specs/bdp.md).
 The issue bodies were reread October 13. [Prior-art research](../../docs/design/memory-type-prior-art-20261013.md)
 supplies examples, not additional requirements.
 
@@ -57,6 +58,40 @@ allows any target. This replaces the earlier “at least one end is Memory” ru
 in both candidates. It is a reviewable proposal, not an operator ruling or a
 change to existing Dependency. Independent endpoint OR lists cannot express
 “either end, but at least one” or correlated source/target pairs.
+
+**Shared Link mechanics agreed during this exercise.** Link endpoints default to
+floating; callers explicitly supply exact pins or request resolve-current-and-pin.
+A required pin is not silently supplied for a bare endpoint. In contrast, every
+new Bead/Link affiliation pins the selected Type definition, and update omission
+preserves that pin. These defaults depend on the role of a reference, not on
+whether its target is represented as a Bead. CLI discussion stays in revision-flag
+notation here; no suffix grammar is selected by this document.
+
+Maximums count Links in the enforcing Scope's own table by endpoint identity,
+across pinned and floating references. Other Scopes' tables are outside the count;
+external endpoint identities in this table are not exempt. This extends current
+BDP's local-endpoint aggregate rules and needs an explicit amendment. Remote Type
+eligibility remains unverified; known Link Type/endpoint-identity counts do not
+require remote Type verification. There are no mechanically enforced minimums,
+and per-revision arity is deferred. A maximum may count an explicit OR set of
+Link Types together. Applicable Type-defined and Scope-defined rules all apply;
+the Scope can tighten but cannot relax a Type rule. Descriptor placement/encoding
+of grouped maxima remains to specify.
+
+An identity-filtered Link listing matches floating and all pinned endpoints.
+An endpoint-revision filter matches only that explicit stored pin; floating-only
+selection is separate and never resolved to a current revision for matching.
+The analogous retained-Link-version query tests each version's own endpoint;
+it is not a historical graph snapshot or a query of current endpoints followed
+by unfiltered history expansion. Wire/query/CLI availability remains a gate.
+
+BDP's Transactional batch is ordered and atomic, checking each staged operation.
+For maximum-only constraints, delete the old Link before creating its replacement:
+the interim zero is valid, failure rolls back both, and no intermediate gap is
+published. Final-state-only validation or a special replacement operation is not
+required for that case. [Current upstream bd batch](https://github.com/gastownhall/beads/blob/d4ca89369f72e4666fe76493e4cab700a7e73320/cmd/bd/batch.go)
+is atomic for its narrow Issue/Dependency command grammar; generic Link command
+coverage is a separate implementation requirement, not claimed by this draft.
 
 **Comparison control:** both approaches provide the same six knowledge forms,
 six informational relationship meanings, fields, authoring checks, examples and
@@ -698,6 +733,116 @@ No schema fragment in this document is a new canonical BDP wire schema. Before
 adoption, encode the selected definitions, shared-operation requirements and
 errors in the canonical specification and conformance suite together.
 
+### A.11 Hybrid experiment — one Memory Bead Type, separate Link Types
+
+This is the operator-requested test of combining A's Bead design with B's distinct
+Link identities. It is a candidate, not a selected replacement for either complete
+approach. The test asks whether the actual Memory requirements need endpoint
+constraints on knowledge forms, or only meaningful relationships among memories.
+Chris's revision-4 issue body and October 3 relationship/applicability comment
+were reread for this exercise; the issue body was unchanged from the earlier scan.
+
+**Concrete catalog.** Use A's K/memory Bead Type, kind/details validation and
+same-identity reclassification. Use the six Link IDs from B.1, each with its own
+meaning and explicitly stated endpoint rules. No Link has a relation-kind
+property. Issue, Dependency and Activity remain externally defined Types. Every
+Memory owns all outgoing Links under its explicit wildcard declaration; this
+comes from Memory's definition, not from the Link catalog.
+
+| Link Type | Allowed source Types | Allowed target Types | Additional proposed rule |
+| --- | --- | --- | --- |
+| MemoryRelated | ANY | ANY | Informational navigation; at least one local endpoint under ordinary BDP |
+| MemoryGuidance | [Issue] | [Memory] | Intended guidance, not proof of use |
+| MemoryAppliesTo | [Memory] | ANY | Claimed applicability, not an authorization grant |
+| MemorySupports | [Memory] | [Memory] | Exact target pin required |
+| MemoryChallenges | [Memory] | [Memory] | Exact target pin required |
+| MemorySupersedes | [Memory] | [Memory] | Exact target pin required; no automatic winner or retirement |
+
+All entries are flat nominal-ID selections, with OR for multi-ID lists. Memory
+here means only K/memory. A Decision or Procedure is a kind of that same Type,
+so these endpoint rules require no kind-aware validator. Related uses opaque
+external-endpoint policy at both ends; other rows use bead-shaped external
+references for specified Bead roles and opaque external targets for ANY. Local
+Type mismatches fail; remote Type claims remain unverified. Pin requirements,
+historical admission, self-link rules and workflow exclusion still require the
+shared support identified elsewhere; endpoint Type lists alone are insufficient.
+
+**A defect found by the test:** A.4/B.4's proposed local-Memory-source restriction
+on Related does not cover R17's baseline Issue→Memory navigation. Guidance can
+express intended guidance, but using it for every navigation link would change
+the assertion. The hybrid table tests a broader Related with unrestricted ends;
+it deliberately permits Issue→Issue navigation as well. It removes the
+at-least-one-Memory restriction instead of hiding a cross-endpoint predicate.
+This is a candidate repair, not a change to the existing Dependency related kind.
+If Related must remain Memory-specific in either orientation, that is still a
+constraint-language gap. The two original approach tables remain visible so the
+failed assumption and this proposed repair can be reviewed.
+
+**Tests against the requirements and worked scenarios**
+
+| Case | Concrete representation / result | Need a separate knowledge-form Type? |
+| --- | --- | --- |
+| Capture an unclassified note, then structure it as a procedure (R4; technician scenario) | One Memory identity; explicit kind/details update; earlier pins retain the note state | No; separate Type would impose the identity change being avoided |
+| Issue points to a policy or procedure for guidance (S5, S9) | MemoryGuidance Issue→Memory; target may float or pin; no readiness effect | No; both are valid guidance targets |
+| Memory cites an Issue as supporting background (S10) | MemoryRelated Memory→Issue with an explicit pin where intended; V2 sources record original inputs separately | No; do not stretch MemorySupports to cover an endpoint its definition excludes |
+| Issue links to a Memory for navigation only (R17) | Broadened hybrid MemoryRelated accepts Issue→Memory; the earlier source-only draft fails this case | No; failure concerns Related's direction, not the bead's kind |
+| Assessment supports a supplier decision; later evidence challenges it (office scenario; October 3 follow-up) | MemorySupports/MemoryChallenges between Memories, targeting exact decision revisions | No; the relationship carries the assertion; kind aids search/display |
+| Observation challenges a procedure for a newer pump housing (technician scenario) | MemoryChallenges targets the old procedure pin; the author may revise the procedure with new V2 sources | No; restricting Challenges to Decision targets would break this scenario |
+| A new policy supersedes an old one; a new decision supersedes an earlier choice | MemorySupersedes between Memories; target pinned; no implied automatic retirement | No; the same replacement relation is useful for more than one form |
+| Search only decisions; show incoming support or challenges | Nominal Memory plus kind filter for beads; explicit OR of the two Link Type IDs for relationships | No; query predicates and endpoint validity are separate |
+| Add an independent application-specific knowledge Type | Excluded from Memory queries and restricted endpoint lists; ANY endpoints already accept it | Flat membership still requires deliberate integration, as in B |
+| Preserve history, delete/restore, or report activity (R5, R11–R16, R20; V2) | Same shared History/graph/Activity obligations as A/B; no extra mechanism supplied by the hybrid | No form-specific Type solves these shared dependencies |
+
+These are requirements walkthroughs, not executed product acceptance tests. They
+do not prove complete R1–R31 implementation. The R3 departure for schema-defined
+kind/details/applicability and R7 structured-rendering choice remain open.
+
+**Try to break the hybrid.** Suppose an application needs a Link whose target
+MUST be a procedure and MUST never be a decision, even when an independent client
+writes it. The endpoint list [Memory] cannot enforce that distinction. The
+application must choose a separate nominal Procedure Type or obtain an explicit
+property-sensitive constraint mechanism. We are not adding that mechanism here.
+None of the examined Memory requirements demands this strict distinction;
+procedure-only authoring prompts or a kind-filtered search do not establish a
+server-side invariant. If a real requirement does, revisit the bead-Type choice.
+
+Changing a Memory's kind leaves existing identity-based relationships in place.
+For floating Guidance, this intentionally allows the target to become another
+form of useful guidance; readers see its current kind. A consumer requiring the
+old content uses a pin. The server cannot promise that a rewritten record still
+makes the advice useful. Distinct nominal Types would not prevent an author from
+changing content incompatibly with a particular use inside the same Type either.
+
+**Experiment result:** one Memory Type covers the examined knowledge forms without
+requiring identity replacement during gradual authoring; distinct Link Types
+express their different endpoint rules without A's kind-dependent dispatch.
+This supports continuing with the hybrid as the leading candidate. It does not
+select the catalog, the Related repair, stricter form predicates or implementation.
+
+**Aside: generic Bead and Link Types for experimentation.** The operator proposed
+a generic Type for each Resource category with kind as its only defined property,
+possibly intrinsic. The idea fits the flat model: generic records use a stable
+shared Type definition, while users experiment with kind values without publishing
+a Type for each label. These are not untyped records; generic Type affiliations
+would still pin definitions, and normal Resource identity/history rules apply.
+Intrinsic/bootstrap status, names, kind grammar and packaging remain unselected.
+
+A generic kind is an application label, not another nominal Type identity. A
+GenericLink(kind=supports) does not satisfy a constraint selecting MemorySupports;
+accepting GenericLink in a list admits every kind under that identity. Likewise,
+a per-identity maximum over GenericLink counts all its kinds together unless a
+separate predicate mechanism exists. A GenericBead(kind=memory) does not acquire
+Memory's fields, recall behavior or wildcard ownership automatically. Because the
+current top-level properties rule is open, “only kind” can mean only one defined
+property; forbidding every other top-level property would need a separate change.
+
+Promotion exposes the stable-affiliation decision: GenericBead→Memory, or
+GenericLink→MemorySupports, requires another identity under the current rule.
+Old references do not retarget, and old pins do not change. If preserving identity
+through promotion is important, it must reopen that rule explicitly; the generic
+escape hatch does not solve it. GenericLink also does not replace Related: one
+has unspecified application kind semantics, the other a defined navigation meaning.
+
 ## Approach B — separately identified Bead and Link Types
 
 ### B.1 Catalog and identification
@@ -1152,10 +1297,11 @@ Type-affiliation rule. Calling the operation “migration” does not remove tha
 
 A MemorySupport Link cannot become a MemoryChallenge Link under the same Link
 identity. Create the new typed Link and remove the old one explicitly. For a
-Memory source, each accepted mutation versions the source; a combined operation
-requires a shared atomic facility if the consumer needs to avoid an intermediate
-both/neither state. This file does not assume such an operation exists. History
-must expose the real sequence if the operations are separate. Same-identity
+Memory source, each accepted mutation versions the source. An ordered atomic
+batch can delete the old Link and create the new one without exposing an
+intermediate gap; maximum-only rules admit the intermediate zero. BDP supplies
+that transaction model; generic CLI command coverage remains to implement.
+Separate committed operations expose their real sequence. Same-identity
 endpoint re-pinning remains the independent shared R23 issue in B.6.
 
 To query decisions, select exactly K/decision. To query support Links, select
