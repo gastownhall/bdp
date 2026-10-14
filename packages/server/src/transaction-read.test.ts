@@ -11,7 +11,11 @@ import {
 } from "@bdp/protocol";
 import { prepareTransaction, prepareTransactionSingleton } from "./transaction-batch.js";
 import { openTransactionStore } from "./transaction-store.js";
-import { createTransactionReadPlane, transactionReadContexts } from "./transaction-read.js";
+import {
+  createTransactionReadPlane,
+  transactionReadContexts,
+  TransactionMinimumVisibilityGap,
+} from "./transaction-read.js";
 import { createTransactionService } from "./transaction-service.js";
 import { createTransactionHttpHandler } from "./transaction-http.js";
 import type { ReadObservation } from "./authority-read.js";
@@ -850,4 +854,172 @@ it("binds the private HTTP directory to the service owner's exact non-root Scope
     links: { items: [], next: null },
   });
   expect(snapshotResponse.headers.get("bdp-scope-position")).toBe("pos-0");
+});
+
+describe("compatible missing Resource minimum", () => {
+  it("returns same-entry observed404 across absent/deleted kinds, views and satisfied bounds", async () => {
+    const f = fixture();
+    f.write(seed);
+    f.write([
+      { operation: "deleteLink", link: "links/self" },
+      { operation: "deleteBead", bead: "beads/a" },
+    ]);
+    const { plane } = f.open(),
+      config = f.store.readConfiguration();
+    const expected = {
+      scopeEpoch: config.scopeEpoch,
+      authorizationView: config.authorizationView,
+      scopePosition: "pos-2",
+    };
+    const original = DatabaseSync.prototype.prepare;
+    let lookups = 0;
+    const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (sql === "SELECT * FROM resources WHERE id=?") {
+        lookups++;
+        expect(() => f.store.inspect()).toThrow("reentrant");
+      }
+      return original.call(this, sql);
+    });
+    try {
+      for (const [kind, deleted] of [
+        ["bead", "beads/a"],
+        ["link", "links/self"],
+      ] as const)
+        for (const id of [deleted, `${kind}s/never`])
+          for (const view of ["resource", "properties"] as const)
+            for (const minimumPosition of ["pos-1", "pos-2"]) {
+              const result = await plane
+                .minimumFor(
+                  { kind: "anonymous" },
+                  {
+                    scopeEpoch: expected.scopeEpoch,
+                    authorizationView: expected.authorizationView,
+                    minimumPosition,
+                  },
+                )
+                .perform({ kind: view, resource: kind, id: url(id) });
+              expect(result).toMatchObject({
+                kind: "problem",
+                phase: "observed",
+                problem: { code: "resource-not-found", status: 404 },
+              });
+              expect(contexts(result).current).toEqual(expected);
+            }
+      expect(lookups).toBeGreaterThanOrEqual(16);
+    } finally {
+      spy.mockRestore();
+    }
+    f.write([{ operation: "createBead", id: "beads/after", type: bead }]);
+    expect(
+      contexts(await plane.readFor({ kind: "anonymous" }).perform(resource("beads/after"))).current
+        .scopePosition,
+    ).toBe("pos-3");
+  });
+  it("preserves missing behind and foreign collisions as visibility gaps", async () => {
+    const f = fixture();
+    f.write(seed);
+    const { plane } = f.open(),
+      config = f.store.readConfiguration();
+    const minimum = {
+      scopeEpoch: config.scopeEpoch,
+      authorizationView: config.authorizationView,
+      minimumPosition: "pos-1",
+    };
+    for (const kind of ["bead", "link"] as const)
+      for (const patch of [
+        { minimumPosition: "pos-2" },
+        { scopeEpoch: "foreign" },
+        { authorizationView: "foreign" },
+      ])
+        await expect(
+          plane
+            .minimumFor({ kind: "anonymous" }, { ...minimum, ...patch })
+            .perform(resource(`${kind}s/never`, kind)),
+        ).rejects.toBeInstanceOf(TransactionMinimumVisibilityGap);
+  });
+  it("propagates invalid string context and provider errors rather than masking integrity", async () => {
+    const f = fixture();
+    f.write(seed);
+    const config = f.store.readConfiguration();
+    let fault: "context" | "provider" | undefined = "context";
+    const sentinel = new Error("fixture provider failure");
+    const owner: typeof f.store = {
+      ...f.store,
+      withRead: (callback) =>
+        f.store.withRead((reader, context) => {
+          expect(() => f.store.inspect()).toThrow("reentrant");
+          if (fault === "provider") throw sentinel;
+          return callback(
+            reader,
+            fault === "context" ? { ...context, scopePosition: "pos-02" } : context,
+          );
+        }),
+    };
+    const plane = createTransactionReadPlane(owner, f.readOptions);
+    cleanup.push(() => plane.close());
+    const facet = plane.minimumFor(
+      { kind: "anonymous" },
+      {
+        scopeEpoch: config.scopeEpoch,
+        authorizationView: config.authorizationView,
+        minimumPosition: "pos-1",
+      },
+    );
+    await expect(facet.perform(resource("beads/missing"))).rejects.toThrow(
+      "invalid Transactional Read context",
+    );
+    fault = "provider";
+    await expect(facet.perform(resource("beads/missing"))).rejects.toBe(sentinel);
+    fault = undefined;
+    expect(await facet.perform(resource("beads/missing"))).toMatchObject({
+      kind: "problem",
+      problem: { status: 404 },
+    });
+    f.write([{ operation: "createBead", id: "beads/after", type: bead }]);
+    expect(contexts(await facet.perform(resource("beads/after"))).current.scopePosition).toBe(
+      "pos-2",
+    );
+  });
+  it("ignores ordinary sourceCondition while preserving signals and minimumFor enforcement", async () => {
+    const f = fixture();
+    f.write(seed);
+    expect(f.alias("putAlias", { alias: "alias/work", target: "beads/a" }).status).toBe(
+      "completed",
+    );
+    const { plane, facet } = f.open(),
+      config = f.store.readConfiguration();
+    const sourceCondition = {
+      scopeEpoch: config.scopeEpoch,
+      authorizationView: config.authorizationView,
+      minimumPosition: "pos-99",
+    };
+    expect(await facet.perform(resource("beads/a"), { sourceCondition })).toMatchObject({
+      kind: "success",
+    });
+    expect(await facet.resolveAlias(url("alias/work"), { sourceCondition })).toMatchObject({
+      kind: "target",
+      target: url("beads/a"),
+    });
+    await expect(
+      plane.minimumFor({ kind: "anonymous" }, sourceCondition).perform(resource("beads/a")),
+    ).rejects.toMatchObject({ reason: "behind" });
+    await expect(
+      plane.minimumFor({ kind: "anonymous" }, sourceCondition).resolveAlias(url("alias/work")),
+    ).rejects.toThrow("unsupported");
+    await expect(
+      plane
+        .minimumFor({ kind: "anonymous" }, sourceCondition)
+        .perform({ kind: "collection", collection: "types" }),
+    ).rejects.toThrow("outside supported subset");
+    const signal = AbortSignal.abort(new Error("ordinary cancelled"));
+    await expect(facet.perform(resource("beads/a"), { signal, sourceCondition })).rejects.toThrow(
+      "abort",
+    );
+    await expect(
+      facet.resolveAlias(url("alias/work"), { signal, sourceCondition }),
+    ).rejects.toThrow("abort");
+  });
 });
