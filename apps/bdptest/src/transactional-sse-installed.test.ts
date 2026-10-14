@@ -63,6 +63,58 @@ const artifacts = {
     },
   ],
 };
+function installedExchanges(address: URL, token: string, controller: AbortController) {
+  let key = 0;
+  const exchange = async (target: string, body?: unknown) => {
+    const url = new URL(target, scope).href,
+      method = body === undefined ? ("GET" as const) : ("POST" as const);
+    const execute = createRawHttpExchangeExecutor(
+      { transport: "plain", host: address.hostname, port: Number(address.port) },
+      {
+        requestTimeoutMs: 5000,
+        maximumBodyBytes: 65536,
+        exactMode: {
+          scope,
+          profile: "transactional",
+          routes: [{ method, url }],
+          maximumRequestHeaderBytes: 16384,
+          maximumRequestBodyBytes: 65536,
+          defaultCredentialRef: "writer",
+          credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
+          resolveCredentials: () => ({ authorization: `Bearer ${token}` }),
+        },
+      },
+    );
+    const response = await execute({
+      method,
+      url,
+      signal: controller.signal,
+      credentialRef: "writer",
+      raw: {
+        headerLines:
+          body === undefined
+            ? []
+            : [
+                { name: "Content-Type", value: "application/json" },
+                { name: "Idempotency-Key", value: `sse_${key++}` },
+              ],
+        ...(body === undefined ? {} : { bodyBytes: Buffer.from(JSON.stringify(body)) }),
+      },
+    });
+    expect(response.status, response.bodyText).toBe(200);
+    expect(response.exactRequest?.writeState).toBe("complete");
+    expect(response.wireResponseBytes?.length).toBeGreaterThan(0);
+    return {
+      bodyText: response.bodyText,
+      parsed: JSON.parse(response.bodyText) as { groups: unknown[] },
+    };
+  };
+  const create = (id: string) =>
+    exchange("operations/batch", {
+      operations: [{ operation: "createBead", id: `beads/${id}`, type, properties: { n: 100 } }],
+    });
+  return { exchange, create };
+}
 it("installed actual-default SSE survives fifteen seconds then delivers a live group over canonical Host", async () => {
   const controller = new AbortController();
   const deadline = setTimeout(
@@ -106,55 +158,7 @@ it("installed actual-default SSE survives fifteen seconds then delivers a live g
       }),
     );
     const address = new URL(child.ready.listenUrl as string);
-    let key = 0;
-    const exchange = async (target: string, body?: unknown) => {
-      const url = new URL(target, scope).href,
-        method = body === undefined ? ("GET" as const) : ("POST" as const);
-      const execute = createRawHttpExchangeExecutor(
-        { transport: "plain", host: address.hostname, port: Number(address.port) },
-        {
-          requestTimeoutMs: 5000,
-          maximumBodyBytes: 65536,
-          exactMode: {
-            scope,
-            profile: "transactional",
-            routes: [{ method, url }],
-            maximumRequestHeaderBytes: 16384,
-            maximumRequestBodyBytes: 65536,
-            defaultCredentialRef: "writer",
-            credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
-            resolveCredentials: () => ({ authorization: `Bearer ${token}` }),
-          },
-        },
-      );
-      const response = await execute({
-        method,
-        url,
-        signal: controller.signal,
-        credentialRef: "writer",
-        raw: {
-          headerLines:
-            body === undefined
-              ? []
-              : [
-                  { name: "Content-Type", value: "application/json" },
-                  { name: "Idempotency-Key", value: `sse_${key++}` },
-                ],
-          ...(body === undefined ? {} : { bodyBytes: Buffer.from(JSON.stringify(body)) }),
-        },
-      });
-      expect(response.status, response.bodyText).toBe(200);
-      expect(response.exactRequest?.writeState).toBe("complete");
-      expect(response.wireResponseBytes?.length).toBeGreaterThan(0);
-      return {
-        bodyText: response.bodyText,
-        parsed: JSON.parse(response.bodyText) as { groups: unknown[] },
-      };
-    };
-    const create = (id: string) =>
-      exchange("operations/batch", {
-        operations: [{ operation: "createBead", id: `beads/${id}`, type, properties: { n: 100 } }],
-      });
+    const { exchange, create } = installedExchanges(address, token, controller);
     await create("before");
     const finite = await exchange("changes/?after=genesis");
     stream = recordRawSse({
@@ -233,4 +237,254 @@ it("installed actual-default SSE survives fifteen seconds then delivers a live g
   if (failures.length)
     throw new AggregateError(failures, "installed SSE observation or cleanup failed");
   console.log(JSON.stringify(report));
+}, 60000);
+
+type ReconnectGroup = {
+  checkpoint: string;
+  position: string;
+  previousPosition: string;
+  transaction: string;
+  eventCount: number;
+  changes: {
+    operation: string;
+    resourceKind: string;
+    resource: { id: string; type: string; properties: unknown };
+  }[];
+  events: unknown[];
+};
+
+it("installed same start=now URL replays offline G2 before live G3 from the saved checkpoint", async () => {
+  const controller = new AbortController();
+  const deadline = setTimeout(
+    () => controller.abort(new Error("installed SSE reconnect cohort deadline")),
+    45000,
+  );
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-sse-reconnect-installed-"));
+  const token = randomBytes(32).toString("base64url");
+  let child: Awaited<ReturnType<typeof launchInstalledTransaction>> | undefined;
+  const streams: ReturnType<typeof recordRawSse>[] = [];
+  const failures: unknown[] = [];
+  const requests: { method: string; target: string; category: "finite" | "sse" }[] = [];
+  let phase = "launch",
+    report: Record<string, unknown> | undefined;
+  const frames = (stream: ReturnType<typeof recordRawSse>) =>
+    stream.frames.filter((frame) => frame.startsWith("id: "));
+  const decode = (frame: string, id: string, position: string, previousPosition: string) => {
+    const data = frame.split("\ndata: ")[1]!;
+    const value = JSON.parse(data) as ReconnectGroup;
+    expect(frame).toBe(`id: ${value.checkpoint}\nevent: change-group\ndata: ${data}`);
+    expect(value).toMatchObject({
+      position,
+      previousPosition,
+      projectionAdvance: false,
+      eventCount: 1,
+      erasures: [],
+    });
+    expect(value.changes).toHaveLength(1);
+    expect(value.changes[0]).toMatchObject({
+      operation: "upsert",
+      resourceKind: "bead",
+      resource: { id: `${scope}beads/${id}`, type, properties: { n: 100 }, metadata: {} },
+    });
+    expect(value.events).toHaveLength(1);
+    expect(value.events[0]).toMatchObject({
+      source: `${scope}events/`,
+      type: "created",
+      subject: `${scope}beads/${id}`,
+      subjectType: type,
+      ordinal: 0,
+      transaction: value.transaction,
+    });
+    return { value, data };
+  };
+  try {
+    child = await launchInstalledTransaction(
+      entry,
+      {
+        scope,
+        directory,
+        create: true,
+        artifacts,
+        credentials: [{ token, principal: "writer", canMutate: true }],
+      },
+      controller.signal,
+    );
+    const binding = installedTransactionBinding(child.ready, source, fixture);
+    const installedConfiguration = (await import(
+      pathToFileURL(path.join(path.dirname(entry), "transaction-runtime-configuration.js")).href
+    )) as typeof import("../../../packages/server/src/transaction-runtime-configuration.js");
+    const actualSettings = installedConfiguration.TRANSACTION_RUNTIME_DEFAULTS;
+    expect(child.ready.runtimeConfigurationIdentity).toBe(
+      installedConfiguration.transactionRuntimeDigest({
+        revision: "transaction-runtime-1",
+        scope,
+        artifactIdentity: child.ready.artifactIdentity,
+        settings: actualSettings,
+        authorityMode: "canonical",
+        policyIdentity: child.ready.policyIdentity,
+        authenticationIdentity: child.ready.authenticationIdentity,
+        profile: "transactional",
+        history: false,
+      }),
+    );
+    const address = new URL(child.ready.listenUrl as string);
+    const { exchange, create } = installedExchanges(address, token, controller);
+    const open = (checkpoint?: string) => {
+      requests.push({ method: "GET", target: `${scope}changes/?start=now`, category: "sse" });
+      const stream = recordRawSse({
+        dial: address.href,
+        host: "reference.invalid",
+        target: "/acme/changes/?start=now",
+        headers: [
+          ["Authorization", `Bearer ${token}`],
+          ["Accept", "text/event-stream"],
+          ...(checkpoint === undefined ? [] : [["Last-Event-ID", checkpoint] as [string, string]]),
+        ],
+        signal: controller.signal,
+        timeoutMs: 25000,
+      });
+      streams.push(stream);
+      return stream;
+    };
+    const commit = async (id: string, position: string) => {
+      requests.push({ method: "POST", target: `${scope}operations/batch`, category: "finite" });
+      const result = await create(id);
+      expect(result.parsed).toMatchObject({
+        status: "completed",
+        requiredPosition: position,
+        effectPosition: position,
+        results: [
+          {
+            operationIndex: 0,
+            outcome: "created",
+            resource: { id: `${scope}beads/${id}`, type, properties: { n: 100 } },
+          },
+        ],
+      });
+    };
+    const finite = async (after: string, expected: ReturnType<typeof decode>) => {
+      const target = `changes/?after=${after}`;
+      requests.push({ method: "GET", target: new URL(target, scope).href, category: "finite" });
+      const response = await exchange(target);
+      expect(response.parsed.groups).toEqual([expected.value]);
+      expect(response.bodyText).toContain(expected.data);
+      return response.bodyText;
+    };
+    const first = open();
+    await first.ready;
+    expect(first.status).toBe(200);
+    expect(first.headers["bdp-scope-position"]).toBe("pos-0");
+    expect(frames(first)).toEqual([]);
+    await commit("g1", "pos-1");
+    await first.until(() => frames(first).length === 1);
+    const g1 = decode(frames(first)[0]!, "g1", "pos-1", "pos-0");
+    const finiteG1 = await finite("genesis", g1);
+    // Apply the complete validated group before choosing its checkpoint. This
+    // small test-local state is not a claim of a general durable replica.
+    const applied = new Map<string, unknown>();
+    for (const change of g1.value.changes) applied.set(change.resource.id, change.resource);
+    expect([...applied.keys()]).toEqual([`${scope}beads/g1`]);
+    const saved = g1.value.checkpoint;
+    await first.close();
+    expect(first.destroyed).toBe(true);
+    await commit("g2", "pos-2");
+    const resumed = open(saved);
+    await resumed.ready;
+    expect(resumed.status).toBe(200);
+    phase = "offline-G2-before-live-G3";
+    try {
+      await resumed.until(() => frames(resumed).length > 0);
+    } catch (cause) {
+      throw new Error(
+        "offline-G2-before-live-G3: saved-checkpoint replay did not deliver the offline group",
+        { cause },
+      );
+    }
+    const g2 = decode(frames(resumed)[0]!, "g2", "pos-2", "pos-1");
+    expect(g2.value.checkpoint).not.toBe(saved);
+    const finiteG2 = await finite(saved, g2);
+    phase = "live-G3";
+    await commit("g3", "pos-3");
+    await resumed.until(() => frames(resumed).length >= 2);
+    const g3 = decode(frames(resumed)[1]!, "g3", "pos-3", "pos-2");
+    const finiteG3 = await finite(g2.value.checkpoint, g3);
+    await resumed.close();
+    expect(frames(resumed).map((f) => JSON.parse(f.split("\ndata: ")[1]!).checkpoint)).toEqual([
+      g2.value.checkpoint,
+      g3.value.checkpoint,
+    ]);
+    expect(frames(first)).toHaveLength(1);
+    for (const stream of streams) {
+      expect(stream.headers).toMatchObject({
+        "content-type": "text/event-stream",
+        "cache-control": "no-store, no-transform",
+        vary: "Accept",
+        "x-bdp-development": "non-attesting",
+      });
+      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+        expect(stream.headers[name]).toBeTruthy();
+    }
+    expect(requests).toHaveLength(8);
+    expect(requests.filter((r) => r.category === "finite")).toHaveLength(6);
+    phase = "complete";
+    report = {
+      observation: "private-installed-changefeed-start-now-resume",
+      claimEligible: false,
+      source,
+      workspaceDirty:
+        execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).length > 0,
+      entry,
+      entrySha256: createHash("sha256").update(readFileSync(entry)).digest("hex"),
+      binding,
+      node: process.version,
+      settings: actualSettings,
+      deadlines: { finite: 5000, recorder: 25000, cohort: 45000, cleanup: 10000 },
+      requests,
+      savedCheckpoint: saved,
+      finiteResponseTexts: [finiteG1, finiteG2, finiteG3],
+    };
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    for (const stream of streams) {
+      try {
+        await stream.close();
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    try {
+      await child?.close();
+    } catch (error) {
+      failures.push(error);
+    }
+    clearTimeout(deadline);
+    rmSync(directory, { recursive: true, force: true });
+  }
+  const observations = streams.map((stream) => ({
+    status: stream.status,
+    headers: stream.headers,
+    frames: stream.frames,
+    wireBytes: stream.wireBytes.length,
+    wireSha256: createHash("sha256").update(stream.wireBytes).digest("hex"),
+    wireResponseBase64: stream.wireBytes.toString("base64"),
+    destroyed: stream.destroyed,
+  }));
+  console.log(
+    JSON.stringify({
+      ...report,
+      observation: "private-installed-changefeed-start-now-resume",
+      source,
+      phase,
+      requests,
+      streams: observations,
+      failures: failures.map((e) => (e instanceof Error ? e.message : String(e))),
+      childClosed:
+        child === undefined || child.child.exitCode !== null || child.child.signalCode !== null,
+      directoryRemoved: true,
+      claimEligible: false,
+    }),
+  );
+  if (failures.length)
+    throw new AggregateError(failures, "installed SSE reconnect observation or cleanup failed");
 }, 60000);

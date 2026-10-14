@@ -1335,12 +1335,13 @@ Node 24 string ceiling. This is arithmetic over the installed M32/E256 limits,
 not a large-allocation or RSS measurement and not a new post-commit refusal.
 
 The URL must still supply exactly `after` or `start=now`. Selected SSE with an
-explicit `after` uses a single `Last-Event-ID` as its effective checkpoint,
+explicit `after` or `start=now` uses a single `Last-Event-ID` as its effective
+checkpoint,
 including `genesis`; owner validation sees that effective checkpoint only.
 Finite JSON ignores the header, including malformed/repeated values. A
-header-only request remains 400. The `start=now` plus reconnect-header combination
-remains an explicit private gap, not an inferred new protocol rule. Initial
-`start=now` is captured once through any minimum wait.
+header-only request remains 400. Reconnecting the same `start=now` URL resumes
+exclusively after the saved header checkpoint. Headerless initial `start=now` is
+captured once through any minimum wait.
 
 A source-private service registry owns cancellable stream lifetimes separately
 from finite accepted work. The private installed defaults are one live stream,
@@ -1404,10 +1405,10 @@ through the existing source-only testing entry. Finite/SSE comparisons additiona
 check each data payload against raw finite response text, without JSON reserialization
 as the byte oracle. Numeric-like property names are included in the source witness.
 
-The deferred `start=now` plus `Last-Event-ID` gap also blocks automatic EventSource
-reconnect after that initial stream has delivered an Event. The private development
-refusal remains unchanged; this slice makes no browser interoperability claim or
-new protocol ruling for that combination.
+A Scope changefeed reconnect on a `start=now` URL now resumes exclusively after
+the checkpoint carried in `Last-Event-ID`, under the approved precedence rule.
+This makes no browser interoperability claim; a client must still use its
+durable applied checkpoint rather than unapplied transport progress.
 
 
 The final G2a cancellation guard also distinguishes a response already destroyed

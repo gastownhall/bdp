@@ -229,16 +229,21 @@ it("HEAD and preconditions do not consume a slot; capacity/disconnect/shutdown p
     ["GET", [["If-None-Match", "*"]], 304],
     ["GET", [["If-Match", '"absent"']], 412],
   ] as const) {
-    const r = f.stream(
-      "changes/?after=genesis",
-      headers.map(([a, b]) => [a, b]),
-      method,
-    );
-    await r.ready;
-    expect(r.status).toBe(status);
-    await r.closed;
-    expect(r.body).toBe("");
-    expect(r.headers["bdp-scope-position"]).toBe("pos-0");
+    for (const target of ["changes/?after=genesis", "changes/?start=now"]) {
+      const r = f.stream(
+        target,
+        [
+          ...headers.map(([a, b]): [string, string] => [a, b]),
+          ...(target.includes("start=") ? [["Last-Event-ID", "genesis"] as [string, string]] : []),
+        ],
+        method,
+      );
+      await r.ready;
+      expect(r.status).toBe(status);
+      await r.closed;
+      expect(r.body).toBe("");
+      expect(r.headers["bdp-scope-position"]).toBe("pos-0");
+    }
   }
   const refused = f.stream();
   await refused.ready;
@@ -271,13 +276,32 @@ it("raw reconnect grammar, finite header ignorance, Event Source sharing and aut
       ],
       400,
     ],
-    ["changes/?start=now", [["Last-Event-ID", "genesis"]], 500],
+    ["changes/?start=now", [["Last-Event-ID", "genesis"]], 200],
+    ["changes/?start=now", [["Last-Event-ID", ""]], 400],
+    ["changes/?start=now", [["Last-Event-ID", "bad"]], 400],
+    [
+      "changes/?start=now",
+      [
+        ["Last-Event-ID", "genesis"],
+        ["Last-Event-ID", "genesis"],
+      ],
+      400,
+    ],
     ["events/", [], 200],
     ["beads/a?view=events", [], 200],
   ] as [string, [string, string][], number][]) {
     const r = f.stream(target, headers);
     await r.ready;
     expect(r.status, target).toBe(status);
+    if (target === "changes/?start=now" && status === 200) {
+      await r.until(() => groups(r).length === 1);
+      expect(group(groups(r)[0]!).position).toBe("pos-1");
+    }
+    if (target === "changes/?start=now" && status === 400) {
+      await r.closed;
+      expect(JSON.parse(r.body).code).toBe("invalid-parameter");
+      expect(groups(r)).toEqual([]);
+    }
     await r.close();
   }
   const finite = f.stream("changes/?after=genesis", [
@@ -289,6 +313,20 @@ it("raw reconnect grammar, finite header ignorance, Event Source sharing and aut
   expect(finite.status).toBe(200);
   expect(finite.headers["content-type"]).toBe("application/json");
   await finite.close();
+  const finiteNow = f.stream("changes/?start=now", [
+    ["Accept", "application/json;q=1"],
+    ["Last-Event-ID", "bad"],
+    ["Last-Event-ID", "bad"],
+  ]);
+  await finiteNow.closed;
+  expect(finiteNow.status).toBe(200);
+  expect(finiteNow.headers["content-type"]).toBe("application/json");
+  expect(JSON.parse(finiteNow.body)).toMatchObject({
+    observedHeadPosition: "pos-1",
+    groups: [],
+    next: null,
+  });
+  expect(JSON.parse(finiteNow.body).after).not.toBe("genesis");
   const reset = f.stream("changes/?after=genesis", [
     ["Last-Event-ID", "genesis"],
     ["Accept", "application/json;q=0.1"],
@@ -593,13 +631,24 @@ it("effective reconnect cursor owns epoch/view/retention decisions; overridden q
     [foreign, 409],
     [checkpoint.replace(/_1$/, "_999"), 400],
   ] as const) {
-    const r = f.stream("changes/?after=genesis", [
-      ["Last-Event-ID", effective],
-      ["If-None-Match", "*"],
-    ]);
-    await r.ready;
-    expect(r.status, effective).toBe(status);
-    await r.close();
+    for (const target of ["changes/?after=genesis", "changes/?start=now"]) {
+      const r = f.stream(target, [
+        ["Last-Event-ID", effective],
+        ["If-None-Match", "*"],
+      ]);
+      await r.closed;
+      expect(r.status, effective).toBe(status);
+      expect(JSON.parse(r.body).code).toBe(
+        status === 410 ? "cursor-expired" : status === 409 ? "foreign-view" : "invalid-parameter",
+      );
+      expect(groups(r)).toEqual([]);
+      if (status !== 400) {
+        expect(r.headers["bdp-scope-epoch"]).toBe(page.scopeEpoch);
+        expect(r.headers["bdp-authorization-view"]).toBe(page.authorizationView);
+        expect(r.headers["bdp-scope-position"]).toBe("pos-1");
+      }
+      await r.close();
+    }
   }
   const reset = f.stream(`changes/?after=${stale}`, [
     ["Last-Event-ID", "genesis"],
@@ -794,4 +843,66 @@ it("destroyed transport before close notification is cancellation, not a retaine
   expect(witnessedWindow).toBe(true);
   expect(stream.body).not.toContain("event: error");
   await expect(f.runtime.close()).resolves.toBeUndefined();
+});
+
+it("same start=now URL resumes offline groups exclusively after its saved checkpoint", async () => {
+  const f = await fixture();
+  const initial = f.stream("changes/?start=now");
+  await initial.ready;
+  expect(initial.status).toBe(200);
+  await f.create("first");
+  await initial.until(() => groups(initial).length === 1);
+  const first = group(groups(initial)[0]!);
+  expect(first.position).toBe("pos-1");
+  await initial.close();
+  await f.create("offline");
+  const resumed = f.stream("changes/?start=now", [["Last-Event-ID", first.checkpoint]]);
+  await resumed.until(() => groups(resumed).length === 1);
+  const second = group(groups(resumed)[0]!);
+  expect(second.position).toBe("pos-2");
+  expect(second.previousPosition).toBe(first.position);
+  const finite = (await (
+    await f.request(`changes/?after=${first.checkpoint}`)
+  ).json()) as TransactionChangefeedPage;
+  expect(second).toEqual(finite.groups[0]);
+  await f.create("live");
+  await resumed.until(() => groups(resumed).length === 2);
+  await resumed.close();
+  expect(groups(resumed).map((v) => group(v).position)).toEqual(["pos-2", "pos-3"]);
+  const eventId = first.events[0]!.id;
+  const wrongDomain = f.stream("changes/?start=now", [["Last-Event-ID", eventId]]);
+  await wrongDomain.closed;
+  expect(wrongDomain.status).toBe(400);
+  expect(JSON.parse(wrongDomain.body).code).toBe("invalid-parameter");
+});
+
+it("start=now reconnect checkpoint survives a controlled minimum wait", async () => {
+  let tick = 0,
+    commit: (() => Promise<unknown>) | undefined;
+  const f = await fixture({
+    minimumReads: {
+      budgetMs: 100,
+      now: () => tick,
+      wait: async () => {
+        tick += 5;
+        await commit?.();
+        commit = undefined;
+      },
+    },
+  });
+  await f.create("before");
+  const initial = (await (
+    await f.request("changes/?after=genesis")
+  ).json()) as TransactionChangefeedPage;
+  commit = () => f.create("during-wait");
+  const r = f.stream("changes/?start=now", [
+    ["Last-Event-ID", initial.groups[0]!.checkpoint],
+    ["BDP-Minimum-Scope-Position", "pos-2"],
+    ["BDP-Scope-Epoch", initial.scopeEpoch],
+    ["BDP-Authorization-View", initial.authorizationView],
+  ]);
+  await r.until(() => groups(r).length === 1);
+  expect(group(groups(r)[0]!).position).toBe("pos-2");
+  expect(group(groups(r)[0]!).previousPosition).toBe("pos-1");
+  expect(r.headers["bdp-scope-position"]).toBe("pos-2");
 });

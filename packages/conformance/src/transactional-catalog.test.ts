@@ -20,7 +20,7 @@ import {
  * manifest names this catalog, no fixture realizes it, and no runner can
  * report a row from it — so nothing can claim it. That absence is asserted
  * here so it cannot erode silently. What is checked is structure and
- * citation consistency — the rows parse, every excerpt still appears in
+ * citation consistency, including the ruled changefeed reconnect mirror — the rows parse, every excerpt still appears in
  * its anchored section, the rows mirror the specification's table in
  * order, and the twelve retired Read+Update rows are named and excluded from
  * a Transactional claim (T48) — never the behavior a row describes.
@@ -65,8 +65,9 @@ describe("draft Transactional catalog", () => {
     validateCatalogCitations(catalog, (source) => readText(source), "transactional-v1.json");
   });
 
-  it("keeps the ruled T62/T65 and HTTP-gap catalog objects in lockstep with the maintained packet rows", () => {
+  it("keeps the ruled T62/T65, HTTP-gap and changefeed reconnect objects in lockstep with the maintained packet rows", () => {
     const affectedIds = [
+      "transactional.changefeed.sse-reconnect",
       "transactional.idempotency.durable-admission",
       "transactional.sequence.in-flight-projection",
       "transactional.sequence.pending-creator",
