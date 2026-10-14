@@ -2070,6 +2070,7 @@ it("serves complete fresh Snapshot minima with exact timeout, foreign and condit
         headers: { ...minimumHeaders(seed, minimum), ...conditions },
       });
       expect(result.status).toBe(minimum === "pos-1" ? eligible : 503);
+      if (minimum === "pos-2") expect(result.headers.get("retry-after")).toBe("1");
       for (const [header, value] of Object.entries(expected))
         expect(result.headers.get(header)).toBe(value);
       if (method === "HEAD" || (minimum === "pos-1" && eligible !== 200))

@@ -1036,7 +1036,7 @@ describe("fresh Snapshot minimum service", () => {
       });
     },
   );
-  it("makes each authoritative HTTP preflight terminal without a second service wait or capture", async () => {
+  it("uses one service call for each fresh HTTP branch, with terminal preflight", async () => {
     const f = fixture();
     let tick = 0;
     const service = f.open({
@@ -1045,11 +1045,12 @@ describe("fresh Snapshot minimum service", () => {
     const initial = await service.snapshot({ kind: "preflight" });
     const snapshot = vi.fn(service.snapshot);
     const http = createTransactionHttpHandler({ ...service, snapshot }, scope);
-    for (const [method, headers, status] of [
-      ["HEAD", {}, 200],
-      ["GET", { "if-none-match": "*" }, 304],
-      ["GET", { "if-match": '"absent"' }, 412],
-      ["GET", { accept: "text/plain" }, 406],
+    for (const [method, headers, status, kind] of [
+      ["GET", {}, 200, "create"],
+      ["HEAD", {}, 200, "preflight"],
+      ["GET", { "if-none-match": "*" }, 304, "preflight"],
+      ["GET", { "if-match": '"absent"' }, 412, "preflight"],
+      ["GET", { accept: "text/plain" }, 406, "preflight"],
     ] as const) {
       for (const minimumPosition of ["genesis", "pos-1"]) {
         snapshot.mockClear();
@@ -1068,7 +1069,7 @@ describe("fresh Snapshot minimum service", () => {
         expect(response.status).toBe(minimumPosition === "genesis" ? status : 503);
         expect(response.headers.get("bdp-scope-position")).toBe("pos-0");
         expect(snapshot).toHaveBeenCalledTimes(1);
-        expect(snapshot.mock.calls[0]?.[0]).toEqual({ kind: "preflight" });
+        expect(snapshot.mock.calls[0]?.[0]).toEqual({ kind });
       }
     }
   });

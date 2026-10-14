@@ -254,6 +254,8 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       supplied?: TransactionMinimum,
       signal?: AbortSignal,
     ) {
+      // Without a minimum, preserve the synchronous owner path: it does not
+      // observe signal or claim interruption of retained reads or copying.
       if (supplied === undefined) return run(async () => owner.observeSnapshot(request));
       const minimum = snapshotTransactionMinimum(supplied),
         kind = request.kind;
