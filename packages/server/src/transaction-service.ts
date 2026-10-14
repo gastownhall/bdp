@@ -67,13 +67,23 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     page = limits.page,
     selector = limits.selector,
     enforcedSelector = supplied.selectorLimits;
+  const suppliedPagination = supplied.pagination;
+  const pagination = { ...suppliedPagination };
+  // Capture callback values once, but keep the receiver the Read plane used
+  // before scalar snapshotting. Stateful callbacks belong to their caller,
+  // not to the frozen copy. Leave invalid values for existing validation.
+  const clock = pagination.clock,
+    generateOpaqueToken = pagination.generateOpaqueToken;
+  if (typeof clock === "function") pagination.clock = clock.bind(suppliedPagination);
+  if (typeof generateOpaqueToken === "function")
+    pagination.generateOpaqueToken = generateOpaqueToken.bind(suppliedPagination);
   const capturedRead: TransactionReadOptions = Object.freeze({
     selectorLimits: Object.freeze({
       bytes: enforcedSelector.bytes,
       depth: enforcedSelector.depth,
       nodes: enforcedSelector.nodes,
     }),
-    pagination: Object.freeze({ ...supplied.pagination }),
+    pagination: Object.freeze(pagination),
     advertisedLimits: Object.freeze({
       page: Object.freeze({ defaultItems: page.defaultItems, maximumItems: page.maximumItems }),
       selector: Object.freeze({

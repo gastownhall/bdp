@@ -1233,3 +1233,80 @@ describe("internal discovery owner observation", () => {
     expect(await replay(reopened)).toEqual(original);
   });
 });
+
+describe("captured pagination callback receivers", () => {
+  it("reads each callback once but keeps state on the original pagination receiver", async () => {
+    const f = fixture();
+    const reads = { clock: 0, token: 0 };
+    const pagination = {
+      ...f.read.pagination,
+      ticks: 1000,
+      issued: 0,
+      get clock() {
+        reads.clock++;
+        return function (this: { ticks: number }) {
+          expect(this).toBe(pagination);
+          return this.ticks++;
+        };
+      },
+      get generateOpaqueToken() {
+        reads.token++;
+        return function (this: { issued: number }) {
+          expect(this).toBe(pagination);
+          return `stateful_${++this.issued}`;
+        };
+      },
+    };
+    const service = f.open({ read: { ...f.read, pagination } });
+    expect(reads).toEqual({ clock: 1, token: 1 });
+    const first = requireReceipt(
+      await service.submit(batch([create("a"), create("b"), create("c")])),
+    );
+    const facet = service.readFor({ kind: "anonymous" });
+    const page = await facet.perform({ kind: "collection", collection: "beads" });
+    expect(page).toMatchObject({
+      kind: "success",
+      body: { items: [expect.any(Object), expect.any(Object)], next: expect.any(String) },
+    });
+    expect(pagination.ticks).toBeGreaterThan(1000);
+    expect(pagination.issued).toBeGreaterThan(0);
+    if (page.kind !== "success" || !("next" in page.body) || typeof page.body.next !== "string")
+      throw new Error("expected continuation");
+    const next = requestFromUrl(new URL(page.body.next), scope);
+    if (isReadProblem(next)) throw new Error("expected continuation request");
+    const last = await facet.perform(next);
+    expect(last).toMatchObject({
+      kind: "success",
+      body: { items: [expect.any(Object)], next: null },
+    });
+    if (last.kind !== "success" || !("items" in last.body) || !("items" in page.body))
+      throw new Error("expected collection pages");
+    expect([...(page.body.items as unknown[]), ...(last.body.items as unknown[])]).toEqual(
+      (first.receipt.results as { resource: unknown }[]).map((member) => member.resource),
+    );
+    expect(reads).toEqual({ clock: 1, token: 1 });
+    expect((await service.discoveryObserved()).discovery.limits).toEqual({
+      page: { defaultItems: 2, maximumItems: 32 },
+      selector: { bytes: 4096, depth: 32, nodes: 256 },
+    });
+  });
+  it.each(["clock", "generateOpaqueToken"] as const)(
+    "preserves validation for an invalid %s without rereading its getter",
+    (field) => {
+      const f = fixture();
+      let reads = 0;
+      const pagination = { ...f.read.pagination };
+      Object.defineProperty(pagination, field, {
+        enumerable: true,
+        get() {
+          reads++;
+          return null;
+        },
+      });
+      expect(() => f.open({ read: { ...f.read, pagination } })).toThrow(
+        "pagination callbacks required",
+      );
+      expect(reads).toBe(1);
+    },
+  );
+});
