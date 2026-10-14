@@ -2,6 +2,8 @@
 import { parseTransactionalDiscovery, parseTransactionalOperationDirectory } from "@bdp/protocol";
 import type { TransactionReadContext } from "./transaction-store.js";
 import type { TransactionReadOptions } from "./transaction-read.js";
+import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
+import { TRANSACTION_SELECTOR_LIMITS } from "./transaction-set.js";
 
 export const TRANSACTION_HTTP_OPERATIONS = Object.freeze({
   createBead: "create-bead",
@@ -24,6 +26,14 @@ export function assembleTransactionDiscovery(
   context: TransactionReadContext,
   limits: TransactionReadOptions["advertisedLimits"],
 ) {
+  // Read enforcement was validated during capture; the same advertised triple
+  // must also describe this owner's fixed set-mutation Selector enforcement.
+  if (
+    limits.selector.bytes !== TRANSACTION_SELECTOR_LIMITS.bytes ||
+    limits.selector.depth !== TRANSACTION_SELECTOR_LIMITS.depth ||
+    limits.selector.nodes !== TRANSACTION_SELECTOR_LIMITS.nodes
+  )
+    throw new TypeError("discovery Selector limits must match set enforcement");
   const discovery = parseTransactionalDiscovery({
     bdpVersion: "0",
     profile: "transactional",
@@ -48,6 +58,10 @@ export function assembleTransactionDiscovery(
         bytes: limits.selector.bytes,
         depth: limits.selector.depth,
         nodes: limits.selector.nodes,
+      },
+      validation: {
+        diagnostics: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
+        diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
       },
     },
   });
