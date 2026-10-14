@@ -220,10 +220,9 @@ it("observes current context on installed direct refusals within14requests", asy
       ...expectedContext,
       "bdp-scope-position": position,
     })) {
-      expect(
-        response.headers[name]?.length,
-        `direct refusal context presence: ${name}`,
-      ).toBeGreaterThan(0);
+      expect(typeof response.headers[name], `direct refusal context presence: ${name}`).toBe(
+        "string",
+      );
       expect(response.headers[name], `direct refusal current context: ${name}`).toBe(value);
     }
   }

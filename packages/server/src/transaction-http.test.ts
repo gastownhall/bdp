@@ -2579,3 +2579,82 @@ it("carries current owner context on direct conflict, operation-limit and both n
     "pos-4",
   );
 });
+
+// These are exclusions from this bounded context repair, not a general error-family law.
+it("preserves absent context on excluded direct receiving and authorization refusals", async () => {
+  const f = await fixture();
+  for (const [text, headers, status, code] of [
+    [batch(), { authorization: "" }, 401, "unauthenticated"],
+    [batch(), { authorization: `Bearer ${readToken}` }, 403, "forbidden"],
+    ["{", {}, 400, "malformed-request"],
+    ["x".repeat(65537), {}, 413, "request-too-large"],
+    [batch(), { "content-type": "text/plain" }, 415, "unsupported-media-type"],
+  ] as const) {
+    const response = await f.post(text, "excluded", "batch", headers);
+    expect(response.status).toBe(status);
+    expect(checkedProblem(await body(response))).toMatchObject({ status, code });
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(response.headers.has(name), `excluded direct refusal ${code} context: ${name}`).toBe(
+        false,
+      );
+  }
+  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+  expect((await f.post(batch(), "excluded")).status).toBe(200);
+});
+
+it("preserves absent context on a deterministic excluded direct comparison refusal", async () => {
+  const callbacks: (() => void)[] = [];
+  let tick = 0;
+  let release = false;
+  const f = await fixture({
+    scheduler: {
+      turn(callback) {
+        if (release) queueMicrotask(callback);
+        else callbacks.push(callback);
+        return () => {};
+      },
+    },
+    comparison: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+  });
+  const sequence = f.post(
+    batch([
+      { ...create(), name: "a", idempotencyKey: "creator" },
+      {
+        operation: "createLink",
+        type: link,
+        source: "@a",
+        target: "@a",
+        idempotencyKey: "dependent",
+      },
+    ]),
+    null,
+    "sequence",
+  );
+  const candidate = batch([
+    { operation: "createLink", type: link, source: "beads/a", target: "beads/a" },
+  ]);
+  try {
+    for (let attempt = 0; callbacks.length === 0 && attempt < 100; attempt++) await setImmediate();
+    expect(callbacks).toHaveLength(1);
+    const response = await f.post(candidate, "dependent");
+    expect(response.status).toBe(503);
+    expect(response.headers.get("retry-after")).toBe("1");
+    expect(checkedProblem(await body(response))).toMatchObject({
+      code: "temporarily-unavailable",
+      status: 503,
+    });
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(
+        response.headers.has(name),
+        `excluded direct refusal temporarily-unavailable context: ${name}`,
+      ).toBe(false);
+    expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+  } finally {
+    release = true;
+    for (const callback of callbacks.splice(0)) callback();
+    await sequence;
+  }
+  const replay = await f.post(candidate, "dependent");
+  expect(replay.status).toBe(200);
+  expect(replay.headers.get("bdp-scope-position")).toBe("pos-2");
+});

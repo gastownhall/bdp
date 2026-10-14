@@ -3173,7 +3173,9 @@ it("captures selected observed refusals inside the owner transaction without cha
     }
     expect(positionReads).toBe(cases.length);
     for (const entry of cases)
-      expect(f.store.admit("principal", entry.key, prepared(entry.input), entry.controls)).toEqual({
+      expect(
+        f.store.admit("principal", entry.key, prepared(entry.input), entry.controls),
+      ).toStrictEqual({
         kind: entry.kind,
       });
     expect(positionReads, "unobserved refusal adds no position observation").toBe(cases.length);
