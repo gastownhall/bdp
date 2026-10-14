@@ -3056,3 +3056,149 @@ it("captures exact replay and execute observations inside their owner transactio
     spy.mockRestore();
   }
 });
+
+it("captures selected observed refusals inside the owner transaction without changing unobserved admissions", () => {
+  const f = fixture({ clock: () => 1000 });
+  const createOne = (id: string) => ({
+    operations: [{ operation: "createBead", id: `beads/${id}`, type: bead }],
+  });
+  const original = createOne("a");
+  const pendingInput = createOne("pending");
+  const pendingClaim = admit(f.store, pendingInput, "pending-direct");
+  const retained = f.store.execute(admit(f.store, original, "retained"));
+  f.store.execute(admit(f.store, createOne("b"), "advance"));
+  const expected = {
+    scopeEpoch: retained.scopeEpoch,
+    authorizationView: retained.authorizationView,
+    scopePosition: "pos-2",
+  };
+  const pending = f.store.admitSequence(
+    "principal",
+    prepareTransactionSequence(
+      scope,
+      JSON.stringify({
+        operations: [
+          { operation: "createBead", type: bead, name: "creator", idempotencyKey: "creator" },
+          {
+            operation: "createLink",
+            type: link,
+            source: "@creator",
+            target: "@creator",
+            idempotencyKey: "dependent",
+          },
+        ],
+      }),
+    ),
+  );
+  const prepared = (value: unknown) => prepareTransaction(scope, JSON.stringify(value));
+  const cases = [
+    {
+      key: "retained",
+      input: createOne("changed"),
+      controls: { acceptsJson: false, maximumOperations: 1 },
+      kind: "conflict",
+    },
+    {
+      key: "dependent",
+      input: {
+        operations: [{ operation: "createLink", type: link, source: "beads/a", target: "beads/b" }],
+      },
+      controls: { acceptsJson: false, maximumOperations: 1 },
+      kind: "conflict",
+    },
+    {
+      key: "capacity",
+      input: { operations: [...createOne("c").operations, ...createOne("d").operations] },
+      controls: { acceptsJson: false, maximumOperations: 1 },
+      kind: "operation-limit",
+    },
+    {
+      key: "fresh-no-json",
+      input: createOne("e"),
+      controls: { acceptsJson: false, maximumOperations: 1 },
+      kind: "not-acceptable",
+    },
+    {
+      key: "retained",
+      input: original,
+      controls: { acceptsJson: false, maximumOperations: 1 },
+      kind: "not-acceptable",
+    },
+    {
+      key: "pending-direct",
+      input: pendingInput,
+      controls: { acceptsJson: false, maximumOperations: 1 },
+      kind: "not-acceptable",
+    },
+  ];
+  const before = f.store.inspect();
+  const prepare = DatabaseSync.prototype.prepare;
+  let positionReads = 0;
+  const contexts: unknown[] = [];
+  const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql: string,
+  ) {
+    const statement = prepare.call(this, sql);
+    if (sql === "SELECT value FROM metadata WHERE name=?") {
+      const owner = this;
+      const get = statement.get.bind(statement);
+      vi.spyOn(statement, "get").mockImplementation((...args) => {
+        // SQLite get also accepts positional bindings; the spy type selects its named overload.
+        const firstBinding: unknown = args[0];
+        if (firstBinding === "position") {
+          expect(
+            owner.isTransaction,
+            "refusal position read must remain inside owner transaction",
+          ).toBe(true);
+          positionReads++;
+        }
+        return get(...args);
+      });
+    }
+    return statement;
+  });
+  try {
+    for (const entry of cases) {
+      const result = f.store.admitObserved(
+        "principal",
+        entry.key,
+        prepared(entry.input),
+        entry.controls,
+      );
+      expect(result).toEqual({ kind: entry.kind, context: expected });
+      if (!("context" in result)) throw new Error("missing observed refusal context");
+      expect(Object.isFrozen(result.context)).toBe(true);
+      contexts.push(result.context);
+    }
+    expect(positionReads).toBe(cases.length);
+    for (const entry of cases)
+      expect(f.store.admit("principal", entry.key, prepared(entry.input), entry.controls)).toEqual({
+        kind: entry.kind,
+      });
+    expect(positionReads, "unobserved refusal adds no position observation").toBe(cases.length);
+    const owned = f.store.admitObserved("principal", "probe-owned", prepared(createOne("owned")));
+    expect(owned.kind).toBe("owned");
+    expect(positionReads, "owned admission adds no position observation").toBe(cases.length);
+    if (owned.kind !== "owned") throw new Error("missing owned claim");
+    f.store.retract(owned.claim);
+  } finally {
+    spy.mockRestore();
+    vi.restoreAllMocks();
+  }
+  expect(f.store.inspect()).toEqual(before);
+  expect(f.store.receipt("principal", retained.id)).toEqual(retained);
+  f.store.cancelSequence(pending);
+  f.store.retract(pendingClaim);
+  f.store.execute(admit(f.store, createOne("later"), "later"));
+  expect(contexts).toEqual(cases.map(() => expected));
+  for (const [key, input] of [
+    ["capacity", createOne("c")],
+    ["fresh-no-json", createOne("e")],
+  ] as const) {
+    const retry = f.store.admit("principal", key, prepared(input));
+    expect(retry.kind).toBe("owned");
+    if (retry.kind !== "owned") throw new Error("refused key was captured");
+    f.store.retract(retry.claim);
+  }
+});

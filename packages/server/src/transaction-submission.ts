@@ -36,7 +36,7 @@ export type TransactionSubmissionResult =
       readonly receipt: TransactionReceipt;
       readonly context?: TransactionReadContext;
     }
-  | { readonly kind: "not-acceptable" }
+  | { readonly kind: "not-acceptable"; readonly context?: TransactionReadContext }
   | { readonly kind: "development-limit"; readonly message: string }
   | {
       readonly kind: "refused";
@@ -51,6 +51,7 @@ export type TransactionSubmissionResult =
         | "temporarily-unavailable";
       readonly limit?: "transaction.operations";
       readonly retry?: "after-delay";
+      readonly context?: TransactionReadContext;
     };
 
 /** These are typed internal receiving results, not emitted HTTP Problem bodies.
@@ -116,15 +117,29 @@ export async function submitTransaction(
       receiving,
     },
   );
+  if (
+    observed &&
+    (result.kind === "conflict" ||
+      result.kind === "operation-limit" ||
+      result.kind === "not-acceptable") &&
+    !result.context
+  )
+    throw new Error("admission refusal lost same-entry context");
   switch (result.kind) {
     case "conflict":
-      return { kind: "refused", status: 409, code: "idempotency-conflict" };
+      return {
+        kind: "refused",
+        status: 409,
+        code: "idempotency-conflict",
+        ...(result.context ? { context: result.context } : {}),
+      };
     case "operation-limit":
       return {
         kind: "refused",
         status: 413,
         code: "limit-exceeded",
         limit: "transaction.operations",
+        ...(result.context ? { context: result.context } : {}),
       };
     case "not-acceptable":
       return result;

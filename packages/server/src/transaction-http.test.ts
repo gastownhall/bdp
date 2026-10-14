@@ -2501,3 +2501,81 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
   expect(method.status).toBe(405);
   expect(method.headers.get("allow")).toBe("GET, HEAD");
 });
+
+it("carries current owner context on direct conflict, operation-limit and both negotiation refusals", async () => {
+  const f = await fixture();
+  const singleton = JSON.stringify({ id: "beads/a", type: bead, properties: { title: "a" } });
+  const seedResponse = await f.post(singleton, "retained", "createBead");
+  expect(seedResponse.status).toBe(200);
+  const seed = await body(seedResponse);
+  expect(seed.effectPosition).toBe("pos-1");
+  const advanced = await f.post(batch([create("b")]), "advance");
+  expect(advanced.status).toBe(200);
+  expect((await body(advanced)).effectPosition).toBe("pos-2");
+  const expected = {
+    "bdp-scope-epoch": seed.scopeEpoch,
+    "bdp-authorization-view": seed.authorizationView,
+    "bdp-scope-position": "pos-2",
+  };
+  function current(response: Response) {
+    for (const [name, value] of Object.entries(expected)) {
+      expect(response.headers.has(name), `direct refusal context presence: ${name}`).toBe(true);
+      expect(response.headers.get(name), `direct refusal current context: ${name}`).toBe(value);
+    }
+    expect(response.headers.get("vary")).toBe("Accept");
+  }
+  for (const response of [
+    await f.post(JSON.stringify({ id: "beads/x", type: bead }), "retained", "createBead"),
+    await f.post(batch([create("x")]), "retained", "batch", { accept: "text/plain" }),
+  ]) {
+    expect(response.status).toBe(409);
+    current(response);
+    expect(checkedProblem(await body(response))).toMatchObject({
+      code: "idempotency-conflict",
+      status: 409,
+      retry: "never",
+    });
+  }
+  const fresh = JSON.stringify({ id: "beads/c", type: bead, properties: { title: "c" } });
+  for (const response of [
+    await f.post(singleton, "retained", "createBead", { accept: "text/plain" }),
+    await f.post(fresh, "fresh-negotiation", "createBead", { accept: "text/plain" }),
+  ]) {
+    expect(response.status).toBe(406);
+    current(response);
+    expect(await response.text()).toBe("");
+    expect(response.headers.has("content-type")).toBe(false);
+  }
+  const capacity = await f.post(
+    batch(Array.from({ length: 33 }, (_, i) => create(`oversized-${i}`))),
+    "fresh-capacity",
+    "batch",
+    { accept: "text/plain" },
+  );
+  expect(capacity.status).toBe(413);
+  current(capacity);
+  expect(checkedProblem(await body(capacity))).toMatchObject({
+    code: "limit-exceeded",
+    status: 413,
+    limit: "transaction.operations",
+  });
+  const retained = await f.get(id(seed));
+  expect(retained.status).toBe(200);
+  expect(retained.headers.get("bdp-scope-position")).toBe("pos-2");
+  expect(await body(retained)).toEqual(seed);
+  const collection = await body(await f.get(`${f.runtime.scope}beads/?limit=32`));
+  expect((collection.items as Record<string, unknown>[]).map((r) => [r.id, r.properties])).toEqual([
+    [`${f.runtime.scope}beads/a`, { title: "a" }],
+    [`${f.runtime.scope}beads/b`, { title: "b" }],
+  ]);
+  expect(collection.next).toBeNull();
+  const events = await body(await f.get(`${f.runtime.scope}events/`));
+  expect(events.events).toHaveLength(2);
+  expect(events.next).toBeNull();
+  expect((await body(await f.post(fresh, "fresh-negotiation", "createBead"))).effectPosition).toBe(
+    "pos-3",
+  );
+  expect((await body(await f.post(batch([create("d")]), "fresh-capacity"))).effectPosition).toBe(
+    "pos-4",
+  );
+});
