@@ -1,5 +1,6 @@
 import * as discoveryAssembly from "./transaction-discovery.js";
-import { requestFromUrl } from "./read-request.js";
+import { TransactionMinimumFailure, type TransactionMinimum } from "./transaction-consistency.js";
+import { ScopeServerOperationAbortedError, requestFromUrl } from "./read-request.js";
 import { DatabaseSync } from "node:sqlite";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -1318,4 +1319,292 @@ describe("captured pagination callback receivers", () => {
       expect(reads).toBe(1);
     },
   );
+});
+
+describe("internal discovery minimum observation", () => {
+  function tracked(minimumReads: NonNullable<TransactionServiceOptions["minimumReads"]> = {}) {
+    const f = fixture();
+    let entries = 0;
+    const owner = {
+      ...f.owner,
+      withRead: ((callback: Parameters<typeof f.owner.withRead>[0]) => {
+        entries++;
+        return f.owner.withRead(callback);
+      }) as typeof f.owner.withRead,
+    };
+    const service = createTransactionService(owner, {
+      ownerLifetime: "service",
+      read: f.read,
+      minimumReads,
+    });
+    cleanup.push(() => service.close());
+    entries = 0;
+    const minimum = (minimumPosition = "pos-0"): TransactionMinimum => ({
+      scopeEpoch: f.owner.scopeEpoch,
+      authorizationView: "development-all-visible",
+      minimumPosition,
+    });
+    return { ...f, service, minimum, entries: () => entries };
+  }
+
+  it("preserves synchronous no-minimum timing and ignores its signal and wait policy", async () => {
+    const now = vi.fn(() => {
+      throw new Error("minimum clock must be unused");
+    });
+    const f = tracked({ now });
+    const controller = new AbortController();
+    controller.abort();
+    const pending = f.service.discoveryObserved(undefined, controller.signal);
+    expect(f.entries()).toBe(1);
+    expect((await pending).context.scopePosition).toBe("pos-0");
+    expect(now).not.toHaveBeenCalled();
+    let nested: Promise<unknown> | undefined;
+    f.owner.withRead(() => {
+      nested = f.service.discoveryObserved();
+    });
+    await expect(nested).rejects.toThrow("transaction discovery observation refused");
+  });
+
+  it.each(["pos-1", "pos-0", "genesis"])(
+    "returns an immutable same-entry eligible prefix for %s after release",
+    async (position) => {
+      const wait = vi.fn(async () => {}),
+        f = tracked({ wait, now: () => 0 });
+      await f.service.submit(batch());
+      const original = discoveryAssembly.assembleTransactionDiscovery;
+      const assemble = vi
+        .spyOn(discoveryAssembly, "assembleTransactionDiscovery")
+        .mockImplementation((...args) => {
+          expect(f.owner.readConfiguration().receiptMaximumItems).toBe(32);
+          return original(...args);
+        });
+      const observed = await f.service.discoveryObserved(f.minimum(position));
+      expect(f.entries()).toBe(1);
+      expect(assemble).toHaveBeenCalledTimes(1);
+      expect(wait).not.toHaveBeenCalled();
+      expect(observed.context).toEqual({
+        scopeEpoch: f.owner.scopeEpoch,
+        authorizationView: "development-all-visible",
+        scopePosition: "pos-1",
+      });
+      expect(observed.discovery).toMatchObject({
+        scopeEpoch: observed.context.scopeEpoch,
+        authorizationView: observed.context.authorizationView,
+        headPosition: "pos-1",
+        minimumReplayPosition: "pos-0",
+      });
+      for (const value of [
+        observed,
+        observed.context,
+        observed.discovery,
+        observed.discovery.limits,
+        observed.discovery.limits?.selector,
+        observed.directory,
+      ])
+        expect(Object.isFrozen(value)).toBe(true);
+    },
+  );
+
+  it("captures immutable minimum controls and releases the owner during controlled catch-up", async () => {
+    const entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>();
+    const wait = vi.fn(async () => {
+      entered.resolve();
+      await release.promise;
+    });
+    const f = tracked({ budgetMs: 2, now: () => 0, wait });
+    cleanup.push(() => release.resolve());
+    await f.service.submit(batch());
+    const supplied = { ...f.minimum("pos-2") };
+    const pending = f.service.discoveryObserved(supplied);
+    await entered.promise;
+    try {
+      Object.assign(supplied, {
+        scopeEpoch: "foreign",
+        authorizationView: "foreign",
+        minimumPosition: "pos-999",
+      });
+      const immediate = await f.service.discoveryObserved(f.minimum("pos-1"));
+      expect(immediate.context.scopePosition).toBe("pos-1");
+      expect(
+        requireReceipt(await f.service.submit(batch([create("b")], "advance"))).context
+          .scopePosition,
+      ).toBe("pos-2");
+    } finally {
+      release.resolve();
+    }
+    const observed = await pending;
+    expect(observed.context).toEqual({
+      scopeEpoch: f.owner.scopeEpoch,
+      authorizationView: "development-all-visible",
+      scopePosition: "pos-2",
+    });
+    expect(observed.discovery.headPosition).toBe("pos-2");
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(f.entries()).toBe(3); // two pending attempts plus independent satisfied observation
+  });
+
+  it.each([
+    ["scopeEpoch", "cursor-expired"],
+    ["authorizationView", "foreign-view"],
+  ] as const)("releases the owner after an in-entry %s refusal", async (field, reason) => {
+    const wait = vi.fn(async () => {}),
+      f = tracked({ wait, now: () => 0 });
+    const assemble = vi.spyOn(discoveryAssembly, "assembleTransactionDiscovery");
+    const error = await f.service
+      .discoveryObserved({ ...f.minimum(), [field]: "foreign" })
+      .catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(TransactionMinimumFailure);
+    expect(error).toMatchObject({
+      reason,
+      context: {
+        scopeEpoch: f.owner.scopeEpoch,
+        authorizationView: "development-all-visible",
+        scopePosition: "pos-0",
+      },
+    });
+    expect(f.entries()).toBe(1);
+    expect(wait).not.toHaveBeenCalled();
+    expect(assemble).not.toHaveBeenCalled();
+    expect((await f.service.discoveryObserved()).context.scopePosition).toBe("pos-0");
+    expect(f.entries()).toBe(2);
+  });
+
+  it("times out after two controlled attempts without assembly and leaves the owner reusable", async () => {
+    let tick = 0;
+    const wait = vi.fn(async () => {}),
+      f = tracked({ budgetMs: 2, now: () => tick++, wait });
+    const before = f.owner.inspect();
+    const assemble = vi.spyOn(discoveryAssembly, "assembleTransactionDiscovery");
+    const error = await f.service
+      .discoveryObserved(f.minimum("pos-1"))
+      .catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(TransactionMinimumFailure);
+    expect(error).toMatchObject({
+      reason: "catch-up-timeout",
+      context: { scopePosition: "pos-0" },
+    });
+    expect(f.entries()).toBe(2);
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(assemble).not.toHaveBeenCalled();
+    expect(f.owner.inspect()).toEqual(before);
+    expect((await f.service.discoveryObserved()).context.scopePosition).toBe("pos-0");
+  });
+
+  it("rejects pre-abort before entry and pending abort before retry", async () => {
+    const entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>();
+    const wait = vi.fn(async () => {
+      entered.resolve();
+      await release.promise;
+    });
+    const f = tracked({ budgetMs: 2, now: () => 0, wait });
+    cleanup.push(() => release.resolve());
+    const assemble = vi.spyOn(discoveryAssembly, "assembleTransactionDiscovery");
+    const before = new AbortController();
+    before.abort();
+    await expect(f.service.discoveryObserved(f.minimum(), before.signal)).rejects.toBeInstanceOf(
+      ScopeServerOperationAbortedError,
+    );
+    expect(f.entries()).toBe(0);
+    expect(wait).not.toHaveBeenCalled();
+    const controller = new AbortController();
+    const pending = f.service.discoveryObserved(f.minimum("pos-1"), controller.signal);
+    await entered.promise;
+    controller.abort();
+    release.resolve();
+    await expect(pending).rejects.toBeInstanceOf(ScopeServerOperationAbortedError);
+    expect(f.entries()).toBe(1);
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(assemble).not.toHaveBeenCalled();
+    expect((await f.service.discoveryObserved()).context.scopePosition).toBe("pos-0");
+  });
+
+  it("drains an admitted discovery wait before closing the owner", async () => {
+    let tick = 0;
+    const entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>();
+    const f = tracked({
+      budgetMs: 2,
+      now: () => tick,
+      wait: async () => {
+        entered.resolve();
+        await release.promise;
+      },
+    });
+    cleanup.push(() => release.resolve());
+    const pending = f.service.discoveryObserved(f.minimum("pos-1"));
+    const rejected = expect(pending).rejects.toMatchObject({ reason: "catch-up-timeout" });
+    await entered.promise;
+    let closed = false;
+    const closing = f.service.close().then(() => {
+      closed = true;
+    });
+    expect(f.service.close()).toBe(f.service.close());
+    try {
+      expect(() => f.service.discoveryObserved(f.minimum())).toThrow("closing or closed");
+      expect(closed).toBe(false);
+      expect(f.owner.inspect().position).toBe("0");
+    } finally {
+      tick = 2;
+      release.resolve();
+    }
+    await rejected;
+    await closing;
+    await f.service.closed;
+    expect(() => f.owner.inspect()).toThrow("closed");
+  });
+
+  it("keeps malformed input, entry refusal, provider and parser failures distinct", async () => {
+    const f = tracked({ now: () => 0 });
+    expect(() =>
+      f.service.discoveryObserved({ ...f.minimum(), minimumPosition: "pos-02" }),
+    ).toThrow("unsupported minimum tuple");
+    expect(f.entries()).toBe(0);
+    let nested: Promise<unknown> | undefined;
+    f.owner.withRead(() => {
+      nested = f.service.discoveryObserved(f.minimum());
+    });
+    await expect(nested).rejects.toThrow("transaction discovery observation refused");
+    const original = discoveryAssembly.assembleTransactionDiscovery;
+    const parser = vi
+      .spyOn(discoveryAssembly, "assembleTransactionDiscovery")
+      .mockImplementation((scope, context, limits) => {
+        expect(f.owner.readConfiguration().receiptMaximumItems).toBe(32);
+        return original(scope, { ...context, scopeEpoch: "bad space" }, limits);
+      });
+    await expect(f.service.discoveryObserved(f.minimum())).rejects.toBeInstanceOf(
+      ProtocolArtifactValidationError,
+    );
+    expect(parser).toHaveBeenCalledTimes(1);
+    parser.mockRestore();
+    expect((await f.service.discoveryObserved()).context.scopePosition).toBe("pos-0");
+    const cause = new Error("delegated owner failure");
+    let mode: "normal" | "throw" | "refuse" = "normal";
+    const service = createTransactionService(
+      {
+        ...f.owner,
+        withRead: ((callback: Parameters<typeof f.owner.withRead>[0]) => {
+          if (mode === "throw") throw cause;
+          if (mode === "refuse") return { kind: "entry-refused", reason: "not-accepting", cause };
+          return f.owner.withRead(callback);
+        }) as typeof f.owner.withRead,
+      },
+      { ownerLifetime: "service", read: f.read },
+    );
+    cleanup.push(() => service.close());
+    mode = "throw";
+    await expect(service.discoveryObserved(f.minimum())).rejects.toBe(cause);
+    mode = "refuse";
+    await expect(service.discoveryObserved(f.minimum())).rejects.toMatchObject({
+      message: "transaction discovery observation refused",
+      cause,
+    });
+    mode = "normal";
+    expect((await service.discoveryObserved(f.minimum())).context.scopePosition).toBe("pos-0");
+    f.owner.close();
+    await expect(service.discoveryObserved(f.minimum())).rejects.toThrow(
+      "transaction discovery observation refused",
+    );
+  });
 });
