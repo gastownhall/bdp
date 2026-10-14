@@ -186,7 +186,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(239);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(238);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
   expect(() => planProfileExecution(selected, configuration("read-update"))).toThrow("disagree");
@@ -740,6 +740,11 @@ const originalObjectPins = {
       "a867694406dde07da71ac70197c60c478dd0fb3344cf2c8160795d1aa62d3378",
       18404,
     ],
+    [
+      "transactional.batch.no-op-entries",
+      "9307b230eb053131e9127cbbb5e6285305b79d6794edd22f5432a07fc74d9faa",
+      81047,
+    ],
   ],
   coverage: [
     [
@@ -792,6 +797,11 @@ const originalObjectPins = {
       "63918cbb495a504fd2043f52b60e7cd8ef1518b8022a96edb0d02660c7df1a8e",
       2917,
     ],
+    [
+      "transactional.batch.no-op-entries",
+      "383de4e0cb9b3bad310b9db7ff9009cb59fac55966f0309bc71c5d007bea6c1c",
+      10587,
+    ],
   ],
 } as const;
 function assertOriginalObjects(text: string, name: keyof typeof originalObjectPins) {
@@ -802,7 +812,7 @@ function assertOriginalObjects(text: string, name: keyof typeof originalObjectPi
     expect(createHash("sha256").update(raw).digest("hex"), id).toBe(hash);
   }
 }
-it("preserves every original TX scenario and coverage object while adding one bounded partial matching no-op row", () => {
+it("preserves every original TX scenario and coverage object while adding one bounded partial deletion-safety row", () => {
   for (const name of ["manifest", "coverage"] as const)
     assertOriginalObjects(read(name).toString(), name);
   const changed = read("manifest").toString().replace('"equals": 401', '"equals": 402');
@@ -812,6 +822,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(manifest.scenarios.map((r: { id: string }) => r.id)).toEqual([
     "transactional.batch.atomic-commit",
     "transactional.batch.rollback",
+    "transactional.batch.deletion-safety",
     "transactional.batch.no-op-entries",
     "transactional.set.mutation",
     "transactional.set.zero-match",
@@ -831,6 +842,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     ["transactional.receipt.pagination", 18],
     ["transactional.idempotency.conflict", 12],
     ["transactional.batch.no-op-entries", 15],
+    ["transactional.batch.deletion-safety", 21],
   ] as const) {
     const rows = manifest.scenarios.filter((r: { id: string }) => r.id === id);
     expect(rows, id).toHaveLength(1);
@@ -844,21 +856,19 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
-  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(166);
-  // Root-reviewed measured amendment: M488280/N13019/C70662/A223.
-  // Original64KiB/220-assertion preflight stopped; these are explicit successor
-  // guards, not parser/runtime cap changes. Margins4094B/64nodes/1022B.
-  // Delta guards bind here; absolute ceilings retain the nonbinding preflight
-  // envelope if a future reviewed change rebases the measured baseline.
-  expect(read("manifest").byteLength - 407227).toBeLessThanOrEqual(85147);
-  expect(read("manifest").byteLength).toBeLessThanOrEqual(499387);
-  expect(read("coverage").byteLength - 60069).toBeLessThanOrEqual(11615);
-  expect(read("coverage").byteLength).toBeLessThanOrEqual(76453);
+  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(187);
+  // Root-accepted deletion-safety measurement: M620094/N16373/C88043/A333.
+  // Schema-name repair uses4B of the accepted margin:4092B/64nodes/1024B.
+  // Delta guards bind here; absolute planning envelopes remain unchanged.
+  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(135906);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(650386);
+  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(18405);
+  expect(read("coverage").byteLength).toBeLessThanOrEqual(91848);
   expect(
     manifest.scenarios.flatMap((r: { actions: { assertions: unknown[] }[] }) =>
       r.actions.flatMap((a) => a.assertions),
     ),
-  ).toHaveLength(1539);
+  ).toHaveLength(1872);
   expect(read("fixture").byteLength).toBe(716);
   expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
     "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
@@ -870,8 +880,8 @@ it("preserves every original TX scenario and coverage object while adding one bo
     nodes++;
     if (value && typeof value === "object") pending.push(...Object.values(value));
   }
-  expect(nodes - 10891).toBeLessThanOrEqual(2192);
-  expect(nodes).toBeLessThanOrEqual(13091);
+  expect(nodes - 13019).toBeLessThanOrEqual(3418);
+  expect(nodes).toBeLessThanOrEqual(17275);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
     "transactional.receipt.pagination": [
@@ -927,7 +937,7 @@ it("pins the one-page matched-plus-updated witness without advertised-limit or o
   const row = manifest.scenarios.find(
     (r: { id: string }) => r.id === "transactional.receipt.pagination",
   );
-  expect(manifest.scenarios.indexOf(row)).toBe(8);
+  expect(manifest.scenarios.indexOf(row)).toBe(9);
   expect(row.actions).toHaveLength(18);
   const later = row.actions.find((a: { id: string }) => a.id === "p-later-state");
   expect(later.captures).toEqual([]); // HTTP capture is URL-only; no unimplemented array capture.
@@ -1314,7 +1324,7 @@ it("pins the completed-key conflict law, five presentations, and semantic reques
     row.actions[0].raw.body.value;
   expect(() => assertCompletedConflictRequests(changed)).toThrow("c-conflict");
   for (const name of ["manifest", "coverage"] as const) {
-    expect(originalObjectPins[name]).toHaveLength(10);
+    expect(originalObjectPins[name]).toHaveLength(11);
     const text = read(name).toString();
     const raw = objectSlices(text, name === "manifest" ? "scenarios" : "rows").get(
       "transactional.receipt.pagination",
@@ -1708,5 +1718,478 @@ it.each([
   else action.assertions = action.assertions.filter((a: { id: string }) => a.id !== assertionId);
   expect(() => assertMatchingNoopObservation(weakened)).toThrow(
     `${actionId} complete no-op assertions`,
+  );
+});
+
+// Independent expected-content oracle for the accepted visible/unowned deletion
+// partition. Expected literals are authored here, never read from the candidate.
+function assertDeletionSafetyObservation(candidate: typeof manifest) {
+  const scope = "https://reference.invalid/acme/";
+  const headers = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"];
+  const resource = (id: string) => `${scope}${id === "a" || id === "b" ? "beads" : "links"}/${id}`;
+  const type = (id: string) =>
+    `${scope}types/${id === "a" || id === "b" ? "task" : "relationship"}`;
+  type Assertion = Record<string, unknown>;
+  const value = (id: string, pointer: string, equals: unknown): Assertion => ({
+    id,
+    kind: "json-pointer",
+    pointer,
+    exists: true,
+    equals,
+  });
+  const binding = (id: string, pointer: string, equalsBinding: string): Assertion => ({
+    id,
+    kind: "json-pointer",
+    pointer,
+    exists: true,
+    equalsBinding,
+  });
+  const absent = (id: string, pointer: string): Assertion => ({
+    id,
+    kind: "json-pointer",
+    pointer,
+    exists: false,
+  });
+  const present = (id: string, pointer: string): Assertion => ({
+    id,
+    kind: "json-pointer",
+    pointer,
+    exists: true,
+  });
+  const tuples = (
+    id: string,
+    pointer: string,
+    projections: string[],
+    equals: unknown[][],
+  ): Assertion => ({
+    id,
+    kind: "json-array-tuples",
+    pointer,
+    ordered: true,
+    projections: projections.map((pointer) => ({ pointer })),
+    equals,
+  });
+  const capture = (binding: string, pointer: string) => ({
+    binding,
+    from: { kind: "json-pointer", pointer },
+  });
+  const raw = (
+    schema: string,
+    baseline: string | undefined = "d-seed",
+    position = "pos-1",
+    status = 200,
+  ): Assertion[] => [
+    { id: "http-status", kind: "status", equals: status },
+    ...headers.map((name) => ({ id: `present-${name}`, kind: "header", name, absent: false })),
+    { id: "schema", kind: "json-schema", schema: `#/$defs/${schema}` },
+    baseline
+      ? { id: "serving-context", kind: "response-metadata-equals", request: baseline, headers }
+      : { id: "position", kind: "header", name: headers[2], equals: position },
+    { id: "request-headers", kind: "request-authored-headers" },
+    { id: "request-body", kind: "request-authored-body" },
+  ];
+  const client = (position: string): Assertion[] => [
+    value("status", "/status", 200),
+    value("body-present", "/bodyPresent", true),
+    present(headers[0]!, `/headers/${headers[0]}`),
+    present(headers[1]!, `/headers/${headers[1]}`),
+    value(headers[2]!, `/headers/${headers[2]}`, position),
+  ];
+  const receipt = (seed: boolean, prefix = ""): Assertion[] => [
+    value("disposition", `${prefix}/status`, "completed"),
+    value("detail", `${prefix}/detail`, "available"),
+    value("required-position", `${prefix}/requiredPosition`, seed ? "pos-1" : "pos-2"),
+    value("effect-position", `${prefix}/effectPosition`, seed ? "pos-1" : "pos-2"),
+    value("inline", `${prefix}/next`, null),
+    ...(seed
+      ? [
+          tuples(
+            "ordered-results",
+            `${prefix}/results`,
+            [
+              "/operationIndex",
+              "/outcome",
+              "/resource/id",
+              "/resource/type",
+              "/resource/properties",
+              "/resource/metadata",
+            ],
+            ["a", "b", "l", "r"].map((id, index) => [
+              index,
+              "created",
+              resource(id),
+              type(id),
+              { title: id },
+              {},
+            ]),
+          ),
+          value("l-source", `${prefix}/results/2/resource/source`, resource("a")),
+          value("l-target", `${prefix}/results/2/resource/target`, resource("b")),
+          value("r-source", `${prefix}/results/3/resource/source`, resource("b")),
+          value("r-target", `${prefix}/results/3/resource/target`, resource("a")),
+        ]
+      : [
+          tuples(
+            "ordered-results",
+            `${prefix}/results`,
+            [
+              "/operationIndex",
+              "/outcome",
+              "/deleted/resourceKind",
+              "/deleted/resource/id",
+              "/deleted/resource/type",
+            ],
+            ["l", "r", "a"].map((id, index) => [
+              index,
+              "deleted",
+              id === "a" ? "bead" : "link",
+              resource(id),
+              type(id),
+            ]),
+          ),
+          ...["l", "r", "a"].map((id, index) =>
+            binding(
+              `${id}-revision`,
+              `${prefix}/results/${index}/deleted/resource/revision`,
+              `d-${id}-revision`,
+            ),
+          ),
+        ]),
+  ];
+  const seedFacts: [string, string, number][] = [
+    ["created", "a", 0],
+    ["created", "b", 1],
+    ["created", "l", 2],
+    ["linked", "l", 3],
+    ["linked", "l", 4],
+    ["created", "r", 5],
+    ["linked", "r", 6],
+    ["linked", "r", 7],
+  ];
+  const deletedFacts: [string, string, number][] = [
+    ["deleted", "l", 0],
+    ["unlinked", "l", 1],
+    ["unlinked", "l", 2],
+    ["deleted", "r", 3],
+    ["unlinked", "r", 4],
+    ["unlinked", "r", 5],
+    ["deleted", "a", 6],
+  ];
+  const incidence = (id: string, endpoint: string) => ({
+    endpoint,
+    link: { id: resource(id), type: type(id) },
+    source: resource(id === "l" ? "a" : "b"),
+    target: resource(id === "l" ? "b" : "a"),
+  });
+  const events = (path: string, final = false): Assertion[] => [
+    tuples(
+      "ordered-facts",
+      path,
+      ["/source", "/type", "/subject", "/subjectType", "/ordinal"],
+      [...seedFacts, ...(final ? deletedFacts : [])].map(([verb, id, ordinal]) => [
+        `${scope}events/`,
+        verb,
+        resource(id),
+        type(id),
+        ordinal,
+      ]),
+    ),
+    ...["l", "r"].flatMap((id, index) =>
+      ["source", "target"].map((endpoint, offset) =>
+        value(
+          `${id}-incidence-${endpoint}`,
+          `${path}/${3 + index * 3 + offset}/data`,
+          incidence(id, endpoint),
+        ),
+      ),
+    ),
+    ...(final
+      ? [
+          ...["l", "r", "a"].map((id, index) =>
+            binding(
+              `${id}-delete-revision`,
+              `${path}/${8 + index * 3}/data/revision`,
+              `d-${id}-revision`,
+            ),
+          ),
+          ...Array.from({ length: 7 }, (_, i) =>
+            binding(
+              `delete-transaction-${i}`,
+              `${path}/${8 + i}/transaction`,
+              "d-delete-transaction",
+            ),
+          ),
+          ...["l", "r"].flatMap((id, index) =>
+            ["source", "target"].map((endpoint, offset) =>
+              value(
+                `${id}-unlink-${endpoint}`,
+                `${path}/${9 + index * 3 + offset}/data`,
+                incidence(id, endpoint),
+              ),
+            ),
+          ),
+        ]
+      : []),
+  ];
+  const eventPage = (final = false) => [
+    ...raw("eventPage", final ? "d-delete" : "d-seed"),
+    value("no-next", "/next", null),
+    ...events("/events", final),
+  ];
+  const groups = (final = false) => [
+    ...raw("changefeedPage", final ? "d-delete" : "d-seed"),
+    value("observed-head", "/observedHeadPosition", final ? "pos-2" : "pos-1"),
+    tuples("group-inventory", "/groups", ["/position"], [["pos-1"]]),
+    tuples(
+      "group-envelope",
+      "/groups",
+      ["/previousPosition", "/projectionAdvance", "/eventCount", "/erasures"],
+      [["pos-0", false, 8, []]],
+    ),
+    binding("group-transaction", "/groups/0/transaction", "d-seed-transaction"),
+    tuples(
+      "upsert-inventory",
+      "/groups/0/changes",
+      ["/operation", "/resourceKind", "/resource/id"],
+      ["a", "b", "l", "r"].map((id) => [
+        "upsert",
+        id === "a" || id === "b" ? "bead" : "link",
+        resource(id),
+      ]),
+    ),
+    ...["a", "b", "l", "r"].map((id, i) =>
+      binding(`upsert-${id}`, `/groups/0/changes/${i}/resource`, `d-${id}-before`),
+    ),
+    ...events("/groups/0/events"),
+    final ? present("next-present", "/next") : value("no-next", "/next", null),
+  ];
+  const state = (links = false, final = false) => {
+    const ids = final ? (links ? [] : ["b"]) : links ? ["l", "r"] : ["a", "b"];
+    return [
+      ...raw(
+        links ? "currentLinkCollection" : "currentBeadCollection",
+        final ? "d-delete" : "d-seed",
+      ),
+      tuples(
+        "ordered-identities",
+        "/items",
+        ["/id", "/type", "/properties", "/metadata"],
+        ids.map((id) => [resource(id), type(id), { title: id }, {}]),
+      ),
+      ...ids.map((id, i) => binding(`complete-${id}`, `/items/${i}`, `d-${id}-before`)),
+      value("no-next", "/next", null),
+    ];
+  };
+  const failed = () => [
+    ...raw("mutationReceipt"),
+    value("disposition", "/status", "failed"),
+    value("detail", "/detail", "available"),
+    value("required-position", "/requiredPosition", "pos-1"),
+    absent("no-effect", "/effectPosition"),
+    absent("no-results", "/results"),
+    absent("no-next", "/next"),
+    value("problem", "/problem", {
+      type: "https://github.com/gastownhall/bdp/problems/conflict",
+      status: 409,
+      code: "incident-links-exist",
+      retry: "after-state-change",
+      operationIndex: 2,
+    }),
+  ];
+  const expected: Record<string, Assertion[]> = {
+    "d-seed": [...raw("mutationReceipt", "", "pos-1"), ...receipt(true)],
+    "d-seed-facts": [...client("pos-1"), ...receipt(true, "/body")],
+    "d-seed-events": eventPage(),
+    "d-seed-groups": groups(),
+    "d-incoming-survives": failed(),
+    "d-incoming-survives-beads": state(),
+    "d-incoming-survives-links": state(true),
+    "d-incoming-survives-events": eventPage(),
+    "d-incoming-survives-groups": groups(),
+    "d-outgoing-survives": failed(),
+    "d-outgoing-survives-beads": state(),
+    "d-outgoing-survives-links": state(true),
+    "d-outgoing-survives-events": eventPage(),
+    "d-outgoing-survives-groups": groups(),
+    "d-delete": [...raw("mutationReceipt", "", "pos-2"), ...receipt(false)],
+    "d-delete-facts": [...client("pos-2"), ...receipt(false, "/body")],
+    "d-final-beads": state(false, true),
+    "d-final-links": state(true, true),
+    "d-deleted-a": raw("readProblem", "", "pos-2", 404),
+    "d-final-events": eventPage(true),
+    "d-final-groups": groups(true),
+  };
+  const captures: Record<string, unknown[]> = {
+    "d-seed": [capture("d-seed-receipt", "/id")],
+    "d-seed-facts": [
+      capture("d-seed-transaction", "/body/transaction"),
+      ...["a", "b", "l", "r"].flatMap((id, i) => [
+        capture(`d-${id}-before`, `/body/results/${i}/resource`),
+        capture(`d-${id}-revision`, `/body/results/${i}/resource/revision`),
+      ]),
+    ],
+    "d-delete": [capture("d-delete-receipt", "/id")],
+    "d-delete-facts": [capture("d-delete-transaction", "/body/transaction")],
+    "d-final-groups": [capture("d-final-next", "/next")],
+  };
+  const deleteOp = (id: string) =>
+    id === "a"
+      ? { operation: "deleteBead", bead: "beads/a" }
+      : { operation: "deleteLink", link: `links/${id}` };
+  const prefix = (direction: string) => ({
+    operation: "updateBead",
+    bead: "beads/b",
+    propertiesChange: [{ op: "replace", path: "/title", value: `${direction}-survives-prefix` }],
+    metadataChange: [{ op: "replace", path: "", value: { phase: `${direction}-survives-prefix` } }],
+  });
+  const bodies: Record<string, unknown> = {
+    "d-seed": {
+      operations: [
+        ...["a", "b"].map((id) => ({
+          operation: "createBead",
+          id: `beads/${id}`,
+          type: type(id),
+          properties: { title: id },
+          metadata: {},
+        })),
+        ...["l", "r"].map((id) => ({
+          operation: "createLink",
+          id: `links/${id}`,
+          type: type(id),
+          source: id === "l" ? "beads/a" : "beads/b",
+          target: id === "l" ? "beads/b" : "beads/a",
+          properties: { title: id },
+          metadata: {},
+        })),
+      ],
+    },
+    "d-incoming-survives": {
+      operations: [prefix("incoming"), deleteOp("l"), deleteOp("a"), deleteOp("r")],
+    },
+    "d-outgoing-survives": {
+      operations: [prefix("outgoing"), deleteOp("r"), deleteOp("a"), deleteOp("l")],
+    },
+    "d-delete": { operations: [deleteOp("l"), deleteOp("r"), deleteOp("a")] },
+  };
+  const row = candidate.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.batch.deletion-safety",
+  )!;
+  expect({ ...row, actions: undefined }).toEqual({
+    id: "transactional.batch.deletion-safety",
+    requiredProfile: "transactional",
+    setup: {
+      fixture: "reference-transactional-v1",
+      requires: ["installed-transactional-http", "transactional-receipt-observation"],
+    },
+    applicability: { requires: [] },
+    cleanup: { resetFixture: true },
+    actions: undefined,
+  });
+  expect(row.actions.map((a: { id: string }) => a.id)).toEqual(Object.keys(expected));
+  for (const action of row.actions) {
+    expect(action.assertions, `${action.id} complete deletion assertions`).toEqual(
+      expected[action.id],
+    );
+    expect(action.captures, `${action.id} complete deletion captures`).toEqual(
+      captures[action.id] ?? [],
+    );
+    if (action.family === "client") {
+      expect(action.operation).toBe("transactional.receipt-read");
+      expect(action.input).toEqual({
+        binding: action.id.replace("-facts", "-receipt"),
+        method: "GET",
+      });
+    } else {
+      expect(action.credentialRef).toBe("operator");
+      if (bodies[action.id]) {
+        expect(action.method).toBe("POST");
+        expect(action.target).toEqual({ binding: "batch" });
+        expect(action.raw.headerLines).toEqual([
+          { name: "content-type", value: "application/json" },
+          { name: "idempotency-key", value: action.id },
+        ]);
+        expect(action.raw.body.encoding).toBe("utf8");
+        expect(JSON.parse(action.raw.body.value)).toEqual(bodies[action.id]);
+        expect(Buffer.byteLength(action.raw.body.value)).toBeLessThanOrEqual(2048);
+      } else {
+        expect(action.method).toBe("GET");
+        expect(action.raw).toEqual({
+          headerLines: [{ name: "accept", value: "application/json" }],
+        });
+        const suffix = action.id.split("-").at(-1);
+        expect(action.target).toEqual(
+          suffix === "groups"
+            ? { binding: "scope", path: "changes/", query: { after: "genesis" } }
+            : suffix === "beads" || suffix === "links"
+              ? { binding: "scope", path: `${suffix}/`, query: { limit: "32" } }
+              : { binding: "scope", path: action.id === "d-deleted-a" ? "beads/a" : "events/" },
+        );
+      }
+    }
+  }
+  expect(row.actions.flatMap((a: { assertions: unknown[] }) => a.assertions)).toHaveLength(333);
+}
+
+it("pins complete operation-time deletion safety and its exact selected clause", () => {
+  expect(
+    selected.catalog.scenarios.find((r) => r.id === "transactional.batch.deletion-safety")!
+      .requirements,
+  ).toEqual([
+    {
+      source: "docs/specs/bdp.md",
+      anchor: "#explicit-bead-operations",
+      selectedText:
+        "`DeleteBead` fails if any live Link is incident upon (attached to) the Bead when the operation is reached.",
+    },
+  ]);
+  assertDeletionSafetyObservation(manifest);
+});
+it.each(["unchanged-link", "problem-index", "rollback-metadata"] as const)(
+  "rejects deletion-safety oracle weakening: %s",
+  (control) => {
+    const weakened = structuredClone(manifest);
+    const row = weakened.scenarios.find(
+      (r: { id: string }) => r.id === "transactional.batch.deletion-safety",
+    )!;
+    const actionId =
+      control === "unchanged-link"
+        ? "d-incoming-survives-links"
+        : control === "problem-index"
+          ? "d-incoming-survives"
+          : "d-incoming-survives-beads";
+    const action = row.actions.find((a: { id: string }) => a.id === actionId)!;
+    if (control === "unchanged-link")
+      action.assertions = action.assertions.filter((a: { id: string }) => a.id !== "complete-l");
+    else if (control === "problem-index")
+      action.assertions.find((a: { id: string }) => a.id === "problem").equals.operationIndex = 1;
+    else
+      action.assertions.find((a: { id: string }) => a.id === "ordered-identities").equals[1][3] = {
+        phase: "incoming-survives-prefix",
+      };
+    expect(() => assertDeletionSafetyObservation(weakened)).toThrow(
+      `${actionId} complete deletion assertions`,
+    );
+  },
+);
+
+// Resolve every authored reference without starting an installed service.
+function resolveAuthoredTransactionalSchemas(candidate: typeof manifest) {
+  const validator = createJsonSchemaValidator(schema);
+  for (const row of candidate.scenarios)
+    for (const action of row.actions)
+      for (const assertion of action.assertions)
+        if (assertion.kind === "json-schema") validator.resolve(assertion.schema);
+}
+it("resolves every authored TX schema and rejects the undefined deleted-point reference", () => {
+  resolveAuthoredTransactionalSchemas(manifest);
+  const previous = structuredClone(manifest);
+  const row = previous.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.batch.deletion-safety",
+  )!;
+  row.actions
+    .find((a: { id: string }) => a.id === "d-deleted-a")!
+    .assertions.find((a: { id: string }) => a.id === "schema")!.schema = "#/$defs/problem";
+  expect(() => resolveAuthoredTransactionalSchemas(previous)).toThrow(
+    "unknown schema reference '#/$defs/problem'",
   );
 });

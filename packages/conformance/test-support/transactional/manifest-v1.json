@@ -1085,6 +1085,4095 @@
       ]
     },
     {
+      "id": "transactional.batch.deletion-safety",
+      "requiredProfile": "transactional",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http", "transactional-receipt-observation"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "d-seed",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "d-seed"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"createBead\",\"id\":\"beads/a\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"a\"},\"metadata\":{}},{\"operation\":\"createBead\",\"id\":\"beads/b\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"b\"},\"metadata\":{}},{\"operation\":\"createLink\",\"id\":\"links/l\",\"type\":\"https://reference.invalid/acme/types/relationship\",\"source\":\"beads/a\",\"target\":\"beads/b\",\"properties\":{\"title\":\"l\"},\"metadata\":{}},{\"operation\":\"createLink\",\"id\":\"links/r\",\"type\":\"https://reference.invalid/acme/types/relationship\",\"source\":\"beads/b\",\"target\":\"beads/a\",\"properties\":{\"title\":\"r\"},\"metadata\":{}}]}"
+            }
+          },
+          "captures": [
+            {
+              "binding": "d-seed-receipt",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationReceipt"
+            },
+            {
+              "id": "position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "equals": "pos-1"
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "completed"
+            },
+            {
+              "id": "detail",
+              "kind": "json-pointer",
+              "pointer": "/detail",
+              "exists": true,
+              "equals": "available"
+            },
+            {
+              "id": "required-position",
+              "kind": "json-pointer",
+              "pointer": "/requiredPosition",
+              "exists": true,
+              "equals": "pos-1"
+            },
+            {
+              "id": "effect-position",
+              "kind": "json-pointer",
+              "pointer": "/effectPosition",
+              "exists": true,
+              "equals": "pos-1"
+            },
+            {
+              "id": "inline",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-results",
+              "kind": "json-array-tuples",
+              "pointer": "/results",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                },
+                {
+                  "pointer": "/outcome"
+                },
+                {
+                  "pointer": "/resource/id"
+                },
+                {
+                  "pointer": "/resource/type"
+                },
+                {
+                  "pointer": "/resource/properties"
+                },
+                {
+                  "pointer": "/resource/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  0,
+                  "created",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "a"
+                  },
+                  {}
+                ],
+                [
+                  1,
+                  "created",
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "b"
+                  },
+                  {}
+                ],
+                [
+                  2,
+                  "created",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  {
+                    "title": "l"
+                  },
+                  {}
+                ],
+                [
+                  3,
+                  "created",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  {
+                    "title": "r"
+                  },
+                  {}
+                ]
+              ]
+            },
+            {
+              "id": "l-source",
+              "kind": "json-pointer",
+              "pointer": "/results/2/resource/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/a"
+            },
+            {
+              "id": "l-target",
+              "kind": "json-pointer",
+              "pointer": "/results/2/resource/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/b"
+            },
+            {
+              "id": "r-source",
+              "kind": "json-pointer",
+              "pointer": "/results/3/resource/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/b"
+            },
+            {
+              "id": "r-target",
+              "kind": "json-pointer",
+              "pointer": "/results/3/resource/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/a"
+            }
+          ]
+        },
+        {
+          "id": "d-seed-facts",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "d-seed-receipt",
+            "method": "GET"
+          },
+          "captures": [
+            {
+              "binding": "d-seed-transaction",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/transaction"
+              }
+            },
+            {
+              "binding": "d-a-before",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/0/resource"
+              }
+            },
+            {
+              "binding": "d-a-revision",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/0/resource/revision"
+              }
+            },
+            {
+              "binding": "d-b-before",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/1/resource"
+              }
+            },
+            {
+              "binding": "d-b-revision",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/1/resource/revision"
+              }
+            },
+            {
+              "binding": "d-l-before",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/2/resource"
+              }
+            },
+            {
+              "binding": "d-l-revision",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/2/resource/revision"
+              }
+            },
+            {
+              "binding": "d-r-before",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/3/resource"
+              }
+            },
+            {
+              "binding": "d-r-revision",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/3/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true,
+              "equals": "pos-1"
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": "completed"
+            },
+            {
+              "id": "detail",
+              "kind": "json-pointer",
+              "pointer": "/body/detail",
+              "exists": true,
+              "equals": "available"
+            },
+            {
+              "id": "required-position",
+              "kind": "json-pointer",
+              "pointer": "/body/requiredPosition",
+              "exists": true,
+              "equals": "pos-1"
+            },
+            {
+              "id": "effect-position",
+              "kind": "json-pointer",
+              "pointer": "/body/effectPosition",
+              "exists": true,
+              "equals": "pos-1"
+            },
+            {
+              "id": "inline",
+              "kind": "json-pointer",
+              "pointer": "/body/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-results",
+              "kind": "json-array-tuples",
+              "pointer": "/body/results",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                },
+                {
+                  "pointer": "/outcome"
+                },
+                {
+                  "pointer": "/resource/id"
+                },
+                {
+                  "pointer": "/resource/type"
+                },
+                {
+                  "pointer": "/resource/properties"
+                },
+                {
+                  "pointer": "/resource/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  0,
+                  "created",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "a"
+                  },
+                  {}
+                ],
+                [
+                  1,
+                  "created",
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "b"
+                  },
+                  {}
+                ],
+                [
+                  2,
+                  "created",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  {
+                    "title": "l"
+                  },
+                  {}
+                ],
+                [
+                  3,
+                  "created",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  {
+                    "title": "r"
+                  },
+                  {}
+                ]
+              ]
+            },
+            {
+              "id": "l-source",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/resource/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/a"
+            },
+            {
+              "id": "l-target",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/resource/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/b"
+            },
+            {
+              "id": "r-source",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/resource/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/b"
+            },
+            {
+              "id": "r-target",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/resource/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/a"
+            }
+          ]
+        },
+        {
+          "id": "d-seed-events",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "events/"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/eventPage"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-facts",
+              "kind": "json-array-tuples",
+              "pointer": "/events",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/source"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/subject"
+                },
+                {
+                  "pointer": "/subjectType"
+                },
+                {
+                  "pointer": "/ordinal"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  0
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  1
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  2
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  3
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  4
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  5
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  6
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  7
+                ]
+              ]
+            },
+            {
+              "id": "l-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/events/3/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "l-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/events/4/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "r-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/events/6/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "r-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/events/7/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d-seed-groups",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "changes/",
+            "query": {
+              "after": "genesis"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/changefeedPage"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "observed-head",
+              "kind": "json-pointer",
+              "pointer": "/observedHeadPosition",
+              "exists": true,
+              "equals": "pos-1"
+            },
+            {
+              "id": "group-inventory",
+              "kind": "json-array-tuples",
+              "pointer": "/groups",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/position"
+                }
+              ],
+              "equals": [["pos-1"]]
+            },
+            {
+              "id": "group-envelope",
+              "kind": "json-array-tuples",
+              "pointer": "/groups",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/previousPosition"
+                },
+                {
+                  "pointer": "/projectionAdvance"
+                },
+                {
+                  "pointer": "/eventCount"
+                },
+                {
+                  "pointer": "/erasures"
+                }
+              ],
+              "equals": [["pos-0", false, 8, []]]
+            },
+            {
+              "id": "group-transaction",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/transaction",
+              "exists": true,
+              "equalsBinding": "d-seed-transaction"
+            },
+            {
+              "id": "upsert-inventory",
+              "kind": "json-array-tuples",
+              "pointer": "/groups/0/changes",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operation"
+                },
+                {
+                  "pointer": "/resourceKind"
+                },
+                {
+                  "pointer": "/resource/id"
+                }
+              ],
+              "equals": [
+                ["upsert", "bead", "https://reference.invalid/acme/beads/a"],
+                ["upsert", "bead", "https://reference.invalid/acme/beads/b"],
+                ["upsert", "link", "https://reference.invalid/acme/links/l"],
+                ["upsert", "link", "https://reference.invalid/acme/links/r"]
+              ]
+            },
+            {
+              "id": "upsert-a",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/0/resource",
+              "exists": true,
+              "equalsBinding": "d-a-before"
+            },
+            {
+              "id": "upsert-b",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/1/resource",
+              "exists": true,
+              "equalsBinding": "d-b-before"
+            },
+            {
+              "id": "upsert-l",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/2/resource",
+              "exists": true,
+              "equalsBinding": "d-l-before"
+            },
+            {
+              "id": "upsert-r",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/3/resource",
+              "exists": true,
+              "equalsBinding": "d-r-before"
+            },
+            {
+              "id": "ordered-facts",
+              "kind": "json-array-tuples",
+              "pointer": "/groups/0/events",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/source"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/subject"
+                },
+                {
+                  "pointer": "/subjectType"
+                },
+                {
+                  "pointer": "/ordinal"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  0
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  1
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  2
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  3
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  4
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  5
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  6
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  7
+                ]
+              ]
+            },
+            {
+              "id": "l-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/3/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "l-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/4/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "r-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/6/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "r-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/7/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "d-incoming-survives",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "d-incoming-survives"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"updateBead\",\"bead\":\"beads/b\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"incoming-survives-prefix\"}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"phase\":\"incoming-survives-prefix\"}}]},{\"operation\":\"deleteLink\",\"link\":\"links/l\"},{\"operation\":\"deleteBead\",\"bead\":\"beads/a\"},{\"operation\":\"deleteLink\",\"link\":\"links/r\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationReceipt"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "failed"
+            },
+            {
+              "id": "detail",
+              "kind": "json-pointer",
+              "pointer": "/detail",
+              "exists": true,
+              "equals": "available"
+            },
+            {
+              "id": "required-position",
+              "kind": "json-pointer",
+              "pointer": "/requiredPosition",
+              "exists": true,
+              "equals": "pos-1"
+            },
+            {
+              "id": "no-effect",
+              "kind": "json-pointer",
+              "pointer": "/effectPosition",
+              "exists": false
+            },
+            {
+              "id": "no-results",
+              "kind": "json-pointer",
+              "pointer": "/results",
+              "exists": false
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": false
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/problem",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/conflict",
+                "status": 409,
+                "code": "incident-links-exist",
+                "retry": "after-state-change",
+                "operationIndex": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "d-incoming-survives-beads",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "32"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadCollection"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "ordered-identities",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "a"
+                  },
+                  {}
+                ],
+                [
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "b"
+                  },
+                  {}
+                ]
+              ]
+            },
+            {
+              "id": "complete-a",
+              "kind": "json-pointer",
+              "pointer": "/items/0",
+              "exists": true,
+              "equalsBinding": "d-a-before"
+            },
+            {
+              "id": "complete-b",
+              "kind": "json-pointer",
+              "pointer": "/items/1",
+              "exists": true,
+              "equalsBinding": "d-b-before"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "d-incoming-survives-links",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/",
+            "query": {
+              "limit": "32"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentLinkCollection"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "ordered-identities",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  {
+                    "title": "l"
+                  },
+                  {}
+                ],
+                [
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  {
+                    "title": "r"
+                  },
+                  {}
+                ]
+              ]
+            },
+            {
+              "id": "complete-l",
+              "kind": "json-pointer",
+              "pointer": "/items/0",
+              "exists": true,
+              "equalsBinding": "d-l-before"
+            },
+            {
+              "id": "complete-r",
+              "kind": "json-pointer",
+              "pointer": "/items/1",
+              "exists": true,
+              "equalsBinding": "d-r-before"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "d-incoming-survives-events",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "events/"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/eventPage"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-facts",
+              "kind": "json-array-tuples",
+              "pointer": "/events",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/source"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/subject"
+                },
+                {
+                  "pointer": "/subjectType"
+                },
+                {
+                  "pointer": "/ordinal"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  0
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  1
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  2
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  3
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  4
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  5
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  6
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  7
+                ]
+              ]
+            },
+            {
+              "id": "l-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/events/3/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "l-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/events/4/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "r-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/events/6/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "r-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/events/7/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d-incoming-survives-groups",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "changes/",
+            "query": {
+              "after": "genesis"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/changefeedPage"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "observed-head",
+              "kind": "json-pointer",
+              "pointer": "/observedHeadPosition",
+              "exists": true,
+              "equals": "pos-1"
+            },
+            {
+              "id": "group-inventory",
+              "kind": "json-array-tuples",
+              "pointer": "/groups",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/position"
+                }
+              ],
+              "equals": [["pos-1"]]
+            },
+            {
+              "id": "group-envelope",
+              "kind": "json-array-tuples",
+              "pointer": "/groups",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/previousPosition"
+                },
+                {
+                  "pointer": "/projectionAdvance"
+                },
+                {
+                  "pointer": "/eventCount"
+                },
+                {
+                  "pointer": "/erasures"
+                }
+              ],
+              "equals": [["pos-0", false, 8, []]]
+            },
+            {
+              "id": "group-transaction",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/transaction",
+              "exists": true,
+              "equalsBinding": "d-seed-transaction"
+            },
+            {
+              "id": "upsert-inventory",
+              "kind": "json-array-tuples",
+              "pointer": "/groups/0/changes",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operation"
+                },
+                {
+                  "pointer": "/resourceKind"
+                },
+                {
+                  "pointer": "/resource/id"
+                }
+              ],
+              "equals": [
+                ["upsert", "bead", "https://reference.invalid/acme/beads/a"],
+                ["upsert", "bead", "https://reference.invalid/acme/beads/b"],
+                ["upsert", "link", "https://reference.invalid/acme/links/l"],
+                ["upsert", "link", "https://reference.invalid/acme/links/r"]
+              ]
+            },
+            {
+              "id": "upsert-a",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/0/resource",
+              "exists": true,
+              "equalsBinding": "d-a-before"
+            },
+            {
+              "id": "upsert-b",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/1/resource",
+              "exists": true,
+              "equalsBinding": "d-b-before"
+            },
+            {
+              "id": "upsert-l",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/2/resource",
+              "exists": true,
+              "equalsBinding": "d-l-before"
+            },
+            {
+              "id": "upsert-r",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/3/resource",
+              "exists": true,
+              "equalsBinding": "d-r-before"
+            },
+            {
+              "id": "ordered-facts",
+              "kind": "json-array-tuples",
+              "pointer": "/groups/0/events",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/source"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/subject"
+                },
+                {
+                  "pointer": "/subjectType"
+                },
+                {
+                  "pointer": "/ordinal"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  0
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  1
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  2
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  3
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  4
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  5
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  6
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  7
+                ]
+              ]
+            },
+            {
+              "id": "l-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/3/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "l-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/4/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "r-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/6/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "r-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/7/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "d-outgoing-survives",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "d-outgoing-survives"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"updateBead\",\"bead\":\"beads/b\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"outgoing-survives-prefix\"}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"phase\":\"outgoing-survives-prefix\"}}]},{\"operation\":\"deleteLink\",\"link\":\"links/r\"},{\"operation\":\"deleteBead\",\"bead\":\"beads/a\"},{\"operation\":\"deleteLink\",\"link\":\"links/l\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationReceipt"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "failed"
+            },
+            {
+              "id": "detail",
+              "kind": "json-pointer",
+              "pointer": "/detail",
+              "exists": true,
+              "equals": "available"
+            },
+            {
+              "id": "required-position",
+              "kind": "json-pointer",
+              "pointer": "/requiredPosition",
+              "exists": true,
+              "equals": "pos-1"
+            },
+            {
+              "id": "no-effect",
+              "kind": "json-pointer",
+              "pointer": "/effectPosition",
+              "exists": false
+            },
+            {
+              "id": "no-results",
+              "kind": "json-pointer",
+              "pointer": "/results",
+              "exists": false
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": false
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/problem",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/conflict",
+                "status": 409,
+                "code": "incident-links-exist",
+                "retry": "after-state-change",
+                "operationIndex": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "d-outgoing-survives-beads",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "32"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadCollection"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "ordered-identities",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "a"
+                  },
+                  {}
+                ],
+                [
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "b"
+                  },
+                  {}
+                ]
+              ]
+            },
+            {
+              "id": "complete-a",
+              "kind": "json-pointer",
+              "pointer": "/items/0",
+              "exists": true,
+              "equalsBinding": "d-a-before"
+            },
+            {
+              "id": "complete-b",
+              "kind": "json-pointer",
+              "pointer": "/items/1",
+              "exists": true,
+              "equalsBinding": "d-b-before"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "d-outgoing-survives-links",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/",
+            "query": {
+              "limit": "32"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentLinkCollection"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "ordered-identities",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  {
+                    "title": "l"
+                  },
+                  {}
+                ],
+                [
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  {
+                    "title": "r"
+                  },
+                  {}
+                ]
+              ]
+            },
+            {
+              "id": "complete-l",
+              "kind": "json-pointer",
+              "pointer": "/items/0",
+              "exists": true,
+              "equalsBinding": "d-l-before"
+            },
+            {
+              "id": "complete-r",
+              "kind": "json-pointer",
+              "pointer": "/items/1",
+              "exists": true,
+              "equalsBinding": "d-r-before"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "d-outgoing-survives-events",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "events/"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/eventPage"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-facts",
+              "kind": "json-array-tuples",
+              "pointer": "/events",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/source"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/subject"
+                },
+                {
+                  "pointer": "/subjectType"
+                },
+                {
+                  "pointer": "/ordinal"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  0
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  1
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  2
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  3
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  4
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  5
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  6
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  7
+                ]
+              ]
+            },
+            {
+              "id": "l-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/events/3/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "l-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/events/4/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "r-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/events/6/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "r-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/events/7/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d-outgoing-survives-groups",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "changes/",
+            "query": {
+              "after": "genesis"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/changefeedPage"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-seed",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "observed-head",
+              "kind": "json-pointer",
+              "pointer": "/observedHeadPosition",
+              "exists": true,
+              "equals": "pos-1"
+            },
+            {
+              "id": "group-inventory",
+              "kind": "json-array-tuples",
+              "pointer": "/groups",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/position"
+                }
+              ],
+              "equals": [["pos-1"]]
+            },
+            {
+              "id": "group-envelope",
+              "kind": "json-array-tuples",
+              "pointer": "/groups",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/previousPosition"
+                },
+                {
+                  "pointer": "/projectionAdvance"
+                },
+                {
+                  "pointer": "/eventCount"
+                },
+                {
+                  "pointer": "/erasures"
+                }
+              ],
+              "equals": [["pos-0", false, 8, []]]
+            },
+            {
+              "id": "group-transaction",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/transaction",
+              "exists": true,
+              "equalsBinding": "d-seed-transaction"
+            },
+            {
+              "id": "upsert-inventory",
+              "kind": "json-array-tuples",
+              "pointer": "/groups/0/changes",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operation"
+                },
+                {
+                  "pointer": "/resourceKind"
+                },
+                {
+                  "pointer": "/resource/id"
+                }
+              ],
+              "equals": [
+                ["upsert", "bead", "https://reference.invalid/acme/beads/a"],
+                ["upsert", "bead", "https://reference.invalid/acme/beads/b"],
+                ["upsert", "link", "https://reference.invalid/acme/links/l"],
+                ["upsert", "link", "https://reference.invalid/acme/links/r"]
+              ]
+            },
+            {
+              "id": "upsert-a",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/0/resource",
+              "exists": true,
+              "equalsBinding": "d-a-before"
+            },
+            {
+              "id": "upsert-b",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/1/resource",
+              "exists": true,
+              "equalsBinding": "d-b-before"
+            },
+            {
+              "id": "upsert-l",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/2/resource",
+              "exists": true,
+              "equalsBinding": "d-l-before"
+            },
+            {
+              "id": "upsert-r",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/3/resource",
+              "exists": true,
+              "equalsBinding": "d-r-before"
+            },
+            {
+              "id": "ordered-facts",
+              "kind": "json-array-tuples",
+              "pointer": "/groups/0/events",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/source"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/subject"
+                },
+                {
+                  "pointer": "/subjectType"
+                },
+                {
+                  "pointer": "/ordinal"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  0
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  1
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  2
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  3
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  4
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  5
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  6
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  7
+                ]
+              ]
+            },
+            {
+              "id": "l-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/3/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "l-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/4/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "r-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/6/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "r-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/7/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "d-delete",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "d-delete"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"deleteLink\",\"link\":\"links/l\"},{\"operation\":\"deleteLink\",\"link\":\"links/r\"},{\"operation\":\"deleteBead\",\"bead\":\"beads/a\"}]}"
+            }
+          },
+          "captures": [
+            {
+              "binding": "d-delete-receipt",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationReceipt"
+            },
+            {
+              "id": "position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "equals": "pos-2"
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "completed"
+            },
+            {
+              "id": "detail",
+              "kind": "json-pointer",
+              "pointer": "/detail",
+              "exists": true,
+              "equals": "available"
+            },
+            {
+              "id": "required-position",
+              "kind": "json-pointer",
+              "pointer": "/requiredPosition",
+              "exists": true,
+              "equals": "pos-2"
+            },
+            {
+              "id": "effect-position",
+              "kind": "json-pointer",
+              "pointer": "/effectPosition",
+              "exists": true,
+              "equals": "pos-2"
+            },
+            {
+              "id": "inline",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-results",
+              "kind": "json-array-tuples",
+              "pointer": "/results",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                },
+                {
+                  "pointer": "/outcome"
+                },
+                {
+                  "pointer": "/deleted/resourceKind"
+                },
+                {
+                  "pointer": "/deleted/resource/id"
+                },
+                {
+                  "pointer": "/deleted/resource/type"
+                }
+              ],
+              "equals": [
+                [
+                  0,
+                  "deleted",
+                  "link",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship"
+                ],
+                [
+                  1,
+                  "deleted",
+                  "link",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship"
+                ],
+                [
+                  2,
+                  "deleted",
+                  "bead",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task"
+                ]
+              ]
+            },
+            {
+              "id": "l-revision",
+              "kind": "json-pointer",
+              "pointer": "/results/0/deleted/resource/revision",
+              "exists": true,
+              "equalsBinding": "d-l-revision"
+            },
+            {
+              "id": "r-revision",
+              "kind": "json-pointer",
+              "pointer": "/results/1/deleted/resource/revision",
+              "exists": true,
+              "equalsBinding": "d-r-revision"
+            },
+            {
+              "id": "a-revision",
+              "kind": "json-pointer",
+              "pointer": "/results/2/deleted/resource/revision",
+              "exists": true,
+              "equalsBinding": "d-a-revision"
+            }
+          ]
+        },
+        {
+          "id": "d-delete-facts",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "d-delete-receipt",
+            "method": "GET"
+          },
+          "captures": [
+            {
+              "binding": "d-delete-transaction",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/transaction"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true,
+              "equals": "pos-2"
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": "completed"
+            },
+            {
+              "id": "detail",
+              "kind": "json-pointer",
+              "pointer": "/body/detail",
+              "exists": true,
+              "equals": "available"
+            },
+            {
+              "id": "required-position",
+              "kind": "json-pointer",
+              "pointer": "/body/requiredPosition",
+              "exists": true,
+              "equals": "pos-2"
+            },
+            {
+              "id": "effect-position",
+              "kind": "json-pointer",
+              "pointer": "/body/effectPosition",
+              "exists": true,
+              "equals": "pos-2"
+            },
+            {
+              "id": "inline",
+              "kind": "json-pointer",
+              "pointer": "/body/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-results",
+              "kind": "json-array-tuples",
+              "pointer": "/body/results",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                },
+                {
+                  "pointer": "/outcome"
+                },
+                {
+                  "pointer": "/deleted/resourceKind"
+                },
+                {
+                  "pointer": "/deleted/resource/id"
+                },
+                {
+                  "pointer": "/deleted/resource/type"
+                }
+              ],
+              "equals": [
+                [
+                  0,
+                  "deleted",
+                  "link",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship"
+                ],
+                [
+                  1,
+                  "deleted",
+                  "link",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship"
+                ],
+                [
+                  2,
+                  "deleted",
+                  "bead",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task"
+                ]
+              ]
+            },
+            {
+              "id": "l-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/deleted/resource/revision",
+              "exists": true,
+              "equalsBinding": "d-l-revision"
+            },
+            {
+              "id": "r-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/deleted/resource/revision",
+              "exists": true,
+              "equalsBinding": "d-r-revision"
+            },
+            {
+              "id": "a-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/deleted/resource/revision",
+              "exists": true,
+              "equalsBinding": "d-a-revision"
+            }
+          ]
+        },
+        {
+          "id": "d-final-beads",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "32"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadCollection"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-delete",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "ordered-identities",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "b"
+                  },
+                  {}
+                ]
+              ]
+            },
+            {
+              "id": "complete-b",
+              "kind": "json-pointer",
+              "pointer": "/items/0",
+              "exists": true,
+              "equalsBinding": "d-b-before"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "d-final-links",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/",
+            "query": {
+              "limit": "32"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentLinkCollection"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-delete",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "ordered-identities",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "equals": []
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "d-deleted-a",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "equals": "pos-2"
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            }
+          ]
+        },
+        {
+          "id": "d-final-events",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "events/"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/eventPage"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-delete",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-facts",
+              "kind": "json-array-tuples",
+              "pointer": "/events",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/source"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/subject"
+                },
+                {
+                  "pointer": "/subjectType"
+                },
+                {
+                  "pointer": "/ordinal"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  0
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  1
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  2
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  3
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  4
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  5
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  6
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  7
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "deleted",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  0
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "unlinked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  1
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "unlinked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  2
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "deleted",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  3
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "unlinked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  4
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "unlinked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  5
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "deleted",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  6
+                ]
+              ]
+            },
+            {
+              "id": "l-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/events/3/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "l-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/events/4/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "r-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/events/6/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "r-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/events/7/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "l-delete-revision",
+              "kind": "json-pointer",
+              "pointer": "/events/8/data/revision",
+              "exists": true,
+              "equalsBinding": "d-l-revision"
+            },
+            {
+              "id": "r-delete-revision",
+              "kind": "json-pointer",
+              "pointer": "/events/11/data/revision",
+              "exists": true,
+              "equalsBinding": "d-r-revision"
+            },
+            {
+              "id": "a-delete-revision",
+              "kind": "json-pointer",
+              "pointer": "/events/14/data/revision",
+              "exists": true,
+              "equalsBinding": "d-a-revision"
+            },
+            {
+              "id": "delete-transaction-0",
+              "kind": "json-pointer",
+              "pointer": "/events/8/transaction",
+              "exists": true,
+              "equalsBinding": "d-delete-transaction"
+            },
+            {
+              "id": "delete-transaction-1",
+              "kind": "json-pointer",
+              "pointer": "/events/9/transaction",
+              "exists": true,
+              "equalsBinding": "d-delete-transaction"
+            },
+            {
+              "id": "delete-transaction-2",
+              "kind": "json-pointer",
+              "pointer": "/events/10/transaction",
+              "exists": true,
+              "equalsBinding": "d-delete-transaction"
+            },
+            {
+              "id": "delete-transaction-3",
+              "kind": "json-pointer",
+              "pointer": "/events/11/transaction",
+              "exists": true,
+              "equalsBinding": "d-delete-transaction"
+            },
+            {
+              "id": "delete-transaction-4",
+              "kind": "json-pointer",
+              "pointer": "/events/12/transaction",
+              "exists": true,
+              "equalsBinding": "d-delete-transaction"
+            },
+            {
+              "id": "delete-transaction-5",
+              "kind": "json-pointer",
+              "pointer": "/events/13/transaction",
+              "exists": true,
+              "equalsBinding": "d-delete-transaction"
+            },
+            {
+              "id": "delete-transaction-6",
+              "kind": "json-pointer",
+              "pointer": "/events/14/transaction",
+              "exists": true,
+              "equalsBinding": "d-delete-transaction"
+            },
+            {
+              "id": "l-unlink-source",
+              "kind": "json-pointer",
+              "pointer": "/events/9/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "l-unlink-target",
+              "kind": "json-pointer",
+              "pointer": "/events/10/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "r-unlink-source",
+              "kind": "json-pointer",
+              "pointer": "/events/12/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "r-unlink-target",
+              "kind": "json-pointer",
+              "pointer": "/events/13/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d-final-groups",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "changes/",
+            "query": {
+              "after": "genesis"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [
+            {
+              "binding": "d-final-next",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/next"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/changefeedPage"
+            },
+            {
+              "id": "serving-context",
+              "kind": "response-metadata-equals",
+              "request": "d-delete",
+              "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "observed-head",
+              "kind": "json-pointer",
+              "pointer": "/observedHeadPosition",
+              "exists": true,
+              "equals": "pos-2"
+            },
+            {
+              "id": "group-inventory",
+              "kind": "json-array-tuples",
+              "pointer": "/groups",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/position"
+                }
+              ],
+              "equals": [["pos-1"]]
+            },
+            {
+              "id": "group-envelope",
+              "kind": "json-array-tuples",
+              "pointer": "/groups",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/previousPosition"
+                },
+                {
+                  "pointer": "/projectionAdvance"
+                },
+                {
+                  "pointer": "/eventCount"
+                },
+                {
+                  "pointer": "/erasures"
+                }
+              ],
+              "equals": [["pos-0", false, 8, []]]
+            },
+            {
+              "id": "group-transaction",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/transaction",
+              "exists": true,
+              "equalsBinding": "d-seed-transaction"
+            },
+            {
+              "id": "upsert-inventory",
+              "kind": "json-array-tuples",
+              "pointer": "/groups/0/changes",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operation"
+                },
+                {
+                  "pointer": "/resourceKind"
+                },
+                {
+                  "pointer": "/resource/id"
+                }
+              ],
+              "equals": [
+                ["upsert", "bead", "https://reference.invalid/acme/beads/a"],
+                ["upsert", "bead", "https://reference.invalid/acme/beads/b"],
+                ["upsert", "link", "https://reference.invalid/acme/links/l"],
+                ["upsert", "link", "https://reference.invalid/acme/links/r"]
+              ]
+            },
+            {
+              "id": "upsert-a",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/0/resource",
+              "exists": true,
+              "equalsBinding": "d-a-before"
+            },
+            {
+              "id": "upsert-b",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/1/resource",
+              "exists": true,
+              "equalsBinding": "d-b-before"
+            },
+            {
+              "id": "upsert-l",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/2/resource",
+              "exists": true,
+              "equalsBinding": "d-l-before"
+            },
+            {
+              "id": "upsert-r",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/changes/3/resource",
+              "exists": true,
+              "equalsBinding": "d-r-before"
+            },
+            {
+              "id": "ordered-facts",
+              "kind": "json-array-tuples",
+              "pointer": "/groups/0/events",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/source"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/subject"
+                },
+                {
+                  "pointer": "/subjectType"
+                },
+                {
+                  "pointer": "/ordinal"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/a",
+                  "https://reference.invalid/acme/types/task",
+                  0
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/beads/b",
+                  "https://reference.invalid/acme/types/task",
+                  1
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  2
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  3
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/l",
+                  "https://reference.invalid/acme/types/relationship",
+                  4
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "created",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  5
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  6
+                ],
+                [
+                  "https://reference.invalid/acme/events/",
+                  "linked",
+                  "https://reference.invalid/acme/links/r",
+                  "https://reference.invalid/acme/types/relationship",
+                  7
+                ]
+              ]
+            },
+            {
+              "id": "l-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/3/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "l-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/4/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/l",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/a",
+                "target": "https://reference.invalid/acme/beads/b"
+              }
+            },
+            {
+              "id": "r-incidence-source",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/6/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "r-incidence-target",
+              "kind": "json-pointer",
+              "pointer": "/groups/0/events/7/data",
+              "exists": true,
+              "equals": {
+                "endpoint": "target",
+                "link": {
+                  "id": "https://reference.invalid/acme/links/r",
+                  "type": "https://reference.invalid/acme/types/relationship"
+                },
+                "source": "https://reference.invalid/acme/beads/b",
+                "target": "https://reference.invalid/acme/beads/a"
+              }
+            },
+            {
+              "id": "next-present",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "transactional.batch.no-op-entries",
       "requiredProfile": "transactional",
       "setup": {
