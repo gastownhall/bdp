@@ -186,7 +186,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(241);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(240);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
   expect(() => planProfileExecution(selected, configuration("read-update"))).toThrow("disagree");
@@ -726,6 +726,11 @@ const originalObjectPins = {
       12545,
     ],
     [
+      "transactional.receipt.pagination",
+      "c531c260349347cdc3e54ba68282f1a266a5fa207d3775660615f836a4768782",
+      138750,
+    ],
+    [
       "transactional.idempotency.failed-retained",
       "a867694406dde07da71ac70197c60c478dd0fb3344cf2c8160795d1aa62d3378",
       18404,
@@ -768,6 +773,11 @@ const originalObjectPins = {
       2142,
     ],
     [
+      "transactional.receipt.pagination",
+      "0735edbca2fbf384f9f8147140a353dc084d9ad85facaddf2f5073f56a7256ee",
+      13057,
+    ],
+    [
       "transactional.idempotency.failed-retained",
       "63918cbb495a504fd2043f52b60e7cd8ef1518b8022a96edb0d02660c7df1a8e",
       2917,
@@ -782,7 +792,7 @@ function assertOriginalObjects(text: string, name: keyof typeof originalObjectPi
     expect(createHash("sha256").update(raw).digest("hex"), id).toBe(hash);
   }
 }
-it("preserves every original TX scenario and coverage object while adding one bounded partial receipt page row", () => {
+it("preserves every original TX scenario and coverage object while adding one bounded partial completed-key conflict row", () => {
   for (const name of ["manifest", "coverage"] as const)
     assertOriginalObjects(read(name).toString(), name);
   const changed = read("manifest").toString().replace('"equals": 401', '"equals": 402');
@@ -798,6 +808,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     "transactional.set.singleton-targets",
     "transactional.receipt.readable",
     "transactional.receipt.pagination",
+    "transactional.idempotency.conflict",
     "transactional.idempotency.failed-retained",
   ]);
   const counts = new Map<string, number>();
@@ -807,6 +818,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     ["transactional.set.mutation", 30],
     ["transactional.set.zero-match", 17],
     ["transactional.receipt.pagination", 18],
+    ["transactional.idempotency.conflict", 12],
   ] as const) {
     const rows = manifest.scenarios.filter((r: { id: string }) => r.id === id);
     expect(rows, id).toHaveLength(1);
@@ -820,10 +832,11 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
-  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(139);
-  expect(read("manifest").byteLength - 238693).toBeLessThanOrEqual(136 * 1024);
-  expect(read("manifest").byteLength).toBeLessThanOrEqual(370 * 1024);
-  expect(read("coverage").byteLength - 41812).toBeLessThanOrEqual(16 * 1024);
+  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(151);
+  expect(read("manifest").byteLength - 377449).toBeLessThanOrEqual(32768);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(413696);
+  expect(read("coverage").byteLength - 54875).toBeLessThanOrEqual(8192);
+  expect(read("coverage").byteLength).toBeLessThanOrEqual(65536);
   expect(read("fixture").byteLength).toBe(716);
   expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
     "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
@@ -835,7 +848,8 @@ it("preserves every original TX scenario and coverage object while adding one bo
     nodes++;
     if (value && typeof value === "object") pending.push(...Object.values(value));
   }
-  expect(nodes).toBeLessThanOrEqual(10200);
+  expect(nodes - 10082).toBeLessThanOrEqual(1200);
+  expect(nodes).toBeLessThanOrEqual(11300);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
     "transactional.receipt.pagination": [
@@ -980,5 +994,318 @@ it("pins the one-page matched-plus-updated witness without advertised-limit or o
       expect(action.assertions).toContainEqual(
         expect.objectContaining({ pointer: `/headers/${name}`, exists: false }),
       );
+  }
+});
+
+function assertCompletedConflictRequests(value: typeof manifest) {
+  const row = value.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.idempotency.conflict",
+  )!;
+  const scope = "https://reference.invalid/acme/";
+  const expected = (id: string) =>
+    JSON.stringify({
+      operations: [
+        {
+          operation: "createBead",
+          id: `beads/${id}`,
+          type: `${scope}types/task`,
+          properties: { title: "original" },
+          metadata: { tag: "conflict" },
+        },
+      ],
+    });
+  expect(row.actions.map((a: { id: string }) => a.id)).toEqual([
+    "c-commit",
+    "c-original",
+    "c-conflict",
+    "c-state",
+    "c-events",
+    "c-retry",
+    "c-reopen",
+    "c-conflict-reopened",
+    "c-retry-reopened",
+    "reopened-conflict-root",
+    "c-state-reopened",
+    "c-events-reopened",
+  ]);
+  const posts = row.actions.filter((a: { method?: string }) => a.method === "POST");
+  expect(posts).toHaveLength(5);
+  for (const action of posts) {
+    const conflict = action.id === "c-conflict" || action.id === "c-conflict-reopened";
+    expect(action.raw.body, action.id).toEqual({
+      encoding: "utf8",
+      value: expected(conflict ? "b" : "a"),
+    });
+    expect(action.raw.headerLines, action.id).toEqual([
+      { name: "content-type", value: "application/json" },
+      { name: "idempotency-key", value: "completed-conflict" },
+      { name: "accept", value: action.id === "c-conflict" ? "text/plain" : "application/json" },
+    ]);
+    expect(action.credentialRef).toBe("operator");
+    expect(action.target).toEqual({ binding: "batch" });
+    expect(action.captures).toEqual(
+      action.id === "c-commit"
+        ? [{ binding: "c-root", from: { kind: "json-pointer", pointer: "/id" } }]
+        : [],
+    );
+    expect(Buffer.byteLength(action.raw.body.value)).toBeLessThanOrEqual(2048);
+  }
+  expect(row.actions.filter((a: { family: string }) => a.family === "http")).toHaveLength(9);
+  for (const action of row.actions.filter((a: { family: string }) => a.family === "http")) {
+    expect(action.assertions).toContainEqual({
+      id: "request-headers",
+      kind: "request-authored-headers",
+    });
+    expect(action.assertions).toContainEqual({ id: "request-body", kind: "request-authored-body" });
+  }
+}
+// Independent expected response objects: all context-presence assertions are mandatory.
+// Preserve the existing Event assertion order instead of rewriting the artifact to
+// match the M/Z guard convention; presence after equality must still pass.
+function assertCompletedConflictResponses(value: typeof manifest) {
+  const row = value.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.idempotency.conflict",
+  )!;
+  const scope = "https://reference.invalid/acme/";
+  const headers = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"];
+  const pointer = (id: string, path: string, expected: unknown) => ({
+    id,
+    kind: "json-pointer",
+    pointer: path,
+    exists: true,
+    equals: expected,
+  });
+  const present = (id: string, path: string) => ({
+    id,
+    kind: "json-pointer",
+    pointer: path,
+    exists: true,
+  });
+  const binding = (id: string, path: string, equalsBinding: string) => ({
+    id,
+    kind: "json-pointer",
+    pointer: path,
+    exists: true,
+    equalsBinding,
+  });
+  const schema = (ref: string) => ({ id: "schema", kind: "json-schema", schema: `#/$defs/${ref}` });
+  const status = (equals: number) => ({ id: "http-status", kind: "status", equals });
+  const state = [
+    `${scope}beads/a`,
+    `${scope}types/task`,
+    { title: "original" },
+    { tag: "conflict" },
+  ];
+  const created = (path: string) => ({
+    id: "created-record",
+    kind: "json-array-tuples",
+    pointer: path,
+    ordered: true,
+    projections: [
+      "/operationIndex",
+      "/outcome",
+      "/resource/id",
+      "/resource/type",
+      "/resource/properties",
+      "/resource/metadata",
+    ].map((pointer) => ({ pointer })),
+    equals: [[0, "created", ...state]],
+  });
+  const headerPresence = headers.map((name) => ({
+    id: `present-${name}`,
+    kind: "header",
+    name,
+    absent: false,
+  }));
+  const authored = [
+    { id: "request-headers", kind: "request-authored-headers" },
+    { id: "request-body", kind: "request-authored-body" },
+  ];
+  const rootRead = [
+    pointer("status", "/status", 200),
+    pointer("body-present", "/bodyPresent", true),
+    ...headers.map((name) => present(name, `/headers/${name}`)),
+    pointer("private-cache", "/headers/cache-control", "private, no-store"),
+    { id: "no-etag", kind: "json-pointer", pointer: "/headers/etag", exists: false },
+    {
+      id: "no-last-modified",
+      kind: "json-pointer",
+      pointer: "/headers/last-modified",
+      exists: false,
+    },
+  ];
+  const conflict = [
+    status(409),
+    {
+      id: "problem-media",
+      kind: "header",
+      name: "content-type",
+      equals: "application/problem+json",
+    },
+    schema("transactionalProblem"),
+    pointer("problem-type", "/type", "https://github.com/gastownhall/bdp/problems/conflict"),
+    pointer("problem-code", "/code", "idempotency-conflict"),
+    pointer("problem-status", "/status", 409),
+    pointer("retry", "/retry", "never"),
+    ...authored,
+  ];
+  const collection = [
+    status(200),
+    schema("currentBeadCollection"),
+    pointer("no-next", "/next", null),
+    {
+      id: "ordered-state",
+      kind: "json-array-tuples",
+      pointer: "/items",
+      ordered: true,
+      projections: ["/id", "/type", "/properties", "/metadata"].map((pointer) => ({ pointer })),
+      equals: [state],
+    },
+    binding("retained-record", "/items/0", "c-record"),
+    ...authored,
+  ];
+  const events = [
+    status(200),
+    schema("eventPage"),
+    pointer("no-next", "/next", null),
+    {
+      id: "ordered-facts",
+      kind: "json-array-tuples",
+      pointer: "/events",
+      ordered: true,
+      projections: ["/source", "/type", "/subject", "/ordinal"].map((pointer) => ({ pointer })),
+      equals: [[`${scope}events/`, "created", `${scope}beads/a`, 0]],
+    },
+    { id: "serving-context", kind: "response-metadata-equals", request: "c-commit", headers },
+    ...headerPresence,
+    ...authored,
+  ];
+  const replay = [
+    status(200),
+    schema("mutationReceipt"),
+    pointer("disposition", "/status", "completed"),
+    binding("retained-body", "", "c-body"),
+    binding("retained-root", "/id", "c-root"),
+    ...authored,
+  ];
+  const assertions: Record<string, unknown[]> = {
+    "c-commit": [
+      status(200),
+      schema("mutationReceipt"),
+      pointer("disposition", "/status", "completed"),
+      pointer("no-next", "/next", null),
+      present("effect-position", "/effectPosition"),
+      created("/results"),
+      ...headerPresence,
+      ...authored,
+    ],
+    "c-original": [
+      ...rootRead,
+      pointer("disposition", "/body/status", "completed"),
+      pointer("no-next", "/body/next", null),
+      present("effect-position", "/body/effectPosition"),
+      created("/body/results"),
+    ],
+    "c-conflict": conflict,
+    "c-conflict-reopened": conflict,
+    "c-state": collection,
+    "c-state-reopened": collection,
+    "c-events": events,
+    "c-events-reopened": events,
+    "c-retry": replay,
+    "c-retry-reopened": replay,
+    "c-reopen": [pointer("reopened", "/reopened", true)],
+    "reopened-conflict-root": [...rootRead, binding("retained-body", "/body", "c-body")],
+  };
+  const captures: Record<string, unknown[]> = {
+    "c-commit": [{ binding: "c-root", from: { kind: "json-pointer", pointer: "/id" } }],
+    "c-original": [
+      { binding: "c-body", from: { kind: "json-pointer", pointer: "/body" } },
+      { binding: "c-record", from: { kind: "json-pointer", pointer: "/body/results/0/resource" } },
+    ],
+  };
+  expect(row.actions).toHaveLength(Object.keys(assertions).length);
+  for (const action of row.actions) {
+    expect(action.assertions, `${action.id} complete response assertions`).toEqual(
+      assertions[action.id],
+    );
+    expect(action.captures, `${action.id} complete captures`).toEqual(captures[action.id] ?? []);
+  }
+}
+
+it("pins complete conflict responses and rejects retained-record equality weakening", () => {
+  assertCompletedConflictResponses(manifest);
+  for (const id of ["c-state", "c-state-reopened"]) {
+    const weakened = structuredClone(manifest);
+    const row = weakened.scenarios.find(
+      (r: { id: string }) => r.id === "transactional.idempotency.conflict",
+    )!;
+    const assertion = row.actions
+      .find((a: { id: string }) => a.id === id)
+      .assertions.find((a: { id: string }) => a.id === "retained-record");
+    delete assertion.equalsBinding;
+    expect(() => assertCompletedConflictResponses(weakened)).toThrow(
+      `${id} complete response assertions`,
+    );
+  }
+});
+
+it("rejects removing mandatory context presence from either comparison side", () => {
+  for (const id of ["c-commit", "c-events", "c-events-reopened"]) {
+    const weakened = structuredClone(manifest);
+    const row = weakened.scenarios.find(
+      (r: { id: string }) => r.id === "transactional.idempotency.conflict",
+    )!;
+    const action = row.actions.find((a: { id: string }) => a.id === id);
+    action.assertions = action.assertions.filter(
+      (a: { id: string }) => a.id !== "present-bdp-scope-position",
+    );
+    expect(() => assertCompletedConflictResponses(weakened)).toThrow(
+      `${id} complete response assertions`,
+    );
+  }
+});
+
+it("pins the completed-key conflict law, five presentations, and semantic request difference", () => {
+  expect(
+    selected.catalog.scenarios.find((r) => r.id === "transactional.idempotency.conflict")!
+      .requirements,
+  ).toEqual([
+    {
+      source: "docs/specs/bdp.md",
+      anchor: "#mutation-transactions",
+      selectedText: "Reusing the key for a different semantic request is an idempotency conflict.",
+    },
+    {
+      source: "docs/specs/bdp.md",
+      anchor: "#mutation-transactions",
+      selectedText:
+        "A request with the same key and a different normalized request is refused before admission with `409` `idempotency-conflict` for as long as the key is bound",
+    },
+  ]);
+  assertCompletedConflictRequests(manifest);
+  const changed = structuredClone(manifest);
+  const row = changed.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.idempotency.conflict",
+  )!;
+  row.actions.find((a: { id: string }) => a.id === "c-conflict").raw.body.value =
+    row.actions[0].raw.body.value;
+  expect(() => assertCompletedConflictRequests(changed)).toThrow("c-conflict");
+  for (const name of ["manifest", "coverage"] as const) {
+    expect(originalObjectPins[name]).toHaveLength(9);
+    const text = read(name).toString();
+    const raw = objectSlices(text, name === "manifest" ? "scenarios" : "rows").get(
+      "transactional.receipt.pagination",
+    )!;
+    const changedRaw =
+      name === "manifest"
+        ? raw.replace('"equals": 200', '"equals": 201')
+        : raw.replace('"reason": "Bounded', '"reason": "bounded');
+    expect(changedRaw).not.toBe(raw);
+    expect(Buffer.byteLength(changedRaw)).toBe(Buffer.byteLength(raw));
+    expect(JSON.parse(changedRaw).id).toBe("transactional.receipt.pagination");
+    expect(() => assertOriginalObjects(text.replace(raw, changedRaw), name)).toThrow(
+      "transactional.receipt.pagination",
+    );
   }
 });
