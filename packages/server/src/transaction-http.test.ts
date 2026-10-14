@@ -2501,3 +2501,160 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
   expect(method.status).toBe(405);
   expect(method.headers.get("allow")).toBe("GET, HEAD");
 });
+
+it("carries current owner context on direct conflict, operation-limit and both negotiation refusals", async () => {
+  const f = await fixture();
+  const singleton = JSON.stringify({ id: "beads/a", type: bead, properties: { title: "a" } });
+  const seedResponse = await f.post(singleton, "retained", "createBead");
+  expect(seedResponse.status).toBe(200);
+  const seed = await body(seedResponse);
+  expect(seed.effectPosition).toBe("pos-1");
+  const advanced = await f.post(batch([create("b")]), "advance");
+  expect(advanced.status).toBe(200);
+  expect((await body(advanced)).effectPosition).toBe("pos-2");
+  const expected = {
+    "bdp-scope-epoch": seed.scopeEpoch,
+    "bdp-authorization-view": seed.authorizationView,
+    "bdp-scope-position": "pos-2",
+  };
+  function current(response: Response) {
+    for (const [name, value] of Object.entries(expected)) {
+      expect(response.headers.has(name), `direct refusal context presence: ${name}`).toBe(true);
+      expect(response.headers.get(name), `direct refusal current context: ${name}`).toBe(value);
+    }
+    expect(response.headers.get("vary")).toBe("Accept");
+  }
+  for (const response of [
+    await f.post(JSON.stringify({ id: "beads/x", type: bead }), "retained", "createBead"),
+    await f.post(batch([create("x")]), "retained", "batch", { accept: "text/plain" }),
+  ]) {
+    expect(response.status).toBe(409);
+    current(response);
+    expect(checkedProblem(await body(response))).toMatchObject({
+      code: "idempotency-conflict",
+      status: 409,
+      retry: "never",
+    });
+  }
+  const fresh = JSON.stringify({ id: "beads/c", type: bead, properties: { title: "c" } });
+  for (const response of [
+    await f.post(singleton, "retained", "createBead", { accept: "text/plain" }),
+    await f.post(fresh, "fresh-negotiation", "createBead", { accept: "text/plain" }),
+  ]) {
+    expect(response.status).toBe(406);
+    current(response);
+    expect(await response.text()).toBe("");
+    expect(response.headers.has("content-type")).toBe(false);
+  }
+  const capacity = await f.post(
+    batch(Array.from({ length: 33 }, (_, i) => create(`oversized-${i}`))),
+    "fresh-capacity",
+    "batch",
+    { accept: "text/plain" },
+  );
+  expect(capacity.status).toBe(413);
+  current(capacity);
+  expect(checkedProblem(await body(capacity))).toMatchObject({
+    code: "limit-exceeded",
+    status: 413,
+    limit: "transaction.operations",
+  });
+  const retained = await f.get(id(seed));
+  expect(retained.status).toBe(200);
+  expect(retained.headers.get("bdp-scope-position")).toBe("pos-2");
+  expect(await body(retained)).toEqual(seed);
+  const collection = await body(await f.get(`${f.runtime.scope}beads/?limit=32`));
+  expect((collection.items as Record<string, unknown>[]).map((r) => [r.id, r.properties])).toEqual([
+    [`${f.runtime.scope}beads/a`, { title: "a" }],
+    [`${f.runtime.scope}beads/b`, { title: "b" }],
+  ]);
+  expect(collection.next).toBeNull();
+  const events = await body(await f.get(`${f.runtime.scope}events/`));
+  expect(events.events).toHaveLength(2);
+  expect(events.next).toBeNull();
+  expect((await body(await f.post(fresh, "fresh-negotiation", "createBead"))).effectPosition).toBe(
+    "pos-3",
+  );
+  expect((await body(await f.post(batch([create("d")]), "fresh-capacity"))).effectPosition).toBe(
+    "pos-4",
+  );
+});
+
+// These are exclusions from this bounded context repair, not a general error-family law.
+it("preserves absent context on excluded direct receiving and authorization refusals", async () => {
+  const f = await fixture();
+  for (const [text, headers, status, code] of [
+    [batch(), { authorization: "" }, 401, "unauthenticated"],
+    [batch(), { authorization: `Bearer ${readToken}` }, 403, "forbidden"],
+    ["{", {}, 400, "malformed-request"],
+    ["x".repeat(65537), {}, 413, "request-too-large"],
+    [batch(), { "content-type": "text/plain" }, 415, "unsupported-media-type"],
+  ] as const) {
+    const response = await f.post(text, "excluded", "batch", headers);
+    expect(response.status).toBe(status);
+    expect(checkedProblem(await body(response))).toMatchObject({ status, code });
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(response.headers.has(name), `excluded direct refusal ${code} context: ${name}`).toBe(
+        false,
+      );
+  }
+  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+  expect((await f.post(batch(), "excluded")).status).toBe(200);
+});
+
+it("preserves absent context on a deterministic excluded direct comparison refusal", async () => {
+  const callbacks: (() => void)[] = [];
+  let tick = 0;
+  let release = false;
+  const f = await fixture({
+    scheduler: {
+      turn(callback) {
+        if (release) queueMicrotask(callback);
+        else callbacks.push(callback);
+        return () => {};
+      },
+    },
+    comparison: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+  });
+  const sequence = f.post(
+    batch([
+      { ...create(), name: "a", idempotencyKey: "creator" },
+      {
+        operation: "createLink",
+        type: link,
+        source: "@a",
+        target: "@a",
+        idempotencyKey: "dependent",
+      },
+    ]),
+    null,
+    "sequence",
+  );
+  const candidate = batch([
+    { operation: "createLink", type: link, source: "beads/a", target: "beads/a" },
+  ]);
+  try {
+    for (let attempt = 0; callbacks.length === 0 && attempt < 100; attempt++) await setImmediate();
+    expect(callbacks).toHaveLength(1);
+    const response = await f.post(candidate, "dependent");
+    expect(response.status).toBe(503);
+    expect(response.headers.get("retry-after")).toBe("1");
+    expect(checkedProblem(await body(response))).toMatchObject({
+      code: "temporarily-unavailable",
+      status: 503,
+    });
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(
+        response.headers.has(name),
+        `excluded direct refusal temporarily-unavailable context: ${name}`,
+      ).toBe(false);
+    expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+  } finally {
+    release = true;
+    for (const callback of callbacks.splice(0)) callback();
+    await sequence;
+  }
+  const replay = await f.post(candidate, "dependent");
+  expect(replay.status).toBe(200);
+  expect(replay.headers.get("bdp-scope-position")).toBe("pos-2");
+});

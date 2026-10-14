@@ -344,18 +344,33 @@ export function createTransactionHttpHandler(
         receiving: { acceptsJson: acceptsJson(request.headers.get("accept")), maximumOperations },
       });
       if (result.kind === "receipt") return receiptResponse(result, true);
-      if (result.kind === "not-acceptable") return empty(406);
+      if (result.kind === "not-acceptable") {
+        if (!result.context) throw new Error("negotiation refusal lost same-entry context");
+        return context(empty(406), result.context);
+      }
       if (result.kind === "development-limit")
         return developmentGap("unsupported-transaction-composition");
-      if (result.code === "idempotency-conflict")
-        return problem(
-          parseReadUpdateProblem({
-            type: "https://github.com/gastownhall/bdp/problems/conflict",
-            code: result.code,
-            status: 409,
-            retry: "never",
-          }),
+      if (result.code === "idempotency-conflict") {
+        if (!result.context) throw new Error("conflict refusal lost same-entry context");
+        return context(
+          problem(
+            parseReadUpdateProblem({
+              type: "https://github.com/gastownhall/bdp/problems/conflict",
+              code: result.code,
+              status: 409,
+              retry: "never",
+            }),
+          ),
+          result.context,
         );
+      }
+      if (result.code === "limit-exceeded" && result.limit === "transaction.operations") {
+        if (!result.context) throw new Error("operation-limit refusal lost same-entry context");
+        return context(
+          problem({ ...readProblem(result.code), limit: result.limit }),
+          result.context,
+        );
+      }
       return problem({
         ...readProblem(result.code),
         ...(result.limit ? { limit: result.limit } : {}),

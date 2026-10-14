@@ -880,3 +880,140 @@ it.each(["operation", "name", "idempotencyKey", "extra"])(
     }
   },
 );
+
+it("propagates observed direct refusal context without changing admission precedence or key reuse", async () => {
+  const f = fixture({ clock: () => 1000 });
+  const original = submission();
+  const first = await submitTransaction(f.store, original, {}, true);
+  if (first.kind !== "receipt") throw new Error("missing seed receipt");
+  await submitTransaction(f.store, submission([create("b")], "advance"));
+  const context = {
+    scopeEpoch: first.receipt.scopeEpoch,
+    authorizationView: first.receipt.authorizationView,
+    scopePosition: "pos-2",
+  };
+  const before = f.store.inspect();
+  const conflict = await submitTransaction(
+    f.store,
+    { ...submission([create("other")]), receiving: { acceptsJson: false, maximumOperations: 1 } },
+    {},
+    true,
+  );
+  expect(conflict).toEqual({ kind: "refused", status: 409, code: "idempotency-conflict", context });
+  const capacityRequest = submission([create("c"), create("d")], "fresh-capacity");
+  expect(
+    await submitTransaction(
+      f.store,
+      { ...capacityRequest, receiving: { acceptsJson: false, maximumOperations: 1 } },
+      {},
+      true,
+    ),
+  ).toEqual({
+    kind: "refused",
+    status: 413,
+    code: "limit-exceeded",
+    limit: "transaction.operations",
+    context,
+  });
+  const fresh = submission([create("e")], "fresh-negotiation");
+  for (const request of [fresh, original]) {
+    const refusal = await submitTransaction(
+      f.store,
+      { ...request, receiving: { acceptsJson: false, maximumOperations: 1 } },
+      {},
+      true,
+    );
+    expect(refusal).toEqual({ kind: "not-acceptable", context });
+    if (refusal.kind !== "not-acceptable") throw new Error("missing negotiation refusal");
+    expect(Object.isFrozen(refusal.context)).toBe(true);
+  }
+  expect(f.store.inspect()).toEqual(before);
+  expect(f.store.receipt("p", first.receipt.id)).toEqual(first.receipt);
+  // Equal replay ignores fresh capacity, and neither fresh refusal bound its key.
+  const large = submission([create("x"), create("y")], "large");
+  const completed = await submitTransaction(f.store, large, {}, true);
+  const replay = await submitTransaction(
+    f.store,
+    { ...large, receiving: { acceptsJson: true, maximumOperations: 1 } },
+    {},
+    true,
+  );
+  expect(replay).toEqual(completed);
+  expect(await submitTransaction(f.store, capacityRequest, {}, true)).toMatchObject({
+    kind: "receipt",
+    receipt: { status: "completed" },
+  });
+  expect(await submitTransaction(f.store, fresh, {}, true)).toMatchObject({
+    kind: "receipt",
+    receipt: { status: "completed" },
+  });
+});
+
+it("uses the final observed refusal entry after a dependency wait and an unrelated commit", async () => {
+  const f = fixture({ clock: () => 1000 });
+  const attempt = dependencies(f.store);
+  let now = 0,
+    waits = 0;
+  const result = await submitTransaction(
+    f.store,
+    { ...dependent(), receiving: { acceptsJson: false, maximumOperations: 1 } },
+    {
+      budgetMs: 5,
+      now: () => now,
+      wait: async () => {
+        waits++;
+        now++;
+        f.store.nextSequence(attempt);
+        f.store.execute(own(f.store, submission([create("unrelated")], "unrelated")));
+      },
+    },
+    true,
+  );
+  expect(waits).toBe(1);
+  expect(result).toEqual({
+    kind: "not-acceptable",
+    context: {
+      scopeEpoch: f.store.scopeEpoch,
+      authorizationView: f.store.readConfiguration().authorizationView,
+      scopePosition: "pos-2",
+    },
+  });
+  expect(f.store.nextSequence(attempt).result).toMatchObject({
+    kind: "receipt",
+    receipt: { status: "completed" },
+  });
+});
+
+it("keeps observed provable dependency conflicts ahead of negotiation", async () => {
+  const f = fixture({ clock: () => 1000 });
+  const seed = f.store.execute(own(f.store, submission([create("seed")], "seed")));
+  f.store.execute(own(f.store, submission([create("advance")], "advance")));
+  const attempt = dependencies(f.store);
+  const request = dependent();
+  expect(
+    await submitTransaction(
+      f.store,
+      {
+        ...request,
+        body: request.body.replace('"type":', '"metadata":{"extra":1},"type":'),
+        receiving: { acceptsJson: false, maximumOperations: 1 },
+      },
+      {
+        wait: async () => {
+          throw new Error("provable conflict must not wait");
+        },
+      },
+      true,
+    ),
+  ).toEqual({
+    kind: "refused",
+    status: 409,
+    code: "idempotency-conflict",
+    context: {
+      scopeEpoch: seed.scopeEpoch,
+      authorizationView: seed.authorizationView,
+      scopePosition: "pos-2",
+    },
+  });
+  f.store.cancelSequence(attempt);
+});

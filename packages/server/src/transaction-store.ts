@@ -125,7 +125,7 @@ export type TransactionAdmission =
       readonly receipt: TransactionReceipt;
       readonly context?: TransactionReadContext;
     }
-  | { readonly kind: "conflict" }
+  | { readonly kind: "conflict"; readonly context?: TransactionReadContext }
   | { readonly kind: "comparison-pending" };
 /** Values supplied by the private receiving boundary, never callbacks in SQLite. */
 export interface TransactionReceivingControls {
@@ -134,8 +134,8 @@ export interface TransactionReceivingControls {
 }
 export type TransactionReceivingAdmission =
   | TransactionAdmission
-  | { readonly kind: "not-acceptable" }
-  | { readonly kind: "operation-limit" };
+  | { readonly kind: "not-acceptable"; readonly context?: TransactionReadContext }
+  | { readonly kind: "operation-limit"; readonly context?: TransactionReadContext };
 export function snapshotTransactionReceivingControls(
   controls: TransactionReceivingControls,
 ): TransactionReceivingControls {
@@ -1389,9 +1389,20 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         if (result.kind === "operation-limit" && controls === undefined)
           throw new TransactionDevelopmentLimitError("development transaction operation limit");
         if (result.kind === "existing") {
-          if (!receiving.acceptsJson) return { kind: "not-acceptable" as const };
+          if (!receiving.acceptsJson)
+            return {
+              kind: "not-acceptable" as const,
+              ...(observed ? { context: readContext() } : {}),
+            };
           if (observed) return { kind: "existing" as const, ...observeReceipt(result.receipt) };
         }
+        if (
+          observed &&
+          (result.kind === "conflict" ||
+            result.kind === "operation-limit" ||
+            result.kind === "not-acceptable")
+        )
+          return { ...result, context: readContext() };
         return result;
       });
       if (admission.kind === "owned") {
