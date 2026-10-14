@@ -326,7 +326,7 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes nine partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+it("observes ten partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
   const observed = await observe({ children });
@@ -335,10 +335,10 @@ it("observes nine partial Transactional contracts through packed-capable actual 
   expect(observed.result.scenarios).toHaveLength(255); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(9);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(10);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(15);
-  expect(children).toHaveLength(16); // Fifteen scenario/reopen sessions plus separate bootstrap.
+  expect(observed.sessions).toHaveLength(17);
+  expect(children).toHaveLength(18); // Seventeen scenario/reopen sessions plus separate bootstrap.
   expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
     true,
   );
@@ -359,6 +359,7 @@ it("observes nine partial Transactional contracts through packed-capable actual 
   const reopened = dynamic.filter((e) => e.request.id.startsWith("reopened-"));
   expect(reopened.map((e) => e.request.id).sort()).toEqual([
     "reopened-completed",
+    "reopened-conflict-root",
     "reopened-failed",
     "reopened-m-delete",
     "reopened-m-update",
@@ -419,10 +420,18 @@ it("observes nine partial Transactional contracts through packed-capable actual 
       expect(exchange.request.exact!.bodyOctets).toBeLessThanOrEqual(16384);
     expect(exchange.response!.decodedBodyBytes).toBeLessThanOrEqual(32768);
   }
+  const completedConflict = observed.result.scenarios.find(
+    (row) => row.id === "transactional.idempotency.conflict",
+  )!;
+  for (const exchange of completedConflict.exchanges) {
+    if (exchange.request.method === "POST")
+      expect(exchange.request.exact!.bodyOctets).toBeLessThanOrEqual(2048);
+    expect(exchange.response!.decodedBodyBytes).toBeLessThanOrEqual(8192);
+  }
   expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
     JSON.stringify({
-      kind: "installed-tx-nine-partial-summary",
+      kind: "installed-tx-ten-partial-summary",
       sourceCommit,
       elapsedMs: performance.now() - started,
       actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
@@ -1086,6 +1095,74 @@ it.each([
         ? exchange.assertions
         : row.actions!.find((a) => a.action.id === actionId)!.assertions;
     expect(assertionResults.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
+  },
+  120000,
+);
+
+it.each([
+  ["conflict code", "c-conflict", "problem-code", "malformed-request", 409],
+  ["reopened conflict status", "c-conflict-reopened", "http-status", 200, 409],
+  [
+    "current record",
+    "c-state",
+    "ordered-state",
+    [[`${scope}beads/b`, `${scope}types/task`, { title: "original" }, { tag: "conflict" }]],
+    200,
+  ],
+  ["retained replay body", "c-retry-reopened", "retained-body", {}, 200],
+  [
+    "unchanged Event",
+    "c-events-reopened",
+    "ordered-facts",
+    [[`${scope}events/`, "created", `${scope}beads/b`, 0]],
+    200,
+  ],
+] as const)(
+  "discriminates completed-key conflict against wrong %s expectation",
+  async (kind, actionId, assertionId, wrong, status) => {
+    const children: ChildProcess[] = [];
+    const observed = await observe({
+      children,
+      manifest(value) {
+        const row = value.scenarios.find((s) => s.id === "transactional.idempotency.conflict")!;
+        const action = row.actions.find((a) => a.id === actionId)!;
+        const assertion = (
+          action.assertions as { id: string; equals?: unknown; equalsBinding?: string }[]
+        ).find((a) => a.id === assertionId)!;
+        delete assertion.equalsBinding;
+        assertion.equals = wrong;
+      },
+    });
+    const row = observed.result.scenarios.find(
+      (s) => s.id === "transactional.idempotency.conflict",
+    )!;
+    expect(observed.result.claimEligible).toBe(false);
+    expect(row.state).toBe("fail");
+    const exchange = row.exchanges.find((e) => e.request.id === actionId)!;
+    expect(exchange.request.exact?.writeState).toBe("complete");
+    expect(exchange.response?.status).toBe(status);
+    expect(exchange.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
+    expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
+      true,
+    );
+    console.log(
+      JSON.stringify({
+        kind: "installed-tx-completed-conflict-control",
+        control: kind,
+        sourceCommit,
+        actionId,
+        assertionId,
+        observedStatus: exchange.response?.status,
+        writeState: exchange.request.exact?.writeState,
+        failures: exchange.assertions.filter((a) => !a.passed).map((a) => a.id),
+        childLaunches: children.length,
+        closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
+        artifacts: observed.result.artifacts,
+        declarations: observed.result.declarations,
+        baseline: observed.baseline,
+        claimEligible: observed.result.claimEligible,
+      }),
+    );
   },
   120000,
 );
