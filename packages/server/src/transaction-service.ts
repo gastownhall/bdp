@@ -310,7 +310,14 @@ export function createTransactionService(owner: Owner, options: TransactionServi
               receiving?.signal,
             ),
           ),
-        resolveAlias: () => Promise.reject(new TypeError("minimum-read aliases unsupported")),
+        resolveAlias: (url, receiving) =>
+          run(() =>
+            waitForTransactionMinimum(
+              () => facet.resolveAlias(url, receiving),
+              minimumReads,
+              receiving?.signal,
+            ),
+          ),
       };
       return Object.freeze(guarded);
     },

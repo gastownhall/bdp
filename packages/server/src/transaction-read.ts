@@ -212,7 +212,12 @@ export function createTransactionReadPlane(
               .then((result) => checked(result)),
           );
         },
-        resolveAlias: () => Promise.reject(new TypeError("minimum-read aliases unsupported")),
+        resolveAlias: (url, options) =>
+          observe(
+            facet
+              .resolveAlias(url, { ...options, sourceCondition: minimum })
+              .then((result) => checked(result)),
+          ),
       } satisfies AuthorityReadFacet);
     },
   });

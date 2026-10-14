@@ -951,3 +951,221 @@ it("observes genuine installed current Type and incident-Link minimums within20r
     "private-installed-type-incident-minimum",
   );
 }, 120000);
+
+it("observes genuine installed current alias minimums within18requests", async () => {
+  await withInstalled(
+    async (f) => {
+      let count = 0;
+      const urls = new Set<string>();
+      const exchange = async (...args: Parameters<typeof f.exchange>) => {
+        if (++count > 18) throw new Error("alias minimum request ceiling exceeded");
+        const response = await f.exchange(...args);
+        urls.add(args[0]!);
+        const view = args[2]?.["bdp-authorization-view"];
+        if (view !== undefined)
+          expect(
+            response.exactRequest?.headerLines.find(
+              (h) => h.name.toLowerCase() === "bdp-authorization-view",
+            )?.value,
+          ).toBe(view);
+        return response;
+      };
+      const seeded = await exchange(
+        `${scope}operations/batch`,
+        "POST",
+        { "content-type": "application/json", "idempotency-key": "alias-min-seed" },
+        {
+          operations: ["a", "b"].map((id) => ({
+            operation: "createBead",
+            id: `beads/${id}`,
+            type: beadType,
+            properties: { title: id },
+            metadata: { seed: id },
+          })),
+        },
+      );
+      const receipt = json<{
+        status: string;
+        requiredPosition: string;
+        effectPosition?: string;
+        results: { operationIndex: number; outcome: string; resource: Row }[];
+      }>(seeded);
+      expect(receiptSchema(receipt), JSON.stringify(receiptSchema.errors)).toBe(true);
+      expect(receipt).toMatchObject({
+        status: "completed",
+        requiredPosition: "pos-1",
+        effectPosition: "pos-1",
+      });
+      expect(receipt.results).toHaveLength(2);
+      for (const [i, result] of receipt.results.entries()) {
+        const id = ["a", "b"][i]!;
+        expect(result.operationIndex).toBe(i);
+        expect(result.outcome).toBe("created");
+        expect(result.resource.revision).toEqual(expect.any(String));
+        expect(result.resource.revision.length).toBeGreaterThan(0);
+        expect(result.resource).toEqual({
+          id: `${scope}beads/${id}`,
+          type: beadType,
+          properties: { title: id },
+          metadata: { seed: id },
+          ownedLinks: { [linkType]: [] },
+          revision: result.resource.revision,
+        });
+      }
+      const headers = minimum(seeded, "pos-1");
+      context(seeded, headers);
+      const aliasCommand = async (
+        operation: "put-alias" | "delete-alias",
+        key: string,
+        outcome: string,
+        target?: string,
+      ) => {
+        const response = await exchange(
+          `${scope}operations/${operation}`,
+          "POST",
+          { "content-type": "application/json", "idempotency-key": key },
+          { alias: "alias/work", ...(target ? { target: `beads/${target}` } : {}) },
+        );
+        const result = json<{
+          status: string;
+          requiredPosition: string;
+          effectPosition?: string;
+          results: unknown[];
+        }>(response);
+        expect(receiptSchema(result), JSON.stringify(receiptSchema.errors)).toBe(true);
+        expect(result.status).toBe("completed");
+        expect(result.requiredPosition).toBe("pos-1");
+        expect(result).not.toHaveProperty("effectPosition");
+        expect(result.results).toEqual([
+          {
+            operationIndex: 0,
+            outcome,
+            alias: `${scope}alias/work`,
+            ...(target ? { target: `${scope}beads/${target}` } : {}),
+          },
+        ]);
+        context(response, headers);
+      };
+      const redirect = (response: HttpExchangeResponse, target: string) => {
+        expect(response.status).toBe(307);
+        expect(response.headers.location).toBe(`${scope}beads/${target}`);
+        expect(response.bodyOctets).toBe(0);
+        expect(response.bodyText).toBe("");
+        expect(response.headers["content-length"]).toBe("0");
+        expect(response.headers["cache-control"]).toBe("private, no-store");
+        context(response, headers);
+      };
+      await aliasCommand("put-alias", "alias-min-put", "created", "a");
+      redirect(await exchange(`${scope}alias/work`, "GET", headers), "a");
+      redirect(await exchange(`${scope}alias/work`, "HEAD", headers), "a");
+      redirect(
+        await exchange(`${scope}alias/work`, "GET", {
+          ...headers,
+          "if-none-match": "*",
+          "if-match": '"different"',
+        }),
+        "a",
+      );
+      redirect(
+        await exchange(`${scope}alias/work`, "HEAD", { ...headers, accept: "text/plain" }),
+        "a",
+      );
+      await aliasCommand("put-alias", "alias-min-repoint", "updated", "b");
+      const repointed = await exchange(`${scope}alias/work`, "GET", headers);
+      redirect(repointed, "b");
+      // Same actual-response oracle, no extra requests: wrong locator/context must fail.
+      expect(() =>
+        redirect(
+          { ...repointed, headers: { ...repointed.headers, location: `${scope}beads/a` } },
+          "b",
+        ),
+      ).toThrow();
+      expect(() =>
+        redirect(
+          { ...repointed, headers: { ...repointed.headers, "bdp-scope-position": "pos-0" } },
+          "b",
+        ),
+      ).toThrow();
+      const followed = await exchange(`${scope}beads/b`, "GET", headers);
+      expect(json<Row>(followed)).toEqual(receipt.results[1]!.resource);
+      // Resource ETag is a separate oracle; context() still forbids ETags on redirects/pages.
+      expect(followed.headers["bdp-scope-epoch"]).toBe(headers["bdp-scope-epoch"]);
+      expect(followed.headers["bdp-authorization-view"]).toBe(headers["bdp-authorization-view"]);
+      expect(followed.headers["bdp-scope-position"]).toBe("pos-1");
+      expect(followed.headers.etag).toBe(`"${receipt.results[1]!.resource.revision}"`);
+      const future = { ...headers, "bdp-minimum-scope-position": "pos-2" };
+      const behind = await exchange(`${scope}alias/work`, "GET", {
+        ...future,
+        "if-none-match": "*",
+        "if-match": '"different"',
+      });
+      expect(json(behind, 503)).toMatchObject({ code: "catch-up-timeout", retry: "after-delay" });
+      expect(behind.headers["retry-after"]).toBe("1");
+      expect(behind.headers.location).toBeUndefined();
+      context(behind, headers);
+      const foreignView = await exchange(`${scope}alias/work`, "HEAD", {
+        ...headers,
+        "bdp-authorization-view": "foreign",
+      });
+      expect(foreignView.status).toBe(409);
+      expect(foreignView.bodyOctets).toBe(0);
+      expect(foreignView.bodyText).toBe("");
+      expect(foreignView.headers["content-type"]?.split(";", 1)[0]).toBe(
+        "application/problem+json",
+      );
+      expect(Number(foreignView.headers["content-length"])).toBeGreaterThan(0);
+      expect(foreignView.headers.location).toBeUndefined();
+      context(foreignView, headers);
+      const foreignEpoch = await exchange(`${scope}alias/work`, "GET", {
+        ...headers,
+        "bdp-scope-epoch": "foreign",
+      });
+      expect(json(foreignEpoch, 410)).toMatchObject({
+        code: "cursor-expired",
+        retry: "after-state-change",
+      });
+      expect(foreignEpoch.headers.location).toBeUndefined();
+      context(foreignEpoch, headers);
+      const absent = await exchange(`${scope}alias/never`, "GET", headers);
+      expect(json(absent, 404)).toMatchObject({ code: "resource-not-found" });
+      expect(absent.headers.location).toBeUndefined();
+      context(absent, headers);
+      const noDisclosure = (response: HttpExchangeResponse, status: number) => {
+        expect(response.status).toBe(status);
+        expect(response.headers.location).toBeUndefined();
+        for (const h of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+          expect(response.headers[h]).toBeUndefined();
+      };
+      const collision = await exchange(`${scope}alias/never`, "HEAD", future);
+      noDisclosure(collision, 500);
+      expect(collision.bodyOctets).toBe(0);
+      expect(collision.headers["x-bdp-development-limit"]).toBe("minimum-position-visibility");
+      await aliasCommand("delete-alias", "alias-min-delete", "deleted");
+      const deleted = await exchange(`${scope}alias/work`, "GET", headers);
+      expect(json(deleted, 404)).toMatchObject({ code: "resource-not-found" });
+      expect(deleted.headers.location).toBeUndefined();
+      context(deleted, headers);
+      noDisclosure(
+        await exchange(`${scope}alias/work`, "GET", headers, undefined, "anonymous"),
+        401,
+      );
+      const malformed = await exchange(`${scope}alias/work?invalid=1`, "GET", future);
+      noDisclosure(malformed, 404);
+      expect(json(malformed, 404)).toMatchObject({ code: "resource-not-found" });
+      expect(count).toBe(18);
+      expect([...urls].sort()).toEqual(
+        [
+          `${scope}operations/batch`,
+          `${scope}operations/put-alias`,
+          `${scope}operations/delete-alias`,
+          `${scope}alias/work`,
+          `${scope}alias/never`,
+          `${scope}alias/work?invalid=1`,
+          `${scope}beads/b`,
+        ].sort(),
+      );
+    },
+    undefined,
+    "private-installed-alias-minimum",
+  );
+}, 120000);
