@@ -845,9 +845,11 @@ it("preserves every original TX scenario and coverage object while adding one bo
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
   expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(166);
-  // Root-reviewed measured amendment: M488278/N13019/C70660/A223.
+  // Root-reviewed measured amendment: M488280/N13019/C70662/A223.
   // Original64KiB/220-assertion preflight stopped; these are explicit successor
-  // guards, not parser/runtime cap changes. Margins4096B/64nodes/1024B.
+  // guards, not parser/runtime cap changes. Margins4094B/64nodes/1022B.
+  // Delta guards bind here; absolute ceilings retain the nonbinding preflight
+  // envelope if a future reviewed change rebases the measured baseline.
   expect(read("manifest").byteLength - 407227).toBeLessThanOrEqual(85147);
   expect(read("manifest").byteLength).toBeLessThanOrEqual(499387);
   expect(read("coverage").byteLength - 60069).toBeLessThanOrEqual(11615);
