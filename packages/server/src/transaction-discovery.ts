@@ -28,10 +28,11 @@ export function assembleTransactionDiscovery(
 ) {
   // Read enforcement was validated during capture; the same advertised triple
   // must also describe this owner's fixed set-mutation Selector enforcement.
+  const { bytes, depth, nodes } = limits.selector;
   if (
-    limits.selector.bytes !== TRANSACTION_SELECTOR_LIMITS.bytes ||
-    limits.selector.depth !== TRANSACTION_SELECTOR_LIMITS.depth ||
-    limits.selector.nodes !== TRANSACTION_SELECTOR_LIMITS.nodes
+    bytes !== TRANSACTION_SELECTOR_LIMITS.bytes ||
+    depth !== TRANSACTION_SELECTOR_LIMITS.depth ||
+    nodes !== TRANSACTION_SELECTOR_LIMITS.nodes
   )
     throw new TypeError("discovery Selector limits must match set enforcement");
   const discovery = parseTransactionalDiscovery({
@@ -54,11 +55,7 @@ export function assembleTransactionDiscovery(
     minimumReplayPosition: "pos-0",
     limits: {
       page: { defaultItems: limits.page.defaultItems, maximumItems: limits.page.maximumItems },
-      selector: {
-        bytes: limits.selector.bytes,
-        depth: limits.selector.depth,
-        nodes: limits.selector.nodes,
-      },
+      selector: { bytes, depth, nodes },
       validation: {
         diagnostics: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
         diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,

@@ -8,6 +8,7 @@ import {
   TRANSACTION_RUNTIME_DEFAULTS,
   transactionRuntimeDigest,
 } from "./transaction-runtime-configuration.js";
+import { TRANSACTION_SELECTOR_LIMITS } from "./transaction-set.js";
 import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
 import { openTransactionStore, TRANSACTION_RECEIPT_DETAIL_MS } from "./transaction-store.js";
 import type {
@@ -397,6 +398,7 @@ it("binds the live closure and fixed policy, not compatibility JSON; credential 
   ).toThrow(/policy/);
   expect(() => captured.metadata({ ...actual, installedTypes: [] }, scope)).toThrow(/closure/);
   expect(TRANSACTION_RUNTIME_DEFAULTS.receiptDetailMs).toBe(TRANSACTION_RECEIPT_DETAIL_MS);
+  expect(TRANSACTION_RUNTIME_DEFAULTS.selector).toEqual(TRANSACTION_SELECTOR_LIMITS);
   expect(captured.settings.selector).toBe(captured.readOptions(scope).selectorLimits);
   expect(captured.readOptions(scope).advertisedLimits.selector).toBe(captured.settings.selector);
 });

@@ -1627,9 +1627,10 @@ owner reopens, without treating a compact completed receipt as a forgotten key.
 This is **not a wire-ready description**. The internal validation projection
 closes a disclosure prerequisite, but remaining mandatory serving behavior and
 its review gates must close before activation. Optional request, Resource,
-transaction and retention limits remain omitted; omission does not authorize
-silent truncation or non-normative errors. C3 neither serves this candidate nor grants public Transactional
-admission. Scope, descriptor and directory GET/HEAD remain explicitly refused.
+sequence, patch, transaction and retention limits remain omitted; omission does
+not authorize silent truncation or non-normative errors. C3 neither serves this
+candidate nor grants public Transactional admission. Scope, descriptor and
+directory GET/HEAD remain explicitly refused.
 The source-private installed boundary fixture has exactly 12 exchanges and one
 child: six authenticated discovery GET/HEAD refusals, three anonymous refusals,
 then a real batch, independent afterstate GET and exact retained retry. Its
