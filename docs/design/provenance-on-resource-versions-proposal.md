@@ -1,6 +1,6 @@
 # Proposal: Provenance V2
 
-Status: proposal for review, updated October 13, 2026. Not an adopted BDP amendment or an
+Status: proposal for review, updated October 14, 2026. Not an adopted BDP amendment or an
 implementation commitment.
 
 ## Purpose
@@ -380,42 +380,43 @@ run as a related artifact. It does not say the run was an input to the Link.
 ### Subjects, pins, and Scope boundaries
 
 - **Bead or Link:** an unpinned reference means the resource generally. A pinned
-  reference identifies the exact revision involved. Late ingestion must not
+  reference identifies the exact revision claimed. Late ingestion must not
   silently pin to the subject's current revision or derive a pin from a timestamp.
-- **Another Scope:** preserve the Bead or Link reference and any supplied pin.
-  Accepting the report need not require fetching the other Scope. Its declared
-  kind is a claim unless checked; acceptance does not prove the subject exists.
+- **Local or another Scope:** preserve the reference and any supplied pin.
+  Neither subject resolution nor proof of existence is required to record an
+  Activity. The declared kind and revision are claims, not verified facts.
 - **External resource:** a URL or URN can identify a document, repository, or
   other subject outside BDP. No BDP revision or lifecycle guarantees apply.
-- **Local validation:** use the reference's Scope identity to distinguish local
-  from remote references. Known local kind mismatches should be rejected. The
-  admission rules below accommodate delayed reporting without treating a typo as
-  a valid local subject. They apply to Activity subjects, not all reference fields.
 
 The subject is a **reference property**, not a normal graph Link endpoint.
 Consequently a Link can be a subject without making Links valid graph endpoints.
 These references do not create incident graph Links or automatic traversal edges.
-An external subject must not be used to bypass checks on a recognized local BDP
-reference. Activity records belong to their storing Scope; referencing a subject
-does not grant access to it or authority to change it.
+Activity records belong to their storing Scope; referencing a subject does not
+grant access to it or authority to change it.
 
-### Local subjects after deletion or pruning
+### Recording a report does not require resolving its subject
 
-| Activity subject at admission | Proposed result |
+Validate the Activity's shape and reference syntax, and authorize the write to
+its storing Scope. Reading the subject is not a prerequisite. Acceptance records
+what the writer reported; it does not certify that the subject exists, has the
+claimed kind, or was seen by the writer, or that the activity happened. Even a
+successful lookup would not establish those last two claims.
+
+| Activity subject at admission | Proposed result, absent stricter declared policy |
 | --- | --- |
-| Exact pin to a retained revision of a deleted Bead or Link | Accept. Resolve retained live revisions through authorized History; a terminal pin resolves to the typed deleted-state result. |
-| Unpinned reference to a known deleted local identity | Accept without inventing a pin. Return an admission observation that the subject is deleted; this observation is not a revision claim or a permanent property of the reference. |
-| Pin to a pruned revision with retained evidence that it existed | Accept the exact pin. Resolution reports gone with a reason; never return latest content in its place. |
-| Local identity or revision established never to have existed | Reject ordinary recording; an explicit import path may preserve unresolved historical references without claiming verification. |
-| Existence cannot be established because evidence was erased, access is denied, or validation is unavailable | Do not label it never-existent. Return an authorization-safe unavailable/unverifiable outcome; ordinary local admission cannot claim success under the known-history rules. Import requires its explicit policy. |
+| Retained revision of a deleted Bead or Link | Accept the supplied reference. Authorized History may resolve retained content or the terminal deleted state. |
+| Deleted local identity, with or without a pin | Accept; preserve the pin or its absence. No existence evidence is required. |
+| Pruned or erased revision | Accept the exact pin. A later read may be unavailable or gone; never substitute latest content. |
+| Local identity or revision that never existed | Accept as a report, not a verified fact. No special import path is required. |
+| Subject hidden by permissions, remote, or unavailable during an outage | Accept without requiring a lookup or subject read permission. Grant no additional access. |
+| Malformed reference or unauthorized Activity write | Reject independently of subject existence. |
 
-Retain sufficient identity/revision existence evidence to support the accepted
-deleted/pruned cases for the advertised retention period. A current GET returning
-404 is not evidence of never-existence. Admission checks and gone reasons must
-not expose hidden identities or history. Exact response spellings and placement
-of admission observations remain wire-design work; no new Activity property is
-selected here. Erasure can remove existence evidence, so support must disclose
-that limit rather than promise indefinite validation.
+A Scope or application may declare stricter constraints, including reliable local
+kind or typo checks. Such constraints are additional policy, not a universal
+provenance requirement; an external tag must not bypass an applicable local rule.
+Recording Activities requires no retained subject-existence index, verification
+flag, or background verification pass. Later reads retain their own authorization
+and retention rules; a 404 must not be treated as proof of never-existence.
 
 > **Sidebar — late reports and decision sources make different promises.**
 > A CI report can arrive today about work completed before its subject was
@@ -485,13 +486,15 @@ cascade interface remain implementation gates.
 | CI reports a landing after the Issue changed | One Activity Bead; no Issue revision; event time distinct from recording time |
 | Producer retries the same event with changed payload | No second record and no overwrite of the first report |
 | Report identifies a local Link at revision R7 | Preserve the Link pin; no Link revision or new graph endpoint capability |
-| Report names an unavailable remote Bead or an external URL | Preserve the reference under the chosen admission policy; no implied fetch, verification, or access grant |
+| Report names an unavailable remote Bead or an external URL | Accept under the base contract; preserve the reference, with no fetch, verification, or access grant |
 | Query by subject identity versus exact revision | Identity includes all reports about that resource; exact revision excludes unknown/unpinned reports |
 | A supported Event stream reports the write | `created` identifies the Activity Bead, not an update to its subject |
 | Delete an Issue that has activity records | Retain Activity Beads by default; live subject GET is 404 while authorized activity queries still find the reports |
-| Late report names a deleted local subject, with or without a pin | Accept using retained existence evidence; preserve the supplied pin or lack of pin |
-| Report pins a pruned revision known to have existed | Accept; resolve gone with reason, never current content |
-| Report names a proven nonexistent identity or revision | Reject outside an explicit import path; distinguish unverifiable or unauthorized from never-existent |
+| Late report names a deleted local subject, with or without a pin | Accept without requiring existence evidence; preserve the supplied pin or lack of pin |
+| Report pins a pruned revision with no surviving existence evidence | Accept; later resolution may be unavailable or gone, never current content |
+| Report names a nonexistent identity or revision | Accept as a claim under the base contract; a stricter declared policy may reject |
+| Reporter cannot read the subject but can write Activities | Accept a well-formed report; do not disclose hidden subject information |
+| Reference is malformed, or reporter cannot write Activities | Reject; no subject lookup is needed |
 | Explicit cascade is requested | Delete only its authorized, defined selection under declared atomicity; no undeclared recursive cascade |
 
 BDP owns the Activity Type's shared field meanings and reference/query semantics.
@@ -508,8 +511,9 @@ and adapter are **PROPOSED / NYI**; today's Issue event log is **EXISTING**.
 - **Exact source versions:** allow both pinned and unpinned references, as Memory
   R3 does, or require pins for Bead/Link sources? The draft above allows both and
   states their different promises.
-- **Reference checks:** decide local and cross-Scope validation without making
-  the write depend on a live external fetch.
+- **Revision-source checks:** decide local and cross-Scope validation without
+  making the write depend on a live external fetch. Activity subjects use the
+  independent admission rule above; ordinary Link constraints are unchanged.
 - **Compatibility:** adopt or revise the recommended names, then define negotiated
   write/read forms and mapping for history, exports, and applicable Event records.
   Legacy `bd provenance` events cannot be assigned subject revisions
