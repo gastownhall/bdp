@@ -603,6 +603,100 @@ it("checks visible point rows and their minimum in the same entry and leaves the
 });
 
 describe("initial collection minimums", () => {
+  it("preserves behind-minimum control refusals without allocating retained state", async () => {
+    const f = fixture();
+    f.write(seed);
+    let allocations = 0;
+    const { plane } = f.open({
+      pagination: {
+        ...f.readOptions.pagination,
+        generateOpaqueToken: () => `refusal_${++allocations}`,
+      },
+    });
+    const facet = plane.minimumFor(
+      { kind: "anonymous" },
+      {
+        scopeEpoch: f.store.scopeEpoch,
+        authorizationView: "development-all-visible",
+        minimumPosition: "pos-2",
+      },
+    );
+    for (const [controls, code] of [
+      [{ limit: 11 }, "limit-exceeded"],
+      [{ selector: "$[?" }, "invalid-parameter"],
+      [{ selector: "$[?@.properties.n == '" + "x".repeat(4100) + "']" }, "limit-exceeded"],
+    ] as const) {
+      await expect(
+        facet.perform({ kind: "collection", collection: "beads", ...controls }),
+      ).resolves.toMatchObject({ kind: "problem", problem: { code } });
+      expect(allocations).toBe(0);
+    }
+  });
+
+  it.each(["beads", "links"] as const)(
+    "checks a minimum even for an empty %s collection",
+    async (collection) => {
+      const f = fixture(),
+        { plane } = f.open();
+      const minimum = {
+        scopeEpoch: f.store.scopeEpoch,
+        authorizationView: "development-all-visible",
+        minimumPosition: "pos-0",
+      };
+      const request = { kind: "collection", collection } as const;
+      const response = await plane.minimumFor({ kind: "anonymous" }, minimum).perform(request);
+      expect(body(response)).toEqual({ items: [], next: null });
+      expect(contexts(response).current.scopePosition).toBe("pos-0");
+      await expect(
+        plane
+          .minimumFor(
+            { kind: "anonymous" },
+            {
+              ...minimum,
+              minimumPosition: "pos-1",
+            },
+          )
+          .perform(request),
+      ).rejects.toMatchObject({ reason: "behind" });
+    },
+  );
+
+  it("applies accepted endpoint filters and minima independently", async () => {
+    const f = fixture();
+    f.write(seed);
+    const { plane } = f.open();
+    const minimum = {
+      scopeEpoch: f.store.scopeEpoch,
+      authorizationView: "development-all-visible",
+      minimumPosition: "pos-1",
+    };
+    for (const [source, ids] of [
+      ["beads/a", [url("links/self")]],
+      ["beads/b", []],
+    ] as const) {
+      const request = {
+        kind: "collection",
+        collection: "links",
+        source: url(source),
+        limit: 1,
+      } as const;
+      const response = await plane.minimumFor({ kind: "anonymous" }, minimum).perform(request);
+      expect(items(response).map((r) => r.id)).toEqual(ids);
+      expect(contexts(response).current.scopePosition).toBe("pos-1");
+      await expect(
+        plane
+          .minimumFor(
+            { kind: "anonymous" },
+            {
+              ...minimum,
+              minimumPosition: "pos-2",
+            },
+          )
+          .perform(request),
+      ).rejects.toMatchObject({ reason: "behind" });
+    }
+  });
+
   it("does not retain failed attempts and preserves successful page rows versus current context", async () => {
     const f = fixture();
     f.write([

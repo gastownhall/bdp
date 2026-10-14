@@ -386,10 +386,14 @@ function minimum(
     "bdp-minimum-scope-position": position,
   };
 }
-function context(response: HttpExchangeResponse, expected: ReturnType<typeof minimum>) {
+function context(
+  response: HttpExchangeResponse,
+  expected: ReturnType<typeof minimum>,
+  position = expected["bdp-minimum-scope-position"],
+) {
   expect(response.headers["bdp-scope-epoch"]).toBe(expected["bdp-scope-epoch"]);
   expect(response.headers["bdp-authorization-view"]).toBe(expected["bdp-authorization-view"]);
-  expect(response.headers["bdp-scope-position"]).toMatch(/^pos-(0|[1-9][0-9]*)$/);
+  expect(response.headers["bdp-scope-position"], "actual current serving position").toBe(position);
   expect(response.headers.etag).toBeUndefined();
 }
 it("observes genuine installed initial collection minimums, fixed-budget failures, conditionals and retained rows", async () => {
@@ -399,7 +403,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
     for (const collection of ["beads", "links"]) {
       const response = await f.exchange(`${scope}${collection}/`, "GET", genesis);
       expect(json<Page>(response)).toEqual({ items: [], next: null });
-      context(response, genesis);
+      context(response, genesis, "pos-0");
     }
     const seeded = await f.write([
         ...["a", "b", "c"].map((id, i) => ({
@@ -413,7 +417,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
           operation: "createLink",
           id: `links/${id}`,
           type: linkType,
-          source: "beads/a",
+          source: id === "l" ? "beads/a" : "beads/b",
           target: "beads/b",
           properties: { title: `before_${id}` },
         })),
@@ -421,7 +425,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
       headers = minimum(seeded);
     const expected: Record<string, Row[]> = {};
     for (const collection of ["beads", "links"]) {
-      const target = `${scope}${collection}/?limit=32`;
+      const target = `${scope}${collection}/?limit=32&type=${encodeURIComponent(collection === "beads" ? beadType : linkType)}`;
       const response = await f.exchange(target, "GET", headers);
       const page = json<Page>(response);
       expected[collection] = page.items;
@@ -451,6 +455,28 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
       expect(head.status).toBe(200);
       expect(head.bodyOctets).toBe(0);
       context(head, headers);
+      // Assertion-input corruption only, after actual HEAD and context checks.
+      // A syntactically valid invented position must fail the exact oracle.
+      expect(() =>
+        context(
+          {
+            ...head,
+            headers: { ...head.headers, "bdp-scope-position": "pos-999" },
+          },
+          headers,
+        ),
+      ).toThrow("actual current serving position");
+      console.log(
+        JSON.stringify({
+          observation: "installed-position-oracle-control",
+          collection,
+          actualPosition: head.headers["bdp-scope-position"],
+          changedPosition: "pos-999",
+          rejected: true,
+          extraExchanges: 0,
+          claimEligible: false,
+        }),
+      );
       for (const method of ["GET", "HEAD"] as const) {
         for (const [condition, status] of [
           [{ "if-none-match": "*" }, 304],
@@ -503,6 +529,22 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
         }
       }
     }
+    // The two Links have different sources: ignoring this filter returns an extra row.
+    const filtered = await f.exchange(
+      `${scope}links/?source=${encodeURIComponent(`${scope}beads/a`)}`,
+      "GET",
+      headers,
+    );
+    expect(json<Page>(filtered)).toEqual({ items: expected.links?.slice(0, 1), next: null });
+    context(filtered, headers);
+    // A valid nonmatching Type distinguishes filtering from an unfiltered collection.
+    const noTypeMatch = await f.exchange(
+      `${scope}beads/?type=${encodeURIComponent(linkType)}`,
+      "GET",
+      headers,
+    );
+    expect(json<Page>(noTypeMatch)).toEqual({ items: [], next: null });
+    context(noTypeMatch, headers);
     for (const [query, status, code] of [
       ["limit=33", 413, "limit-exceeded"],
       [`selector=${encodeURIComponent("$[?")}`, 400, "invalid-parameter"],
@@ -538,7 +580,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
       second = json<Page>(retained);
     expect(second.items).toEqual(expected.beads?.slice(2));
     expect(second.next).toBe(null);
-    context(retained, headers);
+    context(retained, minimum(changed));
     expect(retained.headers["bdp-scope-position"]).toBe(changed.headers["bdp-scope-position"]);
     const current = json<Page>(
       await f.exchange(`${scope}beads/?limit=32`, "GET", minimum(changed)),
