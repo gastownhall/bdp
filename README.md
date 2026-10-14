@@ -44,6 +44,11 @@ not an amendment to the current specification or a claim of implementation.
 Its [decision packet](docs/design/type-preview2-decision-packet.md) identifies
 the product rulings and release gates still needed.
 
+The [Memory Types proposal](specs/types/memory.md) recommends one Memory Bead
+Type with knowledge-form kinds and distinct informational Link Types. It records
+shared-protocol dependencies and Beads adoption work. The [earlier A/B comparison](specs/types/memory-approaches.md)
+is preserved as historical design background.
+
 ## Protocol and reference implementation
 
 A protocol also carries the two problems no single bead-store
