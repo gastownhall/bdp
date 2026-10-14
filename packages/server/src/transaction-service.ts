@@ -18,7 +18,11 @@ import {
   createTransactionSequenceStepper,
   type TransactionSequenceResponse,
 } from "./transaction-sequence.js";
-import { createTransactionReadPlane, type TransactionReadOptions } from "./transaction-read.js";
+import {
+  createTransactionReadPlane,
+  captureTransactionAliasDeliveryOptions,
+  type TransactionReadOptions,
+} from "./transaction-read.js";
 import {
   submitTransaction,
   type TransactionSubmission,
@@ -310,7 +314,21 @@ export function createTransactionService(owner: Owner, options: TransactionServi
               receiving?.signal,
             ),
           ),
-        resolveAlias: () => Promise.reject(new TypeError("minimum-read aliases unsupported")),
+        resolveAlias: (url, receiving) =>
+          run(() => {
+            let captured: ReturnType<typeof captureTransactionAliasDeliveryOptions>;
+            try {
+              captured = captureTransactionAliasDeliveryOptions(receiving);
+            } catch {
+              // Never inspect an unchecked signal while selecting the wait.
+              return facet.resolveAlias(url, receiving);
+            }
+            return waitForTransactionMinimum(
+              () => facet.resolveAlias(url, captured),
+              minimumReads,
+              captured?.signal,
+            );
+          }),
       };
       return Object.freeze(guarded);
     },

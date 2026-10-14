@@ -149,8 +149,9 @@ persisted witnesses are owner faults, not ordinary missing aliases or key
 conflicts. These are internal metadata, not new receipt or wire fields.
 
 Alias operations remain forbidden in batches, as required by the normative
-contract. There are no HTTP alias routes, redirects, replica alias projections
-or new profile claims.
+contract. These alias singletons add no HTTP alias routes, redirects, replica
+alias projections or new profile claims; current alias read routing is described
+under the private HTTP receiver and current alias minimums below.
 
 ## First private sequence adapter
 
@@ -625,7 +626,7 @@ That diagnosability gap remains open; it is not a claim that causes reach client
 The private HTTP fixture now honors complete canonical epoch/view/minimum tuples
 on existing visible Bead and Link records, their properties views, initial current
 Bead/Link collections, canonical in-Scope Type descriptors and initial Type inventories,
-initial incident-Link views, and receipt instances.
+initial incident-Link views, current aliases, and receipt instances.
 It validates immutable per-request controls before waiting. The shared Read plane
 has a source-private fixed condition hook after captured authorization and
 materialization, still inside the same owner entry and before cursor retention
@@ -690,9 +691,28 @@ are recorded in the
 This fixed all-visible evidence does not qualify hidden policy, retained minima,
 Type lifecycle, discovery activation or a full profile.
 
+Current alias reads use the existing same-entry locator observation and current
+context, with the same finite wait and service lifetime as current Resource reads.
+Alias dispatch remains outside canonical ReadRequest parsing and the current
+Resource/collection predicate. Repointing an alias alone advances no Scope
+position and revises neither target Bead; a minimum does not freeze a locator.
+A wait retries the actual mapping and requires a real Resource effect to reach a
+future position. Eligible GET/HEAD remain bodyless307 with canonical Location,
+no Resource ETag and no conditional or JSON-negotiation shortcut. Ordinary and
+minimum alias reads forward Request.signal; cancellation remains cooperative.
+Compatible missing/deleted aliases and dangling targets reuse observed404/context;
+incompatible missing remains the explicit visibility gap. Under this all-visible
+owner the live-future503 and missing-future500 are distinguishable, unqualified
+behavior, not a hidden-policy or absence-disclosure ruling. Unreadable targets are
+not exercised. Source tests cover both unchanged target revisions; the separate
+installed18-request/one-child/seven-URL scenario re-reads only the canonical second
+target with its actual Resource ETag. Safe source/package/configuration evidence
+is recorded separately in the workstream's alias minimum implementation report.
+No public discovery, profile or complete minimum-position qualification follows.
+
 External Type identities are outside the private minimum subset and are not
 addressable Scope HTTP routes; ordinary private external-Type reads are unchanged.
-Collection and incident-view continuations, aliases and discovery retain the
+Collection and incident-view continuations and discovery retain the
 development gap when minimum controls are supplied. Partial/malformed tuples,
 bare epoch/view fields and
 unknown opaque position spellings also retain that gap; no normative error rule

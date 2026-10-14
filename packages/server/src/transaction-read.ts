@@ -94,6 +94,25 @@ function ordinaryDeliveryOptions(
   return signal === undefined ? undefined : { signal: signal.value };
 }
 
+/** Source-private alias receiving snapshot. Only authority-rejected option or
+ * signal shapes throw; callers retain authority error/lifecycle delivery on that
+ * path. The configured minimum replaces the caller's opaque condition value. */
+export function captureTransactionAliasDeliveryOptions(
+  options: AuthorityReadDeliveryOptions | undefined,
+): AuthorityReadDeliveryOptions | undefined {
+  const captured = ordinaryDeliveryOptions(options);
+  const signal = captured?.signal;
+  if (
+    signal !== undefined &&
+    (typeof signal !== "object" ||
+      signal === null ||
+      isProxy(signal) ||
+      !(signal instanceof AbortSignal))
+  )
+    throw new AuthorityReadError("invalid-input", "Read signal must be an AbortSignal");
+  return captured === undefined ? undefined : Object.freeze(captured);
+}
+
 export type TransactionReadOptions = Pick<
   AuthorityReadOptions,
   "selectorLimits" | "pagination" | "advertisedLimits"
@@ -212,7 +231,21 @@ export function createTransactionReadPlane(
               .then((result) => checked(result)),
           );
         },
-        resolveAlias: () => Promise.reject(new TypeError("minimum-read aliases unsupported")),
+        resolveAlias: (url, options) => {
+          let captured: AuthorityReadDeliveryOptions | undefined;
+          try {
+            captured = captureTransactionAliasDeliveryOptions(options);
+          } catch {
+            // Capture rejects only shapes the authority itself rejects. Preserve
+            // its observed Promise and closed/reentrant receiving precedence.
+            return observe(facet.resolveAlias(url, options).then((result) => checked(result)));
+          }
+          return observe(
+            facet
+              .resolveAlias(url, { ...captured, sourceCondition: minimum })
+              .then((result) => checked(result)),
+          );
+        },
       } satisfies AuthorityReadFacet);
     },
   });

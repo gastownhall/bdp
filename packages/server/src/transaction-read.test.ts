@@ -1023,7 +1023,7 @@ describe("compatible missing Resource minimum", () => {
     ).rejects.toMatchObject({ reason: "behind" });
     await expect(
       plane.minimumFor({ kind: "anonymous" }, sourceCondition).resolveAlias(url("alias/work")),
-    ).rejects.toThrow("unsupported");
+    ).rejects.toMatchObject({ reason: "behind" });
     await expect(
       plane
         .minimumFor({ kind: "anonymous" }, sourceCondition)
@@ -1324,7 +1324,10 @@ describe("current Type and incident-Link minimums", () => {
     await expect(
       read.perform({ kind: "resource", resource: "type", id: link as AbsoluteHttpUrl }),
     ).rejects.toThrow("outside supported subset");
-    await expect(read.resolveAlias(url("alias/work"))).rejects.toThrow("unsupported");
+    expect(await read.resolveAlias(url("alias/work"))).toMatchObject({
+      kind: "problem",
+      problem: { status: 404 },
+    });
     for (const collection of ["beads", "links", "types"] as const) {
       const first = await facet.perform({ kind: "collection", collection, limit: 1 });
       const next = body(first).next;
@@ -1555,5 +1558,391 @@ describe("current Type and incident-Link minimums", () => {
         .minimumFor(principal, f.minimum("pos-5"))
         .perform({ kind: "bead-links", bead: url("beads/empty") }),
     ).rejects.toMatchObject({ reason: "behind" });
+  });
+});
+
+describe("current alias minimum subset", () => {
+  const principal = { kind: "anonymous" as const };
+  function prepared() {
+    const f = fixture();
+    expect(
+      f.write(
+        ["a", "b"].map((id) => ({
+          operation: "createBead",
+          id: `beads/${id}`,
+          type: bead,
+          properties: { title: id },
+        })),
+      ).status,
+    ).toBe("completed");
+    expect(f.alias("putAlias", { alias: "alias/work", target: "beads/a" }).status).toBe(
+      "completed",
+    );
+    const minimum = (minimumPosition = "pos-1") => ({
+      scopeEpoch: f.store.scopeEpoch,
+      authorizationView: "development-all-visible",
+      minimumPosition,
+    });
+    return { ...f, minimum };
+  }
+  function serviceFor(f: ReturnType<typeof prepared>, minimumReads = {}) {
+    const service = createTransactionService(f.store, {
+      ownerLifetime: "service",
+      minimumReads,
+      read: {
+        ...f.readOptions,
+        advertisedLimits: {
+          ...f.readOptions.advertisedLimits,
+          page: { defaultItems: 2, maximumItems: 32 },
+        },
+        pagination: { ...f.readOptions.pagination, maxPageItems: 32 },
+      },
+    });
+    cleanup.push(() => service.close());
+    return service;
+  }
+  it.each(["direct", "service"] as const)(
+    "preserves %s minimum alias receiving validation, cancellation and lifecycle precedence",
+    async (mode) => {
+      const f = prepared();
+      let entries = 0;
+      let nestedCall: (() => void) | undefined;
+      const observed: ReturnType<typeof prepared> = {
+        ...f,
+        store: {
+          ...f.store,
+          withRead: (callback) => {
+            entries++;
+            const invoke = nestedCall;
+            nestedCall = undefined;
+            invoke?.();
+            return f.store.withRead(callback);
+          },
+        },
+      };
+      const plane = createTransactionReadPlane(observed.store, f.readOptions);
+      cleanup.push(() => plane.close());
+      let tick = 0;
+      const service =
+        mode === "service"
+          ? serviceFor(observed, { budgetMs: 2, now: () => tick++, wait: async () => {} })
+          : undefined;
+      const facet = service
+        ? service.readAtMinimum(principal, f.minimum())
+        : plane.minimumFor(principal, f.minimum());
+      const call = (options: unknown) =>
+        facet.resolveAlias(url("alias/work"), options as AuthorityReadDeliveryOptions);
+      const invoked = vi.fn(() => {
+        throw new Error("caller code must not execute");
+      });
+      const proxy = new Proxy(
+        {},
+        {
+          get: invoked,
+          ownKeys: invoked,
+          getPrototypeOf: invoked,
+          getOwnPropertyDescriptor: invoked,
+        },
+      );
+      const revoked = Proxy.revocable({}, {});
+      revoked.revoke();
+      const invalid = [
+        null,
+        0,
+        false,
+        "",
+        [],
+        Object.create({}),
+        proxy,
+        revoked.proxy,
+        { unknown: 1 },
+        Object.defineProperty({}, "unknown", { value: 1 }),
+        { [Symbol("hidden")]: 1 },
+        {
+          get signal() {
+            return invoked();
+          },
+        },
+        Object.defineProperty({}, "sourceCondition", { get: invoked }),
+        ...[
+          null,
+          0,
+          false,
+          "",
+          {},
+          proxy,
+          revoked.proxy,
+          {
+            get aborted() {
+              return invoked();
+            },
+          },
+        ].map((signal) => ({ signal })),
+      ];
+      for (const options of invalid) {
+        let delivery: Promise<unknown> | undefined;
+        expect(() => {
+          delivery = call(options);
+        }).not.toThrow();
+        expect(delivery).toBeInstanceOf(Promise);
+        await expect(delivery).rejects.toMatchObject({ reason: "invalid-input" });
+      }
+      expect(invoked).not.toHaveBeenCalled();
+      expect(entries).toBe(0); // Every invalid fallback rejected; none performed an ordinary read.
+      const aborted = Object.create(null);
+      Object.defineProperties(aborted, {
+        signal: { value: AbortSignal.abort() },
+        sourceCondition: { value: revoked.proxy },
+      });
+      await expect(call(aborted)).rejects.toThrow("abort");
+      expect(entries).toBe(0);
+      const valid = Object.create(null);
+      Object.defineProperties(valid, {
+        signal: { value: new AbortController().signal },
+        sourceCondition: { value: revoked.proxy },
+      });
+      await expect(call(valid)).resolves.toMatchObject({ kind: "target", target: url("beads/a") });
+      expect(entries).toBe(1);
+      // Caller conditions are opaque overridden data, not an alternative minimum.
+      const future = service
+        ? service.readAtMinimum(principal, f.minimum("pos-2"))
+        : plane.minimumFor(principal, f.minimum("pos-2"));
+      await expect(
+        future.resolveAlias(url("alias/work"), {
+          sourceCondition: f.minimum("pos-0"),
+        }),
+      ).rejects.toMatchObject({ reason: mode === "service" ? "catch-up-timeout" : "behind" });
+      let nested: Promise<unknown> | undefined;
+      nestedCall = () => {
+        nested = call(proxy);
+      };
+      await expect(call(undefined)).resolves.toMatchObject({ kind: "target" });
+      expect(nested).toBeInstanceOf(Promise);
+      await expect(nested).rejects.toMatchObject({ reason: "reentrant" });
+      expect(invoked).not.toHaveBeenCalled();
+      if (service) {
+        await service.close();
+        expect(() => call(proxy)).toThrow("closing or closed"); // Existing service admission is synchronous.
+      } else {
+        await plane.close();
+        let closed: Promise<unknown> | undefined;
+        expect(() => {
+          closed = call(proxy);
+        }).not.toThrow();
+        await expect(closed).rejects.toMatchObject({ code: "server-closed" });
+      }
+      expect(invoked).not.toHaveBeenCalled();
+    },
+  );
+  it("conditions alias mapping and context in one entry without revising either target", async () => {
+    const f = prepared(),
+      { plane, facet } = f.open();
+    const before = await Promise.all(
+      ["a", "b"].map(async (id) => body(await facet.perform(resource(`beads/${id}`)))),
+    );
+    for (const position of ["pos-0", "pos-1"]) {
+      const result = await plane
+        .minimumFor(principal, f.minimum(position))
+        .resolveAlias(url("alias/work"));
+      expect(result).toMatchObject({ kind: "target", target: url("beads/a") });
+      expect(contexts(result).current).toEqual({
+        scopeEpoch: f.store.scopeEpoch,
+        authorizationView: "development-all-visible",
+        scopePosition: "pos-1",
+      });
+    }
+    await expect(
+      plane.minimumFor(principal, f.minimum("pos-2")).resolveAlias(url("alias/work")),
+    ).rejects.toMatchObject({ reason: "behind" });
+    expect(f.alias("putAlias", { alias: "alias/work", target: "beads/b" })).toMatchObject({
+      status: "completed",
+      requiredPosition: "pos-1",
+    });
+    const after = await plane.minimumFor(principal, f.minimum()).resolveAlias(url("alias/work"));
+    expect(after).toMatchObject({ kind: "target", target: url("beads/b") });
+    expect(contexts(after).current.scopePosition).toBe("pos-1");
+    for (const [i, id] of ["a", "b"].entries())
+      expect(body(await facet.perform(resource(`beads/${id}`)))).toEqual(before[i]);
+  });
+  it("rechecks a repointed alias after waiting for a real Resource effect", async () => {
+    const f = prepared();
+    let waits = 0;
+    const service = serviceFor(f, {
+      budgetMs: 10,
+      now: () => 0,
+      wait: async () => {
+        if (++waits === 1) {
+          expect(f.alias("putAlias", { alias: "alias/work", target: "beads/b" })).toMatchObject({
+            status: "completed",
+            requiredPosition: "pos-1",
+          });
+        } else {
+          expect(waits).toBe(2);
+          expect(
+            f.write([
+              {
+                operation: "updateBead",
+                bead: "beads/b",
+                propertiesChange: [{ op: "replace", path: "/title", value: "updated" }],
+              },
+            ]),
+          ).toMatchObject({ status: "completed", effectPosition: "pos-2" });
+        }
+      },
+    });
+    const result = await service
+      .readAtMinimum(principal, f.minimum("pos-2"))
+      .resolveAlias(url("alias/work"));
+    expect(result).toMatchObject({ kind: "target", target: url("beads/b") });
+    expect(contexts(result).current.scopePosition).toBe("pos-2");
+    expect(waits).toBe(2); // Alias-only progress did not satisfy the future Resource bound.
+  });
+  it("keeps live alias context failures and compatible absent/deleted/dangling observations distinct", async () => {
+    const f = prepared();
+    let tick = 0;
+    const service = serviceFor(f, { budgetMs: 2, now: () => tick++, wait: async () => {} });
+    for (const [field, reason] of [
+      ["scopeEpoch", "cursor-expired"],
+      ["authorizationView", "foreign-view"],
+    ] as const)
+      await expect(
+        service
+          .readAtMinimum(principal, { ...f.minimum(), [field]: "foreign" })
+          .resolveAlias(url("alias/work")),
+      ).rejects.toMatchObject({ reason, context: { scopePosition: "pos-1" } });
+    await expect(
+      service.readAtMinimum(principal, f.minimum("pos-2")).resolveAlias(url("alias/work")),
+    ).rejects.toMatchObject({ reason: "catch-up-timeout", context: { scopePosition: "pos-1" } });
+    const checkMissing = async (suffix: string, position: string) => {
+      const result = await service
+        .readAtMinimum(principal, f.minimum(position))
+        .resolveAlias(url(suffix));
+      expect(result).toMatchObject({
+        kind: "problem",
+        problem: { status: 404, code: "resource-not-found" },
+      });
+      expect(contexts(result).current.scopePosition).toBe(position);
+      await expect(
+        service.readAtMinimum(principal, f.minimum("pos-99")).resolveAlias(url(suffix)),
+      ).rejects.toBeInstanceOf(TransactionMinimumVisibilityGap);
+      await expect(
+        service
+          .readAtMinimum(principal, { ...f.minimum(position), authorizationView: "foreign" })
+          .resolveAlias(url(suffix)),
+      ).rejects.toBeInstanceOf(TransactionMinimumVisibilityGap);
+    };
+    await checkMissing("alias/never", "pos-1");
+    expect(f.alias("deleteAlias", { alias: "alias/work" }).status).toBe("completed");
+    await checkMissing("alias/work", "pos-1");
+    expect(f.alias("putAlias", { alias: "alias/work", target: "beads/a" }).status).toBe(
+      "completed",
+    );
+    expect(f.write([{ operation: "deleteBead", bead: "beads/a" }]).status).toBe("completed");
+    await checkMissing("alias/work", "pos-2"); // Delete the target; do not try deleting a dangling alias.
+    expect(await service.readFor(principal).perform(resource("beads/b"))).toMatchObject({
+      kind: "success",
+    });
+  });
+  it("forwards ordinary and minimum Request aborts before SQL and drains an admitted alias wait", async () => {
+    const f = prepared(),
+      entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>();
+    let entries = 0;
+    const observed: ReturnType<typeof prepared> = {
+      ...f,
+      store: {
+        ...f.store,
+        withRead: (callback) => {
+          entries++;
+          return f.store.withRead(callback);
+        },
+      },
+    };
+    const service = serviceFor(observed, {
+      budgetMs: 2,
+      now: () => 0,
+      wait: async () => {
+        entered.resolve();
+        await release.promise;
+      },
+    });
+    cleanup.push(() => release.resolve());
+    const handler = createTransactionHttpHandler(service, scope),
+      signal = AbortSignal.abort();
+    entries = 0;
+    const spy = vi.spyOn(DatabaseSync.prototype, "prepare");
+    for (const headers of [
+      {},
+      {
+        "bdp-scope-epoch": f.store.scopeEpoch,
+        "bdp-authorization-view": "development-all-visible",
+        "bdp-minimum-scope-position": "pos-2",
+      },
+    ])
+      await expect(
+        handler.handle(new Request(url("alias/work"), { headers, signal }), {
+          kind: "authenticated",
+          principal: "reader",
+          canMutate: false,
+        }),
+      ).rejects.toThrow("abort");
+    expect(spy).not.toHaveBeenCalled();
+    expect(entries).toBe(0);
+    spy.mockRestore();
+    const controller = new AbortController();
+    const pending = service
+      .readAtMinimum(principal, f.minimum("pos-2"))
+      .resolveAlias(url("alias/work"), { signal: controller.signal });
+    const rejected = expect(pending).rejects.toThrow("abort");
+    await entered.promise;
+    expect(entries).toBe(1);
+    let closed = false;
+    const closing = service.close().then(() => {
+      closed = true;
+    });
+    try {
+      expect(closed).toBe(false);
+      expect(() => service.readAtMinimum(principal, f.minimum())).toThrow("closing");
+      controller.abort();
+    } finally {
+      release.resolve();
+    }
+    await rejected;
+    await closing;
+    expect(closed).toBe(true);
+    expect(() => f.store.inspect()).toThrow("closed");
+  });
+  it("does not relabel alias provider or malformed context failures as missing", async () => {
+    const f = prepared(),
+      sentinel = new Error("alias provider failed");
+    let fault: "context" | "provider" | "target" | undefined = "context";
+    const owner: typeof f.store = {
+      ...f.store,
+      withRead: (callback) =>
+        f.store.withRead((reader, captured) => {
+          if (fault === "provider") throw sentinel;
+          return callback(
+            fault === "target" ? { ...reader, alias: () => "links/not-a-bead" } : reader,
+            fault === "context" ? { ...captured, scopePosition: "pos-02" } : captured,
+          );
+        }),
+    };
+    const plane = createTransactionReadPlane(owner, f.readOptions);
+    cleanup.push(() => plane.close());
+    const read = plane.minimumFor(principal, f.minimum());
+    await expect(read.resolveAlias(url("alias/work"))).rejects.toThrow(
+      "invalid Transactional Read context",
+    );
+    fault = "provider";
+    await expect(read.resolveAlias(url("alias/work"))).rejects.toBe(sentinel);
+    fault = "target";
+    await expect(read.resolveAlias(url("alias/work"))).rejects.toThrow(
+      "invalid stored alias target",
+    );
+    fault = undefined;
+    expect(await read.resolveAlias(url("alias/work"))).toMatchObject({
+      kind: "target",
+      target: url("beads/a"),
+    });
   });
 });

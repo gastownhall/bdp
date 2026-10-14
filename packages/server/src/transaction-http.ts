@@ -195,7 +195,11 @@ export function createTransactionHttpHandler(
     discover: async () => developmentGap("transactional-discovery"),
     async alias(suffix, request) {
       if (isReadProblem(suffix)) return problem(suffix);
-      const result = await service.readFor({ kind: "anonymous" }).resolveAlias(request.url);
+      const minimum = transactionMinimumHeaders(request.headers);
+      const facet = minimum
+        ? service.readAtMinimum({ kind: "anonymous" }, minimum)
+        : service.readFor({ kind: "anonymous" });
+      const result = await facet.resolveAlias(request.url, { signal: request.signal });
       const response =
         result.kind === "problem"
           ? problem(result.problem)
@@ -522,14 +526,12 @@ export function createTransactionHttpHandler(
       ? transactionMinimumHeaders(request.headers)
       : undefined;
     if (hasMinimumControls(request) && !minimum) return developmentGap("minimum-position");
-    if (minimum) {
+    if (minimum && alias === undefined) {
+      // Aliases have their own conditioned authority path, not a canonical
+      // ReadRequest or a member of the current Resource/collection subset.
       const parsed = requestFromUrl(url, scope);
       if (isReadProblem(parsed) && parsed.status === 400) return problem(parsed);
-      if (
-        alias !== undefined ||
-        isReadProblem(parsed) ||
-        !isCurrentTransactionMinimumRead(parsed, scope)
-      )
+      if (isReadProblem(parsed) || !isCurrentTransactionMinimumRead(parsed, scope))
         return developmentGap("minimum-position-route");
     }
     // No fabricated discovery or incomplete Operation Directory is exposed. The
