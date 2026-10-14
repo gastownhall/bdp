@@ -1601,6 +1601,139 @@ describe("current alias minimum subset", () => {
     cleanup.push(() => service.close());
     return service;
   }
+  it.each(["direct", "service"] as const)(
+    "preserves %s minimum alias receiving validation, cancellation and lifecycle precedence",
+    async (mode) => {
+      const f = prepared();
+      let entries = 0;
+      let nestedCall: (() => void) | undefined;
+      const observed: ReturnType<typeof prepared> = {
+        ...f,
+        store: {
+          ...f.store,
+          withRead: (callback) => {
+            entries++;
+            const invoke = nestedCall;
+            nestedCall = undefined;
+            invoke?.();
+            return f.store.withRead(callback);
+          },
+        },
+      };
+      const plane = createTransactionReadPlane(observed.store, f.readOptions);
+      cleanup.push(() => plane.close());
+      let tick = 0;
+      const service =
+        mode === "service"
+          ? serviceFor(observed, { budgetMs: 2, now: () => tick++, wait: async () => {} })
+          : undefined;
+      const facet = service
+        ? service.readAtMinimum(principal, f.minimum())
+        : plane.minimumFor(principal, f.minimum());
+      const call = (options: unknown) =>
+        facet.resolveAlias(url("alias/work"), options as AuthorityReadDeliveryOptions);
+      const invoked = vi.fn(() => {
+        throw new Error("caller code must not execute");
+      });
+      const proxy = new Proxy(
+        {},
+        {
+          get: invoked,
+          ownKeys: invoked,
+          getPrototypeOf: invoked,
+          getOwnPropertyDescriptor: invoked,
+        },
+      );
+      const revoked = Proxy.revocable({}, {});
+      revoked.revoke();
+      const invalid = [
+        null,
+        0,
+        false,
+        "",
+        [],
+        Object.create({}),
+        proxy,
+        revoked.proxy,
+        { unknown: 1 },
+        Object.defineProperty({}, "unknown", { value: 1 }),
+        { [Symbol("hidden")]: 1 },
+        {
+          get signal() {
+            return invoked();
+          },
+        },
+        Object.defineProperty({}, "sourceCondition", { get: invoked }),
+        ...[
+          null,
+          0,
+          false,
+          "",
+          {},
+          proxy,
+          revoked.proxy,
+          {
+            get aborted() {
+              return invoked();
+            },
+          },
+        ].map((signal) => ({ signal })),
+      ];
+      for (const options of invalid) {
+        let delivery: Promise<unknown> | undefined;
+        expect(() => {
+          delivery = call(options);
+        }).not.toThrow();
+        expect(delivery).toBeInstanceOf(Promise);
+        await expect(delivery).rejects.toMatchObject({ reason: "invalid-input" });
+      }
+      expect(invoked).not.toHaveBeenCalled();
+      expect(entries).toBe(0); // Every invalid fallback rejected; none performed an ordinary read.
+      const aborted = Object.create(null);
+      Object.defineProperties(aborted, {
+        signal: { value: AbortSignal.abort() },
+        sourceCondition: { value: revoked.proxy },
+      });
+      await expect(call(aborted)).rejects.toThrow("abort");
+      expect(entries).toBe(0);
+      const valid = Object.create(null);
+      Object.defineProperties(valid, {
+        signal: { value: new AbortController().signal },
+        sourceCondition: { value: revoked.proxy },
+      });
+      await expect(call(valid)).resolves.toMatchObject({ kind: "target", target: url("beads/a") });
+      expect(entries).toBe(1);
+      // Caller conditions are opaque overridden data, not an alternative minimum.
+      const future = service
+        ? service.readAtMinimum(principal, f.minimum("pos-2"))
+        : plane.minimumFor(principal, f.minimum("pos-2"));
+      await expect(
+        future.resolveAlias(url("alias/work"), {
+          sourceCondition: f.minimum("pos-0"),
+        }),
+      ).rejects.toMatchObject({ reason: mode === "service" ? "catch-up-timeout" : "behind" });
+      let nested: Promise<unknown> | undefined;
+      nestedCall = () => {
+        nested = call(proxy);
+      };
+      await expect(call(undefined)).resolves.toMatchObject({ kind: "target" });
+      expect(nested).toBeInstanceOf(Promise);
+      await expect(nested).rejects.toMatchObject({ reason: "reentrant" });
+      expect(invoked).not.toHaveBeenCalled();
+      if (service) {
+        await service.close();
+        expect(() => call(proxy)).toThrow("closing or closed"); // Existing service admission is synchronous.
+      } else {
+        await plane.close();
+        let closed: Promise<unknown> | undefined;
+        expect(() => {
+          closed = call(proxy);
+        }).not.toThrow();
+        await expect(closed).rejects.toMatchObject({ code: "server-closed" });
+      }
+      expect(invoked).not.toHaveBeenCalled();
+    },
+  );
   it("conditions alias mapping and context in one entry without revising either target", async () => {
     const f = prepared(),
       { plane, facet } = f.open();
