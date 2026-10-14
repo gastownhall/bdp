@@ -186,7 +186,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(240);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(239);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
   expect(() => planProfileExecution(selected, configuration("read-update"))).toThrow("disagree");
@@ -691,6 +691,11 @@ function objectSlices(text: string, key: "scenarios" | "rows") {
 const originalObjectPins = {
   manifest: [
     [
+      "transactional.idempotency.conflict",
+      "ba93aea884ae462533d02695642f03a2ca854f5adabeb41867254216dabb2106",
+      29772,
+    ],
+    [
       "transactional.set.mutation",
       "6e7280a9ebbbc3faa1da989015cc802f82cd51b17a9cea11e7cc91392bef49d6",
       71739,
@@ -737,6 +742,11 @@ const originalObjectPins = {
     ],
   ],
   coverage: [
+    [
+      "transactional.idempotency.conflict",
+      "de9b758f8ac4df7db5597b1eb2b402a116720becc30a41e7198f78f244358ec0",
+      5188,
+    ],
     [
       "transactional.set.mutation",
       "058147f8194f091ee5a7ef3d4fd378f0324f6570049df777f993acb5f967d540",
@@ -792,7 +802,7 @@ function assertOriginalObjects(text: string, name: keyof typeof originalObjectPi
     expect(createHash("sha256").update(raw).digest("hex"), id).toBe(hash);
   }
 }
-it("preserves every original TX scenario and coverage object while adding one bounded partial completed-key conflict row", () => {
+it("preserves every original TX scenario and coverage object while adding one bounded partial matching no-op row", () => {
   for (const name of ["manifest", "coverage"] as const)
     assertOriginalObjects(read(name).toString(), name);
   const changed = read("manifest").toString().replace('"equals": 401', '"equals": 402');
@@ -802,6 +812,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(manifest.scenarios.map((r: { id: string }) => r.id)).toEqual([
     "transactional.batch.atomic-commit",
     "transactional.batch.rollback",
+    "transactional.batch.no-op-entries",
     "transactional.set.mutation",
     "transactional.set.zero-match",
     "transactional.set.cardinality",
@@ -819,6 +830,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     ["transactional.set.zero-match", 17],
     ["transactional.receipt.pagination", 18],
     ["transactional.idempotency.conflict", 12],
+    ["transactional.batch.no-op-entries", 15],
   ] as const) {
     const rows = manifest.scenarios.filter((r: { id: string }) => r.id === id);
     expect(rows, id).toHaveLength(1);
@@ -832,11 +844,19 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
-  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(151);
-  expect(read("manifest").byteLength - 377449).toBeLessThanOrEqual(32768);
-  expect(read("manifest").byteLength).toBeLessThanOrEqual(413696);
-  expect(read("coverage").byteLength - 54875).toBeLessThanOrEqual(8192);
-  expect(read("coverage").byteLength).toBeLessThanOrEqual(65536);
+  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(166);
+  // Root-reviewed measured amendment: M488278/N13019/C70660/A223.
+  // Original64KiB/220-assertion preflight stopped; these are explicit successor
+  // guards, not parser/runtime cap changes. Margins4096B/64nodes/1024B.
+  expect(read("manifest").byteLength - 407227).toBeLessThanOrEqual(85147);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(499387);
+  expect(read("coverage").byteLength - 60069).toBeLessThanOrEqual(11615);
+  expect(read("coverage").byteLength).toBeLessThanOrEqual(76453);
+  expect(
+    manifest.scenarios.flatMap((r: { actions: { assertions: unknown[] }[] }) =>
+      r.actions.flatMap((a) => a.assertions),
+    ),
+  ).toHaveLength(1539);
   expect(read("fixture").byteLength).toBe(716);
   expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
     "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
@@ -848,8 +868,8 @@ it("preserves every original TX scenario and coverage object while adding one bo
     nodes++;
     if (value && typeof value === "object") pending.push(...Object.values(value));
   }
-  expect(nodes - 10082).toBeLessThanOrEqual(1200);
-  expect(nodes).toBeLessThanOrEqual(11300);
+  expect(nodes - 10891).toBeLessThanOrEqual(2192);
+  expect(nodes).toBeLessThanOrEqual(13091);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
     "transactional.receipt.pagination": [
@@ -905,7 +925,7 @@ it("pins the one-page matched-plus-updated witness without advertised-limit or o
   const row = manifest.scenarios.find(
     (r: { id: string }) => r.id === "transactional.receipt.pagination",
   );
-  expect(manifest.scenarios.indexOf(row)).toBe(7);
+  expect(manifest.scenarios.indexOf(row)).toBe(8);
   expect(row.actions).toHaveLength(18);
   const later = row.actions.find((a: { id: string }) => a.id === "p-later-state");
   expect(later.captures).toEqual([]); // HTTP capture is URL-only; no unimplemented array capture.
@@ -1292,7 +1312,7 @@ it("pins the completed-key conflict law, five presentations, and semantic reques
     row.actions[0].raw.body.value;
   expect(() => assertCompletedConflictRequests(changed)).toThrow("c-conflict");
   for (const name of ["manifest", "coverage"] as const) {
-    expect(originalObjectPins[name]).toHaveLength(9);
+    expect(originalObjectPins[name]).toHaveLength(10);
     const text = read(name).toString();
     const raw = objectSlices(text, name === "manifest" ? "scenarios" : "rows").get(
       "transactional.receipt.pagination",
@@ -1308,4 +1328,383 @@ it("pins the completed-key conflict law, five presentations, and semantic reques
       "transactional.receipt.pagination",
     );
   }
+});
+
+// Independent literal oracle for the bounded matching no-op partition. None of
+// these expected values or captures are derived from the candidate manifest.
+function assertMatchingNoopObservation(candidate: typeof manifest) {
+  const scope = "https://reference.invalid/acme/";
+  const task = `${scope}types/task`,
+    relationship = `${scope}types/relationship`;
+  const headers = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"];
+  type Assertion = Record<string, unknown>;
+  const pointer = (id: string, path: string, equals: unknown): Assertion => ({
+    id,
+    kind: "json-pointer",
+    pointer: path,
+    exists: true,
+    equals,
+  });
+  const present = (id: string, path: string): Assertion => ({
+    id,
+    kind: "json-pointer",
+    pointer: path,
+    exists: true,
+  });
+  const binding = (id: string, path: string, equalsBinding: string): Assertion => ({
+    id,
+    kind: "json-pointer",
+    pointer: path,
+    exists: true,
+    equalsBinding,
+  });
+  const tuple = (
+    id: string,
+    path: string,
+    projections: string[],
+    equals: unknown[][],
+  ): Assertion => ({
+    id,
+    kind: "json-array-tuples",
+    pointer: path,
+    ordered: true,
+    projections: projections.map((pointer) => ({ pointer })),
+    equals,
+  });
+  const capture = (binding: string, pointer: string) => ({
+    binding,
+    from: { kind: "json-pointer", pointer },
+  });
+  const raw = (schema: string, baseline: string | undefined, position = "pos-1"): Assertion[] => [
+    { id: "http-status", kind: "status", equals: 200 },
+    ...headers.map((name) => ({ id: `present-${name}`, kind: "header", name, absent: false })),
+    { id: "schema", kind: "json-schema", schema: `#/$defs/${schema}` },
+    baseline
+      ? { id: "serving-context", kind: "response-metadata-equals", request: baseline, headers }
+      : { id: "position", kind: "header", name: headers[2], equals: position },
+    { id: "request-headers", kind: "request-authored-headers" },
+    { id: "request-body", kind: "request-authored-body" },
+  ];
+  const client = (position: string): Assertion[] => [
+    pointer("status", "/status", 200),
+    pointer("body-present", "/bodyPresent", true),
+    present(headers[0]!, `/headers/${headers[0]}`),
+    present(headers[1]!, `/headers/${headers[1]}`),
+    pointer(headers[2]!, `/headers/${headers[2]}`, position),
+  ];
+  const receipt = (phase: "seed" | "noop" | "changed", prefix = ""): Assertion[] => {
+    const changed = phase === "changed";
+    const ids = phase === "seed" ? ["a", "b", "l"] : ["a", "l"];
+    return [
+      pointer("disposition", `${prefix}/status`, "completed"),
+      pointer("detail", `${prefix}/detail`, "available"),
+      pointer("required-position", `${prefix}/requiredPosition`, changed ? "pos-2" : "pos-1"),
+      pointer("inline", `${prefix}/next`, null),
+      phase === "noop"
+        ? {
+            id: "no-effect",
+            kind: "json-pointer",
+            pointer: `${prefix}/effectPosition`,
+            exists: false,
+          }
+        : pointer("effect-position", `${prefix}/effectPosition`, changed ? "pos-2" : "pos-1"),
+      tuple(
+        "ordered-results",
+        `${prefix}/results`,
+        [
+          "/operationIndex",
+          "/outcome",
+          "/resource/id",
+          "/resource/type",
+          "/resource/properties",
+          "/resource/metadata",
+        ],
+        ids.map((id, index) => [
+          index,
+          phase === "seed" ? "created" : "updated",
+          `${scope}${id === "l" ? "links" : "beads"}/${id}`,
+          id === "l" ? relationship : task,
+          { title: `${id}${changed ? "-changed" : ""}` },
+          changed ? { tag: "changed" } : {},
+        ]),
+      ),
+      ...(phase === "noop"
+        ? [
+            binding("bead-retained-record", `${prefix}/results/0/resource`, "n-a-before"),
+            binding("link-retained-record", `${prefix}/results/1/resource`, "n-l-before"),
+          ]
+        : [
+            pointer(
+              "link-source",
+              `${prefix}/results/${ids.length - 1}/resource/source`,
+              `${scope}beads/a`,
+            ),
+            pointer(
+              "link-target",
+              `${prefix}/results/${ids.length - 1}/resource/target`,
+              `${scope}beads/b`,
+            ),
+          ]),
+    ];
+  };
+  const seedFacts = [
+    [`${scope}events/`, "created", `${scope}beads/a`, task, 0],
+    [`${scope}events/`, "created", `${scope}beads/b`, task, 1],
+    [`${scope}events/`, "created", `${scope}links/l`, relationship, 2],
+    [`${scope}events/`, "linked", `${scope}links/l`, relationship, 3],
+    [`${scope}events/`, "linked", `${scope}links/l`, relationship, 4],
+  ];
+  const events = (path: string, changed = false): Assertion[] => [
+    tuple(
+      "ordered-facts",
+      path,
+      ["/source", "/type", "/subject", "/subjectType", "/ordinal"],
+      changed
+        ? [
+            ...seedFacts,
+            [`${scope}events/`, "updated", `${scope}beads/a`, task, 0],
+            [`${scope}events/`, "updated", `${scope}links/l`, relationship, 1],
+          ]
+        : seedFacts,
+    ),
+    ...(["source", "target"] as const).map((endpoint, index) =>
+      pointer(`incidence-${endpoint}`, `${path}/${index + 3}/data`, {
+        endpoint,
+        link: { id: `${scope}links/l`, type: relationship },
+        source: `${scope}beads/a`,
+        target: `${scope}beads/b`,
+      }),
+    ),
+    ...(changed
+      ? ["a", "l"].flatMap((id, index) => [
+          binding(`${id}-transaction`, `${path}/${index + 5}/transaction`, "n-changed-transaction"),
+          binding(`${id}-revision`, `${path}/${index + 5}/data/revision`, `n-${id}-after-revision`),
+          binding(
+            `${id}-previous`,
+            `${path}/${index + 5}/data/previousRevision`,
+            `n-${id}-before-revision`,
+          ),
+          pointer(`${id}-change`, `${path}/${index + 5}/data/change`, [
+            { op: "replace", path: "/title", value: `${id}-changed` },
+          ]),
+          pointer(`${id}-metadata-change`, `${path}/${index + 5}/data/metadataChange`, [
+            { op: "replace", path: "", value: { tag: "changed" } },
+          ]),
+        ])
+      : []),
+  ];
+  const groups = (changed = false): Assertion[] => [
+    ...raw("changefeedPage", changed ? "n-changed" : "n-seed"),
+    pointer("observed-head", "/observedHeadPosition", changed ? "pos-2" : "pos-1"),
+    tuple("group-inventory", "/groups", ["/position"], [["pos-1"]]),
+    tuple(
+      "group-envelope",
+      "/groups",
+      ["/previousPosition", "/projectionAdvance", "/eventCount", "/erasures"],
+      [["pos-0", false, 5, []]],
+    ),
+    binding("group-transaction", "/groups/0/transaction", "n-seed-transaction"),
+    tuple(
+      "upsert-inventory",
+      "/groups/0/changes",
+      ["/operation", "/resourceKind", "/resource/id"],
+      [
+        ["upsert", "bead", `${scope}beads/a`],
+        ["upsert", "bead", `${scope}beads/b`],
+        ["upsert", "link", `${scope}links/l`],
+      ],
+    ),
+    ...["a", "b", "l"].map((id, index) =>
+      binding(`upsert-${id}`, `/groups/0/changes/${index}/resource`, `n-${id}-before`),
+    ),
+    ...events("/groups/0/events"),
+    changed ? present("next-present", "/next") : pointer("no-next", "/next", null),
+  ];
+  const state = (changed: boolean, link = false): Assertion[] => [
+    ...raw(link ? "currentLinkRecord" : "currentBeadCollection", changed ? "n-changed" : "n-seed"),
+    ...(link
+      ? [binding("complete-link", "", changed ? "n-l-after" : "n-l-before")]
+      : [
+          tuple(
+            "ordered-identities",
+            "/items",
+            ["/id"],
+            [[`${scope}beads/a`], [`${scope}beads/b`]],
+          ),
+          binding("complete-a", "/items/0", changed ? "n-a-after" : "n-a-before"),
+          binding("complete-b", "/items/1", "n-b-before"),
+          pointer("no-next", "/next", null),
+        ]),
+  ];
+  const expected: Record<string, Assertion[]> = {
+    "n-seed": [...raw("mutationReceipt", undefined), ...receipt("seed")],
+    "n-seed-facts": [...client("pos-1"), ...receipt("seed", "/body")],
+    "n-seed-groups": groups(),
+    "n-noop": [...raw("mutationReceipt", "n-seed"), ...receipt("noop")],
+    "n-noop-facts": [...client("pos-1"), ...receipt("noop", "/body")],
+    "n-noop-beads": state(false),
+    "n-noop-link": state(false, true),
+    "n-noop-events": [
+      ...raw("eventPage", "n-seed"),
+      pointer("no-next", "/next", null),
+      ...events("/events"),
+    ],
+    "n-noop-groups": groups(),
+    "n-changed": [...raw("mutationReceipt", undefined, "pos-2"), ...receipt("changed")],
+    "n-changed-facts": [...client("pos-2"), ...receipt("changed", "/body")],
+    "n-changed-beads": state(true),
+    "n-changed-link": state(true, true),
+    "n-changed-events": [
+      ...raw("eventPage", "n-changed"),
+      pointer("no-next", "/next", null),
+      ...events("/events", true),
+    ],
+    "n-changed-groups": groups(true),
+  };
+  const captures: Record<string, unknown[]> = {
+    "n-seed": [capture("n-seed-receipt", "/id")],
+    "n-noop": [capture("n-noop-receipt", "/id")],
+    "n-changed": [capture("n-changed-receipt", "/id")],
+    "n-seed-facts": [
+      capture("n-seed-transaction", "/body/transaction"),
+      capture("n-a-before", "/body/results/0/resource"),
+      capture("n-a-before-revision", "/body/results/0/resource/revision"),
+      capture("n-b-before", "/body/results/1/resource"),
+      capture("n-l-before", "/body/results/2/resource"),
+      capture("n-l-before-revision", "/body/results/2/resource/revision"),
+    ],
+    "n-changed-facts": [
+      capture("n-changed-transaction", "/body/transaction"),
+      capture("n-a-after", "/body/results/0/resource"),
+      capture("n-a-after-revision", "/body/results/0/resource/revision"),
+      capture("n-l-after", "/body/results/1/resource"),
+      capture("n-l-after-revision", "/body/results/1/resource/revision"),
+    ],
+    // Presence alone permits null. Successful execution of this unused scoped
+    // URL capture is required; it grants no receipt or continuation authority.
+    "n-changed-groups": [capture("n-changed-next", "/next")],
+  };
+  const row = candidate.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.batch.no-op-entries",
+  )!;
+  expect(row.actions.map((a: { id: string }) => a.id)).toEqual(Object.keys(expected));
+  for (const action of row.actions) {
+    expect(action.assertions, `${action.id} complete no-op assertions`).toEqual(
+      expected[action.id],
+    );
+    expect(action.captures, `${action.id} complete no-op captures`).toEqual(
+      captures[action.id] ?? [],
+    );
+  }
+  expect(row.actions.flatMap((a: { assertions: unknown[] }) => a.assertions)).toHaveLength(223);
+  const update = (changed: boolean) =>
+    ["a", "l"].map((id) => ({
+      operation: id === "a" ? "updateBead" : "updateLink",
+      [id === "a" ? "bead" : "link"]: id === "a" ? "beads/a" : "links/l",
+      propertiesChange: [
+        { op: "replace", path: "/title", value: `${id}${changed ? "-changed" : ""}` },
+      ],
+      metadataChange: [{ op: "replace", path: "", value: changed ? { tag: "changed" } : {} }],
+    }));
+  const seed = [
+    ...["a", "b"].map((id) => ({
+      operation: "createBead",
+      id: `beads/${id}`,
+      type: task,
+      properties: { title: id },
+      metadata: {},
+    })),
+    {
+      operation: "createLink",
+      id: "links/l",
+      type: relationship,
+      source: "beads/a",
+      target: "beads/b",
+      properties: { title: "l" },
+      metadata: {},
+    },
+  ];
+  const requests: Record<string, { operations: unknown[] }> = {
+    "n-seed": { operations: seed },
+    "n-noop": { operations: update(false) },
+    "n-changed": { operations: update(true) },
+  };
+  const keys: Record<string, string> = {
+    "n-seed": "noop-seed",
+    "n-noop": "noop-equal",
+    "n-changed": "noop-changed",
+  };
+  for (const action of row.actions) {
+    if (action.family === "client") {
+      expect(action.operation).toBe("transactional.receipt-read");
+      expect(action.input).toEqual({
+        binding: action.id.replace("-facts", "-receipt"),
+        method: "GET",
+      });
+      continue;
+    }
+    expect(action.credentialRef).toBe("operator");
+    if (requests[action.id]) {
+      expect(action.method).toBe("POST");
+      expect(action.target).toEqual({ binding: "batch" });
+      expect(action.raw.headerLines).toEqual([
+        { name: "content-type", value: "application/json" },
+        { name: "idempotency-key", value: keys[action.id] },
+      ]);
+      expect(action.raw.body.encoding).toBe("utf8");
+      expect(JSON.parse(action.raw.body.value)).toEqual(requests[action.id]);
+      expect(Buffer.byteLength(action.raw.body.value)).toBeLessThanOrEqual(2048);
+    } else {
+      expect(action.method).toBe("GET");
+      expect(action.raw).toEqual({ headerLines: [{ name: "accept", value: "application/json" }] });
+      const suffix = action.id.split("-").at(-1);
+      expect(action.target).toEqual(
+        suffix === "groups"
+          ? { binding: "scope", path: "changes/", query: { after: "genesis" } }
+          : suffix === "beads"
+            ? { binding: "scope", path: "beads/", query: { limit: "32" } }
+            : { binding: "scope", path: suffix === "link" ? "links/l" : "events/" },
+      );
+    }
+  }
+}
+
+it("pins the complete matching no-op partition and its exact selected clauses", () => {
+  expect(
+    selected.catalog.scenarios.find((r) => r.id === "transactional.batch.no-op-entries")!
+      .requirements,
+  ).toEqual([
+    {
+      source: "docs/specs/bdp.md",
+      anchor: "#change-groups-and-replication",
+      selectedText:
+        "A failed or admitted no-effect mutation produces no group and no new position. Its receipt reports the current `requiredPosition` and omits `effectPosition`.",
+    },
+    {
+      source: "docs/specs/bdp.md",
+      anchor: "#mutation-receipt-responses",
+      selectedText:
+        "a transaction all of whose operations are no-ops is an admitted no-effect mutation: it completes, produces no group, and its receipt omits `effectPosition`.",
+    },
+  ]);
+  assertMatchingNoopObservation(manifest);
+});
+
+it.each([
+  ["n-noop", "bead-retained-record"],
+  ["n-noop", "no-effect"],
+  ["n-noop", "present-bdp-scope-position"],
+  ["n-noop-groups", "group-inventory"],
+] as const)("rejects independent no-op oracle weakening in %s:%s", (actionId, assertionId) => {
+  const weakened = structuredClone(manifest);
+  const row = weakened.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.batch.no-op-entries",
+  )!;
+  const action = row.actions.find((a: { id: string }) => a.id === actionId);
+  if (assertionId === "group-inventory")
+    action.assertions.find((a: { id: string }) => a.id === assertionId).equals = [["pos-2"]];
+  else action.assertions = action.assertions.filter((a: { id: string }) => a.id !== assertionId);
+  expect(() => assertMatchingNoopObservation(weakened)).toThrow(
+    `${actionId} complete no-op assertions`,
+  );
 });
