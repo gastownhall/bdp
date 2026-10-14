@@ -3204,3 +3204,167 @@ it("captures selected observed refusals inside the owner transaction without cha
     f.store.retract(retry.claim);
   }
 });
+
+describe("private comparison deadline observation", () => {
+  it("captures comparison deadline context in one metadata-only atomic entry", () => {
+    const f = fixture();
+    const prepare = DatabaseSync.prototype.prepare,
+      exec = DatabaseSync.prototype.exec;
+    const statements: string[] = [],
+      transactions: string[] = [];
+    const prepared = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql,
+      ...rest
+    ) {
+      statements.push(sql);
+      return prepare.call(this, sql, ...rest);
+    });
+    const executed = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+      this: DatabaseSync,
+      sql,
+    ) {
+      transactions.push(sql);
+      return exec.call(this, sql);
+    });
+    let observed: ReturnType<typeof f.store.observeComparisonDeadline>;
+    try {
+      observed = f.store.observeComparisonDeadline(f.store.scopeEpoch);
+      expect(transactions, "one deadline transaction").toEqual(["BEGIN IMMEDIATE", "COMMIT"]);
+      expect(statements, "metadata-only deadline observation").toEqual([
+        "SELECT value FROM metadata WHERE name=?",
+        "SELECT value FROM metadata WHERE name=?",
+      ]);
+    } finally {
+      prepared.mockRestore();
+      executed.mockRestore();
+    }
+    expect(observed).toStrictEqual({
+      kind: "observed",
+      context: {
+        scopeEpoch: f.store.scopeEpoch,
+        authorizationView: "development-all-visible",
+        scopePosition: "pos-0",
+      },
+    });
+    expect(Object.isFrozen(observed)).toBe(true);
+    if (observed.kind !== "observed") throw new Error("expected deadline observation");
+    expect(Object.isFrozen(observed.context)).toBe(true);
+    f.store.execute(admit(f.store));
+    expect(f.store.observeComparisonDeadline(f.store.scopeEpoch)).toMatchObject({
+      context: { scopePosition: "pos-1" },
+    });
+    expect(observed.context.scopePosition, "prior deadline context immutable").toBe("pos-0");
+  });
+  it("rejects a defensive final comparison epoch mismatch without a tuple", () => {
+    const f = fixture();
+    expect(
+      f.store.observeComparisonDeadline("different-epoch"),
+      "final deadline epoch check",
+    ).toStrictEqual({ kind: "owner-stopped" });
+    expect(f.store.inspect().resources).toEqual([]);
+  });
+  it("returns a stopped comparison observation for a normally closed owner", () => {
+    const f = fixture();
+    f.store.close();
+    expect(f.store.observeComparisonDeadline(f.store.scopeEpoch)).toStrictEqual({
+      kind: "owner-stopped",
+    });
+  });
+  it("rejects reentrant comparison observation without entering an atomic read", () => {
+    const f = fixture();
+    const exec = vi.spyOn(DatabaseSync.prototype, "exec");
+    try {
+      const result = f.store.withRead(() => {
+        expect(() => f.store.observeComparisonDeadline(f.store.scopeEpoch)).toThrow(
+          "closed or reentrant",
+        );
+      });
+      expect(result.kind).toBe("read");
+      expect(exec).not.toHaveBeenCalled();
+    } finally {
+      exec.mockRestore();
+    }
+  });
+  it("preserves a fenced owner's comparison observation failure", () => {
+    const f = fixture(),
+      original = new Error("deadline commit uncertainty");
+    const exec = DatabaseSync.prototype.exec;
+    const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+      this: DatabaseSync,
+      sql,
+    ) {
+      const value = exec.call(this, sql);
+      if (sql === "COMMIT") throw original;
+      return value;
+    });
+    let failure: unknown;
+    try {
+      try {
+        f.store.observeComparisonDeadline(f.store.scopeEpoch);
+      } catch (error) {
+        failure = error;
+      }
+    } finally {
+      spy.mockRestore();
+    }
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).cause).toBe(original);
+    expect(() => f.store.observeComparisonDeadline(f.store.scopeEpoch)).toThrow(failure as Error);
+    f.store.close();
+    expect(
+      () => f.store.observeComparisonDeadline(f.store.scopeEpoch),
+      "closed fenced deadline preserves failure",
+    ).toThrow(failure as Error);
+  });
+  it("preserves background maintenance failure in a closed comparison owner", () => {
+    vi.useFakeTimers();
+    let f: ReturnType<typeof fixture> | undefined;
+    let inject = false;
+    const original = new Error("deadline background maintenance fault");
+    try {
+      f = fixture({
+        maintenanceIntervalMs: 25,
+        fault(stage) {
+          if (inject && stage === "before-maintenance-commit") throw original;
+        },
+      });
+      expect(vi.getTimerCount()).toBe(1);
+      inject = true;
+      vi.advanceTimersByTime(25);
+      expect(vi.getTimerCount()).toBe(0);
+      const store = f.store;
+      let failure: unknown;
+      try {
+        store.observeComparisonDeadline(store.scopeEpoch);
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure, "closed maintenance deadline preserves failure").toBeInstanceOf(Error);
+      expect((failure as Error).message).toBe("transaction maintenance failed; owner fenced");
+      expect((failure as Error).cause).toBe(original);
+    } finally {
+      try {
+        f?.store.close();
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  });
+  it("propagates comparison metadata failure and releases the atomic owner", () => {
+    const f = fixture(),
+      original = new Error("deadline metadata read failure");
+    const prepare = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(() => {
+      throw original;
+    });
+    try {
+      expect(() => f.store.observeComparisonDeadline(f.store.scopeEpoch)).toThrow(original);
+    } finally {
+      prepare.mockRestore();
+    }
+    expect(f.store.observeComparisonDeadline(f.store.scopeEpoch)).toMatchObject({
+      kind: "observed",
+      context: { scopePosition: "pos-0" },
+    });
+  });
+});

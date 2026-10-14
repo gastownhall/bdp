@@ -30,7 +30,17 @@ export interface TransactionSubmission {
   readonly authorization: Authorization;
   readonly receiving: TransactionReceivingControls;
 }
+type ObservedComparisonRefusal = {
+  readonly kind: "comparison-refusal";
+  readonly status: 503;
+  readonly code: "temporarily-unavailable";
+  readonly retry: "after-delay";
+} & (
+  | { readonly reason: "deadline"; readonly context: TransactionReadContext }
+  | { readonly reason: "owner-stopped" }
+);
 export type TransactionSubmissionResult =
+  | ObservedComparisonRefusal
   | {
       readonly kind: "receipt";
       readonly receipt: TransactionReceipt;
@@ -61,7 +71,10 @@ export type TransactionSubmissionResult =
 export async function submitTransaction(
   store: ReturnType<typeof openTransactionStore>,
   submission: TransactionSubmission,
-  comparison: Omit<NonNullable<Parameters<typeof compareAndAdmitTransaction>[4]>, "receiving"> = {},
+  comparison: Omit<
+    NonNullable<Parameters<typeof compareAndAdmitTransaction>[4]>,
+    "receiving" | "observeDeadline"
+  > = {},
   observed = false,
 ): Promise<TransactionSubmissionResult> {
   const receiving = snapshotTransactionReceivingControls(submission.receiving);
@@ -115,6 +128,8 @@ export async function submitTransaction(
     {
       ...comparison,
       receiving,
+      // Override even an untyped caller's extra field; only this owner supplies it.
+      observeDeadline: observed ? store.observeComparisonDeadline : undefined,
     },
   );
   if (
@@ -143,6 +158,23 @@ export async function submitTransaction(
       };
     case "not-acceptable":
       return result;
+    case "comparison-deadline":
+      return {
+        kind: "comparison-refusal",
+        reason: "deadline",
+        status: 503,
+        code: "temporarily-unavailable",
+        retry: "after-delay",
+        context: result.context,
+      };
+    case "comparison-owner-stopped":
+      return {
+        kind: "comparison-refusal",
+        reason: "owner-stopped",
+        status: 503,
+        code: "temporarily-unavailable",
+        retry: "after-delay",
+      };
     case "temporarily-unavailable":
       return {
         kind: "refused",

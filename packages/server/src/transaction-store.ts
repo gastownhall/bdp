@@ -1722,6 +1722,22 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     },
     readConfiguration: () => enter(() => readConfiguration),
     comparisonEpoch: () => (closed ? undefined : enter(() => metadata("epoch"))),
+    /** Private deadline observation: one owner entry and one atomic metadata read. */
+    observeComparisonDeadline(
+      expectedEpoch: string,
+    ):
+      | { readonly kind: "observed"; readonly context: TransactionReadContext }
+      | { readonly kind: "owner-stopped" } {
+      if (closed && !ownerFailure && !maintenanceFailure)
+        return Object.freeze({ kind: "owner-stopped" });
+      return enter(() =>
+        atomic(() => {
+          if (metadata("epoch") !== expectedEpoch)
+            return Object.freeze({ kind: "owner-stopped" as const });
+          return Object.freeze({ kind: "observed" as const, context: readContext() });
+        }),
+      );
+    },
     maintain,
     admit,
     admitObserved(

@@ -1017,3 +1017,162 @@ it("keeps observed provable dependency conflicts ahead of negotiation", async ()
   });
   f.store.cancelSequence(attempt);
 });
+
+describe("observed comparison deadline submission", () => {
+  it("captures current comparison context only at the observed deadline", async () => {
+    const f = fixture(),
+      attempt = dependencies(f.store);
+    let now = 0,
+      waits = 0;
+    const observe = vi.fn(f.store.observeComparisonDeadline),
+      admitObserved = vi.fn(f.store.admitObserved);
+    const owner = { ...f.store, observeComparisonDeadline: observe, admitObserved };
+    const before = f.store.observeComparisonDeadline(f.store.scopeEpoch);
+    const result = await submitTransaction(
+      owner,
+      dependent(),
+      {
+        budgetMs: 2,
+        now: () => now,
+        wait: async () => {
+          waits++;
+          expect(observe).not.toHaveBeenCalled();
+          expect(
+            await submitTransaction(f.store, submission([create("b")], "independent")),
+          ).toMatchObject({ kind: "receipt", receipt: { status: "completed" } });
+          now = 2;
+        },
+      },
+      true,
+    );
+    expect(result, "observed deadline shape and currency").toStrictEqual({
+      kind: "comparison-refusal",
+      reason: "deadline",
+      status: 503,
+      code: "temporarily-unavailable",
+      retry: "after-delay",
+      context: {
+        scopeEpoch: f.store.scopeEpoch,
+        authorizationView: "development-all-visible",
+        scopePosition: "pos-1",
+      },
+    });
+    expect(before).toMatchObject({ context: { scopePosition: "pos-0" } });
+    expect(waits).toBe(1);
+    expect(admitObserved).toHaveBeenCalledTimes(1);
+    expect(observe).toHaveBeenCalledExactlyOnceWith(f.store.scopeEpoch);
+    expect(f.store.cancelSequence(attempt)).toBe(2);
+  });
+  it("distinguishes defensive comparison epoch stop before deadline observation", async () => {
+    const f = fixture(),
+      attempt = dependencies(f.store);
+    let epoch = f.store.scopeEpoch,
+      waits = 0;
+    const observe = vi.fn(f.store.observeComparisonDeadline),
+      admitObserved = vi.fn(f.store.admitObserved);
+    const owner = {
+      ...f.store,
+      comparisonEpoch: () => epoch,
+      observeComparisonDeadline: observe,
+      admitObserved,
+    };
+    expect(
+      await submitTransaction(
+        owner,
+        dependent(),
+        {
+          budgetMs: 2,
+          now: () => 0,
+          wait: async () => {
+            waits++;
+            epoch = "different-epoch";
+          },
+        },
+        true,
+      ),
+    ).toStrictEqual({
+      kind: "comparison-refusal",
+      reason: "owner-stopped",
+      status: 503,
+      code: "temporarily-unavailable",
+      retry: "after-delay",
+    });
+    expect(waits).toBe(1);
+    expect(admitObserved).toHaveBeenCalledTimes(1);
+    expect(observe).not.toHaveBeenCalled();
+    expect(f.store.cancelSequence(attempt)).toBe(2);
+  });
+  it("distinguishes a stopped final observation at the reached comparison deadline", async () => {
+    const f = fixture(),
+      attempt = dependencies(f.store);
+    let now = 0,
+      waits = 0;
+    // Defensive composition only: no supported live epoch rotation is introduced.
+    const observe = vi.fn(() => ({ kind: "owner-stopped" as const })),
+      admitObserved = vi.fn(f.store.admitObserved);
+    try {
+      expect(
+        await submitTransaction(
+          { ...f.store, observeComparisonDeadline: observe, admitObserved },
+          dependent(),
+          {
+            budgetMs: 2,
+            now: () => now,
+            wait: async () => {
+              waits++;
+              expect(observe).not.toHaveBeenCalled();
+              now = 2;
+            },
+          },
+          true,
+        ),
+        "final stopped comparison refusal has no context",
+      ).toStrictEqual({
+        kind: "comparison-refusal",
+        reason: "owner-stopped",
+        status: 503,
+        code: "temporarily-unavailable",
+        retry: "after-delay",
+      });
+      expect(waits).toBe(1);
+      expect(admitObserved).toHaveBeenCalledTimes(1);
+      expect(observe).toHaveBeenCalledExactlyOnceWith(f.store.scopeEpoch);
+    } finally {
+      expect(f.store.cancelSequence(attempt)).toBe(2);
+    }
+  });
+  it("keeps full-owner unobserved comparison exact and excludes a caller callback", async () => {
+    const f = fixture(),
+      attempt = dependencies(f.store);
+    let now = 0;
+    const observe = vi.fn(f.store.observeComparisonDeadline),
+      supplied = vi.fn(() => {
+        throw new Error("caller observation forbidden");
+      });
+    // Structural extra field models untyped input; it must not become configuration.
+    const comparison = {
+      budgetMs: 2,
+      now: () => now,
+      wait: async () => {
+        now = 2;
+      },
+      observeDeadline: supplied,
+    };
+    expect(
+      await submitTransaction(
+        { ...f.store, observeComparisonDeadline: observe },
+        dependent(),
+        comparison,
+      ),
+      "legacy comparison result exact",
+    ).toStrictEqual({
+      kind: "refused",
+      status: 503,
+      code: "temporarily-unavailable",
+      retry: "after-delay",
+    });
+    expect(observe, "unobserved callback absent").not.toHaveBeenCalled();
+    expect(supplied, "untyped callback excluded").not.toHaveBeenCalled();
+    expect(f.store.cancelSequence(attempt)).toBe(2);
+  });
+});

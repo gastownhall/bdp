@@ -2618,61 +2618,233 @@ it("preserves absent context on excluded direct receiving and authorization refu
   expect((await f.post(batch(), "excluded")).status).toBe(200);
 });
 
-it("preserves absent context on a deterministic excluded direct comparison refusal", async () => {
+it("serves current comparison deadline context without timeout effects or receipt disclosure", async () => {
   const callbacks: (() => void)[] = [];
-  let tick = 0;
-  let release = false;
+  let now = 0,
+    waits = 0,
+    deliveries = 0,
+    release = false;
+  let dispatched = 0,
+    completed = 0;
+  let independent: Record<string, unknown> | undefined;
   const f = await fixture({
     scheduler: {
       turn(callback) {
-        if (release) queueMicrotask(callback);
-        else callbacks.push(callback);
+        const deliver = () => {
+          deliveries++;
+          callback();
+        };
+        if (release) queueMicrotask(deliver);
+        else callbacks.push(deliver);
         return () => {};
       },
     },
-    comparison: { budgetMs: 2, now: () => tick++, wait: async () => {} },
-  });
-  const sequence = f.post(
-    batch([
-      { ...create(), name: "a", idempotencyKey: "creator" },
-      {
-        operation: "createLink",
-        type: link,
-        source: "@a",
-        target: "@a",
-        idempotencyKey: "dependent",
+    comparison: {
+      budgetMs: 2,
+      now: () => now,
+      wait: async () => {
+        waits++;
+        expect(waits, "one comparison wait").toBe(1);
+        // This independent real commit must run while comparison holds no DB entry.
+        const response = await send(() => f.post(batch([create("b")]), "independent"));
+        expect(response.status).toBe(200);
+        independent = await body(response);
+        expect(independent).toMatchObject({ status: "completed", effectPosition: "pos-1" });
+        now = 2;
       },
-    ]),
-    null,
-    "sequence",
+    },
+  });
+  async function send(start: () => Promise<Response>) {
+    dispatched++;
+    const response = await start();
+    completed++;
+    return response;
+  }
+  const eventUrl = `${f.runtime.scope}events/`;
+  const before = await send(() => f.get(eventUrl));
+  expect(before.status).toBe(200);
+  expect(await body(before)).toEqual({ source: eventUrl, events: [], next: null });
+  expect(before.headers.get("bdp-scope-position")).toBe("pos-0");
+  for (const name of ["bdp-scope-epoch", "bdp-authorization-view"])
+    expect(before.headers.get(name)).toEqual(expect.any(String));
+  const sequence = send(() =>
+    f.post(
+      batch([
+        { ...create(), name: "a", idempotencyKey: "creator" },
+        {
+          operation: "createLink",
+          type: link,
+          source: "@a",
+          target: "@a",
+          idempotencyKey: "dependent",
+        },
+      ]),
+      null,
+      "sequence",
+    ),
   );
+  void sequence.catch(() => {});
   const candidate = batch([
     { operation: "createLink", type: link, source: "beads/a", target: "beads/a" },
   ]);
+  const failures: unknown[] = [];
+  let original: Record<string, unknown> | undefined;
+  function resource(receipt: Record<string, unknown>, index = 0) {
+    return record(record((receipt.results as unknown[])[index]).resource);
+  }
+  function beadContent(value: Record<string, unknown>, name: string) {
+    expect(value).toMatchObject({
+      id: `${f.runtime.scope}beads/${name}`,
+      type: bead,
+      properties: { title: name },
+      metadata: {},
+    });
+    expect(value.properties).toEqual({ title: name });
+    expect(value.metadata).toEqual({});
+    expect(value.revision).toEqual(expect.any(String));
+    expect(value).not.toHaveProperty("source");
+    expect(value).not.toHaveProperty("target");
+    expect(value).not.toHaveProperty("ownedLinks");
+  }
+  async function collection(kind: "beads" | "links", expected: unknown[]) {
+    const response = await send(() => f.get(`${f.runtime.scope}${kind}/?limit=32`));
+    expect(response.status).toBe(200);
+    const page = await body(response);
+    expect(page.items, `complete ${kind} afterstate`).toEqual(expected);
+    expect(page.next).toBeNull();
+  }
+  function createdData(value: Record<string, unknown>) {
+    return {
+      revision: value.revision,
+      properties: value.properties,
+      metadata: value.metadata,
+      ...(value.revisionProvenance === undefined
+        ? {}
+        : { revisionProvenance: value.revisionProvenance }),
+      ...(value.source === undefined ? {} : { source: value.source, target: value.target }),
+    };
+  }
+  async function events(expected: unknown[]) {
+    const response = await send(() => f.get(eventUrl));
+    expect(response.status).toBe(200);
+    const page = await body(response);
+    expect(page.source).toBe(eventUrl);
+    expect(page.next, "complete bounded Event page").toBeNull();
+    const values = (page.events as unknown[]).map(record);
+    expect(
+      values.map((event) => [event.type, event.subject, event.subjectType, event.data]),
+      "exact Event facts",
+    ).toEqual(expected);
+    expect(new Set(values.map((event) => event.id)).size).toBe(values.length);
+    for (const event of values) expect(event.source).toBe(eventUrl);
+  }
   try {
     for (let attempt = 0; callbacks.length === 0 && attempt < 100; attempt++) await setImmediate();
     expect(callbacks).toHaveLength(1);
-    const response = await f.post(candidate, "dependent");
-    expect(response.status).toBe(503);
+    const response = await send(() => f.post(candidate, "dependent"));
+    expect(response.status, "healthy deadline response").toBe(503);
     expect(response.headers.get("retry-after")).toBe("1");
-    expect(checkedProblem(await body(response))).toMatchObject({
+    expect(response.headers.has("location")).toBe(false);
+    expect(checkedProblem(await body(response))).toEqual({
+      type: "https://github.com/gastownhall/bdp/problems/unavailable",
       code: "temporarily-unavailable",
       status: 503,
+      retry: "after-delay",
     });
     for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-      expect(
-        response.headers.has(name),
-        `excluded direct refusal temporarily-unavailable context: ${name}`,
-      ).toBe(false);
-    expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+      expect(response.headers.has(name), `deadline context presence ${name}`).toBe(true);
+    expect(response.headers.get("bdp-scope-epoch")).toBe(before.headers.get("bdp-scope-epoch"));
+    expect(response.headers.get("bdp-authorization-view")).toBe(
+      before.headers.get("bdp-authorization-view"),
+    );
+    expect(response.headers.get("bdp-scope-position"), "deadline current position").toBe("pos-1");
+    expect(response.headers.get("bdp-scope-position")).not.toBe(
+      before.headers.get("bdp-scope-position"),
+    );
+    expect(waits).toBe(1);
+    expect(deliveries, "original owner remains held").toBe(0);
+    if (!independent) throw new Error("independent receipt missing");
+    const b = resource(independent);
+    beadContent(b, "b");
+    await collection("beads", [b]);
+    await collection("links", []);
+    await events([["created", b.id, bead, createdData(b)]]);
+    expect((await send(() => f.get(`${f.runtime.scope}beads/a`))).status).toBe(404);
+  } catch (error) {
+    failures.push(error);
   } finally {
     release = true;
     for (const callback of callbacks.splice(0)) callback();
-    await sequence;
+    try {
+      const response = await sequence;
+      expect(response.status).toBe(200);
+      original = await body(response);
+      expect(validateSequence(original), JSON.stringify(validateSequence.errors)).toBe(true);
+    } catch (error) {
+      failures.push(error);
+    }
   }
-  const replay = await f.post(candidate, "dependent");
-  expect(replay.status).toBe(200);
-  expect(replay.headers.get("bdp-scope-position")).toBe("pos-2");
+  if (failures.length) throw new AggregateError(failures, "comparison proof and owner drain");
+  if (!original || !independent) throw new Error("missing original observations");
+  expect(deliveries).toBe(2);
+  const replayResponse = await send(() => f.post(candidate, "dependent"));
+  expect(replayResponse.status).toBe(200);
+  expect(replayResponse.headers.get("bdp-scope-position")).toBe("pos-3");
+  const replay = await body(replayResponse);
+  const validateReceipt = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceipt` });
+  expect(validateReceipt(replay), JSON.stringify(validateReceipt.errors)).toBe(true);
+  expect(replay).toMatchObject({ status: "completed", effectPosition: "pos-3", next: null });
+  const entries = (original.results as unknown[]).map(record);
+  expect(entries).toHaveLength(2);
+  expect(entries[0]).toMatchObject({ operationIndex: 0, operationName: "a", outcome: "created" });
+  expect(entries[1]).toMatchObject({ operationIndex: 1, outcome: "created" });
+  const a = record(entries[0]!.resource),
+    edge = record(entries[1]!.resource),
+    b = resource(independent);
+  beadContent(a, "a");
+  expect(edge).toMatchObject({
+    type: link,
+    source: a.id,
+    target: a.id,
+    properties: {},
+    metadata: {},
+  });
+  expect(edge.properties).toEqual({});
+  expect(edge.metadata).toEqual({});
+  expect(typeof edge.id).toBe("string");
+  expect(String(edge.id).startsWith(`${f.runtime.scope}links/`)).toBe(true);
+  expect(resource(replay), "retained original dependent result").toEqual(edge);
+  await collection("beads", [a, b]);
+  await collection("links", [edge]);
+  await events([
+    ["created", b.id, bead, createdData(b)],
+    ["created", a.id, bead, createdData(a)],
+    ["created", edge.id, link, createdData(edge)],
+    [
+      "linked",
+      edge.id,
+      link,
+      { endpoint: "source", link: { id: edge.id, type: link }, source: a.id, target: a.id },
+    ],
+    [
+      "linked",
+      edge.id,
+      link,
+      { endpoint: "target", link: { id: edge.id, type: link }, source: a.id, target: a.id },
+    ],
+  ]);
+  const inventory = await f.retainedReceiptInventory();
+  expect(
+    inventory.map((row) => [row.principal, row.key]),
+    "no timeout receipt or key",
+  ).toEqual([
+    ["p", "creator"],
+    ["p", "dependent"],
+    ["p", "independent"],
+  ]);
+  expect(inventory[1]!.receipt, "full retained receipt replay").toEqual(replay);
+  expect(dispatched, "bounded comparison HTTP dispatches").toBe(12);
+  expect(completed, "bounded comparison HTTP completions").toBe(12);
 });
 
 it.each([413, 406])(

@@ -436,7 +436,14 @@ describe("private same-owner Transactional service", () => {
         ],
       }),
     );
+    const before = f.owner.withRead((_reader, context) => context);
+    if (before.kind !== "read") throw new Error("trusted initial context unavailable");
+    expect(before.value.scopePosition).toBe("pos-0");
     const job = service.sequence("p", carrier);
+    const settled = job.then(
+      (value) => ({ value, error: undefined }),
+      (error: unknown) => ({ value: undefined, error }),
+    );
     const request = batch(
       [
         {
@@ -447,22 +454,75 @@ describe("private same-owner Transactional service", () => {
       ],
       "dependent",
     );
-    expect(await service.submit(request)).toEqual({
-      kind: "refused",
-      status: 503,
-      code: "temporarily-unavailable",
-      retry: "after-delay",
-    });
-    expect(waits).toBe(2);
-    expect(f.owner.inspect().resources).toEqual([]);
-    await scheduler.tick();
-    await scheduler.tick();
-    await job;
-    expect(await service.submit(request)).toMatchObject({
-      receipt: { status: "completed" },
-      context: { scopePosition: "pos-2" },
-    });
-    expect(f.owner.inspect().groups).toHaveLength(2);
+    const failures: unknown[] = [];
+    let drained = false,
+      closed = false,
+      cleanupTurns = 0;
+    try {
+      expect(
+        await service.submit(request),
+        "observed service comparison deadline shape",
+      ).toStrictEqual({
+        kind: "comparison-refusal",
+        reason: "deadline",
+        status: 503,
+        code: "temporarily-unavailable",
+        retry: "after-delay",
+        context: {
+          scopeEpoch: before.value.scopeEpoch,
+          authorizationView: before.value.authorizationView,
+          scopePosition: "pos-0",
+        },
+      });
+      expect(waits).toBe(2);
+      expect(f.owner.inspect().resources).toEqual([]);
+      await scheduler.tick();
+      await scheduler.tick();
+      await job;
+      expect(await service.submit(request)).toMatchObject({
+        receipt: { status: "completed" },
+        context: { scopePosition: "pos-2" },
+      });
+      expect(f.owner.inspect().groups).toHaveLength(2);
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      // At most the two admitted members remain. Release them even if an
+      // assertion failed before the first turn, then drain before closing.
+      for (let index = 0; index < carrier.members.length; index++) {
+        if (scheduler.callbacks.length === 0) break;
+        try {
+          await scheduler.tick();
+          cleanupTurns++;
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      try {
+        const outcome = await settled;
+        drained = true;
+        if (outcome.error !== undefined) failures.push(outcome.error);
+      } catch (error) {
+        failures.push(error);
+      }
+      try {
+        await service.close();
+        closed = true;
+      } catch (error) {
+        failures.push(error);
+      }
+      console.info(
+        JSON.stringify({
+          kind: "comparison-service-deadline-cleanup",
+          drained,
+          closed,
+          cleanupTurns,
+          pendingCallbacks: scheduler.callbacks.length,
+        }),
+      );
+    }
+    if (failures.length)
+      throw new AggregateError(failures, "comparison service assertion or cleanup failed");
   });
 
   it.each(["after-admission", "after-effects", "delivered"] as const)(

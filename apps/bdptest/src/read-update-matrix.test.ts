@@ -1639,12 +1639,14 @@ it.each([
   "detects W1b %s assertion-input corruption after actual HTTP",
   async (control, id, actionId, assertionIds) => {
     const report = await run(undefined, [id], false, false, undefined, undefined, control);
-    expect(report.counterfactualApplications).toBe(1);
+    const diagnostic = retainedRetryDiagnostic(report, { scenario: id, action: actionId });
+    expect(report.counterfactualApplications, diagnostic).toBe(1);
     const row = report.result.scenarios.find((row) => row.id === id);
-    expect(row?.state).toBe("fail");
+    expect(row?.state, diagnostic).toBe("fail");
     const action = row?.actions?.find((action) => action.action.id === actionId);
     expect(
       action?.assertions.filter((assertion) => !assertion.passed).map((assertion) => assertion.id),
+      diagnostic,
     ).toEqual(assertionIds);
   },
   30000,
