@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync, type ChildProcess } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -188,6 +188,7 @@ async function observe(control?: {
       { method: "GET", url: `${scope}beads/?limit=32` },
       { method: "GET", url: `${scope}events/` },
       { method: "GET", url: `${scope}beads/new` },
+      { method: "GET", url: `${scope}changes/?after=genesis` },
       { method: "GET", url: `${scope}beads/b` },
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
@@ -326,7 +327,7 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes ten partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+it("observes eleven partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
   const observed = await observe({ children });
@@ -335,15 +336,15 @@ it("observes ten partial Transactional contracts through packed-capable actual i
   expect(observed.result.scenarios).toHaveLength(255); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(10);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(11);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(17);
-  expect(children).toHaveLength(18); // Seventeen scenario/reopen sessions plus separate bootstrap.
+  expect(observed.sessions).toHaveLength(18);
+  expect(children).toHaveLength(19); // Eighteen scenario/reopen sessions plus separate bootstrap.
   expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
     true,
   );
   expect(observed.result.declarations).toMatchObject({
-    exactConfigurationDigest: "634214546089490d235fa404166dc868a0feb5dc2a8af2a566a6ad33664b4b1a",
+    exactConfigurationDigest: "906199051adc043408d64c0879a3d3f2cce32b06faa08b9458f4a270ce31a6ce",
   });
   const dynamic = observed.result.scenarios
     .flatMap((s) => s.exchanges)
@@ -403,8 +404,12 @@ it("observes ten partial Transactional contracts through packed-capable actual i
     }
     if (exchange.request.method === "HEAD") expect(exchange.response?.decodedBodyBytes).toBe(0);
   }
-  const newRows = observed.result.scenarios.filter(
-    (row) => row.id === "transactional.set.mutation" || row.id === "transactional.set.zero-match",
+  const newRows = observed.result.scenarios.filter((row) =>
+    [
+      "transactional.set.mutation",
+      "transactional.set.zero-match",
+      "transactional.batch.no-op-entries",
+    ].includes(row.id),
   );
   for (const row of newRows)
     for (const exchange of row.exchanges) {
@@ -428,10 +433,48 @@ it("observes ten partial Transactional contracts through packed-capable actual i
       expect(exchange.request.exact!.bodyOctets).toBeLessThanOrEqual(2048);
     expect(exchange.response!.decodedBodyBytes).toBeLessThanOrEqual(8192);
   }
+  const noop = observed.result.scenarios.find(
+    (row) => row.id === "transactional.batch.no-op-entries",
+  )!;
+  expect(noop.exchanges.map((e) => e.request.id)).toEqual([
+    "n-seed",
+    "n-seed-facts",
+    "n-seed-groups",
+    "n-noop",
+    "n-noop-facts",
+    "n-noop-beads",
+    "n-noop-link",
+    "n-noop-events",
+    "n-noop-groups",
+    "n-changed",
+    "n-changed-facts",
+    "n-changed-beads",
+    "n-changed-link",
+    "n-changed-events",
+    "n-changed-groups",
+  ]);
+  // Result.actions contains client observations only; result.exchanges contains
+  // all actual HTTP, including each client's receipt GET.
+  expect(noop.actions!.map((a) => a.action.id)).toEqual([
+    "n-seed-facts",
+    "n-noop-facts",
+    "n-changed-facts",
+  ]);
+  for (const exchange of noop.exchanges)
+    expect(exchange.assertions.every((a) => a.passed)).toBe(true);
+  for (const action of noop.actions!) {
+    expect(action.assertions.every((a) => a.passed)).toBe(true);
+    expect(noop.exchanges.find((e) => e.request.id === action.action.id)).toBeDefined();
+  }
+  // A successful final action includes scoped URL capture validation after its
+  // assertions. Presence alone would still accept a null continuation.
+  expect(noop.state).toBe("pass");
+  expect(noop.exchanges.at(-1)!.request.id).toBe("n-changed-groups");
+  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(159);
   expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
     JSON.stringify({
-      kind: "installed-tx-ten-partial-summary",
+      kind: "installed-tx-eleven-partial-summary",
       sourceCommit,
       elapsedMs: performance.now() - started,
       actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
@@ -1163,6 +1206,137 @@ it.each([
         claimEligible: observed.result.claimEligible,
       }),
     );
+  },
+  120000,
+);
+
+it("pins the matching no-op installed route digest and fifteen-action ledger", () => {
+  // Canonical exact-mode preimage authored from the approved route inventory;
+  // only these five fields enter the runner digest, not credentials or ports.
+  const preimage = JSON.stringify({
+    maximumRequestBodyBytes: 65536,
+    maximumRequestHeaderBytes: 16384,
+    profile: "transactional",
+    routes: [
+      { method: "GET", url: `${scope}beads/a` },
+      { method: "POST", url: `${scope}operations/batch` },
+      { method: "GET", url: `${scope}links/l` },
+      { method: "GET", url: `${scope}beads/?limit=32` },
+      { method: "GET", url: `${scope}events/` },
+      { method: "GET", url: `${scope}beads/new` },
+      { method: "GET", url: `${scope}changes/?after=genesis` },
+      { method: "GET", url: `${scope}beads/b` },
+      { method: "GET", url: `${scope}beads/c` },
+      { method: "POST", url: `${scope}operations/update-where` },
+      { method: "POST", url: `${scope}operations/delete-where` },
+    ],
+    scope,
+  });
+  expect(createHash("sha256").update(preimage).digest("hex")).toBe(
+    "906199051adc043408d64c0879a3d3f2cce32b06faa08b9458f4a270ce31a6ce",
+  );
+  const row = bundle.manifest.scenarios.find((r) => r.id === "transactional.batch.no-op-entries")!;
+  expect(row.actions!.map((a) => a.id)).toEqual([
+    "n-seed",
+    "n-seed-facts",
+    "n-seed-groups",
+    "n-noop",
+    "n-noop-facts",
+    "n-noop-beads",
+    "n-noop-link",
+    "n-noop-events",
+    "n-noop-groups",
+    "n-changed",
+    "n-changed-facts",
+    "n-changed-beads",
+    "n-changed-link",
+    "n-changed-events",
+    "n-changed-groups",
+  ]);
+  expect(row.actions!.filter((a) => a.family === "http")).toHaveLength(12);
+  expect(row.actions!.filter((a) => a.family === "client")).toHaveLength(3);
+  expect(row.actions!.flatMap((a) => a.assertions)).toHaveLength(223);
+  expect(row.actions!.at(-1)!.captures).toEqual([
+    { binding: "n-changed-next", from: { kind: "json-pointer", pointer: "/next" } },
+  ]);
+});
+
+it.each(["bead-property", "link-metadata", "group-inventory-and-head"] as const)(
+  "discriminates matching no-op evidence against %s",
+  async (control) => {
+    const children: ChildProcess[] = [];
+    const actionId = control === "group-inventory-and-head" ? "n-noop-groups" : "n-noop";
+    const observed = await observe({
+      children,
+      manifest(value) {
+        const row = value.scenarios.find((r) => r.id === "transactional.batch.no-op-entries")!;
+        const action = row.actions.find((a) => a.id === actionId)!;
+        if (control === "group-inventory-and-head") {
+          const assertions = action.assertions as { id: string; equals?: unknown }[];
+          assertions.find((a) => a.id === "group-inventory")!.equals = [["pos-1"], ["pos-2"]];
+          assertions.find((a) => a.id === "observed-head")!.equals = "pos-2";
+        } else {
+          const raw = action.raw as { body: { value: string } };
+          const body = JSON.parse(raw.body.value);
+          if (control === "bead-property")
+            body.operations[0].propertiesChange[0].value = "different";
+          else body.operations[1].metadataChange[0].value = { tag: "different" };
+          raw.body.value = JSON.stringify(body);
+        }
+      },
+    });
+    expect(observed.result.claimEligible).toBe(false);
+    expect(observed.result.artifacts.manifestDigest).not.toBe(bundle.digests.manifestDigest);
+    const row = observed.result.scenarios.find(
+      (r) => r.id === "transactional.batch.no-op-entries",
+    )!;
+    expect(row.state).toBe("fail");
+    const exchange = row.exchanges.find((e) => e.request.id === actionId)!;
+    expect(exchange.request.exact?.writeState).toBe("complete");
+    expect(exchange.response?.status).toBe(200);
+    const failed = exchange.assertions.filter((a) => !a.passed).map((a) => a.id);
+    expect(exchange.assertions.find((a) => a.id === "schema")?.passed).toBe(true);
+    if (control !== "group-inventory-and-head")
+      expect(exchange.assertions.find((a) => a.id === "disposition")?.passed).toBe(true);
+    const intended =
+      control === "bead-property"
+        ? ["bead-retained-record"]
+        : control === "link-metadata"
+          ? ["link-retained-record"]
+          : ["group-inventory", "observed-head"];
+    for (const id of intended) expect(failed).toContain(id);
+    if (control === "group-inventory-and-head")
+      expect([...failed].sort()).toEqual([...intended].sort());
+    expect(row.exchanges.at(-1)!.request.id).toBe(actionId);
+    expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
+    expect(children.length).toBeLessThanOrEqual(19);
+    const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
+    expect(exchanges).toBeLessThanOrEqual(159);
+    console.log(
+      JSON.stringify({
+        kind: "installed-tx-matching-noop-control",
+        control,
+        sourceCommit,
+        actionId,
+        observedStatus: exchange.response!.status,
+        writeState: exchange.request.exact!.writeState,
+        intended,
+        failures: failed,
+        exchanges,
+        sessions: observed.sessions.length,
+        childLaunches: children.length,
+        closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
+        artifacts: observed.result.artifacts,
+        declarations: observed.result.declarations,
+        baseline: observed.baseline,
+        claimEligible: observed.result.claimEligible,
+      }),
+    );
+    if (process.env.BDP_TRANSACTIONAL_NOOP_CONTROL_OUTPUT)
+      writeFileSync(
+        `${process.env.BDP_TRANSACTIONAL_NOOP_CONTROL_OUTPUT}-${control}.json`,
+        JSON.stringify({ sourceCommit, entry, ...observed }, null, 2) + "\n",
+      );
   },
   120000,
 );
