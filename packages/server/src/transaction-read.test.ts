@@ -12,6 +12,8 @@ import {
 import { prepareTransaction, prepareTransactionSingleton } from "./transaction-batch.js";
 import { openTransactionStore } from "./transaction-store.js";
 import { createTransactionReadPlane, transactionReadContexts } from "./transaction-read.js";
+import { createTransactionService } from "./transaction-service.js";
+import { createTransactionHttpHandler } from "./transaction-http.js";
 import type { ReadObservation } from "./authority-read.js";
 import { requestFromUrl } from "./read-request.js";
 
@@ -70,8 +72,8 @@ function fixture(extra: Partial<Parameters<typeof openTransactionStore>[0]> = {}
       generateOpaqueToken: () => `cursor_${++tokens}`,
     },
   };
-  function open() {
-    const plane = createTransactionReadPlane(store, readOptions);
+  function open(patch: Partial<typeof readOptions> = {}) {
+    const plane = createTransactionReadPlane(store, { ...readOptions, ...patch });
     cleanup.push(() => plane.close());
     return { plane, facet: plane.readFor({ kind: "anonymous" }) };
   }
@@ -99,6 +101,7 @@ function fixture(extra: Partial<Parameters<typeof openTransactionStore>[0]> = {}
       return store;
     },
     options,
+    readOptions,
     open,
     write,
     alias,
@@ -597,4 +600,193 @@ it("checks visible point rows and their minimum in the same entry and leaves the
         .perform(resource("beads/a")),
     ).current.scopePosition,
   ).toBe("pos-2");
+});
+
+describe("initial collection minimums", () => {
+  it("preserves behind-minimum control refusals without allocating retained state", async () => {
+    const f = fixture();
+    f.write(seed);
+    let allocations = 0;
+    const { plane } = f.open({
+      pagination: {
+        ...f.readOptions.pagination,
+        generateOpaqueToken: () => `refusal_${++allocations}`,
+      },
+    });
+    const facet = plane.minimumFor(
+      { kind: "anonymous" },
+      {
+        scopeEpoch: f.store.scopeEpoch,
+        authorizationView: "development-all-visible",
+        minimumPosition: "pos-2",
+      },
+    );
+    for (const [controls, code] of [
+      [{ limit: 11 }, "limit-exceeded"],
+      [{ selector: "$[?" }, "invalid-parameter"],
+      [{ selector: "$[?@.properties.n == '" + "x".repeat(4100) + "']" }, "limit-exceeded"],
+    ] as const) {
+      await expect(
+        facet.perform({ kind: "collection", collection: "beads", ...controls }),
+      ).resolves.toMatchObject({ kind: "problem", problem: { code } });
+      expect(allocations).toBe(0);
+    }
+  });
+
+  it.each(["beads", "links"] as const)(
+    "checks a minimum even for an empty %s collection",
+    async (collection) => {
+      const f = fixture(),
+        { plane } = f.open();
+      const minimum = {
+        scopeEpoch: f.store.scopeEpoch,
+        authorizationView: "development-all-visible",
+        minimumPosition: "pos-0",
+      };
+      const request = { kind: "collection", collection } as const;
+      const response = await plane.minimumFor({ kind: "anonymous" }, minimum).perform(request);
+      expect(body(response)).toEqual({ items: [], next: null });
+      expect(contexts(response).current.scopePosition).toBe("pos-0");
+      await expect(
+        plane
+          .minimumFor(
+            { kind: "anonymous" },
+            {
+              ...minimum,
+              minimumPosition: "pos-1",
+            },
+          )
+          .perform(request),
+      ).rejects.toMatchObject({ reason: "behind" });
+    },
+  );
+
+  it("applies accepted endpoint filters and minima independently", async () => {
+    const f = fixture();
+    f.write(seed);
+    const { plane } = f.open();
+    const minimum = {
+      scopeEpoch: f.store.scopeEpoch,
+      authorizationView: "development-all-visible",
+      minimumPosition: "pos-1",
+    };
+    for (const [source, ids] of [
+      ["beads/a", [url("links/self")]],
+      ["beads/b", []],
+    ] as const) {
+      const request = {
+        kind: "collection",
+        collection: "links",
+        source: url(source),
+        limit: 1,
+      } as const;
+      const response = await plane.minimumFor({ kind: "anonymous" }, minimum).perform(request);
+      expect(items(response).map((r) => r.id)).toEqual(ids);
+      expect(contexts(response).current.scopePosition).toBe("pos-1");
+      await expect(
+        plane
+          .minimumFor(
+            { kind: "anonymous" },
+            {
+              ...minimum,
+              minimumPosition: "pos-2",
+            },
+          )
+          .perform(request),
+      ).rejects.toMatchObject({ reason: "behind" });
+    }
+  });
+
+  it("does not retain failed attempts and preserves successful page rows versus current context", async () => {
+    const f = fixture();
+    f.write([
+      ...seed,
+      { operation: "createBead", id: "beads/c", type: bead, properties: { n: 3 } },
+    ]);
+    let allocations = 0;
+    const { plane, facet } = f.open({
+      pagination: {
+        ...f.readOptions.pagination,
+        retainedStateCapacity: 3,
+        maxRetainedCursorPositionsPerSnapshot: 2,
+        generateOpaqueToken: () => `minimum_${++allocations}`,
+      },
+    });
+    const minimum = {
+      scopeEpoch: f.store.scopeEpoch,
+      authorizationView: "development-all-visible",
+      minimumPosition: "pos-2",
+    };
+    const request = { kind: "collection", collection: "beads", limit: 1 } as const;
+    for (let i = 0; i < 4; i++)
+      await expect(
+        plane.minimumFor({ kind: "anonymous" }, minimum).perform(request),
+      ).rejects.toMatchObject({ reason: "behind" });
+    expect(allocations).toBe(0);
+    f.write([
+      {
+        operation: "updateBead",
+        bead: "beads/c",
+        propertiesChange: [{ op: "replace", path: "/n", value: 4 }],
+      },
+    ]);
+    const first = await plane.minimumFor({ kind: "anonymous" }, minimum).perform(request);
+    expect(items(first).map((r) => r.properties)).toEqual([{ n: 1 }]);
+    expect(contexts(first).current.scopePosition).toBe("pos-2");
+    expect(allocations).toBeGreaterThan(0);
+    const next = body(first).next;
+    expect(typeof next).toBe("string");
+    f.write([
+      {
+        operation: "updateBead",
+        bead: "beads/b",
+        propertiesChange: [{ op: "replace", path: "/n", value: 8 }],
+      },
+    ]);
+    const parsed = requestFromUrl(new URL(String(next)), scope);
+    if (isReadProblem(parsed)) throw new Error("invalid returned next");
+    const second = await facet.perform(parsed);
+    expect(items(second).map((r) => r.properties)).toEqual([{ n: 2 }]);
+    expect(contexts(second)).toMatchObject({
+      snapshot: { scopePosition: "pos-2" },
+      current: { scopePosition: "pos-3" },
+    });
+    expect(items(second)[0]?.revision).toBeTruthy();
+  });
+
+  it.each(["beads/", "beads/a"])(
+    "rejects a pre-aborted server Request for %s before any owner SQL",
+    async (suffix) => {
+      const f = fixture();
+      f.write(seed);
+      const service = createTransactionService(f.store, {
+        ownerLifetime: "service",
+        read: {
+          ...f.readOptions,
+          advertisedLimits: {
+            ...f.readOptions.advertisedLimits,
+            page: { defaultItems: 2, maximumItems: 32 },
+          },
+          pagination: { ...f.readOptions.pagination, maxPageItems: 32 },
+        },
+      });
+      cleanup.push(() => service.close());
+      const handler = createTransactionHttpHandler(service, scope);
+      const controller = new AbortController();
+      controller.abort(new Error("pre-aborted actual Request"));
+      const request = new Request(url(suffix), {
+        signal: controller.signal,
+        headers: {
+          "bdp-scope-epoch": f.store.scopeEpoch,
+          "bdp-authorization-view": "development-all-visible",
+          "bdp-minimum-scope-position": "pos-2",
+        },
+      });
+      const spy = vi.spyOn(DatabaseSync.prototype, "prepare");
+      await expect(
+        handler.handle(request, { kind: "authenticated", principal: "principal", canMutate: true }),
+      ).rejects.toThrow("abort");
+      expect(spy).not.toHaveBeenCalled();
+    },
+  );
 });

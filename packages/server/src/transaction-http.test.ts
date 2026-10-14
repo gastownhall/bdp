@@ -1014,7 +1014,10 @@ it("uses actual epoch/view decisions and an exhausted wait before conditional or
   expect(hidden.status).toBe(404);
   expect(hidden.headers.has("bdp-scope-position")).toBe(false);
   for (const suffix of [
-    "beads/",
+    "types/",
+    "beads/a?view=links",
+    "beads/missing?view=links",
+    "links/?cursor=missing",
     "alias/missing",
     "",
     "bdp.json",
@@ -1801,3 +1804,143 @@ it("preserves actual singleton bytes and wrapper-equivalent depth without accept
     expect(await f.receiptRows("oversize")).toEqual([]);
   }
 });
+
+it.each(["beads", "links"])(
+  "deterministically re-enters after a behind %s collection attempt and exposes the intervening commit",
+  async (collection) => {
+    let current: Awaited<ReturnType<typeof fixture>> | undefined;
+    let waits = 0;
+    const f = await fixture({
+      minimumReads: {
+        budgetMs: 1000,
+        wait: async () => {
+          waits++;
+          if (!current) throw new Error("missing fixture");
+          const operation =
+            collection === "beads"
+              ? {
+                  operation: "updateBead",
+                  bead: "beads/a",
+                  propertiesChange: [{ op: "replace", path: "/title", value: "after" }],
+                }
+              : {
+                  operation: "updateLink",
+                  link: "links/l",
+                  propertiesChange: [{ op: "replace", path: "/title", value: "after" }],
+                };
+          expect(
+            (await current.post(batch([operation]), `advance_${collection}_${waits}`)).status,
+          ).toBe(200);
+        },
+      },
+    });
+    current = f;
+    const seed = await f.post(
+      batch([
+        create(),
+        {
+          operation: "createLink",
+          id: "links/l",
+          type: link,
+          source: "beads/a",
+          target: "beads/a",
+          properties: { title: "before" },
+        },
+      ]),
+    );
+    const response = await f.get(`${f.runtime.scope}${collection}/`, {
+      headers: minimumHeaders(seed, "pos-2"),
+    });
+    expect(waits).toBe(1);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-2");
+    expect(response.headers.has("etag")).toBe(false);
+    const rows = (await body(response)).items as Record<string, unknown>[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: `${f.runtime.scope}${collection}/${collection === "beads" ? "a" : "l"}`,
+      properties: { title: "after" },
+    });
+    expect(typeof rows[0]?.revision).toBe("string");
+  },
+);
+
+it("preserves materialized collection control Problems before a behind minimum without waiting", async () => {
+  const wait = vi.fn(async () => {});
+  const f = await fixture({ minimumReads: { budgetMs: 2, wait } });
+  const seed = await f.post();
+  const headers = minimumHeaders(seed, "pos-2");
+  for (const [query, status, code] of [
+    ["limit=33", 413, "limit-exceeded"],
+    ["selector=" + encodeURIComponent("$[?"), 400, "invalid-parameter"],
+    [
+      "selector=" + encodeURIComponent("$[?@.title == '" + "x".repeat(4100) + "']"),
+      413,
+      "limit-exceeded",
+    ],
+    ["limit=0", 400, "invalid-parameter"],
+    ["limit=1&limit=2", 400, "invalid-parameter"],
+  ] as const) {
+    const response = await f.get(`${f.runtime.scope}beads/?${query}`, { headers });
+    expect(response.status).toBe(status);
+    expect(checkedProblem(await body(response))).toMatchObject({ status, code, retry: "never" });
+  }
+  expect(wait).not.toHaveBeenCalled();
+  const result = await f.get(`${f.runtime.scope}beads/?limit=1`, {
+    headers: minimumHeaders(seed, "pos-1"),
+  });
+  expect(result.status).toBe(200);
+});
+
+it.each(["beads/", "beads/a"])(
+  "stops %s retries after synchronized actual Node disconnect",
+  async (suffix) => {
+    const entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>(),
+      aborted = Promise.withResolvers<void>();
+    let waits = 0,
+      tick = 0;
+    const abort = AbortController.prototype.abort;
+    vi.spyOn(AbortController.prototype, "abort").mockImplementation(function (
+      this: AbortController,
+      reason?: unknown,
+    ) {
+      abort.call(this, reason);
+      if (reason instanceof Error && reason.message === "client disconnected") aborted.resolve();
+    });
+    const f = await fixture({
+      minimumReads: {
+        budgetMs: 10,
+        now: () => tick++,
+        wait: async () => {
+          waits++;
+          entered.resolve();
+          await release.promise;
+        },
+      },
+    });
+    const seed = await f.post();
+    const req = httpRequest(`${f.runtime.scope}${suffix}`, {
+      headers: { authorization: `Bearer ${token}`, ...minimumHeaders(seed, "pos-2") },
+    });
+    req.on("error", () => {});
+    const timer = setTimeout(() => {
+      entered.reject(new Error("behind attempt unavailable"));
+      aborted.reject(new Error("Node abort unavailable"));
+      release.resolve();
+    }, 3000);
+    try {
+      req.end();
+      await entered.promise;
+      req.destroy();
+      await aborted.promise; // Node listener has called the real server AbortController.
+      release.resolve();
+      await f.runtime.close();
+      expect(waits).toBe(1);
+    } finally {
+      clearTimeout(timer);
+      req.destroy();
+      release.resolve();
+    }
+  },
+);

@@ -620,17 +620,21 @@ identifiers. The owner/service preserve causes, but this private HTTP fixture ha
 not yet added a bounded internal diagnostic channel for those caught exceptions.
 That diagnosability gap remains open; it is not a claim that causes reach clients.
 
-### Canonical point and receipt minimum-read subset
+### Canonical point, initial collection and receipt minimum-read subset
 
 The private HTTP fixture now honors complete canonical epoch/view/minimum tuples
-on existing visible Bead and Link records, their properties views, and receipt instances.
+on existing visible Bead and Link records, their properties views, initial current
+Bead/Link collections, and receipt instances.
 It validates immutable per-request controls before waiting. The shared Read plane
-has a source-private fixed condition hook after captured authorization and point
-materialization, still inside the same owner entry and before delivery; ordinary
-Read/Read+Update calls use no such condition. The
+has a source-private fixed condition hook after captured authorization and
+materialization, still inside the same owner entry and before cursor retention
+or delivery; ordinary Read/Read+Update calls use no such condition. The
 Transactional hook checks the actual same-entry source context. It does not read
 a diagnostic position before or after the representation, retain a mutable global
-condition, or create another Read plane per request.
+condition, or create another Read plane per request. Initial collection request
+control refusals retain `invalid-parameter` (400) and `limit-exceeded` (413) before a
+minimum wait; valid representations still enforce the minimum before retention
+and conditional handling. Collections gain no ETag.
 
 Receipt attempts retain principal/epoch nondisclosure before minimum decisions,
 recheck actual retention each turn and capture body/current context together.
@@ -645,18 +649,22 @@ this does not add a separate SQLite BEGIN around every ordinary Read.
 
 The default private wait budget is finite; injected scheduling/clock seams are
 for tests, not new public configuration or advertised limits. Service close drains
-accepted finite waits. The private point facet accepts an AbortSignal, but the
-HTTP path does not pass a signal or connect socket disconnects to a controller.
-Actual HTTP point and receipt disconnects both drain the remaining finite wait
-budget, which also bounds their shutdown delay. Unsupported command controls
+accepted finite waits. The HTTP Read perform route forwards its Request signal;
+the runtime connects socket disconnects to that signal. Point and initial
+collection waits stop at the next loop check after abort becomes observable.
+Synchronous materialization and a current bounded sleep are not preempted; this
+is not an instantaneous-cancellation or latency guarantee. Receipt waits still
+drain their remaining finite budget; receipt and changes/events wait behavior
+is unchanged by this Read-route forwarding. Unsupported command controls
 still fail before mutation admission, after authentication/authorization.
 
 This remains a named subset, not complete minimum-position qualification.
 Absent/hidden Resource ordering relative to a minimum has no established ruling;
 such point requests return the explicit private visibility gap without adopting
 either 404-first or barrier-first semantics. This fixed all-visible owner does
-not qualify changing visibility policies. Collection continuations and other nonpoint routes retain the development gap
-when controls are supplied. Partial/malformed tuples, bare epoch/view fields and
+not qualify changing visibility policies. Collection continuations, Types,
+incident Links, aliases and discovery retain the development gap when minimum
+controls are supplied. Partial/malformed tuples, bare epoch/view fields and
 unknown opaque position spellings also retain that gap; no normative error rule
 is invented for them. In particular, whether a minimum constrains an old retained
 query page's anchor or its current serving observation remains unresolved. Normal
