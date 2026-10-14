@@ -857,9 +857,9 @@ it("preserves every original TX scenario and coverage object while adding one bo
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
   expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(187);
-  // Deletion-safety stage1 measurement: M620090/N16373/C88043/A333.
-  // Proposed measured margins4096B/64nodes/1024B await root acceptance;
-  // absolute planning envelopes are independent, unchanged upper stops.
+  // Root-accepted deletion-safety measurement: M620094/N16373/C88043/A333.
+  // Schema-name repair uses4B of the accepted margin:4092B/64nodes/1024B.
+  // Delta guards bind here; absolute planning envelopes remain unchanged.
   expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(135906);
   expect(read("manifest").byteLength).toBeLessThanOrEqual(650386);
   expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(18405);
@@ -2015,7 +2015,7 @@ function assertDeletionSafetyObservation(candidate: typeof manifest) {
     "d-delete-facts": [...client("pos-2"), ...receipt(false, "/body")],
     "d-final-beads": state(false, true),
     "d-final-links": state(true, true),
-    "d-deleted-a": raw("problem", "", "pos-2", 404),
+    "d-deleted-a": raw("readProblem", "", "pos-2", 404),
     "d-final-events": eventPage(true),
     "d-final-groups": groups(true),
   };
@@ -2171,3 +2171,25 @@ it.each(["unchanged-link", "problem-index", "rollback-metadata"] as const)(
     );
   },
 );
+
+// Resolve every authored reference without starting an installed service.
+function resolveAuthoredTransactionalSchemas(candidate: typeof manifest) {
+  const validator = createJsonSchemaValidator(schema);
+  for (const row of candidate.scenarios)
+    for (const action of row.actions)
+      for (const assertion of action.assertions)
+        if (assertion.kind === "json-schema") validator.resolve(assertion.schema);
+}
+it("resolves every authored TX schema and rejects the undefined deleted-point reference", () => {
+  resolveAuthoredTransactionalSchemas(manifest);
+  const previous = structuredClone(manifest);
+  const row = previous.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.batch.deletion-safety",
+  )!;
+  row.actions
+    .find((a: { id: string }) => a.id === "d-deleted-a")!
+    .assertions.find((a: { id: string }) => a.id === "schema")!.schema = "#/$defs/problem";
+  expect(() => resolveAuthoredTransactionalSchemas(previous)).toThrow(
+    "unknown schema reference '#/$defs/problem'",
+  );
+});

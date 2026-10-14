@@ -4444,7 +4444,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/problem"
+              "schema": "#/$defs/readProblem"
             },
             {
               "id": "position",
