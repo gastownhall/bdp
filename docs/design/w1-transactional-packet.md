@@ -6322,7 +6322,7 @@ inheritance as is and let a Transactional claim fail the retired rows
       {
         "source": "docs/specs/bdp.md",
         "anchor": "#scope-changefeed",
-        "selectedText": "On automatic reconnect, `Last-Event-ID` overrides the original `after` value."
+        "selectedText": "On automatic reconnect, `Last-Event-ID` overrides the original `after` value or `start=now` intent; replay begins exclusively after that checkpoint."
       },
       {
         "source": "docs/specs/bdp.md",

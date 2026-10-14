@@ -435,8 +435,6 @@ export function createTransactionHttpHandler(
       const fields =
         lastEventIds ??
         (request.headers.has("last-event-id") ? [request.headers.get("last-event-id")!] : []);
-      if (media === "sse" && "start" in changefeed && fields.length > 0)
-        return developmentGap("start-now-last-event-id");
       if (media === "sse" && fields.length > 1)
         throw new TransactionChangefeedParameterError("repeated Last-Event-ID");
       const effective = media === "sse" && fields.length === 1 ? { after: fields[0]! } : changefeed;

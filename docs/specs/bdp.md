@@ -5969,7 +5969,9 @@ client supplies exactly one explicit starting intent:
   applied group;
 - the distinguished genesis checkpoint to request complete history when it is
   still retained; or
-- `start=now` to deliberately observe only future groups.
+- `start=now` to deliberately observe only future groups; when
+  `text/event-stream` is the accepted media type and the request also carries
+  a reconnect checkpoint in `Last-Event-ID`, that checkpoint governs instead.
 
 Omitting both is an error. It never means “start at whatever history
 remains.” A finite JSON read returns only complete change groups:
@@ -6110,7 +6112,8 @@ group.
 Accepting `text/event-stream` on the same Resource delivers one complete group
 per SSE message. The SSE `id` is the group's checkpoint, `event` is
 `change-group`, and `data` is the complete JSON group. On automatic reconnect,
-`Last-Event-ID` overrides the original `after` value. A checkpoint supplied
+`Last-Event-ID` overrides the original `after` value or `start=now` intent;
+replay begins exclusively after that checkpoint. A checkpoint supplied
 for changefeed reconnect, whether through `Last-Event-ID` or `after`, MUST
 be the client's durable checkpoint under the atomic-application rule above.
 An SSE implementation's remembered last-event ID records transport progress,
