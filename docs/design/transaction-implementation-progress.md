@@ -620,11 +620,12 @@ identifiers. The owner/service preserve causes, but this private HTTP fixture ha
 not yet added a bounded internal diagnostic channel for those caught exceptions.
 That diagnosability gap remains open; it is not a claim that causes reach clients.
 
-### Canonical point, initial collection and receipt minimum-read subset
+### Canonical point, Type inventory, incident view and receipt minimum-read subset
 
 The private HTTP fixture now honors complete canonical epoch/view/minimum tuples
 on existing visible Bead and Link records, their properties views, initial current
-Bead/Link collections, and receipt instances.
+Bead/Link collections, canonical in-Scope Type descriptors and initial Type inventories,
+initial incident-Link views, and receipt instances.
 It validates immutable per-request controls before waiting. The shared Read plane
 has a source-private fixed condition hook after captured authorization and
 materialization, still inside the same owner entry and before cursor retention
@@ -634,7 +635,7 @@ a diagnostic position before or after the representation, retain a mutable globa
 condition, or create another Read plane per request. Initial collection request
 control refusals retain `invalid-parameter` (400) and `limit-exceeded` (413) before a
 minimum wait; valid representations still enforce the minimum before retention
-and conditional handling. Collections gain no ETag.
+and conditional handling. Collections, Type descriptors and incident views gain no ETag.
 
 Receipt attempts retain principal/epoch nondisclosure before minimum decisions,
 recheck actual retention each turn and capture body/current context together.
@@ -650,8 +651,8 @@ this does not add a separate SQLite BEGIN around every ordinary Read.
 The default private wait budget is finite; injected scheduling/clock seams are
 for tests, not new public configuration or advertised limits. Service close drains
 accepted finite waits. The HTTP Read perform route forwards its Request signal;
-the runtime connects socket disconnects to that signal. Point and initial
-collection waits stop at the next loop check after abort becomes observable.
+the runtime connects socket disconnects to that signal. Current point, Type inventory,
+initial collection and incident-view waits stop at the next loop check after abort becomes observable.
 Synchronous materialization and a current bounded sleep are not preempted; this
 is not an instantaneous-cancellation or latency guarantee. Receipt waits still
 drain their remaining finite budget; receipt and changes/events wait behavior
@@ -659,18 +660,47 @@ is unchanged by this Read-route forwarding. Unsupported command controls
 still fail before mutation admission, after authentication/authorization.
 
 This remains a named subset, not complete minimum-position qualification.
-Absent/hidden Resource ordering relative to a minimum has no established ruling;
-such point requests return the explicit private visibility gap without adopting
-either 404-first or barrier-first semantics. This fixed all-visible owner does
-not qualify changing visibility policies. Collection continuations, Types,
-incident Links, aliases and discovery retain the development gap when minimum
-controls are supplied. Partial/malformed tuples, bare epoch/view fields and
+Compatible, already-satisfied minimums on absent/deleted canonical Bead/Link
+records and properties, unknown canonical in-Scope Type points, and absent/deleted
+incident anchors return the actual observed404 with same-entry current context.
+Simultaneous missing/hidden and behind/foreign conditions retain the
+private visibility gap; their arbitration remains unqualified. The ordinary
+in-process Read facet now forwards only signal, ignoring generic sourceCondition;
+only minimumFor honors a minimum. Corrupt owner context propagates as an integrity
+failure (sanitized500 without a visibility marker), rather than being masked as
+missing/minimum ambiguity. This fixed all-visible owner does not qualify changing
+visibility policies. Source and HTTP tests cover the absent/deleted, Bead/Link,
+record/properties, equal/earlier product, conditionals and no-poll collisions.
+The separately reported installed compatible-missing scenario uses two owned-Link
+batches and eight reads (10 exchanges, one child), including a final behind failure.
+Per-step source revisions prove the owned deletion sequence; no earlier create
+image is represented as the final owner image. Supporting source-bound evidence
+and three source-mutant controls are recorded in the
+[frozen implementation report](https://github.com/donnabox/beads/blob/30cdcf30f0488f9d400343a9141c5c314eb9f02e/docs/architecture/bdp-client-v2/transaction-compatible-missing-minimum-implementation-report.md).
+
+The current Type/incident increment reuses the same owner entry, finite wait and
+compatible observed404 callback. Canonical in-Scope Type points and initial Type
+inventory/incident views are supported; ordinary external Type reads remain
+unchanged. Unknown Types and absent/deleted incident anchors return compatible404
+with actual context, while missing+behind/foreign cases retain the explicit gap.
+The ordinary facet's descriptor-safe delivery-option boundary is preserved.
+Source/HTTP tests and a separate installed20-request/one-child/seven-URL scenario
+are recorded in the
+[frozen implementation report](https://github.com/donnabox/beads/blob/d573ce1ca7501a97a394c6ff3061771ec97e73f7/docs/architecture/bdp-client-v2/transaction-current-type-incident-minimum-implementation-report.md).
+This fixed all-visible evidence does not qualify hidden policy, retained minima,
+Type lifecycle, discovery activation or a full profile.
+
+External Type identities are outside the private minimum subset and are not
+addressable Scope HTTP routes; ordinary private external-Type reads are unchanged.
+Collection and incident-view continuations, aliases and discovery retain the
+development gap when minimum controls are supplied. Partial/malformed tuples,
+bare epoch/view fields and
 unknown opaque position spellings also retain that gap; no normative error rule
 is invented for them. In particular, whether a minimum constrains an old retained
 query page's anchor or its current serving observation remains unresolved. Normal
 continuations without controls retain their existing stable data/lifetime behavior.
-No public profile/discovery, schema, durable format, Type or evidence change was
-made. Fresh Snapshot creation GET/HEAD now also accepts the complete canonical
+No public profile/discovery, schema, durable format, Type or qualification claim
+changes. Fresh Snapshot creation GET/HEAD now also accepts the complete canonical
 minimum tuple. Both capture and nonallocating preflight check the actual owner
 context before expiry/copy/allocation and reuse one finite wait with disconnect
 cancellation. Preflight remains authoritative before conditional/media decisions;
@@ -1057,7 +1087,12 @@ context must also identify a retained Event in that Source. Malformed and
 never-member cursors return `invalid-parameter` as a local reference convention.
 A known Resource identity remains an Event Source after deletion; an unknown
 source returns nondisclosing 404 before minimum checks, also a local reference
-ordering choice. Receipt detail expiry does not prune Events.
+ordering choice. Unknown receipt pages likewise keep their local context-free404
+convention under arbitrary controls. Neither convention establishes global
+missing/minimum precedence: canonical current Resource/properties reads return
+observed404 with context only when the supplied minimum is compatible and already
+satisfied; missing+behind/foreign remains a private gap. Receipt detail expiry does
+not prune Events.
 
 HTTP authentication and Origin/Host/raw-target checks precede Event access. The
 existing finite minimum wait releases the owner entry between attempts, reports
@@ -1638,3 +1673,23 @@ then a real batch, independent afterstate GET and exact retained retry. Its
 Fresh pack/install execution, actual source/configuration/payload bindings and
 cleanup are recorded separately in the C3 implementation report; emitted tests
 alone do not establish an installed result or cold-client usability.
+
+### Internal discovery minimum observation
+
+The private discoveryObserved accessor accepts an optional canonical minimum and
+AbortSignal. It captures that tuple once, checks each attempt against the same
+owner entry that supplies epoch/view/head, and uses the existing finite wait.
+No owner entry spans a wait or parsing. Only a successful eligible observation is
+assembled; foreign/expired context, timeout, owner refusal and parser failures
+remain distinct. Service close drains admitted waits before closing the owner.
+Cancellation is observed before an attempt and at the next wait-loop check; it
+does not preempt synchronous SQLite work or an already running sleep.
+
+Without a minimum, the existing synchronous observation path is preserved and
+the optional signal is inert. This internal preparation adds no HTTP caller:
+Scope, descriptor and directory discovery remain refused, including the existing
+minimum-route gap. Source and direct emitted-module proof are recorded separately
+in the [frozen implementation report](https://github.com/donnabox/beads/blob/4925b1b2d37de792b6ec35f89f29ba23fb1210d9/docs/architecture/bdp-client-v2/transaction-discovery-minimum-service-implementation-report.md). The emitted
+ordinary discovery-refusal regression and the separate packed12/1 boundary cohort
+are not proof of the new accessor. No wire-ready profile, installed discovery,
+public admission, catalog credit or completed cumulative qualification is claimed.

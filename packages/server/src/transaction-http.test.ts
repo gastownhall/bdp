@@ -1153,9 +1153,6 @@ it("uses actual epoch/view decisions and an exhausted wait before conditional or
   expect(hidden.status).toBe(404);
   expect(hidden.headers.has("bdp-scope-position")).toBe(false);
   for (const suffix of [
-    "types/",
-    "beads/a?view=links",
-    "beads/missing?view=links",
     "links/?cursor=missing",
     "alias/missing",
     "",
@@ -1204,32 +1201,106 @@ it("preserves authentication before command-control gaps without reserving keys"
   }
 });
 
-it("does not invent absent Resource versus minimum ordering", async () => {
-  const f = await fixture();
-  const created = await f.post();
+it("serves compatible missing Resource404 with context and preserves incompatible gaps without waiting", async () => {
+  const wait = vi.fn(async () => {});
+  const f = await fixture({ minimumReads: { budgetMs: 2, wait } });
+  const created = await f.post(
+    batch([
+      create("a"),
+      create("b"),
+      { operation: "createLink", id: "links/l", type: link, source: "beads/a", target: "beads/b" },
+    ]),
+  );
+  expect(created.status).toBe(200);
+  const removed = await f.post(
+    batch([
+      { operation: "deleteLink", link: "links/l" },
+      { operation: "deleteBead", bead: "beads/a" },
+    ]),
+    "removed",
+  );
+  expect(removed.status).toBe(200);
+  expect(removed.headers.get("bdp-scope-position")).toBe("pos-2");
+  for (const id of ["beads/missing", "links/missing", "beads/a", "links/l"])
+    for (const view of ["", "?view=properties"])
+      for (const method of ["GET", "HEAD"])
+        for (const earlier of [true, false]) {
+          const response = await f.get(`${f.runtime.scope}${id}${view}`, {
+            method,
+            headers: {
+              ...minimumHeaders(earlier ? created : removed),
+              ...(earlier ? { "if-none-match": "*" } : { "if-match": '"mismatch"' }),
+            },
+          });
+          expect(response.status).toBe(404);
+          expect(response.headers.get("bdp-scope-position")).toBe("pos-2");
+          for (const name of ["bdp-scope-epoch", "bdp-authorization-view"])
+            expect(response.headers.get(name)).toBe(removed.headers.get(name));
+          expect(response.headers.get("cache-control")).toBe("private, no-store");
+          expect(response.headers.has("etag")).toBe(false);
+          expect(response.headers.get("content-type")).toBe("application/problem+json");
+          if (method === "HEAD") {
+            expect(await response.text()).toBe("");
+            expect(Number(response.headers.get("content-length"))).toBeGreaterThan(0);
+          } else
+            expect(checkedProblem(await body(response))).toMatchObject({
+              code: "resource-not-found",
+              status: 404,
+            });
+        }
+  for (const method of ["GET", "HEAD"]) {
+    const response = await f.get(`${f.runtime.scope}beads/missing`, {
+      method,
+      headers: minimumHeaders(removed),
+    });
+    expect(response.status).toBe(404);
+    for (const name of ["bdp-scope-position", "bdp-scope-epoch", "bdp-authorization-view"])
+      expect(response.headers.get(name)).toBe(removed.headers.get(name));
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.has("etag")).toBe(false);
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    if (method === "HEAD") {
+      expect(await response.text()).toBe("");
+      expect(Number(response.headers.get("content-length"))).toBeGreaterThan(0);
+    } else
+      expect(checkedProblem(await body(response))).toMatchObject({
+        code: "resource-not-found",
+        status: 404,
+      });
+  }
   for (const suffix of [
     "beads/missing",
     "links/missing",
     "beads/missing?view=properties",
     "links/missing?view=properties",
-  ]) {
-    for (const method of ["GET", "HEAD"]) {
+  ])
+    for (const method of ["GET", "HEAD"])
       for (const extra of [
-        {},
         { "bdp-scope-epoch": "foreign" },
+        { "bdp-authorization-view": "foreign" },
         { "bdp-minimum-scope-position": "pos-99" },
       ]) {
         const response = await f.get(`${f.runtime.scope}${suffix}`, {
           method,
-          headers: { ...minimumHeaders(created), ...extra },
+          headers: { ...minimumHeaders(removed), ...extra },
         });
         expect(response.status).toBe(500);
         expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
-        expect(response.headers.has("bdp-scope-position")).toBe(false);
+        for (const name of ["bdp-scope-position", "bdp-scope-epoch", "bdp-authorization-view"])
+          expect(response.headers.has(name)).toBe(false);
         expect(await response.text()).toBe("");
       }
-    }
-  }
+  expect(wait).not.toHaveBeenCalled();
+  const malformed = await f.get(`${f.runtime.scope}beads/missing`, {
+    headers: minimumHeaders(removed, "unissued"),
+  });
+  expect(malformed.status).toBe(500);
+  expect(malformed.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+  const anonymous = await f.get(`${f.runtime.scope}beads/missing`, {
+    headers: { ...minimumHeaders(removed), authorization: "" },
+  });
+  expect(anonymous.status).toBe(401);
+  expect(anonymous.headers.has("bdp-scope-position")).toBe(false);
 });
 
 it("uses the final actual attempt context for GET and HEAD timeouts after real progress", async () => {
@@ -2159,4 +2230,177 @@ it("serves complete fresh Snapshot minima with exact timeout, foreign and condit
   expect(retained.status).toBe(500);
   expect(retained.headers.get("x-bdp-development-limit")).toBe("minimum-position");
   expect(await body(await f.get(id(manifest)))).toEqual(manifest);
+});
+
+it("serves canonical current Type and incident minimums with truthful context and parser boundaries", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-type-incident-http-"));
+  cleanup.push(() => rmSync(directory, { recursive: true, force: true }));
+  const scope = "https://canonical.test/acme/";
+  const descriptor = parseTypeDescriptor({
+    id: `${scope}types/task`,
+    name: "Task",
+    describes: "bead",
+    conformsTo: [],
+  });
+  let tick = 0;
+  const runtime = await startTransactionRuntime(
+    {
+      directory,
+      scope,
+      port: 0,
+      create: true,
+      types: [...types, descriptor],
+      credentials: [{ token, principal: "p", canMutate: true }],
+    },
+    { minimumReads: { budgetMs: 2, now: () => tick++, wait: async () => {} } },
+  );
+  cleanup.push(() => runtime.close());
+  const send = (suffix: string, headers: Record<string, string>, method = "GET") => {
+    const canonical = new URL(suffix, scope);
+    return fetch(new URL(canonical.pathname + canonical.search, runtime.listenUrl), {
+      method,
+      headers: { authorization: `Bearer ${token}`, host: new URL(scope).host, ...headers },
+    });
+  };
+  const seeded = await fetch(new URL(new URL(runtime.targets.batch).pathname, runtime.listenUrl), {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      host: new URL(scope).host,
+      "content-type": "application/json",
+      "idempotency-key": "type_incident_seed",
+    },
+    body: batch([
+      create(),
+      create("b"),
+      {
+        operation: "createLink",
+        id: "links/l",
+        type: link,
+        source: "beads/a",
+        target: "beads/b",
+        properties: { n: 1 },
+        metadata: { tag: "actual" },
+      },
+    ]),
+  });
+  expect(seeded.status).toBe(200);
+  const seedReceipt = await body(seeded);
+  expect(seedReceipt).toMatchObject({ status: "completed", requiredPosition: "pos-1" });
+  const headers = {
+    "bdp-scope-epoch": seeded.headers.get("bdp-scope-epoch")!,
+    "bdp-authorization-view": seeded.headers.get("bdp-authorization-view")!,
+    "bdp-minimum-scope-position": "pos-1",
+  };
+  const assertContext = (response: Response) => {
+    expect(response.headers.get("bdp-scope-epoch")).toBe(headers["bdp-scope-epoch"]);
+    expect(response.headers.get("bdp-authorization-view")).toBe(headers["bdp-authorization-view"]);
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+    expect(response.headers.has("etag")).toBe(false);
+  };
+  for (const suffix of ["types/task", "types/?limit=3", "beads/a?view=links"]) {
+    const response = await send(suffix, headers);
+    expect(response.status).toBe(200);
+    assertContext(response);
+    const value = await body(response);
+    if (suffix === "types/task") expect(value).toEqual(descriptor);
+    else if (suffix.startsWith("types/"))
+      expect(value).toEqual({
+        items: [...types, descriptor]
+          .map((t) => ({ id: t.id, name: t.name, describes: t.describes }))
+          .sort((a, b) => (a.id < b.id ? -1 : 1)),
+        next: null,
+      });
+    else
+      expect(value).toEqual({
+        items: [
+          {
+            id: `${scope}links/l`,
+            type: link,
+            source: `${scope}beads/a`,
+            target: `${scope}beads/b`,
+            properties: { n: 1 },
+            metadata: { tag: "actual" },
+            revision: expect.any(String),
+          },
+        ],
+        next: null,
+      });
+    for (const method of ["GET", "HEAD"]) {
+      const head = await send(suffix, headers, method);
+      expect(head.status).toBe(200);
+      assertContext(head);
+      if (method === "HEAD") expect(await head.text()).toBe("");
+      for (const [conditional, status] of [
+        [{ "if-none-match": "*" }, 304],
+        [{ "if-match": '"mismatch"' }, 412],
+      ] as const) {
+        const response = await send(suffix, { ...headers, ...conditional }, method);
+        expect(response.status).toBe(status);
+        assertContext(response);
+        if (method === "HEAD" || status === 304) expect(await response.text()).toBe("");
+        const timeout = await send(
+          suffix,
+          { ...headers, ...conditional, "bdp-minimum-scope-position": "pos-2" },
+          method,
+        );
+        expect(timeout.status).toBe(503);
+        assertContext(timeout);
+        expect(timeout.headers.get("retry-after")).toBe("1");
+        if (method === "HEAD") expect(await timeout.text()).toBe("");
+        else
+          expect(checkedProblem(await body(timeout))).toMatchObject({
+            code: "catch-up-timeout",
+            retry: "after-delay",
+          });
+      }
+      for (const [field, code, status] of [
+        ["bdp-scope-epoch", "cursor-expired", 410],
+        ["bdp-authorization-view", "foreign-view", 409],
+      ] as const) {
+        const refused = await send(suffix, { ...headers, [field]: "foreign" }, method);
+        expect(refused.status).toBe(status);
+        assertContext(refused);
+        if (method === "HEAD") expect(await refused.text()).toBe("");
+        else expect(checkedProblem(await body(refused))).toMatchObject({ code });
+      }
+    }
+    expect((await send(suffix, { ...headers, accept: "image/png" })).status).toBe(406);
+    const unauthorized = await send(suffix, { ...headers, authorization: "" });
+    expect(unauthorized.status).toBe(401);
+    expect(unauthorized.headers.has("bdp-scope-position")).toBe(false);
+  }
+  for (const suffix of ["types/?limit=33", "beads/a?view=links&limit=33"]) {
+    const refused = await send(suffix, { ...headers, "bdp-minimum-scope-position": "pos-2" });
+    expect(refused.status).toBe(413);
+    expect(await body(refused)).toMatchObject({ code: "limit-exceeded" });
+  }
+  for (const suffix of [
+    "types/task?view=properties",
+    "types/?limit=nope",
+    "beads/a?view=links&limit=nope",
+    "types/?selector=x",
+    "beads/a?view=links&selector=x",
+    "types/?limit=1&limit=2",
+  ]) {
+    const refused = await send(suffix, headers);
+    expect(refused.status).toBe(400);
+    expect(await body(refused)).toMatchObject({ code: "invalid-parameter" });
+  }
+  for (const suffix of ["types/absent", "beads/missing?view=links"]) {
+    const missing = await send(suffix, headers);
+    expect(missing.status).toBe(404);
+    assertContext(missing);
+    expect(await body(missing)).toMatchObject({ code: "resource-not-found" });
+    for (const patch of [
+      { "bdp-minimum-scope-position": "pos-2" },
+      { "bdp-scope-epoch": "foreign" },
+      { "bdp-authorization-view": "foreign" },
+    ]) {
+      const refused = await send(suffix, { ...headers, ...patch });
+      expect(refused.status).toBe(500);
+      expect(refused.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
+      expect(refused.headers.has("bdp-scope-position")).toBe(false);
+    }
+  }
 });
