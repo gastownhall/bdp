@@ -24395,7 +24395,15 @@
               "value": "{\"id\":\"beads/nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-bead-child\",\"properties\":{\"n\":0,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"}}"
             }
           },
-          "captures": [],
+          "captures": [
+            {
+              "binding": "nr-bead-schema.url",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/resource/id"
+              }
+            }
+          ],
           "assertions": [
             {
               "id": "status",
@@ -24485,45 +24493,60 @@
         },
         {
           "id": "nr-bead-schema-read",
-          "family": "http",
-          "method": "GET",
-          "target": {
-            "binding": "scope",
-            "path": "beads/nr-schema"
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "nr-bead-schema.url",
+            "credentialRef": "operator"
           },
-          "raw": {
-            "headerLines": []
-          },
-          "captures": [],
+          "captures": [
+            {
+              "binding": "nr-bead-schema.before",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
           "assertions": [
             {
               "id": "status",
-              "kind": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
               "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
             },
             {
               "id": "body-schema",
               "kind": "json-schema",
-              "schema": "#/$defs/currentBeadRecord"
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
             },
             {
               "id": "identity",
               "kind": "json-pointer",
-              "pointer": "/id",
+              "pointer": "/body/id",
               "exists": true,
               "equals": "https://reference.invalid/acme/beads/nr-schema"
             },
             {
               "id": "type",
               "kind": "json-pointer",
-              "pointer": "/type",
+              "pointer": "/body/type",
               "exists": true,
               "equals": "https://reference.invalid/acme/types/schema-bead-child"
             },
             {
               "id": "properties",
               "kind": "json-pointer",
-              "pointer": "/properties",
+              "pointer": "/body/properties",
               "exists": true,
               "equals": {
                 "n": 0,
@@ -24534,7 +24557,7 @@
             {
               "id": "metadata",
               "kind": "json-pointer",
-              "pointer": "/metadata",
+              "pointer": "/body/metadata",
               "exists": true,
               "equals": {
                 "phase": "created"
@@ -24543,13 +24566,309 @@
             {
               "id": "no-owned-plane",
               "kind": "json-pointer",
-              "pointer": "/ownedLinks",
+              "pointer": "/body/ownedLinks",
               "exists": false
             },
             {
               "id": "no-provenance",
               "kind": "json-pointer",
-              "pointer": "/revisionProvenance",
+              "pointer": "/body/revisionProvenance",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "nr-bead-schema-patch-refused",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "update-bead"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-bead-schema-patch-refused"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"bead\":\"beads/nr-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":-1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 422
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "complete-problem",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/validation",
+                "status": 422,
+                "code": "validation-failed",
+                "retry": "never",
+                "diagnostics": [
+                  {
+                    "message": "Schema assertion failed: minimum",
+                    "type": "https://reference.invalid/acme/types/schema-bead-base",
+                    "schemaLocation": "https://reference.invalid/acme/schemas/schema-bead-base#/properties/n/minimum",
+                    "instanceLocation": "/n"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "nr-bead-schema-patch-unchanged",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "nr-bead-schema.url",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "nr-bead-schema.before"
+            }
+          ]
+        },
+        {
+          "id": "nr-bead-schema-patch-corrected",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "update-bead"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-bead-schema-patch-corrected"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"bead\":\"beads/nr-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-schema"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/schema-bead-child"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1,
+                "enabled": true,
+                "detail": "ok"
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/resource/metadata",
+              "exists": true,
+              "equals": {
+                "phase": "updated"
+              }
+            },
+            {
+              "id": "no-owned-plane",
+              "kind": "json-pointer",
+              "pointer": "/resource/ownedLinks",
+              "exists": false
+            },
+            {
+              "id": "no-provenance",
+              "kind": "json-pointer",
+              "pointer": "/resource/revisionProvenance",
+              "exists": false
+            },
+            {
+              "id": "no-source",
+              "kind": "json-pointer",
+              "pointer": "/source",
+              "exists": false
+            },
+            {
+              "id": "no-source-revision",
+              "kind": "json-pointer",
+              "pointer": "/sourceRevision",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "nr-bead-schema-updated-read",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "nr-bead-schema.url",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-schema"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/schema-bead-child"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 1,
+                "enabled": true,
+                "detail": "ok"
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "phase": "updated"
+              }
+            },
+            {
+              "id": "no-owned-plane",
+              "kind": "json-pointer",
+              "pointer": "/body/ownedLinks",
+              "exists": false
+            },
+            {
+              "id": "no-provenance",
+              "kind": "json-pointer",
+              "pointer": "/body/revisionProvenance",
               "exists": false
             }
           ]
@@ -24677,7 +24996,15 @@
               "value": "{\"id\":\"links/nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-link-child\",\"properties\":{\"n\":0,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
             }
           },
-          "captures": [],
+          "captures": [
+            {
+              "binding": "nr-link-schema.url",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/resource/id"
+              }
+            }
+          ],
           "assertions": [
             {
               "id": "status",
@@ -24781,45 +25108,60 @@
         },
         {
           "id": "nr-link-schema-read",
-          "family": "http",
-          "method": "GET",
-          "target": {
-            "binding": "scope",
-            "path": "links/nr-schema"
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "nr-link-schema.url",
+            "credentialRef": "operator"
           },
-          "raw": {
-            "headerLines": []
-          },
-          "captures": [],
+          "captures": [
+            {
+              "binding": "nr-link-schema.before",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
           "assertions": [
             {
               "id": "status",
-              "kind": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
               "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
             },
             {
               "id": "body-schema",
               "kind": "json-schema",
-              "schema": "#/$defs/currentLinkRecord"
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
             },
             {
               "id": "identity",
               "kind": "json-pointer",
-              "pointer": "/id",
+              "pointer": "/body/id",
               "exists": true,
               "equals": "https://reference.invalid/acme/links/nr-schema"
             },
             {
               "id": "type",
               "kind": "json-pointer",
-              "pointer": "/type",
+              "pointer": "/body/type",
               "exists": true,
               "equals": "https://reference.invalid/acme/types/schema-link-child"
             },
             {
               "id": "properties",
               "kind": "json-pointer",
-              "pointer": "/properties",
+              "pointer": "/body/properties",
               "exists": true,
               "equals": {
                 "n": 0,
@@ -24830,7 +25172,7 @@
             {
               "id": "metadata",
               "kind": "json-pointer",
-              "pointer": "/metadata",
+              "pointer": "/body/metadata",
               "exists": true,
               "equals": {
                 "phase": "created"
@@ -24839,27 +25181,351 @@
             {
               "id": "source-endpoint",
               "kind": "json-pointer",
-              "pointer": "/source",
+              "pointer": "/body/source",
               "exists": true,
               "equals": "https://reference.invalid/acme/beads/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
-              "pointer": "/target",
+              "pointer": "/body/target",
               "exists": true,
               "equals": "https://reference.invalid/acme/beads/nr-target"
             },
             {
               "id": "no-owned-plane",
               "kind": "json-pointer",
-              "pointer": "/ownedLinks",
+              "pointer": "/body/ownedLinks",
               "exists": false
             },
             {
               "id": "no-provenance",
               "kind": "json-pointer",
-              "pointer": "/revisionProvenance",
+              "pointer": "/body/revisionProvenance",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "nr-link-schema-patch-refused",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "update-link"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-link-schema-patch-refused"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"link\":\"links/nr-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":-1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 422
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "complete-problem",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/validation",
+                "status": 422,
+                "code": "validation-failed",
+                "retry": "never",
+                "diagnostics": [
+                  {
+                    "message": "Schema assertion failed: minimum",
+                    "type": "https://reference.invalid/acme/types/schema-link-base",
+                    "schemaLocation": "https://reference.invalid/acme/schemas/schema-link-base#/properties/n/minimum",
+                    "instanceLocation": "/n"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "nr-link-schema-patch-unchanged",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "nr-link-schema.url",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "nr-link-schema.before"
+            }
+          ]
+        },
+        {
+          "id": "nr-link-schema-patch-corrected",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "update-link"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-link-schema-patch-corrected"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"link\":\"links/nr-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/nr-schema"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/schema-link-child"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1,
+                "enabled": true,
+                "detail": "ok"
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/resource/metadata",
+              "exists": true,
+              "equals": {
+                "phase": "updated"
+              }
+            },
+            {
+              "id": "source-endpoint",
+              "kind": "json-pointer",
+              "pointer": "/resource/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-source"
+            },
+            {
+              "id": "target-endpoint",
+              "kind": "json-pointer",
+              "pointer": "/resource/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-target"
+            },
+            {
+              "id": "no-owned-plane",
+              "kind": "json-pointer",
+              "pointer": "/resource/ownedLinks",
+              "exists": false
+            },
+            {
+              "id": "no-provenance",
+              "kind": "json-pointer",
+              "pointer": "/resource/revisionProvenance",
+              "exists": false
+            },
+            {
+              "id": "no-source",
+              "kind": "json-pointer",
+              "pointer": "/source",
+              "exists": false
+            },
+            {
+              "id": "no-source-revision",
+              "kind": "json-pointer",
+              "pointer": "/sourceRevision",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "nr-link-schema-updated-read",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "nr-link-schema.url",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/nr-schema"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/schema-link-child"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 1,
+                "enabled": true,
+                "detail": "ok"
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "phase": "updated"
+              }
+            },
+            {
+              "id": "source-endpoint",
+              "kind": "json-pointer",
+              "pointer": "/body/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-source"
+            },
+            {
+              "id": "target-endpoint",
+              "kind": "json-pointer",
+              "pointer": "/body/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-target"
+            },
+            {
+              "id": "no-owned-plane",
+              "kind": "json-pointer",
+              "pointer": "/body/ownedLinks",
+              "exists": false
+            },
+            {
+              "id": "no-provenance",
+              "kind": "json-pointer",
+              "pointer": "/body/revisionProvenance",
               "exists": false
             }
           ]
