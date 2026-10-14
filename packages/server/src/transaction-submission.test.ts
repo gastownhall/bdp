@@ -1102,6 +1102,111 @@ describe("observed comparison deadline submission", () => {
     expect(observe).not.toHaveBeenCalled();
     expect(f.store.cancelSequence(attempt)).toBe(2);
   });
+  it.each([false, true])(
+    "propagates closed maintenance faults before admission (observed=%s)",
+    async (observed) => {
+      const original = new Error("submission background maintenance fault");
+      let inject = false;
+      let faultCalls = 0;
+      let f: ReturnType<typeof fixture> | undefined;
+      const failures: unknown[] = [];
+      vi.useFakeTimers();
+      try {
+        // No reservations: the failed epoch observation must precede admission.
+        f = fixture({
+          maintenanceIntervalMs: 25,
+          fault(stage) {
+            if (inject && stage === "before-maintenance-commit") {
+              faultCalls++;
+              throw original;
+            }
+          },
+        });
+        const store = f.store;
+        const admit = vi.fn(f.store.admit),
+          admitObserved = vi.fn(f.store.admitObserved),
+          observe = vi.fn(f.store.observeComparisonDeadline),
+          wait = vi.fn(async () => {});
+        // The real owner is frozen; delegates preserve its closure-backed faults.
+        const owner = {
+          ...f.store,
+          admit: ((...args: Parameters<typeof store.admit>) =>
+            admit(...args)) as typeof store.admit,
+          admitObserved,
+          observeComparisonDeadline: observe,
+        };
+        expect(vi.getTimerCount()).toBe(1);
+        inject = true;
+        vi.advanceTimersByTime(25);
+        inject = false;
+        expect(faultCalls).toBe(1);
+        expect(vi.getTimerCount()).toBe(0);
+        vi.useRealTimers();
+        await expect(
+          submitTransaction(owner, submission(), { wait }, observed),
+          "maintenance fault rejects before admission",
+        ).rejects.toMatchObject({
+          message: "transaction maintenance failed; owner fenced",
+          cause: original,
+        });
+        expect(admit).not.toHaveBeenCalled();
+        expect(admitObserved).not.toHaveBeenCalled();
+        expect(observe).not.toHaveBeenCalled();
+        expect(wait).not.toHaveBeenCalled();
+      } catch (error) {
+        failures.push(error);
+      } finally {
+        inject = false;
+        try {
+          f?.store.close();
+        } catch (error) {
+          failures.push(error);
+        } finally {
+          vi.useRealTimers();
+        }
+      }
+      if (failures.length)
+        throw new AggregateError(failures, "maintenance submission assertion or cleanup failed");
+    },
+  );
+  it.each([false, true])(
+    "preserves normal closed submission shape (observed=%s)",
+    async (observed) => {
+      const f = fixture();
+      f.store.close();
+      const admit = vi.fn(f.store.admit),
+        admitObserved = vi.fn(f.store.admitObserved),
+        observe = vi.fn(f.store.observeComparisonDeadline),
+        wait = vi.fn(async () => {});
+      const owner = {
+        ...f.store,
+        admit: ((...args: Parameters<typeof f.store.admit>) =>
+          admit(...args)) as typeof f.store.admit,
+        admitObserved,
+        observeComparisonDeadline: observe,
+      };
+      expect(await submitTransaction(owner, submission(), { wait }, observed)).toStrictEqual(
+        observed
+          ? {
+              kind: "comparison-refusal",
+              reason: "owner-stopped",
+              status: 503,
+              code: "temporarily-unavailable",
+              retry: "after-delay",
+            }
+          : {
+              kind: "refused",
+              status: 503,
+              code: "temporarily-unavailable",
+              retry: "after-delay",
+            },
+      );
+      expect(admit).not.toHaveBeenCalled();
+      expect(admitObserved).not.toHaveBeenCalled();
+      expect(observe).not.toHaveBeenCalled();
+      expect(wait).not.toHaveBeenCalled();
+    },
+  );
   it("distinguishes a stopped final observation at the reached comparison deadline", async () => {
     const f = fixture(),
       attempt = dependencies(f.store);

@@ -1721,7 +1721,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       });
     },
     readConfiguration: () => enter(() => readConfiguration),
-    comparisonEpoch: () => (closed ? undefined : enter(() => metadata("epoch"))),
+    comparisonEpoch: () => {
+      if (closed && !ownerFailure && !maintenanceFailure) return undefined;
+      return enter(() => metadata("epoch"));
+    },
     /** Private deadline observation: one owner entry and one atomic metadata read. */
     observeComparisonDeadline(
       expectedEpoch: string,

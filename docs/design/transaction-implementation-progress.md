@@ -1779,9 +1779,9 @@ an independent real commit during the existing private comparison wait. Complete
 small graph and Event pages plus a readonly final receipt inventory distinguish
 current context from timeout effects or duplicate replay. They do not prove
 change-group pagination. The injected epoch-change case is defensive only: this
-owner has no supported live epoch rotation. The pre-existing maintenance-failure
-closed shortcut can still mask that fault before final observation and is not
-repaired here.
+owner has no supported live epoch rotation. In snapshots30035/70ac, the
+pre-existing maintenance-failure closed shortcut still masked that fault before
+final observation; those timeout-context snapshots did not repair it.
 
 Eighteen explicitly selected store/submission/HTTP/dependency/alias cases pass,
 including sixteen loopback HTTP requests across two fixtures. Five isolated
@@ -1793,3 +1793,42 @@ comparison override or load-based timing test is introduced. Existing direct and
 sequence refusal installed cohorts remain separate regressions, not timeout
 qualification; their execution is recorded outside this source note. No public
 admission or discovery claim changes.
+
+### Maintenance-fault comparison guard successor (2026-10-14)
+
+This separate successor changes only the early comparison epoch guard. A normally
+closed owner still returns stopped; retained owner or maintenance faults reach
+the existing owner-entry exception path and the HTTP handler's sanitized
+bodyless500. No fault API, context synthesis, receiving policy or public profile
+claim is added.
+
+Validation used an ordinary dependent checkout of427cfef, with the exact tested
+source diff and command records retained in the external maintenance-fault
+repair evidence. The parent was unmerged at execution release; this note does
+not claim that PR120 or this successor has landed. Two test-adapter typing
+failures were preserved before the corrected source passed typecheck. Fresh
+build, format, lint, dependency boundaries and the unchanged Read evidence gate
+then passed.
+
+Exactly14 selected owner/submission/service/dependency/alias/HTTP cases passed
+once;363 other cases in those files were skipped. The new emitted-runtime case
+completed its seed200 under selective interval timers, triggered one actual
+maintenance callback failure, then observed500 with an empty body and the exact
+handler headers. It closed the runtime and verified the sole retained seed
+receipt against the actual parsed seed200 body.
+
+One separately built old-guard derivative ran only that HTTP case and failed at
+its named internal500 assertion with actual503. Its finally path still recorded
+one fault callback, timer cancellation, runtime closure and the sole seed receipt
+inventory. Source positives and control account for seven HTTP requests across
+four listener lifetimes, with15 store directories,16 owner opens and two separate
+readonly inventory connections by the selected fixture paths. Process-group and
+temporary-directory checks found no remaining owned test processes or store
+directories. Sampling did not independently count every short-lived directory.
+
+These are bounded source/runtime observations, not a full suite or installed
+fault qualification. No healthy installed direct-refusal14/1 cohort, packaging or
+profile qualification was run for this successor at this checkpoint; that fresh
+installed regression remains a separate gate. Earlier timeout-context evidence
+and its historical reports remain bound to their original snapshots; this
+repair is not retroactively part of PR120.
