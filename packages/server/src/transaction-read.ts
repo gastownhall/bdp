@@ -4,6 +4,7 @@
  * separate contracts. */
 import {
   checkTransactionMinimum,
+  TransactionMinimumFailure,
   snapshotTransactionMinimum,
   type TransactionMinimum,
 } from "./transaction-consistency.js";
@@ -57,15 +58,27 @@ export function createTransactionReadPlane(
       // Preserve the initial collection's already-materialized request-control
       // Problem. It is not a representation whose minimum can be satisfied.
       if (refusal?.code === "invalid-parameter" || refusal?.code === "limit-exceeded") return;
-      // Absence/visibility versus minimum ordering is not yet specified.
-      if (refusal?.code === "resource-not-found")
-        throw new TransactionMinimumVisibilityGap(
-          "minimum-position visibility ordering unqualified",
-        );
-      checkTransactionMinimum(
-        snapshotTransactionMinimum(condition),
-        transactionReadContexts(observation).current,
-      );
+      const minimum = snapshotTransactionMinimum(condition);
+      const current = transactionReadContexts(observation).current;
+      if (refusal?.code === "resource-not-found") {
+        try {
+          checkTransactionMinimum(minimum, current);
+          return;
+        } catch (error) {
+          // Only simultaneous missing/consistency failures remain unqualified.
+          if (
+            error instanceof TransactionMinimumFailure &&
+            (error.reason === "behind" ||
+              error.reason === "foreign-view" ||
+              error.reason === "cursor-expired")
+          )
+            throw new TransactionMinimumVisibilityGap(
+              "minimum-position visibility ordering unqualified",
+            );
+          throw error;
+        }
+      }
+      checkTransactionMinimum(minimum, current);
     },
     captureReadAuthorization: () => ({
       kind: "authorized",
@@ -94,9 +107,17 @@ export function createTransactionReadPlane(
       const facet = plane.readFor(principal);
       return {
         perform: (request, options) =>
-          observe(facet.perform(request, options).then((result) => checked(result))),
+          observe(
+            facet
+              .perform(request, options?.signal ? { signal: options.signal } : undefined)
+              .then((result) => checked(result)),
+          ),
         resolveAlias: (url, options) =>
-          observe(facet.resolveAlias(url, options).then((result) => checked(result))),
+          observe(
+            facet
+              .resolveAlias(url, options?.signal ? { signal: options.signal } : undefined)
+              .then((result) => checked(result)),
+          ),
       };
     },
   };

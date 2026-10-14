@@ -64,6 +64,7 @@ ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
 ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
 const bundle = JSON.parse(readFileSync(path.join(root, "schemas/bdp-v0.schema.json"), "utf8"));
 ajv.addSchema(bundle);
+const receiptSchema = ajv.compile({ $ref: `${bundle.$id}#/$defs/mutationReceipt` });
 const problemSchema = ajv.compile({ $ref: `${bundle.$id}#/$defs/transactionalProblem` });
 function json<T>(response: HttpExchangeResponse, status = 200): T {
   expect(response.status, response.bodyText).toBe(status);
@@ -172,10 +173,11 @@ async function withDeadline<T>(
 async function withInstalled(
   run: (f: Awaited<ReturnType<typeof start>>) => Promise<void>,
   signal?: AbortSignal,
+  label = "private-installed-collection-minimum",
 ): Promise<void> {
-  if (!signal) return withDeadline((shared) => withInstalled(run, shared));
+  if (!signal) return withDeadline((shared) => withInstalled(run, shared, label));
   signal.throwIfAborted();
-  const f = await start(signal);
+  const f = await start(signal, label);
   await finishObservation(
     () => run(f),
     () => f.close(),
@@ -183,7 +185,7 @@ async function withInstalled(
     (ok) => f.report(ok),
   );
 }
-async function start(signal: AbortSignal) {
+async function start(signal: AbortSignal, label: string) {
   signal.throwIfAborted();
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-collection-minimum-installed-"));
   const operator = randomBytes(32).toString("base64url"),
@@ -352,7 +354,7 @@ async function start(signal: AbortSignal) {
       // Never log raw credentials, exactRequest headers or authored request bodies.
       console.log(
         JSON.stringify({
-          observation: "private-installed-collection-minimum",
+          observation: label,
           outcome: ok ? "passed" : "failed",
           aborted: signal.aborted,
           declaredSourceCommit: sourceCommit,
@@ -591,4 +593,165 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
     expect(continuationMinimum.status).toBe(500);
     expect(continuationMinimum.headers["x-bdp-development-limit"]).toBe("minimum-position-route");
   });
+}, 120000);
+
+it("observes genuine installed compatible missing minimum404 and preserved behind gap", async () => {
+  await withInstalled(
+    async (f) => {
+      let count = 0;
+      const urls = new Set<string>();
+      const exchange = async (...args: Parameters<typeof f.exchange>) => {
+        count++;
+        expect(count).toBeLessThanOrEqual(10);
+        urls.add(args[0] ?? `${scope}beads/`);
+        return f.exchange(...args);
+      };
+      type Result = {
+        operationIndex: number;
+        outcome: string;
+        resource?: Row & { source: string; target: string };
+        deleted?: { resourceKind: string; resource: Pick<Row, "id" | "type" | "revision"> };
+        source?: string;
+        sourceRevision?: string;
+      };
+      type Receipt = {
+        status: string;
+        detail: string;
+        requiredPosition: string;
+        effectPosition: string;
+        results: Result[];
+      };
+      const receipt = (response: HttpExchangeResponse, position: string, size: number) => {
+        const value = json<Receipt>(response);
+        expect(receiptSchema(value), JSON.stringify(receiptSchema.errors)).toBe(true);
+        expect(value).toMatchObject({
+          status: "completed",
+          detail: "available",
+          requiredPosition: position,
+          effectPosition: position,
+        });
+        expect(value.results).toHaveLength(size);
+        expect(response.headers["bdp-scope-position"]).toBe(position);
+        return value;
+      };
+      const seeded = await exchange(
+        `${scope}operations/batch`,
+        "POST",
+        { "content-type": "application/json", "idempotency-key": "missing_seed" },
+        {
+          operations: [
+            ...["a", "b"].map((id) => ({
+              operation: "createBead",
+              id: `beads/${id}`,
+              type: beadType,
+              properties: { title: id },
+            })),
+            {
+              operation: "createLink",
+              id: "links/l",
+              type: linkType,
+              source: "beads/a",
+              target: "beads/b",
+              properties: { title: "l" },
+            },
+          ],
+        },
+      );
+      const first = receipt(seeded, "pos-1", 3),
+        [a, b, l] = first.results;
+      if (!a?.resource || !b?.resource || !l?.resource || !l.sourceRevision)
+        throw new Error("missing created resources");
+      for (const [index, result, id, type] of [
+        [0, a, "beads/a", beadType],
+        [1, b, "beads/b", beadType],
+        [2, l, "links/l", linkType],
+      ] as const) {
+        expect(result).toMatchObject({
+          operationIndex: index,
+          outcome: "created",
+          resource: {
+            id: `${scope}${id}`,
+            type,
+            properties: { title: id.slice(id.indexOf("/") + 1) },
+            metadata: {},
+          },
+        });
+        expect(result.resource?.revision).toMatch(/^[A-Za-z0-9_-]{1,256}$/);
+      }
+      expect(l.resource).toMatchObject({ source: `${scope}beads/a`, target: `${scope}beads/b` });
+      expect(l.source).toBe(`${scope}beads/a`);
+      expect(l.sourceRevision).not.toBe(a.resource.revision);
+      const removed = await exchange(
+        `${scope}operations/batch`,
+        "POST",
+        { "content-type": "application/json", "idempotency-key": "missing_delete" },
+        {
+          operations: [
+            { operation: "deleteLink", link: "links/l", expectedRevision: l.resource.revision },
+            { operation: "deleteBead", bead: "beads/a" },
+          ],
+        },
+      );
+      const second = receipt(removed, "pos-2", 2),
+        [dl, da] = second.results;
+      if (!dl?.sourceRevision) throw new Error("missing owned deletion revision");
+      expect(dl).toEqual({
+        operationIndex: 0,
+        outcome: "deleted",
+        deleted: {
+          resourceKind: "link",
+          resource: { id: l.resource.id, type: linkType, revision: l.resource.revision },
+        },
+        source: `${scope}beads/a`,
+        sourceRevision: dl.sourceRevision,
+      });
+      expect(dl.sourceRevision).not.toBe(l.sourceRevision);
+      expect(da).toEqual({
+        operationIndex: 1,
+        outcome: "deleted",
+        deleted: {
+          resourceKind: "bead",
+          resource: { id: `${scope}beads/a`, type: beadType, revision: dl.sourceRevision },
+        },
+      });
+      const earlier = minimum(seeded),
+        equal = minimum(removed);
+      for (const [suffix, method, headers] of [
+        ["beads/never", "GET", earlier],
+        ["beads/never?view=properties", "HEAD", equal],
+        ["links/never", "GET", { ...equal, "if-none-match": "*" }],
+        ["links/never?view=properties", "HEAD", earlier],
+        ["beads/a", "GET", equal],
+        ["beads/a?view=properties", "GET", earlier],
+        ["links/l", "GET", { ...equal, "if-match": '"mismatch"' }],
+      ] as const) {
+        const response = await exchange(`${scope}${suffix}`, method, headers);
+        expect(response.status).toBe(404);
+        context(response, equal);
+        expect(response.headers["cache-control"]).toBe("private, no-store");
+        if (method === "HEAD") {
+          expect(response.bodyText).toBe("");
+          expect(response.bodyOctets).toBe(0);
+        } else
+          expect(json<Record<string, unknown>>(response, 404)).toMatchObject({
+            code: "resource-not-found",
+            status: 404,
+          });
+      }
+      const behind = await exchange(
+        `${scope}links/l?view=properties`,
+        "GET",
+        minimum(removed, "pos-3"),
+      );
+      expect(behind.status).toBe(500);
+      expect(behind.bodyText).toBe("");
+      expect(behind.headers["x-bdp-development-limit"]).toBe("minimum-position-visibility");
+      for (const name of ["bdp-scope-position", "bdp-scope-epoch", "bdp-authorization-view"])
+        expect(behind.headers[name]).toBeUndefined();
+      expect(count).toBe(10);
+      expect(urls.size).toBe(9);
+    },
+    undefined,
+    "private-installed-compatible-missing-minimum",
+  );
 }, 120000);
