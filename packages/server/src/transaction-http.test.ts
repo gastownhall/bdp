@@ -106,6 +106,22 @@ async function fixture(seams: TransactionRuntimeTestSeams = {}) {
         db.close();
       }
     },
+    async retainedReceiptInventory() {
+      await runtime.close();
+      const db = new DatabaseSync(path.join(directory, "transaction.sqlite"), { readOnly: true });
+      try {
+        return db
+          .prepare("SELECT principal,key,receipt FROM receipts ORDER BY key")
+          .all()
+          .map((row) => ({
+            principal: row.principal,
+            key: row.key,
+            receipt: JSON.parse(String(row.receipt)),
+          }));
+      } finally {
+        db.close();
+      }
+    },
     async receiptRows(key: string) {
       const port = Number(new URL(runtime.scope).port);
       await runtime.close();
@@ -2657,4 +2673,138 @@ it("preserves absent context on a deterministic excluded direct comparison refus
   const replay = await f.post(candidate, "dependent");
   expect(replay.status).toBe(200);
   expect(replay.headers.get("bdp-scope-position")).toBe("pos-2");
+});
+
+it.each([413, 406])(
+  "observes sequence refusal context with %s first and retains only genuine seed receipts",
+  async (first) => {
+    const f = await fixture();
+    const seeds: Record<string, unknown>[] = [];
+    for (const name of ["a", "b"])
+      seeds.push(await body(await f.post(batch([create(name)]), `seed-${name}`)));
+    const rejectedKeys: string[] = [];
+    async function refusal(status: number, phase: string, position: string) {
+      const count = status === 413 ? 33 : 1;
+      const operations = Array.from({ length: count }, (_, i) => ({
+        ...create(`rejected-${phase}-${status}-${i}`),
+        idempotencyKey: `reject-${phase}-${status}-${i}`,
+      }));
+      rejectedKeys.push(...operations.map((op) => op.idempotencyKey));
+      const text = JSON.stringify({ operations });
+      expect(Buffer.byteLength(text)).toBeLessThanOrEqual(65536);
+      const response = await f.post(text, null, "sequence", { accept: "text/plain" });
+      expect(response.status).toBe(status);
+      if (status === 413)
+        expect(checkedProblem(await body(response))).toMatchObject({
+          code: "limit-exceeded",
+          status: 413,
+          limit: "sequence.operations",
+        });
+      else {
+        expect(await response.text()).toBe("");
+        expect(response.headers.has("content-type")).toBe(false);
+      }
+      for (const [name, value] of Object.entries({
+        "bdp-scope-epoch": seeds[0]!.scopeEpoch,
+        "bdp-authorization-view": seeds[0]!.authorizationView,
+        "bdp-scope-position": position,
+      })) {
+        expect(
+          response.headers.has(name),
+          `sequence refusal context presence: ${status} ${name}`,
+        ).toBe(true);
+        expect(
+          response.headers.get(name),
+          `sequence refusal current context: ${status} ${name}`,
+        ).toBe(value);
+      }
+      expect(response.headers.get("vary")).toBe("Accept");
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+    }
+    async function state(names: string[], position: string) {
+      const response = await f.get(`${f.runtime.scope}beads/?limit=32`);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("bdp-scope-position")).toBe(position);
+      const collection = await body(response);
+      expect(collection.next).toBeNull();
+      expect(collection.items).toEqual(
+        seeds.map((receipt) => (receipt.results as { resource: unknown }[])[0]!.resource),
+      );
+      expect(
+        (collection.items as Record<string, unknown>[]).map((item) => [
+          item.id,
+          item.properties,
+          item.metadata,
+        ]),
+      ).toEqual(names.map((name) => [`${f.runtime.scope}beads/${name}`, { title: name }, {}]));
+      const events = await body(await f.get(`${f.runtime.scope}events/`));
+      expect(events.next).toBeNull();
+      expect((events.events as Record<string, unknown>[]).map((event) => event.subject)).toEqual(
+        names.map((name) => `${f.runtime.scope}beads/${name}`),
+      );
+    }
+    for (const status of [first, first === 413 ? 406 : 413])
+      await refusal(status, "initial", "pos-2");
+    await state(["a", "b"], "pos-2");
+    const root = await f.get(id(seeds[0]));
+    expect(root.headers.get("bdp-scope-position")).toBe("pos-2");
+    expect(await body(root)).toEqual(seeds[0]);
+    seeds.push(await body(await f.post(batch([create("c")]), "seed-c")));
+    for (const status of [first, first === 413 ? 406 : 413])
+      await refusal(status, "later", "pos-3");
+    await state(["a", "b", "c"], "pos-3");
+    // This closes the runtime; all live observations precede the final storage oracle.
+    const inventory = await f.retainedReceiptInventory();
+    expect(inventory).toEqual(
+      seeds.map((receipt, i) => ({ principal: "p", key: `seed-${["a", "b", "c"][i]}`, receipt })),
+    );
+    expect(inventory.filter((row) => rejectedKeys.includes(String(row.key)))).toEqual([]);
+  },
+);
+
+it("reuses refused sequence member keys for different identities without extra receipt rows", async () => {
+  const f = await fixture();
+  const many = Array.from({ length: 33 }, (_, i) => ({
+    ...create(`old-${i}`),
+    idempotencyKey: `over-${i}`,
+  }));
+  const capacity = await f.post(JSON.stringify({ operations: many }), null, "sequence", {
+    accept: "text/plain",
+  });
+  expect(checkedProblem(await body(capacity))).toMatchObject({
+    code: "limit-exceeded",
+    limit: "sequence.operations",
+    status: 413,
+  });
+  expect(
+    (
+      await f.post(
+        JSON.stringify({
+          operations: [{ ...create("old-negotiation"), idempotencyKey: "negotiation" }],
+        }),
+        null,
+        "sequence",
+        { accept: "text/plain" },
+      )
+    ).status,
+  ).toBe(406);
+  const c = await body(await f.post(batch([create("new-c")]), "negotiation"));
+  const d = await body(await f.post(batch([create("new-d")]), "over-0"));
+  expect(c).toMatchObject({ status: "completed", effectPosition: "pos-1" });
+  expect(d).toMatchObject({ status: "completed", effectPosition: "pos-2" });
+  const collection = await body(await f.get(`${f.runtime.scope}beads/?limit=32`));
+  expect(collection.next).toBeNull();
+  expect(
+    (collection.items as Record<string, unknown>[]).map((item) => [item.id, item.properties]),
+  ).toEqual([
+    [`${f.runtime.scope}beads/new-c`, { title: "new-c" }],
+    [`${f.runtime.scope}beads/new-d`, { title: "new-d" }],
+  ]);
+  const events = await body(await f.get(`${f.runtime.scope}events/`));
+  expect(events.events).toHaveLength(2);
+  expect(events.next).toBeNull();
+  expect(await f.retainedReceiptInventory()).toEqual([
+    { principal: "p", key: "negotiation", receipt: c },
+    { principal: "p", key: "over-0", receipt: d },
+  ]);
 });
