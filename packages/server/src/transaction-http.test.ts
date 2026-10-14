@@ -22,6 +22,9 @@ ajv.addSchema(schema);
 const validateTransactionalProblem = ajv.compile({
   $ref: `${schema.$id}#/$defs/transactionalProblem`,
 });
+const validateSequence = ajv.compile({
+  $ref: `${schema.$id}#/$defs/transactionalSequenceResponse`,
+});
 function checkedProblem(value: Record<string, unknown>) {
   expect(
     validateTransactionalProblem(value),
@@ -421,16 +424,110 @@ describe("source-private actual Transactional HTTP", () => {
     expect((await f.post(batch([create("changed")]), "member")).status).toBe(200);
     expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
   });
-  it("refuses unsupported Resource-alias sequences and set batches without malformed claims or partial effects", async () => {
+  it("commits a prefix and independent tail around a retained alias member failure", async () => {
     const f = await fixture();
     const aliases = batch([
       { ...create(), idempotencyKey: "a" },
       { operation: "deleteBead", bead: "alias/latest", idempotencyKey: "delete" },
+      { ...create("b"), idempotencyKey: "b" },
     ]);
     const response = await f.post(aliases, null, "sequence");
-    expect(response.status).toBe(500);
-    expect(response.headers.get("x-bdp-development-limit")).toBe("sequence-resource-alias");
-    expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+    expect(response.status).toBe(200);
+    expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+    const result = await body(response);
+    expect(validateSequence(result), JSON.stringify(validateSequence.errors)).toBe(true);
+    expect(result).toMatchObject({
+      results: [
+        { operationIndex: 0, outcome: "created", resource: { id: `${f.runtime.scope}beads/a` } },
+        { operationIndex: 1, code: "resource-not-found", status: 404 },
+        { operationIndex: 2, outcome: "created", resource: { id: `${f.runtime.scope}beads/b` } },
+      ],
+    });
+    for (const name of ["a", "b"]) {
+      const read = await f.get(`${f.runtime.scope}beads/${name}`);
+      expect(read.status).toBe(200);
+      expect(await body(read)).toMatchObject({ properties: { title: name } });
+    }
+    const put = await f.post(
+      JSON.stringify({ alias: "alias/latest", target: "beads/b" }),
+      "put",
+      "putAlias",
+    );
+    expect(put.status).toBe(200);
+    const replay = await f.post(aliases, null, "sequence");
+    expect(replay.status).toBe(200);
+    expect(await body(replay)).toEqual(result);
+    expect((await f.get(`${f.runtime.scope}beads/b`)).status).toBe(200);
+    await f.reopen();
+    const recovered = await f.post(aliases, null, "sequence");
+    expect(recovered.status).toBe(200);
+    expect(await body(recovered)).toEqual(result);
+    const fresh = await f.post(
+      JSON.stringify({ bead: "alias/latest" }),
+      "fresh-delete",
+      "deleteBead",
+    );
+    expect(fresh.status).toBe(200);
+    expect(await body(fresh)).toMatchObject({
+      status: "completed",
+      results: [{ outcome: "deleted", deleted: { resource: { id: `${f.runtime.scope}beads/b` } } }],
+    });
+    expect((await f.get(`${f.runtime.scope}beads/b`)).status).toBe(404);
+  });
+  it("resolves earlier alias writes and mixed allocated/pinned operands at HTTP member turns", async () => {
+    const f = await fixture();
+    const operations = [
+      { operation: "createBead", type: bead, name: "made", idempotencyKey: "creator" },
+      { operation: "putAlias", alias: "alias/work", target: "@made", idempotencyKey: "put" },
+      {
+        operation: "createLink",
+        id: "links/edge",
+        type: link,
+        source: "@made",
+        target: { uri: "alias/work", revision: "opaque-pin" },
+        idempotencyKey: "edge",
+      },
+    ];
+    const response = await f.post(batch(operations), null, "sequence");
+    expect(response.status).toBe(200);
+    const result = await body(response),
+      entries = result.results as Record<string, unknown>[];
+    expect(validateSequence(result), JSON.stringify(validateSequence.errors)).toBe(true);
+    const created = id(entries[0]?.resource);
+    expect(entries[2]).toMatchObject({
+      outcome: "created",
+      resource: {
+        id: `${f.runtime.scope}links/edge`,
+        source: created,
+        target: { uri: created, revision: "opaque-pin" },
+      },
+    });
+    const edge = await f.get(`${f.runtime.scope}links/edge`);
+    expect(edge.status).toBe(200);
+    expect(await body(edge)).toEqual(entries[2]?.resource);
+    expect((await f.post(batch([create("other")]), "other")).status).toBe(200);
+    expect(
+      (
+        await f.post(
+          JSON.stringify({ alias: "alias/work", target: "beads/other" }),
+          "repoint",
+          "putAlias",
+        )
+      ).status,
+    ).toBe(200);
+    const before = await f.get(`${f.runtime.scope}alias/work`);
+    expect(before.status).toBe(307);
+    expect(before.headers.get("location")).toBe(`${f.runtime.scope}beads/other`);
+    await f.reopen();
+    const replay = await f.post(batch(operations), null, "sequence");
+    expect(replay.status).toBe(200);
+    expect(await body(replay)).toEqual(result);
+    const after = await f.get(`${f.runtime.scope}alias/work`);
+    expect(after.status).toBe(307);
+    expect(after.headers.get("location")).toBe(`${f.runtime.scope}beads/other`);
+  });
+  it("refuses unsupported set and depth compositions without key capture or partial effects", async () => {
+    const f = await fixture();
     const set = await f.post(
       batch([
         {

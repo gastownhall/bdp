@@ -1554,3 +1554,33 @@ receiving limit, and one-operation batch/singleton depth boundaries are unchange
 Actual HTTP regressions cover malformed-plus-deep Resource and set inputs, forbidden
 sequence set members with no earlier member/key effects, raw route-discriminator
 protection, both depth boundaries and the exact body-byte boundary.
+
+### Resource-alias sequence HTTP integration
+
+The reviewed turn-time alias implementation is now connected to the existing
+Transactional HTTP receiver. The obsolete `sequence-resource-alias` development
+catch is removed. A missing alias is a retained member failure: already committed
+prefix members stay committed and independent later members can execute. The
+existing set-in-sequence and private depth refusals retain their no-key-capture
+checks. Earlier historical gap descriptions above describe their original slice,
+not the current receiver.
+
+Actual HTTP tests cover an alias assigned by an earlier member, allocated local
+references combined with an opaque pinned alias endpoint, retained failures after
+assignment, and replay after listener reopen. A separate source-private installed
+observation uses the existing launcher and raw HTTP transport against the packed
+service. Its finite fixture covers a repoint before an eligible member, retained
+old-target results after a later repoint, a new locator that first compares equal
+and then conflicts after repointing, a recorded miss versus a successful fresh key,
+and durable replay with independent current-state GETs. It validates sequence and
+receipt envelopes against the unchanged schema. The fixture has 36 exchanges
+(28 before reopen, 8 after), two child sessions and a closed route inventory. Its
+5-second exchange, 90-second cohort and 120-second outer deadlines match the
+adjacent installed Set cohort; they are test budgets, not protocol limits.
+
+This is bounded private serving evidence. It neither adds public Transactional
+admission nor claims cold discovery, complete profile qualification, arbitrary
+concurrent alias histories, Snapshot consistency, crash durability, or a changed
+store format. The parent caller still knows the private operation targets.
+Source-bound commands, preparation failures, packed payload/configuration hashes
+and cleanup observations are recorded separately from the historical core proof.
