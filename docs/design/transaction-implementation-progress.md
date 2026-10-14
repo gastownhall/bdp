@@ -670,7 +670,16 @@ is invented for them. In particular, whether a minimum constrains an old retaine
 query page's anchor or its current serving observation remains unresolved. Normal
 continuations without controls retain their existing stable data/lifetime behavior.
 No public profile/discovery, schema, durable format, Type or evidence change was
-made. Snapshot/replay and the other previously named required gaps remain open.
+made. Fresh Snapshot creation GET/HEAD now also accepts the complete canonical
+minimum tuple. Both capture and nonallocating preflight check the actual owner
+context before expiry/copy/allocation and reuse one finite wait with disconnect
+cancellation. Preflight remains authoritative before conditional/media decisions;
+HEAD,304,412,406 and every minimum refusal carry actual current context.
+Retained Snapshot manifest/page
+minimum controls and malformed/partial forms remain explicit private gaps. Their
+position interpretation is not decided by fresh creation support. Synchronous
+copying and a pending bounded sleep are not instantaneously interruptible; no
+public discovery/profile or complete Snapshot consistency qualification follows.
 
 The configured fixture has no eligible replica routing and waits locally, one
 permitted strategy. CORS is disabled by the inherited Origin refusal. Actual

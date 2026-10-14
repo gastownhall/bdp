@@ -1213,3 +1213,71 @@ it.each(["after-snapshot-copy", "after-snapshot-commit"] as const)(
     });
   },
 );
+
+it("checks each fresh Snapshot minimum before any handle, record, page or expiry work", () => {
+  const f = fixture();
+  f.run([create("a")]);
+  const context = f.owner.observeSnapshot({ kind: "preflight" }).context;
+  const minimum = { ...context, minimumPosition: "pos-2" };
+  const tuple = {
+    scopeEpoch: minimum.scopeEpoch,
+    authorizationView: minimum.authorizationView,
+    minimumPosition: minimum.minimumPosition,
+  };
+  for (const kind of ["create", "preflight"] as const) {
+    for (let attempt = 0; attempt < 12; attempt++)
+      expect(() => f.owner.observeSnapshot({ kind }, tuple)).toThrow("behind");
+    expect(() => f.owner.observeSnapshot({ kind }, { ...tuple, scopeEpoch: "foreign" })).toThrow(
+      "cursor-expired",
+    );
+    expect(() =>
+      f.owner.observeSnapshot({ kind }, { ...tuple, authorizationView: "foreign" }),
+    ).toThrow("foreign-view");
+    expect(() =>
+      f.owner.observeSnapshot({ kind }, { ...tuple, minimumPosition: "unknown" }),
+    ).toThrow("unsupported minimum tuple");
+  }
+  f.offline((db) => {
+    for (const table of ["snapshots", "snapshot_records", "snapshot_pages"])
+      expect(db.prepare(`SELECT count(*) AS n FROM ${table}`).get()?.n).toBe(0);
+  });
+  const captured = f.owner.observeSnapshot(
+    { kind: "create" },
+    { ...tuple, minimumPosition: "pos-1" },
+  );
+  expect(captured).toMatchObject({ kind: "manifest", context });
+  if (captured.kind !== "manifest") throw new Error("expected manifest");
+  expect(captured.body.beads.items.map((row) => row.id)).toEqual([`${scope}beads/a`]);
+  for (const request of [
+    { kind: "manifest", id: handle(captured.body) },
+    { kind: "page", id: handle(captured.body), stream: "bead", token: "unknown" },
+  ] as const)
+    expect(() => f.owner.observeSnapshot(request, tuple)).toThrow("requires fresh creation");
+  expect(f.owner.observeSnapshot({ kind: "manifest", id: handle(captured.body) })).toMatchObject({
+    kind: "manifest",
+    body: captured.body,
+    context,
+  });
+});
+
+it("does not expire retained Snapshot details on an ineligible fresh attempt", () => {
+  const f = fixture();
+  f.run([create("a")]);
+  const first = f.owner.observeSnapshot({ kind: "create" });
+  if (first.kind !== "manifest") throw new Error("expected manifest");
+  f.setTime(1000000 + limits.lifetimeMs + 1);
+  const minimum = {
+    scopeEpoch: first.context.scopeEpoch,
+    authorizationView: first.context.authorizationView,
+    minimumPosition: "pos-2",
+  };
+  for (const kind of ["create", "preflight"] as const)
+    expect(() => f.owner.observeSnapshot({ kind }, minimum)).toThrow("behind");
+  f.offline((db) => {
+    expect(db.prepare("SELECT count(*) AS n FROM snapshot_records").get()?.n).toBe(1);
+    expect(
+      JSON.parse(String(db.prepare("SELECT disposition FROM snapshots").get()?.disposition))
+        .expired,
+    ).toBe(false);
+  });
+});

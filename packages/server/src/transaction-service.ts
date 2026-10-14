@@ -249,10 +249,28 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       };
       return Object.freeze(guarded);
     },
-    snapshot(request: TransactionSnapshotRequest) {
-      // Finite synchronous owner work has no disconnect/interrupt claim. Track
-      // its delivery with the same close/drain machinery as other service work.
-      return run(async () => owner.observeSnapshot(request));
+    snapshot(
+      request: TransactionSnapshotRequest,
+      supplied?: TransactionMinimum,
+      signal?: AbortSignal,
+    ) {
+      // Without a minimum, preserve the synchronous owner path: it does not
+      // observe signal or claim interruption of retained reads or copying.
+      if (supplied === undefined) return run(async () => owner.observeSnapshot(request));
+      const minimum = snapshotTransactionMinimum(supplied),
+        kind = request.kind;
+      if (kind !== "create" && kind !== "preflight")
+        throw new TypeError("minimum Snapshot observation requires fresh creation or preflight");
+      // Freeze both controls before the first asynchronous attempt. Each owner
+      // entry revalidates the tuple; no SQLite entry survives a finite wait.
+      const copied = Object.freeze({ kind });
+      return run(() =>
+        waitForTransactionMinimum(
+          () => owner.observeSnapshot(copied, minimum),
+          minimumReads,
+          signal,
+        ),
+      );
     },
     changes(
       intent: TransactionChangefeedIntent,

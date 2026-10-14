@@ -8,6 +8,8 @@ import { parseTypeDescriptor, type AbsoluteHttpUrl } from "@bdp/protocol";
 import { prepareTransaction, prepareTransactionSequence } from "./transaction-batch.js";
 import { openTransactionStore } from "./transaction-store.js";
 import { createTransactionService, type TransactionServiceOptions } from "./transaction-service.js";
+import { createTransactionHttpHandler } from "./transaction-http.js";
+import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import type { TransactionSubmission } from "./transaction-submission.js";
 
 const scope = "https://example.test/service/",
@@ -933,4 +935,142 @@ it("cancels separate streams on shutdown, drains admitted finite work and refuse
   expect(() => service.stream(async () => {}, new AbortController().signal)).toThrow("closing");
   const reopened = f.reopen();
   expect(reopened.inspect().groups).toHaveLength(2);
+});
+
+describe("fresh Snapshot minimum service", () => {
+  it.each(["create", "preflight"] as const)(
+    "freezes %s controls and retries after a real independent commit",
+    async (kind) => {
+      const f = fixture(),
+        entered = Promise.withResolvers<void>(),
+        release = Promise.withResolvers<void>();
+      const service = f.open({
+        minimumReads: {
+          wait: async () => {
+            entered.resolve();
+            await release.promise;
+          },
+        },
+      });
+      const initial = await service.snapshot({ kind: "preflight" });
+      const tuple = {
+        scopeEpoch: initial.context.scopeEpoch,
+        authorizationView: initial.context.authorizationView,
+        minimumPosition: "pos-1",
+      };
+      const request: TransactionSnapshotRequest = { kind };
+      const pending = service.snapshot(request, tuple);
+      try {
+        await entered.promise;
+        Object.assign(request, { kind: "manifest", id: "not-a-handle" });
+        tuple.minimumPosition = "pos-999";
+        requireReceipt(await service.submit(batch([create("after-wait")])));
+        let closed = false;
+        const closing = service.close().then(() => {
+          closed = true;
+        });
+        await Promise.resolve();
+        expect(closed).toBe(false);
+        release.resolve();
+        const result = await pending;
+        expect(result.context).toEqual({ ...initial.context, scopePosition: "pos-1" });
+        expect(result.kind).toBe(kind === "create" ? "manifest" : "eligible");
+        if (result.kind === "manifest") {
+          expect(result.body.scopePosition).toBe("pos-1");
+          expect(result.body.checkpoint).not.toBe("genesis");
+          expect(result.body.beads.items).toHaveLength(1);
+          expect(result.body.beads.items[0]).toMatchObject({
+            id: `${scope}beads/after-wait`,
+            properties: { title: "after-wait" },
+          });
+        }
+        await closing;
+      } finally {
+        release.resolve();
+        await Promise.allSettled([pending]);
+      }
+    },
+  );
+  it.each(["create", "preflight"] as const)(
+    "keeps %s timeout and pre-abort distinct from owner work",
+    async (kind) => {
+      const f = fixture();
+      let tick = 0;
+      const wait = vi.fn(async () => {});
+      const observeSnapshot = vi.fn(f.owner.observeSnapshot);
+      const service = createTransactionService(
+        { ...f.owner, observeSnapshot },
+        {
+          ownerLifetime: "service",
+          read: f.read,
+          minimumReads: { budgetMs: 2, now: () => tick++, wait },
+        },
+      );
+      cleanup.push(() => service.close());
+      const initial = await service.snapshot({ kind: "preflight" });
+      observeSnapshot.mockClear();
+      const tuple = {
+        scopeEpoch: initial.context.scopeEpoch,
+        authorizationView: initial.context.authorizationView,
+        minimumPosition: "pos-1",
+      };
+      await expect(service.snapshot({ kind }, tuple, AbortSignal.abort())).rejects.toMatchObject({
+        name: "ScopeServerOperationAbortedError",
+      });
+      expect(wait).not.toHaveBeenCalled();
+      expect(observeSnapshot).not.toHaveBeenCalled();
+      await expect(service.snapshot({ kind }, tuple)).rejects.toMatchObject({
+        reason: "catch-up-timeout",
+        context: initial.context,
+      });
+      expect(wait).toHaveBeenCalled();
+      expect(() => service.snapshot({ kind: "manifest", id: "unknown" }, tuple)).toThrow(
+        "requires fresh creation",
+      );
+      expect(
+        await service.snapshot({ kind: "create" }, { ...tuple, minimumPosition: "genesis" }),
+      ).toMatchObject({
+        kind: "manifest",
+        context: initial.context,
+        body: { scopePosition: "pos-0", checkpoint: "genesis" },
+      });
+    },
+  );
+  it("uses one service call for each fresh HTTP branch, with terminal preflight", async () => {
+    const f = fixture();
+    let tick = 0;
+    const service = f.open({
+      minimumReads: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+    });
+    const initial = await service.snapshot({ kind: "preflight" });
+    const snapshot = vi.fn(service.snapshot);
+    const http = createTransactionHttpHandler({ ...service, snapshot }, scope);
+    for (const [method, headers, status, kind] of [
+      ["GET", {}, 200, "create"],
+      ["HEAD", {}, 200, "preflight"],
+      ["GET", { "if-none-match": "*" }, 304, "preflight"],
+      ["GET", { "if-match": '"absent"' }, 412, "preflight"],
+      ["GET", { accept: "text/plain" }, 406, "preflight"],
+    ] as const) {
+      for (const minimumPosition of ["genesis", "pos-1"]) {
+        snapshot.mockClear();
+        const response = await http.handle(
+          new Request(`${scope}snapshot`, {
+            method,
+            headers: {
+              ...headers,
+              "bdp-scope-epoch": initial.context.scopeEpoch,
+              "bdp-authorization-view": initial.context.authorizationView,
+              "bdp-minimum-scope-position": minimumPosition,
+            },
+          }),
+          { kind: "authenticated", principal: "p", canMutate: true },
+        );
+        expect(response.status).toBe(minimumPosition === "genesis" ? status : 503);
+        expect(response.headers.get("bdp-scope-position")).toBe("pos-0");
+        expect(snapshot).toHaveBeenCalledTimes(1);
+        expect(snapshot.mock.calls[0]?.[0]).toEqual({ kind });
+      }
+    }
+  });
 });
