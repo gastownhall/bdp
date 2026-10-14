@@ -673,8 +673,8 @@ The separately reported installed compatible-missing scenario uses two owned-Lin
 batches and eight reads (10 exchanges, one child), including a final behind failure.
 Per-step source revisions prove the owned deletion sequence; no earlier create
 image is represented as the final owner image. Supporting source-bound evidence
-and three source-mutant controls are recorded in the workstream's
-`transaction-compatible-missing-minimum-implementation/report.md`.
+and three source-mutant controls are recorded in the
+[frozen implementation report](https://github.com/donnabox/beads/blob/30cdcf30f0488f9d400343a9141c5c314eb9f02e/docs/architecture/bdp-client-v2/transaction-compatible-missing-minimum-implementation-report.md).
 Collection continuations, Types,
 incident Links, aliases and discovery retain the development gap when minimum
 controls are supplied. Partial/malformed tuples, bare epoch/view fields and

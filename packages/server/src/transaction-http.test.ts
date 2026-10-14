@@ -1251,6 +1251,26 @@ it("serves compatible missing Resource404 with context and preserves incompatibl
               status: 404,
             });
         }
+  for (const method of ["GET", "HEAD"]) {
+    const response = await f.get(`${f.runtime.scope}beads/missing`, {
+      method,
+      headers: minimumHeaders(removed),
+    });
+    expect(response.status).toBe(404);
+    for (const name of ["bdp-scope-position", "bdp-scope-epoch", "bdp-authorization-view"])
+      expect(response.headers.get(name)).toBe(removed.headers.get(name));
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.has("etag")).toBe(false);
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    if (method === "HEAD") {
+      expect(await response.text()).toBe("");
+      expect(Number(response.headers.get("content-length"))).toBeGreaterThan(0);
+    } else
+      expect(checkedProblem(await body(response))).toMatchObject({
+        code: "resource-not-found",
+        status: 404,
+      });
+  }
   for (const suffix of [
     "beads/missing",
     "links/missing",

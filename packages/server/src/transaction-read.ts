@@ -11,6 +11,8 @@ import {
 import { isProxy } from "node:util/types";
 import {
   createAuthorityReadPlane,
+  AuthorityReadError,
+  type AuthorityReadDeliveryOptions,
   type AuthorityReadOptions,
   type AuthorityReadPlane,
   type AuthorityReadFacet,
@@ -31,6 +33,41 @@ export function isInitialTransactionCollection(request: ReadRequest): boolean {
     (request.collection === "beads" || request.collection === "links") &&
     request.continuation === undefined
   );
+}
+
+/** Preserve the authority's data-only option boundary while ignoring only the
+ * ordinary facet's sourceCondition. Signal validation stays with the authority. */
+function ordinaryDeliveryOptions(
+  options: AuthorityReadDeliveryOptions | undefined,
+): AuthorityReadDeliveryOptions | undefined {
+  if (options === undefined) return undefined;
+  if (options === null || typeof options !== "object" || isProxy(options) || Array.isArray(options))
+    throw new AuthorityReadError(
+      "invalid-input",
+      "Read delivery options must be a plain data object",
+    );
+  const prototype = Object.getPrototypeOf(options);
+  if (prototype !== Object.prototype && prototype !== null)
+    throw new AuthorityReadError(
+      "invalid-input",
+      "Read delivery options must have a plain prototype",
+    );
+  let signal: PropertyDescriptor | undefined;
+  let unknownKey = false;
+  for (const key of Reflect.ownKeys(options)) {
+    if (typeof key !== "string")
+      throw new AuthorityReadError(
+        "invalid-input",
+        "Read delivery options cannot have symbol fields",
+      );
+    const descriptor = Object.getOwnPropertyDescriptor(options, key);
+    if (descriptor === undefined || !("value" in descriptor))
+      throw new AuthorityReadError("invalid-input", "Read delivery options cannot have accessors");
+    if (key !== "signal" && key !== "sourceCondition") unknownKey = true;
+    if (key === "signal") signal = descriptor;
+  }
+  if (unknownKey) throw new AuthorityReadError("invalid-input", "unknown Read delivery option");
+  return signal === undefined ? undefined : { signal: signal.value };
 }
 
 export type TransactionReadOptions = Pick<
@@ -106,18 +143,30 @@ export function createTransactionReadPlane(
     readFor(principal) {
       const facet = plane.readFor(principal);
       return {
-        perform: (request, options) =>
-          observe(
-            facet
-              .perform(request, options?.signal ? { signal: options.signal } : undefined)
-              .then((result) => checked(result)),
-          ),
-        resolveAlias: (url, options) =>
-          observe(
-            facet
-              .resolveAlias(url, options?.signal ? { signal: options.signal } : undefined)
-              .then((result) => checked(result)),
-          ),
+        perform: (request, options) => {
+          try {
+            return observe(
+              facet
+                .perform(request, ordinaryDeliveryOptions(options))
+                .then((result) => checked(result)),
+            );
+          } catch {
+            // Invalid options still go through the authority's rejection path,
+            // preserving lifecycle/error precedence and Promise delivery.
+            return observe(facet.perform(request, options).then((result) => checked(result)));
+          }
+        },
+        resolveAlias: (url, options) => {
+          try {
+            return observe(
+              facet
+                .resolveAlias(url, ordinaryDeliveryOptions(options))
+                .then((result) => checked(result)),
+            );
+          } catch {
+            return observe(facet.resolveAlias(url, options).then((result) => checked(result)));
+          }
+        },
       };
     },
   };

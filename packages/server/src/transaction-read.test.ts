@@ -18,7 +18,11 @@ import {
 } from "./transaction-read.js";
 import { createTransactionService } from "./transaction-service.js";
 import { createTransactionHttpHandler } from "./transaction-http.js";
-import type { ReadObservation } from "./authority-read.js";
+import {
+  AuthorityReadError,
+  type AuthorityReadDeliveryOptions,
+  type ReadObservation,
+} from "./authority-read.js";
 import { requestFromUrl } from "./read-request.js";
 
 const scope = "https://example.test/transaction/";
@@ -864,8 +868,17 @@ describe("compatible missing Resource minimum", () => {
       { operation: "deleteLink", link: "links/self" },
       { operation: "deleteBead", bead: "beads/a" },
     ]);
-    const { plane } = f.open(),
-      config = f.store.readConfiguration();
+    let entries = 0;
+    const owner: typeof f.store = {
+      ...f.store,
+      withRead: (callback) => {
+        entries++;
+        return f.store.withRead(callback);
+      },
+    };
+    const plane = createTransactionReadPlane(owner, f.readOptions);
+    cleanup.push(() => plane.close());
+    const config = f.store.readConfiguration();
     const expected = {
       scopeEpoch: config.scopeEpoch,
       authorizationView: config.authorizationView,
@@ -891,6 +904,7 @@ describe("compatible missing Resource minimum", () => {
         for (const id of [deleted, `${kind}s/never`])
           for (const view of ["resource", "properties"] as const)
             for (const minimumPosition of ["pos-1", "pos-2"]) {
+              const before = entries;
               const result = await plane
                 .minimumFor(
                   { kind: "anonymous" },
@@ -907,6 +921,7 @@ describe("compatible missing Resource minimum", () => {
                 problem: { code: "resource-not-found", status: 404 },
               });
               expect(contexts(result).current).toEqual(expected);
+              expect(entries - before).toBe(1);
             }
       expect(lookups).toBeGreaterThanOrEqual(16);
     } finally {
@@ -1022,4 +1037,90 @@ describe("compatible missing Resource minimum", () => {
       facet.resolveAlias(url("alias/work"), { signal, sourceCondition }),
     ).rejects.toThrow("abort");
   });
+
+  it.each(["perform", "resolveAlias"] as const)(
+    "preserves ordinary %s delivery validation without invoking caller accessors or proxies",
+    async (method) => {
+      const f = fixture();
+      f.write(seed);
+      expect(f.alias("putAlias", { alias: "alias/work", target: "beads/a" }).status).toBe(
+        "completed",
+      );
+      const { plane, facet } = f.open();
+      const call = (options: unknown) =>
+        method === "perform"
+          ? facet.perform(resource("beads/a"), options as AuthorityReadDeliveryOptions)
+          : facet.resolveAlias(url("alias/work"), options as AuthorityReadDeliveryOptions);
+      const invoked = vi.fn(() => {
+        throw new Error("caller code must not execute");
+      });
+      const proxy = new Proxy({}, { get: invoked, ownKeys: invoked, getPrototypeOf: invoked });
+      const revoked = Proxy.revocable({}, {});
+      revoked.revoke();
+      for (const [options, message] of [
+        [null, "plain data object"],
+        [0, "plain data object"],
+        [[], "plain data object"],
+        [Object.create({}), "plain prototype"],
+        [proxy, "plain data object"],
+        [revoked.proxy, "plain data object"],
+        [{ unknown: 1 }, "unknown Read delivery option"],
+        [Object.defineProperty({}, "unknown", { value: 1 }), "unknown Read delivery option"],
+        [{ [Symbol("hidden")]: 1 }, "symbol fields"],
+        [
+          {
+            get signal() {
+              return invoked();
+            },
+          },
+          "accessors",
+        ],
+        [
+          {
+            get sourceCondition() {
+              return invoked();
+            },
+          },
+          "accessors",
+        ],
+        ...[null, 0, false, "", {}, proxy].map(
+          (signal) => [{ signal }, "Read signal must be an AbortSignal"] as const,
+        ),
+      ] as const) {
+        let delivery: Promise<unknown> | undefined;
+        expect(() => {
+          delivery = call(options);
+        }).not.toThrow();
+        expect(delivery).toBeInstanceOf(Promise);
+        await expect(delivery).rejects.toBeInstanceOf(AuthorityReadError);
+        await expect(delivery).rejects.toMatchObject({
+          reason: "invalid-input",
+          message: expect.stringContaining(message),
+        });
+      }
+      expect(invoked).not.toHaveBeenCalled();
+      // Null prototypes and own undefined signals remain valid. Opaque ignored
+      // condition data is not inspected (even a revoked proxy is harmless data).
+      const valid = Object.create(null);
+      Object.defineProperties(valid, {
+        signal: { value: undefined },
+        sourceCondition: { value: revoked.proxy },
+      });
+      await expect(call(valid)).resolves.toMatchObject({
+        kind: method === "perform" ? "success" : "target",
+      });
+      await expect(call(undefined)).resolves.toMatchObject({
+        kind: method === "perform" ? "success" : "target",
+      });
+      await plane.close();
+      // The existing authority reports closed before inspecting delivery data.
+      // The narrowing helper must not replace this with invalid-input.
+      let closedDelivery: Promise<unknown> | undefined;
+      expect(() => {
+        closedDelivery = call(proxy);
+      }).not.toThrow();
+      await expect(closedDelivery).rejects.toThrow("closed");
+      expect(invoked).not.toHaveBeenCalled();
+    },
+  );
 });
