@@ -2,6 +2,7 @@ import { assembleTransactionDiscovery } from "./transaction-discovery.js";
 import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
 import {
+  checkTransactionMinimum,
   snapshotTransactionMinimum,
   waitForTransactionMinimum,
   type TransactionMinimum,
@@ -233,23 +234,34 @@ export function createTransactionService(owner: Owner, options: TransactionServi
   }
   return Object.freeze({
     scope,
-    /** Internal candidate only: no wire exposure or readiness assertion. */
-    discoveryObserved() {
-      return run(async () => {
-        const observed = owner.withRead((_reader, context) =>
-          Object.freeze({
+    /** Internal candidate only: no wire exposure or readiness assertion. Without
+     * a minimum the synchronous observation does not inspect signal. */
+    discoveryObserved(supplied?: TransactionMinimum, signal?: AbortSignal) {
+      const minimum = supplied === undefined ? undefined : snapshotTransactionMinimum(supplied);
+      const observe = () => {
+        const observed = owner.withRead((_reader, context) => {
+          if (minimum !== undefined) checkTransactionMinimum(minimum, context);
+          return Object.freeze({
             scopeEpoch: context.scopeEpoch,
             authorizationView: context.authorizationView,
             scopePosition: context.scopePosition,
-          }),
-        );
+          });
+        });
         if (observed.kind === "entry-refused")
           throw new Error("transaction discovery observation refused", { cause: observed.cause });
-        return Object.freeze({
-          ...assembleTransactionDiscovery(scope, observed.value, capturedRead.advertisedLimits),
-          context: observed.value,
+        return observed.value;
+      };
+      const assemble = (context: TransactionReadContext) =>
+        Object.freeze({
+          ...assembleTransactionDiscovery(scope, context, capturedRead.advertisedLimits),
+          context,
         });
-      });
+      // Preserve zero-minimum entry timing. A minimum-bearing call owns one
+      // finite lifetime; neither waits nor parsing retain a live owner entry.
+      if (minimum === undefined) return run(async () => assemble(observe()));
+      return run(async () =>
+        assemble(await waitForTransactionMinimum(observe, minimumReads, signal)),
+      );
     },
     /** Separate cancellable lifetime, never an infinite finite-work drain. The
      * callback starts only after capacity registration and abort wiring. */

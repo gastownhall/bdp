@@ -1670,3 +1670,22 @@ are recorded in the
 [frozen implementation report](https://github.com/donnabox/beads/blob/d573ce1ca7501a97a394c6ff3061771ec97e73f7/docs/architecture/bdp-client-v2/transaction-current-type-incident-minimum-implementation-report.md).
 This fixed all-visible evidence does not qualify hidden policy, retained minima,
 Type lifecycle, discovery activation or a full profile.
+### Internal discovery minimum observation
+
+The private discoveryObserved accessor accepts an optional canonical minimum and
+AbortSignal. It captures that tuple once, checks each attempt against the same
+owner entry that supplies epoch/view/head, and uses the existing finite wait.
+No owner entry spans a wait or parsing. Only a successful eligible observation is
+assembled; foreign/expired context, timeout, owner refusal and parser failures
+remain distinct. Service close drains admitted waits before closing the owner.
+Cancellation is observed before an attempt and at the next wait-loop check; it
+does not preempt synchronous SQLite work or an already running sleep.
+
+Without a minimum, the existing synchronous observation path is preserved and
+the optional signal is inert. This internal preparation adds no HTTP caller:
+Scope, descriptor and directory discovery remain refused, including the existing
+minimum-route gap. Source and direct emitted-module proof are recorded separately
+in the [frozen implementation report](https://github.com/donnabox/beads/blob/4925b1b2d37de792b6ec35f89f29ba23fb1210d9/docs/architecture/bdp-client-v2/transaction-discovery-minimum-service-implementation-report.md). The emitted
+ordinary discovery-refusal regression and the separate packed12/1 boundary cohort
+are not proof of the new accessor. No wire-ready profile, installed discovery,
+public admission, catalog credit or completed cumulative qualification is claimed.
