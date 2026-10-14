@@ -436,16 +436,40 @@ it("observes eleven partial Transactional contracts through packed-capable actua
   const noop = observed.result.scenarios.find(
     (row) => row.id === "transactional.batch.no-op-entries",
   )!;
-  expect(noop.exchanges).toHaveLength(15);
-  expect(noop.actions).toHaveLength(15);
+  expect(noop.exchanges.map((e) => e.request.id)).toEqual([
+    "n-seed",
+    "n-seed-facts",
+    "n-seed-groups",
+    "n-noop",
+    "n-noop-facts",
+    "n-noop-beads",
+    "n-noop-link",
+    "n-noop-events",
+    "n-noop-groups",
+    "n-changed",
+    "n-changed-facts",
+    "n-changed-beads",
+    "n-changed-link",
+    "n-changed-events",
+    "n-changed-groups",
+  ]);
+  // Result.actions contains client observations only; result.exchanges contains
+  // all actual HTTP, including each client's receipt GET.
+  expect(noop.actions!.map((a) => a.action.id)).toEqual([
+    "n-seed-facts",
+    "n-noop-facts",
+    "n-changed-facts",
+  ]);
+  for (const exchange of noop.exchanges)
+    expect(exchange.assertions.every((a) => a.passed)).toBe(true);
+  for (const action of noop.actions!) {
+    expect(action.assertions.every((a) => a.passed)).toBe(true);
+    expect(noop.exchanges.find((e) => e.request.id === action.action.id)).toBeDefined();
+  }
   // A successful final action includes scoped URL capture validation after its
   // assertions. Presence alone would still accept a null continuation.
   expect(noop.state).toBe("pass");
-  for (const action of noop.actions!) {
-    expect(action.assertions.every((a) => a.passed)).toBe(true);
-    expect(action.action.id).toBe(noop.exchanges[noop.actions!.indexOf(action)]!.request.id);
-  }
-  expect(noop.actions!.at(-1)!.action.id).toBe("n-changed-groups");
+  expect(noop.exchanges.at(-1)!.request.id).toBe("n-changed-groups");
   expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(159);
   expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
