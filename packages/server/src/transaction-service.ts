@@ -1,3 +1,4 @@
+import { assembleTransactionDiscovery } from "./transaction-discovery.js";
 import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
 import {
@@ -60,17 +61,50 @@ export interface TransactionServiceOptions {
 export function createTransactionService(owner: Owner, options: TransactionServiceOptions) {
   if (options.ownerLifetime !== "service")
     throw new TypeError("explicit service owner lifetime required");
+  const scope = owner.scope;
+  const supplied = options.read,
+    limits = supplied.advertisedLimits,
+    page = limits.page,
+    selector = limits.selector,
+    enforcedSelector = supplied.selectorLimits;
+  const suppliedPagination = supplied.pagination;
+  const pagination = { ...suppliedPagination };
+  // Capture callback values once, but keep the receiver the Read plane used
+  // before scalar snapshotting. Stateful callbacks belong to their caller,
+  // not to the frozen copy. Leave invalid values for existing validation.
+  const clock = pagination.clock,
+    generateOpaqueToken = pagination.generateOpaqueToken;
+  if (typeof clock === "function") pagination.clock = clock.bind(suppliedPagination);
+  if (typeof generateOpaqueToken === "function")
+    pagination.generateOpaqueToken = generateOpaqueToken.bind(suppliedPagination);
+  const capturedRead: TransactionReadOptions = Object.freeze({
+    selectorLimits: Object.freeze({
+      bytes: enforcedSelector.bytes,
+      depth: enforcedSelector.depth,
+      nodes: enforcedSelector.nodes,
+    }),
+    pagination: Object.freeze(pagination),
+    advertisedLimits: Object.freeze({
+      page: Object.freeze({ defaultItems: page.defaultItems, maximumItems: page.maximumItems }),
+      selector: Object.freeze({
+        bytes: selector.bytes,
+        depth: selector.depth,
+        nodes: selector.nodes,
+      }),
+      cursorTtlMilliseconds: limits.cursorTtlMilliseconds,
+    }),
+  });
   const maximum = owner.readConfiguration().receiptMaximumItems;
   if (
-    options.read.advertisedLimits.page.maximumItems !== maximum ||
-    options.read.pagination.maxPageItems !== maximum
+    capturedRead.advertisedLimits.page.maximumItems !== maximum ||
+    capturedRead.pagination.maxPageItems !== maximum
   )
     throw new TypeError("receipt page maximum differs from installed owner");
   const scheduler = options.scheduler ?? createNodeLifecycleScheduler();
   const turn = scheduler.turn.bind(scheduler);
   const comparison = Object.freeze({ ...options.comparison });
   const minimumReads = Object.freeze({ ...options.minimumReads });
-  const read = createTransactionReadPlane(owner, options.read);
+  const read = createTransactionReadPlane(owner, capturedRead);
   const active = new Set<Promise<unknown>>();
   const maximumStreams = options.maximumStreams ?? 1;
   if (!Number.isSafeInteger(maximumStreams) || maximumStreams < 1)
@@ -149,7 +183,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       observed.receipt.detail === "available" &&
       (!Array.isArray(results) ||
         results.length === 0 ||
-        results.length > options.read.advertisedLimits.page.maximumItems ||
+        results.length > capturedRead.advertisedLimits.page.maximumItems ||
         (observed.receipt.next !== null &&
           (typeof observed.receipt.next !== "string" ||
             !observed.receipt.next.startsWith(`${observed.receipt.id}/pages/`) ||
@@ -198,6 +232,25 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     }
   }
   return Object.freeze({
+    scope,
+    /** Internal candidate only: no wire exposure or readiness assertion. */
+    discoveryObserved() {
+      return run(async () => {
+        const observed = owner.withRead((_reader, context) =>
+          Object.freeze({
+            scopeEpoch: context.scopeEpoch,
+            authorizationView: context.authorizationView,
+            scopePosition: context.scopePosition,
+          }),
+        );
+        if (observed.kind === "entry-refused")
+          throw new Error("transaction discovery observation refused", { cause: observed.cause });
+        return Object.freeze({
+          ...assembleTransactionDiscovery(scope, observed.value, capturedRead.advertisedLimits),
+          context: observed.value,
+        });
+      });
+    },
     /** Separate cancellable lifetime, never an infinite finite-work drain. The
      * callback starts only after capacity registration and abort wiring. */
     stream(start: (signal: AbortSignal) => Promise<void>, supplied: AbortSignal): Promise<void> {

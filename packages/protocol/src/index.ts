@@ -632,3 +632,10 @@ export {
   isHttpScopeCandidate,
   type PreparedReadUpdateCarrier,
 } from "./read-update-preflight.js";
+
+export {
+  parseTransactionalDiscovery,
+  parseTransactionalOperationDirectory,
+  type TransactionalDiscovery,
+  type TransactionalOperationDirectory,
+} from "./transaction-discovery-values.js";

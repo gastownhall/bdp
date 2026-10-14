@@ -53,20 +53,7 @@ import {
 import type { TransactionReadContext } from "./transaction-store.js";
 import type { TransactionSubmission } from "./transaction-submission.js";
 
-export const TRANSACTION_HTTP_OPERATIONS = Object.freeze({
-  createBead: "create-bead",
-  updateBead: "update-bead",
-  deleteBead: "delete-bead",
-  createLink: "create-link",
-  updateLink: "update-link",
-  deleteLink: "delete-link",
-  putAlias: "put-alias",
-  deleteAlias: "delete-alias",
-  updateWhere: "update-where",
-  deleteWhere: "delete-where",
-  batch: "batch",
-  sequence: "sequence",
-} as const);
+import { TRANSACTION_HTTP_OPERATIONS } from "./transaction-discovery.js";
 export type TransactionHttpAuthorization =
   | { readonly kind: "unauthenticated" }
   | { readonly kind: "authenticated"; readonly principal: string; readonly canMutate: boolean };
@@ -170,6 +157,7 @@ export function createTransactionHttpHandler(
 ) {
   const scope = parseCanonicalScope(canonicalScope),
     scopeUrl = new URL(scope);
+  if (scope !== service.scope) throw new TypeError("HTTP Scope differs from transaction owner");
   if (
     !Number.isSafeInteger(maximumOperations) ||
     maximumOperations < 1 ||

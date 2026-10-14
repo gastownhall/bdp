@@ -1,10 +1,17 @@
+import * as discoveryAssembly from "./transaction-discovery.js";
+import { requestFromUrl } from "./read-request.js";
 import { DatabaseSync } from "node:sqlite";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseTypeDescriptor, type AbsoluteHttpUrl } from "@bdp/protocol";
+import {
+  isReadProblem,
+  parseTypeDescriptor,
+  ProtocolArtifactValidationError,
+  type AbsoluteHttpUrl,
+} from "@bdp/protocol";
 import { prepareTransaction, prepareTransactionSequence } from "./transaction-batch.js";
 import { openTransactionStore } from "./transaction-store.js";
 import { createTransactionService, type TransactionServiceOptions } from "./transaction-service.js";
@@ -1073,4 +1080,241 @@ describe("fresh Snapshot minimum service", () => {
       }
     }
   });
+});
+
+describe("internal discovery owner observation", () => {
+  it("copies exactly one owner entry and parses only after releasing it", async () => {
+    const f = fixture();
+    let entries = 0;
+    const owner = {
+      ...f.owner,
+      withRead: ((callback: Parameters<typeof f.owner.withRead>[0]) => {
+        entries++;
+        return f.owner.withRead(callback);
+      }) as typeof f.owner.withRead,
+    };
+    const service = createTransactionService(owner, { ownerLifetime: "service", read: f.read });
+    cleanup.push(() => service.close());
+    const original = discoveryAssembly.assembleTransactionDiscovery;
+    let parsed = 0;
+    vi.spyOn(discoveryAssembly, "assembleTransactionDiscovery").mockImplementation((...args) => {
+      // Real owner API throws on reentry; this is not a substitute store.
+      expect(f.owner.readConfiguration().receiptMaximumItems).toBe(32);
+      parsed++;
+      return original(...args);
+    });
+    entries = 0;
+    const observed = await service.discoveryObserved();
+    expect(entries).toBe(1);
+    expect(parsed).toBe(1);
+    expect(observed.context).toEqual({
+      scopeEpoch: f.owner.scopeEpoch,
+      authorizationView: "development-all-visible",
+      scopePosition: "pos-0",
+    });
+    expect(observed.discovery).toMatchObject({
+      scope,
+      scopeEpoch: f.owner.scopeEpoch,
+      authorizationView: "development-all-visible",
+      headPosition: "pos-0",
+      minimumReplayPosition: "pos-0",
+    });
+    expect(Object.isFrozen(observed.context)).toBe(true);
+    expect(Object.keys(observed).sort()).toEqual(["context", "directory", "discovery"]);
+    await service.close();
+    expect(() => service.discoveryObserved()).toThrow("closed");
+  });
+  it("keeps entry refusal distinct from structural validation failure", async () => {
+    const f = fixture(),
+      service = f.open();
+    let pending: Promise<unknown> | undefined;
+    f.owner.withRead(() => {
+      pending = service.discoveryObserved();
+      return 0;
+    });
+    await expect(pending).rejects.toThrow("transaction discovery observation refused");
+    const original = discoveryAssembly.assembleTransactionDiscovery;
+    vi.spyOn(discoveryAssembly, "assembleTransactionDiscovery").mockImplementation(
+      (scope, context, limits) => original(scope, { ...context, scopeEpoch: "bad space" }, limits),
+    );
+    await expect(service.discoveryObserved()).rejects.toBeInstanceOf(
+      ProtocolArtifactValidationError,
+    );
+    f.owner.close();
+    await expect(service.discoveryObserved()).rejects.toThrow(
+      "transaction discovery observation refused",
+    );
+  });
+  it("captures nested limits once and enforces the captured values after caller mutation", async () => {
+    const f = fixture(),
+      service = f.open();
+    const before = (await service.discoveryObserved()).discovery;
+    Object.assign(f.read.advertisedLimits.page, { defaultItems: 1, maximumItems: 1 });
+    Object.assign(f.read.advertisedLimits.selector, { bytes: 1, depth: 1, nodes: 1 });
+    Object.assign(f.read.advertisedLimits, { cursorTtlMilliseconds: 999999 });
+    Object.assign(f.read.selectorLimits, { bytes: 1, depth: 1, nodes: 1 });
+    Object.assign(f.read.pagination, { defaultPageItems: 1, maxPageItems: 1, cursorTtlMs: 999999 });
+    Object.assign(f.read, {
+      advertisedLimits: {
+        page: { defaultItems: 7, maximumItems: 7 },
+        selector: { bytes: 7, depth: 7, nodes: 7 },
+        cursorTtlMilliseconds: 7,
+      },
+    });
+    const first = requireReceipt(
+      await service.submit(batch([create("a"), create("b"), create("c")])),
+    );
+    expect(first.receipt.results).toHaveLength(3);
+    const observed = await service.discoveryObserved();
+    expect(observed.discovery.limits).toEqual(before.limits);
+    const facet = service.readFor({ kind: "anonymous" });
+    const page = await facet.perform({ kind: "collection", collection: "beads" });
+    expect(page).toMatchObject({
+      kind: "success",
+      body: { items: [expect.any(Object), expect.any(Object)], next: expect.any(String) },
+    });
+    const max = await facet.perform({ kind: "collection", collection: "beads", limit: 33 });
+    expect(max).toMatchObject({ kind: "problem", problem: { code: "limit-exceeded" } });
+    if (page.kind !== "success" || !("next" in page.body) || typeof page.body.next !== "string")
+      throw new Error("expected continuation");
+    f.setTime(2000);
+    const continued = requestFromUrl(new URL(page.body.next), scope);
+    if (isReadProblem(continued)) throw new Error("expected continuation request");
+    expect(await facet.perform(continued)).toMatchObject({
+      kind: "problem",
+      problem: { code: "cursor-expired" },
+    });
+    const selected = requestFromUrl(
+      new URL(`${scope}beads/?selector=${encodeURIComponent("$[?@.properties.title == 'a']")}`),
+      scope,
+    );
+    if (isReadProblem(selected)) throw new Error("expected selector request");
+    expect(await facet.perform(selected)).toMatchObject({ kind: "success" });
+  });
+  it("keeps the replay position floor and complete genesis groups through receipt expiry and reopen", async () => {
+    const f = fixture(),
+      service = f.open();
+    const first = requireReceipt(await service.submit(batch([create("a")], "first")));
+    await service.submit(batch([create("b")], "second"));
+    const observed = await service.discoveryObserved();
+    expect(observed.discovery.headPosition).toBe("pos-2");
+    expect(observed.discovery.minimumReplayPosition).toBe("pos-0");
+    expect(first.receipt.id.startsWith(observed.discovery.receipts)).toBe(true);
+    const receiptResponse = await createTransactionHttpHandler(service, scope).handle(
+      new Request(first.receipt.id),
+      { ...access, canMutate: true },
+    );
+    expect(receiptResponse.status).toBe(200);
+    expect(receiptResponse.body).toEqual(first.receipt);
+    expect(receiptResponse.headers.get("bdp-scope-position")).toBe("pos-2");
+    async function replay(actual: typeof service) {
+      const pages: unknown[] = [];
+      let after = "genesis";
+      for (let count = 0; count < 3; count++) {
+        const result = await actual.changes({ after });
+        if (result.kind !== "page") throw new Error("expected actual changefeed page");
+        pages.push(result);
+        if (result.page.next === null) return pages;
+        after = new URL(result.page.next).searchParams.get("after") ?? "";
+      }
+      throw new Error("unexpected changefeed page count");
+    }
+    const original = await replay(service);
+    expect(original).toMatchObject([
+      { kind: "page", page: { groups: [{ position: "pos-1", previousPosition: "pos-0" }] } },
+      { kind: "page", page: { groups: [{ position: "pos-2", previousPosition: "pos-1" }] } },
+    ]);
+    await service.close();
+    // The owner retains through expiresAt; maintenance disposes strictly after it.
+    f.setTime(1001 + 24 * 60 * 60 * 1000);
+    f.reopen();
+    const reopened = f.open();
+    const compact = requireReceipt(reopened.receipt(access, first.receipt.id));
+    expect(compact.receipt).toMatchObject({
+      status: "completed",
+      detail: "expired",
+      id: first.receipt.id,
+      requiredPosition: "pos-1",
+    });
+    expect(compact.receipt).not.toHaveProperty("results");
+    expect(await reopened.discoveryObserved()).toEqual(observed);
+    expect(await replay(reopened)).toEqual(original);
+  });
+});
+
+describe("captured pagination callback receivers", () => {
+  it("reads each callback once but keeps state on the original pagination receiver", async () => {
+    const f = fixture();
+    const reads = { clock: 0, token: 0 };
+    const pagination = {
+      ...f.read.pagination,
+      ticks: 1000,
+      issued: 0,
+      get clock() {
+        reads.clock++;
+        return function (this: { ticks: number }) {
+          expect(this).toBe(pagination);
+          return this.ticks++;
+        };
+      },
+      get generateOpaqueToken() {
+        reads.token++;
+        return function (this: { issued: number }) {
+          expect(this).toBe(pagination);
+          return `stateful_${++this.issued}`;
+        };
+      },
+    };
+    const service = f.open({ read: { ...f.read, pagination } });
+    expect(reads).toEqual({ clock: 1, token: 1 });
+    const first = requireReceipt(
+      await service.submit(batch([create("a"), create("b"), create("c")])),
+    );
+    const facet = service.readFor({ kind: "anonymous" });
+    const page = await facet.perform({ kind: "collection", collection: "beads" });
+    expect(page).toMatchObject({
+      kind: "success",
+      body: { items: [expect.any(Object), expect.any(Object)], next: expect.any(String) },
+    });
+    expect(pagination.ticks).toBeGreaterThan(1000);
+    expect(pagination.issued).toBeGreaterThan(0);
+    if (page.kind !== "success" || !("next" in page.body) || typeof page.body.next !== "string")
+      throw new Error("expected continuation");
+    const next = requestFromUrl(new URL(page.body.next), scope);
+    if (isReadProblem(next)) throw new Error("expected continuation request");
+    const last = await facet.perform(next);
+    expect(last).toMatchObject({
+      kind: "success",
+      body: { items: [expect.any(Object)], next: null },
+    });
+    if (last.kind !== "success" || !("items" in last.body) || !("items" in page.body))
+      throw new Error("expected collection pages");
+    expect([...(page.body.items as unknown[]), ...(last.body.items as unknown[])]).toEqual(
+      (first.receipt.results as { resource: unknown }[]).map((member) => member.resource),
+    );
+    expect(reads).toEqual({ clock: 1, token: 1 });
+    expect((await service.discoveryObserved()).discovery.limits).toEqual({
+      page: { defaultItems: 2, maximumItems: 32 },
+      selector: { bytes: 4096, depth: 32, nodes: 256 },
+    });
+  });
+  it.each(["clock", "generateOpaqueToken"] as const)(
+    "preserves validation for an invalid %s without rereading its getter",
+    (field) => {
+      const f = fixture();
+      let reads = 0;
+      const pagination = { ...f.read.pagination };
+      Object.defineProperty(pagination, field, {
+        enumerable: true,
+        get() {
+          reads++;
+          return null;
+        },
+      });
+      expect(() => f.open({ read: { ...f.read, pagination } })).toThrow(
+        "pagination callbacks required",
+      );
+      expect(reads).toBe(1);
+    },
+  );
 });

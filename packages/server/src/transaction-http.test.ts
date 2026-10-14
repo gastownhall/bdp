@@ -169,7 +169,24 @@ function context(response: Response) {
 describe("source-private actual Transactional HTTP", () => {
   it("serves canonical routes without advertising missing discovery or directory", async () => {
     const f = await fixture();
-    expect(Object.keys(f.runtime.targets)).toHaveLength(12);
+    expect(f.runtime.targets).toEqual(
+      Object.fromEntries(
+        Object.entries({
+          createBead: "create-bead",
+          updateBead: "update-bead",
+          deleteBead: "delete-bead",
+          createLink: "create-link",
+          updateLink: "update-link",
+          deleteLink: "delete-link",
+          putAlias: "put-alias",
+          deleteAlias: "delete-alias",
+          sequence: "sequence",
+          updateWhere: "update-where",
+          deleteWhere: "delete-where",
+          batch: "batch",
+        }).map(([name, suffix]) => [name, `${f.runtime.scope}operations/${suffix}`]),
+      ),
+    );
     for (const relative of ["", "bdp.json", "operations/"]) {
       const result = await f.get(new URL(relative, f.runtime.scope).href);
       expect(result.status).toBe(500);

@@ -1600,3 +1600,31 @@ concurrent alias histories, Snapshot consistency, crash durability, or a changed
 store format. The parent caller still knows the private operation targets.
 Source-bound commands, preparation failures, packed payload/configuration hashes
 and cleanup observations are recorded separately from the historical core proof.
+
+### Internal Transactional discovery assembly (C3)
+
+The private service can assemble a schema-validated discovery candidate and
+Operation Directory from its captured Scope and a single live owner observation.
+The owner entry copies only epoch, authorization view and head position; parsing
+runs after that entry releases. Both production protocol parsers snapshot and
+validate detached JSON. The directory and HTTP target constructor share the same
+12-operation map, and HTTP construction rejects a different owner Scope.
+
+The candidate contains the 16 required discovery members plus five captured
+page/Selector limits. Receipt checks and the Read plane consume the same immutable
+configuration. The fixed owner retains change groups, so the position floor is
+`pos-0`; the separate ordinal-zero changefeed checkpoint remains `genesis`.
+Tests replay the original groups after completed receipt detail expires and the
+owner reopens, without treating a compact completed receipt as a forgotten key.
+
+This is **not a wire-ready description**. C4 must project all required enforced
+limits, including bounded validation diagnostics and diagnostic bytes, before
+activation. C3 neither serves this candidate nor grants public Transactional
+admission. Scope, descriptor and directory GET/HEAD remain explicitly refused.
+The source-private installed boundary fixture has exactly 12 exchanges and one
+child: six authenticated discovery GET/HEAD refusals, three anonymous refusals,
+then a real batch, independent afterstate GET and exact retained retry. Its
+45-second cohort, 60-second outer and 5-second exchange bounds are fixture budgets.
+Fresh pack/install execution, actual source/configuration/payload bindings and
+cleanup are recorded separately in the C3 implementation report; emitted tests
+alone do not establish an installed result or cold-client usability.
