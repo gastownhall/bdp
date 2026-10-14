@@ -755,3 +755,199 @@ it("observes genuine installed compatible missing minimum404 and preserved behin
     "private-installed-compatible-missing-minimum",
   );
 }, 120000);
+
+it("observes genuine installed current Type and incident-Link minimums within20requests", async () => {
+  await withInstalled(
+    async (f) => {
+      let count = 0;
+      const urls = new Set<string>();
+      const exchange = async (...args: Parameters<typeof f.exchange>) => {
+        if (++count > 20) throw new Error("Type/incident request ceiling exceeded");
+        const response = await f.exchange(...args);
+        urls.add(args[0]!);
+        const expected = args[2]?.["bdp-authorization-view"];
+        if (expected !== undefined)
+          expect(
+            response.exactRequest?.headerLines.find(
+              (h) => h.name.toLowerCase() === "bdp-authorization-view",
+            )?.value,
+          ).toBe(expected);
+        return response;
+      };
+      const seeded = await exchange(
+        `${scope}operations/batch`,
+        "POST",
+        { "content-type": "application/json", "idempotency-key": "type_incident_seed" },
+        {
+          operations: [
+            ...["a", "b", "c"].map((id) => ({
+              operation: "createBead",
+              id: `beads/${id}`,
+              type: beadType,
+              properties: { title: id },
+              metadata: { seed: id },
+            })),
+            ...[
+              ["l-ab", "a", "b"],
+              ["l-ba", "b", "a"],
+            ].map(([id, source, target]) => ({
+              operation: "createLink",
+              id: `links/${id}`,
+              type: linkType,
+              source: `beads/${source}`,
+              target: `beads/${target}`,
+              properties: { title: id },
+              metadata: { seed: id },
+            })),
+          ],
+        },
+      );
+      const receipt = json<{
+        status: string;
+        detail: string;
+        results: {
+          operationIndex: number;
+          outcome: string;
+          resource: Row & { source?: string; target?: string };
+          source?: string;
+          sourceRevision?: string;
+        }[];
+        requiredPosition: string;
+        effectPosition: string;
+      }>(seeded);
+      expect(receiptSchema(receipt), JSON.stringify(receiptSchema.errors)).toBe(true);
+      expect(receipt).toMatchObject({
+        status: "completed",
+        detail: "available",
+        requiredPosition: "pos-1",
+        effectPosition: "pos-1",
+      });
+      expect(receipt.results).toHaveLength(5);
+      const names = ["a", "b", "c", "l-ab", "l-ba"];
+      for (const [i, result] of receipt.results.entries()) {
+        const name = names[i]!;
+        expect(result.operationIndex).toBe(i);
+        expect(result.outcome).toBe("created");
+        expect(result.resource.revision).toEqual(expect.any(String));
+        expect(result.resource).toEqual({
+          id: `${scope}${i < 3 ? "beads" : "links"}/${name}`,
+          type: i < 3 ? beadType : linkType,
+          properties: { title: name },
+          metadata: { seed: name },
+          revision: result.resource.revision,
+          ...(i < 3
+            ? { ownedLinks: { [linkType]: [] } }
+            : {
+                source: `${scope}beads/${i === 3 ? "a" : "b"}`,
+                target: `${scope}beads/${i === 3 ? "b" : "a"}`,
+              }),
+        });
+        if (i >= 3) {
+          expect(result.source).toBe(`${scope}beads/${i === 3 ? "a" : "b"}`);
+          expect(result.sourceRevision).toEqual(expect.any(String));
+          expect(result.sourceRevision).not.toBe(receipt.results[i - 3]!.resource.revision);
+        }
+      }
+      const bound = minimum(seeded);
+      context(seeded, bound, "pos-1");
+      const links = receipt.results.slice(3).map((r) => r.resource);
+      const descriptor = JSON.parse(artifacts().descriptors[0]!.utf8);
+      const targets = [`${scope}types/task`, `${scope}types/`, `${scope}beads/a?view=links`];
+      const expected = [
+        descriptor,
+        {
+          items: [
+            { id: linkType, name: "Relationship", describes: "link" },
+            { id: beadType, name: "Task", describes: "bead" },
+          ],
+          next: null,
+        },
+        { items: links, next: null },
+      ];
+      for (const [i, target] of targets.entries()) {
+        const get = await exchange(target, "GET", bound);
+        expect(json(get)).toEqual(expected[i]);
+        context(get, bound);
+        const head = await exchange(target, "HEAD", bound);
+        expect(head.status).toBe(200);
+        expect(head.bodyText).toBe("");
+        expect(head.bodyOctets).toBe(0);
+        context(head, bound);
+      }
+      for (const [index, method, header, status] of [
+        [0, "GET", { "if-none-match": "*" }, 304],
+        [1, "HEAD", { "if-match": '"mismatch"' }, 412],
+        [2, "GET", { "if-none-match": "*" }, 304],
+      ] as const) {
+        const response = await exchange(targets[index]!, method, { ...bound, ...header });
+        expect(response.status).toBe(status);
+        expect(response.bodyText).toBe("");
+        expect(response.bodyOctets).toBe(0);
+        context(response, bound);
+      }
+      for (const [index, method] of [
+        [0, "GET"],
+        [1, "HEAD"],
+        [2, "GET"],
+      ] as const) {
+        const response = await exchange(targets[index]!, method, {
+          ...bound,
+          "bdp-minimum-scope-position": "pos-2",
+          "if-none-match": "*",
+        });
+        expect(response.status).toBe(503);
+        context(response, bound);
+        expect(response.headers["retry-after"]).toBe("1");
+        if (method === "HEAD") {
+          expect(response.bodyText).toBe("");
+          expect(response.bodyOctets).toBe(0);
+        } else
+          expect(json<Record<string, unknown>>(response, 503)).toMatchObject({
+            code: "catch-up-timeout",
+            status: 503,
+            retry: "after-delay",
+          });
+      }
+      for (const [index, method, field, status, code] of [
+        [0, "GET", "bdp-scope-epoch", 410, "cursor-expired"],
+        [1, "GET", "bdp-authorization-view", 409, "foreign-view"],
+        [2, "HEAD", "bdp-scope-epoch", 410, "cursor-expired"],
+      ] as const) {
+        const response = await exchange(targets[index]!, method, { ...bound, [field]: "foreign" });
+        expect(response.status).toBe(status);
+        context(response, bound);
+        if (method === "HEAD") {
+          expect(response.bodyText).toBe("");
+          expect(response.bodyOctets).toBe(0);
+        } else
+          expect(json<Record<string, unknown>>(response, status)).toMatchObject({ code, status });
+      }
+      for (const [suffix, rows] of [
+        ["beads/c?view=links", []],
+        ["beads/a?view=links&direction=inbound", [links[1]]],
+        ["beads/a?view=links&direction=outbound", [links[0]]],
+      ] as const) {
+        const response = await exchange(`${scope}${suffix}`, "GET", bound);
+        expect(json(response)).toEqual({ items: rows, next: null });
+        context(response, bound);
+      }
+      const anonymous = await exchange(targets[1]!, "GET", bound, undefined, "anonymous");
+      expect(anonymous.status).toBe(401);
+      expect(anonymous.bodyText).not.toContain("Relationship");
+      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+        expect(anonymous.headers[name]).toBeUndefined();
+      expect(count).toBe(20);
+      expect([...urls].sort()).toEqual(
+        [
+          `${scope}operations/batch`,
+          ...targets,
+          `${scope}beads/c?view=links`,
+          `${scope}beads/a?view=links&direction=inbound`,
+          `${scope}beads/a?view=links&direction=outbound`,
+        ].sort(),
+      );
+    },
+    undefined,
+    "private-installed-type-incident-minimum",
+  );
+}, 120000);

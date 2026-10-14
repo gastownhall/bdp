@@ -1,5 +1,5 @@
 /** Same-owner private Read composition with source conditions for canonical
- * current point and initial Bead/Link collection reads. The service owns finite
+ * current points, Type inventory and initial Resource/incident-Link reads. The service owns finite
  * waits; continuation minimums, receipt serving and replication Snapshots are
  * separate contracts. */
 import {
@@ -26,13 +26,37 @@ import type { openTransactionStore } from "./transaction-store.js";
 
 export class TransactionMinimumVisibilityGap extends Error {}
 
-/** Exact private collection subset shared by the facet and HTTP route gate. */
-export function isInitialTransactionCollection(request: ReadRequest): boolean {
-  return (
-    request.kind === "collection" &&
-    (request.collection === "beads" || request.collection === "links") &&
-    request.continuation === undefined
-  );
+/** Current private minimum subset; full request validation remains with Read. */
+export function isCurrentTransactionMinimumRead(request: ReadRequest, scope: string): boolean {
+  if (isProxy(request)) return false;
+  switch (request.kind) {
+    case "resource": {
+      if (request.resource !== "type")
+        return request.resource === "bead" || request.resource === "link";
+      // Locality is checked before Read captures the request. Do not execute
+      // an ID getter or method here; canonical syntax remains Read's decision.
+      const id = Object.getOwnPropertyDescriptor(request, "id");
+      return (
+        id !== undefined &&
+        "value" in id &&
+        typeof id.value === "string" &&
+        id.value.startsWith(scope)
+      );
+    }
+    case "properties":
+      return request.resource === "bead" || request.resource === "link";
+    case "collection":
+      return (
+        (request.collection === "beads" ||
+          request.collection === "links" ||
+          request.collection === "types") &&
+        request.continuation === undefined
+      );
+    case "bead-links":
+      return request.continuation === undefined;
+    default:
+      return false;
+  }
 }
 
 /** Preserve the authority's data-only option boundary while ignoring only the
@@ -180,11 +204,7 @@ export function createTransactionReadPlane(
         facet = plane.readFor(principal);
       return Object.freeze({
         perform: (request, options) => {
-          if (
-            !isInitialTransactionCollection(request) &&
-            ((request.kind !== "resource" && request.kind !== "properties") ||
-              (request.resource !== "bead" && request.resource !== "link"))
-          )
+          if (!isCurrentTransactionMinimumRead(request, owner.scope))
             return Promise.reject(new TypeError("minimum-read route outside supported subset"));
           return observe(
             facet

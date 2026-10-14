@@ -1027,7 +1027,7 @@ describe("compatible missing Resource minimum", () => {
     await expect(
       plane
         .minimumFor({ kind: "anonymous" }, sourceCondition)
-        .perform({ kind: "collection", collection: "types" }),
+        .perform({ kind: "resource", resource: "type", id: link as AbsoluteHttpUrl }),
     ).rejects.toThrow("outside supported subset");
     const signal = AbortSignal.abort(new Error("ordinary cancelled"));
     await expect(facet.perform(resource("beads/a"), { signal, sourceCondition })).rejects.toThrow(
@@ -1123,4 +1123,437 @@ describe("compatible missing Resource minimum", () => {
       expect(invoked).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("current Type and incident-Link minimums", () => {
+  const descriptor = parseTypeDescriptor({
+    id: url("types/task"),
+    name: "Task",
+    describes: "bead",
+    conformsTo: [],
+  });
+  const principal = { kind: "anonymous" } as const;
+  const requests: ReadRequest[] = [
+    { kind: "resource", resource: "type", id: descriptor.id },
+    { kind: "collection", collection: "types", limit: 3 },
+    { kind: "bead-links", bead: url("beads/a") },
+  ];
+  const extraLinks = [
+    {
+      operation: "createLink",
+      id: "links/out",
+      type: link,
+      source: "beads/a",
+      target: "beads/b",
+      properties: { n: 3 },
+      metadata: { tag: "out" },
+    },
+    {
+      operation: "createLink",
+      id: "links/in",
+      type: link,
+      source: "beads/b",
+      target: "beads/a",
+      properties: { n: 4 },
+      metadata: { tag: "in" },
+    },
+  ];
+  function prepared() {
+    const f = fixture({ types: [...types, descriptor] });
+    f.write([...seed, ...extraLinks]);
+    const minimum = (minimumPosition = "pos-1") => ({
+      scopeEpoch: f.store.scopeEpoch,
+      authorizationView: "development-all-visible",
+      minimumPosition,
+    });
+    return { ...f, minimum };
+  }
+  function serviceFor(f: ReturnType<typeof prepared>, minimumReads = {}) {
+    const service = createTransactionService(f.store, {
+      ownerLifetime: "service",
+      minimumReads,
+      read: {
+        ...f.readOptions,
+        advertisedLimits: {
+          ...f.readOptions.advertisedLimits,
+          page: { defaultItems: 2, maximumItems: 32 },
+        },
+        pagination: { ...f.readOptions.pagination, maxPageItems: 32 },
+      },
+    });
+    cleanup.push(() => service.close());
+    return service;
+  }
+  function assertLinks(rows: Record<string, unknown>[], names: string[]) {
+    expect(rows.map((r) => r.id)).toEqual(names.map((n) => url(`links/${n}`)));
+    for (const row of rows) {
+      const name = String(row.id).split("/").at(-1)!;
+      expect(row).toEqual({
+        id: url(`links/${name}`),
+        type: link,
+        source: url(name === "in" ? "beads/b" : "beads/a"),
+        target: url(name === "out" ? "beads/b" : "beads/a"),
+        properties: name === "self" ? {} : { n: name === "out" ? 3 : 4 },
+        metadata: name === "self" ? {} : { tag: name },
+        revision: expect.any(String),
+      });
+    }
+  }
+  it.each([
+    "omitted",
+    "undefined",
+    "null",
+    "number",
+    "false",
+    "empty",
+    "method",
+    "accessor",
+    "inherited",
+    "proxy",
+    "revoked",
+  ] as const)(
+    "rejects malformed Type ID %s through a Promise without invoking caller data",
+    async (kind) => {
+      const f = prepared(),
+        { plane, facet } = f.open();
+      const minimum = plane.minimumFor(principal, f.minimum());
+      const invoked = vi.fn(() => {
+        throw new Error("Type ID caller code must not execute");
+      });
+      const base = { kind: "resource", resource: "type" };
+      const revoked = Proxy.revocable({ ...base, id: descriptor.id }, {});
+      revoked.revoke();
+      const malformed = {
+        omitted: base,
+        undefined: { ...base, id: undefined },
+        null: { ...base, id: null },
+        number: { ...base, id: 0 },
+        false: { ...base, id: false },
+        empty: { ...base, id: "" },
+        method: { ...base, id: { startsWith: invoked } },
+        accessor: Object.defineProperty({ ...base }, "id", { get: invoked }),
+        inherited: Object.assign(
+          Object.create(Object.defineProperty({}, "id", { get: invoked })),
+          base,
+        ),
+        proxy: new Proxy(
+          { ...base, id: descriptor.id },
+          {
+            get: invoked,
+            getOwnPropertyDescriptor: invoked,
+            getPrototypeOf: invoked,
+          },
+        ),
+        revoked: revoked.proxy,
+      };
+      let delivery: Promise<unknown> | undefined;
+      expect(() => {
+        delivery = minimum.perform(malformed[kind] as ReadRequest);
+      }).not.toThrow();
+      expect(delivery).toBeInstanceOf(Promise);
+      await expect(delivery).rejects.toThrow("outside supported subset");
+      expect(invoked).not.toHaveBeenCalled();
+      expect(body(await minimum.perform(requests[0]!))).toEqual(descriptor);
+      const external = { kind: "resource", resource: "type", id: link } as ReadRequest;
+      expect(body(await facet.perform(external))).toEqual(types[1]);
+      await expect(minimum.perform(external)).rejects.toThrow("outside supported subset");
+      // The subset gate checks only locality. Canonical Type syntax remains a Read rule.
+      expect(
+        await minimum.perform({ kind: "resource", resource: "type", id: url("beads/a") }),
+      ).toMatchObject({ kind: "problem", problem: { status: 400, code: "invalid-parameter" } });
+    },
+  );
+
+  it("projects immutable current Types and exact incident directions including self-Link deduplication", async () => {
+    const f = prepared(),
+      { plane, facet } = f.open();
+    const read = plane.minimumFor(principal, f.minimum());
+    const type = await read.perform(requests[0]!);
+    expect(body(type)).toEqual(descriptor);
+    const inventory = await read.perform(requests[1]!);
+    expect(body(inventory)).toEqual({
+      items: [types[0], types[1], descriptor]
+        .map((t) => ({ id: t!.id, name: t!.name, describes: t!.describes }))
+        .sort((a, b) => (a.id < b.id ? -1 : 1)),
+      next: null,
+    });
+    for (const [direction, names] of [
+      [undefined, ["in", "out", "self"]],
+      ["both", ["in", "out", "self"]],
+      ["inbound", ["in", "self"]],
+      ["outbound", ["out", "self"]],
+    ] as const) {
+      const response = await read.perform({
+        kind: "bead-links",
+        bead: url("beads/a"),
+        limit: 10,
+        ...(direction === undefined ? {} : { direction }),
+      });
+      assertLinks(items(response), [...names]);
+      expect(body(response).next).toBeNull();
+      expect(contexts(response).current.scopePosition).toBe("pos-1");
+    }
+    f.write([
+      {
+        operation: "updateBead",
+        bead: "beads/b",
+        propertiesChange: [{ op: "replace", path: "/n", value: 8 }],
+      },
+    ]);
+    for (const [request, previous] of [
+      [requests[0]!, type],
+      [requests[1]!, inventory],
+    ] as const) {
+      for (const position of ["pos-1", "pos-2"]) {
+        const response = await plane.minimumFor(principal, f.minimum(position)).perform(request);
+        expect(body(response)).toEqual(body(previous));
+        expect(contexts(response).current).toEqual({
+          ...contexts(previous).current,
+          scopePosition: "pos-2",
+        });
+      }
+      await expect(
+        plane.minimumFor(principal, f.minimum("pos-3")).perform(request),
+      ).rejects.toMatchObject({ reason: "behind" });
+    }
+    expect(
+      body(
+        await facet.perform({ kind: "resource", resource: "type", id: link as AbsoluteHttpUrl }),
+      ),
+    ).toEqual(types[1]);
+    await expect(
+      read.perform({ kind: "resource", resource: "type", id: link as AbsoluteHttpUrl }),
+    ).rejects.toThrow("outside supported subset");
+    await expect(read.resolveAlias(url("alias/work"))).rejects.toThrow("unsupported");
+    for (const collection of ["beads", "links", "types"] as const) {
+      const first = await facet.perform({ kind: "collection", collection, limit: 1 });
+      const next = body(first).next;
+      expect(typeof next).toBe("string");
+      const parsed = requestFromUrl(new URL(String(next)), scope);
+      if (isReadProblem(parsed)) throw new Error("invalid actual continuation");
+      await expect(read.perform(parsed)).rejects.toThrow("outside supported subset");
+    }
+    // These corruption controls exercise the same independent record oracle.
+    const rows = items(await read.perform({ kind: "bead-links", bead: url("beads/a"), limit: 10 }));
+    expect(() =>
+      assertLinks(
+        rows.map((r, i) => (i ? r : { ...r, target: url("beads/b") })),
+        ["in", "out", "self"],
+      ),
+    ).toThrow();
+    expect(() =>
+      assertLinks(
+        rows.map((r, i) => {
+          if (i) return r;
+          const { metadata, ...rest } = r;
+          return rest;
+        }),
+        ["in", "out", "self"],
+      ),
+    ).toThrow();
+    expect(() => expect({ ...body(type), name: "Forged" }).toEqual(descriptor)).toThrow();
+    expect(() =>
+      expect({
+        ...body(inventory),
+        items: [{ id: descriptor.id, name: "Task", describes: "link" }],
+      }).toEqual(body(inventory)),
+    ).toThrow();
+  });
+
+  it.each(["types", "incident"])(
+    "keeps %s limits, allocation and retained continuation boundaries distinct",
+    async (kind) => {
+      const f = prepared();
+      let allocations = 0;
+      const { plane, facet } = f.open({
+        pagination: {
+          ...f.readOptions.pagination,
+          generateOpaqueToken: () => `type_incident_${++allocations}`,
+        },
+      });
+      const request: ReadRequest =
+        kind === "types"
+          ? { kind: "collection", collection: "types", limit: 1 }
+          : { kind: "bead-links", bead: url("beads/a"), limit: 1 };
+      const pending = plane.minimumFor(principal, f.minimum("pos-2"));
+      expect(await pending.perform({ ...request, limit: 33 })).toMatchObject({
+        kind: "problem",
+        problem: { status: 413, code: "limit-exceeded" },
+      });
+      expect(allocations).toBe(0);
+      for (let i = 0; i < 2; i++)
+        await expect(pending.perform(request)).rejects.toMatchObject({ reason: "behind" });
+      expect(allocations).toBe(0);
+      f.write([{ operation: "createBead", id: "beads/c", type: bead, properties: { n: 3 } }]);
+      const first = await pending.perform(request);
+      expect(allocations).toBeGreaterThan(0);
+      expect(contexts(first).current.scopePosition).toBe("pos-2");
+      const next = body(first).next;
+      expect(typeof next).toBe("string");
+      f.write([{ operation: "deleteLink", link: "links/out" }]);
+      const parsed = requestFromUrl(new URL(String(next)), scope);
+      if (isReadProblem(parsed)) throw new Error("invalid actual next");
+      const second = await facet.perform(parsed);
+      expect(contexts(second)).toMatchObject({
+        snapshot: { scopePosition: "pos-2" },
+        current: { scopePosition: "pos-3" },
+      });
+      if (kind === "incident") assertLinks(items(second), ["out"]);
+      else expect(items(second)).toEqual([{ id: types[0]!.id, name: "Bead", describes: "bead" }]);
+      await expect(pending.perform(parsed)).rejects.toThrow("outside supported subset");
+    },
+  );
+
+  it.each([0, 1, 2])(
+    "waits and cancels current surface %i without retaining an owner entry",
+    async (index) => {
+      const f = prepared(),
+        entered = Promise.withResolvers<void>(),
+        release = Promise.withResolvers<void>();
+      let tick = 0,
+        waits = 0,
+        expire = false;
+      const service = serviceFor(f, {
+        budgetMs: 2,
+        now: () => tick,
+        wait: async () => {
+          waits++;
+          if (expire) tick += 2;
+          entered.resolve();
+          await release.promise;
+        },
+      });
+      cleanup.push(() => release.resolve());
+      const request = requests[index]!;
+      const pending = service.readAtMinimum(principal, f.minimum("pos-2")).perform(request);
+      await entered.promise;
+      try {
+        f.write([{ operation: "createBead", id: "beads/c", type: bead, properties: { n: 3 } }]);
+      } finally {
+        release.resolve();
+      }
+      expect(contexts(await pending).current.scopePosition).toBe("pos-2");
+      expect(waits).toBe(1);
+      for (const [field, reason] of [
+        ["scopeEpoch", "cursor-expired"],
+        ["authorizationView", "foreign-view"],
+      ] as const) {
+        await expect(
+          service.readAtMinimum(principal, { ...f.minimum(), [field]: "foreign" }).perform(request),
+        ).rejects.toMatchObject({ reason });
+        expect(
+          contexts(await service.readAtMinimum(principal, f.minimum()).perform(request)).current
+            .scopePosition,
+        ).toBe("pos-2");
+      }
+      expire = true;
+      await expect(
+        service.readAtMinimum(principal, f.minimum("pos-3")).perform(request),
+      ).rejects.toMatchObject({ reason: "catch-up-timeout", context: { scopePosition: "pos-2" } });
+      expect(
+        contexts(await service.readAtMinimum(principal, f.minimum()).perform(request)).current
+          .scopePosition,
+      ).toBe("pos-2");
+      await service.close();
+      expect(() => f.store.inspect()).toThrow("closed");
+    },
+  );
+
+  it.each([0, 1, 2])(
+    "pre-aborts, drains and releases a waiting current surface %i",
+    async (index) => {
+      const f = prepared(),
+        entered = Promise.withResolvers<void>(),
+        release = Promise.withResolvers<void>();
+      const service = serviceFor(f, {
+        budgetMs: 2,
+        now: () => 0,
+        wait: async () => {
+          entered.resolve();
+          await release.promise;
+        },
+      });
+      cleanup.push(() => release.resolve());
+      const handler = createTransactionHttpHandler(service, scope),
+        controller = new AbortController();
+      controller.abort();
+      const suffix = ["types/task", "types/", "beads/a?view=links"][index]!;
+      const spy = vi.spyOn(DatabaseSync.prototype, "prepare");
+      await expect(
+        handler.handle(
+          new Request(url(suffix), {
+            signal: controller.signal,
+            headers: {
+              "bdp-scope-epoch": f.store.scopeEpoch,
+              "bdp-authorization-view": "development-all-visible",
+              "bdp-minimum-scope-position": "pos-2",
+            },
+          }),
+          { kind: "authenticated", principal: "principal", canMutate: true },
+        ),
+      ).rejects.toThrow("abort");
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
+      const abort = new AbortController();
+      const pending = service
+        .readAtMinimum(principal, f.minimum("pos-2"))
+        .perform(requests[index]!, { signal: abort.signal });
+      const rejected = expect(pending).rejects.toThrow("abort");
+      await entered.promise;
+      let closed = false;
+      const closing = service.close().then(() => {
+        closed = true;
+      });
+      try {
+        expect(closed).toBe(false);
+        expect(() => service.readAtMinimum(principal, f.minimum())).toThrow("closing");
+        abort.abort();
+      } finally {
+        release.resolve();
+      }
+      await rejected;
+      await closing;
+      expect(() => f.store.inspect()).toThrow("closed");
+    },
+  );
+
+  it("keeps compatible missing Types and absent/deleted incident anchors separate from collisions", async () => {
+    const f = prepared(),
+      { plane } = f.open();
+    f.write([{ operation: "createBead", id: "beads/gone", type: bead, properties: {} }]);
+    f.write([{ operation: "deleteBead", bead: "beads/gone" }]);
+    for (const request of [
+      { kind: "resource", resource: "type", id: url("types/absent") },
+      { kind: "bead-links", bead: url("beads/absent") },
+      { kind: "bead-links", bead: url("beads/gone") },
+    ] as const) {
+      const result = await plane.minimumFor(principal, f.minimum("pos-3")).perform(request);
+      expect(result).toMatchObject({
+        kind: "problem",
+        problem: { status: 404, code: "resource-not-found" },
+      });
+      expect(contexts(result).current.scopePosition).toBe("pos-3");
+      for (const patch of [
+        { minimumPosition: "pos-4" },
+        { scopeEpoch: "foreign" },
+        { authorizationView: "foreign" },
+      ])
+        await expect(
+          plane.minimumFor(principal, { ...f.minimum(), ...patch }).perform(request),
+        ).rejects.toBeInstanceOf(TransactionMinimumVisibilityGap);
+    }
+    f.write([{ operation: "createBead", id: "beads/empty", type: bead, properties: {} }]);
+    expect(
+      body(
+        await plane
+          .minimumFor(principal, f.minimum("pos-4"))
+          .perform({ kind: "bead-links", bead: url("beads/empty") }),
+      ),
+    ).toEqual({ items: [], next: null });
+    await expect(
+      plane
+        .minimumFor(principal, f.minimum("pos-5"))
+        .perform({ kind: "bead-links", bead: url("beads/empty") }),
+    ).rejects.toMatchObject({ reason: "behind" });
+  });
 });
