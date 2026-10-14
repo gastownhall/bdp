@@ -1641,6 +1641,78 @@ describe("internal discovery minimum observation", () => {
 });
 
 describe("current minimum perform receiving capture", () => {
+  it("retains the captured signal inside the second owner read after a genuine behind wait", async () => {
+    const f = fixture();
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const original = new AbortController();
+    let entries = 0;
+    let tick = 0;
+    const wait = vi.fn(async () => {
+      entered.resolve();
+      await release.promise;
+    });
+    const service = createTransactionService(
+      {
+        ...f.owner,
+        withRead: (callback) => {
+          entries++;
+          return f.owner.withRead((reader, context) => {
+            if (entries === 2) expect(original.signal.aborted).toBe(false);
+            const result = callback(reader, context);
+            // Abort after real owner work, while still inside the second read.
+            // The wait-loop precheck has already passed; authority post-work
+            // sampling must receive the same captured signal to reject delivery.
+            if (entries === 2) original.abort();
+            return result;
+          });
+        },
+      },
+      {
+        ownerLifetime: "service",
+        read: f.read,
+        minimumReads: { budgetMs: 100, now: () => tick++, wait },
+      },
+    );
+    cleanup.push(() => service.close());
+    cleanup.push(() => release.resolve());
+    const seeded = requireReceipt(await service.submit(batch()));
+    expect(seeded.context.scopePosition).toBe("pos-1");
+    const facet = service.readAtMinimum(
+      { kind: "anonymous" },
+      {
+        scopeEpoch: seeded.context.scopeEpoch,
+        authorizationView: seeded.context.authorizationView,
+        minimumPosition: "pos-2",
+      },
+    );
+    const pending = facet.perform(
+      { kind: "resource", resource: "bead", id: `${scope}beads/a` as AbsoluteHttpUrl },
+      { signal: original.signal },
+    );
+    const outcome = pending.then(
+      (result) => ({ result, error: undefined }),
+      (error: unknown) => ({ result: undefined, error }),
+    );
+    await entered.promise;
+    expect(entries).toBe(1);
+    expect(original.signal.aborted).toBe(false);
+    expect(wait).toHaveBeenCalledTimes(1);
+    try {
+      const advanced = requireReceipt(await service.submit(batch([create("b")], "advance")));
+      expect(advanced.context.scopePosition).toBe("pos-2");
+      expect(original.signal.aborted).toBe(false);
+    } finally {
+      release.resolve();
+    }
+    const observed = await outcome;
+    expect(observed.error).toBeInstanceOf(ScopeServerOperationAbortedError);
+    expect(observed.result).toBeUndefined();
+    expect(original.signal.aborted).toBe(true);
+    expect(entries).toBe(2);
+    expect(wait).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects a service delivery signal getter without invoking it or entering the owner", async () => {
     const f = fixture();
     let entries = 0;
