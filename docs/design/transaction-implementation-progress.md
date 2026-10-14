@@ -577,10 +577,13 @@ limit, not a protocol-wide minimum.
 
 This increment does not advertise Transactional discovery or a profile. Valid
 unsupported set/depth/Resource-alias-sequence requests fail before key capture or
-effects with a bodyless internal 500, labeled as a development gap. Minimum
-context controls likewise cannot yield success or a conditional shortcut; their
-bodyless internal failure is explicitly **not** a normative catch-up outcome.
-Full minimum-position/epoch/view/expiry ordering remains required next work.
+effects with a bodyless internal 500, labeled as a development gap. At this
+increment, unsupported read-side minimum context controls likewise cannot yield
+success or a conditional shortcut; their bodyless internal failure is explicitly
+**not** a normative catch-up outcome. The historical command refusal is superseded
+by the later operator-approved rule: mutation POSTs ignore copied read minimum
+fields. Full read minimum-position/epoch/view/expiry ordering remains required
+next work for this increment.
 Discovery, Directory, snapshot/changes/events, set operations, installed
 contracts, Resource-alias sequence timing, variable authorization/erasure,
 receipt pagination and complete executable qualification remain open. Public
@@ -597,9 +600,11 @@ candidate.
 
 #### HTTP review follow-up boundaries
 
-Unsupported minimum-context fields on commands also fail before any key binding
-or effect; no command barrier semantics are inferred. Operation routing accepts
-exact canonical target URLs. Unimplemented set/unknown targets, encoded alternate
+The historical refusal of minimum-context fields on commands is superseded by
+the later operator-approved ignore rule: mutation POSTs ignore those copied read
+fields; they add no command barrier or key-identity input. The original refusal
+observations remain evidence of their frozen sources, not the current command
+behavior. Operation routing accepts exact canonical target URLs. Unimplemented set/unknown targets, encoded alternate
 spellings and query-bearing command URLs are not registered targets and return
 404, rather than advertising a Read method table. Sequence depth failures use the
 same development-composition marker as batch depth failures; the alias marker is
@@ -657,8 +662,10 @@ initial collection and incident-view waits stop at the next loop check after abo
 Synchronous materialization and a current bounded sleep are not preempted; this
 is not an instantaneous-cancellation or latency guarantee. Receipt waits still
 drain their remaining finite budget; receipt and changes/events wait behavior
-is unchanged by this Read-route forwarding. Unsupported command controls
-still fail before mutation admission, after authentication/authorization.
+is unchanged by this Read-route forwarding. The later command-minimum amendment
+supersedes the former command-control refusal: mutation POSTs ignore copied read
+minimum fields while retaining ordinary syntax, authorization, key and revision
+checks. Receipt and other read minimum handling remains separate.
 
 This remains a named subset, not complete minimum-position qualification.
 Compatible, already-satisfied minimums on absent/deleted canonical Bead/Link
@@ -1723,12 +1730,13 @@ The source-private service now observes the current owner once, without member
 execution or key admission, for the existing sequence.operations over-count413
 and supported-carrier unacceptable-media406. HTTP preserves syntax/auth/count/
 preparation/negotiation ordering. The immutable tuple is attached only to those
-two refusals. Sequence carrier-key/malformed400,401,403,415 and the composition/
-minimum development500 retain their existing context absences. These are retained
-behaviors and remaining gaps, not normative exemptions or a ruling that
-unauthenticated errors must disclose context. Discovery,
-store format, parsing, minimum controls and public profile advertisement are
-unchanged. Unlike the successful post-runner response above, these refusals have
+two refusals. Sequence carrier-key/malformed400,401,403,415 and the unsupported
+composition development500 retain their existing context absences. The former
+command-minimum development500 is superseded: copied read minimum fields no
+longer refuse a mutation POST. These are retained behaviors and remaining gaps,
+not normative exemptions or a ruling that unauthenticated errors must disclose
+context. Discovery, store format, parsing, read minimum controls and public
+profile advertisement are unchanged. Unlike the successful post-runner response above, these refusals have
 no committed members to recover by replay. An unexpected owner observation fault
 can instead yield the existing sanitized bodyless500; no stale tuple is supplied
 to preserve the nominal refusal. Normal runtime closing/not-ready503 remains

@@ -291,15 +291,6 @@ export function createTransactionHttpHandler(
           }),
         );
       if ("failure" in received) return transactionHttpProblem(received.failure);
-      // Unsupported controls cannot be silently ignored while admitting a key
-      // or executing effects. This is an internal development gap, not a new
-      // command-precondition or catch-up protocol rule.
-      if (hasMinimumControls(request)) {
-        if (authorization.kind === "unauthenticated")
-          return transactionHttpProblem("unauthenticated");
-        if (!authorization.canMutate) return transactionHttpProblem("forbidden");
-        return developmentGap("minimum-position");
-      }
       if (operation === "sequence") {
         if (request.headers.has("idempotency-key"))
           return transactionHttpProblem("malformed-request");
