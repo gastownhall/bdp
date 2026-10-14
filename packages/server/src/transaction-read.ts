@@ -1,6 +1,7 @@
 /** Same-owner private Read composition with source conditions for canonical
- * current point reads. The service owns finite waits; collection minimums,
- * receipt serving and replication Snapshots are separate contracts. */
+ * current point and initial Bead/Link collection reads. The service owns finite
+ * waits; continuation minimums, receipt serving and replication Snapshots are
+ * separate contracts. */
 import {
   checkTransactionMinimum,
   snapshotTransactionMinimum,
@@ -21,6 +22,15 @@ import type { TransactionReadContext } from "./transaction-store.js";
 import type { openTransactionStore } from "./transaction-store.js";
 
 export class TransactionMinimumVisibilityGap extends Error {}
+
+/** Exact private collection subset shared by the facet and HTTP route gate. */
+export function isInitialTransactionCollection(request: ReadRequest): boolean {
+  return (
+    request.kind === "collection" &&
+    (request.collection === "beads" || request.collection === "links") &&
+    request.continuation === undefined
+  );
+}
 
 export type TransactionReadOptions = Pick<
   AuthorityReadOptions,
@@ -44,6 +54,9 @@ export function createTransactionReadPlane(
     pagination: options.pagination,
     advertisedLimits: options.advertisedLimits,
     checkSourceCondition: (condition, observation, refusal) => {
+      // Preserve the initial collection's already-materialized request-control
+      // Problem. It is not a representation whose minimum can be satisfied.
+      if (refusal?.code === "invalid-parameter" || refusal?.code === "limit-exceeded") return;
       // Absence/visibility versus minimum ordering is not yet specified.
       if (refusal?.code === "resource-not-found")
         throw new TransactionMinimumVisibilityGap(
@@ -98,12 +111,11 @@ export function createTransactionReadPlane(
       return Object.freeze({
         perform: (request, options) => {
           if (
-            (request.kind !== "resource" && request.kind !== "properties") ||
-            (request.resource !== "bead" && request.resource !== "link")
+            !isInitialTransactionCollection(request) &&
+            ((request.kind !== "resource" && request.kind !== "properties") ||
+              (request.resource !== "bead" && request.resource !== "link"))
           )
-            return Promise.reject(
-              new TypeError("minimum-read route outside supported point subset"),
-            );
+            return Promise.reject(new TypeError("minimum-read route outside supported subset"));
           return observe(
             facet
               .perform(request, { ...options, sourceCondition: minimum })
