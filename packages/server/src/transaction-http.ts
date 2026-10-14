@@ -141,7 +141,7 @@ function developmentGap(feature: string): HttpResponse {
   response.headers.set("x-bdp-development-limit", feature);
   return response;
 }
-function hasMinimumControls(request: Request): boolean {
+export function hasMinimumControls(request: Request): boolean {
   return ["bdp-minimum-scope-position", "bdp-scope-epoch", "bdp-authorization-view"].some((field) =>
     request.headers.has(field),
   );

@@ -522,6 +522,15 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     ): Promise<TransactionSequenceResponse> {
       return run(() => executeSequence(principal, sequence));
     },
+    /** Authenticated exact local schema response; no mutation or minimum wait. */
+    schemaObserved() {
+      return run(async () => {
+        const observed = owner.withRead((_reader, context) => Object.freeze({ context }));
+        if (observed.kind === "entry-refused")
+          throw new Error("transaction schema observation refused", { cause: observed.cause });
+        return observed.value;
+      });
+    },
     /** Trusted HTTP refusal after carrier/auth checks. Observe without executing
      * members or admitting keys; an unavailable owner remains an internal fault. */
     sequenceRefusalObserved() {

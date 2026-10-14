@@ -2012,3 +2012,94 @@ describe("nonexecuting sequence refusal observation", () => {
     expect(f.owner.inspect().position).toBe("0");
   });
 });
+
+describe("nonexecuting local schema observation", () => {
+  it("uses one synchronous owner entry and freezes each current schema tuple without admission", async () => {
+    const f = fixture();
+    let capturedContext: unknown;
+    const enter = vi.fn((callback: Parameters<typeof f.owner.withRead>[0]) =>
+      f.owner.withRead((reader, context) => {
+        capturedContext = context;
+        return callback(reader, context);
+      }),
+    );
+    const admitSequence = vi.fn(f.owner.admitSequence);
+    const nextSequence = vi.fn(f.owner.nextSequence);
+    const admit = vi.fn(f.owner.admit);
+    const admitObserved = vi.fn(f.owner.admitObserved);
+    const execute = vi.fn(f.owner.execute);
+    const executeObserved = vi.fn(f.owner.executeObserved);
+    const owner = {
+      ...f.owner,
+      withRead: enter as typeof f.owner.withRead,
+      admitSequence,
+      nextSequence,
+      // Vitest models the last overload; the spy still delegates all arguments.
+      admit: admit as unknown as typeof f.owner.admit,
+      admitObserved: admitObserved as typeof f.owner.admitObserved,
+      execute: execute as unknown as typeof f.owner.execute,
+      executeObserved,
+    };
+    const service = createTransactionService(owner, { ownerLifetime: "service", read: f.read });
+    cleanup.push(() => service.close());
+    await service.submit(batch([create("a")], "seed-a"));
+    await service.submit(batch([create("b")], "seed-b"));
+    enter.mockClear();
+    admit.mockClear();
+    admitObserved.mockClear();
+    execute.mockClear();
+    executeObserved.mockClear();
+    const before = f.owner.inspect();
+    const pending = service.schemaObserved();
+    // Entry is already complete before delivery: the owner is not held over await.
+    expect(enter).toHaveBeenCalledTimes(1);
+    expect(f.owner.inspect()).toEqual(before);
+    const first = await pending;
+    expect(first.context).toBe(capturedContext);
+    expect(first).toEqual({
+      context: {
+        scopeEpoch: f.owner.scopeEpoch,
+        authorizationView: "development-all-visible",
+        scopePosition: "pos-2",
+      },
+    });
+    expect(Object.isFrozen(first)).toBe(true);
+    expect(Object.isFrozen(first.context)).toBe(true);
+    expect(admitSequence).not.toHaveBeenCalled();
+    expect(nextSequence).not.toHaveBeenCalled();
+    expect(admit).not.toHaveBeenCalled();
+    expect(admitObserved).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(executeObserved).not.toHaveBeenCalled();
+    expect(first.context).toEqual((await service.discoveryObserved()).context);
+    await service.submit(batch([create("c")], "advance"));
+    enter.mockClear();
+    const next = await service.schemaObserved();
+    expect(enter).toHaveBeenCalledTimes(1);
+    expect(next.context.scopePosition).toBe("pos-3");
+    expect(first.context.scopePosition).toBe("pos-2");
+    await service.close();
+    expect(() => service.schemaObserved()).toThrow("closing or closed");
+  });
+});
+
+it("preserves schema observation reentrancy, owner-fault causes and synchronous close refusal", async () => {
+  const f = fixture(),
+    service = f.open();
+  let nested: Promise<unknown> | undefined;
+  f.owner.withRead(() => {
+    nested = service.schemaObserved();
+    return 0;
+  });
+  await expect(nested).rejects.toMatchObject({
+    message: "transaction schema observation refused",
+    cause: expect.any(Error),
+  });
+  f.owner.close();
+  await expect(service.schemaObserved()).rejects.toMatchObject({
+    message: "transaction schema observation refused",
+    cause: expect.any(Error),
+  });
+  await service.close();
+  expect(() => service.schemaObserved()).toThrow("closing or closed");
+});
