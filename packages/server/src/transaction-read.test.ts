@@ -790,3 +790,47 @@ describe("initial collection minimums", () => {
     },
   );
 });
+
+it("binds the private HTTP directory to the service owner's exact non-root Scope", async () => {
+  const f = fixture();
+  const service = createTransactionService(f.store, {
+    ownerLifetime: "service",
+    read: {
+      ...f.readOptions,
+      advertisedLimits: {
+        ...f.readOptions.advertisedLimits,
+        page: { defaultItems: 2, maximumItems: 32 },
+      },
+      pagination: { ...f.readOptions.pagination, maxPageItems: 32 },
+    },
+  });
+  cleanup.push(() => service.close());
+  expect(service.scope).toBe(scope);
+  expect(() => createTransactionHttpHandler(service, "https://foreign.test/other/")).toThrow(
+    "HTTP Scope differs from transaction owner",
+  );
+  const handler = createTransactionHttpHandler(service, scope);
+  const observed = await service.discoveryObserved();
+  expect(handler.targets).toEqual(
+    Object.fromEntries(
+      Object.entries({
+        createBead: "create-bead",
+        updateBead: "update-bead",
+        deleteBead: "delete-bead",
+        createLink: "create-link",
+        updateLink: "update-link",
+        deleteLink: "delete-link",
+        putAlias: "put-alias",
+        deleteAlias: "delete-alias",
+        sequence: "sequence",
+        updateWhere: "update-where",
+        deleteWhere: "delete-where",
+        batch: "batch",
+      }).map(([name, suffix]) => [name, `${scope}operations/${suffix}`]),
+    ),
+  );
+  for (const [name, suffix] of Object.entries(observed.directory))
+    expect(handler.targets[name as keyof typeof handler.targets]).toBe(
+      new URL(suffix, observed.discovery.operations).href,
+    );
+});

@@ -401,6 +401,21 @@ it("compiles plain runtime artifacts in emitted module and serves same-owner Typ
     });
     return { status: response.status, value: await response.json() };
   };
+  async function discoveryBoundary() {
+    for (const relative of ["", "bdp.json", "operations/"])
+      for (const method of ["GET", "HEAD"]) {
+        const target = new URL(new URL(relative, scope).pathname, runtime.listenUrl);
+        const response = await fetch(target, {
+          method,
+          headers: { authorization: `Bearer ${"a".repeat(32)}` },
+        });
+        expect(response.status).toBe(500);
+        expect(response.headers.get("x-bdp-development-limit")).toBe("transactional-discovery");
+        expect(response.headers.has("link")).toBe(false);
+        expect(await response.text()).toBe("");
+      }
+  }
+  await discoveryBoundary();
   const installedDescriptors = options.artifacts.descriptors
     .map(({ utf8 }) => JSON.parse(utf8))
     .sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
@@ -471,6 +486,7 @@ it("compiles plain runtime artifacts in emitted module and serves same-owner Typ
   expect((await request("beads/tail")).status).toBe(200);
   await runtime.close();
   runtime = await emitted.startTransactionRuntime({ ...options, create: false });
+  await discoveryBoundary();
   expect(await request("types/")).toEqual(inventory);
   expect(
     await request("operations/create-bead", { id: "beads/a", type, properties: { n: 1 } }, "first"),

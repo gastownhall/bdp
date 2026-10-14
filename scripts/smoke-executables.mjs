@@ -297,6 +297,10 @@ async function installPackedWorkspace() {
       "transaction-consistency.d.ts.map",
       "transaction-consistency.js",
       "transaction-consistency.js.map",
+      "transaction-discovery.d.ts",
+      "transaction-discovery.d.ts.map",
+      "transaction-discovery.js",
+      "transaction-discovery.js.map",
       "transaction-service.d.ts",
       "transaction-service.d.ts.map",
       "transaction-service.js",
@@ -404,10 +408,31 @@ async function installPackedWorkspace() {
       (await realpath(path.join(installedServerRoot, "dist", "development.js")))
     )
       throw new Error("packed development facade does not resolve to its explicit entry");
+    const protocol = await import(pathToFileURL(consumer.resolve("@bdp/protocol")).href);
+    const transactionFixture = JSON.parse(
+      await readFile(path.join(workspaceRoot, "fixtures/transactional/discovery.json"), "utf8"),
+    );
+    for (const [name, body] of [
+      ["parseTransactionalDiscovery", transactionFixture.exchanges[0].response.body],
+      ["parseTransactionalOperationDirectory", transactionFixture.exchanges[1].response.body],
+    ]) {
+      const parsed = protocol[name](body);
+      if (JSON.stringify(parsed) !== JSON.stringify(body) || !Object.isFrozen(parsed))
+        throw new Error("packed Transactional parser changed its structural fixture");
+      let rejected = false;
+      try {
+        protocol[name]({ ...body, unsupported: true });
+      } catch {
+        rejected = true;
+      }
+      if (!rejected) throw new Error("packed Transactional parser accepted an unknown member");
+    }
     // The public root must preserve its original pagination surface even though
     // the same private engine also supports Transactional source context.
     const publicServer = await import(pathToFileURL(consumer.resolve("@bdp/server")).href);
     if (
+      "assembleTransactionDiscovery" in publicServer ||
+      "TRANSACTION_HTTP_OPERATIONS" in publicServer ||
       "createTransactionService" in publicServer ||
       "createTransactionHttpHandler" in publicServer ||
       "startTransactionRuntime" in publicServer ||
