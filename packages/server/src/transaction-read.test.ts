@@ -833,4 +833,21 @@ it("binds the private HTTP directory to the service owner's exact non-root Scope
     expect(handler.targets[name as keyof typeof handler.targets]).toBe(
       new URL(suffix, observed.discovery.operations).href,
     );
+  expect(new URL(observed.discovery.snapshot).pathname).toBe(new URL("snapshot", scope).pathname);
+  const snapshotResponse = await handler.handle(new Request(observed.discovery.snapshot), {
+    kind: "authenticated",
+    principal: "principal",
+    canMutate: true,
+  });
+  expect(snapshotResponse.status).toBe(200);
+  expect(snapshotResponse.body).toMatchObject({
+    scope,
+    scopeEpoch: observed.context.scopeEpoch,
+    authorizationView: observed.context.authorizationView,
+    scopePosition: "pos-0",
+    checkpoint: "genesis",
+    beads: { items: [], next: null },
+    links: { items: [], next: null },
+  });
+  expect(snapshotResponse.headers.get("bdp-scope-position")).toBe("pos-0");
 });
