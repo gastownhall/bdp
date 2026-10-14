@@ -38,6 +38,12 @@ itself make that behavior part of BDP. Vendored BDP schemas, examples, and
 fixtures in Beads are pinned copies of upstream artifacts, not independent
 sources of design authority.
 
+The [Types specification draft](specs/types.md) records the current optional,
+Scope-wide Types direction and plain-language conformance and compatibility rules.
+It separates agreed design from open decisions and implementation status; it does
+not yet amend the canonical protocol. Issue/Dependency and Memory provide its
+concrete requirements.
+
 The [Preview 2 Type design draft](docs/design/type-lifecycle-preview2.md)
 explores versioned Type definitions and lifecycle rules. It is a proposal,
 not an amendment to the current specification or a claim of implementation.
