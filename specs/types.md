@@ -174,7 +174,14 @@ validation and matching should not depend on a fresh network fetch.
 
 A Type may reach both C@1 and C@2 through different paths. It then promises both,
 not whichever is newer. If their requirements conflict, the Type cannot fulfill
-its declarations. Cycles and the required handling of repeated paths remain open.
+its declarations.
+
+Conformance must be acyclic. Reject a direct self-reference or an indirect chain
+that returns to the same exact definition revision. Check the complete conformance
+graph before accepting a Type for use. Multiple paths to a shared ancestor are
+not, by themselves, a cycle; diamond conformance remains permitted. This rule
+concerns conformance declarations, not recursive references within a JSON Schema.
+The required handling of repeated paths remains to specify.
 
 ## 4. Conformance is not revision compatibility
 
@@ -220,6 +227,9 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Update only ApprovedProduct.title | Preserve approvalCode; validate complete resulting state |
 | Replace ApprovedProduct properties with a Product-only object lacking mandatory approvalCode | Reject atomically; do not merge missing properties back in |
 | T@1 reaches C@1 and C@2 | Both exact definitions apply; neither supersedes the other |
+| A@1 directly conforms to A@1 | Reject the direct conformance cycle |
+| A@1 conforms to B@2, which conforms to A@1 | Reject the indirect conformance cycle |
+| A@1 and B@1 both reach C@1 without a path back | Shared ancestry is not a cycle; diamond conformance is permitted |
 | A newer revision of an inherited definition appears | Existing T revision retains its original exact promises |
 | A required transitive definition is unavailable | Do not accept the Type for use with incomplete conformance knowledge |
 | New Type revision adds a mandatory field | May break old-data acceptance even if conformance to a parent remains valid |
@@ -228,7 +238,7 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 
 Conformance questions to work through next:
 
-- Cycles, repeated paths and deterministic closure identity.
+- Repeated paths and deterministic closure identity; conformance cycles are forbidden.
 - Same-name optional fields with disjoint permitted values: omission can satisfy
   both schemas. Decide whether to allow this with a diagnostic or reject the
   conflicting declarations. The earlier recommendation was not an operator ruling.
