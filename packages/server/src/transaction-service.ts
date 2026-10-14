@@ -20,7 +20,7 @@ import {
 } from "./transaction-sequence.js";
 import {
   createTransactionReadPlane,
-  captureTransactionAliasDeliveryOptions,
+  captureTransactionReadDeliveryOptions,
   type TransactionReadOptions,
 } from "./transaction-read.js";
 import {
@@ -307,18 +307,26 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       const facet = read.minimumFor(principal, snapshotTransactionMinimum(minimum));
       const guarded: ReturnType<typeof read.readFor> = {
         perform: (request, receiving) =>
-          run(() =>
-            waitForTransactionMinimum(
-              () => facet.perform(request, receiving),
+          run(() => {
+            let captured: ReturnType<typeof captureTransactionReadDeliveryOptions>;
+            try {
+              captured = captureTransactionReadDeliveryOptions(receiving);
+            } catch {
+              // Preserve authority receiving errors without reading a caller
+              // signal getter or allowing an unconditioned successful fallback.
+              return facet.perform(request, receiving);
+            }
+            return waitForTransactionMinimum(
+              () => facet.perform(request, captured),
               minimumReads,
-              receiving?.signal,
-            ),
-          ),
+              captured?.signal,
+            );
+          }),
         resolveAlias: (url, receiving) =>
           run(() => {
-            let captured: ReturnType<typeof captureTransactionAliasDeliveryOptions>;
+            let captured: ReturnType<typeof captureTransactionReadDeliveryOptions>;
             try {
-              captured = captureTransactionAliasDeliveryOptions(receiving);
+              captured = captureTransactionReadDeliveryOptions(receiving);
             } catch {
               // Never inspect an unchecked signal while selecting the wait.
               return facet.resolveAlias(url, receiving);

@@ -1946,3 +1946,201 @@ describe("current alias minimum subset", () => {
     });
   });
 });
+
+describe("current minimum perform receiving", () => {
+  it("preserves a direct non-enumerable pre-aborted signal before owner entry", async () => {
+    const f = fixture();
+    expect(f.write(seed).status).toBe("completed");
+    let entries = 0;
+    const plane = createTransactionReadPlane(
+      {
+        ...f.store,
+        withRead: (callback) => {
+          entries++;
+          return f.store.withRead(callback);
+        },
+      },
+      f.readOptions,
+    );
+    cleanup.push(() => plane.close());
+    const facet = plane.minimumFor(
+      { kind: "anonymous" },
+      {
+        scopeEpoch: f.store.scopeEpoch,
+        authorizationView: "development-all-visible",
+        minimumPosition: "pos-1",
+      },
+    );
+    const options = Object.defineProperty({}, "signal", { value: AbortSignal.abort() });
+    const delivery = facet.perform(resource("beads/a"), options);
+    expect(delivery).toBeInstanceOf(Promise);
+    await expect(delivery).rejects.toMatchObject({ code: "operation-aborted" });
+    expect(entries).toBe(0);
+  });
+
+  const principal = { kind: "anonymous" as const };
+  function prepared() {
+    const f = fixture();
+    expect(f.write(seed).status).toBe("completed");
+    const minimum = (minimumPosition = "pos-1") => ({
+      scopeEpoch: f.store.scopeEpoch,
+      authorizationView: "development-all-visible",
+      minimumPosition,
+    });
+    return { ...f, minimum };
+  }
+  function serviceFor(f: ReturnType<typeof prepared>, minimumReads = {}) {
+    const service = createTransactionService(f.store, {
+      ownerLifetime: "service",
+      minimumReads,
+      read: {
+        ...f.readOptions,
+        advertisedLimits: {
+          ...f.readOptions.advertisedLimits,
+          page: { defaultItems: 2, maximumItems: 32 },
+        },
+        pagination: { ...f.readOptions.pagination, maxPageItems: 32 },
+      },
+    });
+    cleanup.push(() => service.close());
+    return service;
+  }
+  it.each(["direct", "service"] as const)(
+    "preserves %s minimum perform receiving validation, cancellation and lifecycle precedence",
+    async (mode) => {
+      const f = prepared();
+      let entries = 0;
+      let nestedCall: (() => void) | undefined;
+      const observed: ReturnType<typeof prepared> = {
+        ...f,
+        store: {
+          ...f.store,
+          withRead: (callback) => {
+            entries++;
+            const invoke = nestedCall;
+            nestedCall = undefined;
+            invoke?.();
+            return f.store.withRead(callback);
+          },
+        },
+      };
+      const plane = createTransactionReadPlane(observed.store, f.readOptions);
+      cleanup.push(() => plane.close());
+      let tick = 0;
+      const service =
+        mode === "service"
+          ? serviceFor(observed, { budgetMs: 2, now: () => tick++, wait: async () => {} })
+          : undefined;
+      const facet = service
+        ? service.readAtMinimum(principal, f.minimum())
+        : plane.minimumFor(principal, f.minimum());
+      const call = (options: unknown) =>
+        facet.perform(resource("beads/a"), options as AuthorityReadDeliveryOptions);
+      const invoked = vi.fn(() => {
+        throw new Error("caller code must not execute");
+      });
+      const proxy = new Proxy(
+        {},
+        {
+          get: invoked,
+          ownKeys: invoked,
+          getPrototypeOf: invoked,
+          getOwnPropertyDescriptor: invoked,
+        },
+      );
+      const revoked = Proxy.revocable({}, {});
+      revoked.revoke();
+      const invalid = [
+        null,
+        0,
+        false,
+        "",
+        [],
+        Object.create({}),
+        proxy,
+        revoked.proxy,
+        { unknown: 1 },
+        Object.defineProperty({}, "unknown", { value: 1 }),
+        Object.defineProperty({}, "signal", { value: 1 }),
+        Object.defineProperty({}, "signal", { get: invoked }),
+        { [Symbol("hidden")]: 1 },
+        {
+          get signal() {
+            return invoked();
+          },
+        },
+        Object.defineProperty({}, "sourceCondition", { get: invoked }),
+        ...[
+          null,
+          0,
+          false,
+          "",
+          {},
+          proxy,
+          revoked.proxy,
+          {
+            get aborted() {
+              return invoked();
+            },
+          },
+        ].map((signal) => ({ signal })),
+      ];
+      for (const options of invalid) {
+        let delivery: Promise<unknown> | undefined;
+        expect(() => {
+          delivery = call(options);
+        }).not.toThrow();
+        expect(delivery).toBeInstanceOf(Promise);
+        await expect(delivery).rejects.toMatchObject({ reason: "invalid-input" });
+      }
+      expect(invoked).not.toHaveBeenCalled();
+      expect(entries).toBe(0); // Every invalid fallback rejected; none performed an ordinary read.
+      const aborted = Object.create(null);
+      Object.defineProperties(aborted, {
+        signal: { value: AbortSignal.abort() },
+        sourceCondition: { value: revoked.proxy },
+      });
+      await expect(call(aborted)).rejects.toThrow("abort");
+      expect(entries).toBe(0);
+      const valid = Object.create(null);
+      Object.defineProperties(valid, {
+        signal: { value: new AbortController().signal },
+        sourceCondition: { value: revoked.proxy },
+      });
+      await expect(call(valid)).resolves.toMatchObject({
+        kind: "success",
+        body: { id: url("beads/a") },
+      });
+      expect(entries).toBe(1);
+      // Caller conditions are opaque overridden data, not an alternative minimum.
+      const future = service
+        ? service.readAtMinimum(principal, f.minimum("pos-2"))
+        : plane.minimumFor(principal, f.minimum("pos-2"));
+      await expect(
+        future.perform(resource("beads/a"), {
+          sourceCondition: f.minimum("pos-0"),
+        }),
+      ).rejects.toMatchObject({ reason: mode === "service" ? "catch-up-timeout" : "behind" });
+      let nested: Promise<unknown> | undefined;
+      nestedCall = () => {
+        nested = call(proxy);
+      };
+      await expect(call(undefined)).resolves.toMatchObject({ kind: "success" });
+      expect(nested).toBeInstanceOf(Promise);
+      await expect(nested).rejects.toMatchObject({ reason: "reentrant" });
+      expect(invoked).not.toHaveBeenCalled();
+      if (service) {
+        await service.close();
+        expect(() => call(proxy)).toThrow("closing or closed"); // Existing service admission is synchronous.
+      } else {
+        await plane.close();
+        let closed: Promise<unknown> | undefined;
+        expect(() => {
+          closed = call(proxy);
+        }).not.toThrow();
+        await expect(closed).rejects.toMatchObject({ code: "server-closed" });
+      }
+      expect(invoked).not.toHaveBeenCalled();
+    },
+  );
+});

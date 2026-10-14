@@ -1639,3 +1639,133 @@ describe("internal discovery minimum observation", () => {
     expect(refusalAssembly).not.toHaveBeenCalled();
   });
 });
+
+describe("current minimum perform receiving capture", () => {
+  it("rejects a service delivery signal getter without invoking it or entering the owner", async () => {
+    const f = fixture();
+    let entries = 0;
+    const service = createTransactionService(
+      {
+        ...f.owner,
+        withRead: (callback) => {
+          entries++;
+          return f.owner.withRead(callback);
+        },
+      },
+      { ownerLifetime: "service", read: f.read },
+    );
+    cleanup.push(() => service.close());
+    const facet = service.readAtMinimum(
+      { kind: "anonymous" },
+      {
+        scopeEpoch: f.owner.scopeEpoch,
+        authorizationView: "development-all-visible",
+        minimumPosition: "pos-0",
+      },
+    );
+    const getter = vi.fn(() => {
+      throw new Error("delivery getter executed");
+    });
+    const delivery = facet.perform(
+      { kind: "resource", resource: "bead", id: `${scope}beads/a` as AbsoluteHttpUrl },
+      Object.defineProperty({}, "signal", { get: getter }),
+    );
+    expect(delivery).toBeInstanceOf(Promise);
+    await expect(delivery).rejects.toMatchObject({ reason: "invalid-input" });
+    expect(getter).not.toHaveBeenCalled();
+    expect(entries).toBe(0);
+  });
+
+  it.each([false, true])(
+    "keeps captured delivery options across a held wait (abort original: %s)",
+    async (abortOriginal) => {
+      const f = fixture();
+      const entered = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      let entries = 0;
+      let tick = 0;
+      const wait = vi.fn(async () => {
+        entered.resolve();
+        await release.promise;
+      });
+      const service = createTransactionService(
+        {
+          ...f.owner,
+          withRead: (callback) => {
+            entries++;
+            return f.owner.withRead(callback);
+          },
+        },
+        {
+          ownerLifetime: "service",
+          read: f.read,
+          minimumReads: { budgetMs: 100, now: () => tick++, wait },
+        },
+      );
+      cleanup.push(() => service.close());
+      cleanup.push(() => release.resolve());
+      const seeded = requireReceipt(await service.submit(batch()));
+      expect(seeded.context.scopePosition).toBe("pos-1");
+      const minimum = {
+        scopeEpoch: seeded.context.scopeEpoch,
+        authorizationView: seeded.context.authorizationView,
+        minimumPosition: "pos-2",
+      };
+      const original = new AbortController();
+      const options = { signal: original.signal, sourceCondition: { ...minimum } };
+      const request = {
+        kind: "resource" as const,
+        resource: "bead" as const,
+        id: `${scope}beads/a` as AbsoluteHttpUrl,
+      };
+      entries = 0;
+      const facet = service.readAtMinimum({ kind: "anonymous" }, minimum);
+      const pending = facet.perform(request, options);
+      const aborted = abortOriginal
+        ? expect(pending).rejects.toBeInstanceOf(ScopeServerOperationAbortedError)
+        : undefined;
+      await entered.promise;
+      expect(entries).toBe(1);
+      expect(wait).toHaveBeenCalledTimes(1);
+      options.signal = AbortSignal.abort();
+      options.sourceCondition.minimumPosition = "pos-99";
+      let closing: Promise<void> | undefined;
+      let closed = false;
+      try {
+        if (abortOriginal) {
+          original.abort();
+          closing = service.close().then(() => {
+            closed = true;
+          });
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          expect(closed).toBe(false);
+          expect(() => facet.perform(request)).toThrow("closing or closed");
+        } else {
+          // The wait-loop signal alone was already captured by the old code.
+          // Only successful retry with the original active signal distinguishes
+          // immutable per-attempt options from rereading the pre-aborted replacement.
+          const advanced = requireReceipt(await service.submit(batch([create("b")], "advance")));
+          expect(advanced.context.scopePosition).toBe("pos-2");
+        }
+      } finally {
+        release.resolve();
+      }
+      if (abortOriginal) {
+        await aborted;
+        await closing;
+        expect(closed).toBe(true);
+        expect(entries).toBe(1);
+        expect(() => f.owner.inspect()).toThrow("closed");
+      } else {
+        const result = await pending;
+        expect(result).toMatchObject({
+          kind: "success",
+          body: { id: `${scope}beads/a`, type: bead, properties: { title: "a" } },
+          observation: { sourceContext: { ...seeded.context, scopePosition: "pos-2" } },
+        });
+        expect(entries).toBe(2);
+      }
+      expect(wait).toHaveBeenCalledTimes(1);
+    },
+  );
+});
