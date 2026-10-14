@@ -48,7 +48,7 @@ import {
 import {
   TransactionMinimumVisibilityGap,
   transactionReadContexts,
-  isInitialTransactionCollection,
+  isCurrentTransactionMinimumRead,
 } from "./transaction-read.js";
 import type { TransactionReadContext } from "./transaction-store.js";
 import type { TransactionSubmission } from "./transaction-submission.js";
@@ -528,9 +528,7 @@ export function createTransactionHttpHandler(
       if (
         alias !== undefined ||
         isReadProblem(parsed) ||
-        (!isInitialTransactionCollection(parsed) &&
-          ((parsed.kind !== "resource" && parsed.kind !== "properties") ||
-            (parsed.resource !== "bead" && parsed.resource !== "link")))
+        !isCurrentTransactionMinimumRead(parsed, scope)
       )
         return developmentGap("minimum-position-route");
     }
