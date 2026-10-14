@@ -4,12 +4,15 @@
  * separate contracts. */
 import {
   checkTransactionMinimum,
+  TransactionMinimumFailure,
   snapshotTransactionMinimum,
   type TransactionMinimum,
 } from "./transaction-consistency.js";
 import { isProxy } from "node:util/types";
 import {
   createAuthorityReadPlane,
+  AuthorityReadError,
+  type AuthorityReadDeliveryOptions,
   type AuthorityReadOptions,
   type AuthorityReadPlane,
   type AuthorityReadFacet,
@@ -30,6 +33,41 @@ export function isInitialTransactionCollection(request: ReadRequest): boolean {
     (request.collection === "beads" || request.collection === "links") &&
     request.continuation === undefined
   );
+}
+
+/** Preserve the authority's data-only option boundary while ignoring only the
+ * ordinary facet's sourceCondition. Signal validation stays with the authority. */
+function ordinaryDeliveryOptions(
+  options: AuthorityReadDeliveryOptions | undefined,
+): AuthorityReadDeliveryOptions | undefined {
+  if (options === undefined) return undefined;
+  if (options === null || typeof options !== "object" || isProxy(options) || Array.isArray(options))
+    throw new AuthorityReadError(
+      "invalid-input",
+      "Read delivery options must be a plain data object",
+    );
+  const prototype = Object.getPrototypeOf(options);
+  if (prototype !== Object.prototype && prototype !== null)
+    throw new AuthorityReadError(
+      "invalid-input",
+      "Read delivery options must have a plain prototype",
+    );
+  let signal: PropertyDescriptor | undefined;
+  let unknownKey = false;
+  for (const key of Reflect.ownKeys(options)) {
+    if (typeof key !== "string")
+      throw new AuthorityReadError(
+        "invalid-input",
+        "Read delivery options cannot have symbol fields",
+      );
+    const descriptor = Object.getOwnPropertyDescriptor(options, key);
+    if (descriptor === undefined || !("value" in descriptor))
+      throw new AuthorityReadError("invalid-input", "Read delivery options cannot have accessors");
+    if (key !== "signal" && key !== "sourceCondition") unknownKey = true;
+    if (key === "signal") signal = descriptor;
+  }
+  if (unknownKey) throw new AuthorityReadError("invalid-input", "unknown Read delivery option");
+  return signal === undefined ? undefined : { signal: signal.value };
 }
 
 export type TransactionReadOptions = Pick<
@@ -57,15 +95,27 @@ export function createTransactionReadPlane(
       // Preserve the initial collection's already-materialized request-control
       // Problem. It is not a representation whose minimum can be satisfied.
       if (refusal?.code === "invalid-parameter" || refusal?.code === "limit-exceeded") return;
-      // Absence/visibility versus minimum ordering is not yet specified.
-      if (refusal?.code === "resource-not-found")
-        throw new TransactionMinimumVisibilityGap(
-          "minimum-position visibility ordering unqualified",
-        );
-      checkTransactionMinimum(
-        snapshotTransactionMinimum(condition),
-        transactionReadContexts(observation).current,
-      );
+      const minimum = snapshotTransactionMinimum(condition);
+      const current = transactionReadContexts(observation).current;
+      if (refusal?.code === "resource-not-found") {
+        try {
+          checkTransactionMinimum(minimum, current);
+          return;
+        } catch (error) {
+          // Only simultaneous missing/consistency failures remain unqualified.
+          if (
+            error instanceof TransactionMinimumFailure &&
+            (error.reason === "behind" ||
+              error.reason === "foreign-view" ||
+              error.reason === "cursor-expired")
+          )
+            throw new TransactionMinimumVisibilityGap(
+              "minimum-position visibility ordering unqualified",
+            );
+          throw error;
+        }
+      }
+      checkTransactionMinimum(minimum, current);
     },
     captureReadAuthorization: () => ({
       kind: "authorized",
@@ -93,10 +143,30 @@ export function createTransactionReadPlane(
     readFor(principal) {
       const facet = plane.readFor(principal);
       return {
-        perform: (request, options) =>
-          observe(facet.perform(request, options).then((result) => checked(result))),
-        resolveAlias: (url, options) =>
-          observe(facet.resolveAlias(url, options).then((result) => checked(result))),
+        perform: (request, options) => {
+          try {
+            return observe(
+              facet
+                .perform(request, ordinaryDeliveryOptions(options))
+                .then((result) => checked(result)),
+            );
+          } catch {
+            // Invalid options still go through the authority's rejection path,
+            // preserving lifecycle/error precedence and Promise delivery.
+            return observe(facet.perform(request, options).then((result) => checked(result)));
+          }
+        },
+        resolveAlias: (url, options) => {
+          try {
+            return observe(
+              facet
+                .resolveAlias(url, ordinaryDeliveryOptions(options))
+                .then((result) => checked(result)),
+            );
+          } catch {
+            return observe(facet.resolveAlias(url, options).then((result) => checked(result)));
+          }
+        },
       };
     },
   };

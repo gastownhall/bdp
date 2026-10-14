@@ -659,18 +659,31 @@ is unchanged by this Read-route forwarding. Unsupported command controls
 still fail before mutation admission, after authentication/authorization.
 
 This remains a named subset, not complete minimum-position qualification.
-Absent/hidden Resource ordering relative to a minimum has no established ruling;
-such point requests return the explicit private visibility gap without adopting
-either 404-first or barrier-first semantics. This fixed all-visible owner does
-not qualify changing visibility policies. Collection continuations, Types,
+Compatible, already-satisfied minimums on absent/deleted canonical Bead/Link
+records and properties now return the actual observed404 with same-entry current
+context. Simultaneous missing/hidden and behind/foreign conditions retain the
+private visibility gap; their arbitration remains unqualified. The ordinary
+in-process Read facet now forwards only signal, ignoring generic sourceCondition;
+only minimumFor honors a minimum. Corrupt owner context propagates as an integrity
+failure (sanitized500 without a visibility marker), rather than being masked as
+missing/minimum ambiguity. This fixed all-visible owner does not qualify changing
+visibility policies. Source and HTTP tests cover the absent/deleted, Bead/Link,
+record/properties, equal/earlier product, conditionals and no-poll collisions.
+The separately reported installed compatible-missing scenario uses two owned-Link
+batches and eight reads (10 exchanges, one child), including a final behind failure.
+Per-step source revisions prove the owned deletion sequence; no earlier create
+image is represented as the final owner image. Supporting source-bound evidence
+and three source-mutant controls are recorded in the
+[frozen implementation report](https://github.com/donnabox/beads/blob/30cdcf30f0488f9d400343a9141c5c314eb9f02e/docs/architecture/bdp-client-v2/transaction-compatible-missing-minimum-implementation-report.md).
+Collection continuations, Types,
 incident Links, aliases and discovery retain the development gap when minimum
 controls are supplied. Partial/malformed tuples, bare epoch/view fields and
 unknown opaque position spellings also retain that gap; no normative error rule
 is invented for them. In particular, whether a minimum constrains an old retained
 query page's anchor or its current serving observation remains unresolved. Normal
 continuations without controls retain their existing stable data/lifetime behavior.
-No public profile/discovery, schema, durable format, Type or evidence change was
-made. Fresh Snapshot creation GET/HEAD now also accepts the complete canonical
+No public profile/discovery, schema, durable format, Type or qualification claim
+changes. Fresh Snapshot creation GET/HEAD now also accepts the complete canonical
 minimum tuple. Both capture and nonallocating preflight check the actual owner
 context before expiry/copy/allocation and reuse one finite wait with disconnect
 cancellation. Preflight remains authoritative before conditional/media decisions;
@@ -1057,7 +1070,12 @@ context must also identify a retained Event in that Source. Malformed and
 never-member cursors return `invalid-parameter` as a local reference convention.
 A known Resource identity remains an Event Source after deletion; an unknown
 source returns nondisclosing 404 before minimum checks, also a local reference
-ordering choice. Receipt detail expiry does not prune Events.
+ordering choice. Unknown receipt pages likewise keep their local context-free404
+convention under arbitrary controls. Neither convention establishes global
+missing/minimum precedence: canonical current Resource/properties reads return
+observed404 with context only when the supplied minimum is compatible and already
+satisfied; missing+behind/foreign remains a private gap. Receipt detail expiry does
+not prune Events.
 
 HTTP authentication and Origin/Host/raw-target checks precede Event access. The
 existing finite minimum wait releases the owner entry between attempts, reports

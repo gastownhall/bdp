@@ -1204,32 +1204,106 @@ it("preserves authentication before command-control gaps without reserving keys"
   }
 });
 
-it("does not invent absent Resource versus minimum ordering", async () => {
-  const f = await fixture();
-  const created = await f.post();
+it("serves compatible missing Resource404 with context and preserves incompatible gaps without waiting", async () => {
+  const wait = vi.fn(async () => {});
+  const f = await fixture({ minimumReads: { budgetMs: 2, wait } });
+  const created = await f.post(
+    batch([
+      create("a"),
+      create("b"),
+      { operation: "createLink", id: "links/l", type: link, source: "beads/a", target: "beads/b" },
+    ]),
+  );
+  expect(created.status).toBe(200);
+  const removed = await f.post(
+    batch([
+      { operation: "deleteLink", link: "links/l" },
+      { operation: "deleteBead", bead: "beads/a" },
+    ]),
+    "removed",
+  );
+  expect(removed.status).toBe(200);
+  expect(removed.headers.get("bdp-scope-position")).toBe("pos-2");
+  for (const id of ["beads/missing", "links/missing", "beads/a", "links/l"])
+    for (const view of ["", "?view=properties"])
+      for (const method of ["GET", "HEAD"])
+        for (const earlier of [true, false]) {
+          const response = await f.get(`${f.runtime.scope}${id}${view}`, {
+            method,
+            headers: {
+              ...minimumHeaders(earlier ? created : removed),
+              ...(earlier ? { "if-none-match": "*" } : { "if-match": '"mismatch"' }),
+            },
+          });
+          expect(response.status).toBe(404);
+          expect(response.headers.get("bdp-scope-position")).toBe("pos-2");
+          for (const name of ["bdp-scope-epoch", "bdp-authorization-view"])
+            expect(response.headers.get(name)).toBe(removed.headers.get(name));
+          expect(response.headers.get("cache-control")).toBe("private, no-store");
+          expect(response.headers.has("etag")).toBe(false);
+          expect(response.headers.get("content-type")).toBe("application/problem+json");
+          if (method === "HEAD") {
+            expect(await response.text()).toBe("");
+            expect(Number(response.headers.get("content-length"))).toBeGreaterThan(0);
+          } else
+            expect(checkedProblem(await body(response))).toMatchObject({
+              code: "resource-not-found",
+              status: 404,
+            });
+        }
+  for (const method of ["GET", "HEAD"]) {
+    const response = await f.get(`${f.runtime.scope}beads/missing`, {
+      method,
+      headers: minimumHeaders(removed),
+    });
+    expect(response.status).toBe(404);
+    for (const name of ["bdp-scope-position", "bdp-scope-epoch", "bdp-authorization-view"])
+      expect(response.headers.get(name)).toBe(removed.headers.get(name));
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.has("etag")).toBe(false);
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    if (method === "HEAD") {
+      expect(await response.text()).toBe("");
+      expect(Number(response.headers.get("content-length"))).toBeGreaterThan(0);
+    } else
+      expect(checkedProblem(await body(response))).toMatchObject({
+        code: "resource-not-found",
+        status: 404,
+      });
+  }
   for (const suffix of [
     "beads/missing",
     "links/missing",
     "beads/missing?view=properties",
     "links/missing?view=properties",
-  ]) {
-    for (const method of ["GET", "HEAD"]) {
+  ])
+    for (const method of ["GET", "HEAD"])
       for (const extra of [
-        {},
         { "bdp-scope-epoch": "foreign" },
+        { "bdp-authorization-view": "foreign" },
         { "bdp-minimum-scope-position": "pos-99" },
       ]) {
         const response = await f.get(`${f.runtime.scope}${suffix}`, {
           method,
-          headers: { ...minimumHeaders(created), ...extra },
+          headers: { ...minimumHeaders(removed), ...extra },
         });
         expect(response.status).toBe(500);
         expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
-        expect(response.headers.has("bdp-scope-position")).toBe(false);
+        for (const name of ["bdp-scope-position", "bdp-scope-epoch", "bdp-authorization-view"])
+          expect(response.headers.has(name)).toBe(false);
         expect(await response.text()).toBe("");
       }
-    }
-  }
+  expect(wait).not.toHaveBeenCalled();
+  const malformed = await f.get(`${f.runtime.scope}beads/missing`, {
+    headers: minimumHeaders(removed, "unissued"),
+  });
+  expect(malformed.status).toBe(500);
+  expect(malformed.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+  const anonymous = await f.get(`${f.runtime.scope}beads/missing`, {
+    headers: { ...minimumHeaders(removed), authorization: "" },
+  });
+  expect(anonymous.status).toBe(401);
+  expect(anonymous.headers.has("bdp-scope-position")).toBe(false);
 });
 
 it("uses the final actual attempt context for GET and HEAD timeouts after real progress", async () => {
