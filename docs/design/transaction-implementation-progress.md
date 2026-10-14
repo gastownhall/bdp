@@ -1666,6 +1666,7 @@ unchanged. Unknown Types and absent/deleted incident anchors return compatible40
 with actual context, while missing+behind/foreign cases retain the explicit gap.
 The ordinary facet's descriptor-safe delivery-option boundary is preserved.
 Source/HTTP tests and a separate installed20-request/one-child/seven-URL scenario
-are recorded in transaction-current-type-incident-minimum-implementation/report.md.
+are recorded in the
+[frozen implementation report](https://github.com/donnabox/beads/blob/d573ce1ca7501a97a394c6ff3061771ec97e73f7/docs/architecture/bdp-client-v2/transaction-current-type-incident-minimum-implementation-report.md).
 This fixed all-visible evidence does not qualify hidden policy, retained minima,
 Type lifecycle, discovery activation or a full profile.

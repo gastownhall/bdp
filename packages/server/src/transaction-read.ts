@@ -28,13 +28,21 @@ export class TransactionMinimumVisibilityGap extends Error {}
 
 /** Current private minimum subset; full request validation remains with Read. */
 export function isCurrentTransactionMinimumRead(request: ReadRequest, scope: string): boolean {
+  if (isProxy(request)) return false;
   switch (request.kind) {
-    case "resource":
+    case "resource": {
+      if (request.resource !== "type")
+        return request.resource === "bead" || request.resource === "link";
+      // Locality is checked before Read captures the request. Do not execute
+      // an ID getter or method here; canonical syntax remains Read's decision.
+      const id = Object.getOwnPropertyDescriptor(request, "id");
       return (
-        request.resource === "bead" ||
-        request.resource === "link" ||
-        (request.resource === "type" && request.id.startsWith(scope))
+        id !== undefined &&
+        "value" in id &&
+        typeof id.value === "string" &&
+        id.value.startsWith(scope)
       );
+    }
     case "properties":
       return request.resource === "bead" || request.resource === "link";
     case "collection":

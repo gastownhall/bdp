@@ -1199,6 +1199,71 @@ describe("current Type and incident-Link minimums", () => {
       });
     }
   }
+  it.each([
+    "omitted",
+    "undefined",
+    "null",
+    "number",
+    "false",
+    "empty",
+    "method",
+    "accessor",
+    "inherited",
+    "proxy",
+    "revoked",
+  ] as const)(
+    "rejects malformed Type ID %s through a Promise without invoking caller data",
+    async (kind) => {
+      const f = prepared(),
+        { plane, facet } = f.open();
+      const minimum = plane.minimumFor(principal, f.minimum());
+      const invoked = vi.fn(() => {
+        throw new Error("Type ID caller code must not execute");
+      });
+      const base = { kind: "resource", resource: "type" };
+      const revoked = Proxy.revocable({ ...base, id: descriptor.id }, {});
+      revoked.revoke();
+      const malformed = {
+        omitted: base,
+        undefined: { ...base, id: undefined },
+        null: { ...base, id: null },
+        number: { ...base, id: 0 },
+        false: { ...base, id: false },
+        empty: { ...base, id: "" },
+        method: { ...base, id: { startsWith: invoked } },
+        accessor: Object.defineProperty({ ...base }, "id", { get: invoked }),
+        inherited: Object.assign(
+          Object.create(Object.defineProperty({}, "id", { get: invoked })),
+          base,
+        ),
+        proxy: new Proxy(
+          { ...base, id: descriptor.id },
+          {
+            get: invoked,
+            getOwnPropertyDescriptor: invoked,
+            getPrototypeOf: invoked,
+          },
+        ),
+        revoked: revoked.proxy,
+      };
+      let delivery: Promise<unknown> | undefined;
+      expect(() => {
+        delivery = minimum.perform(malformed[kind] as ReadRequest);
+      }).not.toThrow();
+      expect(delivery).toBeInstanceOf(Promise);
+      await expect(delivery).rejects.toThrow("outside supported subset");
+      expect(invoked).not.toHaveBeenCalled();
+      expect(body(await minimum.perform(requests[0]!))).toEqual(descriptor);
+      const external = { kind: "resource", resource: "type", id: link } as ReadRequest;
+      expect(body(await facet.perform(external))).toEqual(types[1]);
+      await expect(minimum.perform(external)).rejects.toThrow("outside supported subset");
+      // The subset gate checks only locality. Canonical Type syntax remains a Read rule.
+      expect(
+        await minimum.perform({ kind: "resource", resource: "type", id: url("beads/a") }),
+      ).toMatchObject({ kind: "problem", problem: { status: 400, code: "invalid-parameter" } });
+    },
+  );
+
   it("projects immutable current Types and exact incident directions including self-Link deduplication", async () => {
     const f = prepared(),
       { plane, facet } = f.open();
