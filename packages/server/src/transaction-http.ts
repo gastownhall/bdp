@@ -45,7 +45,11 @@ import {
   requestFromUrl,
   ScopeServerOperationAbortedError,
 } from "./read-request.js";
-import { TransactionMinimumVisibilityGap, transactionReadContexts } from "./transaction-read.js";
+import {
+  TransactionMinimumVisibilityGap,
+  transactionReadContexts,
+  isInitialTransactionCollection,
+} from "./transaction-read.js";
 import type { TransactionReadContext } from "./transaction-store.js";
 import type { TransactionSubmission } from "./transaction-submission.js";
 
@@ -224,7 +228,7 @@ export function createTransactionHttpHandler(
       const facet = minimum
         ? service.readAtMinimum({ kind: "anonymous" }, minimum)
         : service.readFor({ kind: "anonymous" });
-      const result = await facet.perform(parsed);
+      const result = await facet.perform(parsed, { signal: request.signal });
       const response =
         result.kind === "problem"
           ? problem(result.problem)
@@ -533,8 +537,9 @@ export function createTransactionHttpHandler(
       if (
         alias !== undefined ||
         isReadProblem(parsed) ||
-        (parsed.kind !== "resource" && parsed.kind !== "properties") ||
-        (parsed.resource !== "bead" && parsed.resource !== "link")
+        (!isInitialTransactionCollection(parsed) &&
+          ((parsed.kind !== "resource" && parsed.kind !== "properties") ||
+            (parsed.resource !== "bead" && parsed.resource !== "link")))
       )
         return developmentGap("minimum-position-route");
     }
