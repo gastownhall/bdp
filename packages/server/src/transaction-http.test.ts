@@ -864,6 +864,129 @@ it("maps a finite unresolved comparison to temporary refusal without disclosing 
   expect(replay.headers.get("bdp-scope-position")).toBe("pos-2");
 });
 
+it("preserves maintenance faults as bodyless internal errors before direct admission", async () => {
+  const sentinel = new Error("private maintenance clock failure");
+  const seedKey = "maintenance-seed",
+    freshKey = "maintenance-after-fault";
+  const failures: unknown[] = [];
+  let f: Awaited<ReturnType<typeof fixture>> | undefined;
+  let seedReceipt: Record<string, unknown> | undefined;
+  let inject = false,
+    faultCalls = 0,
+    requests = 0;
+  let responseStatus: number | undefined;
+  let intervalCancelled = false,
+    closed = false,
+    inventoryChecked = false;
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    f = await fixture({
+      maintenanceIntervalMs: 25,
+      clock: () => {
+        if (inject) {
+          faultCalls++;
+          throw sentinel;
+        }
+        // This override replaces the fixture's clock; f.setTime is not used.
+        return 1000;
+      },
+    });
+    expect(vi.getTimerCount()).toBe(1);
+    requests++;
+    const seed = await f.post(batch([create("maintenance-seed")]), seedKey);
+    expect(seed.status, "selective interval/fetch compatibility").toBe(200);
+    seedReceipt = await body(seed);
+    const validateReceipt = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceipt` });
+    expect(validateReceipt(seedReceipt), JSON.stringify(validateReceipt.errors)).toBe(true);
+    expect(seedReceipt).toMatchObject({
+      status: "completed",
+      detail: "available",
+      idempotencyKey: seedKey,
+      requiredPosition: "pos-1",
+      effectPosition: "pos-1",
+      next: null,
+    });
+    expect(seedReceipt.results).toEqual([
+      {
+        operationIndex: 0,
+        outcome: "created",
+        resource: expect.objectContaining({
+          id: `${f.runtime.scope}beads/maintenance-seed`,
+          type: bead,
+          properties: { title: "maintenance-seed" },
+          metadata: {},
+        }),
+      },
+    ]);
+    inject = true;
+    vi.advanceTimersByTime(25);
+    inject = false;
+    expect(faultCalls, "one actual maintenance clock failure").toBe(1);
+    expect(vi.getTimerCount(), "failed maintenance cancels its interval").toBe(0);
+    intervalCancelled = true;
+    vi.useRealTimers();
+    requests++;
+    const response = await f.post(batch([create("maintenance-after-fault")]), freshKey);
+    responseStatus = response.status;
+    const text = await response.text();
+    expect(responseStatus, "maintenance failure is internal500").toBe(500);
+    expect(text).toBe("");
+    expect(response.headers.get("content-length")).toBe("0");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
+    expect(response.headers.get("vary")).toBe("Accept");
+    for (const name of [
+      "content-type",
+      "retry-after",
+      "location",
+      "x-bdp-development-limit",
+      "bdp-scope-epoch",
+      "bdp-authorization-view",
+      "bdp-scope-position",
+    ])
+      expect(response.headers.has(name), name).toBe(false);
+    expect(text).not.toContain(sentinel.message);
+    for (const value of response.headers.values()) expect(value).not.toContain(sentinel.message);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    inject = false;
+    vi.useRealTimers();
+    if (f) {
+      try {
+        await f.runtime.close();
+        closed = true;
+      } catch (error) {
+        failures.push(error);
+      }
+      try {
+        // Exactly one post-close readonly inventory, even for the old-guard control.
+        const inventory = await f.retainedReceiptInventory();
+        expect(seedReceipt, "actual seed receipt exists before inventory comparison").toBeDefined();
+        expect(inventory, "fault creates no receipt or key binding").toEqual([
+          { principal: "p", key: seedKey, receipt: seedReceipt },
+        ]);
+        inventoryChecked = true;
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    console.info(
+      JSON.stringify({
+        kind: "comparison-maintenance-fault-cleanup",
+        requests,
+        responseStatus,
+        faultCalls,
+        intervalCancelled,
+        closed,
+        inventoryChecked,
+      }),
+    );
+  }
+  if (failures.length)
+    throw new AggregateError(failures, "maintenance HTTP assertion or cleanup failed");
+});
+
 it("keeps a live listener from serving through an owner fenced by injected commit uncertainty", async () => {
   const f = await fixture();
   const exec = DatabaseSync.prototype.exec;

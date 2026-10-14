@@ -3267,6 +3267,7 @@ describe("private comparison deadline observation", () => {
   it("returns a stopped comparison observation for a normally closed owner", () => {
     const f = fixture();
     f.store.close();
+    expect(f.store.comparisonEpoch(), "normal closed comparison epoch").toBeUndefined();
     expect(f.store.observeComparisonDeadline(f.store.scopeEpoch)).toStrictEqual({
       kind: "owner-stopped",
     });
@@ -3310,8 +3311,15 @@ describe("private comparison deadline observation", () => {
     }
     expect(failure).toBeInstanceOf(Error);
     expect((failure as Error).cause).toBe(original);
+    expect(() => f.store.comparisonEpoch(), "fenced comparison epoch preserves failure").toThrow(
+      failure as Error,
+    );
     expect(() => f.store.observeComparisonDeadline(f.store.scopeEpoch)).toThrow(failure as Error);
     f.store.close();
+    expect(
+      () => f.store.comparisonEpoch(),
+      "closed fenced comparison epoch preserves failure",
+    ).toThrow(failure as Error);
     expect(
       () => f.store.observeComparisonDeadline(f.store.scopeEpoch),
       "closed fenced deadline preserves failure",
@@ -3343,6 +3351,15 @@ describe("private comparison deadline observation", () => {
       expect(failure, "closed maintenance deadline preserves failure").toBeInstanceOf(Error);
       expect((failure as Error).message).toBe("transaction maintenance failed; owner fenced");
       expect((failure as Error).cause).toBe(original);
+      let epochFailure: unknown;
+      try {
+        store.comparisonEpoch();
+      } catch (error) {
+        epochFailure = error;
+      }
+      expect(epochFailure, "closed maintenance epoch preserves failure").toBeInstanceOf(Error);
+      expect((epochFailure as Error).message).toBe("transaction maintenance failed; owner fenced");
+      expect((epochFailure as Error).cause).toBe(original);
     } finally {
       try {
         f?.store.close();
