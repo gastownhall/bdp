@@ -329,11 +329,6 @@ export function createTransactionHttpHandler(
         } catch (error) {
           if (error instanceof TransactionDevelopmentLimitError)
             return developmentGap("unsupported-transaction-composition");
-          if (
-            error instanceof TypeError &&
-            error.message === "development sequence Resource aliases require turn-time resolution"
-          )
-            return developmentGap("sequence-resource-alias");
           throw error;
         }
         if (!acceptsJson(request.headers.get("accept"))) return empty(406);

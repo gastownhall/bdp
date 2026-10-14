@@ -436,35 +436,20 @@ describe("private Transactional sequence slice", () => {
     expect(f.store.inspect().resources).toHaveLength(2);
     valid(await completion);
   });
-  it("rejects duplicate keys, invalid dependency edges and Resource alias operands before any key effects", () => {
+  it("rejects duplicate keys and invalid dependency edges before any key effects", () => {
     const f = fixture();
-    const unsupported = [
+    const invalid = [
       [create("a", "same"), create("b", "same")],
       [
         create("a", "creator", "a"),
         { operation: "deleteBead", idempotencyKey: "dependent", bead: "@unknown" },
       ],
-      [
-        create("a", "creator"),
-        { operation: "deleteBead", idempotencyKey: "alias", bead: "alias/a" },
-      ],
-      [
-        create("a", "creator"),
-        {
-          operation: "createLink",
-          idempotencyKey: "alias",
-          type: link,
-          source: { uri: `${scope}alias/a`, revision: "r" },
-          target: "beads/a",
-        },
-      ],
     ];
-    for (const operations of unsupported)
+    for (const operations of invalid)
       expect(() => createTransactionSequenceStepper(f.store, "p", sequence(operations))).toThrow();
     expect(f.store.inspect().resources).toEqual([]);
-    expect(
-      f.store.admit("p", "creator", singleton("createBead", { type: bead, id: "beads/a" })).kind,
-    ).toBe("owned");
+    for (const key of ["same", "creator", "dependent"])
+      expect(f.store.admit("p", key, singleton("createBead", { type: bead })).kind).toBe("owned");
   });
   it("recovers a crashed sequence prefix without resuming abandoned tail receipts", () => {
     const f = fixture();

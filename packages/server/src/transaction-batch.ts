@@ -215,6 +215,8 @@ export interface PreparedTransactionSequence {
     readonly operation: ReadUpdateOperation;
     readonly name?: string;
     readonly request: PreparedTransaction;
+    readonly aliasOperands: readonly { readonly field: string; readonly locator: string }[];
+    readonly deferred: boolean;
     readonly dependencies: readonly {
       field: string;
       creator: number;
@@ -225,7 +227,7 @@ export interface PreparedTransactionSequence {
 }
 const sequences = new WeakSet<object>();
 /** First private sequence boundary. Full syntax/Scope checks precede all key
- * effects; canonical dependencies use durable reservations, while aliases remain refused. */
+ * effects; creator and alias operands retain deferred turn-time reservations. */
 export function prepareTransactionSequence(
   scope: string,
   text: string,
@@ -238,6 +240,7 @@ export function prepareTransactionSequence(
   assertTransactionInputDepth(object(decodeJsonDocument(text)));
   const labels = new Map<string, number>();
   const members = carrier.operations.map((op, index) => {
+    const aliasOperands: { readonly field: string; readonly locator: string }[] = [];
     const dependencies: {
       field: string;
       creator: number;
@@ -262,10 +265,10 @@ export function prepareTransactionSequence(
         });
       }
       if (
-        aliasFields(op.operation).includes(field) &&
+        transactionAliasFields(op.operation).includes(field) &&
         canonicalReference(scope, uri).startsWith(`${scope}alias/`)
       )
-        throw new TypeError("development sequence Resource aliases require turn-time resolution");
+        aliasOperands.push(Object.freeze({ field, locator: canonicalReference(scope, uri) }));
     }
     // The whole carrier already validated backward labels and Resource kinds.
     // Preserve its branded numeric operation without reparsing as a singleton,
@@ -284,7 +287,9 @@ export function prepareTransactionSequence(
       operation: op.operation,
       ...(op.name === undefined ? {} : { name: op.name }),
       request,
-      dependencies: Object.freeze(dependencies),
+      dependencies: Object.freeze(dependencies.map((dependency) => Object.freeze(dependency))),
+      aliasOperands: Object.freeze(aliasOperands),
+      deferred: dependencies.length > 0 || aliasOperands.length > 0,
     });
   });
   const result = Object.freeze({ scope: carrier.scope, members: Object.freeze(members) });
@@ -307,9 +312,8 @@ export function assertPreparedTransaction(batch: PreparedTransaction, scope: str
   if (!prepared.has(batch) || batch.carrier.scope !== scope)
     throw new TypeError("expected prepared transaction for this Scope");
 }
-function aliasFields(
-  operation: ReadUpdateOperation | PreparedTransactionSet["operation"],
-): readonly string[] {
+/** Source-private permitted alias slots shared by preparation and pending validation. */
+export function transactionAliasFields(operation: string): readonly string[] {
   if (operation === "createLink") return ["source", "target"];
   if (operation === "updateBead" || operation === "deleteBead") return ["bead"];
   return [];
@@ -354,7 +358,7 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
     )
       assertResourceOperation(entry.operation);
     const operation = entry.operation as OperationWitnesses["operation"];
-    if (entry.aliases.length > aliasFields(operation).length)
+    if (entry.aliases.length > transactionAliasFields(operation).length)
       throw new TypeError("invalid transaction alias witness count");
     const seen = new Set<string>();
     const aliases = entry.aliases.map((value) => {
@@ -368,6 +372,19 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
       return Object.freeze({ locator, target });
     });
     return Object.freeze({ operation, aliases: Object.freeze(aliases) });
+  });
+}
+/** Source-private operand inventory; preparation and comparison share the slot grammar. */
+export function transactionAliasOperands(batch: PreparedTransaction) {
+  assertPreparedTransaction(batch, batch.carrier.scope);
+  const operation = batch.carrier.operations[0];
+  if (!operation || batch.carrier.operations.length !== 1) return [];
+  return transactionAliasFields(operation.operation).flatMap((field) => {
+    const value = operation.input[field];
+    if (value === undefined) return [];
+    const uri = typeof value === "string" ? value : (value as { uri: string }).uri;
+    const locator = canonicalReference(batch.carrier.scope, uri);
+    return locator.startsWith(`${batch.carrier.scope}alias/`) ? [{ field, locator }] : [];
   });
 }
 export interface NormalizedTransaction {
@@ -425,7 +442,10 @@ export function normalizeTransaction(
       const locator = canonical(uri);
       let normalized: SemanticValue | undefined;
       if (index === 0 && references.has(field)) normalized = references.get(field);
-      else if (aliasFields(op.operation).includes(field) && locator.startsWith(`${scope}alias/`)) {
+      else if (
+        transactionAliasFields(op.operation).includes(field) &&
+        locator.startsWith(`${scope}alias/`)
+      ) {
         if (!aliases.has(locator)) {
           const old =
             previous?.operation === op.operation
@@ -975,7 +995,7 @@ export function evaluateTransaction(
           const id = bindings.get(uri.slice(1));
           if (!id) throw new Error("validated binding missing");
           input[field] = typeof ref === "string" ? id : { ...ref, uri: id };
-        } else if (aliasFields(op.operation).includes(field)) {
+        } else if (transactionAliasFields(op.operation).includes(field)) {
           const target = aliases.get(canonicalReference(options.scope, uri));
           if (target != null)
             input[field] = typeof ref === "string" ? target : { ...ref, uri: target };
