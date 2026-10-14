@@ -1841,3 +1841,137 @@ describe("current minimum perform receiving capture", () => {
     },
   );
 });
+
+describe("nonexecuting sequence refusal observation", () => {
+  it("uses one synchronous owner entry and freezes each current refusal tuple without admission", async () => {
+    const f = fixture();
+    let capturedContext: unknown;
+    const enter = vi.fn((callback: Parameters<typeof f.owner.withRead>[0]) =>
+      f.owner.withRead((reader, context) => {
+        capturedContext = context;
+        return callback(reader, context);
+      }),
+    );
+    const admitSequence = vi.fn(f.owner.admitSequence);
+    const nextSequence = vi.fn(f.owner.nextSequence);
+    const admit = vi.fn(f.owner.admit);
+    const admitObserved = vi.fn(f.owner.admitObserved);
+    const owner = {
+      ...f.owner,
+      withRead: enter as typeof f.owner.withRead,
+      admitSequence,
+      nextSequence,
+      // Vitest models the last overload; the spy still delegates all arguments.
+      admit: admit as unknown as typeof f.owner.admit,
+      admitObserved: admitObserved as typeof f.owner.admitObserved,
+    };
+    const service = createTransactionService(owner, { ownerLifetime: "service", read: f.read });
+    cleanup.push(() => service.close());
+    await service.submit(batch([create("a")], "seed-a"));
+    await service.submit(batch([create("b")], "seed-b"));
+    enter.mockClear();
+    admit.mockClear();
+    admitObserved.mockClear();
+    const before = f.owner.inspect();
+    const pending = service.sequenceRefusalObserved();
+    // Entry is already complete before delivery: the owner is not held over await.
+    expect(enter).toHaveBeenCalledTimes(1);
+    expect(f.owner.inspect()).toEqual(before);
+    const first = await pending;
+    expect(first.context).toBe(capturedContext);
+    expect(first).toEqual({
+      context: {
+        scopeEpoch: f.owner.scopeEpoch,
+        authorizationView: "development-all-visible",
+        scopePosition: "pos-2",
+      },
+    });
+    expect(Object.isFrozen(first)).toBe(true);
+    expect(Object.isFrozen(first.context)).toBe(true);
+    expect(admitSequence).not.toHaveBeenCalled();
+    expect(nextSequence).not.toHaveBeenCalled();
+    expect(admit).not.toHaveBeenCalled();
+    expect(admitObserved).not.toHaveBeenCalled();
+    expect(first.context).toEqual((await service.discoveryObserved()).context);
+    await service.submit(batch([create("c")], "advance"));
+    enter.mockClear();
+    const next = await service.sequenceRefusalObserved();
+    expect(enter).toHaveBeenCalledTimes(1);
+    expect(next.context.scopePosition).toBe("pos-3");
+    expect(first.context.scopePosition).toBe("pos-2");
+    await service.close();
+    expect(() => service.sequenceRefusalObserved()).toThrow("closing or closed");
+  });
+
+  it("preserves reentrant and failed-owner causes and sanitizes unexpected refusal observation faults", async () => {
+    const f = fixture(),
+      service = f.open();
+    let nested: Promise<unknown> | undefined;
+    f.owner.withRead(() => {
+      nested = service.sequenceRefusalObserved();
+      return 0;
+    });
+    await expect(nested).rejects.toMatchObject({
+      message: "transaction sequence refusal observation refused",
+      cause: expect.any(Error),
+    });
+    f.owner.close();
+    await expect(service.sequenceRefusalObserved()).rejects.toMatchObject({
+      message: "transaction sequence refusal observation refused",
+      cause: expect.any(Error),
+    });
+    const handler = createTransactionHttpHandler(service, scope);
+    const response = await handler.handle(
+      new Request(`${scope}operations/sequence`, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "text/plain" },
+      }),
+      { kind: "authenticated", principal: "p", canMutate: true },
+      { text: JSON.stringify({ operations: [{ ...create(), idempotencyKey: "refused" }] }) },
+    );
+    expect(response.status).toBe(500);
+    expect(response.body).toBeUndefined();
+    expect(response.headers.get("content-length")).toBe("0");
+    expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
+    expect(response.headers.has("bdp-scope-position")).toBe(false);
+  });
+
+  it("keeps excluded sequence responses unobserved and without refusal context", async () => {
+    const f = fixture(),
+      service = f.open();
+    const observed = vi.fn(service.sequenceRefusalObserved);
+    const handler = createTransactionHttpHandler(
+      { ...service, sequenceRefusalObserved: observed },
+      scope,
+    );
+    const valid = JSON.stringify({ operations: [{ ...create(), idempotencyKey: "unused" }] });
+    const authorized = { kind: "authenticated", principal: "p", canMutate: true } as const;
+    for (const [text, headers, auth, status, code] of [
+      [valid, { "idempotency-key": "carrier" }, authorized, 400, "malformed-request"],
+      ["{", {}, authorized, 400, "malformed-request"],
+      [valid, {}, { kind: "unauthenticated" }, 401, "unauthenticated"],
+      [valid, {}, { ...authorized, canMutate: false }, 403, "forbidden"],
+      [valid, { "content-type": "text/plain" }, authorized, 415, "unsupported-media-type"],
+      [valid, { "bdp-minimum-scope-position": "pos-1" }, authorized, 500, "minimum-position"],
+    ] as const) {
+      const response = await handler.handle(
+        new Request(`${scope}operations/sequence`, {
+          method: "POST",
+          headers: { "content-type": "application/json", ...headers },
+        }),
+        auth,
+        { text },
+      );
+      expect(response.status).toBe(status);
+      if (status === 500) expect(response.headers.get("x-bdp-development-limit")).toBe(code);
+      else expect(response.body).toMatchObject({ code, status });
+      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+        expect(
+          response.headers.has(name),
+          `excluded sequence refusal ${code} context: ${name}`,
+        ).toBe(false);
+      expect(observed).not.toHaveBeenCalled();
+    }
+    expect(f.owner.inspect().position).toBe("0");
+  });
+});

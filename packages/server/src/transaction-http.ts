@@ -313,8 +313,13 @@ export function createTransactionHttpHandler(
         if (authorization.kind === "unauthenticated")
           return transactionHttpProblem("unauthenticated");
         if (!authorization.canMutate) return transactionHttpProblem("forbidden");
-        if (carrier.operations.length > TRANSACTION_MAXIMUM_OPERATIONS)
-          return problem({ ...readProblem("limit-exceeded"), limit: "sequence.operations" });
+        if (carrier.operations.length > TRANSACTION_MAXIMUM_OPERATIONS) {
+          const observed = await service.sequenceRefusalObserved();
+          return context(
+            problem({ ...readProblem("limit-exceeded"), limit: "sequence.operations" }),
+            observed.context,
+          );
+        }
         let prepared: ReturnType<typeof prepareTransactionSequence>;
         try {
           prepared = prepareTransactionSequence(scope, received.text);
@@ -323,7 +328,10 @@ export function createTransactionHttpHandler(
             return developmentGap("unsupported-transaction-composition");
           throw error;
         }
-        if (!acceptsJson(request.headers.get("accept"))) return empty(406);
+        if (!acceptsJson(request.headers.get("accept"))) {
+          const observed = await service.sequenceRefusalObserved();
+          return context(empty(406), observed.context);
+        }
         const observed = await service.sequenceObserved(authorization.principal, prepared);
         return context(jsonResponse(observed.body), observed.context);
       }

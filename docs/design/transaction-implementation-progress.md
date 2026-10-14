@@ -611,8 +611,8 @@ both limits together. This is explicit private configuration, not new discovery.
 
 Runtime close aborts in-flight socket delivery, including connected clients, and
 then drains accepted durable work. Clients recover outcomes by key replay after
-reopen; “drain” does not promise completion of response delivery. Sequence response
-context still comes from the post-runner owner observation. A fault in that entry
+reopen; “drain” does not promise completion of response delivery. Successful sequence
+response context still comes from the post-runner owner observation. A fault in that entry
 can lose delivery after member commits; replay recovers the original member
 outcomes. Moving that observation into the final turn remains separate work.
 
@@ -724,7 +724,8 @@ changes. Fresh Snapshot creation GET/HEAD now also accepts the complete canonica
 minimum tuple. Both capture and nonallocating preflight check the actual owner
 context before expiry/copy/allocation and reuse one finite wait with disconnect
 cancellation. Preflight remains authoritative before conditional/media decisions;
-HEAD,304,412,406 and every minimum refusal carry actual current context.
+for fresh Snapshot creation, HEAD,304,412,406 and every minimum refusal carry
+actual current context.
 Retained Snapshot manifest/page
 minimum controls and malformed/partial forms remain explicit private gaps. Their
 position interpretation is not decided by fresh creation support. Synchronous
@@ -1714,3 +1715,20 @@ in the [frozen implementation report](https://github.com/donnabox/beads/blob/492
 ordinary discovery-refusal regression and the separate packed12/1 boundary cohort
 are not proof of the new accessor. No wire-ready profile, installed discovery,
 public admission, catalog credit or completed cumulative qualification is claimed.
+
+### Authenticated sequence carrier refusal observation
+
+The source-private service now observes the current owner once, without member
+execution or key admission, for the existing sequence.operations over-count413
+and supported-carrier unacceptable-media406. HTTP preserves syntax/auth/count/
+preparation/negotiation ordering and attaches that immutable tuple. Discovery,
+store format, parsing, minimum controls and public profile advertisement are
+unchanged. Unlike the successful post-runner response above, these refusals have
+no committed members to recover by replay. An unexpected owner observation fault
+can instead yield the existing sanitized bodyless500; no stale tuple is supplied
+to preserve the nominal refusal. Normal runtime closing/not-ready503 remains
+before dispatch, without implying all live owner faults are unreachable.
+
+Source and installed observations must remain bound to their actual frozen
+source and reviewed separately. No complete profile qualification or public
+activation follows from this slice.
