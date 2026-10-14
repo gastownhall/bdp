@@ -1788,8 +1788,8 @@ including sixteen loopback HTTP requests across two fixtures. Five isolated
 mutants fail the named context-presence, current-position, missing-tuple,
 legacy-submission-shape and final-epoch-check assertions. Typecheck/build/static
 checks and the historical Read seal pass; broader suites are not claimed.
-Default installed timeout sensitivity remains unobserved: no new installed comparison override or load-based timing test is
-introduced. Existing direct and sequence refusal installed cohorts remain separate
-regressions, not timeout qualification; their execution is recorded outside
-this source note. No public admission or discovery
-claim changes.
+Default installed timeout sensitivity remains unobserved: no new installed
+comparison override or load-based timing test is introduced. Existing direct and
+sequence refusal installed cohorts remain separate regressions, not timeout
+qualification; their execution is recorded outside this source note. No public
+admission or discovery claim changes.

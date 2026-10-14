@@ -1102,6 +1102,45 @@ describe("observed comparison deadline submission", () => {
     expect(observe).not.toHaveBeenCalled();
     expect(f.store.cancelSequence(attempt)).toBe(2);
   });
+  it("distinguishes a stopped final observation at the reached comparison deadline", async () => {
+    const f = fixture(),
+      attempt = dependencies(f.store);
+    let now = 0,
+      waits = 0;
+    // Defensive composition only: no supported live epoch rotation is introduced.
+    const observe = vi.fn(() => ({ kind: "owner-stopped" as const })),
+      admitObserved = vi.fn(f.store.admitObserved);
+    try {
+      expect(
+        await submitTransaction(
+          { ...f.store, observeComparisonDeadline: observe, admitObserved },
+          dependent(),
+          {
+            budgetMs: 2,
+            now: () => now,
+            wait: async () => {
+              waits++;
+              expect(observe).not.toHaveBeenCalled();
+              now = 2;
+            },
+          },
+          true,
+        ),
+        "final stopped comparison refusal has no context",
+      ).toStrictEqual({
+        kind: "comparison-refusal",
+        reason: "owner-stopped",
+        status: 503,
+        code: "temporarily-unavailable",
+        retry: "after-delay",
+      });
+      expect(waits).toBe(1);
+      expect(admitObserved).toHaveBeenCalledTimes(1);
+      expect(observe).toHaveBeenCalledExactlyOnceWith(f.store.scopeEpoch);
+    } finally {
+      expect(f.store.cancelSequence(attempt)).toBe(2);
+    }
+  });
   it("keeps full-owner unobserved comparison exact and excludes a caller callback", async () => {
     const f = fixture(),
       attempt = dependencies(f.store);

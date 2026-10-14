@@ -3311,6 +3311,45 @@ describe("private comparison deadline observation", () => {
     expect(failure).toBeInstanceOf(Error);
     expect((failure as Error).cause).toBe(original);
     expect(() => f.store.observeComparisonDeadline(f.store.scopeEpoch)).toThrow(failure as Error);
+    f.store.close();
+    expect(
+      () => f.store.observeComparisonDeadline(f.store.scopeEpoch),
+      "closed fenced deadline preserves failure",
+    ).toThrow(failure as Error);
+  });
+  it("preserves background maintenance failure in a closed comparison owner", () => {
+    vi.useFakeTimers();
+    let f: ReturnType<typeof fixture> | undefined;
+    let inject = false;
+    const original = new Error("deadline background maintenance fault");
+    try {
+      f = fixture({
+        maintenanceIntervalMs: 25,
+        fault(stage) {
+          if (inject && stage === "before-maintenance-commit") throw original;
+        },
+      });
+      expect(vi.getTimerCount()).toBe(1);
+      inject = true;
+      vi.advanceTimersByTime(25);
+      expect(vi.getTimerCount()).toBe(0);
+      const store = f.store;
+      let failure: unknown;
+      try {
+        store.observeComparisonDeadline(store.scopeEpoch);
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure, "closed maintenance deadline preserves failure").toBeInstanceOf(Error);
+      expect((failure as Error).message).toBe("transaction maintenance failed; owner fenced");
+      expect((failure as Error).cause).toBe(original);
+    } finally {
+      try {
+        f?.store.close();
+      } finally {
+        vi.useRealTimers();
+      }
+    }
   });
   it("propagates comparison metadata failure and releases the atomic owner", () => {
     const f = fixture(),
