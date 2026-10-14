@@ -1199,6 +1199,14 @@ describe("internal discovery owner observation", () => {
     const observed = await service.discoveryObserved();
     expect(observed.discovery.headPosition).toBe("pos-2");
     expect(observed.discovery.minimumReplayPosition).toBe("pos-0");
+    expect(first.receipt.id.startsWith(observed.discovery.receipts)).toBe(true);
+    const receiptResponse = await createTransactionHttpHandler(service, scope).handle(
+      new Request(first.receipt.id),
+      { ...access, canMutate: true },
+    );
+    expect(receiptResponse.status).toBe(200);
+    expect(receiptResponse.body).toEqual(first.receipt);
+    expect(receiptResponse.headers.get("bdp-scope-position")).toBe("pos-2");
     async function replay(actual: typeof service) {
       const pages: unknown[] = [];
       let after = "genesis";

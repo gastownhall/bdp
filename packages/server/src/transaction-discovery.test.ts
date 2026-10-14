@@ -101,7 +101,7 @@ it.each([
   { historicalResolution: { version: 1 as const } },
   { limits: { page: { defaultItems: 3, maximumItems: 32 } } },
 ])(
-  "rejects a schema-valid candidate substitution using the independent owner oracle %j",
+  "rejects a schema-valid candidate substitution using the literal projection oracle %j",
   (patch) => {
     const { discovery } = assembleTransactionDiscovery(scope, context, limits);
     const substituted = parseTransactionalDiscovery({ ...discovery, ...patch });
