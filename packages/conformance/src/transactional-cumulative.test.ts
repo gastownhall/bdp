@@ -1059,6 +1059,197 @@ function assertCompletedConflictRequests(value: typeof manifest) {
     expect(action.assertions).toContainEqual({ id: "request-body", kind: "request-authored-body" });
   }
 }
+// Independent expected response objects: all context-presence assertions are mandatory.
+// Preserve the existing Event assertion order instead of rewriting the artifact to
+// match the M/Z guard convention; presence after equality must still pass.
+function assertCompletedConflictResponses(value: typeof manifest) {
+  const row = value.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.idempotency.conflict",
+  )!;
+  const scope = "https://reference.invalid/acme/";
+  const headers = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"];
+  const pointer = (id: string, path: string, expected: unknown) => ({
+    id,
+    kind: "json-pointer",
+    pointer: path,
+    exists: true,
+    equals: expected,
+  });
+  const present = (id: string, path: string) => ({
+    id,
+    kind: "json-pointer",
+    pointer: path,
+    exists: true,
+  });
+  const binding = (id: string, path: string, equalsBinding: string) => ({
+    id,
+    kind: "json-pointer",
+    pointer: path,
+    exists: true,
+    equalsBinding,
+  });
+  const schema = (ref: string) => ({ id: "schema", kind: "json-schema", schema: `#/$defs/${ref}` });
+  const status = (equals: number) => ({ id: "http-status", kind: "status", equals });
+  const state = [
+    `${scope}beads/a`,
+    `${scope}types/task`,
+    { title: "original" },
+    { tag: "conflict" },
+  ];
+  const created = (path: string) => ({
+    id: "created-record",
+    kind: "json-array-tuples",
+    pointer: path,
+    ordered: true,
+    projections: [
+      "/operationIndex",
+      "/outcome",
+      "/resource/id",
+      "/resource/type",
+      "/resource/properties",
+      "/resource/metadata",
+    ].map((pointer) => ({ pointer })),
+    equals: [[0, "created", ...state]],
+  });
+  const headerPresence = headers.map((name) => ({
+    id: `present-${name}`,
+    kind: "header",
+    name,
+    absent: false,
+  }));
+  const authored = [
+    { id: "request-headers", kind: "request-authored-headers" },
+    { id: "request-body", kind: "request-authored-body" },
+  ];
+  const rootRead = [
+    pointer("status", "/status", 200),
+    pointer("body-present", "/bodyPresent", true),
+    ...headers.map((name) => present(name, `/headers/${name}`)),
+    pointer("private-cache", "/headers/cache-control", "private, no-store"),
+    { id: "no-etag", kind: "json-pointer", pointer: "/headers/etag", exists: false },
+    {
+      id: "no-last-modified",
+      kind: "json-pointer",
+      pointer: "/headers/last-modified",
+      exists: false,
+    },
+  ];
+  const conflict = [
+    status(409),
+    {
+      id: "problem-media",
+      kind: "header",
+      name: "content-type",
+      equals: "application/problem+json",
+    },
+    schema("transactionalProblem"),
+    pointer("problem-type", "/type", "https://github.com/gastownhall/bdp/problems/conflict"),
+    pointer("problem-code", "/code", "idempotency-conflict"),
+    pointer("problem-status", "/status", 409),
+    pointer("retry", "/retry", "never"),
+    ...authored,
+  ];
+  const collection = [
+    status(200),
+    schema("currentBeadCollection"),
+    pointer("no-next", "/next", null),
+    {
+      id: "ordered-state",
+      kind: "json-array-tuples",
+      pointer: "/items",
+      ordered: true,
+      projections: ["/id", "/type", "/properties", "/metadata"].map((pointer) => ({ pointer })),
+      equals: [state],
+    },
+    binding("retained-record", "/items/0", "c-record"),
+    ...authored,
+  ];
+  const events = [
+    status(200),
+    schema("eventPage"),
+    pointer("no-next", "/next", null),
+    {
+      id: "ordered-facts",
+      kind: "json-array-tuples",
+      pointer: "/events",
+      ordered: true,
+      projections: ["/source", "/type", "/subject", "/ordinal"].map((pointer) => ({ pointer })),
+      equals: [[`${scope}events/`, "created", `${scope}beads/a`, 0]],
+    },
+    { id: "serving-context", kind: "response-metadata-equals", request: "c-commit", headers },
+    ...headerPresence,
+    ...authored,
+  ];
+  const replay = [
+    status(200),
+    schema("mutationReceipt"),
+    pointer("disposition", "/status", "completed"),
+    binding("retained-body", "", "c-body"),
+    binding("retained-root", "/id", "c-root"),
+    ...authored,
+  ];
+  const assertions: Record<string, unknown[]> = {
+    "c-commit": [
+      status(200),
+      schema("mutationReceipt"),
+      pointer("disposition", "/status", "completed"),
+      pointer("no-next", "/next", null),
+      present("effect-position", "/effectPosition"),
+      created("/results"),
+      ...headerPresence,
+      ...authored,
+    ],
+    "c-original": [
+      ...rootRead,
+      pointer("disposition", "/body/status", "completed"),
+      pointer("no-next", "/body/next", null),
+      present("effect-position", "/body/effectPosition"),
+      created("/body/results"),
+    ],
+    "c-conflict": conflict,
+    "c-conflict-reopened": conflict,
+    "c-state": collection,
+    "c-state-reopened": collection,
+    "c-events": events,
+    "c-events-reopened": events,
+    "c-retry": replay,
+    "c-retry-reopened": replay,
+    "c-reopen": [pointer("reopened", "/reopened", true)],
+    "reopened-conflict-root": [...rootRead, binding("retained-body", "/body", "c-body")],
+  };
+  const captures: Record<string, unknown[]> = {
+    "c-commit": [{ binding: "c-root", from: { kind: "json-pointer", pointer: "/id" } }],
+    "c-original": [
+      { binding: "c-body", from: { kind: "json-pointer", pointer: "/body" } },
+      { binding: "c-record", from: { kind: "json-pointer", pointer: "/body/results/0/resource" } },
+    ],
+  };
+  expect(row.actions).toHaveLength(Object.keys(assertions).length);
+  for (const action of row.actions) {
+    expect(action.assertions, `${action.id} complete response assertions`).toEqual(
+      assertions[action.id],
+    );
+    expect(action.captures, `${action.id} complete captures`).toEqual(captures[action.id] ?? []);
+  }
+}
+
+it("pins complete conflict responses and rejects retained-record equality weakening", () => {
+  assertCompletedConflictResponses(manifest);
+  for (const id of ["c-state", "c-state-reopened"]) {
+    const weakened = structuredClone(manifest);
+    const row = weakened.scenarios.find(
+      (r: { id: string }) => r.id === "transactional.idempotency.conflict",
+    )!;
+    const assertion = row.actions
+      .find((a: { id: string }) => a.id === id)
+      .assertions.find((a: { id: string }) => a.id === "retained-record");
+    delete assertion.equalsBinding;
+    expect(() => assertCompletedConflictResponses(weakened)).toThrow(
+      `${id} complete response assertions`,
+    );
+  }
+});
+
 it("pins the completed-key conflict law, five presentations, and semantic request difference", () => {
   expect(
     selected.catalog.scenarios.find((r) => r.id === "transactional.idempotency.conflict")!
