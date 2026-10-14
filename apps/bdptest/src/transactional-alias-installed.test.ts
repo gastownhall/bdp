@@ -90,6 +90,9 @@ function object(value: unknown): Record<string, unknown> {
     throw new Error("expected object");
   return value as Record<string, unknown>;
 }
+function sameResource(actual: unknown, expected: unknown) {
+  expect(actual).toEqual(expected);
+}
 function results(value: Record<string, unknown>) {
   if (!Array.isArray(value.results)) throw new Error("expected results");
   return value.results.map(object);
@@ -112,7 +115,16 @@ it("installed sequence aliases resolve at turns and retain targets/misses across
   };
   let child: Awaited<ReturnType<typeof launchInstalledTransaction>> | undefined;
   let binding: ReturnType<typeof installedTransactionBinding> | undefined;
-  const observations: unknown[] = [],
+  const localSensitivityControls: string[] = [];
+  const observations: {
+      method: string;
+      url: string;
+      status: number;
+      bodyOctets: number;
+      bodySha256: string;
+      wireSha256: string;
+      scopePosition: string | undefined;
+    }[] = [],
     sessions: { pid: number | undefined; exit: number | null }[] = [],
     failures: unknown[] = [];
   async function close() {
@@ -144,7 +156,6 @@ it("installed sequence aliases resolve at turns and retain targets/misses across
     "operations/sequence",
     "operations/update-bead",
     "operations/put-alias",
-    "operations/delete-alias",
     "beads/a",
     "beads/b",
     "beads/tail",
@@ -202,17 +213,39 @@ it("installed sequence aliases resolve at turns and retain targets/misses across
       response.exactRequest?.headerLines.find((h) => h.name.toLowerCase() === "host")?.value,
     ).toBe("reference.invalid");
     if (!response.wireResponseBytes?.length) throw new Error("missing actual wire response");
+    if (
+      response.bodyOctets === undefined ||
+      !Number.isSafeInteger(response.bodyOctets) ||
+      response.bodyOctets < 0
+    )
+      throw new Error("completed response body octets unavailable");
     observations.push({
       method,
       url,
       status: response.status,
       bodyOctets: response.bodyOctets,
+      scopePosition: response.headers["bdp-scope-position"],
       bodySha256: hash(response.bodyText),
       wireSha256: hash(response.wireResponseBytes),
     });
     expect(observations.length).toBeLessThanOrEqual(60);
     expect(response.headers["x-bdp-development"]).toBe("non-attesting");
     expect(response.status, response.bodyText).toBe(status);
+    if (status === 200) {
+      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+        expect(response.headers[name]?.length, name).toBeGreaterThan(0);
+      // Seed batch commits once; sequence update+Link add two; tail adds one;
+      // fresh update adds one. Alias writes, refusals, reads and replay add none.
+      const position =
+        observations.length <= 3
+          ? 1
+          : observations.length <= 19
+            ? 3
+            : observations.length <= 25
+              ? 4
+              : 5;
+      expect(response.headers["bdp-scope-position"]).toBe(`pos-${position}`);
+    }
     const value = response.bodyText === "" ? undefined : JSON.parse(response.bodyText);
     if (schemaName) {
       const validate = validators[schemaName];
@@ -301,7 +334,12 @@ it("installed sequence aliases resolve at turns and retain targets/misses across
       },
     });
     await get("beads/a", { id: `${scope}beads/a`, type: bead, properties: { n: 0 } });
-    expect(await get("beads/b", { properties: { n: 1 } })).toEqual(members[1]?.resource);
+    const observedB = await get("beads/b", { properties: { n: 1 } });
+    sameResource(observedB, members[1]?.resource);
+    const wrongAdmissionTarget = structuredClone(object(members[1]?.resource));
+    wrongAdmissionTarget.id = `${scope}beads/a`;
+    expect(() => sameResource(observedB, wrongAdmissionTarget)).toThrow();
+    localSensitivityControls.push("admission-target");
     expect(await get("links/edge", { source: `${scope}beads/b` }, "currentLinkRecord")).toEqual(
       members[2]?.resource,
     );
@@ -315,7 +353,11 @@ it("installed sequence aliases resolve at turns and retain targets/misses across
       (await exchange("alias/work", undefined, undefined, 307)).response.headers.location,
     ).toBe(`${scope}beads/a`);
     const retained = await command("update-bead", update, "turn-update");
-    expect(results(retained)[0]?.resource).toEqual(members[1]?.resource);
+    sameResource(results(retained)[0]?.resource, members[1]?.resource);
+    const stalePostimage = structuredClone(object(results(retained)[0]?.resource));
+    object(stalePostimage.properties).n = 0;
+    expect(() => sameResource(results(retained)[0]?.resource, stalePostimage)).toThrow();
+    localSensitivityControls.push("stale-postimage");
     await command("put-alias", { alias: "alias/fresh", target: "beads/b" }, "fresh-put");
     expect(
       (await exchange("alias/fresh", undefined, undefined, 307)).response.headers.location,
@@ -411,6 +453,11 @@ it("installed sequence aliases resolve at turns and retain targets/misses across
         expect(sessions).toHaveLength(2);
         expect(sessions.every((session) => session.exit === 0)).toBe(true);
         expect(observations).toHaveLength(36);
+        expect(localSensitivityControls).toEqual(["admission-target", "stale-postimage"]);
+        expect(sessions[0]?.pid).not.toBe(sessions[1]?.pid);
+        expect(new Set(observations.map((observation) => observation.url))).toEqual(
+          new Set([...targets].map((target) => `${scope}${target}`)),
+        );
       } catch (error) {
         failures.push(error);
       }
@@ -418,7 +465,7 @@ it("installed sequence aliases resolve at turns and retain targets/misses across
     console.log(
       JSON.stringify({
         observation: "private-installed-sequence-alias",
-        sourceCommit: source,
+        declaredSourceCommit: source,
         workspaceDirty,
         entry,
         entrySha256: hash(readFileSync(entry)),
@@ -426,6 +473,7 @@ it("installed sequence aliases resolve at turns and retain targets/misses across
         sessions,
         exchanges: observations.length,
         completedResponses: observations,
+        localSensitivityControls,
         outcome: failures.length ? "failed" : "passed",
         claimEligible: false,
       }),
