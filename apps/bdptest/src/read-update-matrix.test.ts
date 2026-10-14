@@ -4336,8 +4336,9 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
     assertNestedNumericLexemes(nestedNumericLexemes(kind));
   assertRRefusalPairs(roundTrip.actions!);
   // Root-approved authoring amendment: exactly eight additional PropertyChange observations.
+  const ROOT_APPROVED_R_N_ACTION_CEILING = 148;
   expect(actions).toBe(148);
-  expect(actions).toBeLessThanOrEqual(148);
+  expect(actions).toBeLessThanOrEqual(ROOT_APPROVED_R_N_ACTION_CEILING);
   expect(assertions).toBe(1060);
   expect(assertions).toBeLessThanOrEqual(1300);
   expect(new Set(keys).size).toBe(keys.length);
@@ -4573,6 +4574,8 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
       : 0);
   expect(bytes.length - METADATA_CLOSURE_CONTINUATION_BYTES_BASE).toBeLessThanOrEqual(81920);
   expect(countNodes(manifest) - METADATA_CLOSURE_CONTINUATION_NODES_BASE).toBeLessThanOrEqual(2000);
+  // Root-approved schema slice amendment: 698614+12288 -> 698614+14336.
+  // The 06b0e04 anchor predates this +2048 coverage allowance.
   expect(
     source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.length -
       METADATA_CLOSURE_COVERAGE_BYTES_BASE,
@@ -4952,6 +4955,8 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
   expect(Buffer.byteLength(text) - 844551).toBeLessThanOrEqual(57344);
   expect(countNodes(manifest) - 22146).toBeLessThanOrEqual(1400);
   const coverage = source("packages/conformance/test-support/read-update-coverage-v1.json").bytes;
+  // Root-approved schema slice amendment: 703415+7168 -> 703415+9728.
+  // The b604 anchor above predates this +2560 coverage allowance.
   expect(coverage.length - 703415).toBeLessThanOrEqual(9728);
   const row = manifest.scenarios.find((r: { id: string }) => r.id === numericRoundTripId) as {
     actions: readonly NumericRAction[];
