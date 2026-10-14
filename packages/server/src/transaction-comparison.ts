@@ -6,10 +6,13 @@ import {
   type openTransactionStore,
   type TransactionReceivingAdmission,
   type TransactionReceivingControls,
+  type TransactionReadContext,
 } from "./transaction-store.js";
 export type DirectComparison =
   | Exclude<TransactionReceivingAdmission, { kind: "comparison-pending" }>
-  | { readonly kind: "temporarily-unavailable" };
+  | { readonly kind: "temporarily-unavailable" }
+  | { readonly kind: "comparison-deadline"; readonly context: TransactionReadContext }
+  | { readonly kind: "comparison-owner-stopped" };
 /** The private default is finite and independent of transaction duration. Options
  * are test seams, not protocol/discovery configuration or another key owner. */
 export async function compareAndAdmitTransaction(
@@ -29,6 +32,10 @@ export async function compareAndAdmitTransaction(
     readonly budgetMs?: number;
     readonly now?: () => number;
     readonly wait?: () => Promise<void>;
+    /** Bound by observed submission only; never runtime/caller configuration. */
+    readonly observeDeadline?:
+      | ReturnType<typeof openTransactionStore>["observeComparisonDeadline"]
+      | undefined;
   } = {},
 ): Promise<DirectComparison> {
   const receiving =
@@ -42,8 +49,18 @@ export async function compareAndAdmitTransaction(
   const deadline = now() + budget;
   const epoch = store.scopeEpoch;
   for (;;) {
-    if (store.comparisonEpoch() !== epoch || now() >= deadline)
-      return { kind: "temporarily-unavailable" };
+    if (store.comparisonEpoch() !== epoch)
+      return options.observeDeadline
+        ? { kind: "comparison-owner-stopped" }
+        : { kind: "temporarily-unavailable" };
+    if (now() >= deadline) {
+      if (!options.observeDeadline) return { kind: "temporarily-unavailable" };
+      // Synchronous final check + current tuple; never hold its owner entry over wait.
+      const observed = options.observeDeadline(epoch);
+      return observed.kind === "observed"
+        ? { kind: "comparison-deadline", context: observed.context }
+        : { kind: "comparison-owner-stopped" };
+    }
     // Retraction may make this a fresh admission. Same original deadline and no
     // inherited claim: admit consults the current authoritative key each time.
     const result =

@@ -1759,3 +1759,37 @@ minimum support and public discovery are not added. Exact source/installed evide
 must remain bound to the source that ran; no public profile or qualification claim
 follows from this slice. Captured base64 and the additional eligible UTF8 strings
 retain real memory; no extra parsed schema copy is required for HTTP selection.
+
+
+### Current context at a healthy comparison deadline
+
+The private observed direct submission path distinguishes a healthy finite
+comparison deadline from an owner/epoch stop. At the deadline it synchronously
+checks the original persisted epoch and captures the current tuple inside one
+owner entry and one atomic metadata read. No database transaction spans the
+comparison wait. The observed HTTP deadline requires that tuple; an unexpectedly
+missing tuple takes the existing sanitized internal-fault path instead of
+silently producing a contextless503. The canonical Problem, retry and Retry-After
+are unchanged. Unobserved comparison/submission objects retain their old exact
+shapes; only observed submission supplies the bound capture callback, which is
+excluded from caller/service/runtime comparison options.
+
+Focused tests use a real emitted listener, an unresolved creator reservation and
+an independent real commit during the existing private comparison wait. Complete
+small graph and Event pages plus a readonly final receipt inventory distinguish
+current context from timeout effects or duplicate replay. They do not prove
+change-group pagination. The injected epoch-change case is defensive only: this
+owner has no supported live epoch rotation. The pre-existing maintenance-failure
+closed shortcut can still mask that fault before final observation and is not
+repaired here.
+
+Eighteen explicitly selected store/submission/HTTP/dependency/alias cases pass,
+including sixteen loopback HTTP requests across two fixtures. Five isolated
+mutants fail the named context-presence, current-position, missing-tuple,
+legacy-submission-shape and final-epoch-check assertions. Typecheck/build/static
+checks and the historical Read seal pass; broader suites are not claimed.
+Default installed timeout sensitivity remains unobserved: no new installed comparison override or load-based timing test is
+introduced. Existing direct and sequence refusal installed cohorts remain separate
+regressions, not timeout qualification; their execution is recorded outside
+this source note. No public admission or discovery
+claim changes.

@@ -352,6 +352,12 @@ export function createTransactionHttpHandler(
         receiving: { acceptsJson: acceptsJson(request.headers.get("accept")), maximumOperations },
       });
       if (result.kind === "receipt") return receiptResponse(result, true);
+      if (result.kind === "comparison-refusal") {
+        const response = problem(readProblem(result.code));
+        if (result.reason === "owner-stopped") return response;
+        if (!result.context) throw new Error("comparison deadline lost same-entry context");
+        return context(response, result.context);
+      }
       if (result.kind === "not-acceptable") {
         if (!result.context) throw new Error("negotiation refusal lost same-entry context");
         return context(empty(406), result.context);
