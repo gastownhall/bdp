@@ -215,6 +215,8 @@ export interface PreparedTransactionSequence {
     readonly operation: ReadUpdateOperation;
     readonly name?: string;
     readonly request: PreparedTransaction;
+    readonly aliasOperands: readonly { readonly field: string; readonly locator: string }[];
+    readonly deferred: boolean;
     readonly dependencies: readonly {
       field: string;
       creator: number;
@@ -225,7 +227,7 @@ export interface PreparedTransactionSequence {
 }
 const sequences = new WeakSet<object>();
 /** First private sequence boundary. Full syntax/Scope checks precede all key
- * effects; canonical dependencies use durable reservations, while aliases remain refused. */
+ * effects; creator and alias operands retain deferred turn-time reservations. */
 export function prepareTransactionSequence(
   scope: string,
   text: string,
@@ -238,6 +240,7 @@ export function prepareTransactionSequence(
   assertTransactionInputDepth(object(decodeJsonDocument(text)));
   const labels = new Map<string, number>();
   const members = carrier.operations.map((op, index) => {
+    const aliasOperands: { readonly field: string; readonly locator: string }[] = [];
     const dependencies: {
       field: string;
       creator: number;
@@ -265,7 +268,7 @@ export function prepareTransactionSequence(
         aliasFields(op.operation).includes(field) &&
         canonicalReference(scope, uri).startsWith(`${scope}alias/`)
       )
-        throw new TypeError("development sequence Resource aliases require turn-time resolution");
+        aliasOperands.push(Object.freeze({ field, locator: canonicalReference(scope, uri) }));
     }
     // The whole carrier already validated backward labels and Resource kinds.
     // Preserve its branded numeric operation without reparsing as a singleton,
@@ -284,7 +287,9 @@ export function prepareTransactionSequence(
       operation: op.operation,
       ...(op.name === undefined ? {} : { name: op.name }),
       request,
-      dependencies: Object.freeze(dependencies),
+      dependencies: Object.freeze(dependencies.map((dependency) => Object.freeze(dependency))),
+      aliasOperands: Object.freeze(aliasOperands),
+      deferred: dependencies.length > 0 || aliasOperands.length > 0,
     });
   });
   const result = Object.freeze({ scope: carrier.scope, members: Object.freeze(members) });
@@ -368,6 +373,19 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
       return Object.freeze({ locator, target });
     });
     return Object.freeze({ operation, aliases: Object.freeze(aliases) });
+  });
+}
+/** Source-private operand inventory; preparation and comparison share the slot grammar. */
+export function transactionAliasOperands(batch: PreparedTransaction) {
+  assertPreparedTransaction(batch, batch.carrier.scope);
+  const operation = batch.carrier.operations[0];
+  if (!operation || batch.carrier.operations.length !== 1) return [];
+  return aliasFields(operation.operation).flatMap((field) => {
+    const value = operation.input[field];
+    if (value === undefined) return [];
+    const uri = typeof value === "string" ? value : (value as { uri: string }).uri;
+    const locator = canonicalReference(batch.carrier.scope, uri);
+    return locator.startsWith(`${batch.carrier.scope}alias/`) ? [{ field, locator }] : [];
   });
 }
 export interface NormalizedTransaction {

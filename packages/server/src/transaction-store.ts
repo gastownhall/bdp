@@ -61,6 +61,7 @@ import {
 
 import {
   dependencyTemplate,
+  parseDependencyTemplate,
   compareDependencyTemplate,
   resolveDependencies,
   type CreatorFact,
@@ -1050,7 +1051,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     if (pendingWins && prior?.owner !== null && prior !== undefined)
       return { kind: "existing", receipt: parseReceipt(prior.receipt) };
     if (prior?.dependency) {
-      const template = JSON.parse(prior.dependency) as DependencyTemplate;
+      const template = parseDependencyTemplate(prior.dependency, scope);
       const comparison = compareDependencyTemplate(template, batch, resolveAlias, (index) => {
         const stored = db
           .prepare("SELECT fact FROM creator_facts WHERE attempt=? AND member=?")
@@ -1733,9 +1734,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               // Existing keys are classified only at the eligible member turn.
               const existing = row(principal, member.key);
               if (existing && expireRow(existing, instant()).row) continue;
-              const template = member.dependencies.length
-                ? dependencyTemplate(id, member)
-                : undefined;
+              const template = member.deferred ? dependencyTemplate(id, member) : undefined;
               const admitted = admitKey(
                 principal,
                 member.key,
@@ -1799,9 +1798,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           member = state.sequence.members[index];
         if (!member) throw new Error("lost sequence member");
         let claim = state.owned.get(index);
-        const template = member.dependencies.length
-          ? dependencyTemplate(state.id, member)
-          : undefined;
+        const template = member.deferred ? dependencyTemplate(state.id, member) : undefined;
         const references = template
           ? enter(() => resolveDependencies(template, (index) => fact(state.id, index)))
           : new Map();
@@ -1823,12 +1820,20 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             );
           result = { kind: "transient" };
         } else {
-          if (claim && template)
-            enter(() =>
+          if (claim)
+            enter(() => {
+              const owner = ownedClaim(claim);
+              const current = row(owner.principal, owner.key);
+              if (current?.owner !== owner.owner) throw new Error("dependent resolution fenced");
+              if (current.dependency === null) {
+                if (template || !owner.normalized)
+                  throw new Error("sequence deferral state differs");
+                return;
+              }
+              const persisted = parseDependencyTemplate(current.dependency, scope);
               atomic(() => {
-                const owner = ownedClaim(claim);
-                const current = row(owner.principal, owner.key);
-                if (current?.owner !== owner.owner) throw new Error("dependent resolution fenced");
+                if (!template || json(persisted) !== json(template))
+                  throw new Error("sequence deferral template differs");
                 const normalized = normalizeTransaction(
                   member.request,
                   resolveAlias,
@@ -1846,8 +1851,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 );
                 owner.normalized = normalized;
                 options.fault?.("after-dependency-resolution");
-              }),
-            );
+              });
+            });
           if (!claim) {
             const admission = enter(() =>
               atomic(() => admitKey(state.principal, member.key, member.request, true, references)),
