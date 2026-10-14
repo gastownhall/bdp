@@ -1721,7 +1721,11 @@ public admission, catalog credit or completed cumulative qualification is claime
 The source-private service now observes the current owner once, without member
 execution or key admission, for the existing sequence.operations over-count413
 and supported-carrier unacceptable-media406. HTTP preserves syntax/auth/count/
-preparation/negotiation ordering and attaches that immutable tuple. Discovery,
+preparation/negotiation ordering. The immutable tuple is attached only to those
+two refusals. Sequence carrier-key/malformed400,401,403,415 and the composition/
+minimum development500 retain their existing context absences. These are retained
+behaviors and remaining gaps, not normative exemptions or a ruling that
+unauthenticated errors must disclose context. Discovery,
 store format, parsing, minimum controls and public profile advertisement are
 unchanged. Unlike the successful post-runner response above, these refusals have
 no committed members to recover by replay. An unexpected owner observation fault

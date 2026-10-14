@@ -1856,6 +1856,8 @@ describe("nonexecuting sequence refusal observation", () => {
     const nextSequence = vi.fn(f.owner.nextSequence);
     const admit = vi.fn(f.owner.admit);
     const admitObserved = vi.fn(f.owner.admitObserved);
+    const execute = vi.fn(f.owner.execute);
+    const executeObserved = vi.fn(f.owner.executeObserved);
     const owner = {
       ...f.owner,
       withRead: enter as typeof f.owner.withRead,
@@ -1864,6 +1866,8 @@ describe("nonexecuting sequence refusal observation", () => {
       // Vitest models the last overload; the spy still delegates all arguments.
       admit: admit as unknown as typeof f.owner.admit,
       admitObserved: admitObserved as typeof f.owner.admitObserved,
+      execute: execute as unknown as typeof f.owner.execute,
+      executeObserved,
     };
     const service = createTransactionService(owner, { ownerLifetime: "service", read: f.read });
     cleanup.push(() => service.close());
@@ -1872,6 +1876,8 @@ describe("nonexecuting sequence refusal observation", () => {
     enter.mockClear();
     admit.mockClear();
     admitObserved.mockClear();
+    execute.mockClear();
+    executeObserved.mockClear();
     const before = f.owner.inspect();
     const pending = service.sequenceRefusalObserved();
     // Entry is already complete before delivery: the owner is not held over await.
@@ -1892,6 +1898,8 @@ describe("nonexecuting sequence refusal observation", () => {
     expect(nextSequence).not.toHaveBeenCalled();
     expect(admit).not.toHaveBeenCalled();
     expect(admitObserved).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(executeObserved).not.toHaveBeenCalled();
     expect(first.context).toEqual((await service.discoveryObserved()).context);
     await service.submit(batch([create("c")], "advance"));
     enter.mockClear();
@@ -1903,38 +1911,50 @@ describe("nonexecuting sequence refusal observation", () => {
     expect(() => service.sequenceRefusalObserved()).toThrow("closing or closed");
   });
 
-  it("preserves reentrant and failed-owner causes and sanitizes unexpected refusal observation faults", async () => {
-    const f = fixture(),
-      service = f.open();
-    let nested: Promise<unknown> | undefined;
-    f.owner.withRead(() => {
-      nested = service.sequenceRefusalObserved();
-      return 0;
-    });
-    await expect(nested).rejects.toMatchObject({
-      message: "transaction sequence refusal observation refused",
-      cause: expect.any(Error),
-    });
-    f.owner.close();
-    await expect(service.sequenceRefusalObserved()).rejects.toMatchObject({
-      message: "transaction sequence refusal observation refused",
-      cause: expect.any(Error),
-    });
-    const handler = createTransactionHttpHandler(service, scope);
-    const response = await handler.handle(
-      new Request(`${scope}operations/sequence`, {
-        method: "POST",
-        headers: { "content-type": "application/json", accept: "text/plain" },
-      }),
-      { kind: "authenticated", principal: "p", canMutate: true },
-      { text: JSON.stringify({ operations: [{ ...create(), idempotencyKey: "refused" }] }) },
-    );
-    expect(response.status).toBe(500);
-    expect(response.body).toBeUndefined();
-    expect(response.headers.get("content-length")).toBe("0");
-    expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
-    expect(response.headers.has("bdp-scope-position")).toBe(false);
-  });
+  it.each([33, 1])(
+    "preserves reentrant and failed-owner causes and sanitizes unexpected refusal observation faults with %i members",
+    async (count) => {
+      const f = fixture(),
+        service = f.open();
+      let nested: Promise<unknown> | undefined;
+      f.owner.withRead(() => {
+        nested = service.sequenceRefusalObserved();
+        return 0;
+      });
+      await expect(nested).rejects.toMatchObject({
+        message: "transaction sequence refusal observation refused",
+        cause: expect.any(Error),
+      });
+      f.owner.close();
+      await expect(service.sequenceRefusalObserved()).rejects.toMatchObject({
+        message: "transaction sequence refusal observation refused",
+        cause: expect.any(Error),
+      });
+      const handler = createTransactionHttpHandler(service, scope);
+      const response = await handler.handle(
+        new Request(`${scope}operations/sequence`, {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "text/plain" },
+        }),
+        { kind: "authenticated", principal: "p", canMutate: true },
+        {
+          text: JSON.stringify({
+            operations: Array.from({ length: count }, (_, i) => ({
+              ...create(`refused-${i}`),
+              idempotencyKey: `refused-${i}`,
+            })),
+          }),
+        },
+      );
+      expect(response.status).toBe(500);
+      expect(response.body).toBeUndefined();
+      expect(response.headers.get("content-length")).toBe("0");
+      expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
+      expect(response.headers.has("content-type")).toBe(false);
+      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+        expect(response.headers.has(name)).toBe(false);
+    },
+  );
 
   it("keeps excluded sequence responses unobserved and without refusal context", async () => {
     const f = fixture(),
@@ -1945,6 +1965,11 @@ describe("nonexecuting sequence refusal observation", () => {
       scope,
     );
     const valid = JSON.stringify({ operations: [{ ...create(), idempotencyKey: "unused" }] });
+    let nested: unknown = "leaf";
+    for (let i = 0; i < 40; i++) nested = { nested };
+    const unsupported = JSON.stringify({
+      operations: [{ ...create(), properties: { nested }, idempotencyKey: "unsupported" }],
+    });
     const authorized = { kind: "authenticated", principal: "p", canMutate: true } as const;
     for (const [text, headers, auth, status, code] of [
       [valid, { "idempotency-key": "carrier" }, authorized, 400, "malformed-request"],
@@ -1953,6 +1978,13 @@ describe("nonexecuting sequence refusal observation", () => {
       [valid, {}, { ...authorized, canMutate: false }, 403, "forbidden"],
       [valid, { "content-type": "text/plain" }, authorized, 415, "unsupported-media-type"],
       [valid, { "bdp-minimum-scope-position": "pos-1" }, authorized, 500, "minimum-position"],
+      [
+        unsupported,
+        { accept: "text/plain" },
+        authorized,
+        500,
+        "unsupported-transaction-composition",
+      ],
     ] as const) {
       const response = await handler.handle(
         new Request(`${scope}operations/sequence`, {
@@ -1963,8 +1995,13 @@ describe("nonexecuting sequence refusal observation", () => {
         { text },
       );
       expect(response.status).toBe(status);
-      if (status === 500) expect(response.headers.get("x-bdp-development-limit")).toBe(code);
-      else expect(response.body).toMatchObject({ code, status });
+      expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
+      if (status === 500) {
+        expect(response.headers.get("x-bdp-development-limit")).toBe(code);
+        expect(response.body).toBeUndefined();
+        expect(response.headers.get("content-length")).toBe("0");
+        expect(response.headers.has("content-type")).toBe(false);
+      } else expect(response.body).toMatchObject({ code, status });
       for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
         expect(
           response.headers.has(name),
