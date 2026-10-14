@@ -433,6 +433,7 @@ describe("source-private actual Transactional HTTP", () => {
     ]);
     const response = await f.post(aliases, null, "sequence");
     expect(response.status).toBe(200);
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-2");
     expect(response.headers.has("x-bdp-development-limit")).toBe(false);
     const result = await body(response);
     expect(validateSequence(result), JSON.stringify(validateSequence.errors)).toBe(true);
@@ -454,13 +455,16 @@ describe("source-private actual Transactional HTTP", () => {
       "putAlias",
     );
     expect(put.status).toBe(200);
+    expect(put.headers.get("bdp-scope-position")).toBe("pos-2");
     const replay = await f.post(aliases, null, "sequence");
     expect(replay.status).toBe(200);
+    expect(replay.headers.get("bdp-scope-position")).toBe("pos-2");
     expect(await body(replay)).toEqual(result);
     expect((await f.get(`${f.runtime.scope}beads/b`)).status).toBe(200);
     await f.reopen();
     const recovered = await f.post(aliases, null, "sequence");
     expect(recovered.status).toBe(200);
+    expect(recovered.headers.get("bdp-scope-position")).toBe("pos-2");
     expect(await body(recovered)).toEqual(result);
     const fresh = await f.post(
       JSON.stringify({ bead: "alias/latest" }),
@@ -468,6 +472,7 @@ describe("source-private actual Transactional HTTP", () => {
       "deleteBead",
     );
     expect(fresh.status).toBe(200);
+    expect(fresh.headers.get("bdp-scope-position")).toBe("pos-3");
     expect(await body(fresh)).toMatchObject({
       status: "completed",
       results: [{ outcome: "deleted", deleted: { resource: { id: `${f.runtime.scope}beads/b` } } }],
@@ -490,10 +495,20 @@ describe("source-private actual Transactional HTTP", () => {
     ];
     const response = await f.post(batch(operations), null, "sequence");
     expect(response.status).toBe(200);
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-2");
     const result = await body(response),
       entries = result.results as Record<string, unknown>[];
     expect(validateSequence(result), JSON.stringify(validateSequence.errors)).toBe(true);
     const created = id(entries[0]?.resource);
+    expect(entries[1]).toEqual({
+      operationIndex: 1,
+      outcome: "created",
+      alias: `${f.runtime.scope}alias/work`,
+      target: created,
+    });
+    const assigned = await f.get(`${f.runtime.scope}alias/work`);
+    expect(assigned.status).toBe(307);
+    expect(assigned.headers.get("location")).toBe(created);
     expect(entries[2]).toMatchObject({
       outcome: "created",
       resource: {
@@ -505,22 +520,33 @@ describe("source-private actual Transactional HTTP", () => {
     const edge = await f.get(`${f.runtime.scope}links/edge`);
     expect(edge.status).toBe(200);
     expect(await body(edge)).toEqual(entries[2]?.resource);
-    expect((await f.post(batch([create("other")]), "other")).status).toBe(200);
-    expect(
-      (
-        await f.post(
-          JSON.stringify({ alias: "alias/work", target: "beads/other" }),
-          "repoint",
-          "putAlias",
-        )
-      ).status,
-    ).toBe(200);
+    const other = await f.post(batch([create("other")]), "other");
+    expect(other.status).toBe(200);
+    expect(other.headers.get("bdp-scope-position")).toBe("pos-3");
+    const repoint = await f.post(
+      JSON.stringify({ alias: "alias/work", target: "beads/other" }),
+      "repoint",
+      "putAlias",
+    );
+    expect(repoint.status).toBe(200);
+    expect(repoint.headers.get("bdp-scope-position")).toBe("pos-3");
     const before = await f.get(`${f.runtime.scope}alias/work`);
     expect(before.status).toBe(307);
     expect(before.headers.get("location")).toBe(`${f.runtime.scope}beads/other`);
+    const liveReplay = await f.post(batch(operations), null, "sequence");
+    expect(liveReplay.status).toBe(200);
+    expect(liveReplay.headers.get("bdp-scope-position")).toBe("pos-3");
+    expect(await body(liveReplay)).toEqual(result);
+    const liveAlias = await f.get(`${f.runtime.scope}alias/work`);
+    expect(liveAlias.status).toBe(307);
+    expect(liveAlias.headers.get("location")).toBe(`${f.runtime.scope}beads/other`);
+    const liveEdge = await f.get(`${f.runtime.scope}links/edge`);
+    expect(liveEdge.status).toBe(200);
+    expect(await body(liveEdge)).toEqual(entries[2]?.resource);
     await f.reopen();
     const replay = await f.post(batch(operations), null, "sequence");
     expect(replay.status).toBe(200);
+    expect(replay.headers.get("bdp-scope-position")).toBe("pos-3");
     expect(await body(replay)).toEqual(result);
     const after = await f.get(`${f.runtime.scope}alias/work`);
     expect(after.status).toBe(307);
@@ -543,7 +569,6 @@ describe("source-private actual Transactional HTTP", () => {
     expect(set.headers.get("x-bdp-development-limit")).toBe("unsupported-transaction-composition");
     expect((await f.post(batch([create()]), "set")).status).toBe(200);
     expect(await set.text()).toBe("");
-    expect((await f.post(batch([create("b")]), "a")).status).toBe(200);
     let nested: unknown = "leaf";
     for (let depth = 0; depth < 40; depth++) nested = { nested };
     const depth = await f.post(batch([{ ...create("c"), properties: { nested } }]), "deep");

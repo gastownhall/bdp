@@ -1571,14 +1571,16 @@ Transactional HTTP receiver. The obsolete `sequence-resource-alias` development
 catch is removed. A missing alias is a retained member failure: already committed
 prefix members stay committed and independent later members can execute. The
 existing set-in-sequence and private depth refusals retain their no-key-capture
-checks. Earlier historical gap descriptions above describe their original slice,
+checks. This explicitly supersedes the earlier Resource-alias-sequence refusal list,
+Resource-alias sequence timing remaining-work entry, and alias-marker reservation
+in "HTTP review follow-up boundaries"; all three describe the original slice,
 not the current receiver.
 
 Actual HTTP tests cover an alias assigned by an earlier member, allocated local
 references combined with an opaque pinned alias endpoint, retained failures after
 assignment, and replay after listener reopen. A separate source-private installed
-observation uses the existing launcher and raw HTTP transport against the packed
-service. Its finite fixture covers a repoint before an eligible member, retained
+fixture uses the existing launcher and raw HTTP transport; when run against a
+packed service it records a repoint before an eligible member, retained
 old-target results after a later repoint, a new locator that first compares equal
 and then conflicts after repointing, a recorded miss versus a successful fresh key,
 and durable replay with independent current-state GETs. It validates sequence and
@@ -1587,8 +1589,13 @@ receipt envelopes against the unchanged schema. The fixture has 36 exchanges
 5-second exchange, 90-second cohort and 120-second outer deadlines match the
 adjacent installed Set cohort; they are test budgets, not protocol limits.
 
-This is bounded private serving evidence. It neither adds public Transactional
-admission nor claims cold discovery, complete profile qualification, arbitrary
+The external [ea80 frozen run](https://github.com/donnabox/beads/blob/codex/vickie-bdp-client-design/docs/architecture/bdp-client-v2/transaction-sequence-alias-http-report.md)
+records the original executed fixture at `ea80c77de7cd86244096a5978b65690a7ba637d8`:
+36 exchanges/two clean child sessions, with installed payload
+`495b3d9c1e6d6a078b91b60f6c41cfb4ab3f8928595467ec895d171d668d53a2`.
+That evidence is historical and is not relabeled for later test-oracle repairs.
+
+The fixture does not add public Transactional admission or claim cold discovery, complete profile qualification, arbitrary
 concurrent alias histories, Snapshot consistency, crash durability, or a changed
 store format. The parent caller still knows the private operation targets.
 Source-bound commands, preparation failures, packed payload/configuration hashes
