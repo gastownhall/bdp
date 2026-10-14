@@ -309,7 +309,7 @@ it("raw reconnect grammar, finite header ignorance, Event Source sharing and aut
     ["Last-Event-ID", "bad"],
     ["Last-Event-ID", "bad"],
   ]);
-  await finite.ready;
+  await finite.closed;
   expect(finite.status).toBe(200);
   expect(finite.headers["content-type"]).toBe("application/json");
   await finite.close();
@@ -326,7 +326,7 @@ it("raw reconnect grammar, finite header ignorance, Event Source sharing and aut
     groups: [],
     next: null,
   });
-  expect(JSON.parse(finiteNow.body).after).not.toBe("genesis");
+  expect(JSON.parse(finiteNow.body).after).toBe(JSON.parse(finite.body).groups[0].checkpoint);
   const reset = f.stream("changes/?after=genesis", [
     ["Last-Event-ID", "genesis"],
     ["Accept", "application/json;q=0.1"],
@@ -894,15 +894,16 @@ it("start=now reconnect checkpoint survives a controlled minimum wait", async ()
   const initial = (await (
     await f.request("changes/?after=genesis")
   ).json()) as TransactionChangefeedPage;
+  await f.create("offline-before-wait");
   commit = () => f.create("during-wait");
   const r = f.stream("changes/?start=now", [
     ["Last-Event-ID", initial.groups[0]!.checkpoint],
-    ["BDP-Minimum-Scope-Position", "pos-2"],
+    ["BDP-Minimum-Scope-Position", "pos-3"],
     ["BDP-Scope-Epoch", initial.scopeEpoch],
     ["BDP-Authorization-View", initial.authorizationView],
   ]);
-  await r.until(() => groups(r).length === 1);
+  await r.until(() => groups(r).length >= 1);
   expect(group(groups(r)[0]!).position).toBe("pos-2");
   expect(group(groups(r)[0]!).previousPosition).toBe("pos-1");
-  expect(r.headers["bdp-scope-position"]).toBe("pos-2");
+  expect(r.headers["bdp-scope-position"]).toBe("pos-3");
 });

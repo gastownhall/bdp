@@ -5969,8 +5969,9 @@ client supplies exactly one explicit starting intent:
   applied group;
 - the distinguished genesis checkpoint to request complete history when it is
   still retained; or
-- `start=now` to deliberately observe only future groups when no selected-SSE
-  reconnect checkpoint is supplied.
+- `start=now` to deliberately observe only future groups; when
+  `text/event-stream` is the accepted media type and the request also carries
+  a reconnect checkpoint in `Last-Event-ID`, that checkpoint governs instead.
 
 Omitting both is an error. It never means “start at whatever history
 remains.” A finite JSON read returns only complete change groups:

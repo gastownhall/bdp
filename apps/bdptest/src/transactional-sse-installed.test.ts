@@ -1,7 +1,7 @@
 /** Private raw-stream evidence; not a finite exchange or public profile claim. */
 import { execFileSync, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -370,14 +370,17 @@ it("installed same start=now URL replays offline G2 before live G3 from the save
       expect(response.bodyText).toContain(expected.data);
       return response.bodyText;
     };
+    phase = "request-1-initial-stream";
     const first = open();
     await first.ready;
     expect(first.status).toBe(200);
     expect(first.headers["bdp-scope-position"]).toBe("pos-0");
     expect(frames(first)).toEqual([]);
+    phase = "request-2-G1-commit-and-frame";
     await commit("g1", "pos-1");
     await first.until(() => frames(first).length === 1);
     const g1 = decode(frames(first)[0]!, "g1", "pos-1", "pos-0");
+    phase = "request-3-G1-finite-parity-and-apply";
     const finiteG1 = await finite("genesis", g1);
     // Apply the complete validated group before choosing its checkpoint. This
     // small test-local state is not a claim of a general durable replica.
@@ -385,9 +388,12 @@ it("installed same start=now URL replays offline G2 before live G3 from the save
     for (const change of g1.value.changes) applied.set(change.resource.id, change.resource);
     expect([...applied.keys()]).toEqual([`${scope}beads/g1`]);
     const saved = g1.value.checkpoint;
+    phase = "disconnect-initial-stream";
     await first.close();
     expect(first.destroyed).toBe(true);
+    phase = "request-4-offline-G2-commit";
     await commit("g2", "pos-2");
+    phase = "request-5-saved-checkpoint-reconnect";
     const resumed = open(saved);
     await resumed.ready;
     expect(resumed.status).toBe(200);
@@ -402,11 +408,13 @@ it("installed same start=now URL replays offline G2 before live G3 from the save
     }
     const g2 = decode(frames(resumed)[0]!, "g2", "pos-2", "pos-1");
     expect(g2.value.checkpoint).not.toBe(saved);
+    phase = "request-6-G2-finite-parity";
     const finiteG2 = await finite(saved, g2);
-    phase = "live-G3";
+    phase = "request-7-live-G3-commit-and-frame";
     await commit("g3", "pos-3");
     await resumed.until(() => frames(resumed).length >= 2);
     const g3 = decode(frames(resumed)[1]!, "g3", "pos-3", "pos-2");
+    phase = "request-8-G3-finite-parity";
     const finiteG3 = await finite(g2.value.checkpoint, g3);
     await resumed.close();
     expect(frames(resumed).map((f) => JSON.parse(f.split("\ndata: ")[1]!).checkpoint)).toEqual([
@@ -459,8 +467,15 @@ it("installed same start=now URL replays offline G2 before live G3 from the save
       failures.push(error);
     }
     clearTimeout(deadline);
-    rmSync(directory, { recursive: true, force: true });
+    try {
+      rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      failures.push(error);
+    }
   }
+  const directoryRemoved = !existsSync(directory);
+  if (!directoryRemoved)
+    failures.push(new Error("installed SSE reconnect directory remains after cleanup"));
   const observations = streams.map((stream) => ({
     status: stream.status,
     headers: stream.headers,
@@ -481,7 +496,7 @@ it("installed same start=now URL replays offline G2 before live G3 from the save
       failures: failures.map((e) => (e instanceof Error ? e.message : String(e))),
       childClosed:
         child === undefined || child.child.exitCode !== null || child.child.signalCode !== null,
-      directoryRemoved: true,
+      directoryRemoved,
       claimEligible: false,
     }),
   );

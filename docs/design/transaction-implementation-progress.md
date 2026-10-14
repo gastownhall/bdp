@@ -1336,8 +1336,8 @@ not a large-allocation or RSS measurement and not a new post-commit refusal.
 
 The URL must still supply exactly `after` or `start=now`. Selected SSE with an
 explicit `after` or `start=now` uses a single `Last-Event-ID` as its effective
-checkpoint,
-including `genesis`; owner validation sees that effective checkpoint only.
+checkpoint, including `genesis`; owner validation sees that effective checkpoint
+only.
 Finite JSON ignores the header, including malformed/repeated values. A
 header-only request remains 400. Reconnecting the same `start=now` URL resumes
 exclusively after the saved header checkpoint. Headerless initial `start=now` is
