@@ -194,6 +194,9 @@ async function observe(control?: {
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
       { method: "POST", url: `${scope}operations/delete-where` },
+      { method: "POST", url: `${scope}operations/create-bead` },
+      { method: "POST", url: `${scope}operations/sequence` },
+      { method: "POST", url: `${scope}operations/update-bead` },
     ]);
     const omitted = control?.omitRoute;
     if (omitted) {
@@ -328,24 +331,25 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes twelve partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+it("observes thirteen partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
-  const observed = await observe({ children });
+  const crossWire = crossCarrierWire();
+  const observed = await observe({ children, afterExchange: crossWire.afterExchange });
   const implemented = new Set(bundle.manifest.scenarios.map((s) => s.id));
   expect(loadProfileContractSelection("transactional").required).toHaveLength(250);
   expect(observed.result.scenarios).toHaveLength(255); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(12);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(13);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(19);
-  expect(children).toHaveLength(20); // Nineteen scenario/reopen sessions plus separate bootstrap.
+  expect(observed.sessions).toHaveLength(20);
+  expect(children).toHaveLength(21); // Twenty scenario/reopen sessions plus separate bootstrap.
   expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
     true,
   );
   expect(observed.result.declarations).toMatchObject({
-    exactConfigurationDigest: "1ba7cbbffc4fb40df2c3f12640bc636e70076cfa25bdd6952b83ec1bb1fe0035",
+    exactConfigurationDigest: "a9a17908b6fa87674d5f573b584f4a1ce1d41d7909fadf48b65e9b05397ddfd4",
   });
   const dynamic = observed.result.scenarios
     .flatMap((s) => s.exchanges)
@@ -507,11 +511,39 @@ it("observes twelve partial Transactional contracts through packed-capable actua
   }
   expect(deletion.state).toBe("pass");
   expect(deletion.exchanges.at(-1)!.request.id).toBe("d-final-groups");
-  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(180);
+  const cross = observed.result.scenarios.find((r) => r.id === crossCarrierId)!;
+  expect(cross.exchanges.map((e) => e.request.id)).toEqual(crossCarrierActionIds);
+  expect(cross.exchanges.map((e) => e.request.method)).toEqual([
+    "POST",
+    "GET",
+    "POST",
+    "POST",
+    "POST",
+    "GET",
+    "POST",
+    "POST",
+    "POST",
+    "POST",
+    "GET",
+    "GET",
+  ]);
+  expect(cross.actions!.map((a) => a.action.id)).toEqual(["x-created-facts", "x-updated-facts"]);
+  for (const exchange of cross.exchanges) {
+    expect(exchange.assertions.every((a) => a.passed)).toBe(true);
+    if (exchange.request.method === "POST")
+      expect(exchange.request.exact!.bodyOctets).toBeLessThanOrEqual(2048);
+    expect(exchange.response!.decodedBodyBytes).toBeLessThanOrEqual(8192);
+  }
+  for (const action of cross.actions!) expect(action.assertions.every((a) => a.passed)).toBe(true);
+  expect(cross.state).toBe("pass");
+  expect(cross.exchanges.at(-1)!.request.id).toBe("x-events");
+  crossWire.finish();
+  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(192);
   expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
     JSON.stringify({
-      kind: "installed-tx-twelve-partial-summary",
+      // Predecessor logs retain installed-tx-twelve-partial-summary.
+      kind: "installed-tx-thirteen-partial-summary",
       sourceCommit,
       elapsedMs: performance.now() - started,
       actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
@@ -1248,6 +1280,7 @@ it.each([
 );
 
 it("pins the matching no-op installed route digest and fifteen-action ledger", () => {
+  // Previous twelve-route digest: 1ba7cbbffc4fb40df2c3f12640bc636e70076cfa25bdd6952b83ec1bb1fe0035.
   // Canonical exact-mode preimage authored from the approved route inventory;
   // only these five fields enter the runner digest, not credentials or ports.
   const preimage = JSON.stringify({
@@ -1267,11 +1300,14 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
       { method: "POST", url: `${scope}operations/delete-where` },
+      { method: "POST", url: `${scope}operations/create-bead` },
+      { method: "POST", url: `${scope}operations/sequence` },
+      { method: "POST", url: `${scope}operations/update-bead` },
     ],
     scope,
   });
   expect(createHash("sha256").update(preimage).digest("hex")).toBe(
-    "1ba7cbbffc4fb40df2c3f12640bc636e70076cfa25bdd6952b83ec1bb1fe0035",
+    "a9a17908b6fa87674d5f573b584f4a1ce1d41d7909fadf48b65e9b05397ddfd4",
   );
   const row = bundle.manifest.scenarios.find((r) => r.id === "transactional.batch.no-op-entries")!;
   expect(row.actions!.map((a) => a.id)).toEqual([
@@ -1347,9 +1383,13 @@ it.each(["bead-property", "link-metadata", "group-inventory-and-head"] as const)
       expect([...failed].sort()).toEqual([...intended].sort());
     expect(row.exchanges.at(-1)!.request.id).toBe(actionId);
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(20);
+    expect(children.length).toBeLessThanOrEqual(21);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBeLessThanOrEqual(180);
+    expect(exchanges).toBeLessThanOrEqual(control === "group-inventory-and-head" ? 186 : 181);
+    for (const later of observed.result.scenarios.filter(
+      (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
+    ))
+      expect(later.state).toBe("pass");
     console.log(
       JSON.stringify({
         kind: "installed-tx-matching-noop-control",
@@ -1495,6 +1535,7 @@ function applyDeletionControl(
 }
 
 it("pins deletion-safety derivative carriers, complete positives, and measured source bounds", () => {
+  assertCrossCarrierControls();
   const canonical = JSON.parse(manifestSource.bytes.toString());
   const canonicalCount = canonical.scenarios.flatMap(
     (r: { actions: { assertions: unknown[] }[] }) => r.actions.flatMap((a) => a.assertions),
@@ -1590,8 +1631,9 @@ it("pins deletion-safety derivative carriers, complete positives, and measured s
       nodes++;
       if (value && typeof value === "object") pending.push(...Object.values(value));
     }
-    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(650386);
-    expect(nodes).toBeLessThanOrEqual(17275);
+    // Root-accepted derivative maximum701716B/18263nodes plus4096B/64nodes.
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(705812);
+    expect(nodes).toBeLessThanOrEqual(18327);
     const loaded = createCumulativeTransactionalArtifactBundle(
       loadProfileContractSelection("transactional"),
       { fixture: fixtureSource, manifest: { bytes: Buffer.from(wire) } },
@@ -1674,9 +1716,15 @@ it.each(deletionControlNames)(
       );
     }
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(20);
+    expect(children.length).toBeLessThanOrEqual(21);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBeLessThanOrEqual(180);
+    expect(exchanges).toBeLessThanOrEqual(
+      control === "incoming-order" ? 176 : control === "outgoing-order" ? 181 : 177,
+    );
+    for (const later of observed.result.scenarios.filter(
+      (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
+    ))
+      expect(later.state).toBe("pass");
     console.log(
       JSON.stringify({
         kind: "installed-tx-deletion-control",
@@ -1700,6 +1748,402 @@ it.each(deletionControlNames)(
     if (process.env.BDP_TRANSACTIONAL_DELETION_CONTROL_OUTPUT)
       writeFileSync(
         `${process.env.BDP_TRANSACTIONAL_DELETION_CONTROL_OUTPUT}-${control}.json`,
+        JSON.stringify({ sourceCommit, entry, ...observed }, null, 2) + "\n",
+      );
+  },
+  120000,
+);
+
+const crossCarrierId = "transactional.idempotency.cross-carrier";
+const crossCarrierActionIds = [
+  "x-create",
+  "x-created-facts",
+  "x-create-batch",
+  "x-create-sequence",
+  "x-update",
+  "x-updated-facts",
+  "x-two-sequence",
+  "x-update-singleton",
+  "x-create-singleton-retry",
+  "x-create-batch-retry",
+  "x-current",
+  "x-events",
+];
+const crossCarrierControls = ["batch-semantic-conflict", "sequence-fresh-key"] as const;
+type CrossCarrierControl = (typeof crossCarrierControls)[number];
+type CrossCarrierManifest = { scenarios: { id: string; actions: Record<string, unknown>[] }[] };
+const crossCreate = () => ({
+  id: "beads/a",
+  type: `${scope}types/task`,
+  properties: { title: "carrier-original" },
+});
+const crossUpdate = () => ({
+  bead: "beads/a",
+  propertiesChange: [{ op: "replace", path: "/title", value: "carrier-current" }],
+});
+function crossCarrierRequests(control?: CrossCarrierControl) {
+  const create = crossCreate(),
+    update = crossUpdate();
+  return [
+    ["create-bead", create, "carrier-create"],
+    [
+      "batch",
+      {
+        operations: [
+          {
+            operation: "createBead",
+            ...create,
+            ...(control === "batch-semantic-conflict"
+              ? { properties: { title: "carrier-conflict" } }
+              : {}),
+          },
+        ],
+      },
+      "carrier-create",
+    ],
+    [
+      "sequence",
+      {
+        operations: [
+          {
+            operation: "createBead",
+            ...create,
+            idempotencyKey:
+              control === "sequence-fresh-key" ? "carrier-create-new" : "carrier-create",
+            name: "first",
+          },
+        ],
+      },
+      undefined,
+    ],
+    ["batch", { operations: [{ operation: "updateBead", ...update }] }, "carrier-update"],
+    [
+      "sequence",
+      {
+        operations: [
+          { operation: "createBead", ...create, idempotencyKey: "carrier-create", name: "again" },
+          { operation: "updateBead", ...update, idempotencyKey: "carrier-update" },
+        ],
+      },
+      undefined,
+    ],
+    ["update-bead", update, "carrier-update"],
+    ["create-bead", create, "carrier-create"],
+    ["batch", { operations: [{ operation: "createBead", ...create }] }, "carrier-create"],
+    ["beads/?limit=32", undefined, undefined],
+    ["events/", undefined, undefined],
+  ] as const;
+}
+/** Existing afterExchange observes only ordinary wire; client receipt GETs are
+ * validated by the manifest. No report redaction is used as a value source. */
+function crossCarrierWire(control?: CrossCarrierControl) {
+  const requests = crossCarrierRequests(control);
+  const maximum =
+    control === "batch-semantic-conflict" ? 2 : control === "sequence-fresh-key" ? 3 : 10;
+  const facts: { epoch: string; view: string; revision?: string }[] = [];
+  let active = false;
+  return {
+    async afterExchange(response: HttpExchangeResponse) {
+      const request = response.exactRequest;
+      const key = request?.headerLines.find(
+        (h) => h.name.toLowerCase() === "idempotency-key",
+      )?.value;
+      if (!active) {
+        if (response.url !== `${scope}operations/create-bead` || key !== "carrier-create") return;
+        active = true;
+      }
+      if (facts.length === maximum) {
+        expect(key === "carrier-create" || key === "carrier-update").toBe(false);
+        expect(
+          ["create-bead", "sequence", "update-bead"].map((route) => `${scope}operations/${route}`),
+        ).not.toContain(response.url);
+        return;
+      }
+      const index = facts.length;
+      const [route, body, expectedKey] = requests[index]!;
+      expect(response.url).toBe(`${scope}${body === undefined ? "" : "operations/"}${route}`);
+      expect(request).toBeDefined();
+      expect(request!.writeState).toBe("complete");
+      expect(key).toBe(expectedKey);
+      expect(request!.bodyPresent).toBe(body !== undefined);
+      if (body !== undefined)
+        expect(request!.bodyDigest).toBe(
+          createHash("sha256").update(JSON.stringify(body)).digest("hex"),
+        );
+      expect(response.status).toBe(
+        control === "batch-semantic-conflict" && index === 1 ? 409 : 200,
+      );
+      const epoch = response.headers["bdp-scope-epoch"],
+        view = response.headers["bdp-authorization-view"];
+      expect(typeof epoch).toBe("string");
+      expect(epoch?.length).toBeGreaterThan(0);
+      expect(typeof view).toBe("string");
+      expect(view?.length).toBeGreaterThan(0);
+      expect(response.headers["bdp-scope-position"]).toBe(index < 3 ? "pos-1" : "pos-2");
+      if (facts.length) {
+        expect(epoch).toBe(facts[0]!.epoch);
+        expect(view).toBe(facts[0]!.view);
+      }
+      let revision: string | undefined;
+      if (index === 0 || index === 3) {
+        const observed = JSON.parse(response.bodyText);
+        expect(observed.idempotencyKey).toBe(index === 0 ? "carrier-create" : "carrier-update");
+        expect(observed.status).toBe("completed");
+        expect(observed.results).toHaveLength(1);
+        expect(observed.results[0].resource).toMatchObject({
+          id: `${scope}beads/a`,
+          type: `${scope}types/task`,
+          properties: { title: index === 0 ? "carrier-original" : "carrier-current" },
+          metadata: {},
+        });
+        revision = observed.results[0].resource.revision;
+        expect(typeof revision).toBe("string");
+        expect(revision?.length).toBeGreaterThan(0);
+      }
+      facts.push({ epoch: epoch!, view: view!, ...(revision === undefined ? {} : { revision }) });
+    },
+    finish() {
+      expect(active).toBe(true);
+      expect(facts).toHaveLength(maximum);
+      if (control === undefined) expect(facts[3]!.revision).not.toBe(facts[0]!.revision);
+    },
+  };
+}
+function applyCrossCarrierControl(value: CrossCarrierManifest, control: CrossCarrierControl) {
+  const row = value.scenarios.find((r) => r.id === crossCarrierId)!;
+  const actionId = control === "batch-semantic-conflict" ? "x-create-batch" : "x-create-sequence";
+  const action = row.actions.find((a) => a.id === actionId)!;
+  const raw = action.raw as { body: { value: string } };
+  raw.body.value = JSON.stringify(
+    crossCarrierRequests(control)[control === "batch-semantic-conflict" ? 1 : 2]![1],
+  );
+  const assertions = action.assertions as Record<string, unknown>[];
+  const positive: Record<string, unknown>[] =
+    control === "batch-semantic-conflict"
+      ? [
+          { id: "control-status", kind: "status", equals: 409 },
+          { id: "control-schema", kind: "json-schema", schema: "#/$defs/transactionalProblem" },
+          {
+            id: "control-media",
+            kind: "header",
+            name: "content-type",
+            equals: "application/problem+json",
+          },
+          ...(
+            [
+              ["type", "https://github.com/gastownhall/bdp/problems/conflict"],
+              ["code", "idempotency-conflict"],
+              ["status", 409],
+              ["retry", "never"],
+            ] as const
+          ).map(([name, equals]) => ({
+            id: `control-${name === "status" ? "problem-status" : name}`,
+            kind: "json-pointer",
+            pointer: `/${name}`,
+            exists: true,
+            equals,
+          })),
+        ]
+      : [
+          {
+            id: "control-member",
+            kind: "json-array-tuples",
+            pointer: "/results",
+            ordered: true,
+            projections: [
+              "/operationIndex",
+              "/operationName",
+              "/type",
+              "/code",
+              "/status",
+              "/retry",
+            ].map((pointer) => ({ pointer })),
+            equals: [
+              [
+                0,
+                "first",
+                "https://github.com/gastownhall/bdp/problems/conflict",
+                "identity-taken",
+                409,
+                "never",
+              ],
+            ],
+          },
+          {
+            id: "control-no-resource",
+            kind: "json-pointer",
+            pointer: "/results/0/resource",
+            exists: false,
+          },
+          {
+            id: "control-no-outcome",
+            kind: "json-pointer",
+            pointer: "/results/0/outcome",
+            exists: false,
+          },
+        ];
+  const retained = assertions.map((a) => a.id as string);
+  assertions.push(...positive);
+  return {
+    actionId,
+    retained,
+    removed: [] as string[],
+    positiveIds: positive.map((a) => a.id as string),
+    failingIds:
+      control === "batch-semantic-conflict"
+        ? [
+            "http-status",
+            "schema",
+            "media",
+            "serving-context",
+            "disposition",
+            "detail",
+            "key",
+            "no-next",
+            "required-position",
+            "effect-position",
+            "literal-result",
+            "retained-root",
+            "retained-body",
+          ]
+        : ["presentation", "created-record"],
+  };
+}
+function assertCrossCarrierControls() {
+  const canonical = JSON.parse(manifestSource.bytes.toString());
+  const canonicalExecutionDigest = createHash("sha256")
+    .update(JSON.stringify(canonical))
+    .digest("hex");
+  const descriptions = [];
+  const validator = createJsonSchemaValidator(schema);
+  for (const control of crossCarrierControls) {
+    const changed = structuredClone(canonical);
+    const description = applyCrossCarrierControl(changed, control);
+    const row = changed.scenarios.find((r: { id: string }) => r.id === crossCarrierId)!;
+    expect(row.actions.map((a: { id: string }) => a.id)).toEqual(crossCarrierActionIds);
+    const action = row.actions.find((a: { id: string }) => a.id === description.actionId)!;
+    expect(action.assertions.map((a: { id: string }) => a.id)).toEqual([
+      ...description.retained,
+      ...description.positiveIds,
+    ]);
+    expect(description.removed).toEqual([]);
+    for (const id of description.failingIds) expect(description.retained).toContain(id);
+    expect(action.assertions.find((a: { id: string }) => a.id === "request-body")).toEqual({
+      id: "request-body",
+      kind: "request-authored-body",
+    });
+    const normal = JSON.stringify(changed, null, 2) + "\n";
+    let nodes = 0;
+    const pending: unknown[] = [changed];
+    while (pending.length) {
+      const value = pending.pop();
+      nodes++;
+      if (value && typeof value === "object") pending.push(...Object.values(value));
+    }
+    // Historical measurement-only derivative guards were650386B/17275nodes.
+    // Root-accepted derivative maximum701716B/18263nodes plus4096B/64nodes.
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(705812);
+    expect(nodes).toBeLessThanOrEqual(18327);
+    const loaded = createCumulativeTransactionalArtifactBundle(
+      loadProfileContractSelection("transactional"),
+      { fixture: fixtureSource, manifest: { bytes: Buffer.from(JSON.stringify(changed)) } },
+    );
+    for (const scenario of loaded.manifest.scenarios)
+      for (const action of scenario.actions ?? [])
+        for (const assertion of action.assertions)
+          if (assertion.kind === "json-schema") validator.resolve(assertion.schema);
+    expect(loaded.digests.manifestDigest).not.toBe(canonicalExecutionDigest);
+    descriptions.push({
+      control,
+      ...description,
+      normalBytes: Buffer.byteLength(normal),
+      nodes,
+      executionManifestDigest: loaded.digests.manifestDigest,
+    });
+  }
+  expect(new Set(descriptions.map((d) => d.executionManifestDigest)).size).toBe(2);
+  expect(descriptions.map((d) => d.positiveIds)).toEqual([
+    [
+      "control-status",
+      "control-schema",
+      "control-media",
+      "control-type",
+      "control-code",
+      "control-problem-status",
+      "control-retry",
+    ],
+    ["control-member", "control-no-resource", "control-no-outcome"],
+  ]);
+}
+it.each(crossCarrierControls)(
+  "discriminates retained cross-carrier evidence against %s",
+  async (control) => {
+    const children: ChildProcess[] = [],
+      wire = crossCarrierWire(control);
+    let description: ReturnType<typeof applyCrossCarrierControl> | undefined;
+    const observed = await observe({
+      children,
+      afterExchange: wire.afterExchange,
+      manifest(value) {
+        description = applyCrossCarrierControl(value, control);
+      },
+    });
+    expect(description).toBeDefined();
+    const row = observed.result.scenarios.find((r) => r.id === crossCarrierId)!;
+    expect(row.state).toBe("fail");
+    expect(observed.result.claimEligible).toBe(false);
+    const prefix = control === "batch-semantic-conflict" ? 3 : 4;
+    expect(row.exchanges.map((e) => e.request.id)).toEqual(crossCarrierActionIds.slice(0, prefix));
+    expect(row.actions!.map((a) => a.action.id)).toEqual(["x-created-facts"]);
+    expect(row.actions!.every((a) => a.assertions.every((x) => x.passed))).toBe(true);
+    for (const exchange of row.exchanges.slice(0, -1))
+      expect(exchange.assertions.every((a) => a.passed)).toBe(true);
+    const final = row.exchanges.at(-1)!;
+    expect(final.request.id).toBe(description!.actionId);
+    expect(final.request.exact?.writeState).toBe("complete");
+    expect(final.response?.status).toBe(control === "batch-semantic-conflict" ? 409 : 200);
+    expect(final.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual(
+      description!.failingIds,
+    );
+    for (const id of [
+      ...description!.positiveIds,
+      "request-headers",
+      "request-body",
+      "present-bdp-scope-epoch",
+      "present-bdp-authorization-view",
+      "present-bdp-scope-position",
+      "serving-position",
+    ])
+      expect(final.assertions.find((a) => a.id === id)?.passed).toBe(true);
+    for (const later of observed.result.scenarios.filter(
+      (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
+    ))
+      expect(later.state).toBe("pass");
+    wire.finish();
+    expect(children).toHaveLength(21);
+    expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
+    const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
+    expect(exchanges).toBe(control === "batch-semantic-conflict" ? 183 : 184);
+    console.log(
+      JSON.stringify({
+        kind: "installed-tx-cross-carrier-control",
+        control,
+        sourceCommit,
+        ...description,
+        observedStatus: final.response!.status,
+        writeState: final.request.exact!.writeState,
+        failures: final.assertions.filter((a) => !a.passed).map((a) => a.id),
+        exchanges,
+        childLaunches: children.length,
+        closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
+        artifacts: observed.result.artifacts,
+        declarations: observed.result.declarations,
+        claimEligible: false,
+      }),
+    );
+    if (process.env.BDP_TRANSACTIONAL_CROSS_CARRIER_CONTROL_OUTPUT)
+      writeFileSync(
+        `${process.env.BDP_TRANSACTIONAL_CROSS_CARRIER_CONTROL_OUTPUT}-${control}.json`,
         JSON.stringify({ sourceCommit, entry, ...observed }, null, 2) + "\n",
       );
   },

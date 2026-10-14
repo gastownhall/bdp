@@ -186,7 +186,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(238);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(237);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
   expect(() => planProfileExecution(selected, configuration("read-update"))).toThrow("disagree");
@@ -691,6 +691,11 @@ function objectSlices(text: string, key: "scenarios" | "rows") {
 const originalObjectPins = {
   manifest: [
     [
+      "transactional.batch.deletion-safety",
+      "3e66e7c95aec963cc80e076249a5870b952765b2e98c1023ea148f8f628e6aeb",
+      131808,
+    ],
+    [
       "transactional.idempotency.conflict",
       "ba93aea884ae462533d02695642f03a2ca854f5adabeb41867254216dabb2106",
       29772,
@@ -747,6 +752,11 @@ const originalObjectPins = {
     ],
   ],
   coverage: [
+    [
+      "transactional.batch.deletion-safety",
+      "ac27a329a1cc013e6a0e24e0f5cad6b5b4af6c128ad65302d030422a3c7e3c0a",
+      17375,
+    ],
     [
       "transactional.idempotency.conflict",
       "de9b758f8ac4df7db5597b1eb2b402a116720becc30a41e7198f78f244358ec0",
@@ -812,7 +822,39 @@ function assertOriginalObjects(text: string, name: keyof typeof originalObjectPi
     expect(createHash("sha256").update(raw).digest("hex"), id).toBe(hash);
   }
 }
-it("preserves every original TX scenario and coverage object while adding one bounded partial deletion-safety row", () => {
+it("preserves every original TX scenario and coverage object while adding one bounded partial cross-carrier row", () => {
+  assertCrossCarrierObservation(manifest);
+  for (const kind of ["retained-body", "presentation", "old-record"] as const) {
+    const weak = structuredClone(manifest);
+    const row = weak.scenarios.find(
+      (r: { id: string }) => r.id === "transactional.idempotency.cross-carrier",
+    )!;
+    if (kind === "retained-body")
+      row.actions[2].assertions = row.actions[2].assertions.filter(
+        (a: { id: string }) => a.id !== "retained-body",
+      );
+    if (kind === "presentation")
+      row.actions[6].assertions.find((a: { id: string }) => a.id === "present-name").equals =
+        "first";
+    if (kind === "old-record")
+      row.actions[6].assertions.find(
+        (a: { id: string }) => a.id === "created-record",
+      ).equalsBinding = "x-updated-record";
+    expect(() => assertCrossCarrierObservation(weak)).toThrow(kind);
+  }
+  for (const name of ["manifest", "coverage"] as const) {
+    const text = read(name).toString();
+    const raw = objectSlices(text, name === "manifest" ? "scenarios" : "rows").get(
+      "transactional.idempotency.cross-carrier",
+    )!;
+    const reconstructed = text.replace(`    ${raw},\n`, "");
+    expect(reconstructed).not.toBe(text);
+    expect(createHash("sha256").update(reconstructed).digest("hex")).toBe(
+      name === "manifest"
+        ? "56318c56ee99bb981336e3f17560e7b079e88f2f85ef463874c1d556a066b2b2"
+        : "dafedd035ca20f684559c739ebf2e6155f8446ce8062c3fa60ff86967b259bbd",
+    );
+  }
   for (const name of ["manifest", "coverage"] as const)
     assertOriginalObjects(read(name).toString(), name);
   const changed = read("manifest").toString().replace('"equals": 401', '"equals": 402');
@@ -831,6 +873,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     "transactional.receipt.readable",
     "transactional.receipt.pagination",
     "transactional.idempotency.conflict",
+    "transactional.idempotency.cross-carrier",
     "transactional.idempotency.failed-retained",
   ]);
   const counts = new Map<string, number>();
@@ -841,6 +884,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     ["transactional.set.zero-match", 17],
     ["transactional.receipt.pagination", 18],
     ["transactional.idempotency.conflict", 12],
+    ["transactional.idempotency.cross-carrier", 12],
     ["transactional.batch.no-op-entries", 15],
     ["transactional.batch.deletion-safety", 21],
   ] as const) {
@@ -856,19 +900,27 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
-  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(187);
-  // Root-accepted deletion-safety measurement: M620094/N16373/C88043/A333.
+  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(199);
+  // Historical root-accepted deletion-safety measurement: M620094/N16373/C88043/A333.
   // Schema-name repair uses4B of the accepted margin:4092B/64nodes/1024B.
-  // Delta guards bind here; absolute planning envelopes remain unchanged.
-  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(135906);
-  expect(read("manifest").byteLength).toBeLessThanOrEqual(650386);
-  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(18405);
-  expect(read("coverage").byteLength).toBeLessThanOrEqual(91848);
+  // Historical measurement-only draft retained the smaller guards pending root acceptance.
+  // Root-accepted cross-carrier: disk684206/normal695598/nodes18107/coverage99245.
+  // Disk and normal-form fences are separate; margins are4096B/64nodes/1024B.
+  // Historical deletion guards: manifest135906delta/650386absolute,
+  // coverage18405delta/91848absolute, nodes3418delta/17275absolute.
+  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(200022);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(688302);
+  expect(Buffer.byteLength(JSON.stringify(manifest, null, 2) + "\n")).toBeLessThanOrEqual(699694);
+  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(29607);
+  expect(read("coverage").byteLength).toBeLessThanOrEqual(100269);
+  expect(
+    Buffer.byteLength(JSON.stringify(JSON.parse(read("coverage").toString()), null, 2) + "\n"),
+  ).toBeLessThanOrEqual(100269);
   expect(
     manifest.scenarios.flatMap((r: { actions: { assertions: unknown[] }[] }) =>
       r.actions.flatMap((a) => a.assertions),
     ),
-  ).toHaveLength(1872);
+  ).toHaveLength(2102);
   expect(read("fixture").byteLength).toBe(716);
   expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
     "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
@@ -880,8 +932,8 @@ it("preserves every original TX scenario and coverage object while adding one bo
     nodes++;
     if (value && typeof value === "object") pending.push(...Object.values(value));
   }
-  expect(nodes - 13019).toBeLessThanOrEqual(3418);
-  expect(nodes).toBeLessThanOrEqual(17275);
+  expect(nodes - 13019).toBeLessThanOrEqual(5152);
+  expect(nodes).toBeLessThanOrEqual(18171);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
     "transactional.receipt.pagination": [
@@ -899,10 +951,14 @@ it("preserves every original TX scenario and coverage object while adding one bo
     ).toEqual(anchors);
 });
 
-it("pins required context presence before equality in both new set rows", () => {
+it("pins required context presence before equality in set and cross-carrier rows", () => {
   const headers = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"];
   for (const row of manifest.scenarios.filter((r: { id: string }) =>
-    ["transactional.set.mutation", "transactional.set.zero-match"].includes(r.id),
+    [
+      "transactional.set.mutation",
+      "transactional.set.zero-match",
+      "transactional.idempotency.cross-carrier",
+    ].includes(r.id),
   )) {
     for (const action of row.actions) {
       if (action.family === "client" && action.operation === "transactional.receipt-read") {
@@ -1324,7 +1380,7 @@ it("pins the completed-key conflict law, five presentations, and semantic reques
     row.actions[0].raw.body.value;
   expect(() => assertCompletedConflictRequests(changed)).toThrow("c-conflict");
   for (const name of ["manifest", "coverage"] as const) {
-    expect(originalObjectPins[name]).toHaveLength(11);
+    expect(originalObjectPins[name]).toHaveLength(12);
     const text = read(name).toString();
     const raw = objectSlices(text, name === "manifest" ? "scenarios" : "rows").get(
       "transactional.receipt.pagination",
@@ -2193,3 +2249,142 @@ it("resolves every authored TX schema and rejects the undefined deleted-point re
     "unknown schema reference '#/$defs/problem'",
   );
 });
+
+/** Independent literal request/capture/presentation guard; the final hash also
+ * pins every authored assertion, so a weaker substitute cannot satisfy it. */
+function assertCrossCarrierObservation(candidate: typeof manifest) {
+  const row = candidate.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.idempotency.cross-carrier",
+  );
+  expect(row).toBeDefined();
+  expect(row.actions.map((a: { id: string }) => a.id)).toEqual([
+    "x-create",
+    "x-created-facts",
+    "x-create-batch",
+    "x-create-sequence",
+    "x-update",
+    "x-updated-facts",
+    "x-two-sequence",
+    "x-update-singleton",
+    "x-create-singleton-retry",
+    "x-create-batch-retry",
+    "x-current",
+    "x-events",
+  ]);
+  const assertion = (index: number, id: string) =>
+    row.actions[index].assertions.find((a: { id: string }) => a.id === id);
+  expect(assertion(2, "retained-body"), "retained-body").toEqual({
+    id: "retained-body",
+    kind: "json-pointer",
+    pointer: "",
+    exists: true,
+    equalsBinding: "x-created-body",
+  });
+  expect(assertion(6, "present-name"), "presentation").toEqual({
+    id: "present-name",
+    kind: "json-pointer",
+    pointer: "/results/0/operationName",
+    exists: true,
+    equals: "again",
+  });
+  expect(assertion(6, "presentation"), "presentation").toEqual({
+    id: "presentation",
+    kind: "json-array-tuples",
+    pointer: "/results",
+    ordered: true,
+    projections: [{ pointer: "/operationIndex" }, { pointer: "/outcome" }],
+    equals: [
+      [0, "created"],
+      [1, "updated"],
+    ],
+  });
+  expect(assertion(6, "created-record"), "old-record").toEqual({
+    id: "created-record",
+    kind: "json-pointer",
+    pointer: "/results/0/resource",
+    exists: true,
+    equalsBinding: "x-created-record",
+  });
+  const create = {
+    id: "beads/a",
+    type: "https://reference.invalid/acme/types/task",
+    properties: { title: "carrier-original" },
+  };
+  const update = {
+    bead: "beads/a",
+    propertiesChange: [{ op: "replace", path: "/title", value: "carrier-current" }],
+  };
+  const bodies = [
+    create,
+    undefined,
+    { operations: [{ operation: "createBead", ...create }] },
+    {
+      operations: [
+        { operation: "createBead", ...create, idempotencyKey: "carrier-create", name: "first" },
+      ],
+    },
+    { operations: [{ operation: "updateBead", ...update }] },
+    undefined,
+    {
+      operations: [
+        { operation: "createBead", ...create, idempotencyKey: "carrier-create", name: "again" },
+        { operation: "updateBead", ...update, idempotencyKey: "carrier-update" },
+      ],
+    },
+    update,
+    create,
+    { operations: [{ operation: "createBead", ...create }] },
+    undefined,
+    undefined,
+  ];
+  for (const [index, action] of row.actions.entries()) {
+    const body = bodies[index];
+    if (action.family === "http") {
+      expect(action.raw.body?.value, action.id).toBe(
+        body === undefined ? undefined : JSON.stringify(body),
+      );
+      for (const id of [
+        "http-status",
+        "schema",
+        "media",
+        "present-bdp-scope-epoch",
+        "present-bdp-authorization-view",
+        "present-bdp-scope-position",
+        "serving-position",
+        "request-headers",
+        "request-body",
+      ])
+        expect(assertion(index, id), `${action.id}:${id}`).toBeDefined();
+      expect(assertion(index, "serving-position").equals).toBe(index < 4 ? "pos-1" : "pos-2");
+    }
+  }
+  for (const [index, stem] of [
+    [0, "x-created"],
+    [4, "x-updated"],
+  ] as const)
+    expect(row.actions[index].captures).toEqual([
+      { binding: `${stem}-root`, from: { kind: "json-pointer", pointer: "/id" } },
+    ]);
+  for (const [index, stem] of [
+    [1, "x-created"],
+    [5, "x-updated"],
+  ] as const) {
+    expect(row.actions[index].input).toEqual({ binding: `${stem}-root`, method: "GET" });
+    expect(row.actions[index].captures).toEqual(
+      [
+        ["body", "/body"],
+        ["record", "/body/results/0/resource"],
+        ["revision", "/body/results/0/resource/revision"],
+        ["transaction", "/body/transaction"],
+      ].map(([suffix, pointer]) => ({
+        binding: `${stem}-${suffix}`,
+        from: { kind: "json-pointer", pointer },
+      })),
+    );
+  }
+  expect(row.actions.flatMap((a: { assertions: unknown[] }) => a.assertions)).toHaveLength(230);
+  expect(
+    createHash("sha256").update(JSON.stringify(row)).digest("hex"),
+    "complete cross-carrier authored row",
+  ).toBe("9edceed3f23528cff25103143dc27aeac69be409420f0ed54c5a4f992c89ba73");
+}
