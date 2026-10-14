@@ -1610,17 +1610,27 @@ runs after that entry releases. Both production protocol parsers snapshot and
 validate detached JSON. The directory and HTTP target constructor share the same
 12-operation map, and HTTP construction rejects a different owner Scope.
 
-The candidate contains the 16 required discovery members plus five captured
-page/Selector limits. Receipt checks and the Read plane consume the same immutable
-configuration. The fixed owner retains change groups, so the position floor is
+The candidate contains the 16 required discovery members plus a limits object.
+It projects five captured page/Selector values and the actual evaluator's
+validation bounds: 16 diagnostics and 524288 serialized diagnostic bytes.
+These validation limits must be disclosed when diagnostics are bounded; they
+are kept out of Read options. After owner release, assembly rejects a captured
+Read Selector triple that differs from the fixed set-mutation limits. Existing
+Read validation still checks captured limits against Read enforcement.
+Receipt checks and the Read plane consume the same immutable page maximum;
+the default applies to collection reads without a limit, not receipt page size.
+The fixed owner retains change groups, so the position floor is
 `pos-0`; the separate ordinal-zero changefeed checkpoint remains `genesis`.
 Tests replay the original groups after completed receipt detail expires and the
 owner reopens, without treating a compact completed receipt as a forgotten key.
 
-This is **not a wire-ready description**. C4 must project all required enforced
-limits, including bounded validation diagnostics and diagnostic bytes, before
-activation. C3 neither serves this candidate nor grants public Transactional
-admission. Scope, descriptor and directory GET/HEAD remain explicitly refused.
+This is **not a wire-ready description**. The internal validation projection
+closes a disclosure prerequisite, but remaining mandatory serving behavior and
+its review gates must close before activation. Optional request, Resource,
+sequence, patch, transaction and retention limits remain omitted; omission does
+not authorize silent truncation or non-normative errors. C3 neither serves this
+candidate nor grants public Transactional admission. Scope, descriptor and
+directory GET/HEAD remain explicitly refused.
 The source-private installed boundary fixture has exactly 12 exchanges and one
 child: six authenticated discovery GET/HEAD refusals, three anonymous refusals,
 then a real batch, independent afterstate GET and exact retained retry. Its

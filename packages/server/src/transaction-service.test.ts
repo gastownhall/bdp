@@ -1296,6 +1296,7 @@ describe("captured pagination callback receivers", () => {
     expect((await service.discoveryObserved()).discovery.limits).toEqual({
       page: { defaultItems: 2, maximumItems: 32 },
       selector: { bytes: 4096, depth: 32, nodes: 256 },
+      validation: { diagnostics: 16, diagnosticBytes: 524288 },
     });
   });
   it.each(["clock", "generateOpaqueToken"] as const)(
