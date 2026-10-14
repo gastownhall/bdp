@@ -385,9 +385,13 @@ export function createTransactionHttpHandler(
       else if (fields.length === 3 && id && token && (stream === "beads" || stream === "links"))
         target = { kind: "page", id, token, stream: stream === "beads" ? "bead" : "link" };
       else return transactionHttpProblem("invalid-parameter");
-      // No Q1 choice: all supplied consistency controls remain an explicit gap,
-      // after auth/closed shape and before any retained lookup or allocation.
-      if (hasMinimumControls(request)) return developmentGap("minimum-position");
+      // Only fresh creation has an unambiguous current observation. Retained
+      // anchors and unsupported tuple shapes keep their explicit private gap.
+      const minimum = hasMinimumControls(request)
+        ? transactionMinimumHeaders(request.headers)
+        : undefined;
+      if (hasMinimumControls(request) && (target.kind !== "create" || minimum === undefined))
+        return developmentGap("minimum-position");
       function snapshotResponse(result: Awaited<ReturnType<Service["snapshot"]>>): HttpResponse {
         if (result.kind === "problem") {
           const response = context(transactionHttpProblem(result.code), result.context);
@@ -417,12 +421,16 @@ export function createTransactionHttpHandler(
           headers: new Headers({ "content-type": "application/json" }),
         });
         if (request.method === "HEAD" || candidate.status !== 200) {
-          const eligible = snapshotResponse(await service.snapshot({ kind: "preflight" }));
-          const decision = applyReadHttpSemantics(request, eligible);
-          if (decision.status !== 200 || request.method === "HEAD") return decision;
+          const eligible = snapshotResponse(
+            await service.snapshot({ kind: "preflight" }, minimum, request.signal),
+          );
+          // Candidate and eligible share successful JSON with no validator;
+          // their media/conditional decisions agree. This branch is terminal:
+          // never start a second capture or renew the minimum wait deadline.
+          return applyReadHttpSemantics(request, eligible);
         }
       }
-      return snapshotResponse(await service.snapshot(target));
+      return snapshotResponse(await service.snapshot(target, minimum, request.signal));
     }
     const changefeed = transactionChangefeedRequest(url, scope);
     if (changefeed) {

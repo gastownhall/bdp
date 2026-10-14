@@ -382,7 +382,7 @@ it("retained HEAD uses UTF-8 bytes, conditional decisions carry current context,
   expect(state.pages).toHaveLength(0);
 });
 
-it("closed query syntax and every supplied consistency control fail before capture and cannot gain conditional success", async () => {
+it("closed query syntax, unsupported controls and foreign creation context fail before capture or conditional success", async () => {
   const f = await fixture(),
     before = await f.state();
   for (const query of [
@@ -414,10 +414,18 @@ it("closed query syntax and every supplied consistency control fail before captu
           method,
           headers: { ...headers, "if-none-match": "*" },
         });
-        expect(response.status).toBe(500);
-        expect(await response.text()).toBe("");
-        expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
-        expect(response.headers.get("bdp-scope-position")).toBeNull();
+        if (url === `${scope}snapshot` && Object.keys(headers).length === 3) {
+          expect(response.status).toBe(410);
+          expect(response.headers.get("bdp-scope-position")).toBe("pos-0");
+          expect(response.headers.get("x-bdp-development-limit")).toBeNull();
+          if (method === "HEAD") expect(await response.text()).toBe("");
+          else await checkedProblem(response, 410, "cursor-expired");
+        } else {
+          expect(response.status).toBe(500);
+          expect(await response.text()).toBe("");
+          expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+          expect(response.headers.get("bdp-scope-position")).toBeNull();
+        }
       }
   expect(await f.state()).toEqual(before);
   await checkedProblem(await f.get(`${scope}snapshot?snapshot=unknown`), 404, "resource-not-found");

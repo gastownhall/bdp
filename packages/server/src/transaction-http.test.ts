@@ -1989,55 +1989,131 @@ it("preserves materialized collection control Problems before a behind minimum w
   expect(result.status).toBe(200);
 });
 
-it.each(["beads/", "beads/a"])(
-  "stops %s retries after synchronized actual Node disconnect",
-  async (suffix) => {
-    const entered = Promise.withResolvers<void>(),
-      release = Promise.withResolvers<void>(),
-      aborted = Promise.withResolvers<void>();
-    let waits = 0,
-      tick = 0;
-    const abort = AbortController.prototype.abort;
-    vi.spyOn(AbortController.prototype, "abort").mockImplementation(function (
-      this: AbortController,
-      reason?: unknown,
-    ) {
-      abort.call(this, reason);
-      if (reason instanceof Error && reason.message === "client disconnected") aborted.resolve();
-    });
-    const f = await fixture({
-      minimumReads: {
-        budgetMs: 10,
-        now: () => tick++,
-        wait: async () => {
-          waits++;
-          entered.resolve();
-          await release.promise;
-        },
+it.each([
+  ["beads/", "GET"],
+  ["beads/a", "GET"],
+  ["snapshot", "GET"],
+  ["snapshot", "HEAD"],
+])("stops %s %s retries after synchronized actual Node disconnect", async (suffix, method) => {
+  const entered = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>(),
+    aborted = Promise.withResolvers<void>();
+  let waits = 0,
+    tick = 0;
+  const abort = AbortController.prototype.abort;
+  vi.spyOn(AbortController.prototype, "abort").mockImplementation(function (
+    this: AbortController,
+    reason?: unknown,
+  ) {
+    abort.call(this, reason);
+    if (reason instanceof Error && reason.message === "client disconnected") aborted.resolve();
+  });
+  const f = await fixture({
+    minimumReads: {
+      budgetMs: 10,
+      now: () => tick++,
+      wait: async () => {
+        waits++;
+        entered.resolve();
+        await release.promise;
       },
-    });
-    const seed = await f.post();
-    const req = httpRequest(`${f.runtime.scope}${suffix}`, {
-      headers: { authorization: `Bearer ${token}`, ...minimumHeaders(seed, "pos-2") },
-    });
-    req.on("error", () => {});
-    const timer = setTimeout(() => {
-      entered.reject(new Error("behind attempt unavailable"));
-      aborted.reject(new Error("Node abort unavailable"));
-      release.resolve();
-    }, 3000);
-    try {
-      req.end();
-      await entered.promise;
-      req.destroy();
-      await aborted.promise; // Node listener has called the real server AbortController.
-      release.resolve();
-      await f.runtime.close();
-      expect(waits).toBe(1);
-    } finally {
-      clearTimeout(timer);
-      req.destroy();
-      release.resolve();
+    },
+  });
+  const seed = await f.post();
+  const req = httpRequest(`${f.runtime.scope}${suffix}`, {
+    method,
+    headers: { authorization: `Bearer ${token}`, ...minimumHeaders(seed, "pos-2") },
+  });
+  req.on("error", () => {});
+  const timer = setTimeout(() => {
+    entered.reject(new Error("behind attempt unavailable"));
+    aborted.reject(new Error("Node abort unavailable"));
+    release.resolve();
+  }, 3000);
+  try {
+    req.end();
+    await entered.promise;
+    req.destroy();
+    await aborted.promise; // Node listener has called the real server AbortController.
+    release.resolve();
+    await f.runtime.close();
+    expect(waits).toBe(1);
+  } finally {
+    clearTimeout(timer);
+    req.destroy();
+    release.resolve();
+  }
+});
+
+it("serves complete fresh Snapshot minima with exact timeout, foreign and conditional context", async () => {
+  let tick = 0;
+  const f = await fixture({
+    minimumReads: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+  });
+  const seed = await f.post();
+  const url = `${f.runtime.scope}snapshot`;
+  const expected = {
+    "bdp-scope-epoch": seed.headers.get("bdp-scope-epoch"),
+    "bdp-authorization-view": seed.headers.get("bdp-authorization-view"),
+    "bdp-scope-position": "pos-1",
+  };
+  for (const [method, conditions, eligible] of [
+    ["GET", {}, 200],
+    ["HEAD", {}, 200],
+    ["GET", { "if-none-match": "*" }, 304],
+    ["GET", { "if-match": '"absent"' }, 412],
+    ["GET", { accept: "text/plain" }, 406],
+  ] as const) {
+    for (const minimum of ["pos-1", "pos-2"]) {
+      const result = await f.get(url, {
+        method,
+        headers: { ...minimumHeaders(seed, minimum), ...conditions },
+      });
+      expect(result.status).toBe(minimum === "pos-1" ? eligible : 503);
+      for (const [header, value] of Object.entries(expected))
+        expect(result.headers.get(header)).toBe(value);
+      if (method === "HEAD" || (minimum === "pos-1" && eligible !== 200))
+        expect(await result.text()).toBe("");
+      else if (minimum === "pos-2")
+        expect(checkedProblem(await body(result))).toMatchObject({
+          code: "catch-up-timeout",
+          type: "https://github.com/gastownhall/bdp/problems/unavailable",
+          status: 503,
+          retry: "after-delay",
+        });
+      else
+        expect(await body(result)).toMatchObject({
+          scopePosition: "pos-1",
+          beads: { items: [{ properties: { title: "a" } }] },
+        });
     }
-  },
-);
+  }
+  for (const [header, status, code, family] of [
+    ["bdp-scope-epoch", 410, "cursor-expired", "gone"],
+    ["bdp-authorization-view", 409, "foreign-view", "conflict"],
+  ] as const) {
+    for (const method of ["GET", "HEAD"]) {
+      const result = await f.get(url, {
+        method,
+        headers: { ...minimumHeaders(seed), [header]: "foreign" },
+      });
+      expect(result.status).toBe(status);
+      for (const [name, value] of Object.entries(expected))
+        expect(result.headers.get(name)).toBe(value);
+      if (method === "HEAD") expect(await result.text()).toBe("");
+      else
+        expect(checkedProblem(await body(result))).toMatchObject({
+          code,
+          type: `https://github.com/gastownhall/bdp/problems/${family}`,
+          status,
+        });
+    }
+  }
+  const valid = await f.get(url, { headers: minimumHeaders(seed) });
+  expect(valid.status).toBe(200);
+  const manifest = await body(valid);
+  const retained = await f.get(id(manifest), { headers: minimumHeaders(seed) });
+  expect(retained.status).toBe(500);
+  expect(retained.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+  expect(await body(await f.get(id(manifest)))).toEqual(manifest);
+});

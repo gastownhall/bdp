@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, it, vi } from "vitest";
+import { Ajv2020 } from "ajv/dist/2020.js";
+import { isJsonSchemaUri, isJsonSchemaDateTime } from "@bdp/protocol";
 import {
   createRawHttpExchangeExecutor,
   type HttpExchangeResponse,
@@ -56,6 +58,8 @@ type Page = { items: Row[]; next: string | null };
 type Manifest = {
   id: string;
   scope: string;
+  scopeEpoch: string;
+  authorizationView: string;
   scopePosition: string;
   checkpoint: string;
   beads: Page;
@@ -70,6 +74,26 @@ function json<T>(response: HttpExchangeResponse, status = 200): T {
     status >= 400 ? "application/problem+json" : "application/json",
   );
   return JSON.parse(response.bodyText) as T;
+}
+const snapshotSchemaBundle = JSON.parse(
+  readFileSync(path.join(root, "schemas/bdp-v0.schema.json"), "utf8"),
+);
+const snapshotAjv = new Ajv2020({ strict: true, allErrors: true });
+snapshotAjv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
+snapshotAjv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
+snapshotAjv.addSchema(snapshotSchemaBundle);
+const validateSnapshotManifest = snapshotAjv.compile({
+  $ref: `${snapshotSchemaBundle.$id}#/$defs/snapshotManifest`,
+});
+const validateSnapshotProblem = snapshotAjv.compile({
+  $ref: `${snapshotSchemaBundle.$id}#/$defs/transactionalProblem`,
+});
+function checkedManifest(wire: HttpExchangeResponse) {
+  const value = json<Manifest>(wire);
+  expect(validateSnapshotManifest(value), JSON.stringify(validateSnapshotManifest.errors)).toBe(
+    true,
+  );
+  return value;
 }
 function artifacts() {
   const schema = `${scope}schemas/properties`;
@@ -216,8 +240,15 @@ async function start(signal: AbortSignal) {
       ),
     );
   }
+  const children = [child.child];
   let key = 0;
-  const observations: { url: string; status: number; method: string; responseBytes: number }[] = [];
+  const observations: {
+    url: string;
+    status: number;
+    method: string;
+    responseBytes: number;
+    wireSha256: string;
+  }[] = [];
   async function exchange(
     url = `${scope}snapshot`,
     method: HttpMethod = "GET",
@@ -235,6 +266,13 @@ async function start(signal: AbortSignal) {
     )
       throw new Error("Snapshot observation escaped the configured Scope");
     const address = new URL(child.ready.listenUrl as string);
+    // Match the existing credential firewall: the view is a declared resolved
+    // header, never raw credential-like input (including anonymous requests).
+    const viewHeaders =
+      headers["bdp-authorization-view"] === undefined
+        ? {}
+        : { "bdp-authorization-view": headers["bdp-authorization-view"] };
+    const viewNames = Object.keys(viewHeaders);
     const execute = createRawHttpExchangeExecutor(
       { transport: "plain", host: address.hostname, port: Number(address.port) },
       {
@@ -248,14 +286,17 @@ async function start(signal: AbortSignal) {
           maximumRequestBodyBytes: 65536,
           defaultCredentialRef: "operator",
           credentialHandles: [
-            { id: "operator", headerNames: ["authorization"] },
-            { id: "reader", headerNames: ["authorization"] },
-            { id: "anonymous", headerNames: [] },
+            { id: "operator", headerNames: ["authorization", ...viewNames] },
+            { id: "reader", headerNames: ["authorization", ...viewNames] },
+            { id: "anonymous", headerNames: viewNames },
           ],
           resolveCredentials: ({ credentialRef }) =>
             credentialRef === "anonymous"
-              ? {}
-              : { authorization: `Bearer ${credentialRef === "reader" ? reader : operator}` },
+              ? viewHeaders
+              : {
+                  ...viewHeaders,
+                  authorization: `Bearer ${credentialRef === "reader" ? reader : operator}`,
+                },
         },
       },
     );
@@ -265,7 +306,9 @@ async function start(signal: AbortSignal) {
       signal,
       credentialRef,
       raw: {
-        headerLines: Object.entries(headers).map(([name, value]) => ({ name, value })),
+        headerLines: Object.entries(headers)
+          .filter(([name]) => name !== "bdp-authorization-view")
+          .map(([name, value]) => ({ name, value })),
         ...(body === undefined ? {} : { bodyBytes: Buffer.from(JSON.stringify(body)) }),
       },
     });
@@ -274,18 +317,33 @@ async function start(signal: AbortSignal) {
       response.exactRequest?.headerLines.find((h) => h.name.toLowerCase() === "host")?.value,
     ).toBe("reference.invalid");
     expect(response.wireResponseBytes?.length).toBeGreaterThan(0);
+    if (headers["bdp-authorization-view"] !== undefined)
+      expect(
+        response.exactRequest?.headerLines.find(
+          (h) => h.name.toLowerCase() === "bdp-authorization-view",
+        )?.value,
+      ).toBe(headers["bdp-authorization-view"]);
     if (
       response.bodyOctets === undefined ||
       !Number.isSafeInteger(response.bodyOctets) ||
       response.bodyOctets < 0
     )
       throw new Error("completed response body octets unavailable");
-    observations.push({ url, method, status: response.status, responseBytes: response.bodyOctets });
+    observations.push({
+      url,
+      method,
+      status: response.status,
+      responseBytes: response.bodyOctets,
+      wireSha256: createHash("sha256").update(response.wireResponseBytes!).digest("hex"),
+    });
     expect(response.headers["x-bdp-development"]).toBe("non-attesting");
     return response;
   }
   return {
     exchange,
+    get exchangeCount() {
+      return observations.length;
+    },
     baseline,
     signal,
     async write(operations: unknown[], credential = "operator") {
@@ -308,6 +366,7 @@ async function start(signal: AbortSignal) {
     async reopen() {
       await child.close();
       child = await launchInstalledTransaction(entry, { ...configuration, create: false }, signal);
+      children.push(child.child);
       expect(installedTransactionBinding(child.ready, sourceCommit, fixture)).toEqual(baseline);
     },
     async close() {
@@ -330,6 +389,11 @@ async function start(signal: AbortSignal) {
           entry: resolvedEntry,
           entrySha256,
           binding: baseline,
+          children: children.map((process) => ({
+            pid: process.pid,
+            exitCode: process.exitCode,
+            signalCode: process.signalCode,
+          })),
           exchanges: observations.length,
           completedResponses: observations,
           claimEligible: false,
@@ -413,6 +477,13 @@ it("observes packed-capable canonical Snapshot streams, retained bytes and chang
     expect(snapshot.links.items).toHaveLength(32);
     expect(snapshot.beads.next).not.toBeNull();
     expect(snapshot.links.next).not.toBeNull();
+    const retainedMinimum = await f.exchange(snapshot.beads.next as string, "GET", {
+      "bdp-scope-epoch": snapshot.scopeEpoch,
+      "bdp-authorization-view": snapshot.authorizationView,
+      "bdp-minimum-scope-position": "pos-4",
+    });
+    expect(retainedMinimum.status).toBe(500);
+    expect(retainedMinimum.headers["x-bdp-development-limit"]).toBe("minimum-position");
     const beads = await collect(f, snapshot.beads),
       links = await collect(f, snapshot.links);
     expect(beads.rows.map((r) => r.id)).toEqual(names.map((n) => `${scope}beads/${n}`));
@@ -688,3 +759,214 @@ it("charges sequential observations to the same budget and cannot report late su
     vi.useRealTimers();
   }
 });
+
+function snapshotMinimum(context: HttpExchangeResponse, minimumPosition: string) {
+  const epoch = context.headers["bdp-scope-epoch"],
+    view = context.headers["bdp-authorization-view"];
+  if (!epoch || !view) throw new Error("missing actual Snapshot context");
+  return {
+    "bdp-scope-epoch": epoch,
+    "bdp-authorization-view": view,
+    "bdp-minimum-scope-position": minimumPosition,
+  };
+}
+function exactSnapshotContext(
+  response: HttpExchangeResponse,
+  actual: HttpExchangeResponse,
+  position: string,
+) {
+  expect(response.headers["bdp-scope-epoch"]).toBe(actual.headers["bdp-scope-epoch"]);
+  expect(response.headers["bdp-authorization-view"]).toBe(actual.headers["bdp-authorization-view"]);
+  expect(response.headers["bdp-scope-position"]).toBe(position);
+}
+function snapshotTimeout(
+  response: HttpExchangeResponse,
+  actual: HttpExchangeResponse,
+  position: string,
+  head = false,
+) {
+  expect(response.status).toBe(503);
+  exactSnapshotContext(response, actual, position);
+  expect(Number(response.headers["retry-after"])).toBeGreaterThan(0);
+  if (head) expect(response.bodyText).toBe("");
+  else {
+    const value = json<Record<string, unknown>>(response, 503);
+    expect(validateSnapshotProblem(value), JSON.stringify(validateSnapshotProblem.errors)).toBe(
+      true,
+    );
+    expect(value).toMatchObject({
+      code: "catch-up-timeout",
+      type: "https://github.com/gastownhall/bdp/problems/unavailable",
+      status: 503,
+      retry: "after-delay",
+    });
+  }
+}
+it("observes fresh Snapshot minima with exact current context and retained gaps over packed bytes", async () => {
+  await withInstalled(async (f) => {
+    const empty = await f.exchange(); // 1: actual initial context and empty handle
+    expect(checkedManifest(empty)).toMatchObject({
+      scopePosition: "pos-0",
+      checkpoint: "genesis",
+      beads: { items: [], next: null },
+      links: { items: [], next: null },
+    });
+    const unauthorized = await f.exchange(
+      undefined,
+      "GET",
+      snapshotMinimum(empty, "genesis"),
+      undefined,
+      "anonymous",
+    ); // 2
+    expect(unauthorized.status).toBe(401);
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(unauthorized.headers[name]).toBeUndefined();
+    await f.write([
+      createBead("a"),
+      createBead("b"),
+      {
+        operation: "createLink",
+        id: "links/ab",
+        type: linkType,
+        source: "beads/a",
+        target: "beads/b",
+        properties: { title: "edge" },
+      },
+    ]); // 3
+    const current = snapshotMinimum(empty, "pos-1"),
+      future = snapshotMinimum(empty, "pos-2");
+    function state(manifest: Manifest, title = "café 🦉 a", position = "pos-1") {
+      expect(manifest.scopePosition).toBe(position);
+      expect(manifest.checkpoint).not.toBe("genesis");
+      expect(manifest.beads.items.map((row) => [row.id, row.properties])).toEqual([
+        [`${scope}beads/a`, { title }],
+        [`${scope}beads/b`, { title: "café 🦉 b" }],
+      ]);
+      expect(manifest.links.items.map((row) => [row.id, row.properties])).toEqual([
+        [`${scope}links/ab`, { title: "edge" }],
+      ]);
+      expect(manifest.beads.next).toBeNull();
+      expect(manifest.links.next).toBeNull();
+    }
+    const firstWire = await f.exchange(undefined, "GET", current); // 4
+    const first = checkedManifest(firstWire);
+    state(first);
+    exactSnapshotContext(firstWire, empty, "pos-1");
+    for (const [method, conditions, status] of [
+      ["HEAD", {}, 200],
+      ["GET", { "if-none-match": "*" }, 304],
+      ["GET", { "if-match": '"absent"' }, 412],
+      ["GET", { accept: "text/plain" }, 406],
+    ] as [HttpMethod, Record<string, string>, number][]) {
+      // 5–8
+      const wire = await f.exchange(undefined, method, { ...current, ...conditions });
+      expect(wire.status).toBe(status);
+      expect(wire.bodyText).toBe("");
+      exactSnapshotContext(wire, empty, "pos-1");
+    }
+    for (const [method, conditions] of [
+      ["GET", {}],
+      ["HEAD", {}],
+      ["GET", { "if-none-match": "*" }],
+      ["GET", { "if-match": '"absent"' }],
+      ["GET", { accept: "text/plain" }],
+    ] as [HttpMethod, Record<string, string>][]) // 9–13
+      snapshotTimeout(
+        await f.exchange(undefined, method, { ...future, ...conditions }),
+        empty,
+        "pos-1",
+        method === "HEAD",
+      );
+    for (const [header, status, code, family] of [
+      ["bdp-scope-epoch", 410, "cursor-expired", "gone"],
+      ["bdp-authorization-view", 409, "foreign-view", "conflict"],
+    ] as const)
+      for (const method of ["GET", "HEAD"] as const) {
+        // 14–17
+        const wire = await f.exchange(undefined, method, { ...current, [header]: "foreign" });
+        expect(wire.status).toBe(status);
+        exactSnapshotContext(wire, empty, "pos-1");
+        if (method === "HEAD") expect(wire.bodyText).toBe("");
+        else
+          expect(json<Record<string, unknown>>(wire, status)).toMatchObject({
+            code,
+            status,
+            type: `https://github.com/gastownhall/bdp/problems/${family}`,
+          });
+      }
+    const laterWire = await f.exchange(undefined, "GET", current); // 18
+    const later = checkedManifest(laterWire);
+    state(later);
+    expect(later.id).not.toBe(first.id);
+    exactSnapshotContext(laterWire, empty, "pos-1");
+    for (const headers of [
+      // 19–21
+      { ...current, "bdp-minimum-scope-position": "unknown" },
+      { "bdp-minimum-scope-position": "pos-1" },
+      {
+        "bdp-scope-epoch": current["bdp-scope-epoch"],
+        "bdp-authorization-view": current["bdp-authorization-view"],
+        "bdp-minimum-scope-positions": "pos-1",
+      },
+    ]) {
+      const wire = await f.exchange(undefined, "GET", headers);
+      expect(wire.status).toBe(500);
+      expect(wire.headers["x-bdp-development-limit"]).toBe("minimum-position");
+    }
+    const retained = await f.exchange(first.id, "GET", current); // 22
+    expect(retained.status).toBe(500);
+    expect(retained.headers["x-bdp-development-limit"]).toBe("minimum-position");
+    for (const method of ["GET", "HEAD"] as const) {
+      // 23–24
+      const wire = await f.exchange(first.id, method);
+      expect(wire.status).toBe(200);
+      exactSnapshotContext(wire, empty, "pos-1");
+      expect(wire.bodyText).toBe(method === "HEAD" ? "" : firstWire.bodyText);
+    }
+    await f.write([
+      {
+        operation: "updateBead",
+        bead: "beads/a",
+        propertiesChange: [{ op: "replace", path: "/title", value: "after" }],
+      },
+    ]); // 25
+    const advanced = await f.exchange(undefined, "GET", future); // 26
+    state(checkedManifest(advanced), "after", "pos-2");
+    exactSnapshotContext(advanced, empty, "pos-2");
+    const old = await f.exchange(first.id); // 27
+    expect(old.bodyText).toBe(firstWire.bodyText);
+    exactSnapshotContext(old, empty, "pos-2");
+    await f.reopen();
+    for (const method of ["GET", "HEAD"] as const) {
+      // 28–29
+      const wire = await f.exchange(first.id, method);
+      expect(wire.status).toBe(200);
+      exactSnapshotContext(wire, empty, "pos-2");
+      expect(wire.bodyText).toBe(method === "HEAD" ? "" : firstWire.bodyText);
+    }
+    snapshotTimeout(
+      await f.exchange(undefined, "GET", snapshotMinimum(empty, "pos-3")),
+      empty,
+      "pos-2",
+    ); // 30
+    const final = await f.exchange(undefined, "GET", future); // 31
+    state(checkedManifest(final), "after", "pos-2");
+    exactSnapshotContext(final, empty, "pos-2");
+    expect(f.exchangeCount).toBe(31);
+  });
+}, 60000);
+
+// The same two-request oracle is selected explicitly against a separately bound
+// derivative payload during counterfactual validation. No runtime fault switch.
+it("requires a real fixed-head Snapshot wait over packed bytes", async () => {
+  await withInstalled(async (f) => {
+    const initial = await f.exchange();
+    expect(checkedManifest(initial).scopePosition).toBe("pos-0");
+    snapshotTimeout(
+      await f.exchange(undefined, "GET", snapshotMinimum(initial, "pos-1")),
+      initial,
+      "pos-0",
+    );
+    expect(f.exchangeCount).toBe(2);
+  });
+}, 60000);

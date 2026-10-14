@@ -1425,10 +1425,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     withRead,
     /** Expected failures are paired inside the same entry, after any atomic
      * rollback. Unexpected integrity/SQLite/uncertain-commit errors propagate. */
-    observeSnapshot(request: TransactionSnapshotRequest) {
+    observeSnapshot(request: TransactionSnapshotRequest, supplied?: TransactionMinimum) {
+      const minimum = supplied === undefined ? undefined : snapshotTransactionMinimum(supplied);
+      if (minimum && request.kind !== "create" && request.kind !== "preflight")
+        throw new TypeError("minimum Snapshot observation requires fresh creation or preflight");
       return enter(() => {
         const context = readContext(),
           now = instant();
+        if (minimum) checkTransactionMinimum(minimum, context);
         try {
           atomic(() => snapshots.expire(now, context));
           if (request.kind === "preflight") {
