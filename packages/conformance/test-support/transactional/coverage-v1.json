@@ -1256,7 +1256,7 @@
     {
       "id": "transactional.idempotency.conflict",
       "wholeContract": false,
-      "reason": "Same principal, fixed authorization view and Scope epoch: twelve actual installed actions observe explicit-ID create batch completion; same-key changed semantics are refused with 409 before unacceptable-success-media handling and after same-epoch restart; exact prior receipt/root, full current Bead record and one finite Event remain unchanged. Whole contract remains unqualified: no all-epoch duration, completed-detail expiry, failed-retention transition, restore/new epoch, other principal/view, pending/unresolved state, concurrency, cross-carrier sequence, other operation families, rate/capacity, internal receipt absence, History or erasure credit. Bindings enumerate row-local observations only.",
+      "reason": "Same principal, fixed authorization view and Scope epoch: twelve actual installed actions observe explicit-ID create batch completion; same-key changed semantics are refused with 409 even when Accept admits no successful response media and after same-epoch restart; exact prior receipt/root, full current Bead record and one finite Event remain unchanged. Whole contract remains unqualified: no all-epoch duration, completed-detail expiry, failed-retention transition, restore/new epoch, other principal/view, pending/unresolved state, concurrency, cross-carrier sequence, other operation families, rate/capacity, internal receipt absence, History or erasure credit. Bindings enumerate row-local observations only.",
       "bindings": [
         {
           "scenario": "transactional.idempotency.conflict",

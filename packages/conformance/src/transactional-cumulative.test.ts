@@ -1250,6 +1250,22 @@ it("pins complete conflict responses and rejects retained-record equality weaken
   }
 });
 
+it("rejects removing mandatory context presence from either comparison side", () => {
+  for (const id of ["c-commit", "c-events", "c-events-reopened"]) {
+    const weakened = structuredClone(manifest);
+    const row = weakened.scenarios.find(
+      (r: { id: string }) => r.id === "transactional.idempotency.conflict",
+    )!;
+    const action = row.actions.find((a: { id: string }) => a.id === id);
+    action.assertions = action.assertions.filter(
+      (a: { id: string }) => a.id !== "present-bdp-scope-position",
+    );
+    expect(() => assertCompletedConflictResponses(weakened)).toThrow(
+      `${id} complete response assertions`,
+    );
+  }
+});
+
 it("pins the completed-key conflict law, five presentations, and semantic request difference", () => {
   expect(
     selected.catalog.scenarios.find((r) => r.id === "transactional.idempotency.conflict")!
@@ -1281,10 +1297,15 @@ it("pins the completed-key conflict law, five presentations, and semantic reques
     const raw = objectSlices(text, name === "manifest" ? "scenarios" : "rows").get(
       "transactional.receipt.pagination",
     )!;
-    const changedRaw = raw.replace(
+    const changedRaw =
+      name === "manifest"
+        ? raw.replace('"equals": 200', '"equals": 201')
+        : raw.replace('"reason": "Bounded', '"reason": "bounded');
+    expect(changedRaw).not.toBe(raw);
+    expect(Buffer.byteLength(changedRaw)).toBe(Buffer.byteLength(raw));
+    expect(JSON.parse(changedRaw).id).toBe("transactional.receipt.pagination");
+    expect(() => assertOriginalObjects(text.replace(raw, changedRaw), name)).toThrow(
       "transactional.receipt.pagination",
-      "transactional.receipt.paginations",
     );
-    expect(() => assertOriginalObjects(text.replace(raw, changedRaw), name)).toThrow();
   }
 });

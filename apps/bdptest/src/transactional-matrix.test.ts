@@ -1136,6 +1136,7 @@ it.each([
     const row = observed.result.scenarios.find(
       (s) => s.id === "transactional.idempotency.conflict",
     )!;
+    expect(observed.result.claimEligible).toBe(false);
     expect(row.state).toBe("fail");
     const exchange = row.exchanges.find((e) => e.request.id === actionId)!;
     expect(exchange.request.exact?.writeState).toBe("complete");
@@ -1159,7 +1160,7 @@ it.each([
         artifacts: observed.result.artifacts,
         declarations: observed.result.declarations,
         baseline: observed.baseline,
-        claimEligible: false,
+        claimEligible: observed.result.claimEligible,
       }),
     );
   },
