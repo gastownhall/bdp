@@ -7669,6 +7669,4318 @@
       ]
     },
     {
+      "id": "transactional.receipt.pagination",
+      "requiredProfile": "transactional",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http", "transactional-receipt-observation"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "p-seed",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "p-seed"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"createBead\",\"id\":\"beads/p31\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p30\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p29\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p28\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p27\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p26\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p25\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p24\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p23\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p22\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p21\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p20\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p19\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p18\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p17\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p16\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p15\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p14\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p13\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p12\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p11\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p10\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p09\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p08\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p07\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p06\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p05\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p04\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p03\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p02\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p01\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}},{\"operation\":\"createBead\",\"id\":\"beads/p00\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"before\"},\"metadata\":{\"tag\":\"pagination\"}}]}"
+            }
+          },
+          "captures": [
+            {
+              "binding": "p-seed-root",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationReceipt"
+            },
+            {
+              "id": "completed",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "completed"
+            },
+            {
+              "id": "inline",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "seed-order",
+              "kind": "json-array-tuples",
+              "pointer": "/results",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                },
+                {
+                  "pointer": "/outcome"
+                },
+                {
+                  "pointer": "/resource/id"
+                },
+                {
+                  "pointer": "/resource/type"
+                },
+                {
+                  "pointer": "/resource/properties"
+                },
+                {
+                  "pointer": "/resource/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  0,
+                  "created",
+                  "https://reference.invalid/acme/beads/p31",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  1,
+                  "created",
+                  "https://reference.invalid/acme/beads/p30",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  2,
+                  "created",
+                  "https://reference.invalid/acme/beads/p29",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  3,
+                  "created",
+                  "https://reference.invalid/acme/beads/p28",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  4,
+                  "created",
+                  "https://reference.invalid/acme/beads/p27",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  5,
+                  "created",
+                  "https://reference.invalid/acme/beads/p26",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  6,
+                  "created",
+                  "https://reference.invalid/acme/beads/p25",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  7,
+                  "created",
+                  "https://reference.invalid/acme/beads/p24",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  8,
+                  "created",
+                  "https://reference.invalid/acme/beads/p23",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  9,
+                  "created",
+                  "https://reference.invalid/acme/beads/p22",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  10,
+                  "created",
+                  "https://reference.invalid/acme/beads/p21",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  11,
+                  "created",
+                  "https://reference.invalid/acme/beads/p20",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  12,
+                  "created",
+                  "https://reference.invalid/acme/beads/p19",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  13,
+                  "created",
+                  "https://reference.invalid/acme/beads/p18",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  14,
+                  "created",
+                  "https://reference.invalid/acme/beads/p17",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  15,
+                  "created",
+                  "https://reference.invalid/acme/beads/p16",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  16,
+                  "created",
+                  "https://reference.invalid/acme/beads/p15",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  17,
+                  "created",
+                  "https://reference.invalid/acme/beads/p14",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  18,
+                  "created",
+                  "https://reference.invalid/acme/beads/p13",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  19,
+                  "created",
+                  "https://reference.invalid/acme/beads/p12",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  20,
+                  "created",
+                  "https://reference.invalid/acme/beads/p11",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  21,
+                  "created",
+                  "https://reference.invalid/acme/beads/p10",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  22,
+                  "created",
+                  "https://reference.invalid/acme/beads/p09",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  23,
+                  "created",
+                  "https://reference.invalid/acme/beads/p08",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  24,
+                  "created",
+                  "https://reference.invalid/acme/beads/p07",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  25,
+                  "created",
+                  "https://reference.invalid/acme/beads/p06",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  26,
+                  "created",
+                  "https://reference.invalid/acme/beads/p05",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  27,
+                  "created",
+                  "https://reference.invalid/acme/beads/p04",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  28,
+                  "created",
+                  "https://reference.invalid/acme/beads/p03",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  29,
+                  "created",
+                  "https://reference.invalid/acme/beads/p02",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  30,
+                  "created",
+                  "https://reference.invalid/acme/beads/p01",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  31,
+                  "created",
+                  "https://reference.invalid/acme/beads/p00",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ]
+              ]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            }
+          ]
+        },
+        {
+          "id": "p-seed-read",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "p-seed-root",
+            "method": "GET"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true
+            },
+            {
+              "id": "private-cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-last-modified",
+              "kind": "json-pointer",
+              "pointer": "/headers/last-modified",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "p-before",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "32"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadCollection"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-state",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/beads/p00",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p01",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p02",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p03",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p04",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p05",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p06",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p07",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p08",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p09",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p10",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p11",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p12",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p13",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p14",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p15",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p16",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p17",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p18",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p19",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p20",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p21",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p22",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p23",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p24",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p25",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p26",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p27",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p28",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p29",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p30",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p31",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "before"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ]
+              ]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            }
+          ]
+        },
+        {
+          "id": "p-update",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "update-where"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "p-update"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"collection\":\"beads\",\"selector\":\"$[?@.type == \\\"https://reference.invalid/acme/types/task\\\"]\",\"change\":[{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"changed\"}]}"
+            }
+          },
+          "captures": [
+            {
+              "binding": "p-root",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            },
+            {
+              "binding": "p-page",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/next"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationReceipt"
+            },
+            {
+              "id": "completed",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "completed"
+            },
+            {
+              "id": "matched",
+              "kind": "json-pointer",
+              "pointer": "/results/0",
+              "exists": true,
+              "equals": {
+                "operationIndex": 0,
+                "outcome": "matched",
+                "count": 32
+              }
+            },
+            {
+              "id": "no-extra",
+              "kind": "json-pointer",
+              "pointer": "/results/32",
+              "exists": false
+            },
+            {
+              "id": "effect",
+              "kind": "json-pointer",
+              "pointer": "/effectPosition",
+              "exists": true
+            },
+            {
+              "id": "required",
+              "kind": "json-pointer",
+              "pointer": "/requiredPosition",
+              "exists": true
+            },
+            {
+              "id": "outcomes",
+              "kind": "json-array-tuples",
+              "pointer": "/results",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                },
+                {
+                  "pointer": "/outcome"
+                }
+              ],
+              "equals": [
+                [0, "matched"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"],
+                [0, "updated"]
+              ]
+            },
+            {
+              "id": "p00-id",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p00"
+            },
+            {
+              "id": "p00-type",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p00-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p00-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p01-id",
+              "kind": "json-pointer",
+              "pointer": "/results/2/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p01"
+            },
+            {
+              "id": "p01-type",
+              "kind": "json-pointer",
+              "pointer": "/results/2/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p01-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/2/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p01-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/2/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p02-id",
+              "kind": "json-pointer",
+              "pointer": "/results/3/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p02"
+            },
+            {
+              "id": "p02-type",
+              "kind": "json-pointer",
+              "pointer": "/results/3/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p02-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/3/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p02-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/3/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p03-id",
+              "kind": "json-pointer",
+              "pointer": "/results/4/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p03"
+            },
+            {
+              "id": "p03-type",
+              "kind": "json-pointer",
+              "pointer": "/results/4/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p03-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/4/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p03-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/4/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p04-id",
+              "kind": "json-pointer",
+              "pointer": "/results/5/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p04"
+            },
+            {
+              "id": "p04-type",
+              "kind": "json-pointer",
+              "pointer": "/results/5/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p04-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/5/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p04-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/5/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p05-id",
+              "kind": "json-pointer",
+              "pointer": "/results/6/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p05"
+            },
+            {
+              "id": "p05-type",
+              "kind": "json-pointer",
+              "pointer": "/results/6/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p05-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/6/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p05-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/6/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p06-id",
+              "kind": "json-pointer",
+              "pointer": "/results/7/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p06"
+            },
+            {
+              "id": "p06-type",
+              "kind": "json-pointer",
+              "pointer": "/results/7/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p06-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/7/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p06-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/7/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p07-id",
+              "kind": "json-pointer",
+              "pointer": "/results/8/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p07"
+            },
+            {
+              "id": "p07-type",
+              "kind": "json-pointer",
+              "pointer": "/results/8/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p07-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/8/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p07-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/8/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p08-id",
+              "kind": "json-pointer",
+              "pointer": "/results/9/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p08"
+            },
+            {
+              "id": "p08-type",
+              "kind": "json-pointer",
+              "pointer": "/results/9/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p08-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/9/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p08-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/9/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p09-id",
+              "kind": "json-pointer",
+              "pointer": "/results/10/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p09"
+            },
+            {
+              "id": "p09-type",
+              "kind": "json-pointer",
+              "pointer": "/results/10/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p09-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/10/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p09-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/10/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p10-id",
+              "kind": "json-pointer",
+              "pointer": "/results/11/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p10"
+            },
+            {
+              "id": "p10-type",
+              "kind": "json-pointer",
+              "pointer": "/results/11/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p10-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/11/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p10-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/11/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p11-id",
+              "kind": "json-pointer",
+              "pointer": "/results/12/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p11"
+            },
+            {
+              "id": "p11-type",
+              "kind": "json-pointer",
+              "pointer": "/results/12/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p11-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/12/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p11-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/12/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p12-id",
+              "kind": "json-pointer",
+              "pointer": "/results/13/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p12"
+            },
+            {
+              "id": "p12-type",
+              "kind": "json-pointer",
+              "pointer": "/results/13/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p12-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/13/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p12-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/13/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p13-id",
+              "kind": "json-pointer",
+              "pointer": "/results/14/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p13"
+            },
+            {
+              "id": "p13-type",
+              "kind": "json-pointer",
+              "pointer": "/results/14/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p13-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/14/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p13-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/14/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p14-id",
+              "kind": "json-pointer",
+              "pointer": "/results/15/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p14"
+            },
+            {
+              "id": "p14-type",
+              "kind": "json-pointer",
+              "pointer": "/results/15/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p14-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/15/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p14-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/15/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p15-id",
+              "kind": "json-pointer",
+              "pointer": "/results/16/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p15"
+            },
+            {
+              "id": "p15-type",
+              "kind": "json-pointer",
+              "pointer": "/results/16/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p15-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/16/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p15-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/16/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p16-id",
+              "kind": "json-pointer",
+              "pointer": "/results/17/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p16"
+            },
+            {
+              "id": "p16-type",
+              "kind": "json-pointer",
+              "pointer": "/results/17/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p16-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/17/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p16-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/17/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p17-id",
+              "kind": "json-pointer",
+              "pointer": "/results/18/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p17"
+            },
+            {
+              "id": "p17-type",
+              "kind": "json-pointer",
+              "pointer": "/results/18/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p17-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/18/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p17-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/18/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p18-id",
+              "kind": "json-pointer",
+              "pointer": "/results/19/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p18"
+            },
+            {
+              "id": "p18-type",
+              "kind": "json-pointer",
+              "pointer": "/results/19/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p18-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/19/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p18-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/19/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p19-id",
+              "kind": "json-pointer",
+              "pointer": "/results/20/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p19"
+            },
+            {
+              "id": "p19-type",
+              "kind": "json-pointer",
+              "pointer": "/results/20/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p19-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/20/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p19-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/20/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p20-id",
+              "kind": "json-pointer",
+              "pointer": "/results/21/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p20"
+            },
+            {
+              "id": "p20-type",
+              "kind": "json-pointer",
+              "pointer": "/results/21/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p20-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/21/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p20-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/21/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p21-id",
+              "kind": "json-pointer",
+              "pointer": "/results/22/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p21"
+            },
+            {
+              "id": "p21-type",
+              "kind": "json-pointer",
+              "pointer": "/results/22/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p21-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/22/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p21-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/22/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p22-id",
+              "kind": "json-pointer",
+              "pointer": "/results/23/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p22"
+            },
+            {
+              "id": "p22-type",
+              "kind": "json-pointer",
+              "pointer": "/results/23/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p22-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/23/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p22-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/23/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p23-id",
+              "kind": "json-pointer",
+              "pointer": "/results/24/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p23"
+            },
+            {
+              "id": "p23-type",
+              "kind": "json-pointer",
+              "pointer": "/results/24/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p23-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/24/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p23-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/24/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p24-id",
+              "kind": "json-pointer",
+              "pointer": "/results/25/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p24"
+            },
+            {
+              "id": "p24-type",
+              "kind": "json-pointer",
+              "pointer": "/results/25/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p24-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/25/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p24-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/25/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p25-id",
+              "kind": "json-pointer",
+              "pointer": "/results/26/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p25"
+            },
+            {
+              "id": "p25-type",
+              "kind": "json-pointer",
+              "pointer": "/results/26/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p25-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/26/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p25-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/26/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p26-id",
+              "kind": "json-pointer",
+              "pointer": "/results/27/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p26"
+            },
+            {
+              "id": "p26-type",
+              "kind": "json-pointer",
+              "pointer": "/results/27/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p26-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/27/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p26-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/27/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p27-id",
+              "kind": "json-pointer",
+              "pointer": "/results/28/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p27"
+            },
+            {
+              "id": "p27-type",
+              "kind": "json-pointer",
+              "pointer": "/results/28/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p27-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/28/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p27-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/28/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p28-id",
+              "kind": "json-pointer",
+              "pointer": "/results/29/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p28"
+            },
+            {
+              "id": "p28-type",
+              "kind": "json-pointer",
+              "pointer": "/results/29/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p28-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/29/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p28-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/29/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p29-id",
+              "kind": "json-pointer",
+              "pointer": "/results/30/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p29"
+            },
+            {
+              "id": "p29-type",
+              "kind": "json-pointer",
+              "pointer": "/results/30/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p29-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/30/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p29-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/30/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "p30-id",
+              "kind": "json-pointer",
+              "pointer": "/results/31/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p30"
+            },
+            {
+              "id": "p30-type",
+              "kind": "json-pointer",
+              "pointer": "/results/31/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p30-properties",
+              "kind": "json-pointer",
+              "pointer": "/results/31/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p30-metadata",
+              "kind": "json-pointer",
+              "pointer": "/results/31/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "next-page",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true
+            }
+          ]
+        },
+        {
+          "id": "p-root-read",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "p-root",
+            "method": "GET"
+          },
+          "captures": [
+            {
+              "binding": "p-root-body",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            },
+            {
+              "binding": "p-transaction",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/transaction"
+              }
+            },
+            {
+              "binding": "p-required",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/requiredPosition"
+              }
+            },
+            {
+              "binding": "p-effect",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/effectPosition"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true
+            },
+            {
+              "id": "private-cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-last-modified",
+              "kind": "json-pointer",
+              "pointer": "/headers/last-modified",
+              "exists": false
+            },
+            {
+              "id": "next-page",
+              "kind": "json-pointer",
+              "pointer": "/body/next",
+              "exists": true,
+              "equalsBinding": "p-page"
+            }
+          ]
+        },
+        {
+          "id": "p-page-read",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "p-page",
+            "method": "GET"
+          },
+          "captures": [
+            {
+              "binding": "p-page-body",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            },
+            {
+              "binding": "p31-after",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/0/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true
+            },
+            {
+              "id": "private-cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-last-modified",
+              "kind": "json-pointer",
+              "pointer": "/headers/last-modified",
+              "exists": false
+            },
+            {
+              "id": "parent",
+              "kind": "json-pointer",
+              "pointer": "/body/receipt",
+              "exists": true,
+              "equalsBinding": "p-root"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/body/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "no-extra",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1",
+              "exists": false
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "p31-id",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p31"
+            },
+            {
+              "id": "p31-type",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "p31-properties",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "changed"
+              }
+            },
+            {
+              "id": "p31-metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "pagination"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p-page-head",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "p-page",
+            "method": "HEAD"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": false
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true
+            },
+            {
+              "id": "private-cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-last-modified",
+              "kind": "json-pointer",
+              "pointer": "/headers/last-modified",
+              "exists": false
+            },
+            {
+              "id": "empty-head",
+              "kind": "json-pointer",
+              "pointer": "/bodyOctets",
+              "exists": true,
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "id": "p-root-head",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "p-root",
+            "method": "HEAD"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": false
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true
+            },
+            {
+              "id": "private-cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-last-modified",
+              "kind": "json-pointer",
+              "pointer": "/headers/last-modified",
+              "exists": false
+            },
+            {
+              "id": "empty-head",
+              "kind": "json-pointer",
+              "pointer": "/bodyOctets",
+              "exists": true,
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "id": "p-changed",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "32"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadCollection"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-state",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/beads/p00",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p01",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p02",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p03",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p04",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p05",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p06",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p07",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p08",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p09",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p10",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p11",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p12",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p13",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p14",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p15",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p16",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p17",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p18",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p19",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p20",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p21",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p22",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p23",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p24",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p25",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p26",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p27",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p28",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p29",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p30",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p31",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ]
+              ]
+            },
+            {
+              "id": "page-live-record",
+              "kind": "json-pointer",
+              "pointer": "/items/31",
+              "exists": true,
+              "equalsBinding": "p31-after"
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            }
+          ]
+        },
+        {
+          "id": "p-later",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "update-where"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "p-later"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"collection\":\"beads\",\"selector\":\"$[?@.id == \\\"https://reference.invalid/acme/beads/p31\\\"]\",\"change\":[{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"later\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationReceipt"
+            },
+            {
+              "id": "completed",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "completed"
+            },
+            {
+              "id": "inline",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "matched",
+              "kind": "json-pointer",
+              "pointer": "/results/0",
+              "exists": true,
+              "equals": {
+                "operationIndex": 0,
+                "outcome": "matched",
+                "count": 1
+              }
+            },
+            {
+              "id": "updated",
+              "kind": "json-pointer",
+              "pointer": "/results/1/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "p31-id",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/p31"
+            },
+            {
+              "id": "p31-title",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/properties",
+              "exists": true,
+              "equals": {
+                "title": "later"
+              }
+            },
+            {
+              "id": "no-extra",
+              "kind": "json-pointer",
+              "pointer": "/results/2",
+              "exists": false
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            }
+          ]
+        },
+        {
+          "id": "p-later-state",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "32"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadCollection"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "ordered-state",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/beads/p00",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p01",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p02",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p03",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p04",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p05",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p06",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p07",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p08",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p09",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p10",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p11",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p12",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p13",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p14",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p15",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p16",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p17",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p18",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p19",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p20",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p21",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p22",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p23",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p24",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p25",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p26",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p27",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p28",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p29",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p30",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p31",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "later"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ]
+              ]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            }
+          ]
+        },
+        {
+          "id": "p-root-retained",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "p-root",
+            "method": "GET"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true
+            },
+            {
+              "id": "private-cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-last-modified",
+              "kind": "json-pointer",
+              "pointer": "/headers/last-modified",
+              "exists": false
+            },
+            {
+              "id": "immutable-root",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "p-root-body"
+            },
+            {
+              "id": "transaction",
+              "kind": "json-pointer",
+              "pointer": "/body/transaction",
+              "exists": true,
+              "equalsBinding": "p-transaction"
+            },
+            {
+              "id": "required",
+              "kind": "json-pointer",
+              "pointer": "/body/requiredPosition",
+              "exists": true,
+              "equalsBinding": "p-required"
+            },
+            {
+              "id": "effect",
+              "kind": "json-pointer",
+              "pointer": "/body/effectPosition",
+              "exists": true,
+              "equalsBinding": "p-effect"
+            }
+          ]
+        },
+        {
+          "id": "p-page-retained",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "p-page",
+            "method": "GET"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true
+            },
+            {
+              "id": "private-cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-last-modified",
+              "kind": "json-pointer",
+              "pointer": "/headers/last-modified",
+              "exists": false
+            },
+            {
+              "id": "immutable-page",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "p-page-body"
+            },
+            {
+              "id": "parent",
+              "kind": "json-pointer",
+              "pointer": "/body/receipt",
+              "exists": true,
+              "equalsBinding": "p-root"
+            },
+            {
+              "id": "historical-title",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/properties/title",
+              "exists": true,
+              "equals": "changed"
+            },
+            {
+              "id": "terminal",
+              "kind": "json-pointer",
+              "pointer": "/body/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "reopen",
+          "family": "client",
+          "operation": "transactional.reopen",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "reopened",
+              "kind": "json-pointer",
+              "pointer": "/reopened",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        },
+        {
+          "id": "reopened-pagination-root",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "p-root",
+            "method": "GET"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true
+            },
+            {
+              "id": "private-cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-last-modified",
+              "kind": "json-pointer",
+              "pointer": "/headers/last-modified",
+              "exists": false
+            },
+            {
+              "id": "immutable-root",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "p-root-body"
+            },
+            {
+              "id": "transaction",
+              "kind": "json-pointer",
+              "pointer": "/body/transaction",
+              "exists": true,
+              "equalsBinding": "p-transaction"
+            },
+            {
+              "id": "required",
+              "kind": "json-pointer",
+              "pointer": "/body/requiredPosition",
+              "exists": true,
+              "equalsBinding": "p-required"
+            },
+            {
+              "id": "effect",
+              "kind": "json-pointer",
+              "pointer": "/body/effectPosition",
+              "exists": true,
+              "equalsBinding": "p-effect"
+            }
+          ]
+        },
+        {
+          "id": "reopened-pagination-page",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "p-page",
+            "method": "GET"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true
+            },
+            {
+              "id": "private-cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-last-modified",
+              "kind": "json-pointer",
+              "pointer": "/headers/last-modified",
+              "exists": false
+            },
+            {
+              "id": "immutable-page",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "p-page-body"
+            },
+            {
+              "id": "parent",
+              "kind": "json-pointer",
+              "pointer": "/body/receipt",
+              "exists": true,
+              "equalsBinding": "p-root"
+            },
+            {
+              "id": "historical-title",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/properties/title",
+              "exists": true,
+              "equals": "changed"
+            },
+            {
+              "id": "terminal",
+              "kind": "json-pointer",
+              "pointer": "/body/next",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "reopened-pagination-page-head",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "p-page",
+            "method": "HEAD"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "body-present",
+              "kind": "json-pointer",
+              "pointer": "/bodyPresent",
+              "exists": true,
+              "equals": false
+            },
+            {
+              "id": "bdp-scope-epoch",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-epoch",
+              "exists": true
+            },
+            {
+              "id": "bdp-authorization-view",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-authorization-view",
+              "exists": true
+            },
+            {
+              "id": "bdp-scope-position",
+              "kind": "json-pointer",
+              "pointer": "/headers/bdp-scope-position",
+              "exists": true
+            },
+            {
+              "id": "private-cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-last-modified",
+              "kind": "json-pointer",
+              "pointer": "/headers/last-modified",
+              "exists": false
+            },
+            {
+              "id": "empty-head",
+              "kind": "json-pointer",
+              "pointer": "/bodyOctets",
+              "exists": true,
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "id": "p-final",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "32"
+            }
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadCollection"
+            },
+            {
+              "id": "no-next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "exact-later-items",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/type"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "equals": [
+                [
+                  "https://reference.invalid/acme/beads/p00",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p01",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p02",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p03",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p04",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p05",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p06",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p07",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p08",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p09",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p10",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p11",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p12",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p13",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p14",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p15",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p16",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p17",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p18",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p19",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p20",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p21",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p22",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p23",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p24",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p25",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p26",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p27",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p28",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p29",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p30",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "changed"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ],
+                [
+                  "https://reference.invalid/acme/beads/p31",
+                  "https://reference.invalid/acme/types/task",
+                  {
+                    "title": "later"
+                  },
+                  {
+                    "tag": "pagination"
+                  }
+                ]
+              ]
+            },
+            {
+              "id": "request-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "request-body",
+              "kind": "request-authored-body"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "transactional.idempotency.failed-retained",
       "requiredProfile": "transactional",
       "setup": {

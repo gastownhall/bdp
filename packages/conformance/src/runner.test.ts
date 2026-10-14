@@ -5991,3 +5991,259 @@ it.each(["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])(
     expect(row.exchanges[1]?.assertions.find((a) => a.id === "present")?.passed).toBe(false);
   },
 );
+
+// Private receipt continuations remain actual one-target wire observations.
+it.each([
+  "id-first",
+  "page-first",
+  "wrong-parent",
+  "empty-page",
+  "changed-page",
+  "cancel-page",
+  "null-next",
+  "absent-next",
+] as const)("observes private first-page authority over actual HTTP: %s", async (kind) => {
+  const { readFileSync } = await import("node:fs");
+  const { createCumulativeTransactionalArtifactBundle } = await import("./artifact-bundle.js");
+  const { loadProfileContractSelection } = await import("./profile-contract-selection.js");
+  const { runCumulativeTransactionalMatrix } = await import("./runner.js");
+  const { createRawHttpExchangeExecutor } = await import("./http-executor.js");
+  const fixture = JSON.parse(
+    readFileSync(new URL("../test-support/transactional/fixture-v1.json", import.meta.url), "utf8"),
+  );
+  const manifest = JSON.parse(
+    readFileSync(
+      new URL("../test-support/transactional/manifest-v1.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const scope = fixture.scope as string,
+    id = `${scope}receipts/r1`,
+    page = `${id}/pages/p1`;
+  const root = {
+    id,
+    status: "completed",
+    detail: "available",
+    idempotencyKey: "key",
+    scopeEpoch: "epoch",
+    authorizationView: "view",
+    transaction: "tx",
+    requiredPosition: "pos-0",
+    results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+    ...(kind === "absent-next" ? {} : { next: kind === "null-next" ? null : page }),
+    expiresAt: "2030-01-01T00:00:00Z",
+  };
+  let pageGets = 0,
+    generation = 1;
+  const requests: string[] = [];
+  const sessionAbort = new AbortController();
+  const pending = new Set<Promise<unknown>>();
+  const server = createHttpServer((request, response) => {
+    request.resume();
+    requests.push(`${request.method} ${request.url}`);
+    const isPage = request.url === "/acme/receipts/r1/pages/p1";
+    if (isPage && request.method === "GET") pageGets++;
+    if (isPage && request.method === "GET" && kind === "cancel-page") {
+      sessionAbort.abort(new Error("private page cancellation"));
+      return;
+    }
+    const body = isPage
+      ? {
+          receipt: kind === "wrong-parent" ? `${scope}receipts/wrong` : id,
+          results:
+            kind === "empty-page"
+              ? []
+              : [
+                  {
+                    operationIndex: 0,
+                    outcome: "matched",
+                    count: kind === "changed-page" && pageGets > 1 ? 1 : 0,
+                  },
+                ],
+          next: null,
+        }
+      : root;
+    const text = JSON.stringify(body);
+    response.writeHead(200, {
+      "content-type": "application/json",
+      "content-length": Buffer.byteLength(text),
+      connection: "close",
+    });
+    response.end(request.method === "HEAD" ? undefined : text);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw Error("missing address");
+  const dialRoute = { transport: "plain" as const, host: "127.0.0.1", port: address.port };
+  const mode = {
+    scope,
+    profile: "transactional" as const,
+    routes: [{ method: "POST" as const, url: fixture.bindings.batch as string }],
+    maximumRequestHeaderBytes: 16384,
+    maximumRequestBodyBytes: 65536,
+    defaultCredentialRef: "operator",
+    credentialHandles: [{ id: "operator", headerNames: [] as string[] }],
+    resolveCredentials: () => ({}),
+  };
+  const { resolveCredentials: _resolver, ...configuration } = mode;
+  const captures = [
+    { binding: "root", from: { kind: "json-pointer", pointer: "/id" } },
+    { binding: "page", from: { kind: "json-pointer", pointer: "/next" } },
+  ];
+  if (kind === "page-first") captures.reverse();
+  const read = (name: string, binding: string, method = "GET") => ({
+    id: name,
+    family: "client",
+    operation: "transactional.receipt-read",
+    input: { binding, method },
+    captures: [],
+    assertions: [
+      { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 200 },
+    ],
+  });
+  const row = {
+    ...manifest.scenarios[0],
+    actions: [
+      {
+        id: "source",
+        family: "http",
+        method: "POST",
+        target: { binding: "batch" },
+        raw: { headerLines: [], body: { encoding: "utf8", value: "{}" } },
+        captures,
+        assertions: [{ id: "status", kind: "status", equals: 200 }],
+      },
+      read("root-read", "root"),
+      read("page-head", "page", "HEAD"),
+      read("page-read", "page"),
+      {
+        id: "reopen",
+        family: "client",
+        operation: "transactional.reopen",
+        input: {},
+        captures: [],
+        assertions: [
+          {
+            id: "reopened",
+            kind: "json-pointer",
+            pointer: "/reopened",
+            exists: true,
+            equals: true,
+          },
+        ],
+      },
+      read("page-again", "page"),
+    ],
+  };
+  try {
+    const result = await runCumulativeTransactionalMatrix(
+      {
+        artifactBundle: createCumulativeTransactionalArtifactBundle(
+          loadProfileContractSelection("transactional"),
+          {
+            fixture: { bytes: Buffer.from(JSON.stringify(fixture)) },
+            manifest: { bytes: Buffer.from(JSON.stringify({ ...manifest, scenarios: [row] })) },
+          },
+        ),
+        profile: "transactional",
+        seed: 0,
+        declaredTargetLabel: "private-page-test",
+        scope,
+        harness: {
+          prepare: async () => ({
+            capabilities: fixture.capabilities,
+            bindings: fixture.bindings,
+          }),
+          cleanup: async () => {},
+        },
+        execute: async () => {
+          throw Error("must use raw transport");
+        },
+        schemaValidator: createJsonSchemaValidator(schemaBundle),
+        exactExecution: {
+          configuration,
+          execute: createRawHttpExchangeExecutor(dialRoute, {
+            exactMode: mode,
+            requestTimeoutMs: 5000,
+          }),
+        },
+      },
+      {
+        current: (scenario) => ({
+          binding: {
+            scenario,
+            generation,
+            listenUrl: `http://127.0.0.1:${address.port}/`,
+            runtimeConfigurationIdentity: "a".repeat(64),
+            configurationDigest: "b".repeat(64),
+            responseLimits: { headerBytes: 65536, bodyBytes: 1048576, wireBytes: 2097152 },
+          },
+          dialRoute,
+          signal: sessionAbort.signal,
+          resolveCredentials: () => ({}),
+          register: (p) => {
+            pending.add(p);
+            return p.finally(() => pending.delete(p));
+          },
+        }),
+        reopen: async () => {
+          generation++;
+        },
+      },
+    );
+    const actual = result.scenarios.find((s) => s.id === row.id)!;
+    if (kind === "id-first" || kind === "page-first") {
+      expect(actual, JSON.stringify(actual)).toMatchObject({ state: "pass" });
+      expect(pageGets).toBe(2);
+      const observed = actual.exchanges.find((e) => e.request.id === "page-again")!;
+      expect(observed.sourceReceiptObservation).toMatchObject({
+        pointer: "/next",
+        receipt: id,
+        page,
+        session: { generation: 1 },
+      });
+      expect(observed.servedSession?.generation).toBe(2);
+      expect(observed.dynamicExactConfiguration?.routes).toEqual([{ method: "GET", url: page }]);
+    } else if (kind === "null-next" || kind === "absent-next") {
+      expect(actual).toMatchObject({
+        state: "fail",
+        reason:
+          kind === "null-next"
+            ? "source receipt page unavailable"
+            : "source receipt schema invalid",
+      });
+      expect(actual.exchanges).toHaveLength(1);
+      expect(actual.exchanges[0]?.response?.status).toBe(200);
+      expect(pageGets).toBe(0);
+    } else if (kind === "cancel-page") {
+      expect(sessionAbort.signal.aborted).toBe(true);
+      expect(actual.state).not.toBe("pass");
+      expect(pageGets).toBe(1);
+      expect(actual.exchanges.some((e) => e.request.id === "page-again")).toBe(false);
+      expect(pending.size).toBe(0);
+    } else {
+      expect(actual).toMatchObject({
+        state: "fail",
+        reason:
+          kind === "changed-page"
+            ? "retained receipt page differs from original wire facts"
+            : "retained receipt page schema or identity mismatch",
+      });
+      expect(actual.exchanges.at(-1)?.sourceReceiptObservation?.pointer).toBe("/next");
+    }
+    expect(requests.slice(0, 3)).toEqual(
+      kind === "null-next" || kind === "absent-next"
+        ? ["POST /acme/operations/batch"]
+        : [
+            "POST /acme/operations/batch",
+            "GET /acme/receipts/r1",
+            "HEAD /acme/receipts/r1/pages/p1",
+          ],
+    );
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
