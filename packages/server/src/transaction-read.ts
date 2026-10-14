@@ -94,10 +94,10 @@ function ordinaryDeliveryOptions(
   return signal === undefined ? undefined : { signal: signal.value };
 }
 
-/** Source-private alias receiving snapshot. Only authority-rejected option or
+/** Source-private minimum-read receiving snapshot. Only authority-rejected option or
  * signal shapes throw; callers retain authority error/lifecycle delivery on that
  * path. The configured minimum replaces the caller's opaque condition value. */
-export function captureTransactionAliasDeliveryOptions(
+export function captureTransactionReadDeliveryOptions(
   options: AuthorityReadDeliveryOptions | undefined,
 ): AuthorityReadDeliveryOptions | undefined {
   const captured = ordinaryDeliveryOptions(options);
@@ -225,16 +225,24 @@ export function createTransactionReadPlane(
         perform: (request, options) => {
           if (!isCurrentTransactionMinimumRead(request, owner.scope))
             return Promise.reject(new TypeError("minimum-read route outside supported subset"));
+          let captured: AuthorityReadDeliveryOptions | undefined;
+          try {
+            captured = captureTransactionReadDeliveryOptions(options);
+          } catch {
+            // Capture rejects only shapes the authority also rejects. Preserve
+            // its observed Promise and closed/reentrant receiving precedence.
+            return observe(facet.perform(request, options).then((result) => checked(result)));
+          }
           return observe(
             facet
-              .perform(request, { ...options, sourceCondition: minimum })
+              .perform(request, { ...captured, sourceCondition: minimum })
               .then((result) => checked(result)),
           );
         },
         resolveAlias: (url, options) => {
           let captured: AuthorityReadDeliveryOptions | undefined;
           try {
-            captured = captureTransactionAliasDeliveryOptions(options);
+            captured = captureTransactionReadDeliveryOptions(options);
           } catch {
             // Capture rejects only shapes the authority itself rejects. Preserve
             // its observed Promise and closed/reentrant receiving precedence.
