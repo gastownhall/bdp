@@ -1,5 +1,6 @@
 /** Source-private loopback fixture. Never selected by installed config/profile
  * admission. It exposes actual routes, not an incomplete BDP discovery claim. */
+import { createTransactionSchemaHttp } from "./transaction-schema-http.js";
 import { createNodeHttpDisconnectSignal } from "./node-http-disconnect.js";
 import { pumpTransactionChanges, pumpTransactionEvents } from "./transaction-sse.js";
 import { ScopeServerOperationAbortedError } from "./read-request.js";
@@ -83,9 +84,10 @@ async function receive(request: IncomingMessage): Promise<TransactionReceivedBod
     return { failure: "malformed-request" };
   }
 }
-function deliver(response: ServerResponse, selected: HttpResponse): void {
+function deliver(response: ServerResponse, selected: HttpResponse, raw?: string): void {
   if (response.destroyed) return;
-  const bytes = selected.body === undefined ? undefined : stringifyJsonValue(selected.body);
+  const bytes =
+    raw ?? (selected.body === undefined ? undefined : stringifyJsonValue(selected.body));
   selected.headers.set("x-bdp-development", "non-attesting");
   if (bytes !== undefined) selected.headers.set("content-length", String(Buffer.byteLength(bytes)));
   response.writeHead(selected.status, Object.fromEntries(selected.headers));
@@ -100,6 +102,7 @@ export async function startTransactionRuntime(
   const capturedSeams = captured.seams;
   let service: ReturnType<typeof createTransactionService> | undefined;
   let handler: ReturnType<typeof createTransactionHttpHandler> | undefined;
+  let schemas: ReturnType<typeof createTransactionSchemaHttp> | undefined;
   let configurationMetadata: ReturnType<typeof captured.metadata>;
   let listenUrl = "";
   let scope = "",
@@ -162,6 +165,11 @@ export async function startTransactionRuntime(
         return;
       }
       if ("failure" in body) response.setHeader("connection", "close");
+      const schema = await schemas?.(input, authorization);
+      if (schema) {
+        deliver(response, schema.response, schema.raw);
+        return;
+      }
       let selected: TransactionHttpResult | undefined = await handler.handle(
         input,
         authorization,
@@ -327,6 +335,7 @@ export async function startTransactionRuntime(
       read: captured.readOptions(scope),
     });
     configurationMetadata = captured.metadata(owner.readConfiguration(), scope);
+    schemas = createTransactionSchemaHttp(scope, contracts, service.schemaObserved);
     handler = createTransactionHttpHandler(service, scope, capturedSeams.maximumOperations);
   } catch (error) {
     const failures: unknown[] = [error];

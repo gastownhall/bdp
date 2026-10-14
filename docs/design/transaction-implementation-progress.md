@@ -982,8 +982,9 @@ RU gains durable artifact storage. This slice does not deduplicate those copies.
 
 TX's fixture uses external synthetic schema URIs, but that is a fixture convention,
 not a bridge constraint: a Scope-local propertiesSchema can be installed while no
-TX schema GET/HEAD route serves it. Schema hosting remains explicitly unimplemented;
-no new URI refusal or protocol rule is introduced here.
+TX schema GET/HEAD route served it at this historical checkpoint. The later local
+schema-serving slice below supersedes that gap for its exact retrieval-identity
+subset; it adds no installation URI refusal or protocol rule.
 
 The separate capture row has its explicit byte cap. The configuration text still
 embeds installed descriptor inventory with no additional TX serialization cap. The
@@ -1736,3 +1737,25 @@ before dispatch, without implying all live owner faults are unreachable.
 Source and installed observations must remain bound to their actual frozen
 source and reviewed separately. No complete profile qualification or public
 activation follows from this slice.
+
+
+### Exact local schema retrieval (bounded private serving)
+
+Authenticated GET/HEAD can retrieve the captured, canonical query/fragment-free
+schema retrieval identities under the configured Scope's schemas/ namespace.
+Root and captured transitive documents use their exact UTF8 bytes, preserving
+whitespace, non-ASCII and numeric spelling. Shared selection handles200/304/406/412;
+only200 receives the raw representation, and HEAD transmits no body with the exact
+GET byte length. These selected local responses carry one current owner observation.
+The private sender retains disconnect suppression and the non-attesting marker.
+
+No schema fetch, alias grant, new startup restriction or $id equality rule is
+introduced. Accepted external, outside-namespace and query-bearing schema artifacts
+remain offline validation inputs. Differing canonical/embedded $id aliases and
+relative reference bases can remain unreachable: this is not complete cold traversal
+of every accepted closure. Unknown targets, unauthenticated requests and presence
+of any minimum-control field fall through existing receiving/routing behavior;
+minimum support and public discovery are not added. Exact source/installed evidence
+must remain bound to the source that ran; no public profile or qualification claim
+follows from this slice. Captured base64 and the additional eligible UTF8 strings
+retain real memory; no extra parsed schema copy is required for HTTP selection.
