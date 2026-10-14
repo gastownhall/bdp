@@ -3,6 +3,7 @@ import { parseCanonicalHttpUrl, assertCanonicalPathSegments } from "@bdp/protoco
 import {
   normalizeTransaction,
   transactionAliasOperands,
+  transactionAliasFields,
   type PreparedTransaction,
   type PreparedTransactionSequence,
 } from "./transaction-batch.js";
@@ -70,12 +71,7 @@ export function parseDependencyTemplate(text: string, scope: string): Dependency
       )
     )
       throw new Error("invalid pending alias template");
-    const fields =
-      value.operation === "createLink"
-        ? ["source", "target"]
-        : value.operation === "updateBead" || value.operation === "deleteBead"
-          ? ["bead"]
-          : [];
+    const fields = transactionAliasFields(value.operation);
     if (
       Object.keys(value).sort().join(",") !==
         "aliases,attempt,dependencies,form,identity,operation,referenceIdentities" ||
@@ -93,6 +89,23 @@ export function parseDependencyTemplate(text: string, scope: string): Dependency
       )
     )
       throw new Error("invalid pending alias template");
+    for (const identity of Object.values(value.referenceIdentities)) {
+      // Admission stores only exact URI strings and explicit private holes here,
+      // not arbitrary semantic documents or final alias-miss witnesses.
+      let valid = identity === encodeSemanticValue(UNBOUND_SEMANTIC_REFERENCE);
+      try {
+        const encoded: unknown = JSON.parse(identity);
+        if (
+          Array.isArray(encoded) &&
+          Array.isArray(encoded[1]) &&
+          typeof encoded[1][1] === "string"
+        )
+          valid ||= identity === encodeSemanticValue(encoded[1][1]);
+      } catch {
+        // An invalid private record is an integrity fault, never a missing alias.
+      }
+      if (!valid) throw new Error("invalid pending alias reference identity");
+    }
     for (const alias of value.aliases) {
       parseCanonicalHttpUrl(alias.locator);
       assertCanonicalPathSegments(alias.locator.slice(scope.length), "pending alias locator");
@@ -118,8 +131,14 @@ export function dependencyTemplate(
   if (member.aliasOperands.length === 0)
     return {
       ...base,
-      identity: normalizeTransaction(member.request, () => undefined, undefined, references)
-        .identity,
+      identity: normalizeTransaction(
+        member.request,
+        () => {
+          throw new Error("admission alias lookup");
+        },
+        undefined,
+        references,
+      ).identity,
     };
   for (const alias of member.aliasOperands) references.set(alias.field, UNBOUND_SEMANTIC_REFERENCE);
   const source = normalizeTransaction(

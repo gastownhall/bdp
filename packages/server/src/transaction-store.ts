@@ -37,6 +37,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { closeSync, existsSync, openSync, unlinkSync } from "node:fs";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { DatabaseSync } from "node:sqlite";
 import { parseCanonicalScope, parseTypeDescriptor, type TypeDescriptor } from "@bdp/protocol";
 import { assertDevelopmentContracts, type DevelopmentContracts } from "./development-contracts.js";
@@ -1832,7 +1833,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               }
               const persisted = parseDependencyTemplate(current.dependency, scope);
               atomic(() => {
-                if (!template || json(persisted) !== json(template))
+                if (!template || !isDeepStrictEqual(persisted, template))
                   throw new Error("sequence deferral template differs");
                 const normalized = normalizeTransaction(
                   member.request,
@@ -1840,15 +1841,18 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                   undefined,
                   references,
                 );
-                db.prepare(
-                  "UPDATE receipts SET identity=?,witnesses=?,dependency=NULL WHERE principal=? AND key=? AND owner=?",
-                ).run(
-                  normalized.identity,
-                  normalized.witnessesJson,
-                  owner.principal,
-                  owner.key,
-                  owner.owner,
-                );
+                const changed = db
+                  .prepare(
+                    "UPDATE receipts SET identity=?,witnesses=?,dependency=NULL WHERE principal=? AND key=? AND owner=?",
+                  )
+                  .run(
+                    normalized.identity,
+                    normalized.witnessesJson,
+                    owner.principal,
+                    owner.key,
+                    owner.owner,
+                  );
+                if (changed.changes !== 1) throw new Error("dependent resolution fenced");
                 owner.normalized = normalized;
                 options.fault?.("after-dependency-resolution");
               });

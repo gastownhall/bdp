@@ -265,7 +265,7 @@ export function prepareTransactionSequence(
         });
       }
       if (
-        aliasFields(op.operation).includes(field) &&
+        transactionAliasFields(op.operation).includes(field) &&
         canonicalReference(scope, uri).startsWith(`${scope}alias/`)
       )
         aliasOperands.push(Object.freeze({ field, locator: canonicalReference(scope, uri) }));
@@ -312,9 +312,8 @@ export function assertPreparedTransaction(batch: PreparedTransaction, scope: str
   if (!prepared.has(batch) || batch.carrier.scope !== scope)
     throw new TypeError("expected prepared transaction for this Scope");
 }
-function aliasFields(
-  operation: ReadUpdateOperation | PreparedTransactionSet["operation"],
-): readonly string[] {
+/** Source-private permitted alias slots shared by preparation and pending validation. */
+export function transactionAliasFields(operation: string): readonly string[] {
   if (operation === "createLink") return ["source", "target"];
   if (operation === "updateBead" || operation === "deleteBead") return ["bead"];
   return [];
@@ -359,7 +358,7 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
     )
       assertResourceOperation(entry.operation);
     const operation = entry.operation as OperationWitnesses["operation"];
-    if (entry.aliases.length > aliasFields(operation).length)
+    if (entry.aliases.length > transactionAliasFields(operation).length)
       throw new TypeError("invalid transaction alias witness count");
     const seen = new Set<string>();
     const aliases = entry.aliases.map((value) => {
@@ -380,7 +379,7 @@ export function transactionAliasOperands(batch: PreparedTransaction) {
   assertPreparedTransaction(batch, batch.carrier.scope);
   const operation = batch.carrier.operations[0];
   if (!operation || batch.carrier.operations.length !== 1) return [];
-  return aliasFields(operation.operation).flatMap((field) => {
+  return transactionAliasFields(operation.operation).flatMap((field) => {
     const value = operation.input[field];
     if (value === undefined) return [];
     const uri = typeof value === "string" ? value : (value as { uri: string }).uri;
@@ -443,7 +442,10 @@ export function normalizeTransaction(
       const locator = canonical(uri);
       let normalized: SemanticValue | undefined;
       if (index === 0 && references.has(field)) normalized = references.get(field);
-      else if (aliasFields(op.operation).includes(field) && locator.startsWith(`${scope}alias/`)) {
+      else if (
+        transactionAliasFields(op.operation).includes(field) &&
+        locator.startsWith(`${scope}alias/`)
+      ) {
         if (!aliases.has(locator)) {
           const old =
             previous?.operation === op.operation
@@ -993,7 +995,7 @@ export function evaluateTransaction(
           const id = bindings.get(uri.slice(1));
           if (!id) throw new Error("validated binding missing");
           input[field] = typeof ref === "string" ? id : { ...ref, uri: id };
-        } else if (aliasFields(op.operation).includes(field)) {
+        } else if (transactionAliasFields(op.operation).includes(field)) {
           const target = aliases.get(canonicalReference(options.scope, uri));
           if (target != null)
             input[field] = typeof ref === "string" ? target : { ...ref, uri: target };
