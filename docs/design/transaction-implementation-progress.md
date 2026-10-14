@@ -1580,7 +1580,7 @@ receipt envelopes against the unchanged schema. The fixture has 36 exchanges
 5-second exchange, 90-second cohort and 120-second outer deadlines match the
 adjacent installed Set cohort; they are test budgets, not protocol limits.
 
-The external [ea80 frozen run](/Users/dbox/repos/wt/vickie/bdp-integration-logs/transaction-sequence-alias-http/report.md)
+The external [ea80 frozen run](https://github.com/donnabox/beads/blob/codex/vickie-bdp-client-design/docs/architecture/bdp-client-v2/transaction-sequence-alias-http-report.md)
 records the original executed fixture at `ea80c77de7cd86244096a5978b65690a7ba637d8`:
 36 exchanges/two clean child sessions, with installed payload
 `495b3d9c1e6d6a078b91b60f6c41cfb4ab3f8928595467ec895d171d668d53a2`.
