@@ -1118,3 +1118,85 @@ it("preserves literal Selector identity and original mixed-carrier diagnostic po
     ),
   ).toThrow("prepared set lost Selector grammar analysis");
 });
+
+it("keeps receiving depth facts private while legacy preparation still throws", () => {
+  let nested: unknown = "leaf";
+  for (let i = 0; i < 40; i++) nested = { nested };
+  const input = { id: "beads/a", type, metadata: { nested } };
+  const text = JSON.stringify(input);
+  const mixed = JSON.stringify({ operations: [{ operation: "createBead", ...input }] });
+  for (const prepare of [
+    () => batch.prepareTransaction(scope, mixed),
+    () => batch.prepareTransactionSetCore(scope, mixed),
+    () => batch.prepareTransactionSingleton(scope, "createBead", text),
+    () =>
+      batch.prepareTransactionSequence(
+        scope,
+        JSON.stringify({
+          operations: [{ operation: "createBead", ...input, idempotencyKey: "deep" }],
+        }),
+      ),
+  ]) {
+    let caught: unknown;
+    try {
+      prepare();
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(batch.TransactionDevelopmentLimitError);
+    expect(caught).toMatchObject({ message: "development batch depth limit" });
+  }
+  const singleton = batch.prepareTransactionForReceiving(
+    scope,
+    { kind: "singleton", operation: "createBead" },
+    text,
+  );
+  const wrapped = batch.prepareTransactionForReceiving(scope, { kind: "batch" }, mixed);
+  for (const prepared of [singleton, wrapped]) {
+    expect(batch.transactionDepthRefusal(prepared)).toBe("development batch depth limit");
+    expect(Object.keys(prepared)).toEqual(["carrier"]);
+    expect(Object.isFrozen(prepared)).toBe(true);
+    expect(() => batch.transactionDepthRefusal({ ...prepared })).toThrow(TypeError);
+    expect(() => batch.assertPreparedTransaction({ ...prepared }, scope)).toThrow(TypeError);
+  }
+  expect(batch.normalizeTransaction(singleton, () => undefined).identity).toBe(
+    batch.normalizeTransaction(wrapped, () => undefined).identity,
+  );
+  const shallow = JSON.stringify({ id: "beads/a", type });
+  for (const prepared of [
+    batch.prepareTransactionForReceiving(
+      scope,
+      { kind: "singleton", operation: "createBead" },
+      shallow,
+    ),
+    batch.prepareTransactionForReceiving(
+      scope,
+      { kind: "batch" },
+      JSON.stringify({ operations: [{ operation: "createBead", id: "beads/a", type }] }),
+    ),
+  ])
+    expect(batch.transactionDepthRefusal(prepared)).toBeUndefined();
+  for (const prepare of [
+    () =>
+      batch.prepareTransactionForReceiving(
+        scope,
+        { kind: "singleton", operation: "createBead" },
+        JSON.stringify({ ...input, extra: true }),
+      ),
+    () =>
+      batch.prepareTransactionForReceiving(
+        scope,
+        { kind: "batch" },
+        JSON.stringify({ operations: [{ operation: "createBead", ...input, extra: true }] }),
+      ),
+  ]) {
+    let caught: unknown;
+    try {
+      prepare();
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught).not.toBeInstanceOf(batch.TransactionDevelopmentLimitError);
+  }
+});

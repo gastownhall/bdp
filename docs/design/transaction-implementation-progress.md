@@ -1900,3 +1900,24 @@ exchanges retain their existing reader/deadlines without a new aggregate byte-ca
 claim. Earlier evidence remains attributed to its original source. This is not
 public discovery activation, profile qualification or a ruling on retained
 Snapshot minimums or metadata-only incident-Link Event membership.
+
+
+### Retained direct keys before private carrier-depth refusal
+
+This draft records a private depth-capacity fact only after complete direct
+carrier syntax preparation, then lets the authoritative owner compare retained
+keys before refusing a fresh over-depth carrier. A different normalized request
+under a retained key returns the existing conflict; equal retained requests keep
+their saved outcome and existing negotiation behavior. A fresh deep request still
+receives the private bodyless500 development refusal without acquiring a key or
+receipt. Strict preparation helpers, no-controls owner calls and sequence depth
+preparation retain their existing development-limit exception behavior.
+
+The bounded draft adds four source cases and one thirteen-request private installed
+witness. Source cases include strict helper compatibility, genuine retained and
+pending/dependent keys, a raw twenty-thousand-array metadata retry, and a thirteen-
+request HTTP witness. No tests, builds, controls or installed execution have run
+at this draft checkpoint. The proposed early-refusal control and fresh installed
+witness remain separate gates; earlier evidence retains its original source
+attribution. This changes neither public discovery eligibility nor the pending
+Snapshot minimum or incident-Link Event membership rulings.

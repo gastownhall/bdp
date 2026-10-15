@@ -2,6 +2,7 @@
 import {
   prepareSetShape,
   assertTransactionInputDepth,
+  TransactionDevelopmentLimitError,
   validateSetSelector,
   type TransactionSetOperation,
   transactionInputText as losslessText,
@@ -81,6 +82,7 @@ export interface PreparedTransaction {
   };
 }
 const prepared = new WeakSet<object>();
+const depthRefusals = new WeakMap<object, string>();
 function assertResourceOperation(operation: unknown): asserts operation is ResourceOperation {
   if (
     typeof operation !== "string" ||
@@ -133,7 +135,9 @@ export function prepareTransactionSetCore(
 ): PreparedTransaction {
   if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
     throw new RangeError("development batch byte limit");
-  return prepareMixedTransaction(scope, object(decodeJsonDocument(text)), singleton);
+  return requireTransactionDepth(
+    prepareMixedTransaction(scope, object(decodeJsonDocument(text)), singleton),
+  );
 }
 function prepareMixedTransaction(
   scope: string,
@@ -172,20 +176,41 @@ function prepareMixedTransaction(
         singleton ? "/selector" : `/operations/${index}/selector`,
         TRANSACTION_RUNTIME_LIMITS.requestBodyBytes,
       );
-  assertTransactionInputDepth(root);
-  return prepareCarrier(
+  return prepareDepthCarrier(
     Object.freeze({
       scope: canonicalScope,
       kind: singleton ? "singleton" : "sequence",
       operations: Object.freeze(operations),
       keys: Object.freeze([]),
     }),
+    root,
   );
 }
 /** A singleton is the same one-operation Transactional request, not a RU
  * execution. Its raw record excludes the discriminator, label and body key.
  * Synthetic parsing keys are never consulted or persisted by the owner. */
 export function prepareTransactionSingleton(
+  scope: string,
+  operation: TransactionSingletonOperation,
+  text: string,
+): PreparedTransaction {
+  return requireTransactionDepth(prepareSingletonForReceiving(scope, operation, text));
+}
+/** Private receiving syntax only; the owner decides capacity after retained-key comparison. */
+export function prepareTransactionForReceiving(
+  scope: string,
+  carrier:
+    | { readonly kind: "batch" }
+    | { readonly kind: "singleton"; readonly operation: TransactionSingletonOperation },
+  text: string,
+): PreparedTransaction {
+  if (carrier.kind === "singleton")
+    return prepareSingletonForReceiving(scope, carrier.operation, text);
+  if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
+    throw new RangeError("development batch byte limit");
+  return prepareMixedTransaction(scope, object(decodeJsonDocument(text)), false);
+}
+function prepareSingletonForReceiving(
   scope: string,
   operation: TransactionSingletonOperation,
   text: string,
@@ -209,8 +234,7 @@ export function prepareTransactionSingleton(
     return prepareMixedTransaction(scope, { operations: [{ operation, ...input }] }, true);
   }
   const carrier = prepareReadUpdateSingleton(scope, operation, text, "internal-singleton");
-  assertTransactionInputDepth(input, 2);
-  return prepareCarrier(carrier);
+  return prepareDepthCarrier(carrier, input, 2);
 }
 export interface PreparedTransactionSequence {
   readonly scope: string;
@@ -311,6 +335,30 @@ function prepareCarrier(carrier: PreparedTransaction["carrier"]): PreparedTransa
   const result = Object.freeze({ carrier });
   prepared.add(result);
   return result;
+}
+function prepareDepthCarrier(
+  carrier: PreparedTransaction["carrier"],
+  input: LosslessJsonValue,
+  depth = 0,
+): PreparedTransaction {
+  const result = prepareCarrier(carrier);
+  try {
+    assertTransactionInputDepth(input, depth);
+  } catch (error) {
+    if (!(error instanceof TransactionDevelopmentLimitError)) throw error;
+    depthRefusals.set(result, error.message);
+  }
+  return result;
+}
+/** Source-private, read-only fact; only this module can create or annotate its brand. */
+export function transactionDepthRefusal(batch: PreparedTransaction): string | undefined {
+  if (!prepared.has(batch)) throw new TypeError("expected prepared transaction");
+  return depthRefusals.get(batch);
+}
+function requireTransactionDepth(batch: PreparedTransaction): PreparedTransaction {
+  const message = transactionDepthRefusal(batch);
+  if (message !== undefined) throw new TransactionDevelopmentLimitError(message);
+  return batch;
 }
 export function assertPreparedTransaction(batch: PreparedTransaction, scope: string): void {
   if (!prepared.has(batch) || batch.carrier.scope !== scope)
