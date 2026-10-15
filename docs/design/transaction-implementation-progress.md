@@ -1958,3 +1958,15 @@ full parsed comparisons occur in memory. Authoring is based on merged
 98c600767e8e91a79e109cb741beb91e23b9bebe. Validation and code council remain
 pending. This private draft does not qualify a profile, activate discovery or
 settle the pending Snapshot and incident-Link metadata decisions.
+
+
+Private guarded-batch installed evidence draft (unexecuted): on verified main
+`9bf601bfb570adae97ce8cdc99caf2cc7a2b34c1`, one new callback stages distinct marker
+creations before two revision-guarded updates to the same observed Bead revision.
+The planned seven-request positive checks one winning effect, the retained failed
+receipt and exact replay/root recovery, and complete Resource/Event rollback
+evidence. Its separate three-request input control omits both guards and must
+establish two completed effects before the named failure oracle. This draft has
+not been built or executed; it adds no catalog credit, profile qualification or
+server-admission overlap claim. Existing historical validation remains attributed
+to its original sources.
