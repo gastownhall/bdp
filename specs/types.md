@@ -337,8 +337,8 @@ required graph segment before the arity check.
 
 Syntax, authorization and revision preconditions are not waived. This decision
 specifically defers arity validation; it does not silently defer every properties,
-endpoint, uniqueness or reference check. Which other graph checks should be
-commit-time constraints is separate design work.
+endpoint or reference check. Pair-wise uniqueness is separately selected for
+commit-time validation in §5.6. Other graph checks remain separate design work.
 
 A server without optional batch support may be unable to express some valid
 transitions. It must reject the invalid single write rather than break an
@@ -352,6 +352,39 @@ and activation rules; no implicit exemption for existing violations is selected.
 that arity hold after every operation.** They are proposed shared semantics, not
 claims about current BDP batch or Beads behavior. Canonical Write changes and
 implementation coordination remain separate landing work.
+
+### 5.6 Pair-wise uniqueness across conformance
+
+A Link Type may declare uniqueness of the ordered pair of source and target
+identities. The constraint covers all Links satisfying the declaring Type,
+including transitively conforming Link Types. It does not allocate a separate
+allowance to each child Type. Each distinct Link identity is a participant;
+idempotently returning an existing Link is not creation of another participant.
+
+```text
+dependency: unique ordered pair (source identity, target identity)
+blocks conforms to dependency
+parent-child conforms to dependency
+```
+
+If A has a blocks Link to B, a distinct blocks or parent-child Link from A to B
+would violate this dependency constraint. B to A is a different pair; domain
+cycle/hierarchy rules may independently reject it. A Link outside dependency's
+conformance family is not restricted by this particular uniqueness declaration.
+Endpoint revision pins do not create new pair identities. As with arity, the
+constraint concerns the storing Scope's own Link table, not other Scopes' Links.
+
+Validate pair-wise uniqueness against final transaction state. A batch may create
+A's replacement parent-child Link to B before deleting the old blocks Link. The
+temporary duplicate is allowed; if both remain at commit, reject and roll back
+the entire transaction. Deleting first is also possible. All independent domain
+constraints remain applicable; deferring uniqueness does not automatically defer
+cycle, hierarchy, endpoint, properties or authorization checks.
+
+This is an optional declared constraint, not a universal prohibition of parallel
+Links. Wire syntax and constraint evolution across definition revisions still
+need the shared decisions already identified for graph constraints. No new
+allowance follows merely from a different child Type or endpoint revision pin.
 
 ## 6. Concrete acceptance cases
 
@@ -395,6 +428,11 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Bounds are 0..0 and a matching Link exists at commit | Reject; zero maximum prohibits participation |
 | Deleting a Bead removes its own participation obligation | Still validate effects on surviving endpoints; other deletion rules remain applicable |
 | Definition revisions declare different limits for the same nominal Link Type | Evolution policy remains unresolved; do not invent separate allowances or latest-wins behavior |
+| Distinct blocks and parent-child Links have the same ordered pair under dependency uniqueness | They share the constraint population; cannot both remain at commit |
+| Endpoint pins differ for the same source/target identities | Same uniqueness pair; no extra slot |
+| Reverse the source/target pair | Different uniqueness key; independent workflow constraints still apply |
+| A Link outside the dependency family uses the occupied pair | This dependency uniqueness declaration does not prohibit it |
+| Batch creates a replacement pair Link before deleting the old Link | Temporary duplicate allowed; final duplicate rolls back the complete transaction |
 
 ## 7. Decisions still needed
 
@@ -419,8 +457,8 @@ Other Type-system work:
 - Endpoint OR-list wire syntax, inherited conjunction and warning details. Explicit
   AND/NOT/exact-only selectors remain deferred; unresolved does not mean nonmember.
 - Arity syntax, Link-Type minimum applicability, constraint identity and changing
-  limits across definition revisions; ownership, ordered-pair uniqueness and
-  which other graph constraints are checked at commit.
+  limits across definition revisions; ownership, pair-uniqueness declaration syntax
+  and which other graph constraints are checked at commit.
 - Explicit affiliation changes, migrations, floating endpoint revalidation and
   operation behavior during transitions.
 - Compatibility families and publication claims, including semantic changes.

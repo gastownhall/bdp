@@ -64,8 +64,9 @@ bootstrap and retention; no installation API has been selected yet.
   the same rules to both kinds does not select cross-kind membership.
 - Resolve schema dialect, references and closure composition, semantic-unit
   vocabulary, required contradiction checks and limits of mechanical proof.
-- Decide pair-wise uniqueness and any other graph invariants separately from
-  arity, including their validation phase. Do not silently defer authorization,
+- Pair-wise uniqueness now spans the declaring conformance family, keyed by ordered
+  endpoint identities regardless of pins, and validates at commit. Define its wire
+  syntax and other graph invariants separately. Do not silently defer authorization,
   revision preconditions or every other check to commit.
 - Specify ownership matching under conformance. An Issue owning dependencies must
   include blocks/parent-child, not only exact nominal dependency affiliations.
@@ -105,8 +106,8 @@ bootstrap and retention; no installation API has been selected yet.
    identity and earlier revisions; validate schema, ownership and domain effects.
 3. One blocks and one parent-child Link for the same ordered Issue pair: preserve
    existing dependency-wide uniqueness. A new Type pin cannot create another slot.
-4. Replace a mandatory owned relationship in a batch. Arity is final-state; pair
-   uniqueness timing and owner revision materialization still need decisions.
+4. Replace a mandatory owned relationship in a batch. Arity and pair uniqueness are final-state;
+   owner revision materialization and other domain checks still need decisions.
 5. Guidance accepts an Issue endpoint: establish whether task and custom Types
    conforming to issue qualify. A decision Issue is not automatically decision Memory.
 6. Read the same Issue revision twice across a heartbeat. Identify which bytes are

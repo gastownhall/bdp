@@ -551,8 +551,10 @@ rules and preserve native/catalog consistency. The inspected generic graph updat
 path does not implement this operation. An open schema or conformance declaration
 does not supply that writer. Delete-old/create-new in a supported atomic batch
 can replace a relationship but need not preserve its canonical Link identity.
-The new shared design validates arity at commit; timing of pair uniqueness and
-other domain checks remains a separate decision.
+The new shared design validates arity and pair-wise uniqueness at commit, across
+the dependency conformance family. A temporary duplicate pair may be staged and
+removed before commit. Timing of other domain checks remains a separate decision;
+this is not a claim about the current Preview 2 implementation.
 
 Current preview deletion refuses incident Links and requires explicit unlink;
 it reserves deleted identities and retains earlier snapshots. The Memory proposal's
@@ -657,7 +659,7 @@ The following are design acceptance cases, not executed product tests:
 | D01 | Add blocks A→B | A depends on B; B is prerequisite |
 | D02 | Add parent-child C→P | C is child, P parent; preserve hierarchy validation |
 | D03 | Add same pair/same kind unchanged | No new Link or source revision |
-| D04 | Add same pair/different kind | Conflict; no second Dependency slot |
+| D04 | Add same pair/different kind | Current preview conflicts immediately; proposed batch permits temporary duplication but rejects a duplicate at commit |
 | D05 | Native same-kind re-add changes metadata | Preserve mutation/history semantics; preview cannot claim this editor |
 | D06 | Add different pairs A→B and A→C | Pair uniqueness alone permits both; applicable total maxima and workflow checks still apply |
 | D07 | Dependency endpoint has no issue conformance | Reject endpoint mismatch; task/bug children qualify |
@@ -666,7 +668,7 @@ The following are design acceptance cases, not executed product tests:
 | D10 | Self-edge or prohibited mixed scheduling cycle | Reject atomically through domain validation, not endpoint lists alone |
 | D11 | Native waits-for metadata also_blocks=true | Project codified fields as properties and map writes back; preserve gate/blocking semantics and unknown metadata |
 | D12 | Add informational supersedes relation | Do not infer a close operation; bd supersede is a separate workflow |
-| D13 | Attempt second pair edge with another nominal definition revision | A new definition pin must not evade pair uniqueness |
+| D13 | Attempt second pair edge with another nominal definition revision | A new definition pin must not evade pair uniqueness; final state cannot retain both |
 | D14 | Custom dependency label through current graph CLI | Both dep add and link create reject unknown kinds despite wider storage admission; proposed mapping must distinguish surfaces |
 | T01 | Issue→Memory with floating incoming Dependency | Refuse unless explicit valid repair is part of the transition |
 | T02 | GenericLink→Dependency collides with occupied pair | Reject atomically; kind label or a fresh Link ID creates no extra slot |
