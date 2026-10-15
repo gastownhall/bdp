@@ -54,9 +54,11 @@ The [Memory Types proposal](specs/types/memory.md) recommends one Memory Bead
 Type with knowledge-form kinds and distinct informational Link Types. It records
 shared-protocol dependencies and Beads adoption work. The [earlier A/B comparison](specs/types/memory-approaches.md)
 is preserved as historical design background.
-The companion [Issue and Dependency draft](specs/types/issue.md) records existing
-work-tracking behavior, the pending unified Dependency catalog, and the resulting
-requirements for Type definitions and domain operations.
+The companion [Issue and Dependency draft](specs/types/issue.md) inventories the
+current Preview 2 build and proposes issue/dependency bases with conforming
+classification Types, preserving workflow semantics while removing discriminator
+properties. The [completion decision list](docs/design/types-completion-decisions-20261014.md)
+tracks remaining Type decisions and reconciliation with Memory.
 
 ## Protocol and reference implementation
 

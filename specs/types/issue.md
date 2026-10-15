@@ -1,73 +1,112 @@
 # Issue and Dependency Types
 
-Draft for review, October 13, 2026. **Issue is one Bead Type; Dependency is one
-Link Type.** Their subordinate discriminators remain `issue_type` and `dep_type`.
-This draft carries existing product semantics forward and exposes the work needed
-to express them as versioned BDP Types. It does not rename task, bug, blocks,
-parent-child or any other established classification.
+Draft for review, October 14, 2026. **`issue` is a base Bead Type; `task`, `bug`
+and the other work classifications conform to it. `dependency` is a base Link
+Type; `blocks`, `parent-child` and the other dependency classifications conform
+to it.** These are the selected design directions, not the installed Preview 2
+catalog. Native classification values translate to the intrinsic `type` reference;
+`issue_type` and `dep_type` are not properties in the proposed records.
 
-The companion [Memory proposal](memory.md) develops new vocabulary. This document
-uses existing work tracking as a second test of the forthcoming Type Bead design.
-Neither draft adopts a new general constraint language or grants implementation
-approval.
+This document preserves the names, fields and behavioral requirements discoverable
+in Janet's current Preview 2 candidate. The intentional classification-to-Type
+mapping is the only selected product-model change here. It does not redesign
+workflow, rename existing properties, or settle how live/computed fields should
+appear in a versioned Type. No implementation change is made by this draft.
 
-## 1. Status and sources
+The shared [Types draft](../types.md) supplies conformance, pinned definitions,
+endpoint composition and arity rules. The [Memory draft](memory.md) is a companion
+requirements exercise; its older flat-Type assumptions still need reconciliation.
+Neither is a replacement for the current canonical BDP contract until adopted.
 
-There are three distinct evidence levels. **Existing** means inspected ordinary
-Beads behavior; **Pending preview** means code in the unmerged consolidation PR;
-**Proposed** means the shared BDP representation or rule recommended here. A source
-observation is not an installed-runtime test or release qualification.
+## 1. Preview 2 evidence and status
 
-| Source | Exact source inspected | What it establishes |
+**Inspected Preview 2** means the exact delivered candidate and corresponding
+source below, not upstream main or the old unmerged PR97 snapshot. **Proposed**
+means this document's new hierarchy/mapping. **Open** means no product ruling is
+inferred from observed behavior. Inspection is not fresh runtime qualification.
+
+| Evidence | Exact identity | What it establishes |
 | --- | --- | --- |
-| Ordinary Beads | [main at e6a891b](https://github.com/gastownhall/beads/tree/e6a891b9008cabf87a1133edb90829380116cfe9) | Current Issue fields, validators and native Dependency behavior; not a claim about every shipped release |
-| Pending Type consolidation | [donnabox/beads PR #97](https://github.com/donnabox/beads/pull/97), [head acf49fc](https://github.com/donnabox/beads/tree/acf49fc5bb418acabcbfe0c1a8009c2e98fcda16) | One Issue Type and one Dependency Type, dep_type property, native writer adapters; PR was open and unqualified for staging when checked |
-| BDP | [main at 627b560](https://github.com/gastownhall/bdp/blob/627b560c0daf1a76b292615718c86670255ac9af/docs/specs/bdp.md) | Current canonical protocol; proposed flat Types, OR constraints and nominal Type updates still require amendments |
-| Shared design | [Type lifecycle](../../docs/design/type-lifecycle-preview2.md), [Provenance V2](https://github.com/gastownhall/beads/issues/7510) | Proposed Type definitions and revision/activity provenance; not implemented by this draft |
+| Janet's integration source | [release/preview2-integration at b6f7115](https://github.com/donnabox/beads/tree/b6f7115adfd6b3da0055b8576c152d8d9456518a), tree 828a2ec229ac10d78e9683f1dbf446118d51cc44 | Current candidate selected from Janet's live ledger and verified remote ref |
+| Delivered PR106 build | bin/bd SHA256 0d42c7079cb510dfc4e5d368017cceca09a8181b3f4e41b1e6e49c8014c4174c | Build in Janet's existing PR106 playground; provenance records release_approved:false; no shared database exercised |
+| Source audit | [Preview 2 field and behavior audit](../../docs/design/issue-dependency-preview2-audit-20261014.md) | Build/source binding, field inventory, source line citations and limitations |
+| Shared design | [Types](../types.md), [Provenance V2](https://github.com/gastownhall/beads/issues/7510) | Proposed semantic contracts; installed subsets and remaining decisions stay distinct |
 
-Primary implementation references used below:
+The source audit preserves the local evidence paths for reproducibility. An older
+candidate's checks are not relabeled as checks of this candidate. This document
+claims neither public release approval nor execution of the new Type design.
 
-- [Native Issue/Dependency structures and validation](https://github.com/gastownhall/beads/blob/e6a891b9008cabf87a1133edb90829380116cfe9/internal/types/types.go).
-- [Public Dependency contract](https://github.com/gastownhall/beads/blob/e6a891b9008cabf87a1133edb90829380116cfe9/issueops/dependencyeditor.go) and [native mutation implementation](https://github.com/gastownhall/beads/blob/e6a891b9008cabf87a1133edb90829380116cfe9/internal/storage/issueops/dependencies.go).
-- [Ready selection](https://github.com/gastownhall/beads/blob/e6a891b9008cabf87a1133edb90829380116cfe9/internal/storage/sqlbuild/ready.go) and [blocked-state evaluation](https://github.com/gastownhall/beads/blob/e6a891b9008cabf87a1133edb90829380116cfe9/internal/storage/issueops/blocked_state.go).
-- [Pending installed descriptors](https://github.com/donnabox/beads/blob/acf49fc5bb418acabcbfe0c1a8009c2e98fcda16/internal/storage/graphstore/schema.go), [Issue adapter](https://github.com/donnabox/beads/blob/acf49fc5bb418acabcbfe0c1a8009c2e98fcda16/internal/storage/graphstore/issues.go), and [Dependency adapter](https://github.com/donnabox/beads/blob/acf49fc5bb418acabcbfe0c1a8009c2e98fcda16/internal/storage/graphstore/dependencies.go).
-- [Issue update adapter](https://github.com/donnabox/beads/blob/acf49fc5bb418acabcbfe0c1a8009c2e98fcda16/internal/storage/graphstore/issue_update.go), [field representation checks](https://github.com/donnabox/beads/blob/acf49fc5bb418acabcbfe0c1a8009c2e98fcda16/internal/storage/graphstore/issue_field_representation.go), and [BDP Read projection](https://github.com/donnabox/beads/blob/acf49fc5bb418acabcbfe0c1a8009c2e98fcda16/internal/httpapi/graphread/reader.go).
+Primary implementation references at that exact candidate:
 
-BDP owns shared meanings, validation outcomes and versioning. Beads owns storage,
-indexes, native writer integration, CLI defaults and operator workflows. SQL tables,
-Go structs and helper names are evidence of current behavior, not the portable Type
-contract. Where this draft identifies a mismatch, it records a decision rather
-than silently changing the existing product.
+- [Issue/Dependency data definitions](https://github.com/donnabox/beads/blob/b6f7115adfd6b3da0055b8576c152d8d9456518a/internal/types/types.go).
+- [Installed descriptors](https://github.com/donnabox/beads/blob/b6f7115adfd6b3da0055b8576c152d8d9456518a/internal/storage/graphstore/schema.go), [Issue reads](https://github.com/donnabox/beads/blob/b6f7115adfd6b3da0055b8576c152d8d9456518a/internal/storage/graphstore/issues.go), [Issue updates](https://github.com/donnabox/beads/blob/b6f7115adfd6b3da0055b8576c152d8d9456518a/internal/storage/graphstore/issue_update.go), [Dependency adapter](https://github.com/donnabox/beads/blob/b6f7115adfd6b3da0055b8576c152d8d9456518a/internal/storage/graphstore/dependencies.go).
+- [Heartbeat adapter](https://github.com/donnabox/beads/blob/b6f7115adfd6b3da0055b8576c152d8d9456518a/internal/storage/graphstore/issue_lease.go) and [representation limits](https://github.com/donnabox/beads/blob/b6f7115adfd6b3da0055b8576c152d8d9456518a/internal/storage/graphstore/issue_field_representation.go).
 
-## 2. Identity and classification
+BDP owns shared meanings, validation outcomes and versioning. Beads owns CLI
+translation, storage, indexes and domain-operation implementation. A stored column,
+Go struct field or effective display label is not automatically a portable Type
+property or a new Type identity.
 
-| Concept | Shared model | Existing/pending representation |
-| --- | --- | --- |
-| Issue | One nominal Bead Type | Preview ID is Scope URL + types/preview-issue |
-| Issue classification | properties.issue_type | Native Issue.issue_type; task, bug and other values are not BDP Type identities |
-| Dependency | One nominal Link Type | PR97 ID is Scope URL + types/preview-dependency |
-| Dependency classification | properties.dep_type | Native dependencies.type; blocks and parent-child are values, not separate nominal Types |
-| Issue identity | Common canonical Bead ID | Native Issue ID also survives as properties.id in the inspected projection |
-| Dependency identity | Common canonical Link ID | Preview allocates it independently; native pair-derived row ID is its backing key |
-| Definition version | Exact pin on intrinsic type reference, proposed | Preview currently has fixed installed descriptors and unpinned Type URLs |
+## 2. Type hierarchy and legacy translation
 
-`Issue` and `Dependency` below abbreviate exact nominal Type identities, not URL
-prefixes or conformance families. Examples use publisher placeholders
-`https://example.org/beads-types/issue` and `/dependency`; production identities,
-installation names and migration from Scope-local preview IDs remain unselected.
-Do not publish a preview path as the permanent global identity by accident.
+Names below are the existing lowercase classification names. Production global
+identities and exact definition revisions still need selecting. Placeholder URLs
+in examples are not registry assignments or derivable from native short names.
 
-The proposed Type model pins a definition on each saved Resource revision. An
-explicit Type update may select a new definition or another nominal Type, subject
-to shared validation and migration rules. Omission preserves the exact affiliation.
-This draft does not grant arbitrary conversion out of the specialized Issue or
-Dependency adapter. That requires the shared migration design in §7.
+```text
+Bead Type issue
+    task, bug, feature, epic, chore, decision, message, molecule,
+    gate, spike, story, milestone, event  -- each conforms to issue
 
-Changing issue_type or dep_type is conceptually distinct from changing nominal
-Type. Existing Issue classification remains configurable. A decision Issue is
-still a work record; it does not become a decision Memory or inherit Memory fields.
-Dependency(kind=related) remains distinct from a generic informational Related
-Link or the proposed MemoryRelated Type.
+Link Type dependency
+    blocks, parent-child, conditional-blocks, waits-for, related,
+    discovered-from, replies-to, relates-to, duplicates, supersedes,
+    authored-by, assigned-to, approved-by, attests, tracks, until,
+    caused-by, validates, delegated-from -- each conforms to dependency
+```
+
+The catalog inventories existing built-in names, including internal `event`.
+Each child declaration pins its base definition revision. It inherits the base's
+schema, semantics and applicable graph constraints. No additional parent relation
+between these children is inferred. For example, `parent-child` does not conform
+to `blocks` merely because both affect readiness.
+
+| Observed Preview 2 | Proposed mapping |
+| --- | --- |
+| One nominal preview-issue Type; properties.issue_type=task | Intrinsic Type is task, whose definition conforms to issue; no properties.issue_type |
+| One nominal preview-dependency Type; properties.dep_type=blocks | Intrinsic Type is blocks, whose definition conforms to dependency; no properties.dep_type |
+| Existing native issue_type and dependencies.type columns | May remain storage details; adapter translates both reads and writes |
+| Generic native classification editing | Becomes an explicit nominal Type change in the graph contract, with resulting-state and workflow validation |
+| Existing effective type/kind display | Presentation of the current catalog, not evidence of installed conformance or pinned definition support |
+
+`issue` and `dependency` membership queries must include conforming children.
+An exact nominal query for task remains distinct from a query for everything
+conforming to issue. The shared query syntax is open. Installing a Type or giving
+it a familiar display name does not confer membership without a declaration.
+
+The base Types need not freeze the list of permitted children. Existing custom
+Issue classifications and arbitrary valid dependency labels still need a stable,
+authorized mapping to definitions. The adapter must not invent global IDs from
+suffixes, silently fall back to the base, or discard an unknown classification.
+Whether base issue/dependency are directly instantiable, how ordinary create
+chooses its concrete Type, and how custom definitions are provisioned are OPEN.
+Existing native defaults are evidence for that decision, not automatically chosen
+new defaults.
+
+The proposed graph representation has one classification authority: `type`.
+Compatibility input handling for simultaneous old discriminator and new Type
+inputs needs an explicit contract; it must not store two independently editable
+values. Historical stored representations retain their original meaning and pins;
+an adapter mapping is not permission to rewrite old revisions in place.
+
+A decision Issue remains a work record, not a decision Memory. The dependency
+child `related` is not the preview's standalone informational Related Link or
+MemoryRelated. Similarly `supersedes` retains the work-domain meaning below.
+Use distinct canonical identities even where human-readable names overlap. In
+the inspected CLI, related selects the native Dependency kind, while
+preview-related-memory (also preview-related) selects the informational Type.
+Human bd types lists 14 Bead and 22 Link selectors without custom additions;
+JSON/details exposes six installed definitions, not a conformance hierarchy.
 
 ## 3. Issue data and validation
 
@@ -85,7 +124,6 @@ record does not by itself authorize bypassing native lifecycle operations.
 | design | Existing design text |
 | acceptance_criteria | Existing acceptance text |
 | notes | Existing notes text; append and replacement are distinct operations |
-| issue_type | Existing work classification; built-in or configured custom value |
 | status | Existing workflow status; built-in or configured custom value |
 | priority | Integer 0–4; zero is P0, not absence |
 | assignee | Existing assignment string; empty/unset assignment and active transfer rules remain native behavior |
@@ -124,14 +162,24 @@ explicit P0 is preserved. Saved-state schemas must not apply create defaults to
 old reads or ordinary updates. V2 authenticated attribution will need an explicit
 migration from these existing writer-supplied conventions.
 
-### 3.2 Classifications and statuses
+### 3.2 Existing classification and status behavior
 
 The inspected native work classifications are bug, feature, task, epic, chore,
 decision, message, molecule, gate, spike, story and milestone. Internal event is
 also admitted by built-in/custom validation, although excluded from the ordinary
 work-type list. Other classifications use the existing types.custom configuration.
 Alias normalization is authoring behavior (for example enhancement/feat→feature),
-not an additional nominal Type or a reason to reinterpret saved history.
+not an additional canonical Type identity or a reason to reinterpret saved history.
+The proposed adapter maps the normalized classification to its registered Type.
+
+Existing description-template guidance is also classification-specific. The
+[RequiredSections source](https://github.com/donnabox/beads/blob/b6f7115adfd6b3da0055b8576c152d8d9456518a/internal/types/types.go#L866)
+associates bug with Steps to Reproduce and Acceptance Criteria; task/feature/story
+with Acceptance Criteria; epic with Success Criteria; decision with Decision,
+Rationale and Alternatives Considered; spike with Goal and Findings. Other built-in
+classifications have no recommended headings in that function. Preserve these
+existing lint/explicit-validation behaviors; do not turn every recommended Markdown
+heading into an unconditional required JSON property or saved-state schema rule.
 
 Built-in statuses are open, in_progress, blocked, deferred, closed, pinned and
 hooked. Existing custom-status configuration supplies names and behavioral
@@ -140,7 +188,7 @@ These are existing product concepts; this draft does not invent a new state mach
 
 A fixed enum listing only built-ins would reject valid configured values. A bare
 string schema, however, cannot express configuration-dependent admission or
-behavior. The Type Bead design must distinguish the immutable Type contract from
+behavior. The shared Type design must distinguish the immutable Type contract from
 an explicit Scope policy/configuration dependency. The definition must not change
 meaning silently when a local status category is edited (§9).
 
@@ -167,15 +215,34 @@ boundary. Preserve existing data while making its role explicit:
 | revision/row lock/history ordinal | Different existing concurrency/history mechanisms | Common graph revision is opaque; never substitute an internal ordinal or partially covering native row-lock token for a portable exact revision |
 
 The inspected preview intentionally returns live lease fields on current Issue
-reads while keeping the same graph revision; it excludes those fields when
-checking current durable state against the retained snapshot. A heartbeat does
-not mint Issue History. This is a real boundary to resolve, not evidence that
-any bytes returned under a revision are necessarily immutable. A proposed complete
-BDP revision needs a stable state portion and an explicitly separate operational
-observation; this draft does not choose a new envelope member for that split.
+reads while retaining the same durable graph revision. `heartbeat_at` is not
+merely computed from the clock: it is stored in the separate ephemeral, node-local
+`leases` table and hydrated into the current Issue response. The heartbeat adapter
+renews that lease and verifies that the graph revision did not change. Retained
+snapshot comparison excludes live lease drift by substituting the retained lease
+values before comparison.
 
-Additional existing fields must survive a full adoption inventory. They are not
-silently dropped or converted to new nominal Types by this specification:
+The richer ordinary detail view also computes parent, dependency/dependent/comment
+counts, unresolved-reference summaries and epic progress/closeability. Those are
+view results, not additional authored properties. The source audit inventories the
+exact detail fields separately from the 56-field native Issue struct.
+
+`is_blocked` is different: it is a derived, persisted scheduling projection. A
+field may be stored but not caller-writable, computed and then persisted, or
+hydrated from separate operational state. These are independent axes.
+
+**OPEN — observation and revision contract.** No new representation or revision
+policy is selected here. Options to discuss include a separate operational view,
+explicit observation fields alongside immutable state, or recording operational
+changes as revisions. A query observing a new heartbeat must not be assumed to
+mint a revision merely because it returns different data. If revisions are chosen,
+we must decide whether the underlying operation or a read creates them, and how
+that interacts with immutable pins, caching, replicas and high-frequency updates.
+No such change is implied by this document's classification mapping.
+
+Additional existing fields must survive adoption. Apart from the explicitly
+selected classification-to-Type mapping, they are not silently dropped or
+converted to new nominal Types by this specification:
 
 | Existing group | Native JSON fields / concepts | Adoption boundary |
 | --- | --- | --- |
@@ -192,7 +259,43 @@ Internal fields with no JSON representation (routing hints, content hash, row
 lock and hydration flags) are not added as public Type properties. No total
 Issue-parity claim is made until these groups and their command paths are mapped.
 
-### 3.4 Reviewable core properties schema
+### 3.4 Observed write surfaces
+
+The current installed descriptors do not supply a complete properties schema.
+The table below comes from the actual Preview 2 decoders and native adapter paths,
+not from assuming every serialized field has a setter.
+
+| Surface | Admitted fields or behavior in inspected Preview 2 |
+| --- | --- |
+| Generic Issue create properties | title, description, priority, issue_type, design, acceptance_criteria, notes, spec_id, assignee, labels, estimated_minutes, external_ref, due_at |
+| Generic Issue update/properties patch | title, description, design, acceptance_criteria, notes, spec_id, assignee, priority, estimated_minutes, external_ref, due_at |
+| Status, labels, claim/heartbeat and lifecycle | Separate domain command/adapter paths; inclusion in a read record is not permission for a generic patch |
+| Generic Dependency create | Current dep_type discriminator plus common endpoint/identity inputs; proposed mapping replaces that discriminator with concrete Type selection |
+| Generic Dependency properties/metadata update | Not implemented by the inspected adapter |
+| Observed complete Issue graph read | Native Issue projection, with metadata moved to envelope and Dependencies represented as Links/ownedLinks; comments are not hydrated on this path |
+
+The observed create-only issue_type entry above is historical/current input
+evidence, not an exception allowing it in proposed properties. The new adapter
+must derive the native classification from the concrete Type reference. Broader
+ordinary Issue command behavior remains valid evidence of product requirements,
+but does not establish equivalent generic graph-write support.
+
+**OPEN — properties replacement.** Current Preview 2 Issue replacement operates
+on its eleven-field writable projection, not on every field emitted by an Issue
+read. It requires title and priority, clears omitted writable strings to empty
+and nullable estimate/external_ref/due to null, and preserves nonwritable state
+through the native patch. This differs from the shared draft's literal whole-
+properties replacement rule. We must reconcile generated/read-only fields and the
+replacement boundary before claiming the new Issue Type contract is implemented.
+This draft does not silently change the command or declare that discrepancy solved.
+
+Writability belongs to a particular operation and surface; it is not inferred
+from a JSON type or from whether a value happens to be stored. Exact common-field
+write annotations, derived read schemas and the observation boundary are still
+Type-system decisions. The full native field inventory and command/source evidence
+are in the companion audit.
+
+### 3.5 Reviewable core properties schema
 
 This is a **core fragment**, not a complete installable Issue definition or proof
 of native write admissibility. It records common structural checks without
@@ -205,7 +308,8 @@ surface semantics; the fragment does not apply authoring defaults.
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["id", "title", "issue_type", "status", "priority"],
+  "required": ["id", "title", "status", "priority"],
+  "not": {"required": ["issue_type"]},
   "properties": {
     "id": {"type": "string", "minLength": 1},
     "title": {"type": "string", "minLength": 1},
@@ -213,7 +317,6 @@ surface semantics; the fragment does not apply authoring defaults.
     "design": {"type": "string"},
     "acceptance_criteria": {"type": "string"},
     "notes": {"type": "string"},
-    "issue_type": {"type": "string", "minLength": 1},
     "status": {"type": "string", "minLength": 1},
     "priority": {"type": "integer", "minimum": 0, "maximum": 4},
     "assignee": {"type": "string", "maxLength": 255},
@@ -231,7 +334,10 @@ surface semantics; the fragment does not apply authoring defaults.
 }
 ```
 
-Unknown top-level properties remain legal in the shared open-root model. Current
+Unknown properties remain legal in the shared open-root model, except the
+removed issue_type discriminator. The explicit prohibition prevents an accidental
+second classification authority. Derived work Types inherit this common schema;
+no new subtype-specific field requirements are invented here. Current
 native storage and command writers accept bounded field sets, not arbitrary
 new persisted properties. That gap must be resolved with preservation support
 or an honest supported-write boundary before claiming this fragment is a fully
@@ -252,7 +358,7 @@ its ordered pair. The preview additionally allocates a canonical Link identity.
 A portable Link ID must not be reconstructed from a title, native row ID or an
 assumption that all Link Types prohibit parallel edges.
 
-**Existing/pending rule:** at most one native Dependency exists for an ordered
+**Inspected Preview 2 rule:** at most one native Dependency exists for an ordered
 Issue pair, across all dep_type values. A→B and B→A are different pairs, subject
 to the applicable cycle/hierarchy rules. This is neither a global maximum of one
 outgoing Dependency nor one maximum for each kind. It does not prohibit a separate
@@ -262,33 +368,36 @@ informational Link alongside the Dependency.
 
 | Item | Mapping and behavior |
 | --- | --- |
-| dep_type | Required saved string, mirrors native Dependency.type; the proposed discriminator is not renamed kind |
+| Classification | Proposed intrinsic Type reference; dep_type is removed from properties and translated to/from native Dependency.type |
 | source/target | Common Link reference members, not duplicate properties |
 | metadata | Native edge metadata carries application and sometimes workflow data; shared common-metadata mapping requires explicit preservation |
 | thread_id | Existing conversation grouping field; portable placement is unresolved and must not be discarded |
 | created_at/created_by | Existing row creation facts; migration into/alongside V2 needs a defined attribution mapping |
 
-Native Dependency.IsValid accepts a nonempty kind of at most 32 bytes. The preview
+Native DependencyType.IsValid accepts a nonempty kind of at most 32 bytes. The preview
 also checks UTF-8; an omitted create kind defaults to blocks. Unknown values can
-be valid without being built-in. Some user-facing commands deliberately accept
-only well-known kinds, so do not generalize one command's whitelist to the Type.
+be valid without being built-in. Both current graph CLI routes, bd dep add and bd link create, accept only
+well-known kinds even though the storage adapter accepts more. Their help is not
+proof of broader admission; the audit identifies the executable gates.
 No scheduling or hierarchy effect is inferred for an unfamiliar value.
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["dep_type"],
-  "properties": {
-    "dep_type": {"type": "string", "minLength": 1}
-  },
+  "not": {"required": ["dep_type"]},
+  "properties": {},
   "additionalProperties": true
 }
 ```
 
-The 32-byte admission bound is separate from this schema fragment. The pending
-preview exposes dep_type only, common metadata as an empty object, and no generic
-Dependency properties/metadata editor. Native Beads can already carry edge metadata
+The 32-byte admission bound applies to the native classification label and its
+adapter mapping; it is not a bound on the global Type URI. The inspected preview
+exposes dep_type only, common metadata as an empty object, and no generic
+Dependency properties/metadata editor. After the selected mapping, there are no
+remaining currently projected Dependency-specific properties, so the proposed
+core properties object can be empty. It deliberately forbids dep_type.
+Native Beads can already carry edge metadata
 and thread_id. This is a preview limitation, not evidence that those existing
 requirements can be omitted from the eventual Type specification.
 
@@ -306,12 +415,14 @@ handling of malformed/non-object historical values, never silent loss.
 
 | Surface / target | Source | Target | Pin / external behavior |
 | --- | --- | --- | --- |
-| Pending PR97 graph Dependency | Live local durable Issue | Live local durable Issue | Floating endpoints only; external references refused |
+| Inspected Preview 2 graph Dependency | Live local durable Issue | Live local durable Issue | Floating endpoints only; external references refused |
 | Existing ordinary Beads | Existing native Issue | Local Issue, or certain external/cross-repository references under existing rules | Native references are not BDP revision pins; known absent local targets are rejected |
-| Recommended first portable Dependency contract | [Issue] | [Issue] | Preserve the local floating graph rule initially; remote and pinned workflow semantics require a separate decision |
+| Proposed initial portable Dependency boundary | conforms to issue | conforms to issue | Preserve the local floating graph rule initially; remote and pinned workflow semantics require a separate decision |
 
-No conformance relation or per-kind endpoint dispatch is needed for the two
-nominal Issue endpoint selections. Both must pass; Memory is not an Issue.
+Both endpoints must satisfy issue, directly or through pinned transitive
+conformance (task, bug and the other children qualify). Per-child endpoint
+restrictions, if any are later needed, conjoin with these base rules. Merely being
+a Memory or sharing Issue-shaped properties does not establish issue conformance.
 Self-dependencies are rejected. Ordinary external capability references cannot
 use parent-child, and dotted-child/ancestor restrictions remain part of existing
 admission. A textual remote target is not proof of an observed remote Type.
@@ -328,13 +439,17 @@ unknown availability, Type expectations, cycle scope and scheduling observation.
 Do not convert external: identifiers into guessed Scope URLs or claim existing
 native external support is already portable BDP federation.
 
-## 5. Existing kinds and workflow behavior
+## 5. Dependency child Types and existing workflow behavior
 
-The current built-in list contains nineteen Dependency kinds. These are one
-Type's values. Classification into scheduling roles below is not a new Type
-hierarchy and is not a universal rule for other catalogs.
+The inspected built-in list contains nineteen Dependency kinds. The proposal
+represents each as a Type conforming to dependency. Their behavioral differences
+remain the existing ones below; conformance to the base does not make every child
+a blocker. No additional hierarchy or new workflow is inferred.
+The child definitions inherit the dependency properties schema; this draft does
+not add per-child discriminator properties or invent additional fields. Existing
+metadata-sensitive behavior remains part of the relevant child's semantic promise.
 
-| dep_type | Existing role to preserve |
+| Proposed child Type | Existing role to preserve |
 | --- | --- |
 | blocks | Hard prerequisite; source depends on target |
 | parent-child | Child→parent hierarchy; participates in readiness propagation but is not an ordinary hard-blocking edge |
@@ -362,7 +477,7 @@ algorithm also depends on Issue statuses, parent chains, gate metadata and polic
 It cannot be represented by endpoint Type lists plus maximum counts. Keep existing
 mixed-cycle and hierarchy checks; do not replace them with a blanket prohibition
 on every possible graph cycle. Non-scheduling associations do not become blocking
-merely because they share Dependency's nominal identity.
+merely because they conform to dependency.
 
 `ready` is not simply status=open or zero outgoing Links. Its current selection
 uses blocked-state projection, status/category rules, defer time, context markers,
@@ -372,17 +487,21 @@ this draft does not attempt to replace the detailed scheduler with a new short
 formula. Standalone portable scheduling specification is still needed for a BDP
 implementation claiming equivalent workflow behavior.
 
-The existing [bd supersede command](https://github.com/gastownhall/beads/blob/e6a891b9008cabf87a1133edb90829380116cfe9/docs/cli-reference/supersede.md)
+The existing [bd supersede command](https://github.com/donnabox/beads/blob/b6f7115adfd6b3da0055b8576c152d8d9456518a/docs/cli-reference/supersede.md)
 closes the superseded Issue with a reference to its replacement. That is a command
 workflow, not permission to close an Issue merely because a generic Link create
-contains dep_type=supersedes. The preview descriptor expressly does not authorize
+selects the supersedes Type. The preview descriptor expressly does not authorize
 edge-plus-close. Nor is it equivalent to MemorySupersedes, whose proposal has no
 automatic retirement. Preserve the exact native operation's direction and effects
 when writing its adapter; do not infer them from an English verb.
 
 ## 6. Ownership, mutation and history
 
-Issue owns its outgoing Dependency Links. It does **not** acquire Memory's wildcard
+The proposed issue base owns its outgoing Links satisfying dependency, including
+blocks, parent-child and the other conforming children. The current preview owns
+the single nominal preview-dependency Type. That ownership selector must be
+updated with the hierarchy; exact base-ID equality would lose child Links.
+It does **not** acquire Memory's wildcard
 ownership of all outgoing Link Types. In the inspected preview an Issue-source
 informational Related Link is unowned, while a Memory-source informational Link
 is owned by Memory. Installing another Link Type does not silently change Issue
@@ -401,7 +520,7 @@ without a canonical mapping nor an advertised Link without its backing state.
 
 Repeated writes need a precise contract, not merely the word idempotent:
 
-| Attempt | Existing native behavior | Pending graph adapter |
+| Attempt | Existing native behavior | Inspected Preview 2 adapter |
 | --- | --- | --- |
 | Same pair, same kind, no durable data change | No new durable change/history | Existing Link returned unchanged |
 | Same pair, same kind, metadata or thread changes | Native path can update the row and source history | No such inputs admitted; reassertion returns the existing Link unchanged |
@@ -411,12 +530,14 @@ Repeated writes need a precise contract, not merely the word idempotent:
 Native thread omission preserves a stored thread rather than clearing it.
 These distinctions matter for import and retry adapters.
 
-A future explicit dep_type edit would remain within the same nominal Dependency
-Type, but must rerun scheduling, hierarchy, pair and metadata rules. The inspected
-generic graph update path does not implement that operation. Adding it is a
-separate capability decision, not an automatic consequence of an open properties
-schema. Delete-old/create-new in a valid ordered atomic batch can replace a pair;
-it does not by itself preserve the old canonical Link identity.
+Under this proposal, changing blocks to parent-child is an explicit Type change,
+not an edit to dep_type. It must rerun scheduling, hierarchy, pair and metadata
+rules and preserve native/catalog consistency. The inspected generic graph update
+path does not implement this operation. An open schema or conformance declaration
+does not supply that writer. Delete-old/create-new in a supported atomic batch
+can replace a relationship but need not preserve its canonical Link identity.
+The new shared design validates arity at commit; timing of pair uniqueness and
+other domain checks remains a separate decision.
 
 Current preview deletion refuses incident Links and requires explicit unlink;
 it reserves deleted identities and retains earlier snapshots. The Memory proposal's
@@ -428,22 +549,28 @@ V2 revisionProvenance is the proposed destination for common revision writer,
 commit time, assisting agent, message and sources. Activity records remain a
 separate externally defined Bead Type. Native creation/close/session fields and
 historical unknown values need a migration mapping; no actor authenticity can
-be inferred from an existing string field. Lease heartbeat is not a provenance
-revision, and a claimed assignment is not proof of the writer's identity.
+be inferred from an existing string field. The current heartbeat path creates
+no durable graph revision; the future
+observation/revision contract is open. A claimed assignment is not proof of the
+writer's identity.
 
 ## 7. Explicit nominal Type changes
 
-The Memory work now assumes explicit Type changes may preserve identity. Issue
+Explicit Type changes may preserve identity under the shared design. Issue
 and Dependency make the limits concrete:
 
-- GenericBead→Issue needs valid Issue state, native identity mapping, lifecycle
+- task→bug keeps issue membership but changes exact nominal affiliation and
+  native classification. Preserve earlier revisions and owned Dependencies;
+  validate the target definition and affected workflow atomically. No generic
+  subtype write support is inferred from the current preview.
+- GenericBead→an issue child needs valid Issue state, native identity mapping, lifecycle
   capability, configured classification/status admission, and the correct owned
   Dependency set. Copying a few JSON fields is insufficient.
 - Issue→Memory needs validation of affected floating Dependencies. Any that still
   require Issue must be repaired or the transition refused. Existing pinned
   citations retain the earlier Issue state. Owned-set and operational-state
   transitions need explicit rules; this is not implemented by either adapter.
-- GenericLink→Dependency needs valid local Issue endpoints, pair uniqueness,
+- GenericLink→a dependency child needs valid local Issue endpoints, pair uniqueness,
   cycle/hierarchy checks, metadata interpretation and source History integration.
 - Dependency→informational Link changes both workflow participation and potentially
   source ownership. Recompute affected workflow state and preserve earlier
@@ -451,9 +578,10 @@ and Dependency make the limits concrete:
 
 Every old revision keeps its original exact Type and state. Current queries use
 the current revision's affiliation. Type updates do not automatically alter
-reference pins or remote Scope tables. Ordered atomic batch can help when a valid
-staged sequence exists; it does not waive intermediate validity or guarantee
-that every ownership-changing migration can be expressed today.
+reference pins or remote Scope tables. The shared draft now permits temporary arity violations inside atomic batch
+and validates final arity. This does not promise that every other domain check
+is deferred or that today's Preview 2 implements arbitrary ownership-changing
+migrations. Type-to-native mapping must change atomically with the graph state.
 
 ## 8. Worked representation and acceptance cases
 
@@ -463,12 +591,11 @@ current preview wire syntax.
 
 ```json
 {
-  "type": {"uri": "https://example.org/beads-types/issue", "revision": "issue-definition-1"},
+  "type": {"uri": "https://example.org/beads-types/task", "revision": "task-definition-1"},
   "properties": {
     "id": "bd-repair",
     "title": "Replace the pump seal",
     "description": "Repair the leak before returning the pump to service.",
-    "issue_type": "task",
     "status": "open",
     "priority": 1,
     "assignee": "sam"
@@ -479,13 +606,18 @@ current preview wire syntax.
 
 ```json
 {
-  "type": {"uri": "https://example.org/beads-types/dependency", "revision": "dependency-definition-1"},
+  "type": {"uri": "https://example.org/beads-types/blocks", "revision": "blocks-definition-1"},
   "source": "https://example.org/work/beads/bd-repair",
   "target": "https://example.org/work/beads/bd-delivery",
-  "properties": {"dep_type": "blocks"},
+  "properties": {},
   "metadata": {}
 }
 ```
+
+The task definition in the first example pins its conformance to issue; blocks
+in the second pins its conformance to dependency. These definition declarations
+are not duplicated on instance records. Production IDs and pin syntax still need
+the shared definition format.
 
 Repair depends on delivery; delivery blocks repair. A separate MemoryGuidance
 Link may point from repair to a procedure Memory. It is not a Dependency and
@@ -499,38 +631,51 @@ The following are design acceptance cases, not executed product tests:
 | I01 | Issue priority zero | Preserve P0, not absent/default |
 | I02 | Empty title | Reject; do not import Memory's derived-title behavior |
 | I03 | 300 two-byte characters in title | Reject native 500-byte bound despite passing maxLength=500 |
-| I04 | Configured custom issue_type/status | Preserve existing admission; do not freeze a built-in-only enum |
+| I04 | Configured custom native classification/status | Preserve requirement; classification needs registered Type mapping, status remains policy-sensitive |
 | I05 | status=closed without closed_at | Reject under native validator; do not infer timestamp on a raw saved-state read |
 | I06 | Custom done-category status | Apply its actual contract; do not pretend it equals literal closed |
-| I07 | Heartbeat advances lease time | No durable Issue revision solely for heartbeat; expose operational observation distinctly |
+| I07 | Heartbeat advances lease time | Existing build keeps graph revision; future observation placement/revision behavior remains OPEN |
 | I08 | Source Issue adds Dependency | Link and source owned state/history change atomically |
 | I09 | Issue adds informational Related | Do not acquire wildcard ownership or scheduling effect |
 | I10 | New arbitrary Issue property | Open-root schema is insufficient; writer preservation/admission support must be declared |
+| I11 | Current --replace-properties omits nonwritable Issue fields | Existing writable-projection replacement preserves them; shared whole-properties replacement boundary requires explicit reconciliation |
 | D01 | Add blocks A→B | A depends on B; B is prerequisite |
 | D02 | Add parent-child C→P | C is child, P parent; preserve hierarchy validation |
 | D03 | Add same pair/same kind unchanged | No new Link or source revision |
 | D04 | Add same pair/different kind | Conflict; no second Dependency slot |
 | D05 | Native same-kind re-add changes metadata | Preserve mutation/history semantics; preview cannot claim this editor |
 | D06 | Add different pairs A→B and A→C | Pair uniqueness alone permits both; applicable total maxima and workflow checks still apply |
-| D07 | Dependency endpoint is Memory | Reject nominal endpoint mismatch |
-| D08 | Dependency targets exact old Issue revision | Pending graph contract refuses; portable workflow pin behavior undecided |
-| D09 | Unknown valid short dep_type | May be valid at native/preview admission; no inferred scheduling effect; individual CLI whitelist can differ |
+| D07 | Dependency endpoint has no issue conformance | Reject endpoint mismatch; task/bug children qualify |
+| D08 | Dependency targets exact old Issue revision | Current graph contract refuses; portable workflow pin behavior undecided |
+| D09 | Unknown valid short dependency classification | Existing admission may accept; proposed mapping needs a defined Type, never a guessed URI or invented scheduling effect |
 | D10 | Self-edge or prohibited mixed scheduling cycle | Reject atomically through domain validation, not endpoint lists alone |
 | D11 | Native waits-for metadata also_blocks=true | Preserve both gate and carried blocking semantics; not opaque discardable metadata |
 | D12 | Add informational supersedes relation | Do not infer a close operation; bd supersede is a separate workflow |
 | D13 | Attempt second pair edge with another nominal definition revision | A new definition pin must not evade pair uniqueness |
+| D14 | Custom dependency label through current graph CLI | Both dep add and link create reject unknown kinds despite wider storage admission; proposed mapping must distinguish surfaces |
 | T01 | Issue→Memory with floating incoming Dependency | Refuse unless explicit valid repair is part of the transition |
 | T02 | GenericLink→Dependency collides with occupied pair | Reject atomically; kind label or a fresh Link ID creates no extra slot |
 | T03 | Dependency retyped to informational Link | No hidden native blocker remains; shared atomic migration capability required |
 | T04 | Install revised Type definition | Existing instances retain exact affiliation; no implicit migration |
+| T05 | Read a native task as the proposed graph record | task Type pin; no issue_type property; issue membership follows declared conformance |
+| T06 | Read native blocks as the proposed graph Link | blocks Type pin; no dep_type property; endpoints and direction unchanged |
+| T07 | Query for objects satisfying issue or dependency | Include conforming child Types; exact base nominal equality is insufficient |
+| T08 | Update task to bug | Explicit Type update plus native-classification change atomically; no independently editable discriminator |
+| T09 | Replace task properties with an issue_type member | Proposed schema rejects the duplicate classification field |
+| T10 | Replace blocks properties with dep_type | Proposed schema rejects the duplicate classification field |
+| T11 | Same pair has blocks then attempts parent-child | Preserve dependency-wide uniqueness across child Types and pins |
+| T12 | Ownership evaluates an Issue source's outgoing blocks Link | Count/own through dependency conformance, not only exact base ID |
+| T13 | Historical record predates the hierarchy | Preserve original representation meaning; conversion requires explicit compatibility mapping |
+| T14 | Only heartbeat observations change between reads | Observe existing same-revision behavior; do not infer a selected future query-time revision policy |
+| T15 | A custom native classification has no registered Type mapping | Explicit unresolved-mapping outcome needed; no silent fallback or guessed global identity |
 
-## 9. What this teaches us about the Type Bead
+## 9. What this teaches us about the shared Type system
 
 | Finding | Issue/Dependency evidence | Consequence for Type design |
 | --- | --- | --- |
-| A discriminator may affect behavior | dep_type selects scheduling; issue_type/status select product paths | A kind is not necessarily a display label; using one does not require nominal inheritance |
+| Classification becomes Type affiliation | Native issue_type and Dependency.type select domain behavior | Explicit type mapping and subtype registration must preserve those behaviors without duplicate property discriminators |
 | Pair uniqueness differs from endpoint arity | One Dependency per ordered pair, many pairs per Issue | Decide whether a reusable pair-key constraint belongs in BDP or remains a declared domain invariant; no new syntax selected here |
-| Graph validity is richer than endpoint Types | Mixed cycles, hierarchy and waits-for gates | Separate declarative shape/endpoint/count checks from domain operations; do not invent a universal workflow engine inside Type Beads |
+| Graph validity is richer than endpoint Types | Mixed cycles, hierarchy and waits-for gates | Separate declarative shape/endpoint/count checks from domain operations; do not invent a universal workflow engine inside Type definitions |
 | Metadata can be contractual | waits-for gate and also_blocks are read by scheduling | Do not define metadata as necessarily semantically inert; preserve legacy placement and state which validator owns it |
 | Shape validity is not write capability | Native adapters admit bounded fields and operations | A Type definition cannot imply every generic writer can persist or execute its contract |
 | Immutable revisions need a clear state boundary | Live lease fields vary under the same current graph revision | Distinguish durable versioned state from operational observations before claiming complete immutable representations |
@@ -539,7 +684,7 @@ The following are design acceptance cases, not executed product tests:
 | Type changes can transfer responsibility | Retyping Dependency changes workflow and Issue ownership | Require explicit adapter participation and atomic state migration, not just changing a type field |
 | Catalog installation is not implementation | Preview descriptors name contracts whose enforcement lives in native writers | Declare capability and enforcement obligations without falsely advertising executable behavior from a descriptor alone |
 
-These are inputs to the Type Bead specification, not decisions that every
+These are inputs to the shared Types specification, not decisions that every
 invariant becomes a new descriptor field. The immediate useful boundary is:
 the definition states the immutable meaning and requirements; supported services
 must say which operations they can honor and enforce those requirements. How
@@ -553,19 +698,20 @@ qualifies the capability; some underlying native functionality already exists.
 
 | Area | Design/source status | Remaining work |
 | --- | --- | --- |
-| One Issue / one Dependency with existing discriminators | Documented; PR97 implements the pending catalog shape | Production IDs, Type pins, installation/versioning and release acceptance |
+| issue/dependency bases with conforming classification Types | Selected design; differs from current singleton Preview 2 catalog | Production IDs, exact pins, custom registrations, adapter mapping and no duplicate discriminators |
 | Ordinary content, status and classification | Existing behavior inventoried; core schema fragment provided | Full durable-field schema and configuration-dependent validation contract |
 | Dependency direction, pair uniqueness and kind roles | Existing behavior documented | Portable invariant/admission encoding; no implicit new maximum syntax |
-| Local floating endpoints | Pending graph behavior documented and recommended initial boundary | Decide pins and remote workflow separately |
+| Local floating endpoints | Current graph behavior documented; proposed initial boundary | Decide pins and remote workflow separately |
 | Edge metadata/thread data | Existing native requirement; preview gap explicit | Lossless common-metadata/thread mapping and supported editors |
 | Ownership and source History | Source-backed preview behavior | Complete capability/History qualification and final limit policy |
 | Scheduling and lifecycle | Existing implementation remains behavioral baseline | Standalone portable operation specification and conformance cases; not replaced by schema fragments |
 | Revision provenance | External V2 direction | Legacy timestamp/actor mapping, authenticated service attribution and integration |
-| Leases and derived projections | Boundary problem identified | Stable revision versus operational observation representation |
+| Leases and derived projections | Stored heartbeat versus computed views distinguished | Observation placement and revision policy remain OPEN |
+| Properties replacement | Preview uses writable subset; shared draft says whole properties | Reconcile read-only/generated fields and preserve existing command behavior until a deliberate migration |
 | Explicit Type changes | Proposed use cases and refusal conditions | Migration/ownership/adapter transaction mechanism NYI here |
 | Beads CLI and storage | Existing writers are referenced, not rewritten | Command parity and migration belong to their workstreams |
 
 This draft is ready to mark up beside Memory. It is intentionally not advertised
 as a complete installable Type package or full product parity: the unresolved
 mapping of operational fields, edge metadata, configuration and domain operations
-is exactly what this exercise is meant to expose before we design the Type Bead.
+is exactly what this exercise is meant to expose while we complete the shared Type system.

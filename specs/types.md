@@ -7,9 +7,10 @@ that Beads implements these rules. The [current BDP specification](../docs/specs
 remains the protocol authority until coordinated amendments land.
 
 The [Issue and Dependency draft](types/issue.md) and [Memory draft](types/memory.md)
-provide requirements and acceptance scenarios. Their existing flat-Type assumptions
-must be reconciled with the conformance model here; this document does not silently
-reinterpret their endpoint lists. The earlier [Type lifecycle exploration](../docs/design/type-lifecycle-preview2.md)
+provide requirements and acceptance scenarios. Issue/Dependency now proposes
+classification Types conforming to issue/dependency. Memory still contains older
+flat-Type assumptions and needs explicit reconciliation; this document does not
+silently reinterpret its endpoint lists. The earlier [Type lifecycle exploration](../docs/design/type-lifecycle-preview2.md)
 is background. Where it conflicts, this document records the current design
 position, including that representing definitions as Beads remains undecided.
 
@@ -424,11 +425,15 @@ Other Type-system work:
   operation behavior during transitions.
 - Compatibility families and publication claims, including semantic changes.
 
-Issue/Dependency exercises pair uniqueness, workflow-sensitive metadata and
-ownership. Memory exercises reusable content, heterogeneous endpoints, pinned
+Issue/Dependency exercises pair uniqueness, workflow-sensitive metadata,
+classification-to-Type translation, computed/live observations and ownership. Memory exercises reusable content, heterogeneous endpoints, pinned
 citations and reference availability. Use these as requirements, not automatic
 precedent. Keep their domain semantics and the Provenance V2 proposal intact while
 reviewing shared Type mechanisms.
+
+The [completion decision list](../docs/design/types-completion-decisions-20261014.md)
+collects unresolved questions and consistency work, including Memory updates held
+for user review. It supplies no additional normative rules.
 
 ## 8. Readiness and landing
 
