@@ -1713,7 +1713,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         const context = readContext(),
           head = Number(context.scopePosition.slice(4)),
           start = checkpointPosition(scope, context, after);
-        if (start > head) throw new TransactionChangefeedParameterError();
+        if (start > head) throw new TransactionChangefeedParameterError(undefined, context);
         // Under this no-pruning owner every positive position through head was
         // committed. Its absent row is corruption, not a never-issued cursor.
         if (start > 0 && !db.prepare("SELECT position FROM groups WHERE position=?").get(start))

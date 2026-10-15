@@ -26,7 +26,14 @@ export const TRANSACTION_CHANGEFEED_BYTES =
 if (TRANSACTION_CHANGEFEED_BYTES >= constants.MAX_STRING_LENGTH)
   throw new Error("transaction tuple cannot support whole-group serialization");
 
-export class TransactionChangefeedParameterError extends Error {}
+export class TransactionChangefeedParameterError extends Error {
+  constructor(
+    message?: string,
+    readonly context?: TransactionReadContext,
+  ) {
+    super(message);
+  }
+}
 export type TransactionChangefeedIntent = { readonly after: string } | { readonly start: "now" };
 export interface TransactionChangeGroup {
   readonly scopeEpoch: string;
@@ -53,12 +60,12 @@ export interface TransactionChangefeedPage {
 const checkpoint = /^cg_([A-Za-z0-9_-]{43})_([A-Za-z0-9_-]{43})_([1-9][0-9]*)$/;
 const tag = (...values: string[]) =>
   createHash("sha256").update(JSON.stringify(values)).digest("base64url");
-function parseCheckpoint(value: string) {
+function parseCheckpoint(value: string, context?: TransactionReadContext) {
   if (value === "genesis") return { position: 0 } as const;
   const match = value.length <= 256 ? checkpoint.exec(value) : null;
   const position = Number(match?.[3]);
   if (!match || !Number.isSafeInteger(position) || position < 1)
-    throw new TransactionChangefeedParameterError();
+    throw new TransactionChangefeedParameterError(undefined, context);
   return { position, epoch: match[1], view: match[2] } as const;
 }
 export function transactionCheckpoint(
@@ -76,7 +83,7 @@ export function checkpointPosition(
   context: TransactionReadContext,
   value: string,
 ): number {
-  const parsed = parseCheckpoint(value);
+  const parsed = parseCheckpoint(value, context);
   if (parsed.position === 0) return 0;
   if (parsed.epoch !== tag("epoch", scope, context.scopeEpoch))
     throw new TransactionMinimumFailure("cursor-expired", context);

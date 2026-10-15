@@ -609,10 +609,7 @@ export function createTransactionHttpHandler(
           error instanceof TransactionEventParameterError ||
           error instanceof TransactionChangefeedParameterError
         )
-          response = transactionHttpProblem(
-            "invalid-parameter",
-            error instanceof TransactionEventParameterError ? error.context : undefined,
-          );
+          response = transactionHttpProblem("invalid-parameter", error.context);
         else if (error instanceof TransactionEventProjectionGap)
           response = developmentGap(error.message);
         else if (error instanceof TransactionMinimumVisibilityGap)
