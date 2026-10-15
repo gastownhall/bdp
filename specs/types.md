@@ -209,6 +209,25 @@ not, by themselves, a cycle; diamond conformance remains permitted. This rule
 concerns conformance declarations, not recursive references within a JSON Schema.
 The required handling of repeated paths remains to specify.
 
+### 3.9 Conformance qualifiers may only tighten
+
+A qualifier or specialized conformance relationship may add requirements or
+stronger guarantees, but may not weaken the base conformance promise. Every valid
+source-Type instance must still satisfy the target Type's full structural and
+semantic contract, including any explicit behavioral promises.
+
+For example, a qualifier restricting price to at most 100 may become an additional
+enforced requirement of the source Type's effective definition. It may not leave
+higher-priced instances valid under that source Type while excluding them from
+its declared conformance. Evidence, review or confidence annotations do not relax
+the promise or turn membership into a probabilistic result.
+
+If conformance is represented by Links, a specialized Link Type that conforms to
+the base ConformsTo Link Type must preserve this same promise. This rule does not
+yet choose Links over descriptor fields or define qualifier syntax and execution.
+A consumer recognizing the base relationship can rely on the base promise; that
+does not imply it can validate additional requirements it does not understand.
+
 ## 4. Conformance is not revision compatibility
 
 A new revision is not automatically compatible with an old one. Review each
@@ -452,6 +471,9 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Instance is stored under this Types profile | Its Type reference pins an exact revision of a Type-definition Bead |
 | A Bead represents a Link-Type definition | The definition is a Bead; its described instances are Links; no cross-kind conformance follows |
 | T conforms to C | Every valid T record satisfies C's structure and semantics |
+| A conformance qualifier adds a price ceiling to T | Enforce the ceiling as part of T's effective contract; preserve every target-Type promise |
+| A qualifier leaves some valid T instances outside the declared target contract | Invalid as a conformance declaration; qualifiers cannot weaken or make membership conditional |
+| A specialized conformance relationship requires review evidence | It must still carry the full base conformance promise; evidence requirements do not replace it |
 | C requires title; T omits title from its local schema | Effective T still requires title |
 | C permits optional note; T requires note | Valid narrowing, subject to inherited behavioral promises |
 | C requires note; T's local schema makes it optional | Effective T still requires note |

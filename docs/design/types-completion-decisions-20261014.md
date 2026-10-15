@@ -22,6 +22,10 @@ not edited by this pass.
   definitions, the implementation resolves the complete available closure, and
   conformance cycles are forbidden. Different revisions of a common ancestor
   can both apply. Diamonds do not multiply a Link's count within one constraint.
+- Conformance qualifiers and specialized relationships may only tighten; every
+  valid source-Type instance must satisfy the target's full contract. Conditional
+  or probabilistic membership cannot substitute for conformance. Owned ConformsTo
+  Links versus descriptor fields remains a representation decision, not yet selected.
 - Disjoint allowed values for the same optional property permit omission, with a
   warning, if the remaining requirements permit it. Supplying the property fails
   validation. If either schema requires it, the effective definition is invalid.
