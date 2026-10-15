@@ -941,7 +941,9 @@ it("preserves one allocated effect and receipt across same-key singleton and bat
     }
     serialized = JSON.stringify(observation());
     if (Buffer.byteLength(serialized) + 1 <= 65536) console.log(serialized);
-    else
+    else {
+      reportOverflow = true;
+      addFailure(new Error("same-key report ceiling"));
       console.log(
         JSON.stringify({
           label: "private-installed-same-key-overlap",
@@ -952,6 +954,7 @@ it("preserves one allocated effect and receipt across same-key singleton and bat
           claimEligible: false,
         }),
       );
+    }
   }
   if (failures.length === 1) throw failures[0];
   if (failures.length) throw new AggregateError(failures, "same-key installed observation failed");
