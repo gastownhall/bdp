@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -4085,3 +4086,336 @@ it("serves current missing receipt root and page context without changing nondis
   if (failures.length > 1)
     throw new AggregateError(failures, "receipt context observation and cleanup failed");
 }, 60000);
+
+it("serves retained direct key conflicts before private depth and preserves fresh refusal", async () => {
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(new Error("depth-key work deadline")), 25000);
+  const cleanupStart = cleanup.length;
+  const failures: unknown[] = [];
+  const observations: Record<string, unknown>[] = [];
+  const receipts: Record<string, unknown>[] = [];
+  const resources: Record<string, unknown>[] = [];
+  let f: Awaited<ReturnType<typeof fixture>> | undefined;
+  let attempts = 0;
+  let cleanupCompleted = false;
+  let expectedContext: Record<string, string> | undefined;
+  const validCollection = ajv.compile({ $ref: `${schema.$id}#/$defs/currentBeadCollection` });
+  const validBead = ajv.compile({ $ref: `${schema.$id}#/$defs/currentBeadRecord` });
+  type Observed = { status: number; headers: Headers; text: string };
+  const checkedContext = (response: Observed, position: string) => {
+    if (!expectedContext) throw new Error("depth-key seed context missing");
+    expect(
+      Object.fromEntries([
+        ...Object.entries(expectedContext).map(([name]) => [name, response.headers.get(name)]),
+        ["bdp-scope-position", response.headers.get("bdp-scope-position")],
+      ]),
+    ).toEqual({ ...expectedContext, "bdp-scope-position": position });
+  };
+  async function exchange(
+    label: string,
+    url: string,
+    text?: string,
+    key?: string,
+    accept = "application/json",
+  ): Promise<Observed> {
+    if (!f) throw new Error("depth-key listener missing");
+    controller.signal.throwIfAborted();
+    expect(++attempts, "depth-key source request bound").toBeLessThanOrEqual(13);
+    const method = text === undefined ? "GET" : "POST";
+    const routes = [
+      ["POST", f.runtime.targets.batch],
+      ["POST", f.runtime.targets.createBead],
+      ["GET", `${f.runtime.scope}beads/depth-b-a`],
+      ["GET", `${f.runtime.scope}beads/depth-s-a`],
+      ["GET", `${f.runtime.scope}beads/?limit=32`],
+    ];
+    expect(
+      routes.some(([m, target]) => m === method && target === url),
+      "depth-key route binding",
+    ).toBe(true);
+    const headers = {
+      authorization: `Bearer ${token}`,
+      accept,
+      ...(text === undefined
+        ? {}
+        : { "content-type": "application/json", "idempotency-key": key ?? "" }),
+    };
+    expect(Buffer.byteLength(text ?? "")).toBeLessThanOrEqual(65536);
+    expect(
+      Object.entries(headers).reduce(
+        (sum, [name, value]) => sum + Buffer.byteLength(name + value) + 4,
+        0,
+      ),
+    ).toBeLessThanOrEqual(16384);
+    const request = new AbortController();
+    const timer = setTimeout(() => request.abort(new Error("depth-key request deadline")), 5000);
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let bodyComplete = false;
+    try {
+      const response = await fetch(url, {
+        method,
+        headers,
+        ...(text === undefined ? {} : { body: text }),
+        redirect: "error",
+        signal: AbortSignal.any([controller.signal, request.signal]),
+      });
+      expect(
+        [...response.headers].reduce(
+          (sum, [name, value]) => sum + Buffer.byteLength(name + value) + 4,
+          0,
+        ),
+      ).toBeLessThanOrEqual(65536);
+      const chunks: Uint8Array[] = [];
+      let bytes = 0;
+      reader = response.body?.getReader();
+      if (reader) {
+        for (;;) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          bytes += chunk.value.byteLength;
+          if (bytes > 131072) throw new Error("depth-key response body ceiling");
+          chunks.push(chunk.value);
+        }
+      }
+      bodyComplete = true;
+      const result = {
+        status: response.status,
+        headers: response.headers,
+        text: Buffer.concat(chunks).toString("utf8"),
+      };
+      observations.push({
+        label,
+        method,
+        url,
+        accept,
+        status: result.status,
+        requestBodyBytes: Buffer.byteLength(text ?? ""),
+        requestBodySha256: createHash("sha256")
+          .update(text ?? "")
+          .digest("hex"),
+        responseBodyBytes: bytes,
+        responseBodySha256: createHash("sha256").update(result.text).digest("hex"),
+        headers: Object.fromEntries(
+          [
+            "bdp-scope-epoch",
+            "bdp-authorization-view",
+            "bdp-scope-position",
+            "x-bdp-development",
+            "x-bdp-development-limit",
+            "content-type",
+            "content-length",
+          ].map((name) => [name, result.headers.get(name)]),
+        ),
+      });
+      expect(result.headers.get("x-bdp-development")).toBe("non-attesting");
+      return result;
+    } finally {
+      clearTimeout(timer);
+      request.abort();
+      if (reader) {
+        try {
+          if (!bodyComplete) await reader.cancel();
+        } catch (error) {
+          failures.push(error);
+        } finally {
+          try {
+            reader.releaseLock();
+          } catch (error) {
+            failures.push(error);
+          }
+        }
+      }
+    }
+  }
+  function completed(response: Observed, name: string, key: string, position: string) {
+    expect(response.status).toBe(200);
+    const value = record(JSON.parse(response.text));
+    expect(validateSelectorReceipt(value), JSON.stringify(validateSelectorReceipt.errors)).toBe(
+      true,
+    );
+    expect(value).toMatchObject({
+      idempotencyKey: key,
+      status: "completed",
+      detail: "available",
+      requiredPosition: position,
+      effectPosition: position,
+      next: null,
+    });
+    const results = value.results;
+    expect(Array.isArray(results)).toBe(true);
+    if (!Array.isArray(results)) throw new Error("depth-key results missing");
+    expect(results).toHaveLength(1);
+    const result = record(results[0]);
+    const resource = record(result.resource);
+    expect(result).toEqual({ operationIndex: 0, outcome: "created", resource });
+    expect(typeof resource.revision).toBe("string");
+    expect(resource.revision).not.toBe("");
+    expect(resource).toEqual({
+      id: `${f?.runtime.scope}beads/${name}`,
+      type: bead,
+      properties: { title: name },
+      metadata: {},
+      revision: resource.revision,
+    });
+    if (!expectedContext) {
+      expect(typeof value.scopeEpoch).toBe("string");
+      expect(typeof value.authorizationView).toBe("string");
+      expectedContext = {
+        "bdp-scope-epoch": String(value.scopeEpoch),
+        "bdp-authorization-view": String(value.authorizationView),
+      };
+    }
+    checkedContext(response, position);
+    receipts.push(value);
+    resources.push(resource);
+    return value;
+  }
+  try {
+    f = await fixture();
+    controller.signal.throwIfAborted();
+    let nested: unknown = "leaf";
+    for (let i = 0; i < 40; i++) nested = { nested };
+    for (const [kind, stem, position] of [
+      ["batch", "depth-b", 1],
+      ["singleton", "depth-s", 3],
+    ] as const) {
+      const target = kind === "batch" ? f.runtime.targets.batch : f.runtime.targets.createBead;
+      const a = `${stem}-a`,
+        b = `${stem}-b`;
+      const key = `${stem}-retained`,
+        fresh = `${stem}-fresh`;
+      const input = (name: string, deep = false) => {
+        const value = {
+          id: `beads/${name}`,
+          type: bead,
+          properties: { title: name },
+          metadata: deep ? { nested } : {},
+        };
+        return JSON.stringify(
+          kind === "batch" ? { operations: [{ operation: "createBead", ...value }] } : value,
+        );
+      };
+      const seed = completed(
+        await exchange(`${kind}-seed`, target, input(a), key),
+        a,
+        key,
+        `pos-${position}`,
+      );
+      const conflict = await exchange(
+        `${kind}-deep-conflict`,
+        target,
+        input(a, true),
+        key,
+        "text/plain",
+      );
+      expect(conflict.status, `depth-key:${kind}:conflict-before-depth`).toBe(409);
+      expect(checkedProblem(record(JSON.parse(conflict.text)))).toEqual({
+        type: "https://github.com/gastownhall/bdp/problems/conflict",
+        code: "idempotency-conflict",
+        status: 409,
+        retry: "never",
+      });
+      checkedContext(conflict, `pos-${position}`);
+      const replay = await exchange(`${kind}-equal-replay`, target, input(a), key);
+      expect(replay.status).toBe(200);
+      expect(JSON.parse(replay.text)).toEqual(seed);
+      checkedContext(replay, `pos-${position}`);
+      const refused = await exchange(
+        `${kind}-fresh-depth`,
+        target,
+        input(b, true),
+        fresh,
+        "text/plain",
+      );
+      expect(refused.status).toBe(500);
+      expect(refused.text).toBe("");
+      expect(refused.headers.get("x-bdp-development-limit")).toBe(
+        "unsupported-transaction-composition",
+      );
+      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+        expect(refused.headers.get(name)).toBeNull();
+      completed(
+        await exchange(`${kind}-fresh-reuse`, target, input(b), fresh),
+        b,
+        fresh,
+        `pos-${position + 1}`,
+      );
+      const point = await exchange(`${kind}-point-unchanged`, `${f.runtime.scope}beads/${a}`);
+      expect(point.status).toBe(200);
+      const pointBody: unknown = JSON.parse(point.text);
+      expect(validBead(pointBody), JSON.stringify(validBead.errors)).toBe(true);
+      expect(pointBody).toEqual(record((seed.results as unknown[])[0]).resource);
+      checkedContext(point, `pos-${position + 1}`);
+    }
+    const collection = await exchange(
+      "final-complete-collection",
+      `${f.runtime.scope}beads/?limit=32`,
+    );
+    expect(collection.status).toBe(200);
+    const collectionBody: unknown = JSON.parse(collection.text);
+    expect(validCollection(collectionBody), JSON.stringify(validCollection.errors)).toBe(true);
+    expect(collectionBody).toEqual({ items: resources, next: null });
+    checkedContext(collection, "pos-4");
+    expect(attempts).toBe(13);
+    expect(receipts).toHaveLength(4);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    clearTimeout(deadline);
+    controller.abort();
+    try {
+      console.log(
+        "depth-key-source-observation " +
+          JSON.stringify({
+            attempts,
+            responses: observations,
+            primaryFailureCount: failures.length,
+          }),
+      );
+    } catch (error) {
+      failures.push(error);
+    }
+    const actions = cleanup.splice(cleanupStart).reverse();
+    const end = performance.now() + 5000;
+    let cleanupActionsCompleted = 0;
+    for (const action of actions) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const remaining = end - performance.now();
+        if (remaining <= 0) {
+          failures.push(new Error("depth-key cleanup deadline"));
+          break;
+        }
+        await Promise.race([
+          Promise.resolve().then(action),
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => reject(new Error("depth-key cleanup deadline")), remaining);
+          }),
+        ]);
+        cleanupActionsCompleted++;
+      } catch (error) {
+        failures.push(error);
+        break;
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    }
+    cleanupCompleted = cleanupActionsCompleted === actions.length;
+    try {
+      console.log(
+        "depth-key-source-cleanup " +
+          JSON.stringify({
+            cleanupActions: actions.length,
+            cleanupActionsCompleted,
+            cleanupCompleted,
+            primaryOrCleanupFailureCount: failures.length,
+          }),
+      );
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, "depth-key HTTP assertions or cleanup failed");
+}, 30000);

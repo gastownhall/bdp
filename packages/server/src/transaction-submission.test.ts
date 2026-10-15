@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -5,7 +6,12 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseTypeDescriptor } from "@bdp/protocol";
 import { openTransactionStore } from "./transaction-store.js";
-import { prepareTransaction, prepareTransactionSequence } from "./transaction-batch.js";
+import {
+  prepareTransaction,
+  prepareTransactionSequence,
+  prepareTransactionForReceiving,
+  TransactionDevelopmentLimitError,
+} from "./transaction-batch.js";
 import * as setCore from "./transaction-set.js";
 import { submitTransaction, type TransactionSubmission } from "./transaction-submission.js";
 const scope = "https://example.test/submission/",
@@ -1536,4 +1542,197 @@ it("preserves genuine pending completed and failed receipts before Selector capa
   });
   expect(capacity).toHaveBeenCalledTimes(1);
   expect(f.store.inspect()).toEqual(before);
+});
+
+it("compares retained direct keys before private carrier depth without admitting fresh deep input", async () => {
+  const f = fixture();
+  let nested: unknown = "leaf";
+  for (let i = 0; i < 40; i++) nested = { nested };
+  const request = (
+    kind: "batch" | "singleton",
+    id: string,
+    key: string,
+    deep = false,
+  ): TransactionSubmission => {
+    const input = { id: `beads/${id}`, type: bead, ...(deep ? { metadata: { nested } } : {}) };
+    return {
+      ...submission([], key),
+      carrier: kind === "batch" ? { kind } : { kind, operation: "createBead" },
+      body: JSON.stringify(
+        kind === "batch" ? { operations: [{ operation: "createBead", ...input }] } : input,
+      ),
+    };
+  };
+  const context = () => ({
+    scopeEpoch: f.store.scopeEpoch,
+    authorizationView: f.store.readConfiguration().authorizationView,
+    scopePosition: `pos-${f.store.inspect().position}`,
+  });
+  let calls = 0;
+  const submit = (input: TransactionSubmission) => {
+    calls++;
+    return submitTransaction(f.store, input, {}, true);
+  };
+  let batchReceipt: ReturnType<typeof f.store.receipt>;
+  for (const [kind, originalId, freshId] of [
+    ["batch", "a", "b"],
+    ["singleton", "c", "d"],
+  ] as const) {
+    const key = `depth_${kind}`;
+    const original = request(kind, originalId, key);
+    const result = await submit(original);
+    expect(result.kind).toBe("receipt");
+    if (result.kind !== "receipt") throw new Error("expected genuine shallow receipt");
+    expect(result.receipt.status).toBe("completed");
+    expect(result.context).toEqual(context());
+    if (kind === "batch") batchReceipt = result.receipt;
+    const before = f.store.inspect();
+    const conflicting = request(kind, originalId, key, true);
+    expect(
+      await submit({ ...conflicting, receiving: { acceptsJson: false, maximumOperations: 32 } }),
+    ).toEqual({ kind: "refused", status: 409, code: "idempotency-conflict", context: context() });
+    expect(f.store.inspect()).toEqual(before);
+    expect(f.store.receipt("p", result.receipt.id)).toEqual(result.receipt);
+    const replay = await submit(original);
+    expect(replay).toEqual({ kind: "receipt", receipt: result.receipt, context: context() });
+    expect(
+      await submit({ ...original, receiving: { acceptsJson: false, maximumOperations: 32 } }),
+    ).toEqual({ kind: "not-acceptable", context: context() });
+    expect(f.store.inspect()).toEqual(before);
+    expect(f.store.receipt("p", result.receipt.id)).toEqual(result.receipt);
+    const freshKey = `depth_fresh_${kind}`;
+    expect(
+      await submit({
+        ...request(kind, freshId, freshKey, true),
+        receiving: { acceptsJson: false, maximumOperations: 32 },
+      }),
+    ).toEqual({ kind: "development-limit", message: "development batch depth limit" });
+    expect(f.store.inspect()).toEqual(before);
+    const reused = await submit(request(kind, freshId, freshKey));
+    expect(reused.kind).toBe("receipt");
+    if (reused.kind !== "receipt") throw new Error("fresh refused key was not reusable");
+    expect(reused.receipt.status).toBe("completed");
+    expect(reused.context).toEqual(context());
+    expect(f.store.inspect().resources).toHaveLength(kind === "batch" ? 2 : 4);
+  }
+  const beforeLegacy = f.store.inspect();
+  const legacy = request("batch", "legacy", "legacy", true);
+  const prepared = prepareTransactionForReceiving(scope, legacy.carrier, legacy.body);
+  let caught: unknown;
+  try {
+    f.store.admit("p", legacy.key, prepared);
+  } catch (error) {
+    caught = error;
+  }
+  expect(caught).toBeInstanceOf(TransactionDevelopmentLimitError);
+  expect(caught).toMatchObject({ message: "development batch depth limit" });
+  expect(f.store.inspect()).toEqual(beforeLegacy);
+  const stressBody = `{"operations":[{"operation":"createBead","id":"beads/a","type":"https://example.test/bead","metadata":{"deep":${"[".repeat(20000)}1e+30${"]".repeat(20000)}}}]}`;
+  expect(Buffer.byteLength(stressBody)).toBe(40119);
+  expect(createHash("sha256").update(stressBody).digest("hex")).toBe(
+    "ddd7741aa0824790181015ee940057c7c497437d2ae998b023b61742ed61fe66",
+  );
+  expect(Buffer.byteLength(stressBody)).toBeLessThan(65536);
+  expect(await submit({ ...request("batch", "a", "depth_batch"), body: stressBody })).toEqual({
+    kind: "refused",
+    status: 409,
+    code: "idempotency-conflict",
+    context: context(),
+  });
+  expect(f.store.inspect()).toEqual(beforeLegacy);
+  if (!batchReceipt) throw new Error("missing saved shallow receipt");
+  expect(f.store.receipt("p", batchReceipt.id)).toEqual(batchReceipt);
+  expect(calls).toBe(13);
+});
+
+it("compares deep metadata against genuine pending and dependent keys without changing saved outcomes", async () => {
+  const f = fixture();
+  const failures: unknown[] = [];
+  let pending: ReturnType<typeof own> | undefined;
+  let attempt: ReturnType<typeof dependencies> | undefined;
+  let calls = 0;
+  const submit = (input: TransactionSubmission) => {
+    calls++;
+    return submitTransaction(f.store, input, {
+      wait: async () => {
+        throw new Error("provable conflict or saved replay must not wait");
+      },
+    });
+  };
+  let nested: unknown = "leaf";
+  for (let i = 0; i < 40; i++) nested = { nested };
+  try {
+    const original = submission([create("pending")], "pending_direct");
+    pending = own(f.store, original);
+    const pendingBefore = f.store.inspect();
+    expect(
+      await submit({
+        ...submission([{ ...create("pending"), metadata: { nested } }], original.key),
+        receiving: { acceptsJson: false, maximumOperations: 32 },
+      }),
+    ).toEqual({ kind: "refused", status: 409, code: "idempotency-conflict" });
+    expect(f.store.inspect()).toEqual(pendingBefore);
+    expect(f.store.receipt("p", pending.receipt.id)).toEqual(pending.receipt);
+    expect(
+      await submit({ ...original, receiving: { acceptsJson: false, maximumOperations: 32 } }),
+    ).toEqual({ kind: "not-acceptable" });
+    expect(f.store.receipt("p", pending.receipt.id)).toEqual(pending.receipt);
+    const completed = f.store.execute(pending);
+    pending = undefined;
+    expect(await submit(original)).toEqual({ kind: "receipt", receipt: completed });
+    attempt = dependencies(f.store);
+    const dependentRequest = dependent();
+    const unresolved = f.store.inspect();
+    const first = f.store.receipt("p", completed.id);
+    expect(
+      await submit({
+        ...dependentRequest,
+        body: JSON.stringify({
+          operations: [
+            {
+              operation: "createLink",
+              type: link,
+              source: "beads/a",
+              target: "beads/a",
+              metadata: { nested },
+            },
+          ],
+        }),
+        receiving: { acceptsJson: false, maximumOperations: 32 },
+      }),
+    ).toEqual({ kind: "refused", status: 409, code: "idempotency-conflict" });
+    expect(f.store.inspect()).toEqual(unresolved);
+    expect(f.store.receipt("p", completed.id)).toEqual(first);
+    expect(f.store.nextSequence(attempt).result).toMatchObject({
+      kind: "receipt",
+      receipt: { status: "completed" },
+    });
+    const dependentResult = f.store.nextSequence(attempt).result;
+    expect(dependentResult).toMatchObject({ kind: "receipt", receipt: { status: "completed" } });
+    if (dependentResult.kind !== "receipt") throw new Error("dependent outcome missing");
+    expect(await submit(dependentRequest)).toEqual({
+      kind: "receipt",
+      receipt: dependentResult.receipt,
+    });
+    expect(calls).toBe(5);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    for (const finish of [
+      () => {
+        if (attempt) f.store.cancelSequence(attempt);
+      },
+      () => {
+        if (pending) f.store.retract(pending);
+      },
+    ]) {
+      try {
+        finish();
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+  }
+  if (failures.length)
+    throw new AggregateError(failures, "depth-key pending ownership or cleanup failed");
 });

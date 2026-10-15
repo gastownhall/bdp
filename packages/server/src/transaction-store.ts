@@ -50,6 +50,7 @@ import {
   TRANSACTION_RUNTIME_LIMITS,
   TRANSACTION_MAXIMUM_OPERATIONS,
   assertPreparedTransaction,
+  transactionDepthRefusal,
   assertPreparedTransactionSequence,
   normalizeTransaction,
   evaluateTransaction,
@@ -135,6 +136,7 @@ export interface TransactionReceivingControls {
 }
 export type TransactionReceivingAdmission =
   | TransactionAdmission
+  | { readonly kind: "development-limit"; readonly message: string }
   | { readonly kind: "not-acceptable"; readonly context?: TransactionReadContext }
   | { readonly kind: "operation-limit"; readonly context?: TransactionReadContext }
   | {
@@ -1075,6 +1077,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           ? { kind: "existing", receipt: parseReceipt(prior.receipt) }
           : { kind: "comparison-pending" };
     }
+    const depthRefusal = transactionDepthRefusal(batch);
+    if (!prior && depthRefusal !== undefined) {
+      if (controls === undefined) throw new TransactionDevelopmentLimitError(depthRefusal);
+      return { kind: "development-limit", message: depthRefusal };
+    }
     const normalized = template
       ? undefined
       : normalizeTransaction(batch, resolveAlias, prior?.witnesses, references);
@@ -1406,6 +1413,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       checkPrincipalKey(principal, key);
       const admission = atomic(() => {
         const result = admitKey(principal, key, batch, false, undefined, undefined, receiving);
+        if (result.kind === "development-limit" && controls === undefined)
+          throw new TransactionDevelopmentLimitError(result.message);
         if (result.kind === "operation-limit" && controls === undefined)
           throw new TransactionDevelopmentLimitError("development transaction operation limit");
         if (result.kind === "selector-limit" && controls === undefined)

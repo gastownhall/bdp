@@ -6,9 +6,7 @@ import {
 import { JsonSyntaxError, ReadUpdateCarrierError } from "@bdp/protocol";
 import {
   type TransactionSingletonOperation,
-  prepareTransaction,
-  prepareTransactionSingleton,
-  TransactionDevelopmentLimitError,
+  prepareTransactionForReceiving,
   TRANSACTION_RUNTIME_LIMITS,
 } from "./transaction-batch.js";
 import { compareAndAdmitTransaction } from "./transaction-comparison.js";
@@ -86,18 +84,13 @@ export async function submitTransaction(
   const { body, key } = submission;
   if (Buffer.byteLength(body) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
     return { kind: "refused", status: 413, code: "request-too-large" };
-  let prepared: ReturnType<typeof prepareTransaction> | undefined;
-  let developmentLimit: TransactionDevelopmentLimitError | undefined;
+  let prepared: ReturnType<typeof prepareTransactionForReceiving>;
   try {
-    prepared =
-      submission.carrier.kind === "batch"
-        ? prepareTransaction(store.scope, body)
-        : prepareTransactionSingleton(store.scope, submission.carrier.operation, body);
+    prepared = prepareTransactionForReceiving(store.scope, submission.carrier, body);
   } catch (error) {
     if (error instanceof TransactionSelectorSyntaxError)
       return { kind: "refused", status: 400, code: "malformed-request", pointer: error.pointer };
-    if (error instanceof TransactionDevelopmentLimitError) developmentLimit = error;
-    else if (
+    if (
       error instanceof JsonSyntaxError ||
       error instanceof ReadUpdateCarrierError ||
       error instanceof TypeError
@@ -118,8 +111,6 @@ export async function submitTransaction(
     !authorization.principal.isWellFormed()
   )
     throw new TypeError("invalid trusted principal");
-  if (developmentLimit) return { kind: "development-limit", message: developmentLimit.message };
-  if (!prepared) throw new Error("missing prepared transaction");
   const comparisonStore = observed
     ? {
         scopeEpoch: store.scopeEpoch,
@@ -149,6 +140,8 @@ export async function submitTransaction(
   )
     throw new Error("admission refusal lost same-entry context");
   switch (result.kind) {
+    case "development-limit":
+      return result;
     case "conflict":
       return {
         kind: "refused",
