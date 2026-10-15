@@ -16,10 +16,7 @@
           "title": "Common Type descriptor properties",
           "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
           "type": "object",
-          "required": [
-            "name",
-            "propertiesSchema"
-          ],
+          "required": ["name", "propertiesSchema"],
           "properties": {
             "name": {
               "type": "string",
@@ -78,10 +75,7 @@
                 },
                 {
                   "type": "object",
-                  "required": [
-                    "uri",
-                    "revision"
-                  ],
+                  "required": ["uri", "revision"],
                   "properties": {
                     "uri": {
                       "$ref": "#/$defs/typeUrl"
@@ -99,9 +93,7 @@
               "oneOf": [
                 {
                   "type": "object",
-                  "required": [
-                    "anyOf"
-                  ],
+                  "required": ["anyOf"],
                   "properties": {
                     "anyOf": {
                       "type": "array",
@@ -116,9 +108,7 @@
                 },
                 {
                   "type": "object",
-                  "required": [
-                    "any"
-                  ],
+                  "required": ["any"],
                   "properties": {
                     "any": {
                       "const": true
@@ -131,9 +121,7 @@
             },
             "participationConstraint": {
               "type": "object",
-              "required": [
-                "linkTypes"
-              ],
+              "required": ["linkTypes"],
               "properties": {
                 "linkTypes": {
                   "$ref": "#/$defs/typeSelector"
@@ -149,14 +137,10 @@
               },
               "anyOf": [
                 {
-                  "required": [
-                    "min"
-                  ]
+                  "required": ["min"]
                 },
                 {
-                  "required": [
-                    "max"
-                  ]
+                  "required": ["max"]
                 }
               ],
               "additionalProperties": false,
@@ -166,9 +150,7 @@
               "oneOf": [
                 {
                   "type": "array",
-                  "const": [
-                    "*"
-                  ]
+                  "const": ["*"]
                 },
                 {
                   "type": "array",
@@ -184,21 +166,13 @@
               "oneOf": [
                 {
                   "type": "object",
-                  "required": [
-                    "resourceKind",
-                    "scope",
-                    "types"
-                  ],
+                  "required": ["resourceKind", "scope", "types"],
                   "properties": {
                     "resourceKind": {
                       "const": "bead"
                     },
                     "scope": {
-                      "enum": [
-                        "same",
-                        "cross",
-                        "either"
-                      ]
+                      "enum": ["same", "cross", "either"]
                     },
                     "types": {
                       "$ref": "#/$defs/endpointTypes"
@@ -209,19 +183,14 @@
                       "if": {
                         "properties": {
                           "scope": {
-                            "enum": [
-                              "cross",
-                              "either"
-                            ]
+                            "enum": ["cross", "either"]
                           }
                         }
                       },
                       "then": {
                         "properties": {
                           "types": {
-                            "const": [
-                              "*"
-                            ]
+                            "const": ["*"]
                           }
                         }
                       }
@@ -231,9 +200,7 @@
                 },
                 {
                   "type": "object",
-                  "required": [
-                    "resourceKind"
-                  ],
+                  "required": ["resourceKind"],
                   "properties": {
                     "resourceKind": {
                       "const": "resource"
@@ -246,10 +213,7 @@
             },
             "endpointPair": {
               "type": "object",
-              "required": [
-                "source",
-                "target"
-              ],
+              "required": ["source", "target"],
               "properties": {
                 "source": {
                   "$ref": "#/$defs/endpointConstraint"
@@ -262,9 +226,7 @@
             },
             "linkConstraints": {
               "type": "object",
-              "required": [
-                "typeConstraints"
-              ],
+              "required": ["typeConstraints"],
               "properties": {
                 "typeConstraints": {
                   "type": "array",
@@ -400,9 +362,7 @@
             "outgoing": false
           },
           "additionalProperties": true,
-          "required": [
-            "linkConstraints"
-          ]
+          "required": ["linkConstraints"]
         }
       },
       "ownedLinks": {
@@ -510,16 +470,9 @@
           "title": "Draft Issue core properties fragment",
           "$comment": "Review fragment, not complete domain write validation. See specs/types/issue.md for native constraints, policy, writers and observations.",
           "type": "object",
-          "required": [
-            "id",
-            "title",
-            "status",
-            "priority"
-          ],
+          "required": ["id", "title", "status", "priority"],
           "not": {
-            "required": [
-              "issue_type"
-            ]
+            "required": ["issue_type"]
           },
           "properties": {
             "id": {
@@ -560,10 +513,7 @@
               "maxLength": 255
             },
             "estimated_minutes": {
-              "type": [
-                "integer",
-                "null"
-              ],
+              "type": ["integer", "null"],
               "minimum": 0
             },
             "labels": {
@@ -573,33 +523,21 @@
               }
             },
             "external_ref": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": ["string", "null"]
             },
             "spec_id": {
               "type": "string"
             },
             "due_at": {
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": ["string", "null"],
               "format": "date-time"
             },
             "defer_until": {
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": ["string", "null"],
               "format": "date-time"
             },
             "closed_at": {
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": ["string", "null"],
               "format": "date-time"
             },
             "close_reason": {
@@ -671,9 +609,7 @@
           "$comment": "Review fragment, not complete domain write validation. See specs/types/issue.md for native constraints, policy, writers and observations.",
           "type": "object",
           "not": {
-            "required": [
-              "dep_type"
-            ]
+            "required": ["dep_type"]
           },
           "properties": {},
           "additionalProperties": true
@@ -728,16 +664,12 @@
               "source": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": [
-                  "*"
-                ]
+                "types": ["*"]
               },
               "target": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": [
-                  "*"
-                ]
+                "types": ["*"]
               }
             }
           ]

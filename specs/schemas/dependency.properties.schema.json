@@ -5,9 +5,7 @@
   "$comment": "Review fragment, not complete domain write validation. See specs/types/issue.md for native constraints, policy, writers and observations.",
   "type": "object",
   "not": {
-    "required": [
-      "dep_type"
-    ]
+    "required": ["dep_type"]
   },
   "properties": {},
   "additionalProperties": true

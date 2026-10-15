@@ -4,16 +4,9 @@
   "title": "Draft Issue core properties fragment",
   "$comment": "Review fragment, not complete domain write validation. See specs/types/issue.md for native constraints, policy, writers and observations.",
   "type": "object",
-  "required": [
-    "id",
-    "title",
-    "status",
-    "priority"
-  ],
+  "required": ["id", "title", "status", "priority"],
   "not": {
-    "required": [
-      "issue_type"
-    ]
+    "required": ["issue_type"]
   },
   "properties": {
     "id": {
@@ -54,10 +47,7 @@
       "maxLength": 255
     },
     "estimated_minutes": {
-      "type": [
-        "integer",
-        "null"
-      ],
+      "type": ["integer", "null"],
       "minimum": 0
     },
     "labels": {
@@ -67,33 +57,21 @@
       }
     },
     "external_ref": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "spec_id": {
       "type": "string"
     },
     "due_at": {
-      "type": [
-        "string",
-        "null"
-      ],
+      "type": ["string", "null"],
       "format": "date-time"
     },
     "defer_until": {
-      "type": [
-        "string",
-        "null"
-      ],
+      "type": ["string", "null"],
       "format": "date-time"
     },
     "closed_at": {
-      "type": [
-        "string",
-        "null"
-      ],
+      "type": ["string", "null"],
       "format": "date-time"
     },
     "close_reason": {

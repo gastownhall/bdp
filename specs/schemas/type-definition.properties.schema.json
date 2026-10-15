@@ -4,10 +4,7 @@
   "title": "Common Type descriptor properties",
   "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
   "type": "object",
-  "required": [
-    "name",
-    "propertiesSchema"
-  ],
+  "required": ["name", "propertiesSchema"],
   "properties": {
     "name": {
       "type": "string",
@@ -66,10 +63,7 @@
         },
         {
           "type": "object",
-          "required": [
-            "uri",
-            "revision"
-          ],
+          "required": ["uri", "revision"],
           "properties": {
             "uri": {
               "$ref": "#/$defs/typeUrl"
@@ -87,9 +81,7 @@
       "oneOf": [
         {
           "type": "object",
-          "required": [
-            "anyOf"
-          ],
+          "required": ["anyOf"],
           "properties": {
             "anyOf": {
               "type": "array",
@@ -104,9 +96,7 @@
         },
         {
           "type": "object",
-          "required": [
-            "any"
-          ],
+          "required": ["any"],
           "properties": {
             "any": {
               "const": true
@@ -119,9 +109,7 @@
     },
     "participationConstraint": {
       "type": "object",
-      "required": [
-        "linkTypes"
-      ],
+      "required": ["linkTypes"],
       "properties": {
         "linkTypes": {
           "$ref": "#/$defs/typeSelector"
@@ -137,14 +125,10 @@
       },
       "anyOf": [
         {
-          "required": [
-            "min"
-          ]
+          "required": ["min"]
         },
         {
-          "required": [
-            "max"
-          ]
+          "required": ["max"]
         }
       ],
       "additionalProperties": false,
@@ -154,9 +138,7 @@
       "oneOf": [
         {
           "type": "array",
-          "const": [
-            "*"
-          ]
+          "const": ["*"]
         },
         {
           "type": "array",
@@ -172,21 +154,13 @@
       "oneOf": [
         {
           "type": "object",
-          "required": [
-            "resourceKind",
-            "scope",
-            "types"
-          ],
+          "required": ["resourceKind", "scope", "types"],
           "properties": {
             "resourceKind": {
               "const": "bead"
             },
             "scope": {
-              "enum": [
-                "same",
-                "cross",
-                "either"
-              ]
+              "enum": ["same", "cross", "either"]
             },
             "types": {
               "$ref": "#/$defs/endpointTypes"
@@ -197,19 +171,14 @@
               "if": {
                 "properties": {
                   "scope": {
-                    "enum": [
-                      "cross",
-                      "either"
-                    ]
+                    "enum": ["cross", "either"]
                   }
                 }
               },
               "then": {
                 "properties": {
                   "types": {
-                    "const": [
-                      "*"
-                    ]
+                    "const": ["*"]
                   }
                 }
               }
@@ -219,9 +188,7 @@
         },
         {
           "type": "object",
-          "required": [
-            "resourceKind"
-          ],
+          "required": ["resourceKind"],
           "properties": {
             "resourceKind": {
               "const": "resource"
@@ -234,10 +201,7 @@
     },
     "endpointPair": {
       "type": "object",
-      "required": [
-        "source",
-        "target"
-      ],
+      "required": ["source", "target"],
       "properties": {
         "source": {
           "$ref": "#/$defs/endpointConstraint"
@@ -250,9 +214,7 @@
     },
     "linkConstraints": {
       "type": "object",
-      "required": [
-        "typeConstraints"
-      ],
+      "required": ["typeConstraints"],
       "properties": {
         "typeConstraints": {
           "type": "array",
