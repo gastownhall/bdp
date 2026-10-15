@@ -221,7 +221,7 @@ describe("canonical cumulative profile contracts", () => {
         ).toThrow("clause lost");
     }
   });
-  it("inherits the command minimum-field exception without executable credit", () => {
+  it("inherits partial TX command-minimum evidence while preserving RU omission", () => {
     const id = "read-update.http.command-minimum-fields";
     const clause =
       "On mutation POSTs to operation command targets, authorities MUST ignore the `BDP-Minimum-Scope-Position`, `BDP-Scope-Epoch`, and `BDP-Authorization-View` request fields. Their presence, absence, completeness, and field values do not impose a minimum-position barrier or affect command identity. Ordinary HTTP field syntax and transport, header, and body bounds still apply, as do authorization, idempotency, carrier validation, and `expectedRevision`. This rule applies to mutation POSTs under this profile and cumulative profiles. It does not change conditions on reads.";
@@ -279,13 +279,44 @@ describe("canonical cumulative profile contracts", () => {
     for (const path of [
       "../matrices/read-update-v1.json",
       "../matrices/read-update-reference-continuation-v1.json",
-      "../test-support/transactional/manifest-v1.json",
     ]) {
       const manifest = JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as {
         scenarios: { id: string }[];
       };
       expect(manifest.scenarios.map((row) => row.id)).not.toContain(id);
     }
+    const txManifest = JSON.parse(
+      readFileSync(
+        new URL("../test-support/transactional/manifest-v1.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const txCoverage = JSON.parse(
+      readFileSync(
+        new URL("../test-support/transactional/coverage-v1.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const partial = txManifest.scenarios.filter((row: { id: string }) => row.id === id);
+    expect(partial).toHaveLength(1);
+    expect(partial[0].requiredProfile).toBe("read-update");
+    expect(partial[0].actions).toHaveLength(11);
+    expect(txCoverage.rows.filter((row: { id: string }) => row.id === id)).toEqual([
+      {
+        id,
+        wholeContract: false,
+        reason: expect.stringContaining("Whole contract remains unqualified"),
+        bindings: [
+          {
+            scenario: id,
+            assertions: partial[0].actions.flatMap(
+              (a: { id: string; assertions: { id: string }[] }) =>
+                a.assertions.map((x) => `${a.id}:${x.id}`),
+            ),
+          },
+        ],
+      },
+    ]);
   });
   it("locks every inheritance-audit row and replacement to the catalogs", () => {
     const doc = readFileSync(

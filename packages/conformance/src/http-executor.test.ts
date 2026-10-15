@@ -3,10 +3,11 @@ import { createServer as createHttpServer } from "node:http";
 import { createServer, type Server, Socket } from "node:net";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseExecutableScenarioManifest } from "./executable-manifest.js";
+import { ManifestValidationError, parseExecutableScenarioManifest } from "./executable-manifest.js";
 import {
   createFetchHttpExchangeExecutor,
   createRawHttpExchangeExecutor,
+  HttpTransportError,
   type RawHttpDialRoute,
   snapshotExactHttpMode,
   validateExactRunConfiguration,
@@ -726,6 +727,148 @@ describe("exact HTTP request execution", () => {
       expect(result.effectiveRequest).not.toHaveProperty("headersTransmitted");
     },
   );
+
+  it("writes authorization-view context separately from credentials", async () => {
+    const headerLines = [
+      { name: "bdp-minimum-scope-position", value: "not a position!" },
+      { name: "bdp-scope-epoch", value: "" },
+      { name: "bdp-authorization-view", value: "" },
+      { name: "BDP-Authorization-View", value: "view-one, view-two" },
+    ];
+    let wire = Buffer.alloc(0);
+    let received = 0;
+    const route = await bind(
+      createServer((socket) => {
+        let complete = false;
+        socket.on("data", (chunk: Buffer) => {
+          wire = Buffer.concat([wire, chunk]);
+          const boundary = wire.indexOf("\r\n\r\n");
+          if (!complete && boundary !== -1 && wire.length >= boundary + 4 + 2) {
+            complete = true;
+            received++;
+            socket.end(responseText);
+          }
+        });
+      }),
+    );
+    const resolve = vi.fn(() => ({ Authorization: "Bearer credential-sentinel" }));
+    const legacy = vi.fn(() => ({ Authorization: "wrong-legacy" }));
+    const result = await createRawHttpExchangeExecutor(route, {
+      authorize: legacy,
+      exactMode: mode({
+        maximumRequestHeaderBytes: 1024,
+        defaultCredentialRef: "writer",
+        credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
+        resolveCredentials: resolve,
+      }),
+    })({ ...exact(), raw: { headerLines, bodyBytes: Buffer.from("{}") } });
+    expect(received).toBe(1);
+    expect(wire.subarray(0, wire.indexOf("\r\n\r\n")).toString("latin1")).toBe(
+      [
+        "POST /acme/operations/create-bead HTTP/1.1",
+        ...headerLines.map(({ name, value }) => `${name}: ${value}`),
+        "Authorization: Bearer credential-sentinel",
+        "Accept: */*",
+        "Accept-Language: *",
+        "Accept-Encoding: identity",
+        "User-Agent: bdp-conformance/0",
+        "Host: scope.example",
+        "Connection: close",
+        "Content-Length: 2",
+      ].join("\r\n"),
+    );
+    expect(wire.subarray(wire.indexOf("\r\n\r\n") + 4)).toEqual(Buffer.from("{}"));
+    expect(result.exactRequest?.headerLines.slice(0, headerLines.length)).toEqual(headerLines);
+    expect(result.exactRequest?.headerLines[headerLines.length]).toEqual({
+      name: "Authorization",
+      value: "Bearer credential-sentinel",
+    });
+    expect(result.exactRequest?.writeState).toBe("complete");
+    expect(resolve).toHaveBeenCalledOnce();
+    expect(legacy).not.toHaveBeenCalled();
+  });
+
+  it("rejects authorization-view credential handles before resolution or dialing", () => {
+    for (const name of ["bdp-authorization-view", "BDP-Authorization-View", "x-ordinary"]) {
+      const resolve = vi.fn(() => ({ [name]: "sentinel" }));
+      try {
+        createRawHttpExchangeExecutor(deadRoute(), {
+          exactMode: mode({
+            defaultCredentialRef: "writer",
+            credentialHandles: [{ id: "writer", headerNames: [name] }],
+            resolveCredentials: resolve,
+          }),
+        });
+        throw new Error("context credential handle was accepted");
+      } catch (error) {
+        if (!(error instanceof HttpTransportError)) throw error;
+        expect(error).toMatchObject({
+          message: "exact HTTP request configuration is invalid",
+          category: "configuration",
+        });
+        expect(error.requestWriteState).toBeUndefined();
+      }
+      expect(resolve).not.toHaveBeenCalled();
+    }
+  });
+
+  it("keeps authorization-view lookalikes protected in parser and serializer", async () => {
+    for (const name of [
+      "X-Bdp-Authorization-View",
+      "bdp-authorization-view-extra",
+      "bdp-authorization-view-token",
+      "bdp-authorization-view-secret",
+      "bdp-authorization-view-password",
+      "bdp-authorization-view-credential",
+    ]) {
+      const raw = { headerLines: [{ name, value: "sentinel" }] };
+      for (const actions of [false, true]) {
+        const request = {
+          id: "post",
+          method: "POST",
+          target: { binding: "scope" },
+          raw,
+          captures: [],
+          assertions: [{ id: "status", kind: "status", equals: 200 }],
+        };
+        let issues: readonly { message: string }[] = [];
+        try {
+          parseExecutableScenarioManifest({
+            manifestVersion: 2,
+            catalogId: "read-v1",
+            scenarios: [
+              {
+                id: "raw.probe",
+                requiredProfile: "read-update",
+                setup: { fixture: "reference-read-v1", requires: [] },
+                applicability: { requires: [] },
+                cleanup: { resetFixture: true },
+                ...(actions
+                  ? { actions: [{ family: "http", ...request }] }
+                  : { requests: [request] }),
+              },
+            ],
+          });
+        } catch (error) {
+          if (!(error instanceof ManifestValidationError)) throw error;
+          issues = error.issues;
+        }
+        expect(
+          issues.some(({ message }) => message === "raw source header is secret or executor-owned"),
+        ).toBe(true);
+      }
+      const resolve = vi.fn(() => ({}));
+      await expect(
+        createRawHttpExchangeExecutor(deadRoute(), {
+          exactMode: mode({ resolveCredentials: resolve }),
+        })({ ...exact(), raw }),
+      ).rejects.toMatchObject({
+        category: "configuration",
+        requestWriteState: "not-started",
+      });
+      expect(resolve).not.toHaveBeenCalled();
+    }
+  });
 
   it("preserves padded field bytes and copies Buffer subarrays before the resolver can mutate them", async () => {
     const source = Buffer.from("!before!");

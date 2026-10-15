@@ -5572,6 +5572,68 @@ describe("version 2 exact HTTP receiving", () => {
       expect(report.scenarios[0]?.exchanges[0]?.response?.status).toBe(401);
     },
   );
+  it("keeps admitted authorization-view values out of report projections", async () => {
+    const headerLines = [
+      { name: "bdp-authorization-view", value: "CONTEXT-SENTINEL" },
+      { name: "BDP-Authorization-View", value: "" },
+    ];
+    const options = setup({ raw: { headerLines } });
+    const configuration = {
+      ...options.exactExecution.configuration,
+      defaultCredentialRef: "writer",
+      credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
+    };
+    const good = options.exactExecution.execute.getMockImplementation();
+    options.exactExecution.execute.mockImplementation(async (request) => {
+      if (good === undefined) throw new Error();
+      const response = await good(request);
+      if (response.exactRequest === undefined) throw new Error();
+      const lines = [...response.exactRequest.headerLines];
+      lines.splice(headerLines.length, 0, { name: "Authorization", value: "CREDENTIAL-SENTINEL" });
+      return {
+        ...response,
+        headers: {
+          "bdp-authorization-view": "CONTEXT-SENTINEL",
+          authorization: "CREDENTIAL-SENTINEL",
+        },
+        effectiveRequest: {
+          url: response.url,
+          headers: {
+            "bdp-authorization-view": "CONTEXT-SENTINEL",
+            authorization: "CREDENTIAL-SENTINEL",
+          },
+        },
+        exactRequest: { ...response.exactRequest, headerLines: lines },
+      };
+    });
+    const report = await runConformanceMatrix({
+      ...options,
+      exactExecution: { ...options.exactExecution, configuration },
+    });
+    expect(report.scenarios[0]?.state).toBe("pass");
+    const exchange = report.scenarios[0]?.exchanges[0];
+    expect(exchange?.assertions.find(({ id }) => id === "authored-head")?.passed).toBe(true);
+    expect(exchange?.request.exact?.elidedHeaderLines).toBe(4);
+    expect(
+      exchange?.request.exact?.headerLines.some(
+        ({ name }) => name.toLowerCase() === "bdp-authorization-view",
+      ),
+    ).toBe(false);
+    // Exact evidence owns the request projection; the lossy compatibility map stays ignored.
+    expect(exchange?.request.headers).toEqual({});
+    expect(exchange?.request.exact?.headerLines).toContainEqual({
+      name: "Authorization",
+      value: "<redacted>",
+    });
+    expect(exchange?.response?.headers).toHaveProperty("authorization", "<redacted>");
+    expect(exchange?.response?.headers).not.toHaveProperty("bdp-authorization-view");
+    const text = serializeConformanceReport(report);
+    expect(text).not.toContain("CONTEXT-SENTINEL");
+    expect(text).not.toContain("CREDENTIAL-SENTINEL");
+    expect(options.execute).not.toHaveBeenCalled();
+    expect(options.exactExecution.execute).toHaveBeenCalledOnce();
+  });
+
   it("accepts registered credential decoration and authored defaults without resolving credentials again", async () => {
     const options = setup({
       raw: { headerLines: [{ name: "aCcEpT", value: "application/json" }] },

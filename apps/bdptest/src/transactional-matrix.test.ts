@@ -90,8 +90,16 @@ function errorCauses(error: unknown): Set<unknown> {
   visit(error);
   return seen;
 }
+type InstalledObservation = {
+  result: Awaited<ReturnType<typeof runCumulativeTransactionalMatrix>>;
+  sessions: Record<string, unknown>[];
+  baseline: ReturnType<typeof installedTransactionBinding>;
+};
 async function observe(control?: {
   readonly budgetMs?: number;
+  readonly scenarioSelection?: readonly string[];
+  /** Retain genuine returned evidence before cleanup can fail; never replace it. */
+  readonly onObserved?: (observed: InstalledObservation) => void;
   readonly invalidReceiptCredentials?: boolean | "set-update" | "set-delete";
   /** Negative-only removal of one already declared canonical set route. */
   readonly omitRoute?: {
@@ -145,13 +153,7 @@ async function observe(control?: {
     () => controller.abort(new Error("installed cohort deadline")),
     budgetMs,
   );
-  let observed:
-    | {
-        result: Awaited<ReturnType<typeof runCumulativeTransactionalMatrix>>;
-        sessions: Record<string, unknown>[];
-        baseline: ReturnType<typeof installedTransactionBinding>;
-      }
-    | undefined;
+  let observed: InstalledObservation | undefined;
   let failure: unknown;
   const cleanupFailures: unknown[] = [];
   try {
@@ -182,11 +184,14 @@ async function observe(control?: {
     );
     // Independently authored route inventory, not a second derivation from the manifest.
     expect(uniqueRoutes).toEqual([
-      { method: "GET", url: `${scope}beads/a` },
+      { method: "POST", url: `${scope}operations/create-bead` },
       { method: "POST", url: `${scope}operations/batch` },
-      { method: "GET", url: `${scope}links/l` },
+      { method: "POST", url: `${scope}operations/sequence` },
+      { method: "POST", url: `${scope}operations/update-bead` },
       { method: "GET", url: `${scope}beads/?limit=32` },
       { method: "GET", url: `${scope}events/` },
+      { method: "GET", url: `${scope}beads/a` },
+      { method: "GET", url: `${scope}links/l` },
       { method: "GET", url: `${scope}beads/new` },
       { method: "GET", url: `${scope}changes/?after=genesis` },
       { method: "GET", url: `${scope}links/?limit=32` },
@@ -194,9 +199,6 @@ async function observe(control?: {
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
       { method: "POST", url: `${scope}operations/delete-where` },
-      { method: "POST", url: `${scope}operations/create-bead` },
-      { method: "POST", url: `${scope}operations/sequence` },
-      { method: "POST", url: `${scope}operations/update-bead` },
     ]);
     const omitted = control?.omitRoute;
     if (omitted) {
@@ -257,6 +259,9 @@ async function observe(control?: {
         profile: "transactional",
         seed: 0,
         artifactBundle: runBundle,
+        ...(control?.scenarioSelection === undefined
+          ? {}
+          : { scenarioSelection: control.scenarioSelection }),
         execute: async () => {
           throw new Error("generic HTTP executor forbidden");
         },
@@ -307,6 +312,7 @@ async function observe(control?: {
       target.context,
     );
     observed = { result, sessions, baseline };
+    control?.onObserved?.(observed);
   } catch (error) {
     failure = error;
   } finally {
@@ -331,25 +337,48 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes thirteen partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+it("observes fourteen partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
-  const crossWire = crossCarrierWire();
-  const observed = await observe({ children, afterExchange: crossWire.afterExchange });
+  const crossWire = crossCarrierWire(),
+    minimumWire = commandMinimumWire();
+  const observed = await observe({
+    children,
+    afterExchange: async (response) => {
+      await minimumWire.afterExchange(response);
+      await crossWire.afterExchange(response);
+    },
+    onObserved(observed) {
+      if (process.env.BDP_TRANSACTIONAL_OBSERVATION_OUTPUT)
+        writeFileSync(
+          process.env.BDP_TRANSACTIONAL_OBSERVATION_OUTPUT,
+          JSON.stringify(
+            {
+              sourceCommit,
+              entry,
+              ...observed,
+              supplemental: minimumWire.summary(),
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+    },
+  });
   const implemented = new Set(bundle.manifest.scenarios.map((s) => s.id));
   expect(loadProfileContractSelection("transactional").required).toHaveLength(251);
   expect(observed.result.scenarios).toHaveLength(256); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(13);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(14);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(20);
-  expect(children).toHaveLength(21); // Twenty scenario/reopen sessions plus separate bootstrap.
+  expect(observed.sessions).toHaveLength(21);
+  expect(children).toHaveLength(22); // Twenty-one scenario/reopen sessions plus separate bootstrap.
   expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
     true,
   );
   expect(observed.result.declarations).toMatchObject({
-    exactConfigurationDigest: "a9a17908b6fa87674d5f573b584f4a1ce1d41d7909fadf48b65e9b05397ddfd4",
+    exactConfigurationDigest: "02dd7d9f35e7482c07ce1550a6572232cc48ba6858cd66f8dfc8f5384f3628be",
   });
   const dynamic = observed.result.scenarios
     .flatMap((s) => s.exchanges)
@@ -538,12 +567,13 @@ it("observes thirteen partial Transactional contracts through packed-capable act
   expect(cross.state).toBe("pass");
   expect(cross.exchanges.at(-1)!.request.id).toBe("x-events");
   crossWire.finish();
-  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(192);
+  assertCommandMinimumPositive(observed, minimumWire);
+  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(203);
   expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
     JSON.stringify({
-      // Predecessor logs retain installed-tx-twelve-partial-summary.
-      kind: "installed-tx-thirteen-partial-summary",
+      // Predecessor logs retain installed-tx-twelve/thirteen-partial-summary.
+      kind: "installed-tx-fourteen-partial-summary",
       sourceCommit,
       elapsedMs: performance.now() - started,
       actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
@@ -555,11 +585,6 @@ it("observes thirteen partial Transactional contracts through packed-capable act
       claimEligible: false,
     }),
   );
-  if (process.env.BDP_TRANSACTIONAL_OBSERVATION_OUTPUT)
-    writeFileSync(
-      process.env.BDP_TRANSACTIONAL_OBSERVATION_OUTPUT,
-      JSON.stringify({ sourceCommit, entry, ...observed }, null, 2) + "\n",
-    );
 }, 120000);
 
 it.each([
@@ -602,9 +627,9 @@ it.each(["binding", "method", "credential", "body-assertion"])(
   async (kind) => {
     const observed = await observe({
       manifest: (value) => {
-        const action = value.scenarios[0]!.actions.find(
-          (a) => a.operation === "transactional.receipt-read",
-        )!;
+        const action = value.scenarios
+          .find((r) => r.id === "transactional.batch.atomic-commit")!
+          .actions.find((a) => a.operation === "transactional.receipt-read")!;
         if (kind === "body-assertion")
           action.assertions = [
             {
@@ -1280,6 +1305,14 @@ it.each([
 );
 
 it("pins the matching no-op installed route digest and fifteen-action ledger", () => {
+  assertMinimumReplayLedger(minimumReplayLedger);
+  expect(() => assertMinimumReplayLedger(minimumReplayLedger.slice(1))).toThrow(
+    "minimum-replay-comparison-ledger",
+  );
+  const redirected = minimumReplayLedger.map((pair) => [...pair]);
+  redirected[0]![1] = "m-create-b";
+  expect(() => assertMinimumReplayLedger(redirected)).toThrow("minimum-replay-comparison-ledger");
+  // Previous fifteen-route order: a9a17908b6fa87674d5f573b584f4a1ce1d41d7909fadf48b65e9b05397ddfd4.
   // Previous twelve-route digest: 1ba7cbbffc4fb40df2c3f12640bc636e70076cfa25bdd6952b83ec1bb1fe0035.
   // Canonical exact-mode preimage authored from the approved route inventory;
   // only these five fields enter the runner digest, not credentials or ports.
@@ -1288,11 +1321,14 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
     maximumRequestHeaderBytes: 16384,
     profile: "transactional",
     routes: [
-      { method: "GET", url: `${scope}beads/a` },
+      { method: "POST", url: `${scope}operations/create-bead` },
       { method: "POST", url: `${scope}operations/batch` },
-      { method: "GET", url: `${scope}links/l` },
+      { method: "POST", url: `${scope}operations/sequence` },
+      { method: "POST", url: `${scope}operations/update-bead` },
       { method: "GET", url: `${scope}beads/?limit=32` },
       { method: "GET", url: `${scope}events/` },
+      { method: "GET", url: `${scope}beads/a` },
+      { method: "GET", url: `${scope}links/l` },
       { method: "GET", url: `${scope}beads/new` },
       { method: "GET", url: `${scope}changes/?after=genesis` },
       { method: "GET", url: `${scope}links/?limit=32` },
@@ -1300,15 +1336,35 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
       { method: "POST", url: `${scope}operations/delete-where` },
-      { method: "POST", url: `${scope}operations/create-bead` },
-      { method: "POST", url: `${scope}operations/sequence` },
-      { method: "POST", url: `${scope}operations/update-bead` },
     ],
     scope,
   });
   expect(createHash("sha256").update(preimage).digest("hex")).toBe(
-    "a9a17908b6fa87674d5f573b584f4a1ce1d41d7909fadf48b65e9b05397ddfd4",
+    "02dd7d9f35e7482c07ce1550a6572232cc48ba6858cd66f8dfc8f5384f3628be",
   );
+  expect(Buffer.byteLength(preimage)).toBe(1228);
+  // The reordered first use must not grant or remove any old route authority.
+  const oldRoutes = [
+    { method: "GET", url: `${scope}beads/a` },
+    { method: "POST", url: `${scope}operations/batch` },
+    { method: "GET", url: `${scope}links/l` },
+    { method: "GET", url: `${scope}beads/?limit=32` },
+    { method: "GET", url: `${scope}events/` },
+    { method: "GET", url: `${scope}beads/new` },
+    { method: "GET", url: `${scope}changes/?after=genesis` },
+    { method: "GET", url: `${scope}links/?limit=32` },
+    { method: "GET", url: `${scope}beads/b` },
+    { method: "GET", url: `${scope}beads/c` },
+    { method: "POST", url: `${scope}operations/update-where` },
+    { method: "POST", url: `${scope}operations/delete-where` },
+    { method: "POST", url: `${scope}operations/create-bead` },
+    { method: "POST", url: `${scope}operations/sequence` },
+    { method: "POST", url: `${scope}operations/update-bead` },
+  ];
+  const routeKey = (route: { method: string; url: string }) => `${route.method} ${route.url}`;
+  expect(
+    (JSON.parse(preimage).routes as { method: string; url: string }[]).map(routeKey).sort(),
+  ).toEqual(oldRoutes.map(routeKey).sort());
   const row = bundle.manifest.scenarios.find((r) => r.id === "transactional.batch.no-op-entries")!;
   expect(row.actions!.map((a) => a.id)).toEqual([
     "n-seed",
@@ -1383,9 +1439,9 @@ it.each(["bead-property", "link-metadata", "group-inventory-and-head"] as const)
       expect([...failed].sort()).toEqual([...intended].sort());
     expect(row.exchanges.at(-1)!.request.id).toBe(actionId);
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(21);
+    expect(children.length).toBeLessThanOrEqual(22);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBeLessThanOrEqual(control === "group-inventory-and-head" ? 186 : 181);
+    expect(exchanges).toBeLessThanOrEqual(control === "group-inventory-and-head" ? 197 : 192);
     for (const later of observed.result.scenarios.filter(
       (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
     ))
@@ -1536,6 +1592,7 @@ function applyDeletionControl(
 
 it("pins deletion-safety derivative carriers, complete positives, and measured source bounds", () => {
   assertCrossCarrierControls();
+  assertCommandMinimumControls();
   const canonical = JSON.parse(manifestSource.bytes.toString());
   const canonicalCount = canonical.scenarios.flatMap(
     (r: { actions: { assertions: unknown[] }[] }) => r.actions.flatMap((a) => a.assertions),
@@ -1631,9 +1688,10 @@ it("pins deletion-safety derivative carriers, complete positives, and measured s
       nodes++;
       if (value && typeof value === "object") pending.push(...Object.values(value));
     }
-    // Root-accepted derivative maximum701716B/18263nodes plus4096B/64nodes.
-    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(705812);
-    expect(nodes).toBeLessThanOrEqual(18327);
+    // Historical root-accepted maximum701716B/18263nodes plus4096B/64nodes.
+    // Command-minimum measured maximum756707B/19731nodes plus4096B/64nodes.
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(760803);
+    expect(nodes).toBeLessThanOrEqual(19795);
     const loaded = createCumulativeTransactionalArtifactBundle(
       loadProfileContractSelection("transactional"),
       { fixture: fixtureSource, manifest: { bytes: Buffer.from(wire) } },
@@ -1716,10 +1774,10 @@ it.each(deletionControlNames)(
       );
     }
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(21);
+    expect(children.length).toBeLessThanOrEqual(22);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
     expect(exchanges).toBeLessThanOrEqual(
-      control === "incoming-order" ? 176 : control === "outgoing-order" ? 181 : 177,
+      control === "incoming-order" ? 187 : control === "outgoing-order" ? 192 : 188,
     );
     for (const later of observed.result.scenarios.filter(
       (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
@@ -2041,9 +2099,10 @@ function assertCrossCarrierControls() {
       if (value && typeof value === "object") pending.push(...Object.values(value));
     }
     // Historical measurement-only derivative guards were650386B/17275nodes.
-    // Root-accepted derivative maximum701716B/18263nodes plus4096B/64nodes.
-    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(705812);
-    expect(nodes).toBeLessThanOrEqual(18327);
+    // Historical root-accepted maximum701716B/18263nodes plus4096B/64nodes.
+    // Command-minimum measured maximum756707B/19731nodes plus4096B/64nodes.
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(760803);
+    expect(nodes).toBeLessThanOrEqual(19795);
     const loaded = createCumulativeTransactionalArtifactBundle(
       loadProfileContractSelection("transactional"),
       { fixture: fixtureSource, manifest: { bytes: Buffer.from(JSON.stringify(changed)) } },
@@ -2120,10 +2179,10 @@ it.each(crossCarrierControls)(
     ))
       expect(later.state).toBe("pass");
     wire.finish();
-    expect(children).toHaveLength(21);
+    expect(children).toHaveLength(22);
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBe(control === "batch-semantic-conflict" ? 183 : 184);
+    expect(exchanges).toBe(control === "batch-semantic-conflict" ? 194 : 195);
     console.log(
       JSON.stringify({
         kind: "installed-tx-cross-carrier-control",
@@ -2146,6 +2205,593 @@ it.each(crossCarrierControls)(
         `${process.env.BDP_TRANSACTIONAL_CROSS_CARRIER_CONTROL_OUTPUT}-${control}.json`,
         JSON.stringify({ sourceCommit, entry, ...observed }, null, 2) + "\n",
       );
+  },
+  120000,
+);
+
+const commandMinimumId = "read-update.http.command-minimum-fields";
+const minimumActionIds = [
+  "m-create-a",
+  "m-replay-a",
+  "m-create-b",
+  "m-replay-b",
+  "m-create-c",
+  "m-replay-c",
+  "m-body-conflict",
+  "m-stale-update",
+  "m-retained-a",
+  "m-current",
+  "m-events",
+];
+const minimumRawIds = minimumActionIds.filter((id) => id !== "m-retained-a");
+const minimumControls = ["minimum-batch-body-conflict", "minimum-readonly-credential"] as const;
+type MinimumControl = (typeof minimumControls)[number];
+const minimumReplayLedger: readonly (readonly string[])[] = [
+  ["m-replay-a", "m-create-a", "whole-json"],
+  ["m-replay-b", "m-create-b", "whole-json"],
+  ["m-replay-c", "m-create-c", "whole-json"],
+];
+function assertMinimumReplayLedger(ledger: readonly (readonly string[])[]) {
+  if (
+    JSON.stringify(ledger) !==
+    JSON.stringify([
+      ["m-replay-a", "m-create-a", "whole-json"],
+      ["m-replay-b", "m-create-b", "whole-json"],
+      ["m-replay-c", "m-create-c", "whole-json"],
+    ])
+  )
+    throw new Error("minimum-replay-comparison-ledger");
+}
+function minimumRequests(control?: MinimumControl) {
+  const create = (name: string) => ({
+    id: `beads/${name}`,
+    type: `${scope}types/task`,
+    properties: { title: `minimum-${name}` },
+  });
+  const batch = (title: string) => ({
+    operations: [{ operation: "createBead", ...create("b"), properties: { title } }],
+  });
+  const sequence = {
+    operations: [{ operation: "createBead", ...create("c"), idempotencyKey: "minimum-c" }],
+  };
+  const minimumNames = ["bdp-minimum-scope-position", "bdp-scope-epoch", "bdp-authorization-view"];
+  const fields = (values: readonly string[]) =>
+    values.map((value, i) => ({ name: minimumNames[i]!, value }));
+  const M = fields(["not a position!", "", "view-one, view-two"]),
+    F = fields(["pos-99", "foreign-epoch", "foreign-view"]),
+    Z = fields(["", "", ""]),
+    P = [{ name: "bdp-scope-epoch", value: "foreign-epoch" }],
+    O: { name: string; value: string }[] = [];
+  const post = (
+    route: string,
+    body: unknown,
+    key: string | undefined,
+    extra: { name: string; value: string }[],
+  ) => ({
+    url: `${scope}operations/${route}`,
+    body,
+    headers: [
+      { name: "content-type", value: "application/json" },
+      ...(key === undefined ? [] : [{ name: "idempotency-key", value: key }]),
+      { name: "accept", value: "application/json" },
+      ...extra,
+    ],
+  });
+  return [
+    post("create-bead", create("a"), "minimum-a", M),
+    post("create-bead", create("a"), "minimum-a", O),
+    post("batch", batch("minimum-b"), "minimum-b", P),
+    post(
+      "batch",
+      batch(control === "minimum-batch-body-conflict" ? "minimum-conflict" : "minimum-b"),
+      "minimum-b",
+      Z,
+    ),
+    post("sequence", sequence, undefined, F),
+    post("sequence", sequence, undefined, M),
+    post("batch", batch("minimum-conflict"), "minimum-b", F),
+    post(
+      "update-bead",
+      {
+        bead: "beads/a",
+        expectedRevision: "minimum-wrong-revision",
+        propertiesChange: [{ op: "replace", path: "/title", value: "minimum-stale" }],
+      },
+      "minimum-stale",
+      M,
+    ),
+    { url: `${scope}beads/?limit=32`, body: undefined, headers: O },
+    { url: `${scope}events/`, body: undefined, headers: O },
+  ];
+}
+/** Supplemental assertions on actual unredacted wire. The ledger alone drives
+ * replay equality; no arbitrary JSON capture or report-body recovery is used. */
+function commandMinimumWire(control?: MinimumControl) {
+  assertMinimumReplayLedger(minimumReplayLedger);
+  const requests = minimumRequests(control),
+    validator = createJsonSchemaValidator(schema);
+  const maximum =
+    control === "minimum-readonly-credential"
+      ? 1
+      : control === "minimum-batch-body-conflict"
+        ? 4
+        : 10;
+  const observedIds: string[] = [],
+    performed: string[][] = [],
+    baselines = new Map<string, Record<string, unknown>>(),
+    resources: Record<string, unknown>[] = [];
+  let active = false,
+    epoch: string | undefined,
+    view: string | undefined,
+    originalRoot: string | undefined,
+    originalResponseDigest: string | undefined;
+  const problem = (code: string, retry = "never") => ({
+    type: "https://github.com/gastownhall/bdp/problems/conflict",
+    code,
+    status: 409,
+    retry,
+  });
+  return {
+    async afterExchange(response: HttpExchangeResponse) {
+      const request = response.exactRequest;
+      const key = request?.headerLines.find(
+        (h) => h.name.toLowerCase() === "idempotency-key",
+      )?.value;
+      if (!active) {
+        if (response.url !== `${scope}operations/create-bead` || key !== "minimum-a") return;
+        active = true;
+      }
+      if (observedIds.length === maximum) {
+        expect(key?.startsWith("minimum-") ?? false).toBe(false);
+        // Other rows may legitimately use these routes; a repeated minimum
+        // sequence is discriminated by its exact authored body, not its URL.
+        if (response.url === `${scope}operations/sequence`)
+          expect(request?.bodyDigest).not.toBe(
+            createHash("sha256").update(JSON.stringify(requests[4]!.body)).digest("hex"),
+          );
+        return;
+      }
+      const index = observedIds.length,
+        id = minimumRawIds[index]!,
+        expected = requests[index]!;
+      expect(response.url).toBe(expected.url);
+      expect(request).toBeDefined();
+      expect(request!.source).toBe("raw-http1-serializer");
+      expect(request!.writeState).toBe("complete");
+      expect(request!.bodyPresent).toBe(expected.body !== undefined);
+      // Credentials and generated framing are checked by the runner's exact
+      // request assertions; never retain or serialize their secret values.
+      expect(
+        request!.headerLines.slice(0, expected.headers.length).map((header) => header.name),
+      ).toEqual(expected.headers.map((header) => header.name));
+      expect(request!.headerLines.slice(0, expected.headers.length)).toEqual(expected.headers);
+      expect(
+        request!.headerLines
+          .slice(expected.headers.length)
+          .some((header) => header.name.toLowerCase().startsWith("bdp-")),
+      ).toBe(false);
+      expect(request!.bodyDigest).toBe(
+        expected.body === undefined
+          ? undefined
+          : createHash("sha256").update(JSON.stringify(expected.body)).digest("hex"),
+      );
+      const body = JSON.parse(response.bodyText);
+      const readonlyRefusal = control === "minimum-readonly-credential";
+      const conflict =
+        id === "m-body-conflict" ||
+        (control === "minimum-batch-body-conflict" && id === "m-replay-b");
+      const schemaRef =
+        readonlyRefusal || conflict
+          ? "transactionalProblem"
+          : index < 4 || id === "m-stale-update"
+            ? "mutationReceipt"
+            : index < 6
+              ? "transactionalSequenceResponse"
+              : id === "m-current"
+                ? "currentBeadCollection"
+                : "eventPage";
+      expect(validator.validate(`#/$defs/${schemaRef}`, body)).toEqual([]);
+      expect(response.status).toBe(readonlyRefusal ? 403 : conflict ? 409 : 200);
+      expect(response.headers["content-type"]).toBe(
+        readonlyRefusal || conflict ? "application/problem+json" : "application/json",
+      );
+      if (readonlyRefusal) {
+        expect(body).toEqual({
+          type: "https://github.com/gastownhall/bdp/problems/authorization",
+          code: "forbidden",
+          status: 403,
+          retry: "after-state-change",
+        });
+        for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+          expect(response.headers[name]).toBeUndefined();
+      } else {
+        const currentEpoch = response.headers["bdp-scope-epoch"],
+          currentView = response.headers["bdp-authorization-view"];
+        expect(typeof currentEpoch).toBe("string");
+        expect(currentEpoch?.length).toBeGreaterThan(0);
+        expect(typeof currentView).toBe("string");
+        expect(currentView?.length).toBeGreaterThan(0);
+        expect(response.headers["bdp-scope-position"]).toBe(
+          index < 2 ? "pos-1" : index < 4 ? "pos-2" : "pos-3",
+        );
+        if (epoch !== undefined) {
+          expect(currentEpoch).toBe(epoch);
+          expect(currentView).toBe(view);
+        }
+        if (conflict) expect(body).toEqual(problem("idempotency-conflict"));
+        else if (index < 6) {
+          const name = index < 2 ? "a" : index < 4 ? "b" : "c",
+            position = `pos-${Math.floor(index / 2) + 1}`;
+          expect(body.results).toHaveLength(1);
+          const result = body.results[0],
+            resource = result.resource;
+          expect(result).toEqual({
+            operationIndex: 0,
+            outcome: "created",
+            resource,
+          });
+          expect(resource).toMatchObject({
+            id: `${scope}beads/${name}`,
+            type: `${scope}types/task`,
+            properties: { title: `minimum-${name}` },
+            metadata: {},
+          });
+          expect(resource.properties).toEqual({ title: `minimum-${name}` });
+          expect(resource.metadata).toEqual({});
+          expect(typeof resource.revision).toBe("string");
+          expect(resource.revision.length).toBeGreaterThan(0);
+          expect(resource).not.toHaveProperty("revisionProvenance");
+          expect(resource).not.toHaveProperty("ownedLinks");
+          if (index < 4) {
+            expect(body).toMatchObject({
+              status: "completed",
+              detail: "available",
+              idempotencyKey: `minimum-${name}`,
+              scopeEpoch: currentEpoch,
+              authorizationView: currentView,
+              requiredPosition: position,
+              effectPosition: position,
+              next: null,
+            });
+            expect(typeof body.id).toBe("string");
+            expect(body.id.startsWith(`${scope}receipts/`)).toBe(true);
+            expect(body.id.slice(`${scope}receipts/`.length)).toMatch(/^[A-Za-z0-9_-]+$/);
+          } else {
+            expect(body).not.toHaveProperty("id");
+            expect(body).not.toHaveProperty("receipt");
+            expect(result).not.toHaveProperty("problem");
+          }
+          const pair = minimumReplayLedger.find(([replay]) => replay === id);
+          if (pair) {
+            if (pair[2] !== "whole-json") throw new Error("minimum-replay-comparison-ledger");
+            expect(baselines.has(pair[1]!)).toBe(true);
+            expect(body).toEqual(baselines.get(pair[1]!));
+            performed.push([...pair]);
+          } else {
+            // No baseline exists until all independent schema/literal/absence
+            // checks above have passed.
+            baselines.set(id, structuredClone(body));
+            resources.push(structuredClone(resource));
+          }
+          if (id === "m-create-a") {
+            originalRoot = body.id;
+            expect(response.wireResponseBytes).toBeDefined();
+            originalResponseDigest = createHash("sha256")
+              .update(response.wireResponseBytes!)
+              .digest("hex");
+          }
+        } else if (id === "m-stale-update") {
+          expect(body).toMatchObject({
+            status: "failed",
+            detail: "available",
+            idempotencyKey: "minimum-stale",
+            requiredPosition: "pos-3",
+            scopeEpoch: currentEpoch,
+            authorizationView: currentView,
+            problem: {
+              ...problem("revision-mismatch", "after-state-change"),
+              operationIndex: 0,
+            },
+          });
+          expect(body.problem).toEqual({
+            ...problem("revision-mismatch", "after-state-change"),
+            operationIndex: 0,
+          });
+          for (const field of ["effectPosition", "results", "next"])
+            expect(body).not.toHaveProperty(field);
+        } else if (id === "m-current") {
+          expect(body.items).toEqual(resources);
+          expect(body.items).toHaveLength(3);
+          expect(body.next).toBeNull();
+        } else {
+          expect(body.events).toHaveLength(3);
+          expect(body.next).toBeNull();
+          // Private installed-fixture identity spelling, not a normative Event-ID format.
+          const projectedIdentity = [
+            ["epoch", currentEpoch],
+            ["view", currentView],
+            ["source", `${scope}events/`],
+          ]
+            .map((tagged) =>
+              createHash("sha256").update(JSON.stringify(tagged)).digest("base64url"),
+            )
+            .join("_");
+          for (const [i, name] of ["a", "b", "c"].entries()) {
+            const event = body.events[i],
+              resource = resources[i]!;
+            expect(event).toMatchObject({
+              id: `ev_${projectedIdentity}_${["pos-1", "pos-2", "pos-3"][i]}_0`,
+              source: `${scope}events/`,
+              type: "created",
+              subject: `${scope}beads/${name}`,
+              subjectType: `${scope}types/task`,
+              ordinal: 0,
+            });
+            expect(event.data).toEqual({
+              revision: resource.revision,
+              properties: resource.properties,
+              metadata: resource.metadata,
+            });
+            if (i < 2)
+              expect(event.transaction).toBe(baselines.get(`m-create-${name}`)!.transaction);
+          }
+        }
+        epoch = currentEpoch;
+        view = currentView;
+      }
+      observedIds.push(id);
+    },
+    summary() {
+      return {
+        kind: "command-minimum-wire-supplement",
+        control: control ?? "positive",
+        active,
+        observedIds: [...observedIds],
+        performedComparisons: performed.map((pair) => [...pair]),
+        originalRoot,
+        originalResponseDigest,
+      };
+    },
+    finish() {
+      expect(active).toBe(true);
+      expect(observedIds).toEqual(minimumRawIds.slice(0, maximum));
+      expect(performed).toEqual(
+        minimumReplayLedger.slice(
+          0,
+          control === "minimum-readonly-credential"
+            ? 0
+            : control === "minimum-batch-body-conflict"
+              ? 1
+              : 3,
+        ),
+      );
+    },
+  };
+}
+function assertCommandMinimumPositive(
+  observed: Awaited<ReturnType<typeof observe>>,
+  wire: ReturnType<typeof commandMinimumWire>,
+) {
+  const row = observed.result.scenarios.find((r) => r.id === commandMinimumId)!;
+  const declared = bundle.manifest.scenarios.find((r) => r.id === commandMinimumId)!;
+  expect(row.state).toBe("pass");
+  expect(row.exchanges.map((e) => e.request.id)).toEqual(minimumActionIds);
+  expect(row.exchanges.map((e) => e.request.method)).toEqual([
+    "POST",
+    "POST",
+    "POST",
+    "POST",
+    "POST",
+    "POST",
+    "POST",
+    "POST",
+    "GET",
+    "GET",
+    "GET",
+  ]);
+  expect(row.actions!.map((a) => a.action.id)).toEqual(["m-retained-a"]);
+  for (const exchange of row.exchanges) {
+    expect(exchange.transportError).toBeUndefined();
+    expect(exchange.harnessError).toBeUndefined();
+    expect(exchange.assertions.every((a) => a.passed)).toBe(true);
+    if (exchange.request.id !== "m-retained-a")
+      expect(exchange.assertions.map((a) => a.id)).toEqual(
+        declared.actions!.find((a) => a.id === exchange.request.id)!.assertions.map((a) => a.id),
+      );
+    expect(exchange.request.exact?.writeState).toBe("complete");
+    expect(exchange.request.exact!.bodyOctets).toBeLessThanOrEqual(2048);
+    expect(exchange.response!.decodedBodyBytes).toBeLessThanOrEqual(8192);
+  }
+  const action = row.actions![0]!,
+    dynamic = row.exchanges[8]!,
+    facts = wire.summary();
+  expect(action.assertions.every((a) => a.passed)).toBe(true);
+  expect(action.assertions.map((a) => a.id)).toEqual(
+    declared.actions!.find((a) => a.id === "m-retained-a")!.assertions.map((a) => a.id),
+  );
+  expect(action.executionError).toBeUndefined();
+  expect(row.cleanupError).toBeUndefined();
+  expect(row.prerequisiteFailure).toBeUndefined();
+  expect(action.output).toEqual({ kind: "json" });
+  expect(dynamic.sourceReceiptObservation).toMatchObject({
+    action: "m-create-a",
+    pointer: "/id",
+    receipt: facts.originalRoot,
+    responseDigest: facts.originalResponseDigest,
+    credentialRef: "operator",
+  });
+  expect(dynamic.request.url).toBe(facts.originalRoot);
+  expect(dynamic.request.exact?.bodyPresent).toBe(false);
+  expect(dynamic.dynamicExactConfiguration).toMatchObject({
+    scope,
+    profile: "transactional",
+    routes: [{ method: "GET", url: facts.originalRoot }],
+  });
+  // This fixture never reopens: equality here is an observed same-session fact,
+  // not a universal requirement on retained receipt identity.
+  expect(dynamic.servedSession).toEqual(dynamic.sourceReceiptObservation!.session);
+  // Existing private validate(GET) compared complete original/current bodies
+  // before client projection. Internal exact request assertion proves O headers.
+  expect(dynamic.assertions.map((a) => [a.id, a.passed])).toEqual([
+    ["actual-status", true],
+    ["actual-request", true],
+    ["actual-body", true],
+  ]);
+  wire.finish();
+}
+function applyCommandMinimumControl(value: CrossCarrierManifest, control: MinimumControl) {
+  const row = value.scenarios.find((r) => r.id === commandMinimumId)!;
+  const actionId = control === "minimum-batch-body-conflict" ? "m-replay-b" : "m-create-a";
+  const action = row.actions.find((a) => a.id === actionId)!;
+  if (control === "minimum-batch-body-conflict")
+    (action.raw as { body: { value: string } }).body.value = JSON.stringify(
+      minimumRequests(control)[3]!.body,
+    );
+  else action.credentialRef = "reader";
+  return {
+    actionId,
+    failingIds:
+      control === "minimum-batch-body-conflict"
+        ? [
+            "http-status",
+            "schema",
+            "media",
+            "disposition",
+            "detail",
+            "key",
+            "no-next",
+            "required-position",
+            "effect-position",
+            "same-context",
+            "literal-result",
+          ]
+        : [
+            "http-status",
+            "schema",
+            "media",
+            "present-bdp-scope-epoch",
+            "present-bdp-authorization-view",
+            "present-bdp-scope-position",
+            "serving-position",
+            "disposition",
+            "detail",
+            "key",
+            "no-next",
+            "required-position",
+            "effect-position",
+            "literal-result",
+          ],
+  };
+}
+function assertCommandMinimumControls() {
+  const canonical = JSON.parse(manifestSource.bytes.toString()),
+    validator = createJsonSchemaValidator(schema);
+  const digests: string[] = [];
+  for (const control of minimumControls) {
+    const changed = structuredClone(canonical),
+      description = applyCommandMinimumControl(changed, control);
+    const original = canonical.scenarios.find((r: { id: string }) => r.id === commandMinimumId),
+      row = changed.scenarios.find((r: { id: string }) => r.id === commandMinimumId);
+    expect(row.actions.map((a: { id: string }) => a.id)).toEqual(minimumActionIds);
+    for (const [i, action] of row.actions.entries())
+      expect(action.assertions).toEqual(original.actions[i].assertions);
+    expect(changed.scenarios.filter((r: { id: string }) => r.id !== commandMinimumId)).toEqual(
+      canonical.scenarios.filter((r: { id: string }) => r.id !== commandMinimumId),
+    );
+    const target = row.actions.find((a: { id: string }) => a.id === description.actionId);
+    for (const id of description.failingIds)
+      expect(target.assertions.some((a: { id: string }) => a.id === id)).toBe(true);
+    const loaded = createCumulativeTransactionalArtifactBundle(
+      loadProfileContractSelection("transactional"),
+      {
+        fixture: fixtureSource,
+        manifest: { bytes: Buffer.from(JSON.stringify(changed)) },
+      },
+    );
+    for (const scenario of loaded.manifest.scenarios)
+      for (const action of scenario.actions ?? [])
+        for (const assertion of action.assertions)
+          if (assertion.kind === "json-schema") validator.resolve(assertion.schema);
+    expect(loaded.digests.manifestDigest).not.toBe(
+      createHash("sha256").update(JSON.stringify(canonical)).digest("hex"),
+    );
+    digests.push(loaded.digests.manifestDigest);
+  }
+  expect(new Set(digests).size).toBe(2);
+}
+it.each(minimumControls)(
+  "discriminates command minimum evidence against %s",
+  async (control) => {
+    const children: ChildProcess[] = [],
+      wire = commandMinimumWire(control);
+    let description: ReturnType<typeof applyCommandMinimumControl> | undefined;
+    const observed = await observe({
+      children,
+      scenarioSelection: [commandMinimumId],
+      afterExchange: wire.afterExchange,
+      manifest(value) {
+        description = applyCommandMinimumControl(value, control);
+      },
+      onObserved(observed) {
+        if (process.env.BDP_TRANSACTIONAL_MINIMUM_CONTROL_OUTPUT)
+          writeFileSync(
+            `${process.env.BDP_TRANSACTIONAL_MINIMUM_CONTROL_OUTPUT}-${control}.json`,
+            JSON.stringify(
+              { sourceCommit, entry, ...observed, supplemental: wire.summary() },
+              null,
+              2,
+            ) + "\n",
+          );
+      },
+    });
+    expect(description).toBeDefined();
+    expect(observed.result.selectedScenarioIds).toEqual([commandMinimumId]);
+    expect(observed.result.scenarios).toHaveLength(1);
+    expect(observed.result.claimEligible).toBe(false);
+    const row = observed.result.scenarios[0]!,
+      count = control === "minimum-batch-body-conflict" ? 4 : 1;
+    expect(row.state).toBe("fail");
+    expect(row.cleanupError).toBeUndefined();
+    expect(row.prerequisiteFailure).toBeUndefined();
+    expect(row.exchanges.map((e) => e.request.id)).toEqual(minimumActionIds.slice(0, count));
+    expect(row.exchanges.every((e) => e.request.method === "POST")).toBe(true);
+    expect(row.actions ?? []).toHaveLength(0);
+    for (const exchange of row.exchanges) {
+      expect(exchange.transportError).toBeUndefined();
+      expect(exchange.harnessError).toBeUndefined();
+      expect(exchange.request.exact?.writeState).toBe("complete");
+    }
+    for (const exchange of row.exchanges.slice(0, -1))
+      expect(exchange.assertions.every((a) => a.passed)).toBe(true);
+    const last = row.exchanges.at(-1)!;
+    expect(last.assertions.map((a) => a.id)).toEqual(
+      bundle.manifest.scenarios
+        .find((r) => r.id === commandMinimumId)!
+        .actions!.find((a) => a.id === description!.actionId)!
+        .assertions.map((a) => a.id),
+    );
+    expect(last.request.id).toBe(description!.actionId);
+    expect(last.response?.status).toBe(control === "minimum-batch-body-conflict" ? 409 : 403);
+    expect(last.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual(
+      description!.failingIds,
+    );
+    for (const id of ["request-headers", "request-body"])
+      expect(last.assertions.find((a) => a.id === id)?.passed).toBe(true);
+    wire.finish();
+    expect(observed.sessions).toHaveLength(1);
+    expect(children).toHaveLength(2);
+    expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
+    console.log(
+      JSON.stringify({
+        kind: "installed-tx-command-minimum-control",
+        control,
+        sourceCommit,
+        exchanges: row.exchanges.length,
+        childLaunches: children.length,
+        supplemental: wire.summary(),
+        claimEligible: false,
+      }),
+    );
   },
   120000,
 );

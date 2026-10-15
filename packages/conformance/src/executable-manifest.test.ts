@@ -604,6 +604,57 @@ describe("executable scenario manifest", () => {
     );
   });
 
+  it("admits normalized authorization-view context without changing lowercase rules", () => {
+    for (const version of [1, 2]) {
+      for (const actions of [false, true]) {
+        for (const value of ["", "view-one, view-two"]) {
+          for (const name of ["bdp-authorization-view", "BDP-Authorization-View"]) {
+            const base = manifest();
+            const baseScenario = base.scenarios.at(0);
+            if (baseScenario === undefined) throw new Error("test manifest unexpectedly empty");
+            const { requests, ...scenario } = baseScenario;
+            const baseRequest = requests.at(0);
+            if (baseRequest === undefined) throw new Error("test scenario unexpectedly empty");
+            const request = { ...baseRequest, headers: { [name]: value } };
+            const source = {
+              ...base,
+              manifestVersion: version,
+              scenarios: [
+                {
+                  ...scenario,
+                  ...(actions
+                    ? { actions: [{ family: "http", ...request }] }
+                    : { requests: [request] }),
+                },
+              ],
+            };
+            if (name !== name.toLowerCase()) {
+              try {
+                parseExecutableScenarioManifest(source);
+                throw new Error("mixed-case normalized header was accepted");
+              } catch (error) {
+                if (!(error instanceof ManifestValidationError)) throw error;
+                expect(error.issues).toEqual([
+                  {
+                    path: `$.scenarios[0].${actions ? "actions" : "requests"}[0].headers.${name}`,
+                    message: "must be a lowercase HTTP field name",
+                  },
+                ]);
+                expect(error.issues.some(({ message }) => message.includes("secret"))).toBe(false);
+              }
+            } else {
+              const parsed = parseExecutableScenarioManifest(source).scenarios.at(0);
+              if (parsed === undefined) throw new Error("parsed scenario unexpectedly empty");
+              expect(parsed.requests?.[0] ?? parsed.actions?.[0]).toMatchObject({
+                headers: { "bdp-authorization-view": value },
+              });
+            }
+          }
+        }
+      }
+    }
+  });
+
   it("rejects credentials and noncanonical header names", () => {
     const base = manifest();
     const scenario = base.scenarios.at(0);
@@ -1493,6 +1544,25 @@ describe("manifest v2 exact HTTP inputs", () => {
           ],
         },
         credentialRef: "anonymous",
+      });
+      expect(loadExecutableScenarioManifestJson(JSON.stringify(source))).toEqual(parsed);
+    },
+  );
+  it.each([false, true])(
+    "admits literal authorization-view context through actions=%s",
+    (actions) => {
+      const headerLines = [
+        { name: "bdp-minimum-scope-position", value: "not a position!" },
+        { name: "bdp-scope-epoch", value: "" },
+        { name: "bdp-authorization-view", value: "" },
+        { name: "BDP-Authorization-View", value: "view-one, view-two" },
+      ];
+      const source = exactManifest({ raw: { headerLines } }, actions);
+      const parsed = parseExecutableScenarioManifest(source);
+      const scenario = parsed.scenarios.at(0);
+      if (scenario === undefined) throw new Error("parsed scenario unexpectedly empty");
+      expect(scenario.requests?.[0] ?? scenario.actions?.[0]).toMatchObject({
+        raw: { headerLines },
       });
       expect(loadExecutableScenarioManifestJson(JSON.stringify(source))).toEqual(parsed);
     },

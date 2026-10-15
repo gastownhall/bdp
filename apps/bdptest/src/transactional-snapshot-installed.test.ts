@@ -266,13 +266,7 @@ async function start(signal: AbortSignal) {
     )
       throw new Error("Snapshot observation escaped the configured Scope");
     const address = new URL(child.ready.listenUrl as string);
-    // Match the existing credential firewall: the view is a declared resolved
-    // header, never raw credential-like input (including anonymous requests).
-    const viewHeaders =
-      headers["bdp-authorization-view"] === undefined
-        ? {}
-        : { "bdp-authorization-view": headers["bdp-authorization-view"] };
-    const viewNames = Object.keys(viewHeaders);
+    // Authorization-view is authored protocol context, not credential decoration.
     const execute = createRawHttpExchangeExecutor(
       { transport: "plain", host: address.hostname, port: Number(address.port) },
       {
@@ -286,15 +280,14 @@ async function start(signal: AbortSignal) {
           maximumRequestBodyBytes: 65536,
           defaultCredentialRef: "operator",
           credentialHandles: [
-            { id: "operator", headerNames: ["authorization", ...viewNames] },
-            { id: "reader", headerNames: ["authorization", ...viewNames] },
-            { id: "anonymous", headerNames: viewNames },
+            { id: "operator", headerNames: ["authorization"] },
+            { id: "reader", headerNames: ["authorization"] },
+            { id: "anonymous", headerNames: [] },
           ],
           resolveCredentials: ({ credentialRef }) =>
             credentialRef === "anonymous"
-              ? viewHeaders
+              ? {}
               : {
-                  ...viewHeaders,
                   authorization: `Bearer ${credentialRef === "reader" ? reader : operator}`,
                 },
         },
@@ -306,9 +299,7 @@ async function start(signal: AbortSignal) {
       signal,
       credentialRef,
       raw: {
-        headerLines: Object.entries(headers)
-          .filter(([name]) => name !== "bdp-authorization-view")
-          .map(([name, value]) => ({ name, value })),
+        headerLines: Object.entries(headers).map(([name, value]) => ({ name, value })),
         ...(body === undefined ? {} : { bodyBytes: Buffer.from(JSON.stringify(body)) }),
       },
     });
