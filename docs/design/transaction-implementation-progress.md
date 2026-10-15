@@ -1921,3 +1921,19 @@ at this draft checkpoint. The proposed early-refusal control and fresh installed
 witness remain separate gates; earlier evidence retains its original source
 attribution. This changes neither public discovery eligibility nor the pending
 Snapshot minimum or incident-Link Event membership rulings.
+
+### Private installed principal-key isolation draft
+
+The unexecuted draft adds one seven-request installed HTTP witness for two writable
+principals using the same key, same-principal credential rotation replay, exact
+retained receipts versus current context, and complete Resource/Event linkage. A
+separately selected configuration-collapse control expects refusal on its second
+request; it is sensitivity evidence, not a production mutation. A-credentialed
+reads observe the existing serving view and do not establish principal-scoped
+read semantics. No tests, builds, packages or installed runs have executed at this
+draft checkpoint. Earlier evidence retains its original source attribution.
+Authoring is based on 18104a03b850553641f24fe83e7318493fa102ca. The unchanged draft
+was integrated onto f5511718371a6935614eae6756e796cef71570c2; reviewed validation
+remains a gate before final publication/readiness. This draft
+does not activate discovery, qualify a profile or settle the pending Snapshot or
+incident-Link metadata decisions.
