@@ -66,7 +66,7 @@ not edited by this pass.
 | ID | Concrete question | Evidence/example | Completion criterion |
 | --- | --- | --- | --- |
 | T01 | What names the counted Link set, direction and constraint identity? | dependency pair uniqueness spans blocks and parent-child; an Issue may have many different dependencies | Define syntax and exact applicability without confusing a pair key with endpoint maximum |
-| T02 — concrete mixed-revision case selected; activation scope open | Where are differing revision constraints active? | An existing Assignment@1 Link keeps max1 at X; adding @2 max2 fails until explicit migration, absent other constraints | Define activation across endpoint identities, unused/history-only definitions and inherited revisions; installation alone does not change guarantees |
+| T02 — arity/uniqueness locality selected; acyclicity open | Where are differing revision constraints active? | An existing Assignment@1 Link keeps max1 at X; adding @2 max2 fails until explicit migration, absent other constraints | Complete inherited-revision and acyclicity activation; endpoint/pair locality and inactive unused/history-only definitions are selected |
 | T03 — resolved | Positive minimums belong on Bead Types; both kinds may declare maximums | Assignment eligibility does not oblige an ordinary Issue; AssignedIssue can require one | Same-set effective maximum is the smallest maximum; minimum is the largest minimum. Different counted sets remain independent. Declaration syntax is part of T01 |
 | T04 | How do nominal and conformance selectors match exact and floating definitions? | Query issue includes task/bug by conformance; an exact historical contract must retain meaning | Define matching independently from presentation aliases, revision age and compatibility claims |
 | T05 | How are endpoint pins and unavailable definitions checked? | MemorySupports cites an old revision; Dependency schedules against current Issue state | Define local/current/historical admission and revalidation; external validation is excluded, pin-mode constraints deferred |
@@ -190,3 +190,15 @@ conforms to the other and all remaining constraints pass. Do not generalize to
 a Scope-wide minimum over all installed revisions: activation locality is the next
 question. Provenance subject validation remains open for the separate deep review
 this week; do not expand it during this Type exercise.
+
+## October 15 activation locality and uniqueness ruling
+
+Selected: arity activation is per affected endpoint/direction, counting all current
+family Links across revisions. Unused installed/history-only definitions do not
+activate constraints absent another applicable contract; a new Link using one must
+pass its constraints against the proposed final state before commit. Uniqueness
+activation is per ordered pair: old duplicates at A→B do not block unique @2 at
+C→D, but adding unique @2 at A→B counts the old Links and fails. Atomic migration
+can resolve the duplicate pair. Inherited/independent constraints remain binding.
+Next question: acyclicity activation locality; no new answer inferred from pair
+uniqueness. Provenance remains parked for its separate review.

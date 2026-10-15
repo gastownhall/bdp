@@ -637,12 +637,24 @@ constraints. No automatic migration follows from installing @2. If @2 conforms t
 @1, or another applicable declaration retains the maximum of one, changing the
 nominal affiliation does not escape that inherited or independent constraint.
 
-This settles the concrete coexistence/migration case, not the complete activation
-algorithm. Still open: precisely where a revision's graph constraints are active
-(other endpoint identities, zero matching Links, retained history and installed
-but unused definitions), inherited revision combinations, and activation of
-changed uniqueness/acyclicity rules. Do not silently generalize this ruling into
-a Scope-wide minimum over every installed or historical definition.
+Activation is local to the affected endpoint and direction. An @1 Link targeting
+X does not impose its incoming maximum on independent Y. At Y, all current Links
+in the Assignment family count together, including @1, @2 and conforming Types;
+count membership is distinct from which limit declarations are active there.
+Two @2 Links at Y can satisfy max2; one @1 plus one @2 at Y fails max1.
+
+An installed definition with no current usage and no other applicable contract
+requiring its constraint is inactive for the live graph. Retained historical Link
+revisions alone do not activate it. A newly created Link using that definition
+makes its constraints applicable to the proposed final state: validation happens
+before commit, not after admitting a violation. For example, adding an @1 max1
+Link at Y with two @2 Links fails because the proposed count is three. An explicit
+atomic migration may remove old usage and its constraint while introducing new
+usage, provided all final-state requirements hold.
+
+The same locality principle for uniqueness is selected in §5.6. Still open:
+precise inherited-revision activation and changes to acyclicity. Do not generalize
+these rules into a Scope-wide minimum over every installed or historical definition.
 
 ### 5.5 Validate arity at transaction commit
 
@@ -707,9 +719,18 @@ domain-specific hierarchy, endpoint, properties or authorization checks. Declare
 acyclicity has its own commit-time rule in §5.8.
 
 This is an optional declared constraint, not a universal prohibition of parallel
-Links. Wire syntax and constraint evolution across definition revisions still
-need the shared decisions already identified for graph constraints. No new
-allowance follows merely from a different child Type or endpoint revision pin.
+Links. Under mixed revisions, activation is local to the ordered endpoint pair,
+while counting includes all current Links in the declaring family across revisions
+and conforming Types. A different child Type or endpoint pin creates no extra slot.
+
+For example, Relationship@1 permits parallel Links and Relationship@2 requires
+pair uniqueness; assume neither revision inherits the other. Two existing @1
+Links at A→B do not prohibit creating a unique @2 Link at independent C→D. Creating
+an @2 Link at A→B fails because the same-pair population includes both @1 Links.
+An atomic migration of A→B can remove duplicates and move the surviving Link to
+@2. Installing @2 alone neither activates its rule everywhere nor changes the old
+records. Inherited/independent uniqueness declarations remain binding wherever
+applicable. This refines revision activation, not the family-wide counted set.
 
 ### 5.7 Ownership matches through conformance
 
@@ -839,6 +860,11 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Link endpoints use differing revisions of the same identity in a cycle | Pins do not evade identity-based acyclicity |
 | T@2 declares conformance to T@1 | Do not decide revision-evolution policy via a generic acyclic flag; exact-revision and identity cycles differ |
 | Type definition has version 2.1.0 and exact revision r7 | Pins still identify r7; label alone establishes no matching or conformance |
+| X uses Assignment@1 max1; independent Y uses two Assignment@2 max2 Links | Y may have two; X's incoming limit does not apply at Y |
+| @1 is retained only as an installed definition or in history, with no other applicable contract | Do not activate its limit on the current graph |
+| Create an @1 max1 Link at Y already having two @2 Links | Reject before commit: all three count, even though @1 was previously unused there |
+| Two parallel Relationship@1 Links remain at A→B; create unique Relationship@2 at C→D | Allow if C→D meets all applicable constraints; A→B does not block independent migration |
+| Create that unique @2 Link at A→B instead | Reject: old @1 Links participate in the same-pair uniqueness count |
 
 ## 7. Decisions still needed
 
