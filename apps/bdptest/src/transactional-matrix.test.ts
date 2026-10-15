@@ -100,6 +100,8 @@ async function observe(control?: {
   /** Negative-test deadline begins after the first real exchange, with startup still bounded. */
   readonly afterFirstExchangeBudgetMs?: number;
   readonly scenarioSelection?: readonly string[];
+  readonly collapsePrincipalB?: boolean;
+  readonly onDispatch?: (request: PrincipalDispatchInput) => void;
   /** Retain genuine returned evidence before cleanup can fail; never replace it. */
   readonly onObserved?: (observed: InstalledObservation) => void;
   readonly invalidReceiptCredentials?: boolean | "set-update" | "set-delete";
@@ -144,16 +146,19 @@ async function observe(control?: {
       })
     : bundle;
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-tx-installed-"));
-  const operator = randomBytes(32).toString("base64url"),
-    reader = randomBytes(32).toString("base64url");
+  const tokens: PrincipalTokens = {
+    operator: randomBytes(32).toString("base64url"),
+    reader: randomBytes(32).toString("base64url"),
+    principalA: randomBytes(32).toString("base64url"),
+    principalARotated: randomBytes(32).toString("base64url"),
+    principalB: randomBytes(32).toString("base64url"),
+  };
+  const roles = principalCredentialRoles(tokens, control?.collapsePrincipalB ?? false);
   const configuration = {
     scope,
     directory: path.join(directory, "bootstrap"),
     create: true,
-    credentials: [
-      { token: operator, principal: "same", canMutate: true },
-      { token: reader, principal: "same", canMutate: false },
-    ],
+    credentials: roles.map(({ token, principal, canMutate }) => ({ token, principal, canMutate })),
     artifacts: artifacts(),
   };
   let target: ReturnType<typeof createTransactionalExecutionBinding> | undefined;
@@ -193,12 +198,12 @@ async function observe(control?: {
     );
     // Independently authored route inventory, not a second derivation from the manifest.
     expect(uniqueRoutes).toEqual([
-      { method: "POST", url: `${scope}operations/create-bead` },
       { method: "POST", url: `${scope}operations/batch` },
-      { method: "POST", url: `${scope}operations/sequence` },
-      { method: "POST", url: `${scope}operations/update-bead` },
       { method: "GET", url: `${scope}beads/?limit=32` },
       { method: "GET", url: `${scope}events/` },
+      { method: "POST", url: `${scope}operations/create-bead` },
+      { method: "POST", url: `${scope}operations/sequence` },
+      { method: "POST", url: `${scope}operations/update-bead` },
       { method: "GET", url: `${scope}beads/a` },
       { method: "GET", url: `${scope}links/l` },
       { method: "GET", url: `${scope}beads/new` },
@@ -229,16 +234,16 @@ async function observe(control?: {
       maximumRequestBodyBytes: 65536,
       defaultCredentialRef: "operator",
       credentialHandles: [
-        { id: "operator", headerNames: ["authorization"] },
-        { id: "reader", headerNames: ["authorization"] },
+        ...roles.map(({ ref }) => ({ id: ref, headerNames: ["authorization"] })),
         { id: "anonymous", headerNames: [] },
       ],
       resolveCredentials: ({ credentialRef, url }) =>
-        credentialRef === "anonymous"
-          ? {}
-          : {
-              authorization: `Bearer ${(control?.invalidReceiptCredentials === true && url.startsWith(`${scope}receipts/`)) || deniedReceiptUrls.has(url) ? "deliberately-unknown" : credentialRef === "operator" ? operator : reader}`,
-            },
+        principalHeaders(
+          roles,
+          credentialRef,
+          (control?.invalidReceiptCredentials === true && url.startsWith(`${scope}receipts/`)) ||
+            deniedReceiptUrls.has(url),
+        ),
     };
     target = createTransactionalExecutionBinding({
       baseline,
@@ -276,6 +281,13 @@ async function observe(control?: {
         },
         exactExecution: {
           execute: async (request) => {
+            control?.onDispatch?.(
+              Object.freeze({
+                method: request.method,
+                url: request.url,
+                credentialRef: request.credentialRef,
+              }),
+            );
             const response = await target!.target.execute(request);
             if (afterFirstExchangeBudgetMs !== undefined && firstExchangeTimer === undefined) {
               firstExchangeTimer = setTimeout(expireCohort, afterFirstExchangeBudgetMs);
@@ -350,15 +362,20 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes fifteen partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+it("observes sixteen partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
   const crossWire = crossCarrierWire(),
     minimumWire = commandMinimumWire(),
-    memberWire = sequenceMemberWire();
+    memberWire = sequenceMemberWire(),
+    principalWire = principalNamespaceWire();
   const observed = await observe({
     children,
-    afterExchange: composedMemberWire(crossWire, minimumWire, memberWire),
+    onDispatch: principalWire.onDispatch,
+    afterExchange: withPrincipalWire(
+      principalWire,
+      composedMemberWire(crossWire, minimumWire, memberWire),
+    ),
     onObserved(observed) {
       if (process.env.BDP_TRANSACTIONAL_OBSERVATION_OUTPUT)
         writeFileSync(
@@ -370,6 +387,7 @@ it("observes fifteen partial Transactional contracts through packed-capable actu
               ...observed,
               supplemental: minimumWire.summary(),
               sequenceMemberSupplemental: memberWire.summary(),
+              principalSupplemental: principalWire.summary(observed),
             },
             null,
             2,
@@ -382,15 +400,15 @@ it("observes fifteen partial Transactional contracts through packed-capable actu
   expect(observed.result.scenarios).toHaveLength(256); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(15);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(16);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(22);
-  expect(children).toHaveLength(23); // Twenty-two scenario/reopen sessions plus separate bootstrap.
+  expect(observed.sessions).toHaveLength(23);
+  expect(children).toHaveLength(24); // Twenty-three scenario/reopen sessions plus separate bootstrap.
   expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
     true,
   );
   expect(observed.result.declarations).toMatchObject({
-    exactConfigurationDigest: "02dd7d9f35e7482c07ce1550a6572232cc48ba6858cd66f8dfc8f5384f3628be",
+    exactConfigurationDigest: "9a9404e74dd41fcb39b9c3bb5fc86917ff972dfdbc95faa5f53d13b35bb60bec",
   });
   const dynamic = observed.result.scenarios
     .flatMap((s) => s.exchanges)
@@ -581,12 +599,13 @@ it("observes fifteen partial Transactional contracts through packed-capable actu
   crossWire.finish();
   assertCommandMinimumPositive(observed, minimumWire);
   assertMemberPositive(observed, memberWire);
-  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(213);
+  assertPrincipalPositive(observed, principalWire);
+  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(220);
   expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
     JSON.stringify({
       // Predecessor logs retain installed-tx-twelve/thirteen/fourteen-partial-summary.
-      kind: "installed-tx-fifteen-partial-summary",
+      kind: "installed-tx-sixteen-partial-summary",
       sourceCommit,
       elapsedMs: performance.now() - started,
       actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
@@ -1319,6 +1338,7 @@ it.each([
 );
 
 it("pins the matching no-op installed route digest and fifteen-action ledger", () => {
+  assertPrincipalStatic();
   assertMemberReplayLedger(memberReplayLedger);
   expect(() => assertMemberReplayLedger([])).toThrow("sequence-member-replay-ledger");
   expect(() => assertMemberReplayLedger([["s-replay", "s-first-receipt", "whole-json"]])).toThrow(
@@ -1354,6 +1374,7 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
   const redirected = minimumReplayLedger.map((pair) => [...pair]);
   redirected[0]![1] = "m-create-b";
   expect(() => assertMinimumReplayLedger(redirected)).toThrow("minimum-replay-comparison-ledger");
+  // Previous command-minimum route order: 02dd7d9f35e7482c07ce1550a6572232cc48ba6858cd66f8dfc8f5384f3628be.
   // Previous fifteen-route order: a9a17908b6fa87674d5f573b584f4a1ce1d41d7909fadf48b65e9b05397ddfd4.
   // Previous twelve-route digest: 1ba7cbbffc4fb40df2c3f12640bc636e70076cfa25bdd6952b83ec1bb1fe0035.
   // Canonical exact-mode preimage authored from the approved route inventory;
@@ -1363,12 +1384,12 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
     maximumRequestHeaderBytes: 16384,
     profile: "transactional",
     routes: [
-      { method: "POST", url: `${scope}operations/create-bead` },
       { method: "POST", url: `${scope}operations/batch` },
-      { method: "POST", url: `${scope}operations/sequence` },
-      { method: "POST", url: `${scope}operations/update-bead` },
       { method: "GET", url: `${scope}beads/?limit=32` },
       { method: "GET", url: `${scope}events/` },
+      { method: "POST", url: `${scope}operations/create-bead` },
+      { method: "POST", url: `${scope}operations/sequence` },
+      { method: "POST", url: `${scope}operations/update-bead` },
       { method: "GET", url: `${scope}beads/a` },
       { method: "GET", url: `${scope}links/l` },
       { method: "GET", url: `${scope}beads/new` },
@@ -1382,7 +1403,7 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
     scope,
   });
   expect(createHash("sha256").update(preimage).digest("hex")).toBe(
-    "02dd7d9f35e7482c07ce1550a6572232cc48ba6858cd66f8dfc8f5384f3628be",
+    "9a9404e74dd41fcb39b9c3bb5fc86917ff972dfdbc95faa5f53d13b35bb60bec",
   );
   expect(Buffer.byteLength(preimage)).toBe(1228);
   // The reordered first use must not grant or remove any old route authority.
@@ -1481,9 +1502,9 @@ it.each(["bead-property", "link-metadata", "group-inventory-and-head"] as const)
       expect([...failed].sort()).toEqual([...intended].sort());
     expect(row.exchanges.at(-1)!.request.id).toBe(actionId);
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(23);
+    expect(children.length).toBeLessThanOrEqual(24);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBeLessThanOrEqual(control === "group-inventory-and-head" ? 207 : 202);
+    expect(exchanges).toBeLessThanOrEqual(control === "group-inventory-and-head" ? 214 : 209);
     for (const later of observed.result.scenarios.filter(
       (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
     ))
@@ -1633,6 +1654,7 @@ function applyDeletionControl(
 }
 
 it("pins deletion-safety derivative carriers, complete positives, and measured source bounds", () => {
+  assertPrincipalStatic();
   assertMemberControl();
   assertCrossCarrierControls();
   assertCommandMinimumControls();
@@ -1733,8 +1755,8 @@ it("pins deletion-safety derivative carriers, complete positives, and measured s
     }
     // Historical root-accepted maximum701716B/18263nodes plus4096B/64nodes.
     // Command-minimum measured maximum756707B/19731nodes plus4096B/64nodes.
-    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(812575);
-    expect(nodes).toBeLessThanOrEqual(21176);
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(847979);
+    expect(nodes).toBeLessThanOrEqual(22128);
     const loaded = createCumulativeTransactionalArtifactBundle(
       loadProfileContractSelection("transactional"),
       { fixture: fixtureSource, manifest: { bytes: Buffer.from(wire) } },
@@ -1817,10 +1839,10 @@ it.each(deletionControlNames)(
       );
     }
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(23);
+    expect(children.length).toBeLessThanOrEqual(24);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
     expect(exchanges).toBeLessThanOrEqual(
-      control === "incoming-order" ? 197 : control === "outgoing-order" ? 202 : 198,
+      control === "incoming-order" ? 204 : control === "outgoing-order" ? 209 : 205,
     );
     for (const later of observed.result.scenarios.filter(
       (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
@@ -2144,8 +2166,8 @@ function assertCrossCarrierControls() {
     // Historical measurement-only derivative guards were650386B/17275nodes.
     // Historical root-accepted maximum701716B/18263nodes plus4096B/64nodes.
     // Command-minimum measured maximum756707B/19731nodes plus4096B/64nodes.
-    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(812575);
-    expect(nodes).toBeLessThanOrEqual(21176);
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(847979);
+    expect(nodes).toBeLessThanOrEqual(22128);
     const loaded = createCumulativeTransactionalArtifactBundle(
       loadProfileContractSelection("transactional"),
       { fixture: fixtureSource, manifest: { bytes: Buffer.from(JSON.stringify(changed)) } },
@@ -2183,16 +2205,30 @@ it.each(crossCarrierControls)(
     const children: ChildProcess[] = [],
       wire = crossCarrierWire(control),
       minimumWire = commandMinimumWire(),
-      memberWire = sequenceMemberWire();
+      memberWire = sequenceMemberWire(),
+      principalWire = principalNamespaceWire();
     let description: ReturnType<typeof applyCrossCarrierControl> | undefined;
     const observed = await observe({
       children,
-      afterExchange: composedMemberWire(wire, minimumWire, memberWire),
+      onDispatch: principalWire.onDispatch,
+      afterExchange: withPrincipalWire(
+        principalWire,
+        composedMemberWire(wire, minimumWire, memberWire),
+      ),
       onObserved(observed) {
         if (process.env.BDP_TRANSACTIONAL_CROSS_CARRIER_CONTROL_OUTPUT)
           writeFileSync(
             `${process.env.BDP_TRANSACTIONAL_CROSS_CARRIER_CONTROL_OUTPUT}-${control}.json`,
-            JSON.stringify({ sourceCommit, entry, ...observed }, null, 2) + "\n",
+            JSON.stringify(
+              {
+                sourceCommit,
+                entry,
+                ...observed,
+                principalSupplemental: principalWire.summary(observed),
+              },
+              null,
+              2,
+            ) + "\n",
           );
       },
       manifest(value) {
@@ -2233,10 +2269,11 @@ it.each(crossCarrierControls)(
     wire.finish();
     assertCommandMinimumPositive(observed, minimumWire);
     assertMemberPositive(observed, memberWire);
-    expect(children).toHaveLength(23);
+    assertPrincipalPositive(observed, principalWire);
+    expect(children).toHaveLength(24);
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBe(control === "batch-semantic-conflict" ? 204 : 205);
+    expect(exchanges).toBe(control === "batch-semantic-conflict" ? 211 : 212);
     console.log(
       JSON.stringify({
         kind: "installed-tx-cross-carrier-control",
@@ -3336,6 +3373,763 @@ it("discriminates sequence member transactions against a successful middle delet
       failures: exchange.assertions.filter((a) => !a.passed).map((a) => a.id),
       supplemental: wire.summary(),
       claimEligible: observed.result.claimEligible,
+    }),
+  );
+}, 120000);
+
+const principalId = "read-update.idempotency.principal-isolation";
+const principalRequests = [
+  {
+    action: "pk-a-create",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/batch",
+    credentialRef: "principal-a",
+    headerLines: [
+      {
+        name: "accept",
+        value: "application/json",
+      },
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "principal-shared",
+      },
+    ],
+    body: '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
+    bodyBytes: 150,
+    bodySha256: "54f0fefb0965a8210bb22cf09601c18296ef450489eff1aef5a8bea8b99d83b8",
+    status: 200,
+    dispatchUrl: "https://reference.invalid/acme/operations/batch",
+    reportedUrl: "https://reference.invalid/acme/operations/batch",
+  },
+  {
+    action: "pk-b-create",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/batch",
+    credentialRef: "principal-b",
+    headerLines: [
+      {
+        name: "accept",
+        value: "application/json",
+      },
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "principal-shared",
+      },
+    ],
+    body: '{"operations":[{"operation":"createBead","id":"beads/b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
+    bodyBytes: 150,
+    bodySha256: "b26bbe9a43f5cc9b54d7fe7778786b33e5e8d613bf30248de3af65f5eac0cdc8",
+    status: 200,
+    dispatchUrl: "https://reference.invalid/acme/operations/batch",
+    reportedUrl: "https://reference.invalid/acme/operations/batch",
+  },
+  {
+    action: "pk-a-rotated",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/batch",
+    credentialRef: "principal-a-rotated",
+    headerLines: [
+      {
+        name: "accept",
+        value: "application/json",
+      },
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "principal-shared",
+      },
+    ],
+    body: '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
+    bodyBytes: 150,
+    bodySha256: "54f0fefb0965a8210bb22cf09601c18296ef450489eff1aef5a8bea8b99d83b8",
+    status: 200,
+    dispatchUrl: "https://reference.invalid/acme/operations/batch",
+    reportedUrl: "https://reference.invalid/acme/operations/batch",
+  },
+  {
+    action: "pk-b-replay",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/batch",
+    credentialRef: "principal-b",
+    headerLines: [
+      {
+        name: "accept",
+        value: "application/json",
+      },
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "principal-shared",
+      },
+    ],
+    body: '{"operations":[{"operation":"createBead","id":"beads/b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
+    bodyBytes: 150,
+    bodySha256: "b26bbe9a43f5cc9b54d7fe7778786b33e5e8d613bf30248de3af65f5eac0cdc8",
+    status: 200,
+    dispatchUrl: "https://reference.invalid/acme/operations/batch",
+    reportedUrl: "https://reference.invalid/acme/operations/batch",
+  },
+  {
+    action: "pk-a-conflict",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/batch",
+    credentialRef: "principal-a",
+    headerLines: [
+      {
+        name: "accept",
+        value: "application/json",
+      },
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "principal-shared",
+      },
+    ],
+    body: '{"operations":[{"operation":"createBead","id":"beads/c","type":"https://reference.invalid/acme/types/task","properties":{"title":"c"},"metadata":{}}]}',
+    bodyBytes: 150,
+    bodySha256: "3de2f9bb5fb4b4b0537d252ba722b05a3385414129cf35fc6ab0355720f9ff62",
+    status: 409,
+    dispatchUrl: "https://reference.invalid/acme/operations/batch",
+    reportedUrl: "https://reference.invalid/acme/operations/batch",
+  },
+  {
+    action: "pk-current",
+    method: "GET",
+    url: "https://reference.invalid/acme/beads/?limit=32",
+    credentialRef: "principal-a",
+    headerLines: [
+      {
+        name: "accept",
+        value: "application/json",
+      },
+    ],
+    body: null,
+    bodyBytes: 0,
+    bodySha256: null,
+    status: 200,
+    dispatchUrl: "https://reference.invalid/acme/beads/?limit=32",
+    reportedUrl: "https://reference.invalid/acme/beads/?<redacted>",
+  },
+  {
+    action: "pk-events",
+    method: "GET",
+    url: "https://reference.invalid/acme/events/",
+    credentialRef: "principal-a",
+    headerLines: [
+      {
+        name: "accept",
+        value: "application/json",
+      },
+    ],
+    body: null,
+    bodyBytes: 0,
+    bodySha256: null,
+    status: 200,
+    dispatchUrl: "https://reference.invalid/acme/events/",
+    reportedUrl: "https://reference.invalid/acme/events/",
+  },
+] as const;
+const principalFailureIds = [
+  "http-status",
+  "schema",
+  "media",
+  "serving-position",
+  "disposition",
+  "detail",
+  "key",
+  "receipt-id",
+  "transaction",
+  "required-position",
+  "effect-position",
+  "no-next",
+  "result-indices",
+  "resource-id",
+  "resource-type",
+  "resource-revision",
+  "resource-properties",
+  "resource-metadata",
+] as const;
+const principalPassingIds = [
+  "present-bdp-scope-epoch",
+  "present-bdp-authorization-view",
+  "present-bdp-scope-position",
+  "request-headers",
+  "request-body",
+  "no-owned-links",
+  "no-provenance",
+] as const;
+
+type PrincipalTokens = {
+  operator: string;
+  reader: string;
+  principalA: string;
+  principalARotated: string;
+  principalB: string;
+};
+type PrincipalDispatchInput = Readonly<{
+  method: string;
+  url: string;
+  credentialRef: string | undefined;
+}>;
+function principalCredentialRoles(tokens: PrincipalTokens, collapsePrincipalB = false) {
+  return [
+    { ref: "operator", token: tokens.operator, principal: "same", canMutate: true },
+    { ref: "reader", token: tokens.reader, principal: "same", canMutate: false },
+    { ref: "principal-a", token: tokens.principalA, principal: "principal-a", canMutate: true },
+    {
+      ref: "principal-a-rotated",
+      token: tokens.principalARotated,
+      principal: "principal-a",
+      canMutate: true,
+    },
+    {
+      ref: "principal-b",
+      token: tokens.principalB,
+      principal: collapsePrincipalB ? "principal-a" : "principal-b",
+      canMutate: true,
+    },
+  ];
+}
+function principalHeaders(
+  roles: ReturnType<typeof principalCredentialRoles>,
+  ref: string,
+  denyReceipt: boolean,
+): Record<string, string> {
+  if (ref === "anonymous") return {};
+  const role = roles.find((candidate) => candidate.ref === ref);
+  if (!role) throw new Error("unknown principal credential reference");
+  return { authorization: `Bearer ${denyReceipt ? "deliberately-unknown" : role.token}` };
+}
+const principalReplayLedger = [
+  ["pk-a-rotated", "pk-a-create", "whole-json"],
+  ["pk-b-replay", "pk-b-create", "whole-json"],
+] as const;
+function assertPrincipalReplayLedger(value: readonly (readonly string[])[]) {
+  if (
+    JSON.stringify(value) !==
+    JSON.stringify([
+      ["pk-a-rotated", "pk-a-create", "whole-json"],
+      ["pk-b-replay", "pk-b-create", "whole-json"],
+    ])
+  )
+    throw new Error("principal-replay-ledger");
+}
+function assertPrincipalStatic() {
+  const tokens = {
+    operator: "op",
+    reader: "read",
+    principalA: "a",
+    principalARotated: "rotated",
+    principalB: "b",
+  };
+  const expected = [
+    { ref: "operator", token: "op", principal: "same", canMutate: true },
+    { ref: "reader", token: "read", principal: "same", canMutate: false },
+    { ref: "principal-a", token: "a", principal: "principal-a", canMutate: true },
+    { ref: "principal-a-rotated", token: "rotated", principal: "principal-a", canMutate: true },
+    { ref: "principal-b", token: "b", principal: "principal-b", canMutate: true },
+  ];
+  const roles = principalCredentialRoles(tokens);
+  expect(roles).toEqual(expected);
+  expect(principalCredentialRoles(tokens, true)).toEqual([
+    ...expected.slice(0, 4),
+    { ref: "principal-b", token: "b", principal: "principal-a", canMutate: true },
+  ]);
+  for (const role of expected) {
+    expect(principalHeaders(roles, role.ref, false)).toEqual({
+      authorization: `Bearer ${role.token}`,
+    });
+    expect(principalHeaders(roles, role.ref, true)).toEqual({
+      authorization: "Bearer deliberately-unknown",
+    });
+  }
+  for (const denied of [false, true]) {
+    expect(principalHeaders(roles, "anonymous", denied)).toEqual({});
+    expect(() => principalHeaders(roles, "unknown", denied)).toThrow(
+      "unknown principal credential reference",
+    );
+  }
+  assertPrincipalReplayLedger(principalReplayLedger);
+  expect(() => assertPrincipalReplayLedger(principalReplayLedger.slice(1))).toThrow(
+    "principal-replay-ledger",
+  );
+  const redirected: string[][] = principalReplayLedger.map((pair) => [...pair]);
+  redirected[0]![1] = "pk-b-create";
+  expect(() => assertPrincipalReplayLedger(redirected)).toThrow("principal-replay-ledger");
+  const weakened: string[][] = principalReplayLedger.map((pair) => [...pair]);
+  weakened[0]![2] = "subset";
+  expect(() => assertPrincipalReplayLedger(weakened)).toThrow("principal-replay-ledger");
+  for (const literal of principalRequests) {
+    expect(literal.url).toBe(literal.dispatchUrl);
+    expect(literal.reportedUrl).toBe(
+      literal.action === "pk-current" ? `${scope}beads/?<redacted>` : literal.dispatchUrl,
+    );
+    const digest =
+      literal.body === null ? undefined : createHash("sha256").update(literal.body).digest("hex");
+    expect(digest).toBe(literal.bodySha256 ?? undefined);
+    expect(literal.body === null ? 0 : Buffer.byteLength(literal.body)).toBe(literal.bodyBytes);
+    for (const index of [0, 4])
+      expect(
+        memberHandoff(
+          index,
+          literal.dispatchUrl,
+          digest,
+          literal.method === "POST" ? "principal-shared" : undefined,
+          "complete",
+        ),
+      ).toBe(false);
+  }
+  expect(principalFailureIds).toHaveLength(18);
+  expect(principalPassingIds).toHaveLength(7);
+  const b = bundle.manifest.scenarios.find((r) => r.id === principalId)!.actions![1]!;
+  expect(
+    b.assertions.map((a) => a.id).filter((id) => !principalPassingIds.some((p) => p === id)),
+  ).toEqual(principalFailureIds);
+  expect(b.assertions.find((a) => a.id === "no-next")).toEqual({
+    id: "no-next",
+    kind: "json-pointer",
+    pointer: "/next",
+    exists: true,
+    equals: null,
+  });
+  for (const [id, field] of [
+    ["no-owned-links", "ownedLinks"],
+    ["no-provenance", "revisionProvenance"],
+  ])
+    expect(b.assertions.find((a) => a.id === id)).toEqual({
+      id,
+      kind: "json-pointer",
+      pointer: `/results/0/resource/${field}`,
+      exists: false,
+    });
+}
+/** Two safe boundaries: input carries the authored handle; response carries actual
+ * serialized wire/body. The report's action ID is joined only after the run. */
+function principalNamespaceWire(collapse = false) {
+  assertPrincipalReplayLedger(principalReplayLedger);
+  const maximum = collapse ? 2 : 7;
+  const dispatches: (PrincipalDispatchInput & { ordinal: number })[] = [];
+  const responses: {
+    ordinal: number;
+    url: string;
+    status: number;
+    bodyDigest: string;
+    writeState: "complete";
+    requestBodyBytes: number;
+    requestBodyDigest: string | undefined;
+    epoch: string;
+    view: string;
+    position: string;
+  }[] = [];
+  const performed: string[] = [];
+  const receipts = new Map<string, Record<string, unknown>>();
+  const resources: Record<string, unknown>[] = [];
+  const validator = createJsonSchemaValidator(schema);
+  function record(value: unknown): Record<string, unknown> {
+    expect(value).not.toBeNull();
+    expect(typeof value).toBe("object");
+    expect(Array.isArray(value)).toBe(false);
+    return value as Record<string, unknown>;
+  }
+  function nonempty(value: unknown): string {
+    expect(typeof value).toBe("string");
+    expect(value).not.toBe("");
+    return value as string;
+  }
+  const problem = {
+    type: "https://github.com/gastownhall/bdp/problems/conflict",
+    code: "idempotency-conflict",
+    status: 409,
+    retry: "never",
+  };
+  function joined(observed: InstalledObservation) {
+    return (observed.result.scenarios.find((r) => r.id === principalId)?.exchanges ?? []).map(
+      (exchange, i) => ({
+        id: exchange.request.id,
+        reportedUrl: exchange.request.url,
+        method: dispatches[i]?.method,
+        dispatchUrl: dispatches[i]?.url,
+        credentialRef: dispatches[i]?.credentialRef,
+        ordinal: dispatches[i]?.ordinal,
+      }),
+    );
+  }
+  return {
+    onDispatch(input: PrincipalDispatchInput) {
+      if (dispatches.length === maximum) {
+        expect(["principal-a", "principal-a-rotated", "principal-b"]).not.toContain(
+          input.credentialRef,
+        );
+        return;
+      }
+      expect(dispatches.length).toBe(responses.length);
+      const literal = principalRequests[dispatches.length]!;
+      expect(input).toEqual({
+        method: literal.method,
+        url: literal.dispatchUrl,
+        credentialRef: literal.credentialRef,
+      });
+      dispatches.push(
+        Object.freeze({
+          ordinal: dispatches.length,
+          method: input.method,
+          url: input.url,
+          credentialRef: input.credentialRef,
+        }),
+      );
+    },
+    async afterExchange(response: HttpExchangeResponse) {
+      const exact = response.exactRequest;
+      const key = exact?.headerLines.find((h) => h.name.toLowerCase() === "idempotency-key")?.value;
+      if (responses.length === maximum) {
+        expect(key).not.toBe("principal-shared");
+        return;
+      }
+      const index = responses.length,
+        literal = principalRequests[index]!;
+      expect(dispatches).toHaveLength(index + 1);
+      expect(response.url).toBe(literal.dispatchUrl);
+      expect(exact).toBeDefined();
+      expect(exact!.source).toBe("raw-http1-serializer");
+      expect(exact!.writeState).toBe("complete");
+      expect(exact!.headerLines.slice(0, literal.headerLines.length).map((h) => h.name)).toEqual(
+        literal.headerLines.map((h) => h.name),
+      );
+      expect(exact!.headerLines.slice(0, literal.headerLines.length)).toEqual(literal.headerLines);
+      expect(
+        exact!.headerLines
+          .slice(literal.headerLines.length)
+          .some((h) => h.name.toLowerCase().startsWith("bdp-")),
+      ).toBe(false);
+      expect(exact!.bodyPresent).toBe(literal.body !== null);
+      expect(exact!.bodyOctets).toBe(literal.bodyBytes);
+      expect(exact!.bodyDigest).toBe(literal.bodySha256 ?? undefined);
+      expect(exact!.bodyOctets).toBeLessThanOrEqual(2048);
+      expect(Buffer.byteLength(response.bodyText)).toBeLessThanOrEqual(8192);
+      const refused = index === 4 || (collapse && index === 1);
+      expect(response.status).toBe(refused ? 409 : 200);
+      expect(response.headers["content-type"]).toBe(
+        refused ? "application/problem+json" : "application/json",
+      );
+      const body = record(JSON.parse(response.bodyText));
+      expect(
+        validator.validate(
+          `#/$defs/${refused ? "transactionalProblem" : index < 4 ? "mutationReceipt" : index === 5 ? "currentBeadCollection" : "eventPage"}`,
+          body,
+        ),
+      ).toEqual([]);
+      const epoch = nonempty(response.headers["bdp-scope-epoch"]),
+        view = nonempty(response.headers["bdp-authorization-view"]);
+      const position = index === 0 || (collapse && index === 1) ? "pos-1" : "pos-2";
+      expect(response.headers["bdp-scope-position"]).toBe(position);
+      const a = receipts.get("pk-a-create");
+      if (a) expect(epoch).toBe(a.scopeEpoch);
+      if (refused) {
+        expect(body).toStrictEqual(problem);
+        expect(view).toBe(a!.authorizationView);
+        performed.push(collapse ? "validated-b-conflict" : "validated-a-conflict");
+      } else if (index < 2) {
+        const name = index === 0 ? "a" : "b";
+        expect(body.scopeEpoch).toBe(epoch);
+        expect(body.authorizationView).toBe(view);
+        expect(Array.isArray(body.results)).toBe(true);
+        const results = body.results as unknown[];
+        expect(results).toHaveLength(1);
+        const resource = record(record(results[0]).resource);
+        expect(validator.validate("#/$defs/beadRecord", resource)).toEqual([]);
+        nonempty(resource.revision);
+        expect(resource).toStrictEqual({
+          id: `${scope}beads/${name}`,
+          type: `${scope}types/task`,
+          revision: resource.revision,
+          properties: { title: name },
+          metadata: {},
+        });
+        expect(results).toStrictEqual([{ operationIndex: 0, outcome: "created", resource }]);
+        const id = nonempty(body.id),
+          parsed = new URL(id),
+          prefix = `${scope}receipts/`;
+        expect(id.length).toBeLessThanOrEqual(8192);
+        expect(Buffer.byteLength(id)).toBeLessThanOrEqual(8192);
+        expect(parsed.href).toBe(id);
+        expect([parsed.username, parsed.password, parsed.search, parsed.hash]).toEqual([
+          "",
+          "",
+          "",
+          "",
+        ]);
+        expect(id.startsWith(prefix)).toBe(true);
+        expect(/^[A-Za-z0-9_-]+$/.test(id.slice(prefix.length))).toBe(true);
+        nonempty(body.transaction);
+        expect(body).toStrictEqual({
+          id,
+          status: "completed",
+          detail: "available",
+          idempotencyKey: "principal-shared",
+          scopeEpoch: epoch,
+          authorizationView: view,
+          transaction: body.transaction,
+          requiredPosition: position,
+          effectPosition: position,
+          results,
+          next: null,
+          expiresAt: body.expiresAt,
+        });
+        receipts.set(literal.action, body);
+        resources.push(resource);
+        if (collapse) performed.push("validated-a-terminal");
+        else if (index === 1) {
+          expect(body.id).not.toBe(a!.id);
+          expect(body.transaction).not.toBe(a!.transaction);
+          performed.push("namespace-distinct");
+        }
+      } else if (index < 4) {
+        const pair = principalReplayLedger.find(([current]) => current === literal.action)!;
+        expect(pair).toBeDefined();
+        expect(pair[2]).toBe("whole-json");
+        const saved = receipts.get(pair[1])!;
+        expect(saved).toBeDefined();
+        expect(view).toBe(saved.authorizationView);
+        expect(body).toStrictEqual(saved);
+        performed.push(pair.join(":"));
+      } else if (index === 5) {
+        expect(body).toStrictEqual({ items: resources, next: null });
+        performed.push("complete-current");
+      } else {
+        expect(Array.isArray(body.events)).toBe(true);
+        const events = body.events as Record<string, unknown>[];
+        expect(events).toHaveLength(2);
+        const hash = (tag: string, value: string) =>
+          createHash("sha256")
+            .update(JSON.stringify([tag, value]))
+            .digest("base64url");
+        const source = `${scope}events/`;
+        const expected = resources.map((resource, i) => ({
+          id: `ev_${hash("epoch", epoch)}_${hash("view", view)}_${hash("source", source)}_pos-${i + 1}_0`,
+          ordinal: 0,
+          type: "created",
+          source,
+          subject: resource.id,
+          subjectType: `${scope}types/task`,
+          transaction: receipts.get(i === 0 ? "pk-a-create" : "pk-b-create")!.transaction,
+          time: events[i]!.time,
+          data: {
+            revision: resource.revision,
+            properties: resource.properties,
+            metadata: resource.metadata,
+          },
+        }));
+        expect(body).toStrictEqual({ source, events: expected, next: null });
+        performed.push("complete-events");
+      }
+      responses.push({
+        ordinal: index,
+        url: response.url,
+        status: response.status,
+        bodyDigest: createHash("sha256").update(response.bodyText).digest("hex"),
+        writeState: "complete",
+        requestBodyBytes: exact!.bodyOctets,
+        requestBodyDigest: exact!.bodyDigest,
+        epoch,
+        view,
+        position,
+      });
+    },
+    finish(observed: InstalledObservation) {
+      expect(dispatches).toHaveLength(maximum);
+      expect(responses).toHaveLength(maximum);
+      expect(performed).toEqual(
+        collapse
+          ? ["validated-a-terminal", "validated-b-conflict"]
+          : [
+              "namespace-distinct",
+              "pk-a-rotated:pk-a-create:whole-json",
+              "pk-b-replay:pk-b-create:whole-json",
+              "validated-a-conflict",
+              "complete-current",
+              "complete-events",
+            ],
+      );
+      const row = observed.result.scenarios.find((r) => r.id === principalId)!;
+      expect(row.exchanges).toHaveLength(maximum);
+      expect(joined(observed)).toEqual(
+        principalRequests.slice(0, maximum).map((literal, ordinal) => ({
+          id: literal.action,
+          method: literal.method,
+          dispatchUrl: literal.dispatchUrl,
+          reportedUrl: literal.reportedUrl,
+          credentialRef: literal.credentialRef,
+          ordinal,
+        })),
+      );
+      for (const [i, exchange] of row.exchanges.entries()) {
+        expect(exchange.request.method).toBe(principalRequests[i]!.method);
+        expect(exchange.transportError).toBeUndefined();
+        expect(exchange.harnessError).toBeUndefined();
+        expect(exchange.request.exact?.writeState).toBe("complete");
+        expect(exchange.response?.status).toBe(responses[i]!.status);
+      }
+    },
+    summary(observed: InstalledObservation) {
+      return {
+        mode: collapse ? "collapse-principal-b-to-a" : "positive",
+        dispatches,
+        responses,
+        performed,
+        joined: joined(observed),
+        provenance:
+          "input method/url/credentialRef; local zero-based ordinal; report id/reportedUrl; actual response metadata and completed request fingerprints; no wire credential attestation",
+      };
+    },
+  };
+}
+function withPrincipalWire(
+  principal: ReturnType<typeof principalNamespaceWire>,
+  old: (response: HttpExchangeResponse) => Promise<void>,
+) {
+  return async (response: HttpExchangeResponse) => {
+    await principal.afterExchange(response);
+    await old(response);
+  };
+}
+function assertPrincipalPositive(
+  observed: InstalledObservation,
+  wire: ReturnType<typeof principalNamespaceWire>,
+) {
+  const row = observed.result.scenarios.find((r) => r.id === principalId)!;
+  expect(row.state).toBe("pass");
+  expect(row.cleanupError).toBeUndefined();
+  expect(row.prerequisiteFailure).toBeUndefined();
+  expect(row.actions ?? []).toHaveLength(0);
+  expect(row.exchanges.map((e) => e.request.id)).toEqual(principalRequests.map((r) => r.action));
+  const declared = bundle.manifest.scenarios.find((r) => r.id === principalId)!;
+  for (const [i, exchange] of row.exchanges.entries()) {
+    expect(exchange.assertions.map((a) => a.id)).toEqual(
+      declared.actions![i]!.assertions.map((a) => a.id),
+    );
+    expect(exchange.assertions.every((a) => a.passed)).toBe(true);
+  }
+  wire.finish(observed);
+}
+function principalOutputPath() {
+  const output = process.env.BDP_TRANSACTIONAL_PRINCIPAL_CUMULATIVE_OUTPUT;
+  if (output !== undefined && (!path.isAbsolute(output) || output.length > 4096))
+    throw new Error("absolute principal observation output required");
+  return output;
+}
+it("observes authenticated principal isolation and rotation through selected cumulative HTTP", async () => {
+  const output = principalOutputPath(),
+    children: ChildProcess[] = [],
+    wire = principalNamespaceWire();
+  const observed = await observe({
+    children,
+    scenarioSelection: [principalId],
+    onDispatch: wire.onDispatch,
+    afterExchange: wire.afterExchange,
+    onObserved(observed) {
+      if (output)
+        writeFileSync(
+          output,
+          JSON.stringify(
+            { sourceCommit, entry, ...observed, principalSupplemental: wire.summary(observed) },
+            null,
+            2,
+          ) + "\n",
+        );
+    },
+  });
+  expect(observed.result.selectedScenarioIds).toEqual([principalId]);
+  expect(observed.result.scenarios).toHaveLength(1);
+  expect(observed.result.claimEligible).toBe(false);
+  assertPrincipalPositive(observed, wire);
+  expect(observed.sessions).toHaveLength(1);
+  expect(children).toHaveLength(2);
+  expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
+  expect(observed.result.artifacts.manifestDigest).toBe(bundle.digests.manifestDigest);
+  console.log(
+    JSON.stringify({
+      kind: "installed-tx-principal-positive",
+      sourceCommit,
+      exchanges: 7,
+      childLaunches: children.length,
+      closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
+      principalSupplemental: wire.summary(observed),
+      claimEligible: false,
+    }),
+  );
+}, 120000);
+it("discriminates principal isolation against a separately bound collapsed namespace", async () => {
+  const output = principalOutputPath(),
+    children: ChildProcess[] = [],
+    wire = principalNamespaceWire(true);
+  const observed = await observe({
+    children,
+    scenarioSelection: [principalId],
+    collapsePrincipalB: true,
+    onDispatch: wire.onDispatch,
+    afterExchange: wire.afterExchange,
+    onObserved(observed) {
+      if (output)
+        writeFileSync(
+          output,
+          JSON.stringify(
+            { sourceCommit, entry, ...observed, principalSupplemental: wire.summary(observed) },
+            null,
+            2,
+          ) + "\n",
+        );
+    },
+  });
+  expect(observed.result.selectedScenarioIds).toEqual([principalId]);
+  expect(observed.result.scenarios).toHaveLength(1);
+  expect(observed.result.claimEligible).toBe(false);
+  const row = observed.result.scenarios[0]!;
+  expect(row.state).toBe("fail");
+  expect(row.cleanupError).toBeUndefined();
+  expect(row.prerequisiteFailure).toBeUndefined();
+  expect(row.actions ?? []).toHaveLength(0);
+  expect(row.exchanges.map((e) => e.request.id)).toEqual(["pk-a-create", "pk-b-create"]);
+  expect(row.exchanges[0]!.assertions.every((a) => a.passed)).toBe(true);
+  const last = row.exchanges[1]!;
+  expect(last.assertions.map((a) => a.id)).toEqual(
+    bundle.manifest.scenarios
+      .find((r) => r.id === principalId)!
+      .actions![1]!.assertions.map((a) => a.id),
+  );
+  expect(last.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual(principalFailureIds);
+  expect(last.assertions.filter((a) => a.passed).map((a) => a.id)).toEqual(principalPassingIds);
+  wire.finish(observed);
+  expect(observed.result.artifacts.manifestDigest).toBe(bundle.digests.manifestDigest);
+  expect(observed.sessions).toHaveLength(1);
+  expect(children).toHaveLength(2);
+  expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
+  console.log(
+    JSON.stringify({
+      kind: "installed-tx-principal-collapse",
+      sourceCommit,
+      exchanges: 2,
+      childLaunches: children.length,
+      closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
+      failures: last.assertions.filter((a) => !a.passed).map((a) => a.id),
+      principalSupplemental: wire.summary(observed),
+      claimEligible: false,
     }),
   );
 }, 120000);
