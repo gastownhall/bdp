@@ -164,7 +164,7 @@ Generic viewer support and exact historical traversal still require qualificatio
 
 The [shared foundation example](../schemas/examples/type-foundation.json) makes
 these definitions and the task/blocks declarations concrete, with embedded copies
-of the two base property schemas. Its Type metatype, selector spelling and seed
+of the two base property schemas. Its Type/BeadType/LinkType bootstrap, selector spelling and seed
 mechanism are review candidates. It is not a complete built-in catalog or an
 installation request, and does not pick the missing child-field or workflow rules.
 
@@ -174,6 +174,15 @@ not separate Schema/Constraint Beads. No competing writable conformsTo field is
 introduced. Concrete definition/metatype schemas, IDs and bootstrap remain shared
 Type decisions. Preview 2's classification shims do not establish that this
 representation is already installed or executable.
+
+The foundation literals affiliate issue/task with BeadType and dependency/blocks
+with LinkType. Dependency uses one local Issue→Issue endpoint pair and family-wide
+ordered-pair uniqueness. They do not add a blanket acyclicity rule to Dependency:
+existing kind-specific cycle/hierarchy and scheduler behavior remains authoritative.
+Endpoint-pin mode constraints are deferred in the shared descriptor language; this
+does not expand the inspected Preview 2 CLI's floating-only endpoint support.
+The portable target model promises no external resource validation; existing native
+external behavior is evidence to reconcile, not an automatic protocol guarantee.
 
 ## 3. Issue data and validation
 
@@ -801,7 +810,7 @@ qualifies the capability; some underlying native functionality already exists.
 | Area | Design/source status | Remaining work |
 | --- | --- | --- |
 | issue/dependency bases with conforming classification Types | Intrinsic classification Types settled at product level; Preview 2 CLI shims expose the direction | Underlying implementation planned for Preview 3 Friday October 16; qualify delivered IDs, pins, conformance, registrations and adapter mapping when available |
-| Definition representation and conformance hierarchy | Selected representation; candidate Type/ConformsTo schemas and six-definition fixture linked from §2 | Metatype/bootstrap approval, exact IDs, historical traversal, editing/provenance and viewer qualification NYI here |
+| Definition representation and conformance hierarchy | Selected representation; candidate Type/ConformsTo schemas and eight-definition fixture linked from §2 | Metatype/bootstrap approval, exact IDs, historical traversal, editing/provenance and viewer qualification NYI here |
 | Ordinary content, status and classification | Existing behavior inventoried; linked and embedded machine-readable base schema fragments | Full durable-field and child schemas plus configuration-dependent validation contract |
 | Dependency direction, pair uniqueness and kind roles | Existing behavior documented | Portable invariant/admission encoding; no implicit new maximum syntax |
 | Local floating endpoints | Current graph behavior documented; proposed initial boundary | Decide pins and remote workflow separately |

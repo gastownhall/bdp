@@ -1,135 +1,141 @@
 # Draft Type-profile property schemas
 
-These are review artifacts for [Types](../types.md) and
-[Issue/Dependency](../types/issue.md). They are not the canonical BDP schema bundle,
-registered Type IDs, an installable package or an implementation claim. Their
-`https://example.org/bdp-draft/schemas/` IDs identify schema documents in these
-examples; they are not Type-definition Bead identities.
+Review artifacts for [Types](../types.md) and [Issue/Dependency](../types/issue.md).
+They are not the canonical BDP schema bundle, registered Type IDs, an installable
+package, or implementation qualification. Schema IDs under
+`https://example.org/bdp-draft/schemas/` identify schema documents, not Type Beads.
 
 | Artifact | Applies to | Status |
 | --- | --- | --- |
-| [type-definition.properties.schema.json](type-definition.properties.schema.json) | `properties` of a Type-definition Bead | Candidate descriptor syntax based on current BDP; product semantics are in Types |
-| [conforms-to.properties.schema.json](conforms-to.properties.schema.json) | `properties` of a ConformsTo Link | Open base object with no required relationship-specific fields; semantic refinements require understanding/enforcement |
-| [issue.properties.schema.json](issue.properties.schema.json) | Issue instance `properties` | Existing review fragment extracted from the Issue draft; not full domain/write validation |
-| [dependency.properties.schema.json](dependency.properties.schema.json) | Dependency instance `properties` | Existing open base fragment; child-specific workflow fields remain to define |
-| [examples/type-foundation.json](examples/type-foundation.json) | Illustrative final records for Type, ConformsTo, issue, task, dependency and blocks | Bootstrap proposal plus domain examples; not a mutation/import format |
+| [type-definition.properties.schema.json](type-definition.properties.schema.json) | Common properties of Type-definition Beads | The properties schema of Type **is** the common descriptor schema |
+| [bead-type-definition.properties.schema.json](bead-type-definition.properties.schema.json) | BeadType instances (definitions of Bead Types) | Includes common schema, allows participation/ownership rules, prohibits Link constraints |
+| [link-type-definition.properties.schema.json](link-type-definition.properties.schema.json) | LinkType instances (definitions of Link Types) | Includes common schema and requires endpoint-pair constraints |
+| [conforms-to.properties.schema.json](conforms-to.properties.schema.json) | ConformsTo Link properties | Open base object; semantic qualifiers still require understanding/enforcement |
+| [issue.properties.schema.json](issue.properties.schema.json) | Issue instance properties | Base review fragment; not full domain/write validation |
+| [dependency.properties.schema.json](dependency.properties.schema.json) | Dependency instance properties | Base review fragment; child-specific workflow fields remain open |
+| [examples/type-foundation.json](examples/type-foundation.json) | Eight definition Beads and four owned declarations | Literal final graph, not creation/import syntax |
 
-## Source and dialect
+## Source and status
 
-Starting point verified on October 14, 2026: BDP main
-[`bd2178dd6f4b9f7c2d239624d7edaa3d961c3e26`](https://github.com/gastownhall/bdp/blob/bd2178dd6f4b9f7c2d239624d7edaa3d961c3e26/schemas/bdp-v0.schema.json),
-`$defs.typeDescriptor`, `endpointConstraint`, `ownedLinkDeclaration` and
-`ownedWildcardDeclaration`. The local design branch's older canonical copy is not
-represented as the current source head. Preview 2 integration still resolves to
-`b6f7115adfd6b3da0055b8576c152d8d9456518a`; this check does not requalify its build.
+Starting descriptor inspected on October 14, 2026: BDP main
+[`bd2178dd6f4b9f7c2d239624d7edaa3d961c3e26`](https://github.com/gastownhall/bdp/blob/bd2178dd6f4b9f7c2d239624d7edaa3d961c3e26/schemas/bdp-v0.schema.json).
+This is a recorded source snapshot, not a claim that it remains the latest head.
+Preview 2 evidence stays pinned to `b6f7115adfd6b3da0055b8576c152d8d9456518a`;
+this schema work does not requalify the build or change canonical BDP/Write.
+
+Fresh heads also checked during this consolidation: BDP main
+`453b6dab386746bb03aac2c0a293572b8a71c969` retains the same descriptor and endpoint
+schema; its intervening change concerns command minimum-field conformance rules.
+Preview 2 integration is now `97446d1f0894417457f9e9b8f16569baf73d68f4`, with revision
+guard/CLI feedback changes. The Issue field audit remains explicitly tied to the
+older inspected build; it is not represented as a fresh qualification of this head.
 
 These artifacts use [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/json-schema-core).
-The descriptor's embedded `propertiesSchema` is checked against that meta-schema;
-an explicitly declared root dialect must match. This is a concrete review choice,
-not a settled cross-dialect or vocabulary-support policy. URI/date formats require
-an enabled format checker. Cross-resource constraints are not JSON Schema assertions.
+Embedded schemas are checked against its meta-schema; an explicit root dialect
+must match. Dialect choice, requiredness and exact property names remain review
+proposals. URI/date formats need an enabled format checker. `$ref` composition
+here uses preloaded resources, not arbitrary network fetching; immutable published
+schema closure still needs lifecycle rules.
 
 ## Changes from the current descriptor
 
-| Current descriptor | Candidate Type-Bead representation |
+| Starting descriptor | Current draft |
 | --- | --- |
-| Descriptor `id` | Common Bead `id`; its `revision` selects immutable descriptor content and owned declarations |
-| `name`, `description`, `describes` | Retained in properties; one Type metatype describes definitions of either bead or link instances |
-| Required `conformsTo` array | Removed and prohibited in properties; authoritative declarations are owned Links |
-| Optional `propertiesSchema` URL | Required embedded schema for this candidate; use an explicit permissive schema when appropriate, not an implicit network fetch |
-| `source.conformsTo` / `target.conformsTo` lists | `source.types` / `target.types` selectors with explicit OR, avoiding reuse of the declaration name |
-| URL-keyed `ownsOutgoing` map with mandatory positive `max` | Selector array; ownership and bounds are separate, so pins and shared conformance counts can be expressed without arbitrary budgets |
-| Scope-only positive endpoint multiplicity policy | Candidate Link `source.max` / `target.max` and Bead `incoming` / `outgoing` rules; expresses the selected Type constraints, not a rewrite of the current Scope policy |
-| Closed descriptor root | Open root for reusable Type definitions, with known fields validated and common-envelope/old conformance duplicates prohibited |
+| Descriptor id | Common Bead identity and revision |
+| One descriptor with describes discriminator | Common Type plus BeadType/LinkType specializations; category follows affiliation/conformance; duplicate describes prohibited |
+| conformsTo array | Owned ConformsTo Links in the exact owner snapshot |
+| Optional propertiesSchema URL | Required embedded schema; no separate descriptor-schema layer |
+| Independent source/target constraints | linkConstraints.typeConstraints is a union of correlated endpoint pairs |
+| URL-keyed ownsOutgoing map with mandatory max | Bead ownership selector array, separate from arity |
+| Endpoint multiplicity policy | Family-wide sourceMax/targetMax plus Bead participation bounds |
+| No common author release label | Proposed optional version with SemVer syntax; no runtime selection or compatibility inference |
 
-Names and exact shapes above are **proposed syntax for review**, not additional
-operator rulings. The already-selected semantic rules govern their interpretation.
-The current canonical owned-Link contract requires bounded owned sets; the
-candidate separation of ownership from arity is not an adopted relaxation of that
-contract. Core/Types integration must reconcile required bounds and resource
-budgets before implementation, rather than invent a universal maximum here.
-The example `blocks` definition uses unrestricted local endpoint selectors and
-inherits dependency's narrower rules; local breadth never overrides inherited
-restrictions and may produce the agreed warning.
+The current canonical owned-Link contract requires bounded owned sets. Separating
+ownership and arity in this proposal does not adopt an unbounded canonical view.
+Core/Types integration must reconcile view budgets explicitly; no arbitrary
+universal maximum is invented here.
 
-## Candidate selector and bound vocabulary
+## Endpoint pairs and graph constraints
 
-- A Type reference is an absolute HTTP(S) URL string or `{uri, revision}`. This
-  preserves existing URL conventions while admitting pins. Production identity
-  rules, exact/floating matching and canonicalization remain open. Schema admission
-  of an unpinned selector does not decide its matching policy.
-- `{anyOf: [references...]}` is an OR selector; `{any: true}` adds no Type restriction.
-  These are descriptor data, not JSON Schema applicators. AND/NOT/exact-only syntax
-  is not introduced. All inherited declarations still apply conjunctively.
-- On a Link definition, `source` and `target` require a selector; `max` is optional,
-  nonnegative and counts the declaring family at the named endpoint. No `min`
-  member is accepted. Omitted `max` adds no local maximum.
-- On a Bead definition, `incoming` and `outgoing` contain `linkTypes` selectors
-  with `min`, `max`, or both. Omitted minimum means zero; omitted maximum is
-  unbounded. Arrays can be empty. Counts combine according to the shared Types
-  rules. JSON Schema cannot compare `min` with `max`; semantic admission must.
-- `ownsOutgoing` is a Bead-only array of Link-Type selectors. It does not itself
-  create count limits. `{any: true}` is the candidate spelling for wildcard
-  ownership; overlaps must not create duplicate owned Links or count slots.
-- `pairUnique: true` adds the shared ordered-pair uniqueness constraint for a Link
-  family. False/omission adds no local declaration and cannot remove an inherited
-  constraint. It does not enable uniqueness by default on ConformsTo.
-- The existing `external` values `none`, `opaque`, `bead` are retained as candidate
-  vocabulary only. Default behavior, unresolved targets and the interaction of
-  opaque external references with Type requirements still require design.
+Each pair has explicit source and target endpoint objects. For local Beads, each
+contains `resourceKind: bead`, `scope: same`, and a nonempty `types` array. Entries
+are absolute HTTP(S) Type URLs or exact `{uri, revision}` references. `['*']` (shown
+here in prose) is a wildcard array and must appear alone. Empty arrays, omitted
+sides and wildcard mixed with specific Types are invalid. Floating selector
+matching still needs definition; admitting its syntax does not settle it.
 
-## What shape validation cannot establish
+A Link must match both sides of one pair. Within either side, arrays mean OR.
+Inherited pair lists remain separate conjunctions; concatenating them would widen
+eligibility incorrectly. Local OR arrays are only a compact Cartesian expansion.
 
-The schema checks descriptor structure, known field types, category-appropriate
-fields, nonnegative limits, and syntactic validity of the embedded schema. It does
-not prove semantic conformance, detect every impossible schema, resolve references,
-compute effective Types, validate graph counts/cycles or authorize a write.
+Endpoint `scope` and `resourceKind` spellings are candidate syntax. `cross` and
+`either` Bead-address arms allow only wildcard Types: external resources are not
+validated, and a URI's shape is not proof of its remote Type or existence. An
+opaque external `resource` arm has no `types` or Scope requirement. Core address
+classification must be specified before implementation; this does not enable
+local Link endpoints. No network verification of remote content is promised.
 
-Admission must additionally handle endpoint Type kinds, exact definition closure,
-qualifier execution, same-kind ConformsTo endpoints, cycles, contradictory bounds,
-immutable schema resources, inherited constraints, transaction timing and retention.
-For example, `min: 3, max: 2` passes the syntax schema but is not a valid effective
-contract. A boolean false properties schema is valid JSON Schema syntax but admits
-no instances; syntactic acceptance does not make it a usable Type definition.
-Unknown extension properties are not instructions a validator may silently treat
-as implemented semantics. Cross-revision constraint evolution is still deferred.
+`sourceMax` and `targetMax` are optional nonnegative integers on linkConstraints,
+not on pair alternatives. Each counts the declaring conformance family per
+endpoint identity across all arms and endpoint revision pins. No positive Link
+minimum or generic endpoint pin-mode requirement is introduced. An absent maximum
+adds no local bound. Bead incoming/outgoing rules still permit minima and maxima.
 
-## Examples and bootstrap boundary
+`unique: true` imposes ordered endpoint-identity pair uniqueness; `acyclic: true`
+prohibits directed identity cycles, including self-links. Both span the family and
+all endpoint alternatives in this Scope's Link table, including external endpoint
+identities without fetching those resources. False/omission never disables an
+inherited rule. Arity, uniqueness and declared acyclicity validate the final atomic
+transaction state; they do not waive authorization or revision preconditions.
 
-The example proposes a self-typed foundational `Type` Bead and a `ConformsTo`
-Link-Type definition, both installed as an understood seed set. Type owns
-ConformsTo; ConformsTo accepts Type-definition Beads at both ends. This reference
-dependency loop is not a conformance cycle: the seed definitions have no outgoing
-conformance declarations. Normal subsequent definitions use the Type metatype.
+Ownership/participation selectors retain the earlier candidate `{anyOf: [...]}`
+or `{any: true}` spelling. Endpoint arrays are the selected new form; no unrequested
+rewrite of the other selector surfaces is implied. Uniform shorthand can be reviewed
+later. The example blocks descriptor inherits dependency's narrower local Issue
+pair despite its own wildcard pair; a broad local constraint can warn, not widen.
 
-This is a **bootstrap candidate**, not an adopted seed installation, authorization,
-revision-allocation or generic create protocol. Opaque example revision tokens
-are labels, not client-assigned production revisions. The self-reference cannot
-be implemented by assuming an ordinary create operation already knows its own
-future revision. Bootstrap and upgrades require a separate explicit mechanism.
+## Metatypes and bootstrap
 
-The example declares conformance only for task→issue and blocks→dependency; it is
-not a complete built-in catalog. Both declaration endpoints are in the example
-Scope. Definition availability across Scopes remains open. Declaration sources
-are floating in this illustration; the containing owner's recorded snapshot is
-authoritative. Source-pin syntax/operations still need finalization. No Type-
-affiliation edge is synthesized on domain instances.
+Type, BeadType and LinkType are all affiliated with BeadType in this candidate.
+BeadType and LinkType declare conformance to Type. ConformsTo is affiliated with
+LinkType. issue/task use BeadType; dependency/blocks use LinkType. All definitions
+are Beads. Type owns ConformsTo, and both specializations inherit that ownership.
 
-Issue and Dependency schemas here are authoritative review fragments linked from
-the domain prose. Their copies inside the example are checked for exact equality.
-Updating a schema artifact is repository authoring, not automatic migration of any
-published Type or instance. Published definitions embed the selected schema content;
-the package file's URL does not make it a floating runtime dependency.
+ConformsTo allows BeadType→BeadType or LinkType→LinkType. Its properties are an open
+object. It requires exact target pins and a conformance DAG over exact definition
+revisions, but the generic identity-based acyclic flag is deliberately absent.
+That flag would also forbid T@2→T@1, an unresolved part of revision evolution.
+Pair uniqueness on direct declarations/evidence is likewise not selected.
 
-## Reproduce document validation
+Eight definitions and four declarations form the finite example. These use trusted
+seed placeholders, not client-assigned production revision tokens. Definition
+reference loops (including BeadType's self-affiliation) are not conformance cycles.
+Bootstrap authority, revision allocation, upgrades and installation remain open.
+Sources are floating in the fixture; exact owner snapshots remain authoritative.
+No implicit affiliation edges appear in the graph.
 
-From the repository root:
+A graph file/CLI payload must distinguish creating records with newly allocated
+revisions from preserving exported historical pins. Forward references within an
+input, Scope binding and identity conflicts remain to design. See Types §7.1;
+these literals are not a proposed package/import API.
+
+## Validation limits and reproduction
+
+JSON Schema validates shapes, not category membership/conformance, effective
+schemas, reference availability, counts, cycles, authorization, or migration.
+For example min3/max2 is syntax-valid but semantically inconsistent; a false
+properties schema is valid JSON Schema but admits no instances. Unknown extension
+properties do not imply supported semantics. SemVer syntax proves no compatibility
+promise; publication-label uniqueness is still open.
+
+Run from the repository root:
 
 ```sh
 uv run --no-project --with 'jsonschema[format]' python specs/schemas/check_examples.py
 ```
 
-The check validates the four schemas, positive/negative property examples, the
-example definition records and their recorded declaration consistency. It also
-checks the domain fragments against the prose. It does not exercise a BDP server,
-implement the proposed type checker or qualify runtime graph behavior.
+The check validates six schemas and positive/negative shape cases, exact example
+references and owned-state consistency, category-preserving pair matches over
+the finite foundation graph, schema-copy equality and domain prose fragments.
+It preloads resources and forbids retrieval. It does not implement a generic Type
+checker, import a graph, exercise a BDP server or qualify a release.
