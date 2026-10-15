@@ -4627,12 +4627,12 @@ and do not add BDP problem codes.
 | `batch`, the six Resource singleton targets, the two set targets, and the two alias targets | `POST` | `200` terminal receipt; `202` pending receipt; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503` |
 | `sequence` | `POST` | `200` envelope of [Sequence response envelope](#sequence-response-envelope), pending members included as problems; direct `400`, `401`, `403`, `413`, `415`, `429`, `503`, plus only the pre-admission `409` `revision-allocation-unsafe` exception below; never a sequence-level `202` receipt |
 | the same targets | any other method | `405`, `Allow: POST` — plus `OPTIONS` when cross-origin access is enabled, in which case `OPTIONS` is answered by the CORS rules rather than `405` — and no BDP Problem body |
-| `operations/` | `GET`, `HEAD` | `200` Operation Directory; `401`, `403`, `429`, `503` |
+| `operations/` | `GET`, `HEAD` | `200` Operation Directory; `400` `malformed-request` for malformed minimum fields; `401`, `403`, `429`, `503` |
 | `operations/` | any other method | `405`, `Allow: GET, HEAD` (`OPTIONS` as above) |
-| a receipt URL `receipts/{token}` | `GET`, `HEAD` | `200` receipt in its current representation; `401`; `404` for an unknown token, another principal's receipt, a retracted receipt, a forgotten failed receipt, or a prior epoch's receipt; `409` `foreign-view` or `410` `cursor-expired` for incompatible minimum-position context; `429`, `503` |
-| a receipt page URL | `GET`, `HEAD` | `200` page; `401`; `404` under the same non-disclosure rule; `409` `foreign-view` or `410` `cursor-expired` for incompatible minimum-position context; `410` `cursor-expired` after the receipt's detail expired; `429`, `503` |
+| a receipt URL `receipts/{token}` | `GET`, `HEAD` | `200` receipt in its current representation; `400` `malformed-request` for malformed minimum fields; `401`; `404` for an unknown token, another principal's receipt, a retracted receipt, a forgotten failed receipt, or a prior epoch's receipt; `409` `foreign-view` or `410` `cursor-expired` for incompatible minimum-position context; `429`, `503` |
+| a receipt page URL | `GET`, `HEAD` | `200` page; `400` `malformed-request` for malformed minimum fields; `401`; `404` under the same non-disclosure rule; `409` `foreign-view` or `410` `cursor-expired` for incompatible minimum-position context; `410` `cursor-expired` after the receipt's detail expired; `429`, `503` |
 | a receipt or page URL | any other method | `405`, `Allow: GET, HEAD` (`OPTIONS` as above) |
-| the `receipts` root | any method | `404` `resource-not-found` for `GET` and `HEAD`, `405` with `Allow: GET, HEAD` otherwise |
+| the `receipts` root | any method | `400` `malformed-request` for `GET` and `HEAD` with malformed minimum fields, otherwise `404` `resource-not-found` for those methods; `405` with `Allow: GET, HEAD` otherwise |
 
 The sequence's direct `409` exception applies only when an actual, positively
 established persistent, repair-required allocation failure is known before
@@ -4644,6 +4644,12 @@ failed-receipt and sequence projection rules: the carrier returns `200` with
 the member problem, not a direct `409`. Pending-key and dependent-member
 nonwaiting precedence remains unchanged. Transient inability to establish
 allocation safety remains `503`, not this persistent-conflict exception.
+
+Normal HTTP receiving checks, including the closed minimum-field syntax under
+[Transactional HTTP consistency](#transactional-http-consistency), precede receipt
+or page lookup. An authenticated malformed minimum tuple receives the same
+`400 malformed-request` whether the receipt or page exists or is disclosable.
+Once those receiving checks pass, the following non-disclosure ordering applies.
 
 On a receipt or page read, authentication is decided first, then the
 principal and epoch non-disclosure rule, then the request's minimum-position
@@ -5809,6 +5815,21 @@ same epoch and view fields plus:
 ```http
 BDP-Minimum-Scope-Position: opaque-position-42
 ```
+
+If any of these three request fields is present on a read, the request MUST
+contain exactly one nonempty value for each field, using the
+[Event-ID and checkpoint character profile](#event-id-and-checkpoint-character-profile). Missing,
+repeated, or lexically invalid values MUST return `400 malformed-request`
+after ordinary transport, target/method, and authentication/authorization checks,
+but before any owner read or target-existence lookup. All three absent means
+no minimum is requested. Lexical validity does not establish that a position
+identity is known or supported; existing semantic consistency decisions remain.
+
+This receiving refusal observes no projected prefix and MUST NOT report
+`BDP-Scope-Epoch`, `BDP-Authorization-View`, or `BDP-Scope-Position`. It MUST NOT
+become a conditional `304` or `412`, a negotiation `406`, or an SSE stream.
+Earlier ordinary target/method and Origin-policy refusals remain unchanged.
+HEAD retains the corresponding GET response metadata and sends no body.
 
 The authority then does one of three things: it returns a representation at
 that position or later, it waits or routes to an eligible replica, or it

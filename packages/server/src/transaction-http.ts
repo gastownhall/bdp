@@ -10,7 +10,11 @@ import {
   TransactionEventParameterError,
   TransactionEventProjectionGap,
 } from "./transaction-events.js";
-import { transactionMinimumHeaders, TransactionMinimumFailure } from "./transaction-consistency.js";
+import {
+  malformedTransactionMinimumHeaders,
+  transactionMinimumHeaders,
+  TransactionMinimumFailure,
+} from "./transaction-consistency.js";
 /** Source-private partial Transactional HTTP projection. No discovery/profile
  * advertisement: discovery and complete consistency/Selector admission remain unqualified. */
 import {
@@ -387,6 +391,8 @@ export function createTransactionHttpHandler(
       });
     }
     if (authorization.kind === "unauthenticated") return transactionHttpProblem("unauthenticated");
+    if (malformedTransactionMinimumHeaders(request.headers))
+      return transactionHttpProblem("malformed-request");
     if (url.pathname === new URL("snapshot", scope).pathname) {
       const fields = [...url.searchParams.keys()];
       const id = url.searchParams.get("snapshot"),

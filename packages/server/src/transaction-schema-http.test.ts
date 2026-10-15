@@ -246,16 +246,22 @@ it("preserves minimum refusals before schema conditionals and never observes exc
   const service = await runtime();
   for (const headers of minimumCases) {
     const response = await wire(service, root, "GET", headers);
-    expect(response.status, "preserved minimum refusal").toBe(500);
+    const complete =
+      headers["bdp-minimum-scope-position"] === "pos-0" &&
+      headers["bdp-scope-epoch"] === "epoch" &&
+      headers["bdp-authorization-view"] === "view";
+    expect(response.status, "preserved minimum refusal").toBe(complete ? 500 : 400);
     expect(await select(new Request(root, { headers }), authorized)).toBeUndefined();
     expect(response.headers["x-bdp-development-limit"]).toBe(
-      headers["bdp-minimum-scope-position"] === "pos-0" &&
-        headers["bdp-scope-epoch"] === "epoch" &&
-        headers["bdp-authorization-view"] === "view"
-        ? "minimum-position-route"
-        : "minimum-position",
+      complete ? "minimum-position-route" : undefined,
     );
-    expect(response.text).toBe("");
+    if (complete) expect(response.text).toBe("");
+    else
+      expect(JSON.parse(response.text)).toMatchObject({
+        status: 400,
+        code: "malformed-request",
+        retry: "never",
+      });
     expect(response.headers["x-bdp-development"]).toBe("non-attesting");
     for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
       expect(response.headers[name]).toBeUndefined();
