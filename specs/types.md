@@ -653,7 +653,8 @@ atomic migration may remove old usage and its constraint while introducing new
 usage, provided all final-state requirements hold.
 
 The same locality principle for uniqueness is selected in §5.6. Still open:
-precise inherited-revision activation and changes to acyclicity. Do not generalize
+precise inherited-revision activation and selector matching. Acyclicity is
+the per-Link promise selected in §5.8. Do not generalize
 these rules into a Scope-wide minimum over every installed or historical definition.
 
 ### 5.5 Validate arity at transaction commit
@@ -752,25 +753,59 @@ Ownership selector syntax and exact-definition evolution remain open alongside
 the other matching and lifecycle decisions. Registering a new definition alone
 does not rewrite an existing Resource revision or silently change its affiliation.
 
-### 5.8 Directed acyclicity across conformance
+### 5.8 Acyclicity is a per-Link promise
 
-A Link Type may declare `linkConstraints.acyclic: true`. The graph formed by this
-Scope's current Links satisfying that Type, including transitive conformers, must
-have no directed cycle. Vertices are endpoint identities across pins and floating
-references. A self-Link is a cycle of length one. External identities participate
-in this local Link-table check without fetching or validating external resources;
-no global guarantee across other Scopes' Link tables is claimed.
+A Link Type may declare `linkConstraints.acyclic: true`. **Every current Link
+subject to this constraint must be outside every directed cycle formed by Links
+in the constrained family.** This is a per-Link promise, not a requirement that
+all old Links in that family suddenly form a DAG when a new definition is installed
+or first used. This section refines the earlier whole-family acyclicity wording.
 
-The population combines all endpoint alternatives. Person→Team and Team→Person
-can form a cycle even though each alternative alone is acyclic. A declaration on
-a common ancestor also catches cycles mixing conforming sibling Link Types.
-Separate declarations on siblings do not implicitly create an ancestor-wide rule.
-Each inherited declaration remains binding; false/omission cannot disable it.
+Cycle traversal includes all current Links in the declaring family, across Type
+revisions, endpoint alternatives and transitive conformers. Activation and traversal
+population are distinct: an old Link that does not itself require acyclicity still
+participates in finding cycles through a Link that does. Each applicable inherited
+acyclicity declaration must be satisfied using its own family population. A local
+false/omission cannot disable an inherited promise.
 
-Validate final transaction state, permitting a temporary cycle removed before
-commit. A remaining cycle rejects the whole transaction including owned revisions.
-This does not declare all Dependency kinds acyclic or replace existing scheduler
-and hierarchy semantics. Constraint evolution across Type revisions remains open.
+Vertices are endpoint identities across pins and floating references. A self-Link
+subject to the constraint is a cycle of length one. Check the storing Scope's own
+Link table, including external endpoint identities, without fetching or validating
+those resources; no global guarantee about other Scopes' Link tables is claimed.
+
+For Relationship@1 permitting cycles and @2 requiring acyclicity, with neither
+revision inheriting the other, an existing @1 cycle A→B→A may remain. An independent
+@2 Link C→D is allowed. C→A is also allowed if there is no path back to C: membership
+in the same connected region as an old cycle does not mean this Link participates
+in a cycle. An @2 Link B→A fails because the existing A→B completes a cycle through
+it. Later adding an @1 Link that completes a cycle through an existing @2 Link
+also fails; validating only new Links or only @2 traversal edges would be wrong.
+
+Validate all affected promises against final transaction state, allowing a temporary
+cycle removed before commit. A remaining cycle through any constrained Link rejects
+the entire transaction, including owned revision effects. Installing a definition
+alone and historical-only usage do not activate this promise on current Links.
+Explicitly adopting the constraint on old Links may require an atomic graph repair.
+
+**Tradeoff:** a whole-family DAG rule is easier to infer from the word “acyclic,”
+but would make an unrelated old cycle block incremental adoption elsewhere. The
+selected per-Link rule follows the same local-adoption principle as arity and
+uniqueness while retaining all family Links as validation evidence. It does not
+promise cheap validation: implementations must account for new paths through old
+Links and may use indexes or scan the relevant graph. Performance does not change
+the invariant.
+
+**CLI opportunity (design work, not selected flags):** offer a preflight check of
+the whole family, report old cycles and participating identities, preview which
+Links would adopt the contract, and support an atomic migration/repair. Such UX can
+address the least-surprise concern and offer a stronger voluntary readiness check.
+CLI flags must not waive the protocol invariant or claim that all family Links
+are acyclic when only the adopting Links carry that promise. Property spelling may
+be reviewed for clarity without changing the selected semantics.
+
+ConformsTo's intrinsic DAG over exact definition revisions remains distinct from
+this identity-based constraint (§2.2). No blanket acyclicity is imposed on generic
+Dependency or substituted for existing scheduler/hierarchy rules.
 
 ## 6. Concrete acceptance cases
 
@@ -855,8 +890,11 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Source or target Type array is empty or mixes wildcard with another entry | Reject the descriptor shape |
 | External-capable endpoint arm asks for a specific Type | Reject this candidate shape; do not fetch or pretend unknown proves conformance |
 | External resource changes or disappears | No remote validation guarantee; stored reference remains a reference |
-| Cycle alternates between endpoint arms or sibling Link Types under one declaring ancestor | Reject at commit under that ancestor's acyclic rule |
+| Cycle alternates between endpoint arms or sibling Link Types and includes a Link subject to acyclicity | Reject at commit using the declaring family across all arms/revisions |
 | Batch temporarily creates a cycle then removes it | May commit if final graph satisfies all constraints |
+| An @1-only cycle exists at A→B→A; independent @2 C→D adopts acyclicity | Allow C→D; old Links do not acquire the promise implicitly |
+| Add @2 C→A where A is in that old cycle but no path returns to C | Allow: the constrained Link itself is not in a cycle |
+| Add an @1 Link that completes a cycle through an existing constrained @2 Link | Reject; old Type usage cannot evade the existing Link's promise |
 | Link endpoints use differing revisions of the same identity in a cycle | Pins do not evade identity-based acyclicity |
 | T@2 declares conformance to T@1 | Do not decide revision-evolution policy via a generic acyclic flag; exact-revision and identity cycles differ |
 | Type definition has version 2.1.0 and exact revision r7 | Pins still identify r7; label alone establishes no matching or conformance |

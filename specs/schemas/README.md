@@ -82,9 +82,13 @@ minimum or generic endpoint pin-mode requirement is introduced. An absent maximu
 adds no local bound. Bead incoming/outgoing rules still permit minima and maxima.
 
 `unique: true` imposes ordered endpoint-identity pair uniqueness; `acyclic: true`
-prohibits directed identity cycles, including self-links. Both span the family and
-all endpoint alternatives in this Scope's Link table, including external endpoint
-identities without fetching those resources. False/omission never disables an
+requires each adopting Link to stay outside directed identity cycles, including
+self-links. Cycle traversal includes all current family Links across revisions and
+endpoint alternatives; old cycles with no constrained Link may remain. A later
+old-Type Link cannot close a cycle through a constrained Link. Uniqueness activates
+at the adopting Link's ordered pair and counts the whole family there. Both checks
+use this Scope's Link table, including external endpoint identities without fetching
+those resources. See Types §5.8 for tradeoffs and potential CLI preflight/migration UX. False/omission never disables an
 inherited rule. Arity, uniqueness and declared acyclicity validate the final atomic
 transaction state; they do not waive authorization or revision preconditions.
 

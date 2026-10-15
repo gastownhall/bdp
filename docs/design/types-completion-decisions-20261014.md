@@ -66,7 +66,7 @@ not edited by this pass.
 | ID | Concrete question | Evidence/example | Completion criterion |
 | --- | --- | --- | --- |
 | T01 | What names the counted Link set, direction and constraint identity? | dependency pair uniqueness spans blocks and parent-child; an Issue may have many different dependencies | Define syntax and exact applicability without confusing a pair key with endpoint maximum |
-| T02 — arity/uniqueness locality selected; acyclicity open | Where are differing revision constraints active? | An existing Assignment@1 Link keeps max1 at X; adding @2 max2 fails until explicit migration, absent other constraints | Complete inherited-revision and acyclicity activation; endpoint/pair locality and inactive unused/history-only definitions are selected |
+| T02 — local activation selected; inherited/selector precision remains | Where are differing revision constraints active? | An existing Assignment@1 Link keeps max1 at X; adding @2 max2 fails until explicit migration, absent other constraints | Complete inherited-revision/selector precision; endpoint/pair locality, per-Link acyclicity and inactive unused/history-only definitions are selected |
 | T03 — resolved | Positive minimums belong on Bead Types; both kinds may declare maximums | Assignment eligibility does not oblige an ordinary Issue; AssignedIssue can require one | Same-set effective maximum is the smallest maximum; minimum is the largest minimum. Different counted sets remain independent. Declaration syntax is part of T01 |
 | T04 | How do nominal and conformance selectors match exact and floating definitions? | Query issue includes task/bug by conformance; an exact historical contract must retain meaning | Define matching independently from presentation aliases, revision age and compatibility claims |
 | T05 | How are endpoint pins and unavailable definitions checked? | MemorySupports cites an old revision; Dependency schedules against current Issue state | Define local/current/historical admission and revalidation; external validation is excluded, pin-mode constraints deferred |
@@ -202,3 +202,13 @@ C→D, but adding unique @2 at A→B counts the old Links and fails. Atomic migr
 can resolve the duplicate pair. Inherited/independent constraints remain binding.
 Next question: acyclicity activation locality; no new answer inferred from pair
 uniqueness. Provenance remains parked for its separate review.
+
+## October 15 per-Link acyclicity ruling
+
+Selected: every Link subject to acyclicity must be outside every directed cycle
+formed by the declaring family, traversing all current family revisions/conformers.
+Old cycles with no adopting Link may remain, even in a connected region; a later
+old-Type Link cannot complete a cycle through a constrained Link. Final-transaction
+validation remains. Types §5.8 discusses the whole-family alternative and explicitly
+reserves CLI preflight/reporting/atomic-migration UX without selecting flags or
+permitting protocol bypass. Next: exact versus floating constraint selectors.
