@@ -162,6 +162,12 @@ hierarchy through its type field. Conversely, the definition's ConformsTo Links
 are not the Issue instance's work Dependencies and do not affect its scheduler.
 Generic viewer support and exact historical traversal still require qualification.
 
+The [shared foundation example](../schemas/examples/type-foundation.json) makes
+these definitions and the task/blocks declarations concrete, with embedded copies
+of the two base property schemas. Its Type metatype, selector spelling and seed
+mechanism are review candidates. It is not a complete built-in catalog or an
+installation request, and does not pick the missing child-field or workflow rules.
+
 The schemas below, endpoint eligibility, arity, pair uniqueness and ownership
 rules remain descriptor fields in the definition Bead's properties. They are
 not separate Schema/Constraint Beads. No competing writable conformsTo field is
@@ -362,6 +368,10 @@ are in the companion audit.
 
 ### 3.5 Reviewable core properties schema
 
+Machine-readable artifact: [Issue properties schema](../schemas/issue.properties.schema.json).
+The block below mirrors that review artifact apart from document annotations;
+[the artifact check](../schemas/README.md#reproduce-document-validation) prevents drift.
+
 This is a **core fragment**, not a complete installable Issue definition or proof
 of native write admissibility. It records common structural checks without
 closing the root, freezing custom-value enums or pretending JSON Schema can
@@ -445,6 +455,10 @@ be valid without being built-in. Both current graph CLI routes, bd dep add and b
 well-known kinds even though the storage adapter accepts more. Their help is not
 proof of broader admission; the audit identifies the executable gates.
 No scheduling or hierarchy effect is inferred for an unfamiliar value.
+
+Machine-readable artifact: [Dependency properties schema](../schemas/dependency.properties.schema.json).
+The following open base fragment mirrors that artifact and does not invent the
+remaining child-specific schemas or domain operation checks.
 
 ```json
 {
@@ -670,7 +684,7 @@ current preview wire syntax.
 
 ```json
 {
-  "type": {"uri": "https://example.org/beads-types/task", "revision": "task-definition-1"},
+  "type": {"uri": "https://example.org/types/beads/task", "revision": "task-definition-1"},
   "properties": {
     "id": "bd-repair",
     "title": "Replace the pump seal",
@@ -685,7 +699,7 @@ current preview wire syntax.
 
 ```json
 {
-  "type": {"uri": "https://example.org/beads-types/blocks", "revision": "blocks-definition-1"},
+  "type": {"uri": "https://example.org/types/beads/blocks", "revision": "blocks-definition-1"},
   "source": "https://example.org/work/beads/bd-repair",
   "target": "https://example.org/work/beads/bd-delivery",
   "properties": {},
@@ -787,8 +801,8 @@ qualifies the capability; some underlying native functionality already exists.
 | Area | Design/source status | Remaining work |
 | --- | --- | --- |
 | issue/dependency bases with conforming classification Types | Intrinsic classification Types settled at product level; Preview 2 CLI shims expose the direction | Underlying implementation planned for Preview 3 Friday October 16; qualify delivered IDs, pins, conformance, registrations and adapter mapping when available |
-| Definition representation and conformance hierarchy | Definition Beads, owned ConformsTo Links and descriptor constraint fields selected | Metatype/bootstrap, exact IDs, historical traversal, editing/provenance and viewer qualification NYI here |
-| Ordinary content, status and classification | Existing behavior inventoried; core schema fragment provided | Full durable-field schema and configuration-dependent validation contract |
+| Definition representation and conformance hierarchy | Selected representation; candidate Type/ConformsTo schemas and six-definition fixture linked from §2 | Metatype/bootstrap approval, exact IDs, historical traversal, editing/provenance and viewer qualification NYI here |
+| Ordinary content, status and classification | Existing behavior inventoried; linked and embedded machine-readable base schema fragments | Full durable-field and child schemas plus configuration-dependent validation contract |
 | Dependency direction, pair uniqueness and kind roles | Existing behavior documented | Portable invariant/admission encoding; no implicit new maximum syntax |
 | Local floating endpoints | Current graph behavior documented; proposed initial boundary | Decide pins and remote workflow separately |
 | Edge metadata/thread data | Codified semantic metadata selected for property promotion; preview gap explicit | Child schemas and lossless adapter mapping; thread placement and unknown metadata preservation still open |

@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json",
+  "title": "Draft Type Bead properties",
+  "$comment": "REVIEW CANDIDATE, not canonical BDP or an installation package. Validates properties only. Unknown extension fields have no automatic semantics. Shared Type rules and cross-resource checks still apply. Placeholder schema ID is not a production Type ID.",
+  "type": "object",
+  "required": [
+    "name",
+    "describes",
+    "propertiesSchema"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "describes": {
+      "enum": [
+        "bead",
+        "link"
+      ]
+    },
+    "propertiesSchema": {
+      "allOf": [
+        {
+          "$ref": "https://json-schema.org/draft/2020-12/schema"
+        },
+        {
+          "if": {
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "$schema": {
+                "const": "https://json-schema.org/draft/2020-12/schema"
+              }
+            }
+          }
+        }
+      ],
+      "$comment": "Embedded JSON Schema, not a URL. This draft uses 2020-12; external resource resolution, supported vocabularies and admission are separate checks."
+    },
+    "source": {
+      "$ref": "#/$defs/endpointConstraint"
+    },
+    "target": {
+      "$ref": "#/$defs/endpointConstraint"
+    },
+    "ownsOutgoing": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/typeSelector"
+      }
+    },
+    "incoming": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/participationConstraint"
+      }
+    },
+    "outgoing": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/participationConstraint"
+      }
+    },
+    "pairUnique": {
+      "type": "boolean"
+    },
+    "id": false,
+    "revision": false,
+    "type": false,
+    "ownedLinks": false,
+    "conformsTo": false,
+    "revisionProvenance": false
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "describes": {
+            "const": "link"
+          }
+        },
+        "required": [
+          "describes"
+        ]
+      },
+      "then": {
+        "required": [
+          "source",
+          "target"
+        ],
+        "properties": {
+          "ownsOutgoing": false,
+          "incoming": false,
+          "outgoing": false
+        }
+      },
+      "else": {
+        "properties": {
+          "source": false,
+          "target": false,
+          "pairUnique": false
+        }
+      }
+    }
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "typeUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+"
+    },
+    "typeReference": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/typeUrl"
+        },
+        {
+          "type": "object",
+          "required": [
+            "uri",
+            "revision"
+          ],
+          "properties": {
+            "uri": {
+              "$ref": "#/$defs/typeUrl"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "typeSelector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "anyOf"
+          ],
+          "properties": {
+            "anyOf": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/typeReference"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "any"
+          ],
+          "properties": {
+            "any": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "$comment": "Candidate OR selector syntax, not JSON Schema anyOf evaluation. Exact/floating matching remains a product decision; any:true imposes no Type restriction."
+    },
+    "endpointConstraint": {
+      "type": "object",
+      "required": [
+        "types"
+      ],
+      "properties": {
+        "types": {
+          "$ref": "#/$defs/typeSelector"
+        },
+        "external": {
+          "enum": [
+            "none",
+            "opaque",
+            "bead"
+          ]
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "min": false
+      },
+      "additionalProperties": false,
+      "$comment": "Candidate Link-Type endpoint declaration. max counts the declaring conformance family per endpoint identity in this Scope; pins do not create slots. Positive minima are not Link-Type declarations. external retains legacy names provisionally; remote admission/defaults are not settled."
+    },
+    "participationConstraint": {
+      "type": "object",
+      "required": [
+        "linkTypes"
+      ],
+      "properties": {
+        "linkTypes": {
+          "$ref": "#/$defs/typeSelector"
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "min"
+          ]
+        },
+        {
+          "required": [
+            "max"
+          ]
+        }
+      ],
+      "additionalProperties": false,
+      "$comment": "Candidate Bead participation rule: min omitted means zero; max omitted means unbounded. min<=max and intersection with inherited/Link bounds need semantic validation."
+    }
+  }
+}

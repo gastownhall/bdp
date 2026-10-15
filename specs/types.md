@@ -52,7 +52,8 @@ applies to the instance's `properties`, not to the whole common Resource envelop
 Within this profile, a Type definition is represented as a Bead. The instance's
 Type reference is interpreted as a Bead reference to that definition; its identity
 and revision identify the definition Bead and the selected Bead revision. The
-exact definition fields and bootstrap remain to specify.
+candidate definition fields and a bootstrap proposal appear in §§2.1–2.3; their
+unresolved choices remain marked for review.
 
 Affiliation remains the distinguished `type` field on each Bead and Link; it is
 not represented by a Link to the definition Bead. Following ordinary incident
@@ -77,7 +78,8 @@ Apart from owned conformance declarations, the Type contract is represented by
 fields in the Type-definition Bead's `properties`. This includes the embedded
 JSON Schema, endpoint eligibility, incoming/outgoing arity, pair-wise uniqueness,
 ownership declarations and other descriptor information. Their precise field
-names and schemas remain to specify. Ordinary changes to those fields produce a
+names and schemas are drafted in §2.1 and remain subject to review. Ordinary
+changes to those fields produce a
 new definition-Bead revision, while its owned conformance Links are covered by
 that same revision's recorded owned state.
 
@@ -92,15 +94,127 @@ The representation boundary is:
 | Information | Authoritative representation |
 | --- | --- |
 | An instance's affiliation | Distinguished `type` field, pinned to a definition Bead revision under this profile |
-| The definition Bead's own affiliation | Its own `type` field; metatype and bootstrap still need specifying |
+| The definition Bead's own affiliation | Its own `type` field; Type metatype and bootstrap candidate in §§2.1–2.3 |
 | Direct conformance declarations | Owned ConformsTo Links, recorded with the source definition revision |
-| Properties schema and other constraints | Fields in the definition Bead's `properties`; concrete schema remains open |
+| Properties schema and other constraints | Fields in the definition Bead's `properties`; candidate schema linked from §2.1 |
 | Later review of a declaration | An independent Activity under Provenance V2, referencing the declaration Link revision |
 
 The current direction uses Type-to-Type conformance for reusable structural and
 semantic promises. A separate Capability entity is not required by the rules
 below; it should be introduced only if a distinct requirement warrants it.
 "Capability" in Scope feature discovery is not this Type conformance relation.
+
+### 2.1 The Type Bead Type
+
+The profile defines a Bead Type called **Type**. Its instances are Type-definition
+Beads, whether they describe ordinary Beads or Links. The common envelope supplies
+identity, revision, the definition's own Type affiliation, owned-Link state and
+revision provenance. A definition's `describes` property selects the kind of
+instances it defines; it does not change the definition resource itself into a Link.
+
+The [Type properties schema](schemas/type-definition.properties.schema.json) is a
+**candidate concrete format** based on the current descriptor. Selected semantics
+remain authoritative; new field spelling, requiredness and selector shapes below
+are review proposals, not settled product decisions. The [schema notes](schemas/README.md)
+record the exact starting source and differences. This is separate from the
+canonical BDP wire-schema bundle.
+
+| Type property | Candidate structure and meaning |
+| --- | --- |
+| `name` | Required nonempty descriptive name; not canonical identity or an alias registration |
+| `description` | Optional human-readable description, including semantic promises that may require author review |
+| `describes` | Required `bead` or `link`; all inherited conformance must describe the same kind |
+| `propertiesSchema` | Required embedded JSON Schema in this candidate, applying to instances' properties; no separate Schema Bead |
+| `source`, `target` | Required for Link definitions only; each has a `types` selector and optional `max` and provisional `external` policy |
+| `incoming`, `outgoing` | Bead-only arrays of participation constraints: `linkTypes` selector plus minimum and/or maximum |
+| `ownsOutgoing` | Bead-only array of Link-Type selectors; ownership is separate from count limits |
+| `pairUnique` | Link-only boolean; true declares family-wide ordered-pair uniqueness; false/omission never relaxes inherited uniqueness |
+
+`id`, `revision`, `type`, `ownedLinks` and `revisionProvenance` belong to the
+common envelope and are prohibited as duplicate descriptor properties by this
+candidate. `conformsTo` is also prohibited there: direct declarations are the
+owned Links defined below. The root remains open for extensions, but the presence
+of an unknown property does not establish that a service understands or enforces
+its proposed semantics.
+
+The Type metatype owns outgoing Links satisfying ConformsTo, including its valid
+specializations. This ownership governs definition Beads. By contrast, a
+particular descriptor's `ownsOutgoing` property governs the instances that
+descriptor describes. The metatype does not make every ordinary instance own
+ConformsTo Links or create implicit affiliation edges.
+
+Type validation requires more than this property schema. Admission must validate
+the complete exact conformance closure, category agreement, inherited schemas and
+semantic promises, selector target kinds, effective bounds and supported constraint
+semantics. Merely passing the property schema is not acceptance for use. Changes
+to descriptor properties or owned declarations produce new definition revisions;
+existing instance affiliations and historical definitions do not silently move.
+
+### 2.2 The ConformsTo Link Type
+
+The profile defines a Link Type called **ConformsTo**, whose instances are the
+owned declaration Links of §3.10. This Link Type is itself defined by a Bead whose
+own Type is Type and whose `describes` property is `link`.
+
+| Aspect | Contract |
+| --- | --- |
+| Direction | Source definition declares conformance to target definition |
+| Source | A Type-definition Bead; the declaration must belong to the source revision's authoritative recorded owned state |
+| Target | An exact pinned Type-definition Bead revision; no floating target may remain in a stored declaration |
+| Kind agreement | Source and target must describe the same instance kind; two Bead endpoints alone do not establish this |
+| Meaning | Every valid source-Type instance satisfies the target's structural, semantic and explicit behavioral promises |
+| Inheritance | Transitive and acyclic over exact definition revisions; all inherited requirements apply |
+| Ownership | Owned by the source definition Bead through the Type metatype; mutations have source revision effects |
+| Provenance | Common Link revision provenance records the declaration's basis; later Activities can refer to the exact Link revision independently |
+| Specialization | Conforming Link Types may add requirements/evidence but may only tighten the base promise |
+
+The [ConformsTo properties schema](schemas/conforms-to.properties.schema.json)
+requires an object but no relationship-specific members. The empty object is a
+valid base representation. Endpoint, identity and provenance information belongs
+in the common Link envelope. A specialized relationship may declare additional
+properties; shape acceptance by this open base schema does not implement unknown
+qualifiers or establish semantic conformance. No confidence, condition or method
+field is assigned meaning by the base Type.
+
+No arbitrary maximum, positive minimum or pair-uniqueness rule is added to
+ConformsTo here. Admission of multiple direct declarations to the same exact
+ancestor, and their independent evidence, still needs a precise policy; repeated
+paths never multiply membership or an instance Link's count. Graph validation
+must check same-kind targets, exact availability, ownership authority and cycles
+in addition to the property schema. Source pin spelling, remote-definition
+admission and exact write timing remain open. The schema does not settle them.
+
+### 2.3 Schema artifacts and a bootstrap candidate
+
+The [foundation example](schemas/examples/type-foundation.json) supplies concrete
+records for Type, ConformsTo, issue, task, dependency and blocks, including two
+owned declarations. It is an illustrative final state, **not** a BDP transaction,
+package format or seed installation API. IDs and revision strings are placeholders;
+the embedded schema copies are checked against the adjacent artifacts.
+
+The proposed seed consists of:
+
+1. A Type-definition Bead named Type, whose `type` points to its own exact seed
+   revision, whose schema is the descriptor schema, and which owns ConformsTo.
+2. A ConformsTo definition Bead typed by that Type revision, describing Links with
+   Type-definition Beads as endpoints and the open base properties schema.
+
+These references form a definition dependency loop, not a conformance cycle: the
+seed declares no conformance relationships. An implementation would need an
+explicitly understood bootstrap boundary to establish this seed together. Ordinary
+create cannot be assumed to know its future revision or bypass unavailable-Type
+checks. The bootstrap mechanism, metatype evolution, production identities and
+installation authority remain **proposed/open**, rather than being settled by the
+example's self-reference. This is one concrete design for review, not a requirement
+that Core recognize a universal Type Bead.
+
+The draft uses JSON Schema 2020-12 and preserves useful descriptor names from
+[BDP main at bd2178dd](https://github.com/gastownhall/bdp/blob/bd2178dd6f4b9f7c2d239624d7edaa3d961c3e26/schemas/bdp-v0.schema.json).
+The [migration table](schemas/README.md#changes-from-the-current-descriptor)
+explains the proposed changes: descriptor identity moves to the Bead envelope,
+conformance becomes owned Links, schemas become embedded, selectors express OR,
+and ownership is separated from arity. These artifacts do not modify the current
+canonical schema, runtime validator or active Write implementation.
 
 ## 3. Conformance in plain language
 
@@ -270,7 +384,8 @@ one Type-definition Bead to another. The source declares conformance to the exac
 pinned target definition revision. Conforming specializations of ConformsTo also
 participate, under the tightening-only rule in §3.9 and transitive ownership
 matching in §5.7. The name here describes the selected relationship; production
-identity, definition schema and bootstrap remain to specify.
+identity and bootstrap remain open; §2 supplies a candidate properties schema
+and seed definition.
 
 The authoritative declarations for T@r are the Link records captured in that
 exact Type-definition Bead revision's owned-Link state. Creating, modifying or
@@ -648,8 +763,9 @@ Conformance questions to work through next:
 
 Other Type-system work:
 
-- Definition Bead fields, metatype/bootstrap, IDs and revision availability;
-  installation, removal, packaging and retention.
+- Review the candidate definition fields and Type/ConformsTo seed in §2;
+  finalize metatype/bootstrap, IDs and revision availability, installation,
+  removal, packaging and retention.
 - Endpoint OR-list wire syntax, inherited conjunction and warning details. Explicit
   AND/NOT/exact-only selectors remain deferred; unresolved does not mean nonmember.
 - Arity syntax, constraint identity and changing
@@ -677,9 +793,9 @@ for user review. It supplies no additional normative rules.
 | Conformance rules in §3 and distinctions in §4 | Agreed design foundation; detailed syntax/checks open |
 | Endpoint composition and arity in §5 | Agreed design direction; cross-revision evolution and detailed syntax open |
 | Acceptance cases in §6 | Written for review; implementation qualification NYI |
-| Definition representation | Beads with descriptor fields and owned conformance Links selected; concrete field schema, bootstrap and lifecycle still open |
+| Definition representation | Beads with descriptor fields and owned conformance Links selected; candidate property schemas and seed example in §2; bootstrap/lifecycle decisions remain open |
 | ConformsTo editing, provenance and graph-display experiment | Evaluation cases identified; runtime behavior/performance not qualified |
-| Constraint expression syntax and matching | Not yet specified |
+| Constraint expression syntax and matching | Candidate selector/bound syntax in the descriptor schema; exact/floating matching and remote behavior still open |
 | Beads CLI/storage implementation of this draft | Not established by this document |
 
 Develop here on the isolated design branch. Land coordinated, bounded amendments

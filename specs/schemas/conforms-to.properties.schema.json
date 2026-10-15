@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/bdp-draft/schemas/conforms-to.properties.schema.json",
+  "title": "Draft ConformsTo Link properties",
+  "$comment": "Base relationship requires no own properties. Extensions/specializations may add evidence or enforceable tightening-only qualifiers. This open object is not permission to ignore unknown semantic requirements. Endpoints, pins, ownership, kind equality and cycle checks are outside properties validation. Provenance is in the common revisionProvenance envelope, not required here.",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": true
+}

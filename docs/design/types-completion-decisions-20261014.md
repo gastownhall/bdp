@@ -70,7 +70,7 @@ not edited by this pass.
 | T03 — resolved | Positive minimums belong on Bead Types; both kinds may declare maximums | Assignment eligibility does not oblige an ordinary Issue; AssignedIssue can require one | Same-set effective maximum is the smallest maximum; minimum is the largest minimum. Different counted sets remain independent. Declaration syntax is part of T01 |
 | T04 | How do nominal and conformance selectors match exact and floating definitions? | Query issue includes task/bug by conformance; an exact historical contract must retain meaning | Define matching independently from presentation aliases, revision age and compatibility claims |
 | T05 | How are endpoint pins and unavailable definitions checked? | MemorySupports cites an old revision; Dependency schedules against current Issue state | Define local/current/historical/remote admission and revalidation, without treating unknown as false |
-| T06 — representation selected | What are the definition Bead fields and bootstrap? | Both kinds of Type definitions are Beads under this profile; Core leaves the target kind unspecified | Specify fields, metatype, identities, finite bootstrap, retrieval and pinned closure availability |
+| T06 — representation selected, syntax drafted | Which candidate definition fields and bootstrap should be adopted? | Type and ConformsTo contracts, four property schemas and a seed example are drafted; Core leaves target kind unspecified | Review candidate fields/seed; select production identities, installation, retrieval and pinned closure rules |
 | T07 | What are lifecycle and migration operations? | Install a task definition; retype task to bug; remove a still-referenced parent definition | Distinguish publication, availability, acceptance for use, affiliation changes, retention and removal |
 | T08 | What does compatibility promise, and who checks it? | Adding mandatory approvalCode breaks replacement; cents/dollars changes meaning despite identical shapes | Define read/data/write/semantic guarantees and any SemVer/claim mechanism without relying on schema inclusion alone |
 | T09 | What happens to computed and operational fields? | heartbeat_at, lease expiry and is_blocked do not all behave like ordinary authored content | Separate storage, write authority, observation and revision identity; decide schema/view placement before claiming immutable complete records |
@@ -81,6 +81,13 @@ These are questions, not a requirement for eleven separate new mechanisms. Use t
 smallest contract that answers the concrete cases. Definition representation now
 uses Beads, but bootstrap and retention still need explicit rules; no installation
 API has been selected yet.
+
+Candidate machine-readable artifacts are linked from both specs under
+[specs/schemas](../../specs/schemas/README.md). They define Type and ConformsTo
+property shapes and mirror the Issue/Dependency base fragments. Candidate syntax
+and the self-typed seed are review material, not additional settled decisions.
+The current BDP descriptor was inspected at bd2178dd6f4b9f7c2d239624d7edaa3d961c3e26;
+its older identity/conformance/schema-reference semantics remain distinct from this draft.
 
 ## Follow-up precision and validation
 
