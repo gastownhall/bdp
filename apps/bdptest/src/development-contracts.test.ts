@@ -625,6 +625,8 @@ it("supports actual canonical nested/dotted/encoded IDs in hidden and read-only 
   expect(() => f.access.replace("alice", { ...allow, hidden: ["beads/a/../b"] })).toThrow();
 });
 
+// Exercises the full evaluator work ceiling directly and through HTTP;
+// allow CI wall-clock headroom without changing that ceiling.
 it("keeps an actual evaluator work refusal local and permits correction using the same unclaimed key", async () => {
   const input = bundle();
   input.schemas[0] = artifact(schema, {
@@ -662,7 +664,7 @@ it("keeps an actual evaluator work refusal local and permits correction using th
   );
   expect(corrected.status).toBe(200);
   expect((await f.wire("beads/work")).value).toEqual(corrected.value.resource);
-});
+}, 10000);
 
 it("configured authorities expose only explicit principal facets and duplicate credential principals share one route", async () => {
   const f = await fixture();
