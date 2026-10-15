@@ -69,6 +69,11 @@ be a valid Product, with the same meanings for shared fields. The reverse need
 not hold. Conformance is directional. It describes the effective definition,
 including all inherited requirements, not the author's local schema in isolation.
 
+Bead Types and Link Types are non-intersecting. A Bead Type may conform only to
+Bead Types; a Link Type may conform only to Link Types. Reject a cross-kind
+conformance declaration, even if the property schemas happen to be identical.
+Reusing a property schema does not establish Type membership across these worlds.
+
 ### 3.1 Structure and meaning both count
 
 If Product says `price` is measured in US dollars, ApprovedProduct cannot interpret
@@ -208,9 +213,9 @@ conformance pin does not silently match another revision through SemVer or age.
 
 ## 5. Endpoint constraints and arity
 
-These rules apply to Bead and Link Types under the same structural and semantic
-conformance principles. They do not select cross-kind conformance between a Bead
-Type and a Link Type. Examples below are conceptual, not selected wire syntax.
+These rules apply within the separate Bead-Type and Link-Type worlds under the
+same structural and semantic conformance principles. Cross-kind conformance is
+forbidden. Examples below are conceptual, not selected wire syntax.
 
 ### 5.1 Endpoint eligibility starts with OR
 
@@ -438,6 +443,8 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Update only ApprovedProduct.title | Preserve approvalCode; validate complete resulting state |
 | Replace ApprovedProduct properties with a Product-only object lacking mandatory approvalCode | Reject atomically; do not merge missing properties back in |
 | T@1 reaches C@1 and C@2 | Both exact definitions apply; neither supersedes the other |
+| Bead Type declares conformance to a Link Type | Reject: the Type worlds do not intersect |
+| Link Type declares conformance to a Bead Type with identical properties | Reject: shared property shapes do not establish cross-kind conformance |
 | A@1 directly conforms to A@1 | Reject the direct conformance cycle |
 | A@1 conforms to B@2, which conforms to A@1 | Reject the indirect conformance cycle |
 | A@1 and B@1 both reach C@1 without a path back | Shared ancestry is not a cycle; diamond conformance is permitted |
@@ -480,8 +487,6 @@ Conformance questions to work through next:
 - Same-name optional fields with disjoint permitted values: omission can satisfy
   both schemas. Decide whether to allow this with a diagnostic or reject the
   conflicting declarations. The earlier recommendation was not an operator ruling.
-- Cross-kind conformance: which declarations are allowed between definitions for
-  Bead and Link instances? No automatic cross-kind membership is selected.
 - Exact pinned versus floating conformance queries and constraint matching.
   Keep nominal affiliation matching distinct from inherited conformance matching.
 - Schema dialect/composition details and semantic annotations; minimum mandatory

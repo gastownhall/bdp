@@ -13,6 +13,8 @@ not edited by this pass.
 - Definitions have immutable exact revisions. Whether definitions are Beads is
   undecided. Type-to-Type conformance now carries reusable structural and semantic
   promises; there is no separately required Capability entity.
+- Bead Types and Link Types are non-intersecting; conformance is only within each
+  kind. Identical or reused property schemas do not create cross-kind membership.
 - Every inherited schema and semantic promise applies. Direct declarations pin
   definitions, the implementation resolves the complete available closure, and
   conformance cycles are forbidden. Different revisions of a common ancestor
@@ -62,8 +64,6 @@ bootstrap and retention; no installation API has been selected yet.
 
 - Same-name optional fields with disjoint allowed values can prohibit presence
   without making every instance invalid. Decide diagnostics/admission explicitly.
-- Cross-kind conformance between Bead and Link definitions is undecided; applying
-  the same rules to both kinds does not select cross-kind membership.
 - Resolve schema dialect, references and closure composition, semantic-unit
   vocabulary, required contradiction checks and limits of mechanical proof.
 - Pair-wise uniqueness now spans the declaring conformance family, keyed by ordered
