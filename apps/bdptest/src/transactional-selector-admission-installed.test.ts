@@ -324,7 +324,7 @@ it("installed Selector grammar and fresh capacity preserve keys receipts and com
     expect(await send("beads/late", undefined, undefined, 404, "pos-1")).toMatchObject({
       code: "resource-not-found",
       status: 404,
-      retry: "never",
+      retry: "after-state-change",
     }); //5
     noop(await send("operations/batch", batch(set("$[?@.missing]")), "bad-batch", 200, "pos-1")); //6
     problem(
