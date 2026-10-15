@@ -1937,3 +1937,24 @@ was integrated onto f5511718371a6935614eae6756e796cef71570c2; reviewed validatio
 remains a gate before final publication/readiness. This draft
 does not activate discovery, qualify a profile or settle the pending Snapshot or
 incident-Link metadata decisions.
+
+### Private installed same-key dispatch witness draft
+
+This unexecuted draft adds one bounded installed callback that dispatches a
+singleton create and its equivalent one-operation batch without awaiting either
+response. Both omit the Resource id so the authority allocates it. The positive
+schedule has six HTTP requests: the pair, the issued receipt root, the complete
+Bead collection, the complete Scope Event page and one retained batch replay.
+Independent schema and literal checks precede full receipt, Resource and Event
+equality. A separate input control changes only the second key and is expected
+to stop after two successful responses at the named shared-receipt assertion.
+
+The witness records actual client lifetimes and socket milestones; it does not
+prove simultaneous server admission or an internal pending join. A pending
+observation is reported only for an actual pending response. If both initial
+responses are pending, the callback stops as inconclusive and fails rather than
+polling or passing. Safe reports retain fingerprints and selected facts, while
+full parsed comparisons occur in memory. Authoring is based on merged
+98c600767e8e91a79e109cb741beb91e23b9bebe. Validation and code council remain
+pending. This private draft does not qualify a profile, activate discovery or
+settle the pending Snapshot and incident-Link metadata decisions.
