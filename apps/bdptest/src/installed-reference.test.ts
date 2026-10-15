@@ -16,7 +16,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server, request as httpRequest } from "node:http";
 import { afterEach, expect, it, vi } from "vitest";
-import { REFERENCE_TYPE_DESCRIPTORS } from "@bdp/protocol";
+import {
+  REFERENCE_TYPE_DESCRIPTORS,
+  parseReadUpdateMutationResult,
+  parseReadUpdateSequenceResponse,
+} from "@bdp/protocol";
 const helpers = (await import(
   new URL("../../../scripts/installed-reference-observation.mjs", import.meta.url).href
 )) as {
@@ -544,3 +548,137 @@ it.each(["file", "directory", "manifest"] as const)(
     );
   },
 );
+
+it("ignores copied read minimum fields on Update singleton and sequence commands", async () => {
+  const dir = directory();
+  const config = helpers.referenceConfiguration(dir, await helpers.availablePort(), token);
+  const running = await helpers.launchInstalledReference(entry, config);
+  children.push(running);
+  const failures: unknown[] = [];
+  const observations: { method: string; url: string; status: number }[] = [];
+  let childClosed = false;
+  async function wire(
+    url: string,
+    method = "GET",
+    value?: unknown,
+    key?: string,
+    headers: Record<string, string> = {},
+  ) {
+    expect(observations.length).toBeLessThan(6);
+    const response = await helpers.requestInstalled(
+      config,
+      token,
+      url,
+      method,
+      value,
+      key,
+      headers,
+    );
+    observations.push({ method, url, status: response.status });
+    expect(response.status).toBe(200);
+    expect(response.headers["x-bdp-development"]).toBe("non-attesting");
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(response.headers[name]).toBeUndefined();
+    for (const name of ["transaction", "requiredPosition", "effectPosition", "idempotencyKey"])
+      expect(response.value).not.toHaveProperty(name);
+    return response.value;
+  }
+  try {
+    expect(running.ready.claimEligible).toBe(false);
+    for (const [carrier, name, copied] of [
+      [
+        "create-bead",
+        "copied-singleton",
+        {
+          "bdp-minimum-scope-position": "pos-999",
+          "bdp-scope-epoch": "foreign-epoch",
+          "bdp-authorization-view": "foreign-view",
+        },
+      ],
+      ["sequence", "copied-sequence", { "bdp-minimum-scope-position": "not a token!" }],
+    ] as const) {
+      const input = {
+        id: `beads/${name}`,
+        type: `${config.scope}types/task`,
+        properties: { title: name },
+      };
+      const request =
+        carrier === "sequence"
+          ? { operations: [{ operation: "createBead", ...input, idempotencyKey: name }] }
+          : input;
+      const target = `${config.scope}operations/${carrier}`;
+      const created = await wire(
+        target,
+        "POST",
+        request,
+        carrier === "sequence" ? undefined : name,
+        copied,
+      );
+      if (carrier === "sequence") parseReadUpdateSequenceResponse(created);
+      else parseReadUpdateMutationResult(created);
+      const resource = (
+        carrier === "sequence"
+          ? (created.results as Record<string, unknown>[])[0]?.resource
+          : created.resource
+      ) as Record<string, unknown>;
+      expect(resource).toEqual({
+        id: `${config.scope}beads/${name}`,
+        type: `${config.scope}types/task`,
+        properties: { title: name },
+        metadata: {},
+        revision: expect.any(String),
+      });
+      expect(String(resource.revision).length).toBeGreaterThan(0);
+      expect(created).toEqual(
+        carrier === "sequence"
+          ? { results: [{ operationIndex: 0, outcome: "created", resource }] }
+          : { outcome: "created", resource },
+      );
+      expect(await wire(`${config.scope}beads/${name}`)).toEqual(resource);
+      const replay = await wire(
+        target,
+        "POST",
+        request,
+        carrier === "sequence" ? undefined : name,
+        {
+          "bdp-minimum-scope-position": "",
+          "bdp-scope-epoch": "epoch-one, epoch-two",
+          "bdp-authorization-view": "not a view!",
+        },
+      );
+      expect(replay).toEqual(created);
+    }
+    expect(observations).toHaveLength(6);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    children.splice(children.indexOf(running), 1);
+    dirs.splice(dirs.indexOf(dir), 1);
+    try {
+      expect(await running.close()).toEqual({ code: 0, signal: null });
+      childClosed = true;
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch (error) {
+      failures.push(error);
+    }
+    console.log(
+      JSON.stringify({
+        observation: "private-update-command-minimum",
+        outcome: failures.length ? "failed" : "passed",
+        childPid: running.child.pid,
+        childExitCode: running.child.exitCode,
+        childClosed,
+        directoryAbsent: !existsSync(dir),
+        directory: dir,
+        completedResponses: observations,
+        claimEligible: false,
+      }),
+    );
+  }
+  if (failures.length)
+    throw new AggregateError(failures, "Update command minimum observation and cleanup");
+}, 30000);

@@ -2037,7 +2037,6 @@ describe("nonexecuting sequence refusal observation", () => {
       [valid, {}, { kind: "unauthenticated" }, 401, "unauthenticated"],
       [valid, {}, { ...authorized, canMutate: false }, 403, "forbidden"],
       [valid, { "content-type": "text/plain" }, authorized, 415, "unsupported-media-type"],
-      [valid, { "bdp-minimum-scope-position": "pos-1" }, authorized, 500, "minimum-position"],
       [
         unsupported,
         { accept: "text/plain" },

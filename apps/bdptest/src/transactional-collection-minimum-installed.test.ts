@@ -1169,3 +1169,265 @@ it("observes genuine installed current alias minimums within18requests", async (
     "private-installed-alias-minimum",
   );
 }, 120000);
+
+it("ignores command read controls while enforcing a later installed receipt minimum", async () => {
+  await withInstalled(
+    async (f) => {
+      const collection = `${scope}beads/?limit=32`;
+      const routes = new Set([
+        collection,
+        ...["create-bead", "update-bead", "batch", "sequence"].map(
+          (name) => `${scope}operations/${name}`,
+        ),
+        ...["a", "b", "c"].map((name) => `${scope}beads/${name}`),
+      ]);
+      const observedUrls = new Set<string>();
+      let calls = 0;
+      async function exchange(
+        url: string,
+        method: HttpMethod = "GET",
+        headers: Record<string, string> = {},
+        input?: unknown,
+      ) {
+        expect(routes.has(url), "command minimum exact route grant").toBe(true);
+        expect(calls).toBeLessThan(18);
+        calls++;
+        observedUrls.add(url);
+        return f.exchange(url, method, headers, input);
+      }
+      async function post(
+        target: string,
+        input: unknown,
+        key: string | undefined,
+        copied: Record<string, string>,
+      ) {
+        return exchange(
+          `${scope}operations/${target}`,
+          "POST",
+          {
+            "content-type": "application/json",
+            ...(key === undefined ? {} : { "idempotency-key": key }),
+            ...copied,
+          },
+          input,
+        );
+      }
+      function pointContext(
+        response: HttpExchangeResponse,
+        expected: ReturnType<typeof minimum>,
+        position: string,
+      ) {
+        expect(response.headers["bdp-scope-epoch"]).toBe(expected["bdp-scope-epoch"]);
+        expect(response.headers["bdp-authorization-view"]).toBe(expected["bdp-authorization-view"]);
+        expect(response.headers["bdp-scope-position"]).toBe(position);
+        expect(response.headers.etag).toEqual(expect.any(String));
+      }
+      function receipt(response: HttpExchangeResponse, status = "completed") {
+        const value = json<Record<string, unknown>>(response);
+        expect(receiptSchema(value), JSON.stringify(receiptSchema.errors)).toBe(true);
+        expect(value.status).toBe(status);
+        expect(value.detail).toBe("available");
+        expect(value.scopeEpoch).toBe(response.headers["bdp-scope-epoch"]);
+        expect(value.authorizationView).toBe(response.headers["bdp-authorization-view"]);
+        if (status === "completed") expect(value.next).toBeNull();
+        return value;
+      }
+      function resource(value: unknown, name: string) {
+        const row = value as Row;
+        expect(row).toEqual({
+          id: `${scope}beads/${name}`,
+          type: beadType,
+          properties: { title: name },
+          metadata: {},
+          revision: expect.any(String),
+          ownedLinks: { [linkType]: [] },
+        });
+        expect(row.revision.length).toBeGreaterThan(0);
+        return row;
+      }
+      function created(value: Record<string, unknown>, name: string) {
+        const entries = value.results as Record<string, unknown>[];
+        expect(entries).toHaveLength(1);
+        const row = resource(entries[0]!.resource, name);
+        expect(entries).toEqual([{ operationIndex: 0, outcome: "created", resource: row }]);
+        return row;
+      }
+      const malformed = {
+        "bdp-minimum-scope-position": "not a position!",
+        "bdp-scope-epoch": "",
+        "bdp-authorization-view": "view-one, view-two",
+      };
+      const foreign = {
+        "bdp-minimum-scope-position": "pos-99",
+        "bdp-scope-epoch": "foreign-epoch",
+        "bdp-authorization-view": "foreign-view",
+      };
+      const empty = await exchange(collection);
+      expect(json<Page>(empty)).toEqual({ items: [], next: null });
+      const initial = minimum(empty);
+      context(empty, initial, "pos-0");
+      const aInput = { id: "beads/a", type: beadType, properties: { title: "a" } };
+      const made = await post("create-bead", aInput, "minimum-a", malformed);
+      const aReceipt = receipt(made);
+      expect(aReceipt.idempotencyKey).toBe("minimum-a");
+      expect(aReceipt.requiredPosition).toBe("pos-1");
+      expect(aReceipt.effectPosition).toBe("pos-1");
+      const a = created(aReceipt, "a");
+      context(made, initial, "pos-1");
+      const readA = await exchange(`${scope}beads/a`);
+      expect(json(readA)).toEqual(a);
+      pointContext(readA, initial, "pos-1");
+      const replayA = await post("create-bead", aInput, "minimum-a", foreign);
+      expect(receipt(replayA)).toEqual(aReceipt);
+      context(replayA, initial, "pos-1");
+      const bInput = {
+        operations: [
+          { operation: "createBead", id: "beads/b", type: beadType, properties: { title: "b" } },
+        ],
+      };
+      const madeB = await post("batch", bInput, "minimum-b", { "bdp-scope-epoch": "partial" });
+      const bReceipt = receipt(madeB);
+      expect(bReceipt.idempotencyKey).toBe("minimum-b");
+      expect(bReceipt.requiredPosition).toBe("pos-2");
+      expect(bReceipt.effectPosition).toBe("pos-2");
+      const b = created(bReceipt, "b");
+      context(madeB, initial, "pos-2");
+      const readB = await exchange(`${scope}beads/b`);
+      expect(json(readB)).toEqual(b);
+      pointContext(readB, initial, "pos-2");
+      const replayB = await post("batch", bInput, "minimum-b", { "bdp-scope-epoch": "" });
+      expect(receipt(replayB)).toEqual(bReceipt);
+      context(replayB, initial, "pos-2");
+      const sequenceInput = {
+        operations: [
+          {
+            operation: "createBead",
+            id: "beads/c",
+            type: beadType,
+            properties: { title: "c" },
+            idempotencyKey: "minimum-c",
+          },
+        ],
+      };
+      const madeC = await post("sequence", sequenceInput, undefined, minimum(madeB, "pos-99"));
+      const sequence = json<Record<string, unknown>>(madeC);
+      const validateSequence = ajv.compile({
+        $ref: `${bundle.$id}#/$defs/transactionalSequenceResponse`,
+      });
+      expect(validateSequence(sequence), JSON.stringify(validateSequence.errors)).toBe(true);
+      const c = created(sequence, "c");
+      expect(sequence).toEqual({
+        results: [{ operationIndex: 0, outcome: "created", resource: c }],
+      });
+      context(madeC, initial, "pos-3");
+      const readC = await exchange(`${scope}beads/c`);
+      expect(json(readC)).toEqual(c);
+      pointContext(readC, initial, "pos-3");
+      const replayC = await post("sequence", sequenceInput, undefined, malformed);
+      expect(json(replayC)).toEqual(sequence);
+      context(replayC, initial, "pos-3");
+      const conflict = await post(
+        "batch",
+        {
+          operations: [
+            {
+              operation: "createBead",
+              id: "beads/conflict-extra",
+              type: beadType,
+              properties: { title: "conflict-extra" },
+            },
+          ],
+        },
+        "minimum-b",
+        foreign,
+      );
+      expect(json(conflict, 409)).toEqual({
+        type: "https://github.com/gastownhall/bdp/problems/conflict",
+        status: 409,
+        code: "idempotency-conflict",
+        retry: "never",
+      });
+      context(conflict, initial, "pos-3");
+      const refused = await post(
+        "update-bead",
+        {
+          bead: "beads/a",
+          expectedRevision: "wrong",
+          propertiesChange: [{ op: "replace", path: "/title", value: "not-admitted" }],
+        },
+        "minimum-stale",
+        foreign,
+      );
+      const failed = receipt(refused, "failed");
+      expect(failed.idempotencyKey).toBe("minimum-stale");
+      expect(failed.requiredPosition).toBe("pos-3");
+      expect(failed).not.toHaveProperty("effectPosition");
+      expect(failed.problem).toEqual({
+        type: "https://github.com/gastownhall/bdp/problems/conflict",
+        status: 409,
+        code: "revision-mismatch",
+        retry: "after-state-change",
+        operationIndex: 0,
+      });
+      context(refused, initial, "pos-3");
+      const unchanged = await exchange(`${scope}beads/a`);
+      expect(json(unchanged)).toEqual(a);
+      pointContext(unchanged, initial, "pos-3");
+      // Grant only the exact receipt root actually observed on the successful command.
+      const target = aReceipt.id;
+      expect(typeof target).toBe("string");
+      if (typeof target !== "string" || target.length > 8192)
+        throw new Error("invalid observed receipt root");
+      const url = new URL(target);
+      const prefix = `${scope}receipts/`;
+      if (
+        url.href !== target ||
+        !target.startsWith(prefix) ||
+        !/^[A-Za-z0-9_-]+$/.test(target.slice(prefix.length)) ||
+        url.search ||
+        url.hash ||
+        url.username ||
+        url.password
+      )
+        throw new Error("invalid observed receipt root");
+      routes.add(target);
+      const timeout = await exchange(target, "GET", minimum(madeC, "pos-99"));
+      expect(json(timeout, 503)).toEqual({
+        type: "https://github.com/gastownhall/bdp/problems/unavailable",
+        status: 503,
+        code: "catch-up-timeout",
+        retry: "after-delay",
+      });
+      expect(timeout.headers["retry-after"]).toBe("1");
+      context(timeout, initial, "pos-3");
+      const otherView = await exchange(target, "GET", {
+        ...minimum(madeC),
+        "bdp-authorization-view": "foreign",
+      });
+      expect(json(otherView, 409)).toEqual({
+        type: "https://github.com/gastownhall/bdp/problems/conflict",
+        status: 409,
+        code: "foreign-view",
+        retry: "after-state-change",
+      });
+      context(otherView, initial, "pos-3");
+      const compatible = await exchange(target, "GET", minimum(madeC));
+      expect(receipt(compatible)).toEqual(aReceipt);
+      context(compatible, initial, "pos-3");
+      const head = await exchange(target, "HEAD", minimum(madeC, "pos-99"));
+      expect(head.status).toBe(503);
+      expect(head.bodyText).toBe("");
+      expect(head.bodyOctets).toBe(0);
+      expect(head.headers["retry-after"]).toBe("1");
+      context(head, initial, "pos-3");
+      const final = await exchange(collection);
+      expect(json<Page>(final)).toEqual({ items: [a, b, c], next: null });
+      context(final, initial, "pos-3");
+      expect(calls).toBe(18);
+      expect([...observedUrls].sort()).toEqual([...routes].sort());
+      expect(routes.size).toBe(9);
+    },
+    undefined,
+    "private-installed-command-minimum",
+  );
+}, 120000);

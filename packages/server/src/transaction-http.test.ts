@@ -1088,33 +1088,501 @@ it("routes unsupported raw methods by target before Fetch construction or receip
   expect(await body(await f.post())).toEqual(receipt);
 });
 
-it("refuses command minimum controls before every carrier can capture keys or effects", async () => {
+// Independent fixture oracles for the copied read-control command observations.
+const commandReceiptSchema = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceipt` });
+function commandResource(value: unknown, expected: Record<string, unknown>) {
+  const resource = record(value);
+  expect(resource.revision).toEqual(expect.any(String));
+  expect(String(resource.revision).length).toBeGreaterThan(0);
+  expect(resource).toEqual({ ...expected, metadata: {}, revision: resource.revision });
+  return resource;
+}
+async function commandResponse(response: Response, sequence = false, status = "completed") {
+  expect(
+    response.status,
+    `copied command accepted before effects: ${JSON.stringify({
+      status: response.status,
+      developmentLimit: response.headers.get("x-bdp-development-limit"),
+      contentLength: response.headers.get("content-length"),
+    })}`,
+  ).toBe(200);
+  expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
+  expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+  for (const value of Object.values(context(response))) {
+    expect(value).toEqual(expect.any(String));
+    expect(value?.length).toBeGreaterThan(0);
+  }
+  const value = await body(response);
+  const validate = sequence ? validateSequence : commandReceiptSchema;
+  expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
+  if (!sequence) {
+    expect(value.status).toBe(status);
+    expect(value.detail).toBe("available");
+    expect(value.scopeEpoch).toBe(response.headers.get("bdp-scope-epoch"));
+    expect(value.authorizationView).toBe(response.headers.get("bdp-authorization-view"));
+    if (status === "completed") expect(value.next).toBeNull();
+  }
+  return value;
+}
+function commandEntries(value: Record<string, unknown>) {
+  expect(Array.isArray(value.results)).toBe(true);
+  return (value.results as unknown[]).map(record);
+}
+const copiedMalformedMinimum = {
+  "bdp-minimum-scope-position": "not a position!",
+  "bdp-scope-epoch": "",
+  "bdp-authorization-view": "view-one, view-two",
+};
+
+it("ignores partial and malformed copied read controls on each mutation carrier", async () => {
   const f = await fixture();
+  let requests = 0;
   for (const [index, field] of [
     "bdp-minimum-scope-position",
     "bdp-scope-epoch",
     "bdp-authorization-view",
   ].entries()) {
-    for (const carrier of ["batch", "createBead", "sequence"] as const) {
-      const key = `${carrier}_${index}`,
-        name = key;
-      const operation = create(name);
+    for (const [carrier, fieldValue] of [
+      ["batch", ""],
+      ["createBead", "not a token!"],
+      ["sequence", "token-one, token-two"],
+    ] as const) {
+      const key = `${carrier}_${index}`;
+      const { operation, ...singleton } = create(key);
       const text =
         carrier === "createBead"
-          ? JSON.stringify(operation)
-          : batch([{ ...operation, ...(carrier === "sequence" ? { idempotencyKey: key } : {}) }]);
+          ? JSON.stringify(singleton)
+          : batch([
+              {
+                operation,
+                ...singleton,
+                ...(carrier === "sequence" ? { idempotencyKey: key } : {}),
+              },
+            ]);
+      requests++;
       const response = await f.post(text, carrier === "sequence" ? null : key, carrier, {
-        [field]: "pos-999",
+        [field]: fieldValue,
       });
-      expect(response.status).toBe(500);
-      expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
-      expect(response.headers.has("location")).toBe(false);
-      expect(await response.text()).toBe("");
-      expect((await f.get(`${f.runtime.scope}beads/${name}`)).status).toBe(404);
-      const replacement = await f.post(batch([create(`${name}_replacement`)]), key);
-      expect(replacement.status).toBe(200);
+      const value = await commandResponse(response, carrier === "sequence");
+      const entries = commandEntries(value);
+      expect(entries).toHaveLength(1);
+      const resource = commandResource(entries[0]!.resource, {
+        id: `${f.runtime.scope}beads/${key}`,
+        type: bead,
+        properties: { title: key },
+      });
+      expect(entries).toEqual([{ operationIndex: 0, outcome: "created", resource }]);
+      requests++;
+      const read = await f.get(`${f.runtime.scope}beads/${key}`);
+      expect(read.status).toBe(200);
+      expect(await body(read)).toEqual(resource);
+      expect(context(read)).toEqual(context(response));
+      requests++;
+      const retry = await f.post(text, carrier === "sequence" ? null : key, carrier, {
+        "bdp-minimum-scope-position": "pos-999",
+        "bdp-scope-epoch": "foreign-epoch",
+        "bdp-authorization-view": "foreign-view",
+      });
+      expect(await commandResponse(retry, carrier === "sequence")).toEqual(value);
+      expect(context(retry)).toEqual(context(response));
     }
   }
+  expect(requests).toBe(27);
+});
+
+it("ignores complete copied tuples on every Transactional mutation target", async () => {
+  const wait = vi.fn(async () => {});
+  const f = await fixture({ minimumReads: { budgetMs: 2, wait } });
+  const expectedTargets = {
+    createBead: "create-bead",
+    updateBead: "update-bead",
+    deleteBead: "delete-bead",
+    createLink: "create-link",
+    updateLink: "update-link",
+    deleteLink: "delete-link",
+    putAlias: "put-alias",
+    deleteAlias: "delete-alias",
+    updateWhere: "update-where",
+    deleteWhere: "delete-where",
+    batch: "batch",
+    sequence: "sequence",
+  };
+  expect(f.runtime.targets).toEqual(
+    Object.fromEntries(
+      Object.entries(expectedTargets).map(([name, suffix]) => [
+        name,
+        `${f.runtime.scope}operations/${suffix}`,
+      ]),
+    ),
+  );
+  const seed = await f.post(
+    batch([
+      create("a"),
+      create("b"),
+      {
+        operation: "createLink",
+        id: "links/victim",
+        type: link,
+        source: "beads/a",
+        target: "beads/b",
+      },
+    ]),
+    "all-seed",
+    "batch",
+    copiedMalformedMinimum,
+  );
+  const seeded = commandEntries(await commandResponse(seed));
+  expect(seeded).toHaveLength(3);
+  for (const [index, name] of ["a", "b"].entries()) {
+    const resource = commandResource(seeded[index]!.resource, {
+      id: `${f.runtime.scope}beads/${name}`,
+      type: bead,
+      properties: { title: name },
+    });
+    expect(seeded[index]).toEqual({ operationIndex: index, outcome: "created", resource });
+  }
+  const victim = commandResource(seeded[2]!.resource, {
+    id: `${f.runtime.scope}links/victim`,
+    type: link,
+    properties: {},
+    source: `${f.runtime.scope}beads/a`,
+    target: `${f.runtime.scope}beads/b`,
+  });
+  expect(seeded[2]).toEqual({ operationIndex: 2, outcome: "created", resource: victim });
+  let count = 1;
+  const seen: string[] = [];
+  const finalBeads = new Map<string, Record<string, unknown>>();
+  async function post(target: keyof typeof f.runtime.targets, input: unknown) {
+    seen.push(target);
+    count++;
+    const headers =
+      seen.length % 2
+        ? minimumHeaders(seed, "pos-999")
+        : {
+            "bdp-minimum-scope-position": "pos-999",
+            "bdp-scope-epoch": "foreign-epoch",
+            "bdp-authorization-view": "foreign-view",
+          };
+    const response = await f.post(
+      JSON.stringify(input),
+      target === "sequence" ? null : `all-${target}`,
+      target,
+      headers,
+    );
+    return commandEntries(await commandResponse(response, target === "sequence"));
+  }
+  function beadResult(
+    entries: Record<string, unknown>[],
+    name: string,
+    title: string,
+    outcome: string,
+  ) {
+    expect(entries).toHaveLength(1);
+    const resource = commandResource(entries[0]!.resource, {
+      id: `${f.runtime.scope}beads/${name}`,
+      type: bead,
+      properties: { title },
+    });
+    expect(entries).toEqual([{ operationIndex: 0, outcome, resource }]);
+    finalBeads.set(name, resource);
+    return resource;
+  }
+  beadResult(
+    await post("createBead", { id: "beads/c", type: bead, properties: { title: "c" } }),
+    "c",
+    "c",
+    "created",
+  );
+  beadResult(
+    await post("updateBead", {
+      bead: "beads/c",
+      propertiesChange: [{ op: "replace", path: "/title", value: "c2" }],
+    }),
+    "c",
+    "c2",
+    "updated",
+  );
+  const createdLink = await post("createLink", {
+    id: "links/l",
+    type: link,
+    source: "beads/a",
+    target: "beads/b",
+    properties: { title: "l" },
+  });
+  const firstLink = commandResource(createdLink[0]!.resource, {
+    id: `${f.runtime.scope}links/l`,
+    type: link,
+    source: `${f.runtime.scope}beads/a`,
+    target: `${f.runtime.scope}beads/b`,
+    properties: { title: "l" },
+  });
+  expect(createdLink).toEqual([{ operationIndex: 0, outcome: "created", resource: firstLink }]);
+  const updatedLink = await post("updateLink", {
+    link: "links/l",
+    propertiesChange: [{ op: "replace", path: "/title", value: "l2" }],
+  });
+  const lastLink = commandResource(updatedLink[0]!.resource, {
+    id: `${f.runtime.scope}links/l`,
+    type: link,
+    source: `${f.runtime.scope}beads/a`,
+    target: `${f.runtime.scope}beads/b`,
+    properties: { title: "l2" },
+  });
+  expect(lastLink.revision).not.toBe(firstLink.revision);
+  expect(updatedLink).toEqual([{ operationIndex: 0, outcome: "updated", resource: lastLink }]);
+  expect(await post("putAlias", { alias: "alias/work", target: "beads/c" })).toEqual([
+    {
+      operationIndex: 0,
+      outcome: "created",
+      alias: `${f.runtime.scope}alias/work`,
+      target: `${f.runtime.scope}beads/c`,
+    },
+  ]);
+  const selected = await post("updateWhere", {
+    collection: "beads",
+    selector: "$[?@.id]",
+    change: [{ op: "add", path: "/marked", value: true }],
+  });
+  expect(selected).toHaveLength(4);
+  expect(selected[0]).toEqual({ operationIndex: 0, outcome: "matched", count: 3 });
+  for (const [index, name] of ["a", "b", "c"].entries()) {
+    const resource = commandResource(selected[index + 1]!.resource, {
+      id: `${f.runtime.scope}beads/${name}`,
+      type: bead,
+      properties: { title: name === "c" ? "c2" : name, marked: true },
+    });
+    expect(selected[index + 1]).toEqual({ operationIndex: 0, outcome: "updated", resource });
+    finalBeads.set(name, resource);
+  }
+  expect(await post("deleteAlias", { alias: "alias/work" })).toEqual([
+    { operationIndex: 0, outcome: "deleted", alias: `${f.runtime.scope}alias/work` },
+  ]);
+  function deleted(resource: Record<string, unknown>, resourceKind: string) {
+    return {
+      operationIndex: 0,
+      outcome: "deleted",
+      deleted: {
+        resourceKind,
+        resource: { id: resource.id, type: resource.type, revision: resource.revision },
+      },
+    };
+  }
+  expect(await post("deleteLink", { link: "links/l" })).toEqual([deleted(lastLink, "link")]);
+  const d = beadResult(await post("batch", { operations: [create("d")] }), "d", "d", "created");
+  beadResult(
+    await post("sequence", {
+      operations: [{ ...create("e"), idempotencyKey: "all-sequence" }],
+    }),
+    "e",
+    "e",
+    "created",
+  );
+  expect(await post("deleteBead", { bead: "beads/d" })).toEqual([deleted(d, "bead")]);
+  finalBeads.delete("d");
+  expect(await post("deleteWhere", { collection: "links", selector: "$[?@.id]" })).toEqual([
+    { operationIndex: 0, outcome: "matched", count: 1 },
+    deleted(victim, "link"),
+  ]);
+  expect(seen.sort()).toEqual(Object.keys(expectedTargets).sort());
+  for (const [collection, items] of [
+    ["beads", ["a", "b", "c", "e"].map((name) => finalBeads.get(name))],
+    ["links", []],
+  ] as const) {
+    count++;
+    const response = await f.get(`${f.runtime.scope}${collection}/?limit=32`);
+    expect(response.status).toBe(200);
+    expect(await body(response)).toEqual({ items, next: null });
+  }
+  count++;
+  const alias = await f.get(`${f.runtime.scope}alias/work`);
+  expect(alias.status).toBe(404);
+  expect(alias.headers.has("location")).toBe(false);
+  expect(checkedProblem(await body(alias)).code).toBe("resource-not-found");
+  expect(wait).not.toHaveBeenCalled();
+  expect(count).toBe(16);
+});
+
+it("copied read controls preserve key revision and negotiation admission", async () => {
+  const f = await fixture();
+  const headers = copiedMalformedMinimum;
+  let count = 0;
+  async function post(
+    input: unknown,
+    key: string | null,
+    target: keyof typeof f.runtime.targets = "batch",
+    extra: Record<string, string> = {},
+  ) {
+    count++;
+    return f.post(JSON.stringify(input), key, target, { ...headers, ...extra });
+  }
+  async function read(name: string) {
+    count++;
+    const response = await f.get(`${f.runtime.scope}beads/${name}`);
+    expect(response.status).toBe(200);
+    return body(response);
+  }
+  const seedResponse = await post({ operations: [create()] }, "guard-seed");
+  const seed = commandEntries(await commandResponse(seedResponse));
+  expect(seed).toHaveLength(1);
+  const original = commandResource(seed[0]!.resource, {
+    id: `${f.runtime.scope}beads/a`,
+    type: bead,
+    properties: { title: "a" },
+  });
+  expect(seed).toEqual([{ operationIndex: 0, outcome: "created", resource: original }]);
+  const fresh = { id: "beads/key-corrected", type: bead, properties: { title: "key-corrected" } };
+  const invalid = await post(fresh, "bad key", "createBead");
+  expect(invalid.status).toBe(400);
+  expect(checkedProblem(await body(invalid))).toEqual({
+    type: "https://github.com/gastownhall/bdp/problems/request",
+    status: 400,
+    code: "malformed-request",
+    retry: "never",
+  });
+  const corrected = commandEntries(
+    await commandResponse(await post(fresh, "good-key", "createBead")),
+  );
+  expect(corrected).toHaveLength(1);
+  const correctedResource = commandResource(corrected[0]!.resource, {
+    id: `${f.runtime.scope}beads/key-corrected`,
+    type: bead,
+    properties: { title: "key-corrected" },
+  });
+  expect(corrected).toEqual([
+    { operationIndex: 0, outcome: "created", resource: correctedResource },
+  ]);
+  const stale = {
+    bead: "beads/a",
+    expectedRevision: "wrong",
+    propertiesChange: [{ op: "replace", path: "/title", value: "changed" }],
+  };
+  const failed = await commandResponse(
+    await post(stale, "guard-failed", "updateBead"),
+    false,
+    "failed",
+  );
+  expect(failed.problem).toEqual({
+    type: "https://github.com/gastownhall/bdp/problems/conflict",
+    status: 409,
+    code: "revision-mismatch",
+    retry: "after-state-change",
+    operationIndex: 0,
+  });
+  expect(await read("a")).toEqual(original);
+  expect(
+    await commandResponse(await post(stale, "guard-failed", "updateBead"), false, "failed"),
+  ).toEqual(failed);
+  const updated = commandEntries(
+    await commandResponse(
+      await post({ ...stale, expectedRevision: original.revision }, "guard-valid", "updateBead"),
+    ),
+  );
+  expect(updated).toHaveLength(1);
+  const changed = commandResource(updated[0]!.resource, {
+    id: `${f.runtime.scope}beads/a`,
+    type: bead,
+    properties: { title: "changed" },
+  });
+  expect(changed.revision).not.toBe(original.revision);
+  expect(updated).toEqual([{ operationIndex: 0, outcome: "updated", resource: changed }]);
+  expect(await read("a")).toEqual(changed);
+  const negotiated = { id: "beads/negotiated", type: bead, properties: { title: "negotiated" } };
+  const refused = await post(negotiated, "negotiate", "createBead", { accept: "text/plain" });
+  expect(refused.status).toBe(406);
+  expect(await refused.text()).toBe("");
+  expect(refused.headers.has("content-type")).toBe(false);
+  const admitted = commandEntries(
+    await commandResponse(await post(negotiated, "negotiate", "createBead")),
+  );
+  expect(admitted).toHaveLength(1);
+  const made = commandResource(admitted[0]!.resource, {
+    id: `${f.runtime.scope}beads/negotiated`,
+    type: bead,
+    properties: { title: "negotiated" },
+  });
+  expect(admitted).toEqual([{ operationIndex: 0, outcome: "created", resource: made }]);
+  expect(await read("negotiated")).toEqual(made);
+  const sequence = {
+    operations: [{ ...create("sequence-corrected"), idempotencyKey: "sequence-member" }],
+  };
+  const headerKey = await post(sequence, "forbidden-header", "sequence");
+  expect(headerKey.status).toBe(400);
+  expect(checkedProblem(await body(headerKey))).toEqual({
+    type: "https://github.com/gastownhall/bdp/problems/request",
+    status: 400,
+    code: "malformed-request",
+    retry: "never",
+  });
+  const accepted = commandEntries(
+    await commandResponse(await post(sequence, null, "sequence"), true),
+  );
+  expect(accepted).toHaveLength(1);
+  const tail = commandResource(accepted[0]!.resource, {
+    id: `${f.runtime.scope}beads/sequence-corrected`,
+    type: bead,
+    properties: { title: "sequence-corrected" },
+  });
+  expect(accepted).toEqual([{ operationIndex: 0, outcome: "created", resource: tail }]);
+  expect(count).toBe(13);
+});
+
+it("keeps receipt minimum enforcement after commands ignore copied controls", async () => {
+  let tick = 0;
+  const f = await fixture({
+    minimumReads: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+  });
+  const created = await f.post(batch(), "receipt-minimum", "batch", copiedMalformedMinimum);
+  const receipt = await commandResponse(created);
+  const rows = commandEntries(receipt);
+  expect(rows).toHaveLength(1);
+  const resource = commandResource(rows[0]!.resource, {
+    id: `${f.runtime.scope}beads/a`,
+    type: bead,
+    properties: { title: "a" },
+  });
+  expect(rows).toEqual([{ operationIndex: 0, outcome: "created", resource }]);
+  const actual = context(created);
+  for (const [headers, status, code, family] of [
+    [minimumHeaders(created, "pos-99"), 503, "catch-up-timeout", "unavailable"],
+    [
+      { ...minimumHeaders(created), "bdp-authorization-view": "foreign" },
+      409,
+      "foreign-view",
+      "conflict",
+    ],
+    [{ ...minimumHeaders(created), "bdp-scope-epoch": "foreign" }, 410, "cursor-expired", "gone"],
+  ] as const) {
+    const response = await f.get(id(receipt), { headers });
+    const observed = await body(response);
+    expect(
+      response.status,
+      `receipt minimum remains enforced: ${JSON.stringify({
+        status: response.status,
+        context: context(response),
+        body: observed,
+      })}`,
+    ).toBe(status);
+    expect(context(response)).toEqual(actual);
+    expect(checkedProblem(observed)).toEqual({
+      type: `https://github.com/gastownhall/bdp/problems/${family}`,
+      status,
+      code,
+      retry: status === 503 ? "after-delay" : "after-state-change",
+    });
+    if (status === 503) expect(response.headers.get("retry-after")).toBe("1");
+  }
+  const compatible = await f.get(id(receipt), { headers: minimumHeaders(created) });
+  expect(compatible.status).toBe(200);
+  expect(context(compatible)).toEqual(actual);
+  expect(await body(compatible)).toEqual(receipt);
+  const head = await f.get(id(receipt), {
+    method: "HEAD",
+    headers: minimumHeaders(created, "pos-99"),
+  });
+  expect(head.status).toBe(503);
+  expect(head.headers.get("retry-after")).toBe("1");
+  expect(context(head)).toEqual(actual);
+  expect(await head.text()).toBe("");
 });
 
 it("does not invent a Read method table for unrouted or noncanonical operation URLs", async () => {
@@ -1312,7 +1780,7 @@ it("uses actual epoch/view decisions and an exhausted wait before conditional or
   ).toBe(500);
 });
 
-it("preserves authentication before command-control gaps without reserving keys", async () => {
+it("preserves authentication on commands carrying copied read controls without reserving keys", async () => {
   const f = await fixture();
   for (const carrier of ["batch", "createBead", "sequence"] as const) {
     for (const [authorization, status] of [
@@ -1320,11 +1788,17 @@ it("preserves authentication before command-control gaps without reserving keys"
       [`Bearer ${readToken}`, 403],
     ] as const) {
       const key = `${carrier}_${status}`;
-      const operation = create(key);
+      const { operation, ...singleton } = create(key);
       const text =
         carrier === "createBead"
-          ? JSON.stringify(operation)
-          : batch([{ ...operation, ...(carrier === "sequence" ? { idempotencyKey: key } : {}) }]);
+          ? JSON.stringify(singleton)
+          : batch([
+              {
+                operation,
+                ...singleton,
+                ...(carrier === "sequence" ? { idempotencyKey: key } : {}),
+              },
+            ]);
       const response = await f.post(text, carrier === "sequence" ? null : key, carrier, {
         authorization,
         "bdp-minimum-scope-position": "pos-999",

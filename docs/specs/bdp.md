@@ -3576,6 +3576,15 @@ unsafe HTTP methods and does not change conditions on canonical Resource
 GET or HEAD requests. A read-side `412 Precondition Failed` is not the
 write-side `409 revision-mismatch`.
 
+On mutation POSTs to operation command targets, authorities MUST ignore the
+`BDP-Minimum-Scope-Position`, `BDP-Scope-Epoch`, and
+`BDP-Authorization-View` request fields. Their presence, absence, completeness,
+and field values do not impose a minimum-position barrier or affect command
+identity. Ordinary HTTP field syntax and transport, header, and body bounds
+still apply, as do authorization, idempotency, carrier validation, and
+`expectedRevision`. This rule applies to mutation POSTs under this profile and
+cumulative profiles. It does not change conditions on reads.
+
 ### Read+Update HTTP field support
 
 When cross-origin access is enabled, the CORS policy MUST allow the
@@ -5773,7 +5782,7 @@ BDP-Authorization-View: opaque-authorization-view
 BDP-Scope-Position: opaque-position-42
 ```
 
-A Transactional client requests a minimum visible position by sending those
+On reads, a Transactional client requests a minimum visible position by sending those
 same epoch and view fields plus:
 
 ```http
@@ -5784,6 +5793,12 @@ The authority then does one of three things: it returns a representation at
 that position or later, it waits or routes to an eligible replica, or it
 returns the normative foreign-view, cursor-expired, or catch-up-timeout
 problem. It never reports success with an older position.
+
+Transactional mutation POSTs follow the shared
+[mutation command preconditions](#mutation-command-preconditions): copied read
+minimum fields impose no barrier or command-identity input. This does not change
+minimum controls on reads, including subsequent Mutation Receipt GET or HEAD
+requests.
 
 SSE responses use `Cache-Control: no-store, no-transform`.
 Intermediaries must not cache or transform the stream.
