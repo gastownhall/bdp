@@ -1617,6 +1617,19 @@
       ]
     },
     {
+      "id": "read-update.http.command-minimum-fields",
+      "title": "Mutation POSTs ignore the three read-consistency fields without a minimum-position barrier or command-identity effect, preserving ordinary admission and read minima",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-command-preconditions",
+          "selectedText": "On mutation POSTs to operation command targets, authorities MUST ignore the `BDP-Minimum-Scope-Position`, `BDP-Scope-Epoch`, and `BDP-Authorization-View` request fields. Their presence, absence, completeness, and field values do not impose a minimum-position barrier or affect command identity. Ordinary HTTP field syntax and transport, header, and body bounds still apply, as do authorization, idempotency, carrier validation, and `expectedRevision`. This rule applies to mutation POSTs under this profile and cumulative profiles. It does not change conditions on reads."
+        }
+      ]
+    },
+    {
       "id": "read-update.http.request-too-large",
       "title": "An oversized request body is rejected with request-too-large before execution",
       "kind": "normative",

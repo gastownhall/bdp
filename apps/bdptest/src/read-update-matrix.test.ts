@@ -1263,7 +1263,8 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(report.reportBinding.exactConfigurationDigest).toBe(
       "3224c31c83988dc0606cb76ee1f4ba8e6394159bdf7daaccc301461316cc2477",
     );
-    expect(report.uncoveredIds).toHaveLength(96);
+    expect(report.uncoveredIds).toHaveLength(97);
+    expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
     expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
     expect(report.sessions).toHaveLength(report.plannedIds.length);
     expect(report.observations.length).toBeGreaterThan(30);
@@ -1281,7 +1282,8 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     }
     expect(progress.authoredIds).toHaveLength(54);
     expect(progress.reviewedWholeIds).toHaveLength(33);
-    expect(progress.omittedRequiredIds).toHaveLength(75);
+    expect(progress.omittedRequiredIds).toHaveLength(76);
+    expect(progress.omittedRequiredIds).toContain("read-update.http.command-minimum-fields");
     expect(progress.shards[1]!.selectedIds).toEqual([
       attributionId,
       continuationId,
@@ -1356,7 +1358,8 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(progress.uncoveredIds).toEqual(
       set.coverage.rows.filter((r) => !r.wholeContract).map((r) => r.id),
     );
-    expect(progress.uncoveredIds).toHaveLength(96);
+    expect(progress.uncoveredIds).toHaveLength(97);
+    expect(progress.uncoveredIds).toContain("read-update.http.command-minimum-fields");
     expect(JSON.stringify(progress)).not.toContain(token);
     expect(JSON.stringify(progress)).not.toContain(wrongToken);
     controller.signal.throwIfAborted();
@@ -2018,7 +2021,8 @@ it("observes retained retry dispositions across actual installed carriers and cu
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(96);
+  expect(report.uncoveredIds).toHaveLength(97);
+  expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -2439,7 +2443,8 @@ it("observes key and media admission against installed HTTP with paired aftersta
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(96);
+  expect(report.uncoveredIds).toHaveLength(97);
+  expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -2869,7 +2874,8 @@ it("observes reference syntax and retained category failures against installed H
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(96);
+  expect(report.uncoveredIds).toHaveLength(97);
+  expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -4578,10 +4584,12 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   expect(countNodes(manifest) - METADATA_CLOSURE_CONTINUATION_NODES_BASE).toBeLessThanOrEqual(2000);
   // Root-approved schema slice amendment: 698614+12288 -> 698614+14336.
   // The 06b0e04 anchor predates this +2048 coverage allowance.
+  // Command-minimum catalog row adds 401B; the 243B excess raises 14336 to 14579.
+  // Both historical bases stay fixed; this measured allowance has zero slack.
   expect(
     source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.length -
       METADATA_CLOSURE_COVERAGE_BYTES_BASE,
-  ).toBeLessThanOrEqual(14336);
+  ).toBeLessThanOrEqual(14579);
   expect(
     createHash("sha256")
       .update(source("packages/conformance/fixtures/read-update-reference-v1.json").bytes)
@@ -4959,7 +4967,9 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
   const coverage = source("packages/conformance/test-support/read-update-coverage-v1.json").bytes;
   // Root-approved schema slice amendment: 703415+7168 -> 703415+9728.
   // The b604 anchor above predates this +2560 coverage allowance.
-  expect(coverage.length - 703415).toBeLessThanOrEqual(9728);
+  // The same 401B omitted row exceeds this allowance by 50B: 9728 -> 9778.
+  // Keep the historical base and other fences; no speculative margin is added.
+  expect(coverage.length - 703415).toBeLessThanOrEqual(9778);
   const row = manifest.scenarios.find((r: { id: string }) => r.id === numericRoundTripId) as {
     actions: readonly NumericRAction[];
   };

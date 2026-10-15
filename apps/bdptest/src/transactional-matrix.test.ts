@@ -337,8 +337,8 @@ it("observes thirteen partial Transactional contracts through packed-capable act
   const crossWire = crossCarrierWire();
   const observed = await observe({ children, afterExchange: crossWire.afterExchange });
   const implemented = new Set(bundle.manifest.scenarios.map((s) => s.id));
-  expect(loadProfileContractSelection("transactional").required).toHaveLength(250);
-  expect(observed.result.scenarios).toHaveLength(255); // Includes five optional catalog rows.
+  expect(loadProfileContractSelection("transactional").required).toHaveLength(251);
+  expect(observed.result.scenarios).toHaveLength(256); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
   expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(13);

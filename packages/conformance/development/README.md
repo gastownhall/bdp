@@ -13,11 +13,11 @@ revision bindings, controls preparation and cleanup, and hashes the exact
 catalog/manifest/fixture bytes into its report. A guard race dispatches two
 real requests with the same observed revision and distinct keys.
 
-`read-update-coverage-v1.json` inventories all 81 current normative catalog rows
+`read-update-coverage-v1.json` inventories all 82 current normative catalog rows
 in their original order. Fifty-eight rows have **bounded observations**, with
 stable `scenario` and `action.assertion` references. These are partial behavioral
 evidence, not passing normative rows. Per-binding `limits` record known missing
-variants. Twenty-three rows are explicitly omitted with a category and reason.
+variants. Twenty-four rows are explicitly omitted with a category and reason.
 An empty limits array does not certify exhaustive coverage of a normative row.
 
 The diagnostic catalog uses `development.read-update.*` IDs and `kind:

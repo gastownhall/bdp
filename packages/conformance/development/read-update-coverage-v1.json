@@ -1298,6 +1298,13 @@
       "bindings": []
     },
     {
+      "id": "read-update.http.command-minimum-fields",
+      "status": "omitted",
+      "category": "command-minimum-fields",
+      "reason": "Private installed Read+Update and Transactional tests are not development diagnostic bindings. No diagnostic scenario observes this command-field rule; read minimum controls remain separate.",
+      "bindings": []
+    },
+    {
       "id": "read-update.http.request-too-large",
       "status": "bounded-observation",
       "bindings": [

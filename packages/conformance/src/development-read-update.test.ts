@@ -64,11 +64,11 @@ describe("development Read+Update evidence inventory", () => {
     }
   });
 
-  it("inventories all 81 normative rows once, with executable assertion bindings or explicit omissions", () => {
+  it("inventories all 82 normative rows once, with executable assertion bindings or explicit omissions", () => {
     const normative = JSON.parse(
       read("packages/conformance/catalog/read-update-v1.json").toString(),
     );
-    expect(normative.scenarios).toHaveLength(81);
+    expect(normative.scenarios).toHaveLength(82);
     expect(inventory).toMatchObject({ version: 1, developmentOnly: true, claimEligible: false });
     expect(inventory.rows.map((row: { id: string }) => row.id)).toEqual(
       normative.scenarios.map((row: { id: string }) => row.id),
