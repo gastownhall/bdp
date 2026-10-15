@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  malformedTransactionMinimumHeaders,
   snapshotTransactionMinimum,
   transactionMinimumHeaders,
   checkTransactionMinimum,
@@ -79,4 +80,51 @@ describe("private minimum-read subset", () => {
       checkTransactionMinimum({ ...tuple(), authorizationView: "other" }, context),
     ).toThrow(TransactionMinimumFailure);
   });
+});
+
+it("distinguishes closed minimum receiving syntax from supported position identities", () => {
+  const names = ["bdp-minimum-scope-position", "bdp-scope-epoch", "bdp-authorization-view"];
+  const complete = {
+    "bdp-minimum-scope-position": "pos-1",
+    "bdp-scope-epoch": "epoch",
+    "bdp-authorization-view": "view",
+  };
+  expect(malformedTransactionMinimumHeaders(new Headers())).toBe(false);
+  for (const name of names) {
+    const missing = new Headers(complete);
+    missing.delete(name);
+    expect(malformedTransactionMinimumHeaders(missing)).toBe(true);
+    expect(malformedTransactionMinimumHeaders(new Headers({ [name]: "valid" }))).toBe(true);
+    for (const invalid of ["", " \t ", "two tokens", "a,b", "a%20b", "é", "x".repeat(257)]) {
+      const headers = new Headers({ ...complete, [name]: invalid });
+      expect(malformedTransactionMinimumHeaders(headers), `${name}: ${invalid.length}`).toBe(true);
+      expect(transactionMinimumHeaders(headers)).toBeUndefined();
+    }
+    const repeated = new Headers(complete);
+    repeated.append(name, complete[name as keyof typeof complete]);
+    expect(malformedTransactionMinimumHeaders(repeated)).toBe(true);
+    expect(
+      malformedTransactionMinimumHeaders(new Headers({ ...complete, [name]: "x".repeat(256) })),
+    ).toBe(false);
+    expect(
+      malformedTransactionMinimumHeaders(new Headers({ ...complete, [name]: " \tvalid \t" })),
+    ).toBe(false);
+  }
+  for (const value of [
+    "genesis",
+    "pos-0",
+    "pos-1",
+    "pos-9007199254740991",
+    "opaque",
+    "unknown",
+    "pos-01",
+    "pos--1",
+    "pos-9007199254740992",
+  ]) {
+    const headers = new Headers({ ...complete, "bdp-minimum-scope-position": value });
+    expect(malformedTransactionMinimumHeaders(headers), value).toBe(false);
+    expect(transactionMinimumHeaders(headers) !== undefined, value).toBe(
+      ["genesis", "pos-0", "pos-1", "pos-9007199254740991"].includes(value),
+    );
+  }
 });

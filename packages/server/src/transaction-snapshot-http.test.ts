@@ -420,6 +420,12 @@ it("closed query syntax, unsupported controls and foreign creation context fail 
           expect(response.headers.get("x-bdp-development-limit")).toBeNull();
           if (method === "HEAD") expect(await response.text()).toBe("");
           else await checkedProblem(response, 410, "cursor-expired");
+        } else if (Object.keys(headers).length < 3) {
+          expect(response.status).toBe(400);
+          expect(response.headers.get("x-bdp-development-limit")).toBeNull();
+          expect(response.headers.get("bdp-scope-position")).toBeNull();
+          if (method === "HEAD") expect(await response.text()).toBe("");
+          else await checkedProblem(response, 400, "malformed-request");
         } else {
           expect(response.status).toBe(500);
           expect(await response.text()).toBe("");

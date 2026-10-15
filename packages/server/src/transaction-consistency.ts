@@ -1,5 +1,5 @@
-/** Source-private canonical minimum-read subset. No continuation or malformed-
- * tuple protocol ruling; those categories remain explicit development gaps. */
+/** Source-private minimum receiving and canonical semantic subset.
+ * Alphabet-valid unknown identities and continuation comparisons remain separate. */
 import { setTimeout as delay } from "node:timers/promises";
 import { isProxy } from "node:util/types";
 import { ScopeServerOperationAbortedError } from "./read-request.js";
@@ -11,6 +11,18 @@ export interface TransactionMinimum {
   readonly minimumPosition: string;
 }
 const token = /^[A-Za-z0-9_-]{1,256}$/;
+/** Receiving syntax only: unknown token identities are not malformed fields. */
+export function malformedTransactionMinimumHeaders(headers: Headers): boolean {
+  const values = [
+    headers.get("bdp-minimum-scope-position"),
+    headers.get("bdp-scope-epoch"),
+    headers.get("bdp-authorization-view"),
+  ];
+  return (
+    values.some((value) => value !== null) &&
+    values.some((value) => value === null || !token.test(value))
+  );
+}
 const position = (value: unknown): number | undefined => {
   if (value === "genesis") return 0;
   if (typeof value !== "string" || !/^pos-(0|[1-9][0-9]*)$/.test(value)) return undefined;

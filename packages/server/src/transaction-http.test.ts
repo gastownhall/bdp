@@ -9,6 +9,9 @@ import { setImmediate } from "node:timers/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { isJsonSchemaDateTime, isJsonSchemaUri, parseTypeDescriptor } from "@bdp/protocol";
+import { openTransactionStore } from "./transaction-store.js";
+import { createTransactionService } from "./transaction-service.js";
+import { createTransactionHttpHandler } from "./transaction-http.js";
 import type { TransactionRuntimeTestSeams } from "./transaction-runtime.js";
 const { startTransactionRuntime } = (await import(
   new URL("../dist/transaction-runtime.js", import.meta.url).href
@@ -370,8 +373,9 @@ describe("source-private actual Transactional HTTP", () => {
       String(page.next),
     ]) {
       const response = await f.get(url, { headers });
-      expect(response.status).toBe(500);
-      expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+      expect(response.status).toBe(400);
+      expect(checkedProblem(await body(response)).code).toBe("malformed-request");
+      expect(response.headers.get("x-bdp-development-limit")).toBeNull();
     }
     expect((await f.get(String(page.next), { headers: { "if-none-match": "*" } })).status).toBe(
       410,
@@ -2039,11 +2043,11 @@ it("orders page nondisclosure, minimum waits, expiry and representation using ac
     const unsupported = await f.get(next, {
       headers: { authorization: `Bearer ${principal}`, "bdp-minimum-scope-position": "pos-99" },
     });
-    expect(unsupported.status).toBe(principal === token ? 500 : 404);
-    if (principal === token)
-      expect(unsupported.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+    expect(unsupported.status).toBe(400);
+    expect(checkedProblem(await body(unsupported)).code).toBe("malformed-request");
+    expect(unsupported.headers.get("x-bdp-development-limit")).toBeNull();
     for (const header of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-      expect(unsupported.headers.has(header)).toBe(principal !== token);
+      expect(unsupported.headers.has(header)).toBe(false);
   }
   expect((await f.get(`${id(receipt)}/pages`)).status).toBe(404);
   for (const method of ["GET", "HEAD"]) {
@@ -2168,6 +2172,8 @@ it("refuses unsupported root controls after nondisclosure but before read-trigge
           headers: {
             authorization: `Bearer ${credential}`,
             "bdp-minimum-scope-position": "unknown",
+            "bdp-scope-epoch": String(receipt.scopeEpoch),
+            "bdp-authorization-view": String(receipt.authorizationView),
           },
         });
         expect(response.status).toBe(status);
@@ -2192,7 +2198,7 @@ it("keeps failed parent rows unchanged for nonexistent page reads with any contr
     for (const credential of [token, otherToken]) {
       for (const controls of [
         {},
-        { "bdp-minimum-scope-position": "unknown" },
+        minimumHeaders(created, "unknown"),
         minimumHeaders(created, "pos-99"),
         { ...minimumHeaders(created), "bdp-authorization-view": "foreign" },
       ]) {
@@ -3103,7 +3109,7 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
       "minimum-position-visibility",
     ],
     ["alias/work?invalid=1", { ...headers, "bdp-minimum-scope-position": "pos-2" }, 404, null],
-    ["alias/work", { "bdp-minimum-scope-position": "pos-1" }, 500, "minimum-position"],
+    ["alias/work", { "bdp-minimum-scope-position": "pos-1" }, 400, null],
     [
       "alias/work",
       { ...headers, "bdp-minimum-scope-position": "unknown" },
@@ -3114,6 +3120,12 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
     const response = await f.get(`${f.runtime.scope}${suffix}`, { headers: supplied });
     expect(response.status).toBe(status);
     expect(response.headers.get("x-bdp-development-limit")).toBe(marker);
+    if (status === 400)
+      expect(checkedProblem(await body(response))).toMatchObject({
+        code: "malformed-request",
+        status: 400,
+        retry: "never",
+      });
     expect(response.headers.has("location")).toBe(false);
     for (const name of Object.keys(context(created)))
       expect(response.headers.has(name)).toBe(false);
@@ -4419,3 +4431,363 @@ it("serves retained direct key conflicts before private depth and preserves fres
   if (failures.length > 1)
     throw new AggregateError(failures, "depth-key HTTP assertions or cleanup failed");
 }, 30000);
+
+it("rejects malformed minimum tuples across read routes without entering the actual owner", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-tx-http-"));
+  const failures: unknown[] = [];
+  let owner: ReturnType<typeof openTransactionStore> | undefined;
+  let service: ReturnType<typeof createTransactionService> | undefined;
+  const entries: string[] = [];
+  try {
+    const scope = "https://example.test/minimum/";
+    owner = openTransactionStore({
+      file: path.join(directory, "owner.sqlite"),
+      scope,
+      create: true,
+      types,
+    });
+    // Copy the frozen owner's method descriptors into a mutable delegating facade.
+    // Every call still reaches the actual owner; setup observations are counted separately.
+    const facade = { ...owner };
+    for (const [name, value] of Object.entries(facade)) {
+      if (typeof value === "function")
+        Object.defineProperty(facade, name, {
+          value: (...args: unknown[]) => {
+            entries.push(name);
+            return Reflect.apply(value, owner, args);
+          },
+        });
+    }
+    let opaque = 0;
+    service = createTransactionService(facade, {
+      ownerLifetime: "service",
+      read: {
+        selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
+        advertisedLimits: {
+          page: { defaultItems: 2, maximumItems: 32 },
+          selector: { bytes: 4096, depth: 32, nodes: 256 },
+          cursorTtlMilliseconds: 1000,
+        },
+        pagination: {
+          scope,
+          defaultPageItems: 2,
+          maxPageItems: 32,
+          cursorTtlMs: 1000,
+          retainedStateCapacity: 100,
+          maxRetainedCursorPositionsPerSnapshot: 20,
+          retainedSnapshotByteCapacity: 100000,
+          retainedSnapshotNodeCapacity: 10000,
+          maxOpaqueTokenLength: 64,
+          tokenGenerationAttempts: 3,
+          idleCleanup: "on-demand",
+          clock: Date.now,
+          generateOpaqueToken: () => `minimum_${++opaque}`,
+        },
+      },
+    });
+    const handler = createTransactionHttpHandler(service, scope);
+    const setupEntries = [...entries];
+    entries.length = 0;
+    let calls = 0,
+      directGetBytes = 0;
+    const authorization = { kind: "authenticated", principal: "p", canMutate: true } as const;
+    for (const suffix of [
+      "",
+      "bdp.json",
+      "operations/",
+      "beads/",
+      "beads/missing",
+      "links/missing",
+      "alias/missing",
+      "snapshot",
+      "changes/",
+      "beads/missing?view=events",
+      "links/missing?view=events",
+      "events/",
+      "receipts/",
+      "receipts/unknown",
+      "receipts/unknown/pages/unknown",
+    ])
+      for (const method of ["GET", "HEAD"]) {
+        const response = await handler.handle(
+          new Request(new URL(suffix, scope), {
+            method,
+            headers: {
+              "bdp-minimum-scope-position": "genesis",
+              accept: "text/event-stream",
+              "if-none-match": "*",
+              "if-match": '"unmatched"',
+            },
+          }),
+          authorization,
+        );
+        calls++;
+        expect(response.kind, suffix).toBe("finite");
+        expect(response.status, `${method} ${suffix}`).toBe(400);
+        if (method === "GET") {
+          expect(checkedProblem(record(response.body))).toMatchObject({
+            code: "malformed-request",
+            status: 400,
+            retry: "never",
+          });
+          directGetBytes = Buffer.byteLength(JSON.stringify(response.body));
+          expect(directGetBytes).toBeGreaterThan(0);
+          // GET length is emitted later by the Node delivery boundary.
+          expect(response.headers.get("content-length")).toBeNull();
+        } else {
+          expect(response.body).toBeUndefined();
+          expect(Number(response.headers.get("content-length"))).toBe(directGetBytes);
+        }
+        for (const name of [
+          "bdp-scope-epoch",
+          "bdp-authorization-view",
+          "bdp-scope-position",
+          "etag",
+          "location",
+          "link",
+          "x-bdp-development-limit",
+        ])
+          expect(response.headers.has(name), name).toBe(false);
+      }
+    for (const [method, authenticated, minimum, status] of [
+      ["GET", false, true, 401],
+      ["POST", true, true, 405],
+    ] as const) {
+      const response = await handler.handle(
+        new Request(`${scope}receipts/`, {
+          method,
+          headers: minimum ? { "bdp-minimum-scope-position": "genesis" } : {},
+        }),
+        authenticated ? authorization : { kind: "unauthenticated" },
+      );
+      calls++;
+      expect(response.status).toBe(status);
+      if (status === 405) expect(response.headers.get("allow")).toBe("GET, HEAD");
+    }
+    expect(entries, "malformed receiving must precede every owner read").toStrictEqual([]);
+    const malformedEntries = [...entries];
+    const absent = await handler.handle(new Request(`${scope}receipts/`), authorization);
+    calls++;
+    expect(absent.status).toBe(404);
+    expect(entries, "ordinary absent-minimum receipt root still observes the owner").toStrictEqual([
+      "readReceipt",
+    ]);
+    expect(calls).toBe(33);
+    console.log(
+      JSON.stringify({
+        observation: "minimum-receiving-no-owner",
+        calls,
+        setupEntries,
+        malformedEntries,
+        absentMinimumEntries: entries,
+        owners: 1,
+        httpRequests: 0,
+      }),
+    );
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    try {
+      if (service) await service.close();
+      else owner?.close();
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length) throw new AggregateError(failures, "minimum receiving owner and cleanup");
+});
+
+// This local transport retains true duplicate field occurrences. It never follows
+// redirects and bounds bytes while consuming, including an unexpected SSE reply.
+async function minimumReceivingWire(
+  scope: string,
+  method: "GET" | "HEAD",
+  suffix: string,
+  fields: string[],
+  signal: AbortSignal,
+) {
+  const url = new URL(suffix, scope);
+  return await new Promise<{ status: number; headers: Headers; text: string; bytes: number }>(
+    (resolve, reject) => {
+      const request = httpRequest(
+        url,
+        {
+          method,
+          agent: false,
+          signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]),
+          headers: [
+            "Host",
+            url.host,
+            "Connection",
+            "close",
+            "Authorization",
+            `Bearer ${token}`,
+            "Accept",
+            "application/json",
+            ...fields,
+          ],
+        },
+        (response) => {
+          const chunks: Buffer[] = [];
+          let bytes = 0;
+          response.on("data", (chunk: Buffer) => {
+            bytes += chunk.length;
+            if (bytes > 32768) {
+              const error = new Error("minimum receiving response byte bound");
+              response.destroy(error);
+              request.destroy(error);
+              return;
+            }
+            chunks.push(chunk);
+          });
+          response.once("error", reject);
+          response.once("aborted", () => reject(new Error("minimum receiving response aborted")));
+          response.once("end", () => {
+            const headers = new Headers();
+            for (let i = 0; i < response.rawHeaders.length; i += 2)
+              headers.append(response.rawHeaders[i]!, response.rawHeaders[i + 1]!);
+            resolve({
+              status: response.statusCode ?? 0,
+              headers,
+              text: Buffer.concat(chunks).toString("utf8"),
+              bytes,
+            });
+          });
+        },
+      );
+      request.once("error", reject);
+      request.end();
+    },
+  );
+}
+
+async function minimumReceivingFixture(
+  action: (scope: string, signal: AbortSignal) => Promise<void>,
+) {
+  const boundary = cleanup.length;
+  const failures: unknown[] = [];
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new Error("minimum receiving cohort deadline")),
+    15000,
+  );
+  try {
+    const f = await fixture();
+    await action(f.runtime.scope, controller.signal);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    controller.abort();
+    clearTimeout(timer);
+    for (const close of cleanup.splice(boundary).reverse()) {
+      try {
+        await close();
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+  }
+  if (failures.length) throw new AggregateError(failures, "minimum receiving HTTP and cleanup");
+}
+
+it("rejects raw repeated minimum fields and keeps receiving HEAD and SSE refusals finite", async () => {
+  await minimumReceivingFixture(async (scope, signal) => {
+    const tuple = [
+      "BDP-Minimum-Scope-Position",
+      "genesis",
+      "BDP-Scope-Epoch",
+      "epoch",
+      "BDP-Authorization-View",
+      "view",
+    ];
+    const observations: unknown[] = [];
+    let getLength: string | null = null;
+    for (let index = 0; index < 6; index++) {
+      const method = index === 4 ? "HEAD" : "GET";
+      const fields =
+        index < 3
+          ? [...tuple, tuple[index * 2]!.toLowerCase(), tuple[index * 2 + 1]!]
+          : index === 3
+            ? [...tuple.slice(0, 1), "genesis,genesis", ...tuple.slice(2)]
+            : [
+                "BDP-Minimum-Scope-Position",
+                "genesis",
+                ...(index === 5 ? ["Accept", "text/event-stream"] : []),
+              ];
+      const response = await minimumReceivingWire(scope, method, "beads/", fields, signal);
+      observations.push({
+        method,
+        status: response.status,
+        bytes: response.bytes,
+        contentType: response.headers.get("content-type"),
+        marker: response.headers.get("x-bdp-development-limit"),
+      });
+      expect(response.status).toBe(400);
+      expect(response.headers.get("content-type")).toBe("application/problem+json");
+      if (method === "GET") {
+        expect(checkedProblem(record(JSON.parse(response.text)))).toMatchObject({
+          code: "malformed-request",
+          status: 400,
+          retry: "never",
+        });
+        expect(Number(response.headers.get("content-length"))).toBe(response.bytes);
+        getLength = response.headers.get("content-length");
+      } else {
+        expect(response.text).toBe("");
+        expect(response.bytes).toBe(0);
+        expect(response.headers.get("content-length")).toBe(getLength);
+      }
+      for (const name of [
+        "bdp-scope-epoch",
+        "bdp-authorization-view",
+        "bdp-scope-position",
+        "etag",
+        "location",
+        "link",
+        "x-bdp-development-limit",
+      ])
+        expect(response.headers.has(name)).toBe(false);
+    }
+    expect(observations).toHaveLength(6);
+    console.log(
+      JSON.stringify({
+        observation: "minimum-receiving-raw",
+        requests: 6,
+        responses: observations,
+      }),
+    );
+  });
+}, 20000);
+
+it("enforces the minimum-receiving-malformed-request boundary over the emitted listener", async () => {
+  await minimumReceivingFixture(async (scope, signal) => {
+    const response = await minimumReceivingWire(
+      scope,
+      "GET",
+      "beads/",
+      ["BDP-Minimum-Scope-Position", "genesis"],
+      signal,
+    );
+    const observed = {
+      observation: "minimum-receiving-control",
+      requests: 1,
+      status: response.status,
+      marker: response.headers.get("x-bdp-development-limit"),
+      body: response.text,
+    };
+    console.log(JSON.stringify(observed));
+    expect(response.status, `minimum-receiving-malformed-request ${JSON.stringify(observed)}`).toBe(
+      400,
+    );
+    expect(checkedProblem(record(JSON.parse(response.text)))).toMatchObject({
+      code: "malformed-request",
+      status: 400,
+      retry: "never",
+    });
+  });
+}, 20000);

@@ -628,8 +628,8 @@ it("observes nonallocating creation decisions through the actual eight-handle ca
       const unsupported = await f.exchange(undefined, "GET", {
         "bdp-minimum-scope-position": "genesis",
       });
-      expect(unsupported.status).toBe(500);
-      expect(unsupported.headers["x-bdp-development-limit"]).toBe("minimum-position");
+      expect(json<{ code: string }>(unsupported, 400).code).toBe("malformed-request");
+      expect(unsupported.headers["x-bdp-development-limit"]).toBeUndefined();
       const last = await f.capture();
       expect(new Set([...prior, last].map((s) => s.id)).size).toBe(8);
       const refused = await f.exchange();
@@ -901,8 +901,15 @@ it("observes fresh Snapshot minima with exact current context and retained gaps 
       },
     ]) {
       const wire = await f.exchange(undefined, "GET", headers);
-      expect(wire.status).toBe(500);
-      expect(wire.headers["x-bdp-development-limit"]).toBe("minimum-position");
+      if (headers["bdp-minimum-scope-position"] === "unknown") {
+        expect(wire.status).toBe(500);
+        expect(wire.headers["x-bdp-development-limit"]).toBe("minimum-position");
+      } else {
+        expect(json<{ code: string }>(wire, 400).code).toBe("malformed-request");
+        expect(wire.headers["x-bdp-development-limit"]).toBeUndefined();
+        for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+          expect(wire.headers[name]).toBeUndefined();
+      }
     }
     const retained = await f.exchange(first.id, "GET", current); // 22
     expect(retained.status).toBe(500);

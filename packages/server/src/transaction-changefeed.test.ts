@@ -723,8 +723,15 @@ it("decides actual HTTP minimum refusal before conditional shortcuts with final 
   const unsupported = await f.request("changes/?after=genesis", {
     headers: { "bdp-minimum-scope-position": "pos-0" },
   });
-  expect(unsupported.status).toBe(500);
-  expect(unsupported.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+  expect(unsupported.status).toBe(400);
+  expect(await unsupported.json()).toMatchObject({
+    code: "malformed-request",
+    status: 400,
+    retry: "never",
+  });
+  expect(unsupported.headers.get("x-bdp-development-limit")).toBeNull();
+  for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+    expect(unsupported.headers.has(name)).toBe(false);
   const satisfied = await f.request("changes/?after=genesis", {
     headers: { ...headers, "bdp-minimum-scope-position": "genesis" },
   });
