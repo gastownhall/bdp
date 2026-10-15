@@ -196,7 +196,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(236);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(235);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.unobservedIds).toContain("read-update.http.command-minimum-fields");
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
@@ -1095,7 +1095,10 @@ it("preserves every original TX scenario and coverage object while adding one bo
     expect(() => assertCrossCarrierObservation(weak)).toThrow(kind);
   }
   for (const name of ["manifest", "coverage"] as const) {
-    const text = withoutMinimumRow(withoutSequenceMemberRow(read(name).toString(), name), name);
+    const text = withoutMinimumRow(
+      withoutSequenceMemberRow(withoutPrincipalRow(read(name).toString(), name), name),
+      name,
+    );
     const raw = objectSlices(text, name === "manifest" ? "scenarios" : "rows").get(
       "transactional.idempotency.cross-carrier",
     )!;
@@ -1114,6 +1117,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     "transactional.batch.atomic-commit",
   );
   expect(manifest.scenarios.map((r: { id: string }) => r.id)).toEqual([
+    "read-update.idempotency.principal-isolation",
     "read-update.http.command-minimum-fields",
     "transactional.batch.atomic-commit",
     "transactional.batch.rollback",
@@ -1155,7 +1159,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
-  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(220);
+  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(227);
   // Historical root-accepted deletion-safety measurement: M620094/N16373/C88043/A333.
   // Schema-name repair uses4B of the accepted margin:4092B/64nodes/1024B.
   // Historical measurement-only draft retained the smaller guards pending root acceptance.
@@ -1166,20 +1170,21 @@ it("preserves every original TX scenario and coverage object while adding one bo
   // Root-accepted command-minimum: disk738783/normal750589/nodes19575/coverage108091.
   // Preserve bases488280/13019/70662 and margins4096B/64nodes/1024B.
   // Root-accepted sequence-member: disk790009/normal802361/nodes20956/coverage117702.
+  // Root-accepted principal: disk825049/normal837765/nodes21908/coverage124537.
   // These measured source authoring fences do not change runtime/parser limits.
-  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(305825);
-  expect(read("manifest").byteLength).toBeLessThanOrEqual(794105);
-  expect(Buffer.byteLength(JSON.stringify(manifest, null, 2) + "\n")).toBeLessThanOrEqual(806457);
-  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(48064);
-  expect(read("coverage").byteLength).toBeLessThanOrEqual(118726);
+  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(340865);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(829145);
+  expect(Buffer.byteLength(JSON.stringify(manifest, null, 2) + "\n")).toBeLessThanOrEqual(841861);
+  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(54899);
+  expect(read("coverage").byteLength).toBeLessThanOrEqual(125561);
   expect(
     Buffer.byteLength(JSON.stringify(JSON.parse(read("coverage").toString()), null, 2) + "\n"),
-  ).toBeLessThanOrEqual(118726);
+  ).toBeLessThanOrEqual(125561);
   expect(
     manifest.scenarios.flatMap((r: { actions: { assertions: unknown[] }[] }) =>
       r.actions.flatMap((a) => a.assertions),
     ),
-  ).toHaveLength(2503);
+  ).toHaveLength(2642);
   expect(read("fixture").byteLength).toBe(716);
   expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
     "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
@@ -1191,8 +1196,8 @@ it("preserves every original TX scenario and coverage object while adding one bo
     nodes++;
     if (value && typeof value === "object") pending.push(...Object.values(value));
   }
-  expect(nodes - 13019).toBeLessThanOrEqual(8001);
-  expect(nodes).toBeLessThanOrEqual(21020);
+  expect(nodes - 13019).toBeLessThanOrEqual(8953);
+  expect(nodes).toBeLessThanOrEqual(21972);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
     "transactional.receipt.pagination": [
@@ -1214,6 +1219,7 @@ it("pins required context presence before equality in set and cross-carrier rows
   const headers = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"];
   for (const row of manifest.scenarios.filter((r: { id: string }) =>
     [
+      "read-update.idempotency.principal-isolation",
       "transactional.set.mutation",
       "transactional.set.zero-match",
       "transactional.idempotency.cross-carrier",
@@ -1252,7 +1258,7 @@ it("pins the one-page matched-plus-updated witness without advertised-limit or o
   const row = manifest.scenarios.find(
     (r: { id: string }) => r.id === "transactional.receipt.pagination",
   );
-  expect(manifest.scenarios.indexOf(row)).toBe(10);
+  expect(manifest.scenarios.indexOf(row)).toBe(11);
   expect(row.actions).toHaveLength(18);
   const later = row.actions.find((a: { id: string }) => a.id === "p-later-state");
   expect(later.captures).toEqual([]); // HTTP capture is URL-only; no unimplemented array capture.
@@ -2970,9 +2976,12 @@ it("pins the inherited command-minimum manifest facts, read-header absence and a
   expect(
     selectApplicableScenariosForProfile(selected.catalog, "transactional").map((r) => r.id),
   ).toContain(minimumId);
-  expect(bundle().manifest.scenarios[0]?.id).toBe(minimumId);
+  expect(bundle().manifest.scenarios.find((row) => row.id === minimumId)?.id).toBe(minimumId);
   for (const name of ["manifest", "coverage"] as const) {
-    const original = withoutMinimumRow(withoutSequenceMemberRow(read(name).toString(), name), name);
+    const original = withoutMinimumRow(
+      withoutSequenceMemberRow(withoutPrincipalRow(read(name).toString(), name), name),
+      name,
+    );
     expect(createHash("sha256").update(original).digest("hex")).toBe(
       name === "manifest"
         ? "726fc623bbb115a0f39e0bb3aaa586ea37254522b254e55e555ea95587f14cb9"
@@ -2984,19 +2993,549 @@ it("pins the inherited command-minimum manifest facts, read-header absence and a
     for (const [id, raw] of before) expect(after.get(id), id).toBe(raw);
   }
   const empty = structuredClone(manifest);
-  empty.scenarios[0].actions[0].raw.headerLines =
-    empty.scenarios[0].actions[0].raw.headerLines.filter(
-      (h: { name: string }) => h.name !== "bdp-scope-epoch",
-    );
+  empty.scenarios.find((r: { id: string }) => r.id === minimumId)!.actions[0].raw.headerLines =
+    empty.scenarios
+      .find((r: { id: string }) => r.id === minimumId)!
+      .actions[0].raw.headerLines.filter((h: { name: string }) => h.name !== "bdp-scope-epoch");
   expect(() => assertMinimumObservation(empty)).toThrow("minimum-empty-header-ledger");
   for (const index of [9, 10]) {
     const changed = structuredClone(manifest);
-    changed.scenarios[0].actions[index].raw.headerLines.push({
-      name: "bdp-minimum-scope-position",
-      value: "pos-99",
-    });
+    changed.scenarios
+      .find((r: { id: string }) => r.id === minimumId)!
+      .actions[index].raw.headerLines.push({
+        name: "bdp-minimum-scope-position",
+        value: "pos-99",
+      });
     expect(() => assertMinimumObservation(changed)).toThrow("minimum-read-header-absence");
   }
   // Full replay-pair ledger weakening is checked in an existing app static
   // callback; arbitrary JSON raw captures are intentionally not manufactured.
+});
+
+const principalId = "read-update.idempotency.principal-isolation";
+const principalParentPins = {
+  manifest: [
+    [
+      "read-update.http.command-minimum-fields",
+      "f04c001617ccad14ef67a82586ea5f61ec918bc2545bb041fafc21dee07b5d7e",
+      54412,
+    ],
+    [
+      "transactional.batch.atomic-commit",
+      "0dfd3b9ed02d01f76ecac08c00b009b4bb9f03e57f7e15a2266eed82fc144747",
+      14936,
+    ],
+    [
+      "transactional.batch.rollback",
+      "be24067358af7b5acf7bc1beae2eb6534cbc0effa6f65406ab61b139310bfc37",
+      16319,
+    ],
+    [
+      "transactional.batch.deletion-safety",
+      "3e66e7c95aec963cc80e076249a5870b952765b2e98c1023ea148f8f628e6aeb",
+      131808,
+    ],
+    [
+      "transactional.batch.no-op-entries",
+      "9307b230eb053131e9127cbbb5e6285305b79d6794edd22f5432a07fc74d9faa",
+      81047,
+    ],
+    [
+      "transactional.set.mutation",
+      "6e7280a9ebbbc3faa1da989015cc802f82cd51b17a9cea11e7cc91392bef49d6",
+      71739,
+    ],
+    [
+      "transactional.set.zero-match",
+      "35aa23bd32539869ea3db41e1c9f3e81a3217e2eb983e764e860a6e00c9eb2c9",
+      36055,
+    ],
+    [
+      "transactional.set.cardinality",
+      "205af1c54d62efb09c9eadf20147a1730909e788c0d4763ce9718b8648f24ede",
+      28546,
+    ],
+    [
+      "transactional.set.singleton-targets",
+      "561b8ebc21106628918111332a9ab7b47be7350935925ed1e76a6cb5bed576b9",
+      40018,
+    ],
+    [
+      "transactional.receipt.readable",
+      "ddb97e450e233b941f7d905d49f48648d9965ed1b361dcdc5dee6f810038a1e0",
+      12545,
+    ],
+    [
+      "transactional.receipt.pagination",
+      "c531c260349347cdc3e54ba68282f1a266a5fa207d3775660615f836a4768782",
+      138750,
+    ],
+    [
+      "transactional.idempotency.conflict",
+      "ba93aea884ae462533d02695642f03a2ca854f5adabeb41867254216dabb2106",
+      29772,
+    ],
+    [
+      "transactional.idempotency.cross-carrier",
+      "4ad8c05fe5fbb4682809d4481c93e2684fe30fbbb8962b4da498590637f8f35b",
+      64106,
+    ],
+    [
+      "transactional.idempotency.failed-retained",
+      "a867694406dde07da71ac70197c60c478dd0fb3344cf2c8160795d1aa62d3378",
+      18404,
+    ],
+    [
+      "transactional.sequence.member-transactions",
+      "c46b34914118dd34ea1e5f12304124550b9d3c4bfcd9671b99995d6af44a2e1b",
+      51379,
+    ],
+  ],
+  coverage: [
+    [
+      "read-update.http.command-minimum-fields",
+      "47914ed67c7b06e721e74134e0c633f3e1a7d461cb50ea200ff1874686885c2a",
+      8888,
+    ],
+    [
+      "transactional.batch.atomic-commit",
+      "ffd77a9d34ac41a6e1f960671bea6880eb5b2ab7b11b3af4ccf0177363d7f4d7",
+      2383,
+    ],
+    [
+      "transactional.batch.rollback",
+      "9e4f5cdb45f0133f1c6d23caa402701981db2e6f4198e23c667579622ace6769",
+      2857,
+    ],
+    [
+      "transactional.batch.deletion-safety",
+      "ac27a329a1cc013e6a0e24e0f5cad6b5b4af6c128ad65302d030422a3c7e3c0a",
+      17375,
+    ],
+    [
+      "transactional.batch.no-op-entries",
+      "383de4e0cb9b3bad310b9db7ff9009cb59fac55966f0309bc71c5d007bea6c1c",
+      10587,
+    ],
+    [
+      "transactional.set.mutation",
+      "058147f8194f091ee5a7ef3d4fd378f0324f6570049df777f993acb5f967d540",
+      11676,
+    ],
+    [
+      "transactional.set.zero-match",
+      "4e79e18a5e4c2735b5c686b9ad610dedc890386bfb06584f98268a421bbb832b",
+      6520,
+    ],
+    [
+      "transactional.set.cardinality",
+      "2a255ed4d364c435c9f985d7a770386bc7b20b2865887b9c8cc2d6cc5f0dd116",
+      5800,
+    ],
+    [
+      "transactional.set.singleton-targets",
+      "0c9008bac3e2c047d9aa8d47d343b7ed936c9c9352bb140c6422127c71b156b1",
+      7314,
+    ],
+    [
+      "transactional.receipt.readable",
+      "684eba200912ccb0932c0a8286e350a6e545262a205b3ea3df47a12fc6dd18ec",
+      2142,
+    ],
+    [
+      "transactional.receipt.pagination",
+      "0735edbca2fbf384f9f8147140a353dc084d9ad85facaddf2f5073f56a7256ee",
+      13057,
+    ],
+    [
+      "transactional.idempotency.conflict",
+      "de9b758f8ac4df7db5597b1eb2b402a116720becc30a41e7198f78f244358ec0",
+      5188,
+    ],
+    [
+      "transactional.idempotency.cross-carrier",
+      "c5e6076a2104c06f88fac88c77214522cab457faf925fe03881dff9778c35245",
+      11196,
+    ],
+    [
+      "transactional.idempotency.failed-retained",
+      "63918cbb495a504fd2043f52b60e7cd8ef1518b8022a96edb0d02660c7df1a8e",
+      2917,
+    ],
+    [
+      "transactional.sequence.member-transactions",
+      "aea606d1456549f6dd9dc1903e42568282154a61a9fbef50dab3526202eb4045",
+      9557,
+    ],
+  ],
+} as const;
+function withoutPrincipalRow(text: string, name: "manifest" | "coverage") {
+  const objects = objectSlices(text, name === "manifest" ? "scenarios" : "rows");
+  for (const [id, hash, bytes] of principalParentPins[name]) {
+    const raw = objects.get(id)!;
+    expect(Buffer.byteLength(raw), id).toBe(bytes);
+    expect(createHash("sha256").update(raw).digest("hex"), id).toBe(hash);
+  }
+  const raw = objects.get(principalId)!;
+  expect(typeof raw).toBe("string");
+  const key = name === "manifest" ? "scenarios" : "rows";
+  const prefix = `"${key}": [\n    ${raw},\n`;
+  expect(text.includes(prefix), "principal-first-object").toBe(true);
+  const parent = text.replace(prefix, `"${key}": [\n`);
+  expect(createHash("sha256").update(parent).digest("hex"), "principal-full-parent").toBe(
+    name === "manifest"
+      ? "a11a79f6d0f9ffa5933a680a3e4fed87987789c3deca50a38cda8563132d242e"
+      : "346e1edaa22af789f89017fdc2fef6bb01b7564ed72a65344e9fe5635887c74f",
+  );
+  return parent;
+}
+it("pins the partial principal namespace row, full parent and exact credential roles", () => {
+  const row = manifest.scenarios.find((r: { id: string }) => r.id === principalId)!;
+  expect(manifest.scenarios[0]).toBe(row);
+  expect(row.requiredProfile).toBe("read-update");
+  expect(row.actions.flatMap((a: { captures: unknown[] }) => a.captures)).toEqual([]);
+  expect(row.actions.map((a: { id: string }) => a.id)).toEqual([
+    "pk-a-create",
+    "pk-b-create",
+    "pk-a-rotated",
+    "pk-b-replay",
+    "pk-a-conflict",
+    "pk-current",
+    "pk-events",
+  ]);
+  const expected = [
+    {
+      action: "pk-a-create",
+      method: "POST",
+      credentialRef: "principal-a",
+      headerLines: [
+        {
+          name: "accept",
+          value: "application/json",
+        },
+        {
+          name: "content-type",
+          value: "application/json",
+        },
+        {
+          name: "idempotency-key",
+          value: "principal-shared",
+        },
+      ],
+      body: '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
+      bodyBytes: 150,
+      bodySha256: "54f0fefb0965a8210bb22cf09601c18296ef450489eff1aef5a8bea8b99d83b8",
+    },
+    {
+      action: "pk-b-create",
+      method: "POST",
+      credentialRef: "principal-b",
+      headerLines: [
+        {
+          name: "accept",
+          value: "application/json",
+        },
+        {
+          name: "content-type",
+          value: "application/json",
+        },
+        {
+          name: "idempotency-key",
+          value: "principal-shared",
+        },
+      ],
+      body: '{"operations":[{"operation":"createBead","id":"beads/b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
+      bodyBytes: 150,
+      bodySha256: "b26bbe9a43f5cc9b54d7fe7778786b33e5e8d613bf30248de3af65f5eac0cdc8",
+    },
+    {
+      action: "pk-a-rotated",
+      method: "POST",
+      credentialRef: "principal-a-rotated",
+      headerLines: [
+        {
+          name: "accept",
+          value: "application/json",
+        },
+        {
+          name: "content-type",
+          value: "application/json",
+        },
+        {
+          name: "idempotency-key",
+          value: "principal-shared",
+        },
+      ],
+      body: '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
+      bodyBytes: 150,
+      bodySha256: "54f0fefb0965a8210bb22cf09601c18296ef450489eff1aef5a8bea8b99d83b8",
+    },
+    {
+      action: "pk-b-replay",
+      method: "POST",
+      credentialRef: "principal-b",
+      headerLines: [
+        {
+          name: "accept",
+          value: "application/json",
+        },
+        {
+          name: "content-type",
+          value: "application/json",
+        },
+        {
+          name: "idempotency-key",
+          value: "principal-shared",
+        },
+      ],
+      body: '{"operations":[{"operation":"createBead","id":"beads/b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
+      bodyBytes: 150,
+      bodySha256: "b26bbe9a43f5cc9b54d7fe7778786b33e5e8d613bf30248de3af65f5eac0cdc8",
+    },
+    {
+      action: "pk-a-conflict",
+      method: "POST",
+      credentialRef: "principal-a",
+      headerLines: [
+        {
+          name: "accept",
+          value: "application/json",
+        },
+        {
+          name: "content-type",
+          value: "application/json",
+        },
+        {
+          name: "idempotency-key",
+          value: "principal-shared",
+        },
+      ],
+      body: '{"operations":[{"operation":"createBead","id":"beads/c","type":"https://reference.invalid/acme/types/task","properties":{"title":"c"},"metadata":{}}]}',
+      bodyBytes: 150,
+      bodySha256: "3de2f9bb5fb4b4b0537d252ba722b05a3385414129cf35fc6ab0355720f9ff62",
+    },
+    {
+      action: "pk-current",
+      method: "GET",
+      credentialRef: "principal-a",
+      headerLines: [
+        {
+          name: "accept",
+          value: "application/json",
+        },
+      ],
+      body: null,
+      bodyBytes: 0,
+      bodySha256: null,
+    },
+    {
+      action: "pk-events",
+      method: "GET",
+      credentialRef: "principal-a",
+      headerLines: [
+        {
+          name: "accept",
+          value: "application/json",
+        },
+      ],
+      body: null,
+      bodyBytes: 0,
+      bodySha256: null,
+    },
+  ];
+  for (const [i, action] of row.actions.entries()) {
+    const literal = expected[i]!;
+    expect(action.family).toBe("http");
+    expect(action.method).toBe(literal.method);
+    expect(action.credentialRef).toBe(literal.credentialRef);
+    expect(action.raw.headerLines).toEqual(literal.headerLines);
+    expect(action.raw.body?.value).toBe(literal.body ?? undefined);
+    expect(action.assertions).toContainEqual({
+      id: "request-headers",
+      kind: "request-authored-headers",
+    });
+    expect(action.assertions).toContainEqual({ id: "request-body", kind: "request-authored-body" });
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(action.assertions).toContainEqual({
+        id: `present-${name}`,
+        kind: "header",
+        name,
+        absent: false,
+      });
+  }
+  expect(
+    row.actions.map((a: { assertions: { id: string }[] }) => a.assertions.map((x) => x.id)),
+  ).toEqual([
+    [
+      "http-status",
+      "schema",
+      "media",
+      "present-bdp-scope-epoch",
+      "present-bdp-authorization-view",
+      "present-bdp-scope-position",
+      "serving-position",
+      "request-headers",
+      "request-body",
+      "disposition",
+      "detail",
+      "key",
+      "receipt-id",
+      "transaction",
+      "required-position",
+      "effect-position",
+      "no-next",
+      "result-indices",
+      "resource-id",
+      "resource-type",
+      "resource-revision",
+      "resource-properties",
+      "resource-metadata",
+      "no-owned-links",
+      "no-provenance",
+    ],
+    [
+      "http-status",
+      "schema",
+      "media",
+      "present-bdp-scope-epoch",
+      "present-bdp-authorization-view",
+      "present-bdp-scope-position",
+      "serving-position",
+      "request-headers",
+      "request-body",
+      "disposition",
+      "detail",
+      "key",
+      "receipt-id",
+      "transaction",
+      "required-position",
+      "effect-position",
+      "no-next",
+      "result-indices",
+      "resource-id",
+      "resource-type",
+      "resource-revision",
+      "resource-properties",
+      "resource-metadata",
+      "no-owned-links",
+      "no-provenance",
+    ],
+    [
+      "http-status",
+      "schema",
+      "media",
+      "present-bdp-scope-epoch",
+      "present-bdp-authorization-view",
+      "present-bdp-scope-position",
+      "serving-position",
+      "request-headers",
+      "request-body",
+      "disposition",
+      "detail",
+      "key",
+      "receipt-id",
+      "transaction",
+      "required-position",
+      "effect-position",
+      "no-next",
+      "result-indices",
+      "resource-id",
+      "resource-type",
+      "resource-revision",
+      "resource-properties",
+      "resource-metadata",
+      "no-owned-links",
+      "no-provenance",
+    ],
+    [
+      "http-status",
+      "schema",
+      "media",
+      "present-bdp-scope-epoch",
+      "present-bdp-authorization-view",
+      "present-bdp-scope-position",
+      "serving-position",
+      "request-headers",
+      "request-body",
+      "disposition",
+      "detail",
+      "key",
+      "receipt-id",
+      "transaction",
+      "required-position",
+      "effect-position",
+      "no-next",
+      "result-indices",
+      "resource-id",
+      "resource-type",
+      "resource-revision",
+      "resource-properties",
+      "resource-metadata",
+      "no-owned-links",
+      "no-provenance",
+    ],
+    [
+      "http-status",
+      "schema",
+      "media",
+      "present-bdp-scope-epoch",
+      "present-bdp-authorization-view",
+      "present-bdp-scope-position",
+      "serving-position",
+      "request-headers",
+      "request-body",
+      "exact-problem",
+    ],
+    [
+      "http-status",
+      "schema",
+      "media",
+      "present-bdp-scope-epoch",
+      "present-bdp-authorization-view",
+      "present-bdp-scope-position",
+      "serving-position",
+      "request-headers",
+      "request-body",
+      "no-next",
+      "ordered-state",
+    ],
+    [
+      "http-status",
+      "schema",
+      "media",
+      "present-bdp-scope-epoch",
+      "present-bdp-authorization-view",
+      "present-bdp-scope-position",
+      "serving-position",
+      "request-headers",
+      "request-body",
+      "no-next",
+      "ordered-facts",
+      "source",
+      "a-properties",
+      "a-metadata",
+      "a-no-provenance",
+      "b-properties",
+      "b-metadata",
+      "b-no-provenance",
+    ],
+  ]);
+  expect(
+    createHash("sha256").update(JSON.stringify(row)).digest("hex"),
+    "principal-independent-complete-facts",
+  ).toBe("097a27abcff4db5d788f3c9a37889f1590cbcbc011a77e2b8a97d17a260973ff");
+  const coverage = JSON.parse(read("coverage").toString()).rows.find(
+    (r: { id: string }) => r.id === principalId,
+  )!;
+  expect(coverage.wholeContract).toBe(false);
+  expect(coverage.bindings).toEqual([
+    {
+      scenario: principalId,
+      assertions: row.actions.flatMap((a: { id: string; assertions: { id: string }[] }) =>
+        a.assertions.map((x) => `${a.id}:${x.id}`),
+      ),
+    },
+  ]);
+  for (const name of ["manifest", "coverage"] as const)
+    withoutPrincipalRow(read(name).toString(), name);
 });
