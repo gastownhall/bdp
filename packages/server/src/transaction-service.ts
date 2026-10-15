@@ -50,7 +50,12 @@ export type TransactionServiceSubmissionResult =
 export type TransactionServiceReceiptResult =
   | ReceiptObservation
   | { readonly kind: "refused"; readonly status: 401; readonly code: "unauthenticated" }
-  | { readonly kind: "refused"; readonly status: 404; readonly code: "resource-not-found" };
+  | {
+      readonly kind: "refused";
+      readonly status: 404;
+      readonly code: "resource-not-found";
+      readonly context: TransactionReadContext;
+    };
 export interface TransactionServiceOptions {
   readonly ownerLifetime: "service";
   readonly read: TransactionReadOptions;
@@ -203,10 +208,15 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     principal: string,
     id: string,
     minimum?: TransactionMinimum,
-  ): ReceiptObservation | undefined {
+  ): ReceiptObservation | Extract<TransactionServiceReceiptResult, { readonly status: 404 }> {
     const observed = owner.readReceipt(principal, id, minimum);
     return observed.receipt === undefined
-      ? undefined
+      ? Object.freeze({
+          kind: "refused",
+          status: 404,
+          code: "resource-not-found",
+          context: observed.context,
+        })
       : checked({ ...observed, receipt: observed.receipt });
   }
   async function executeSequence(
@@ -438,7 +448,12 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           readonly page: TransactionReceiptPage;
           readonly context: TransactionReadContext;
         }
-      | { readonly kind: "refused"; readonly code: "unauthenticated" | "resource-not-found" }
+      | { readonly kind: "refused"; readonly code: "unauthenticated" }
+      | {
+          readonly kind: "refused";
+          readonly code: "resource-not-found";
+          readonly context?: TransactionReadContext;
+        }
       | { readonly kind: "expired"; readonly context: TransactionReadContext }
       | { readonly kind: "unsupported" }
     > {
@@ -462,7 +477,11 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           )
             throw new Error("invalid receipt page projection");
           return result.kind === "missing"
-            ? { kind: "refused" as const, code: "resource-not-found" as const }
+            ? Object.freeze({
+                kind: "refused" as const,
+                code: "resource-not-found" as const,
+                ...(result.context === undefined ? {} : { context: result.context }),
+              })
             : result;
         }, minimumReads);
       });
@@ -481,19 +500,15 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         if (supplied === "unsupported") {
           const observed = owner.readReceipt(principal, id, supplied);
           if ("kind" in observed) return observed;
-          return Object.freeze({ kind: "refused", status: 404, code: "resource-not-found" });
+          return Object.freeze({
+            kind: "refused",
+            status: 404,
+            code: "resource-not-found",
+            context: observed.context,
+          });
         }
         const minimum = snapshotTransactionMinimum(supplied);
-        return waitForTransactionMinimum(
-          () =>
-            receipt(principal, id, minimum) ??
-            Object.freeze({
-              kind: "refused" as const,
-              status: 404 as const,
-              code: "resource-not-found" as const,
-            }),
-          minimumReads,
-        );
+        return waitForTransactionMinimum(() => receipt(principal, id, minimum), minimumReads);
       });
     },
     submit(request: TransactionSubmission): Promise<TransactionServiceSubmissionResult> {
@@ -576,10 +591,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       check();
       if (access.kind === "unauthenticated")
         return Object.freeze({ kind: "refused", status: 401, code: "unauthenticated" });
-      return (
-        receipt(access.principal, id) ??
-        Object.freeze({ kind: "refused", status: 404, code: "resource-not-found" })
-      );
+      return receipt(access.principal, id);
     },
     /** Stop accepting work, drain admitted work even when the client dropped its
      * delivery, then close cursors and this service-owned database. No disconnect

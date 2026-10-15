@@ -288,3 +288,51 @@ it("refuses page parents outside the receipt namespace before plan lookup", () =
   }
   expect(prepare.mock.calls.some(([sql]) => sql.includes("FROM receipt_pages"))).toBe(false);
 });
+
+it("captures immutable current context for nondisclosable receipt pages before minimum checks", () => {
+  const f = fixture(),
+    first = f.owner.executeObserved(f.claim(operations(3))),
+    next = pageUrl(first.receipt.next);
+  const visible = f.owner.readReceiptPage("p", next);
+  expect(visible).toMatchObject({ kind: "page", context: first.context });
+  const misses = [
+    ["other", next],
+    ["p", `${first.receipt.id}/pages/unknown`],
+    ["p", `${scope}receipts/unknown/pages/unknown`],
+  ] as const;
+  const ahead = {
+    scopeEpoch: first.context.scopeEpoch,
+    authorizationView: first.context.authorizationView,
+    minimumPosition: "pos-99",
+  };
+  const retained = [];
+  for (const [principal, url] of misses) {
+    for (const minimum of [undefined, "unsupported", ahead] as const) {
+      const result = f.owner.readReceiptPage(principal, url, minimum);
+      expect(result).toStrictEqual({ kind: "missing", context: first.context });
+      expect(Object.isFrozen(result)).toBe(true);
+      if (result.kind !== "missing") throw new Error("expected missing page");
+      expect(Object.isFrozen(result.context)).toBe(true);
+      retained.push(result);
+    }
+  }
+  expect(first.context.scopePosition).toBe("pos-1");
+  const later = f.owner.executeObserved(
+    f.claim([{ operation: "createBead", id: "beads/later", type, properties: { n: 3 } }], "later"),
+  );
+  expect(later.context).toStrictEqual({ ...first.context, scopePosition: "pos-2" });
+  for (const [principal, url] of misses)
+    expect(f.owner.readReceiptPage(principal, url)).toStrictEqual({
+      kind: "missing",
+      context: later.context,
+    });
+  for (const result of retained)
+    expect(result).toStrictEqual({ kind: "missing", context: first.context });
+  expect(() =>
+    f.owner.readReceiptPage("p", next, {
+      ...ahead,
+      authorizationView: "foreign",
+      minimumPosition: "pos-2",
+    }),
+  ).toThrow("foreign-view");
+});

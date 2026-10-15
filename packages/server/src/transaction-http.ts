@@ -529,7 +529,11 @@ export function createTransactionHttpHandler(
           url.href,
           minimum ?? (hasMinimumControls(request) ? "unsupported" : undefined),
         );
-        if (page.kind === "refused") return transactionHttpProblem(page.code);
+        if (page.kind === "refused")
+          return transactionHttpProblem(
+            page.code,
+            page.code === "resource-not-found" ? page.context : undefined,
+          );
         if (page.kind === "unsupported") return developmentGap("minimum-position");
         return context(
           page.kind === "expired"
@@ -541,7 +545,11 @@ export function createTransactionHttpHandler(
       const result = hasMinimumControls(request)
         ? await service.receiptAtMinimum(access, url.href, minimum ?? "unsupported")
         : service.receipt(access, url.href);
-      if (result.kind === "refused") return transactionHttpProblem(result.code);
+      if (result.kind === "refused")
+        return transactionHttpProblem(
+          result.code,
+          result.code === "resource-not-found" ? result.context : undefined,
+        );
       // Missing barrier support cannot disclose a foreign receipt, nor permit a
       // conditional shortcut to serve an unchecked minimum checkpoint.
       if (result.kind === "unsupported") return developmentGap("minimum-position");

@@ -1859,3 +1859,23 @@ is computed by the Read HTTP semantics before body removal and preserved by the
 runtime emitter. Prior source/installed evidence retains its original attribution.
 This is no public profile qualification, discovery activation, retained Snapshot
 minimum ruling or metadata-only incident-Link Event membership ruling.
+
+
+### Context for observed missing receipt roots and pages
+
+This draft retains the current immutable Scope context on authenticated missing
+receipt roots and on the three genuine missing-page owner returns. The HTTP
+projection carries that same observation on404 while preserving the existing
+uniform Problem, principal/epoch nondisclosure, minimum-before-expiry ordering,
+contextless401 and private namespace defenses. No second owner read is added.
+Metadata corruption follows existing error/fencing classification rather than
+fabricating context; a plain metadata error after clean rollback is not claimed
+to create a sticky owner fence.
+
+The bounded draft adds owner, service and HTTP tests and one fourteen-request
+private installed witness using a genuinely issued receipt page. At this draft
+checkpoint no new tests, build, control or installed execution has run. The
+proposed emitted HTTP control omits only the two context projections. Earlier
+Event and receipt evidence retains its original source attribution. Visible
+unsupported minimum handling remains a private limitation; this draft adds no
+public profile qualification, discovery activation or pending product ruling.

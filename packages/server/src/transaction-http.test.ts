@@ -341,7 +341,7 @@ describe("source-private actual Transactional HTTP", () => {
     ] as const) {
       const response = await f.get(id(receipt), { headers: { ...controls, authorization } });
       expect(response.status).toBe(status);
-      expect(response.headers.has("bdp-scope-position")).toBe(status === 410);
+      expect(response.headers.has("bdp-scope-position")).toBe(status !== 401);
     }
     const missing = await f.get(`${f.runtime.scope}receipts/unknown`, { headers: controls });
     expect(missing.status).toBe(404);
@@ -1763,7 +1763,7 @@ it("uses actual epoch/view decisions and an exhausted wait before conditional or
     headers: { ...headers, authorization: `Bearer ${otherToken}`, "bdp-scope-epoch": "foreign" },
   });
   expect(hidden.status).toBe(404);
-  expect(hidden.headers.has("bdp-scope-position")).toBe(false);
+  expect(hidden.headers.get("bdp-scope-position")).toBe("pos-1");
   for (const suffix of [
     "links/?cursor=missing",
     "",
@@ -2042,7 +2042,7 @@ it("orders page nondisclosure, minimum waits, expiry and representation using ac
     if (principal === token)
       expect(unsupported.headers.get("x-bdp-development-limit")).toBe("minimum-position");
     for (const header of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-      expect(unsupported.headers.has(header)).toBe(false);
+      expect(unsupported.headers.has(header)).toBe(principal !== token);
   }
   expect((await f.get(`${id(receipt)}/pages`)).status).toBe(404);
   for (const method of ["GET", "HEAD"]) {
@@ -2055,11 +2055,11 @@ it("orders page nondisclosure, minimum waits, expiry and representation using ac
         headers: { ...headers, authorization: auth, "bdp-scope-epoch": "foreign" },
       });
       expect(denied.status).toBe(status);
-      expect(denied.headers.has("bdp-scope-position")).toBe(false);
+      expect(denied.headers.has("bdp-scope-position")).toBe(status === 404);
     }
     const unknown = await f.get(`${id(receipt)}/pages/unknown`, { method, headers });
     expect(unknown.status).toBe(404);
-    expect(unknown.headers.has("bdp-scope-position")).toBe(false);
+    expect(unknown.headers.get("bdp-scope-position")).toBe("pos-1");
     const timeout = await f.get(next, { method, headers });
     expect(timeout.status).toBe(503);
     expect(timeout.headers.get("retry-after")).toBe("1");
@@ -2173,7 +2173,7 @@ it("refuses unsupported root controls after nondisclosure but before read-trigge
         if (status === 500)
           expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
         for (const header of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-          expect(response.headers.has(header)).toBe(false);
+          expect(response.headers.has(header)).toBe(status === 404);
         if (status === 500 || method === "HEAD") expect(await response.text()).toBe("");
       }
     }
@@ -2201,7 +2201,7 @@ it("keeps failed parent rows unchanged for nonexistent page reads with any contr
         });
         expect(response.status).toBe(404);
         for (const header of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-          expect(response.headers.has(header)).toBe(false);
+          expect(response.headers.get(header)).toBe(created.headers.get(header));
         if (method === "GET")
           expect(checkedProblem(await body(response)).code).toBe("resource-not-found");
         else expect(await response.text()).toBe("");
@@ -3809,3 +3809,279 @@ it("serves Selector syntax and prior-key precedence over capacity", async () => 
   expect(inventory.map((row) => row.key)).toEqual(["accept", "later", "seed"]);
   expect(inventory.find((row) => row.key === "seed")?.receipt).toEqual(seed);
 });
+
+it("serves current missing receipt root and page context without changing nondisclosure or HEAD", async () => {
+  const cleanupBoundary = cleanup.length;
+  const failures: unknown[] = [];
+  const controller = new AbortController();
+  const deadlineReason = new Error("receipt context cohort deadline");
+  let deadlineExceeded = false;
+  const deadline = setTimeout(() => {
+    deadlineExceeded = true;
+    controller.abort(deadlineReason);
+  }, 45000);
+  let attempted = 0,
+    tupleChecks = 0;
+  const names = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
+  const retainedNames = [
+    ...names,
+    "content-type",
+    "content-length",
+    "cache-control",
+    "x-bdp-development",
+    "x-bdp-development-limit",
+    "www-authenticate",
+    "retry-after",
+    "etag",
+    "last-modified",
+  ];
+  const observations: {
+    method: string;
+    url: string;
+    status: number;
+    bodyOctets: number;
+    headers: Record<string, string | null>;
+  }[] = [];
+  let registeredCleanup = 0,
+    completedCleanup = 0;
+  try {
+    const f = await fixture({ receiptMaximumItems: 2 });
+    const exchange = async (
+      url: string,
+      method: "GET" | "HEAD" | "POST",
+      credential: string | undefined,
+      requestBody?: string,
+      key?: string,
+    ) => {
+      controller.signal.throwIfAborted();
+      expect(++attempted, "receipt context dispatch bound").toBeLessThanOrEqual(13);
+      const requestAbort = new AbortController();
+      const timer = setTimeout(
+        () => requestAbort.abort(new Error("receipt exchange deadline")),
+        5000,
+      );
+      try {
+        const response = await fetch(url, {
+          method,
+          redirect: "error",
+          signal: AbortSignal.any([controller.signal, requestAbort.signal]),
+          headers: {
+            accept: "application/json",
+            ...(credential === undefined ? {} : { authorization: `Bearer ${credential}` }),
+            ...(requestBody === undefined
+              ? {}
+              : {
+                  "content-type": "application/json",
+                  "idempotency-key": key ?? "receipt-context-seed",
+                }),
+          },
+          ...(requestBody === undefined ? {} : { body: requestBody }),
+        });
+        const reader = response.body?.getReader();
+        const chunks: Uint8Array[] = [];
+        let bytes = 0;
+        try {
+          if (reader)
+            for (;;) {
+              const chunk = await reader.read();
+              if (chunk.done) break;
+              if (bytes + chunk.value.byteLength > 32768) {
+                requestAbort.abort(new Error("receipt response body limit"));
+                throw new Error("receipt response exceeds32768bytes");
+              }
+              bytes += chunk.value.byteLength;
+              chunks.push(chunk.value);
+            }
+        } catch (error) {
+          try {
+            await reader?.cancel();
+          } catch (cleanupError) {
+            throw new AggregateError([error, cleanupError], "receipt body read and cleanup failed");
+          }
+          throw error;
+        } finally {
+          reader?.releaseLock();
+        }
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, bytes));
+        const headers = Object.fromEntries(
+          retainedNames.map((name) => [name, response.headers.get(name)]),
+        );
+        observations.push({ method, url, status: response.status, bodyOctets: bytes, headers });
+        expect(headers["x-bdp-development"]).toBe("non-attesting");
+        return { status: response.status, headers, text, bytes };
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+    const seed = await exchange(
+      f.runtime.targets.batch,
+      "POST",
+      token,
+      batch([create("a"), create("b"), create("c")]),
+    );
+    expect(seed.status).toBe(200);
+    const receipt = record(JSON.parse(seed.text));
+    expect(validateSelectorReceipt(receipt), JSON.stringify(validateSelectorReceipt.errors)).toBe(
+      true,
+    );
+    expect(receipt).toMatchObject({
+      status: "completed",
+      requiredPosition: "pos-1",
+      effectPosition: "pos-1",
+    });
+    expect(receipt.results).toHaveLength(2);
+    if (typeof receipt.next !== "string") throw new Error("expected issued next page");
+    const root = id(receipt),
+      pageUrl = receipt.next;
+    const page = await exchange(pageUrl, "GET", token);
+    expect(page.status).toBe(200);
+    const pageValue = JSON.parse(page.text);
+    const validPage = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceiptPage` });
+    expect(validPage(pageValue), JSON.stringify(validPage.errors)).toBe(true);
+    expect(pageValue).toMatchObject({ receipt: root, next: null });
+    expect(pageValue.results).toHaveLength(1);
+    const firstContext = names.map((name) => seed.headers[name]);
+    expect(firstContext[0]).toBeTruthy();
+    expect(firstContext[1]).toBeTruthy();
+    expect(firstContext[2]).toBe("pos-1");
+    expect(names.map((name) => page.headers[name])).toStrictEqual(firstContext);
+    const problem = {
+      type: "https://github.com/gastownhall/bdp/problems/not-found",
+      code: "resource-not-found",
+      retry: "after-state-change",
+      status: 404,
+    };
+    const missing = async (
+      url: string,
+      method: "GET" | "HEAD",
+      credential: string,
+      expected: (string | null | undefined)[],
+      label: string,
+      getLength?: string | null,
+    ) => {
+      const response = await exchange(url, method, credential);
+      expect(response.status, label).toBe(404);
+      expect(response.headers["content-type"]).toBe("application/problem+json");
+      expect(response.headers["cache-control"]).toBe("private, no-store");
+      for (const name of [
+        "etag",
+        "last-modified",
+        "retry-after",
+        "www-authenticate",
+        "x-bdp-development-limit",
+      ])
+        expect(response.headers[name]).toBeNull();
+      if (method === "GET") {
+        const value = record(JSON.parse(response.text));
+        expect(checkedProblem(value)).toStrictEqual(problem);
+        expect(Number(response.headers["content-length"])).toBe(response.bytes);
+      } else {
+        expect(response.text).toBe("");
+        expect(response.bytes).toBe(0);
+        expect(response.headers["content-length"]).toBe(getLength);
+      }
+      tupleChecks++;
+      expect
+        .soft(
+          names.map((name) => response.headers[name]),
+          label,
+        )
+        .toStrictEqual(expected);
+      return response.headers["content-length"];
+    };
+    const unknownRoot = `${root.slice(0, root.lastIndexOf("/") + 1)}unknown`;
+    for (const [url, credential, label] of [
+      [unknownRoot, token, "unknown-root"],
+      [root, otherToken, "foreign-root"],
+      [pageUrl, otherToken, "foreign-page"],
+    ] as const) {
+      const length = await missing(
+        url,
+        "GET",
+        credential,
+        firstContext,
+        `${label} GET at first head`,
+      );
+      await missing(url, "HEAD", credential, firstContext, `${label} HEAD at first head`, length);
+    }
+    const later = await exchange(
+      f.runtime.targets.createBead,
+      "POST",
+      token,
+      JSON.stringify({ id: "beads/later", type: bead, properties: { title: "later" } }),
+      "receipt-context-advance",
+    );
+    expect(later.status).toBe(200);
+    const laterReceipt = JSON.parse(later.text);
+    expect(
+      validateSelectorReceipt(laterReceipt),
+      JSON.stringify(validateSelectorReceipt.errors),
+    ).toBe(true);
+    expect(laterReceipt).toMatchObject({
+      status: "completed",
+      requiredPosition: "pos-2",
+      effectPosition: "pos-2",
+    });
+    const laterContext = names.map((name) => later.headers[name]);
+    expect(laterContext).toStrictEqual([firstContext[0], firstContext[1], "pos-2"]);
+    await missing(root, "GET", otherToken, laterContext, "foreign-root GET at later head");
+    await missing(pageUrl, "GET", otherToken, laterContext, "foreign-page GET at later head");
+    for (const [url, method] of [
+      [root, "GET"],
+      [pageUrl, "HEAD"],
+    ] as const) {
+      const response = await exchange(url, method, undefined);
+      expect(response.status).toBe(401);
+      expect(response.headers["www-authenticate"]).toBe(
+        'Bearer realm="bdp-transaction-development"',
+      );
+      for (const name of names) expect(response.headers[name]).toBeNull();
+      if (method === "GET")
+        expect(checkedProblem(record(JSON.parse(response.text)))).toMatchObject({
+          code: "unauthenticated",
+          status: 401,
+        });
+      else {
+        expect(response.text).toBe("");
+        expect(response.bytes).toBe(0);
+      }
+    }
+    expect(attempted).toBe(13);
+    expect(observations).toHaveLength(13);
+    expect(tupleChecks).toBe(8);
+    controller.signal.throwIfAborted();
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    controller.abort();
+    const callbacks = cleanup.splice(cleanupBoundary).reverse();
+    registeredCleanup = callbacks.length;
+    for (const close of callbacks) {
+      try {
+        await close();
+        completedCleanup++;
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    clearTimeout(deadline);
+    if (deadlineExceeded && !failures.includes(deadlineReason)) failures.push(deadlineReason);
+    console.log(
+      JSON.stringify({
+        observation: "source-receipt-missing-context",
+        attempted,
+        responses: observations,
+        tupleChecks,
+        registeredCleanup,
+        completedCleanup,
+        deadlineExceeded,
+        primaryOrCleanupFailureCount: failures.length,
+        retention:
+          "status, selected safe headers and body lengths; full Problem/receipt/page values asserted in memory",
+      }),
+    );
+  }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, "receipt context observation and cleanup failed");
+}, 60000);
