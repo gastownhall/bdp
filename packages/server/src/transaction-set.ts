@@ -4,7 +4,7 @@ import {
   prepareReadUpdateSingleton,
   type LosslessJsonValue,
 } from "@bdp/protocol";
-import { ReadSelectorError, selectReadResources } from "./read-selector.js";
+import { ReadSelectorError, analyzeSelectorGrammar } from "./read-selector.js";
 
 export class TransactionDevelopmentLimitError extends Error {}
 export type TransactionSetOperation = "updateWhere" | "deleteWhere";
@@ -81,7 +81,6 @@ export function prepareSetShape(
     Object.keys(input).some((key) => !fields.includes(key)) ||
     (input.collection !== "beads" && input.collection !== "links") ||
     typeof input.selector !== "string" ||
-    !input.selector ||
     (operation === "updateWhere" && input.change === undefined)
   )
     throw new TypeError("invalid private set shape");
@@ -129,16 +128,46 @@ export function prepareSetShape(
   );
   return Object.freeze({ operation, input });
 }
-/** Candidate-independent supported-subset check, after all carrier shape checks. */
-export function validateSetSelector(prepared: PreparedTransactionSet): void {
+export class TransactionSelectorSyntaxError extends Error {
+  constructor(
+    readonly pointer: string,
+    cause: ReadSelectorError,
+  ) {
+    super("invalid bounded Selector grammar", { cause });
+  }
+}
+export type TransactionSelectorLimit = "selector.bytes" | "selector.depth" | "selector.nodes";
+const selectorSummaries = new WeakMap<
+  PreparedTransactionSet,
+  Readonly<{ bytes: number; depth: number; nodes: number }>
+>();
+/** Complete grammar only, after every carrier shape/reference/label check. */
+export function validateSetSelector(
+  prepared: PreparedTransactionSet,
+  pointer: string,
+  enclosingBytes: number,
+): void {
   try {
-    selectReadResources(prepared.input.selector as string, TRANSACTION_SELECTOR_LIMITS, []);
+    selectorSummaries.set(
+      prepared,
+      analyzeSelectorGrammar(prepared.input.selector as string, enclosingBytes),
+    );
   } catch (error) {
-    if (error instanceof ReadSelectorError)
-      throw new TransactionDevelopmentLimitError(
-        "set Selector refusal/admission policy remains outside the valid-set core",
-        { cause: error },
-      );
+    if (
+      error instanceof ReadSelectorError &&
+      (error.code === "syntax" || error.code === "unsupported-feature")
+    )
+      throw new TransactionSelectorSyntaxError(pointer, error);
     throw error;
   }
+}
+/** Only the fresh-key owner branch consults immutable preparation metrics. */
+export function transactionSelectorCapacity(
+  prepared: PreparedTransactionSet,
+): TransactionSelectorLimit | undefined {
+  const summary = selectorSummaries.get(prepared);
+  if (!summary) throw new Error("prepared set lost Selector grammar analysis");
+  for (const field of ["bytes", "depth", "nodes"] as const)
+    if (summary[field] > TRANSACTION_SELECTOR_LIMITS[field]) return `selector.${field}`;
+  return undefined;
 }

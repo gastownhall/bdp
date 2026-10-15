@@ -1062,7 +1062,9 @@ value is a binding positive integer or ISO 8601 duration:
 - `resource.representationBytes` and `resource.propertiesBytes` count UTF-8
   bytes in the corresponding JSON serialization; metadata is covered by the
   complete representation bound, not by the properties-only bound;
-- `selector.bytes` counts UTF-8 bytes after percent-decoding, while
+- `selector.bytes` counts UTF-8 bytes of the decoded Selector string: after
+  percent-decoding for query parameters, or JSON string decoding for a
+  Selector in a request body, without additional URL decoding;
   `selector.depth` and `selector.nodes` count parsed Selector structure;
 - `retention.maximumSnapshotLifetime` bounds the lifetime of a pagination
   continuation when advertised.
@@ -4253,6 +4255,18 @@ The inherited patch limits apply to each member update of a set update.
 It leaves `metadata` unchanged. To change metadata, use the Resource update
 operations, including `UpdateBead` or `UpdateLink` operations in a batch.
 
+Embedded Selectors MUST conform to the complete bounded Selector grammar before
+key lookup. Invalid body Selector grammar is `400` `malformed-request` with a
+`pointer` to the original Selector member. Read query Selectors retain their
+`400` `invalid-parameter` behavior. Fixed Selector source-byte, depth and node
+capacity is an admission control for an unknown key, not a retained execution
+failure. Existing equal outcomes and conflicting keys take precedence over
+those capacity checks. A fresh over-limit request is `413` `limit-exceeded`
+before execution, without a receipt or key binding. The body diagnostic names
+the member with `pointer` and the bound with `limit` (`selector.bytes`,
+`selector.depth` or `selector.nodes`); this does not require those fields on
+Read query capacity responses. JSON-body Selector strings are not URL-decoded.
+
 Selection and mutation occur atomically at one serialization point. The
 Selector is evaluated when its operation is reached, so it observes the
 effects of preceding operations in the same Mutation Transaction. A
@@ -4508,7 +4522,10 @@ and a request that fails one step never reaches the next:
    `batchRequest`, a forward, unknown, or duplicate label, a label used
    where the other Resource kind is required, a noncanonical local ID
    spelling, or a supplied `id` beneath the wrong fixed root is `400`
-   `malformed-request`, whose problem SHOULD carry `pointer`, an RFC 6901
+   `malformed-request`. Invalid complete grammar of an embedded Selector is
+   also `400` `malformed-request` before key lookup. Its problem carries the
+   original Selector member's `pointer`; other syntax problems SHOULD carry
+   `pointer`, an RFC 6901
    JSON Pointer into the request body naming the offending member;
 3. the principal — an unauthenticated request is `401` `unauthenticated`,
    and a principal that may not submit mutations to the Scope is `403`
@@ -4523,7 +4540,11 @@ and a request that fails one step never reaches the next:
    evaluated for that duplicate. An unresolved reservation uses that
    section's bounded comparison and same-epoch retraction rules; unproven
    equality never returns a receipt or admits a second execution;
-5. admission controls for an unknown key — an `operations` count above
+5. admission controls for an unknown key — fixed embedded Selector source-byte,
+   depth or node capacity is checked before execution and response-media
+   negotiation. An excess is `413` `limit-exceeded`, with the original member
+   `pointer` and dotted Selector `limit`, without a receipt or key binding.
+   An `operations` count above
    `transaction.operations` is `413` `limit-exceeded` with `limit`
    `transaction.operations`, a rate limit is `429` `rate-limited`, and an
    authority that cannot admit is `503` `temporarily-unavailable`; and

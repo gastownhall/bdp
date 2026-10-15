@@ -6,12 +6,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseTypeDescriptor } from "@bdp/protocol";
 import { openTransactionStore } from "./transaction-store.js";
 import { prepareTransaction, prepareTransactionSequence } from "./transaction-batch.js";
+import * as setCore from "./transaction-set.js";
 import { submitTransaction, type TransactionSubmission } from "./transaction-submission.js";
 const scope = "https://example.test/submission/",
   bead = "https://example.test/bead",
   link = "https://example.test/link";
 const cleanup: (() => void)[] = [];
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const close of cleanup.splice(0).reverse()) close();
 });
 function fixture(extra: Partial<Parameters<typeof openTransactionStore>[0]> = {}) {
@@ -135,14 +137,19 @@ describe("private direct Transactional receiving order", () => {
     expect(claim.receipt.status).toBe("pending");
     f.store.retract(claim);
   });
-  it("keeps unsupported Selectors and excessive private depth distinct from protocol malformed", async () => {
+  it("keeps invalid Selector grammar distinct from excessive private depth", async () => {
     const f = fixture();
     expect(
       await submitTransaction(
         f.store,
         submission([{ operation: "deleteWhere", collection: "beads", selector: "$..*" }]),
       ),
-    ).toMatchObject({ kind: "development-limit" });
+    ).toMatchObject({
+      kind: "refused",
+      status: 400,
+      code: "malformed-request",
+      pointer: "/operations/0/selector",
+    });
     let deep: unknown = 1;
     for (let i = 0; i < 40; i++) deep = { deep };
     expect(
@@ -541,7 +548,7 @@ describe("private direct Transactional receiving order", () => {
 describe("valid private set admission", () => {
   const set = { operation: "deleteWhere", collection: "beads", selector: "$[?@.id]" };
   it.each(["batch", "singleton"] as const)(
-    "checks complete shape/key and principal before %s Selector gap",
+    "checks complete %s Selector grammar before principal while preserving key reuse",
     async (carrier) => {
       const f = fixture();
       const request = (key: string): TransactionSubmission => ({
@@ -560,13 +567,20 @@ describe("valid private set admission", () => {
       ] as const) {
         const before = f.store.inspect();
         const key = `${carrier}_${code}`;
-        expect(await submitTransaction(f.store, { ...request(key), authorization })).toMatchObject({
-          kind: "refused",
-          code,
-        });
+        expect(
+          await submitTransaction(f.store, {
+            ...request(key),
+            body: request(key).body.replace("$..*", selectorBodyBytes(4097)),
+            authorization,
+          }),
+        ).toMatchObject({ kind: "refused", code });
         expect(
           await submitTransaction(f.store, { ...request("bad key"), authorization }),
-        ).toMatchObject({ kind: "refused", code: "malformed-request" });
+        ).toMatchObject({
+          kind: "refused",
+          code: "malformed-request",
+          pointer: carrier === "batch" ? "/operations/0/selector" : "/selector",
+        });
         expect(f.store.inspect()).toEqual(before);
         expect(await submitTransaction(f.store, submission([create(key)], key))).toMatchObject({
           kind: "receipt",
@@ -574,7 +588,10 @@ describe("valid private set admission", () => {
         });
       }
       expect(await submitTransaction(f.store, request("supported_auth"))).toMatchObject({
-        kind: "development-limit",
+        kind: "refused",
+        status: 400,
+        code: "malformed-request",
+        pointer: carrier === "batch" ? "/operations/0/selector" : "/selector",
       });
       expect(
         await submitTransaction(f.store, submission([create("after_gap")], "supported_auth")),
@@ -1280,4 +1297,243 @@ describe("observed comparison deadline submission", () => {
     expect(supplied, "untyped callback excluded").not.toHaveBeenCalled();
     expect(f.store.cancelSequence(attempt)).toBe(2);
   });
+});
+
+const selectorBodyBytes = (n: number) => `$[?@.missing${" ".repeat(n - 13)}]`;
+const selectorBodyDepth = (groups: number) =>
+  `$[?${"(".repeat(groups)}@.missing${")".repeat(groups)}]`;
+const selectorBodyNodes = (groups: number) => {
+  let value = "@.missing";
+  for (let level = 0; level < 6; level++) value = `(${value}||${value})`;
+  return `$[?${"(".repeat(groups)}${value}${")".repeat(groups)}]`;
+};
+const deletion = (selector = "$[?@.missing]") => ({
+  operation: "deleteWhere",
+  collection: "beads",
+  selector,
+});
+it("refuses invalid Selector grammar before every key state without owner admission", async () => {
+  const f = fixture();
+  const completed = await submitTransaction(f.store, submission([create()], "completed"));
+  const pending = own(f.store, submission([create("pending")], "pending"));
+  const before = f.store.inspect();
+  const store = f.store;
+  const admit = vi.fn((...args: Parameters<typeof store.admit>) => store.admit(...args));
+  const boundary = {
+    ...store,
+    admit: ((...args: Parameters<typeof store.admit>) => admit(...args)) as typeof store.admit,
+  };
+  for (const operation of ["updateWhere", "deleteWhere"] as const)
+    for (const carrier of ["singleton", "batch"] as const)
+      for (const key of ["fresh", "pending", "completed"]) {
+        const input = {
+          collection: "beads",
+          selector: "$..*",
+          ...(operation === "updateWhere" ? { change: [{ op: "add", path: "/n", value: 1 }] } : {}),
+        };
+        const request: TransactionSubmission = {
+          ...submission([], key),
+          carrier: carrier === "batch" ? { kind: "batch" } : { kind: "singleton", operation },
+          body: JSON.stringify(
+            carrier === "batch"
+              ? { operations: [create("prefix"), { operation, ...input }] }
+              : input,
+          ),
+        };
+        expect(await submitTransaction(boundary, request)).toEqual({
+          kind: "refused",
+          status: 400,
+          code: "malformed-request",
+          pointer: carrier === "batch" ? "/operations/1/selector" : "/selector",
+        });
+      }
+  for (const authorization of [{ kind: "unauthenticated" }, { kind: "forbidden" }] as const)
+    expect(
+      await submitTransaction(boundary, {
+        ...submission([deletion("$..*")], "bad key"),
+        authorization,
+      }),
+    ).toEqual({
+      kind: "refused",
+      status: 400,
+      code: "malformed-request",
+      pointer: "/operations/0/selector",
+    });
+  expect(
+    await submitTransaction(
+      boundary,
+      submission([deletion(selectorBodyBytes(4097)), deletion("$..*")]),
+    ),
+  ).toMatchObject({ status: 400, pointer: "/operations/1/selector" });
+  expect(
+    await submitTransaction(
+      boundary,
+      submission([deletion(selectorBodyBytes(4097)), { ...deletion(), cardinality: {} }]),
+    ),
+  ).toEqual({ kind: "refused", status: 400, code: "malformed-request" });
+  expect(admit).not.toHaveBeenCalled();
+  expect(f.store.inspect()).toEqual(before);
+  if (completed.kind !== "receipt") throw Error("expected completed seed");
+  expect(f.store.receipt("p", completed.receipt.id)).toEqual(completed.receipt);
+  expect(f.store.receipt("p", pending.receipt.id)).toEqual(pending.receipt);
+  f.store.retract(pending);
+});
+it("applies fixed Selector capacity only to fresh valid carriers before execution and negotiation", async () => {
+  let admissions = 0;
+  const f = fixture({
+    fault(stage) {
+      if (stage === "after-admission") admissions++;
+    },
+  });
+  const before = f.store.inspect();
+  const trusted = f.store.withRead((_reader, context) => context);
+  if (trusted.kind !== "read") throw Error("expected owner observation");
+  let accepted = 0;
+  for (const [selector, limit] of [
+    [selectorBodyBytes(4097), "selector.bytes"],
+    [selectorBodyDepth(31), "selector.depth"],
+    [selectorBodyNodes(3), "selector.nodes"],
+  ] as const) {
+    const request = submission([deletion(selector)], limit.replace(".", "_"));
+    const refused = await submitTransaction(f.store, request, {}, true);
+    expect(refused).toEqual({
+      kind: "refused",
+      status: 413,
+      code: "limit-exceeded",
+      limit,
+      pointer: "/operations/0/selector",
+      context: trusted.value,
+    });
+    expect(admissions).toBe(accepted);
+    expect(f.store.inspect()).toEqual(before);
+    expect(
+      await submitTransaction(f.store, { ...request, body: submission([deletion()]).body }),
+    ).toMatchObject({
+      kind: "receipt",
+      receipt: {
+        status: "completed",
+        requiredPosition: "pos-0",
+        results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+        next: null,
+      },
+    });
+    accepted++;
+  }
+  expect(
+    await submitTransaction(f.store, {
+      ...submission([deletion(selectorBodyBytes(4097)), deletion()], "outer"),
+      receiving: { acceptsJson: false, maximumOperations: 1 },
+    }),
+  ).toEqual({
+    kind: "refused",
+    status: 413,
+    code: "limit-exceeded",
+    limit: "transaction.operations",
+  });
+  expect(
+    await submitTransaction(
+      f.store,
+      submission(
+        [{ operation: "deleteBead", bead: "beads/missing" }, deletion(selectorBodyNodes(3))],
+        "later",
+      ),
+    ),
+  ).toMatchObject({ status: 413, limit: "selector.nodes", pointer: "/operations/1/selector" });
+  for (const [authorization, status] of [
+    [{ kind: "unauthenticated" }, 401],
+    [{ kind: "forbidden" }, 403],
+  ] as const)
+    expect(
+      await submitTransaction(f.store, {
+        ...submission([deletion(selectorBodyBytes(4097))]),
+        authorization,
+      }),
+    ).toMatchObject({ kind: "refused", status });
+  expect(
+    await submitTransaction(f.store, submission([deletion(selectorBodyBytes(4097))], "bad key")),
+  ).toMatchObject({ status: 400 });
+  expect(
+    await submitTransaction(f.store, {
+      ...submission([deletion(selectorBodyBytes(4097))], "accept"),
+      receiving: { acceptsJson: false, maximumOperations: 32 },
+    }),
+  ).toMatchObject({ status: 413, limit: "selector.bytes" });
+  expect(
+    await submitTransaction(f.store, {
+      ...submission([deletion()], "accept"),
+      receiving: { acceptsJson: false, maximumOperations: 32 },
+    }),
+  ).toEqual({ kind: "not-acceptable" });
+  expect(await submitTransaction(f.store, submission([deletion()], "accept"))).toMatchObject({
+    kind: "receipt",
+    receipt: {
+      status: "completed",
+      requiredPosition: "pos-0",
+      results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+      next: null,
+    },
+  });
+  accepted++;
+  expect(
+    await submitTransaction(f.store, submission([deletion(selectorBodyDepth(10000))], "deep")),
+  ).toMatchObject({ status: 413, limit: "selector.bytes" });
+  for (const key of ["outer", "later", "deep", "key"]) {
+    expect(await submitTransaction(f.store, submission([deletion()], key))).toMatchObject({
+      kind: "receipt",
+      receipt: {
+        status: "completed",
+        requiredPosition: "pos-0",
+        results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+        next: null,
+      },
+    });
+    accepted++;
+  }
+  expect(admissions).toBe(accepted);
+  expect(f.store.inspect()).toEqual(before);
+});
+it("preserves genuine pending completed and failed receipts before Selector capacity", async () => {
+  const f = fixture();
+  const request = submission([deletion()], "pending");
+  const claim = own(f.store, request);
+  const failedRequest = submission([{ operation: "deleteBead", bead: "beads/missing" }], "failed");
+  const failed = await submitTransaction(f.store, failedRequest);
+  expect(failed).toMatchObject({ kind: "receipt", receipt: { status: "failed" } });
+  const capacity = vi.spyOn(setCore, "transactionSelectorCapacity");
+  const before = f.store.inspect();
+  expect(await submitTransaction(f.store, request)).toEqual({
+    kind: "receipt",
+    receipt: claim.receipt,
+  });
+  expect(
+    await submitTransaction(f.store, submission([deletion(selectorBodyBytes(4097))], "pending")),
+  ).toEqual({ kind: "refused", status: 409, code: "idempotency-conflict" });
+  const completed = f.store.execute(claim);
+  expect(await submitTransaction(f.store, request)).toEqual({
+    kind: "receipt",
+    receipt: completed,
+  });
+  expect(await submitTransaction(f.store, failedRequest)).toEqual(failed);
+  expect(
+    await submitTransaction(f.store, submission([deletion(selectorBodyBytes(4097))], "failed")),
+  ).toMatchObject({ status: 409 });
+  expect(
+    await submitTransaction(f.store, {
+      ...request,
+      receiving: { acceptsJson: false, maximumOperations: 32 },
+    }),
+  ).toEqual({ kind: "not-acceptable" });
+  expect(capacity).not.toHaveBeenCalled();
+  expect(f.store.inspect()).toEqual(before);
+  expect(await submitTransaction(f.store, submission([deletion()], "fresh"))).toMatchObject({
+    kind: "receipt",
+    receipt: {
+      status: "completed",
+      requiredPosition: "pos-0",
+      results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+      next: null,
+    },
+  });
+  expect(capacity).toHaveBeenCalledTimes(1);
+  expect(f.store.inspect()).toEqual(before);
 });

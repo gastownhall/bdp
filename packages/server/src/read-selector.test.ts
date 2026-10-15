@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ReadSelectorError,
+  analyzeSelectorGrammar,
   type ReadSelectorErrorCode,
   selectReadResources,
 } from "./read-selector.js";
@@ -444,4 +445,66 @@ describe("Read Selector", () => {
       selectReadResources(new String("$[?@.id]") as unknown as string, LIMITS, []),
     ).toThrow(TypeError);
   });
+});
+
+const selectorBytes = (n: number) => `$[?@.missing${" ".repeat(n - 13)}]`;
+const selectorDepth = (groups: number) => `$[?${"(".repeat(groups)}@.missing${")".repeat(groups)}]`;
+const selectorNodes = (groups: number) => {
+  let expression = "@.missing";
+  for (let level = 0; level < 6; level++) expression = `(${expression}||${expression})`;
+  return `$[?${"(".repeat(groups)}${expression}${")".repeat(groups)}]`;
+};
+it("analyzes complete Selector grammar with exact uncapped structural metrics", () => {
+  for (const [source, expected] of [
+    [selectorBytes(4096), { bytes: 4096, depth: 2, nodes: 2 }],
+    [selectorBytes(4097), { bytes: 4097, depth: 2, nodes: 2 }],
+    [selectorDepth(30), { bytes: 73, depth: 32, nodes: 32 }],
+    [selectorDepth(31), { bytes: 75, depth: 33, nodes: 33 }],
+    [selectorNodes(2), { bytes: 836, depth: 16, nodes: 256 }],
+    [selectorNodes(3), { bytes: 838, depth: 17, nodes: 257 }],
+  ] as const) {
+    const summary = analyzeSelectorGrammar(source, 65536);
+    expect(summary).toEqual(expected);
+    expect(Object.isFrozen(summary)).toBe(true);
+    expect(Object.keys(summary)).toEqual(["bytes", "depth", "nodes"]);
+  }
+});
+it("does not hide invalid Selector suffixes behind operational capacity", () => {
+  for (const source of [selectorBytes(4097), selectorDepth(31), selectorNodes(3)]) {
+    expect(() => analyzeSelectorGrammar(`${source} true`, 65536)).toThrow(ReadSelectorError);
+  }
+  expect(() => analyzeSelectorGrammar("$..*", 65536)).toThrow(ReadSelectorError);
+  expect(() =>
+    selectReadResources(`${selectorBytes(4097)} true`, { bytes: 4096, depth: 32, nodes: 256 }, []),
+  ).toThrow(expect.objectContaining({ code: "source-bytes-limit-exceeded" }));
+  expect(() => analyzeSelectorGrammar(selectorBytes(4097), 4096)).toThrow(RangeError);
+});
+it("analyzes body-bounded deep Selectors without recursive traversal", () => {
+  const source = selectorDepth(10000);
+  expect(analyzeSelectorGrammar(source, 65536)).toEqual({
+    bytes: 20013,
+    depth: 10002,
+    nodes: 10002,
+  });
+  expect(() => analyzeSelectorGrammar(`${source} true`, 65536)).toThrow(ReadSelectorError);
+});
+it("counts decoded Selector UTF-8 without URI decoding or identity rewriting", () => {
+  const scalars = '$[?@.missing == "é😀"]';
+  expect(Buffer.byteLength(scalars, "utf8")).toBe(25);
+  const boundary = `${scalars.slice(0, -1)}${" ".repeat(4096 - 25)}]`;
+  const beyond = `${boundary.slice(0, -1)} ]`;
+  expect(Buffer.byteLength(boundary, "utf8")).toBe(4096);
+  expect(Buffer.byteLength(beyond, "utf8")).toBe(4097);
+  expect(analyzeSelectorGrammar(boundary, 65536).bytes).toBe(4096);
+  expect(analyzeSelectorGrammar(beyond, 65536).bytes).toBe(4097);
+  const unicode = '$[?@.missing == "é"]';
+  const escaped = String.raw`$[?@.missing == "\u00e9"]`;
+  expect(analyzeSelectorGrammar(unicode, 65536).bytes).toBe(21);
+  expect(analyzeSelectorGrammar(escaped, 65536).bytes).toBe(25);
+  const decoded = JSON.parse(JSON.stringify(unicode).replace("é", String.raw`\u00e9`)) as string;
+  expect(decoded).toBe(unicode);
+  expect(analyzeSelectorGrammar(decoded, 65536)).toEqual(analyzeSelectorGrammar(unicode, 65536));
+  const percent = '$[?@.missing == "%41"]';
+  expect(analyzeSelectorGrammar(percent, 65536).bytes).toBe(22);
+  expect(() => analyzeSelectorGrammar("%24[?@.missing]", 65536)).toThrow(ReadSelectorError);
 });

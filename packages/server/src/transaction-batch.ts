@@ -1,4 +1,4 @@
-/** Private Transactional evaluator. Valid bounded sets share singleton/batch admission; negative Selector policy remains private. */
+/** Private Transactional evaluator. Bounded sets share singleton/batch syntax and admission. */
 import {
   prepareSetShape,
   assertTransactionInputDepth,
@@ -121,8 +121,7 @@ function prepareResourceBatch(scope: string, text: string): PreparedTransaction 
   });
   return prepareCarrier(prepareReadUpdateSequence(scope, losslessText({ operations })));
 }
-/** One mixed carrier syntax path. Unsupported Selector categories remain a
- * private pre-admission gap, never an inferred protocol failure law. */
+/** One mixed carrier syntax path with complete bounded Selector grammar. */
 export function prepareTransaction(scope: string, text: string): PreparedTransaction {
   return prepareTransactionSetCore(scope, text);
 }
@@ -166,9 +165,14 @@ function prepareMixedTransaction(
   });
   // Synthetic syntax parsers do not impose the execution depth bound. Finish
   // every unambiguous shape/reference/label check before any private gap.
+  for (const [index, op] of operations.entries())
+    if (op.operation === "updateWhere" || op.operation === "deleteWhere")
+      validateSetSelector(
+        op,
+        singleton ? "/selector" : `/operations/${index}/selector`,
+        TRANSACTION_RUNTIME_LIMITS.requestBodyBytes,
+      );
   assertTransactionInputDepth(root);
-  for (const op of operations)
-    if (op.operation === "updateWhere" || op.operation === "deleteWhere") validateSetSelector(op);
   return prepareCarrier(
     Object.freeze({
       scope: canonicalScope,

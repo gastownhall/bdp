@@ -22,6 +22,7 @@ ajv.addSchema(schema);
 const validateTransactionalProblem = ajv.compile({
   $ref: `${schema.$id}#/$defs/transactionalProblem`,
 });
+const validateSelectorReceipt = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceipt` });
 const validateSequence = ajv.compile({
   $ref: `${schema.$id}#/$defs/transactionalSequenceResponse`,
 });
@@ -585,7 +586,7 @@ describe("source-private actual Transactional HTTP", () => {
     expect(after.status).toBe(307);
     expect(after.headers.get("location")).toBe(`${f.runtime.scope}beads/other`);
   });
-  it("refuses unsupported set and depth compositions without key capture or partial effects", async () => {
+  it("rejects invalid set Selector grammar and preserves private depth refusal without key capture or partial effects", async () => {
     const f = await fixture();
     const set = await f.post(
       batch([
@@ -598,10 +599,14 @@ describe("source-private actual Transactional HTTP", () => {
       ]),
       "set",
     );
-    expect(set.status).toBe(500);
-    expect(set.headers.get("x-bdp-development-limit")).toBe("unsupported-transaction-composition");
+    expect(set.status).toBe(400);
+    expect(set.headers.has("x-bdp-development-limit")).toBe(false);
     expect((await f.post(batch([create()]), "set")).status).toBe(200);
-    expect(await set.text()).toBe("");
+    expect(checkedProblem(await body(set))).toMatchObject({
+      status: 400,
+      code: "malformed-request",
+      pointer: "/operations/0/selector",
+    });
     let nested: unknown = "leaf";
     for (let depth = 0; depth < 40; depth++) nested = { nested };
     const depth = await f.post(batch([{ ...create("c"), properties: { nested } }]), "deep");
@@ -2234,7 +2239,9 @@ it("serves both set targets with method/auth/shape precedence and no unsupported
         [`Bearer ${readToken}`, 403],
       ] as const) {
         const key = `${target}_${carrier}_${status}`;
-        const response = await f.post(text, key, carrier, { authorization });
+        const response = await f.post(text.replace("$..*", selectorHttpBytes(4097)), key, carrier, {
+          authorization,
+        });
         expect(response.status).toBe(status);
         expect(response.headers.has("x-bdp-development-limit")).toBe(false);
         expect(await f.receiptRows(key)).toEqual([]);
@@ -2242,12 +2249,16 @@ it("serves both set targets with method/auth/shape precedence and no unsupported
         expect((await f.post(batch([create(key)]), key)).status).toBe(200);
       }
       const gapKey = `${target}_${carrier}_gap`;
-      const gap = await f.post(text, gapKey, carrier);
-      expect(gap.status).toBe(500);
-      expect(gap.headers.get("x-bdp-development-limit")).toBe(
-        "unsupported-transaction-composition",
-      );
-      expect(await gap.text()).toBe("");
+      const gap = await f.post(text, gapKey, carrier, {
+        authorization: target === "updateWhere" ? "" : `Bearer ${readToken}`,
+      });
+      expect(gap.status).toBe(400);
+      expect(gap.headers.has("x-bdp-development-limit")).toBe(false);
+      expect(checkedProblem(await body(gap))).toMatchObject({
+        status: 400,
+        code: "malformed-request",
+        pointer: carrier === "batch" ? "/operations/0/selector" : "/selector",
+      });
       expect(await f.receiptRows(gapKey)).toEqual([]);
     }
     const malformed = await f.post(
@@ -3576,4 +3587,225 @@ it("reuses refused sequence member keys for different identities without extra r
     { principal: "p", key: "negotiation", receipt: c },
     { principal: "p", key: "over-0", receipt: d },
   ]);
+});
+
+function selectorHttpBytes(n: number) {
+  return `$[?@.missing${" ".repeat(n - 13)}]`;
+}
+function selectorHttpDepth(groups: number) {
+  return `$[?${"(".repeat(groups)}@.missing${")".repeat(groups)}]`;
+}
+function selectorHttpNodes(groups: number) {
+  let expression = "@.missing";
+  for (let level = 0; level < 6; level++) expression = `(${expression}||${expression})`;
+  return `$[?${"(".repeat(groups)}${expression}${")".repeat(groups)}]`;
+}
+const selectorHttpInput = (operation: "updateWhere" | "deleteWhere", selector: string) => ({
+  collection: "beads",
+  selector,
+  ...(operation === "updateWhere" ? { change: [{ op: "add", path: "/x", value: 1 }] } : {}),
+});
+async function selectorHttpProblem(
+  response: Response,
+  status: 400 | 413,
+  pointer: string,
+  limit?: string,
+) {
+  expect(
+    response.status,
+    JSON.stringify({
+      oracle: "Selector receiving status",
+      status: response.status,
+      developmentLimit: response.headers.get("x-bdp-development-limit"),
+      contentLength: response.headers.get("content-length"),
+    }),
+  ).toBe(status);
+  expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+  expect(response.headers.get("content-type")).toBe("application/problem+json");
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  expect(response.headers.has("location")).toBe(false);
+  expect(response.headers.has("retry-after")).toBe(false);
+  expect(checkedProblem(await body(response))).toEqual({
+    type: `https://github.com/gastownhall/bdp/problems/${status === 400 ? "request" : "size"}`,
+    status,
+    code: status === 400 ? "malformed-request" : "limit-exceeded",
+    retry: "never",
+    pointer,
+    ...(limit ? { limit } : {}),
+  });
+  if (status === 400) expect(Object.values(context(response))).toEqual([null, null, null]);
+  else
+    for (const value of Object.values(context(response))) expect(value).toEqual(expect.any(String));
+}
+it("serves exact fixed Selector boundaries and leaves refused keys unused", async () => {
+  const f = await fixture();
+  const keys: string[] = [];
+  let observation: ReturnType<typeof context> | undefined;
+  for (const operation of ["deleteWhere", "updateWhere"] as const)
+    for (const carrier of [operation, "batch"] as const)
+      for (const [field, over, exact] of [
+        ["bytes", selectorHttpBytes(4097), selectorHttpBytes(4096)],
+        ["depth", selectorHttpDepth(31), selectorHttpDepth(30)],
+        ["nodes", selectorHttpNodes(3), selectorHttpNodes(2)],
+      ] as const) {
+        const key = `${operation}_${carrier}_${field}`;
+        const text = (selector: string) =>
+          JSON.stringify(
+            carrier === "batch"
+              ? { operations: [{ operation, ...selectorHttpInput(operation, selector) }] }
+              : selectorHttpInput(operation, selector),
+          );
+        const refusal = await f.post(text(over), key, carrier);
+        await selectorHttpProblem(
+          refusal,
+          413,
+          carrier === "batch" ? "/operations/0/selector" : "/selector",
+          `selector.${field}`,
+        );
+        observation ??= context(refusal);
+        expect(context(refusal)).toEqual(observation);
+        expect(observation["bdp-scope-position"]).toBe("pos-0");
+        for (const [selector, admittedKey] of [
+          ["$[?@.missing]", key],
+          [exact, `${key}_exact`],
+        ]) {
+          const response = await f.post(text(selector!), admittedKey!, carrier);
+          expect(response.status).toBe(200);
+          expect(context(response)).toEqual(observation);
+          const receipt = await body(response);
+          expect(
+            validateSelectorReceipt(receipt),
+            JSON.stringify(validateSelectorReceipt.errors),
+          ).toBe(true);
+          expect(receipt).toMatchObject({
+            idempotencyKey: admittedKey,
+            status: "completed",
+            detail: "available",
+            requiredPosition: "pos-0",
+            results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+            next: null,
+          });
+          expect(receipt).not.toHaveProperty("effectPosition");
+          expect(receipt.results).toEqual([{ operationIndex: 0, outcome: "matched", count: 0 }]);
+          keys.push(admittedKey!);
+        }
+      }
+  const retained = await f.retainedReceiptInventory();
+  expect(retained.map((row) => row.key)).toEqual(keys.sort());
+  expect(retained).toHaveLength(24);
+  for (const row of retained)
+    expect(row.receipt).toMatchObject({
+      status: "completed",
+      requiredPosition: "pos-0",
+      results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+    });
+});
+it("serves Selector syntax and prior-key precedence over capacity", async () => {
+  const f = await fixture();
+  const singleton = (selector: string) =>
+    JSON.stringify(selectorHttpInput("deleteWhere", selector));
+  const set = (selector: string) => ({
+    operation: "deleteWhere",
+    ...selectorHttpInput("deleteWhere", selector),
+  });
+  await selectorHttpProblem(
+    await f.post(singleton("$..*"), "syntax", "deleteWhere"),
+    400,
+    "/selector",
+  );
+  const seedResponse = await f.post(batch([create()]), "seed");
+  expect(seedResponse.status).toBe(200);
+  const seed = await body(seedResponse),
+    expectedContext = context(seedResponse);
+  expect(validateSelectorReceipt(seed), JSON.stringify(validateSelectorReceipt.errors)).toBe(true);
+  expect(seed).toMatchObject({
+    status: "completed",
+    requiredPosition: "pos-1",
+    effectPosition: "pos-1",
+  });
+  await selectorHttpProblem(
+    await f.post(singleton("$..*"), "seed", "deleteWhere"),
+    400,
+    "/selector",
+  );
+  const conflict = await f.post(singleton(selectorHttpBytes(4097)), "seed", "deleteWhere");
+  expect(conflict.status).toBe(409);
+  expect(checkedProblem(await body(conflict))).toEqual({
+    type: "https://github.com/gastownhall/bdp/problems/conflict",
+    code: "idempotency-conflict",
+    status: 409,
+    retry: "never",
+  });
+  expect(context(conflict)).toEqual(expectedContext);
+  const replay = await f.post(batch([create()]), "seed");
+  expect(replay.status).toBe(200);
+  expect(await body(replay)).toEqual(seed);
+  expect(context(replay)).toEqual(expectedContext);
+  const unacceptableReplay = await f.post(batch([create()]), "seed", "batch", {
+    accept: "text/plain",
+  });
+  expect(unacceptableReplay.status).toBe(406);
+  expect(await unacceptableReplay.text()).toBe("");
+  expect(context(unacceptableReplay)).toEqual(expectedContext);
+  await selectorHttpProblem(
+    await f.post(singleton(`${selectorHttpDepth(31)} true`), "syntax_depth", "deleteWhere"),
+    400,
+    "/selector",
+  );
+  await selectorHttpProblem(
+    await f.post(batch([set(`${selectorHttpNodes(3)} true`)]), "syntax_nodes"),
+    400,
+    "/operations/0/selector",
+  );
+  await selectorHttpProblem(
+    await f.post(batch([set(`${selectorHttpBytes(4097)} true`)]), "syntax_bytes"),
+    400,
+    "/operations/0/selector",
+  );
+  const anonymous = await f.post(singleton(selectorHttpBytes(4097)), "anonymous", "deleteWhere", {
+    authorization: "",
+  });
+  expect(anonymous.status).toBe(401);
+  expect(checkedProblem(await body(anonymous)).code).toBe("unauthenticated");
+  const forbidden = await f.post(singleton(selectorHttpBytes(4097)), "forbidden", "deleteWhere", {
+    authorization: `Bearer ${readToken}`,
+  });
+  expect(forbidden.status).toBe(403);
+  expect(checkedProblem(await body(forbidden)).code).toBe("forbidden");
+  const over = await f.post(singleton(selectorHttpBytes(4097)), "accept", "deleteWhere", {
+    accept: "text/plain",
+  });
+  await selectorHttpProblem(over, 413, "/selector", "selector.bytes");
+  expect(context(over)).toEqual(expectedContext);
+  const noMedia = await f.post(singleton("$[?@.missing]"), "accept", "deleteWhere", {
+    accept: "text/plain",
+  });
+  expect(noMedia.status).toBe(406);
+  expect(await noMedia.text()).toBe("");
+  expect(context(noMedia)).toEqual(expectedContext);
+  const reuse = await f.post(singleton("$[?@.missing]"), "accept", "deleteWhere");
+  expect(reuse.status).toBe(200);
+  expect(await body(reuse)).toMatchObject({
+    status: "completed",
+    requiredPosition: "pos-1",
+    results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+  });
+  expect(context(reuse)).toEqual(expectedContext);
+  const later = await f.post(
+    batch([{ operation: "deleteBead", bead: "beads/missing" }, set(selectorHttpNodes(3))]),
+    "later",
+  );
+  await selectorHttpProblem(later, 413, "/operations/1/selector", "selector.nodes");
+  expect(context(later)).toEqual(expectedContext);
+  const laterReuse = await f.post(singleton("$[?@.missing]"), "later", "deleteWhere");
+  expect(laterReuse.status).toBe(200);
+  expect(await body(laterReuse)).toMatchObject({
+    status: "completed",
+    requiredPosition: "pos-1",
+    results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+  });
+  expect(context(laterReuse)).toEqual(expectedContext);
+  const inventory = await f.retainedReceiptInventory();
+  expect(inventory.map((row) => row.key)).toEqual(["accept", "later", "seed"]);
+  expect(inventory.find((row) => row.key === "seed")?.receipt).toEqual(seed);
 });
