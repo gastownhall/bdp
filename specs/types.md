@@ -12,14 +12,20 @@ classification Types conforming to issue/dependency. Memory still contains older
 flat-Type assumptions and needs explicit reconciliation; this document does not
 silently reinterpret its endpoint lists. The earlier [Type lifecycle exploration](../docs/design/type-lifecycle-preview2.md)
 is background. Where it conflicts, this document records the current design
-position, including that representing definitions as Beads remains undecided.
+position: this Types profile represents definitions as Beads; Core does not
+require that representation.
 
 ## 1. Scope and responsibilities
 
 Core defines the common Resource envelope, references, revisions, ownership
 behavior and recognizable constraint errors. A Type reference is required even
 when a Scope does not implement the Types profile. Core may enforce native
-constraints without resolving a Type definition.
+constraints without resolving a Type definition. Core defines the Type reference's
+representation and handling without requiring that its target be a Bead. It does
+not prescribe a Type-description language or the conformance semantics of this
+profile. An alternative typing profile may define a different interpretation and
+description format while preserving Core's Resource and reference contracts.
+Advertising this Types profile, however, promises this profile's semantics.
 
 The optional Types profile applies Scope-wide. Advertising it promises that all
 Bead and Link affiliations follow its rules. It supplies definition and conformance
@@ -43,7 +49,10 @@ CLI terminology only where it clarifies a shared semantic requirement.
 A Type definition has a stable identity, an immutable revision, a properties
 schema, and semantic promises. It describes Bead or Link instances. Its schema
 applies to the instance's `properties`, not to the whole common Resource envelope.
-Exact definition syntax and the rules relating Bead and Link Types remain open.
+Within this profile, a Type definition is represented as a Bead. The instance's
+Type reference is interpreted as a Bead reference to that definition; its identity
+and revision identify the definition Bead and the selected Bead revision. The
+exact definition fields and bootstrap remain to specify.
 
 An instance saved under the Types profile pins its exact Type definition revision.
 Explicit floating Type input resolves before commit; an omitted Type on update
@@ -52,10 +61,11 @@ that reference as a whole, rather than merging its identity and revision members
 An explicit change of Type or Type revision must validate with the resulting
 properties and other applicable constraints, or the change fails atomically.
 
-Definitions are designed abstractly here. Whether Types or other reusable
-contracts are represented as Beads, and how their bootstrap works, is undecided.
-Earlier assumptions that Type identity/revision necessarily comes from a Bead
-wrapper are not requirements of this draft.
+Both Bead-Type and Link-Type definitions are represented as Beads. A Bead that
+describes a Link Type is itself a Bead; the Type it describes governs Link
+instances. This representation does not create conformance between the Bead-Type
+and Link-Type worlds. Choosing Beads for definitions does not yet settle the
+metatype, bootstrap, installation, publication or retention rules.
 
 The current direction uses Type-to-Type conformance for reusable structural and
 semantic promises. A separate Capability entity is not required by the rules
@@ -438,6 +448,9 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 
 | Case | Required interpretation |
 | --- | --- |
+| Core Scope uses a Type reference whose target is not a Bead | Not invalid merely for that reason; the applicable typing profile defines its interpretation |
+| Instance is stored under this Types profile | Its Type reference pins an exact revision of a Type-definition Bead |
+| A Bead represents a Link-Type definition | The definition is a Bead; its described instances are Links; no cross-kind conformance follows |
 | T conforms to C | Every valid T record satisfies C's structure and semantics |
 | C requires title; T omits title from its local schema | Effective T still requires title |
 | C permits optional note; T requires note | Valid narrowing, subject to inherited behavioral promises |
@@ -505,8 +518,8 @@ Conformance questions to work through next:
 
 Other Type-system work:
 
-- Definition representation, bootstrap, IDs and revision availability; whether
-  definitions are Beads; installation, removal, packaging and retention.
+- Definition Bead fields, metatype/bootstrap, IDs and revision availability;
+  installation, removal, packaging and retention.
 - Endpoint OR-list wire syntax, inherited conjunction and warning details. Explicit
   AND/NOT/exact-only selectors remain deferred; unresolved does not mean nonmember.
 - Arity syntax, constraint identity and changing

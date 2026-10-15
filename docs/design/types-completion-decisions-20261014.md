@@ -10,9 +10,12 @@ not edited by this pass.
 
 - Optional Types support is a Scope-wide promise. Core references, ownership,
   revision semantics and recognizable constraint failures do not require Types.
-- Definitions have immutable exact revisions. Whether definitions are Beads is
-  undecided. Type-to-Type conformance now carries reusable structural and semantic
-  promises; there is no separately required Capability entity.
+- Core does not require a Type reference to target a Bead or prescribe the Type
+  description language. This Types profile interprets it as a reference to a
+  Type-definition Bead, with an exact revision pinned in stored instances. Both
+  Bead-Type and Link-Type definitions are Beads; their instance worlds stay separate.
+- Definitions have immutable exact revisions. Type-to-Type conformance carries
+  reusable structural and semantic promises; no separate Capability entity is required.
 - Bead Types and Link Types are non-intersecting; conformance is only within each
   kind. Identical or reused property schemas do not create cross-kind membership.
 - Every inherited schema and semantic promise applies. Direct declarations pin
@@ -51,7 +54,7 @@ not edited by this pass.
 | T03 — resolved | Positive minimums belong on Bead Types; both kinds may declare maximums | Assignment eligibility does not oblige an ordinary Issue; AssignedIssue can require one | Same-set effective maximum is the smallest maximum; minimum is the largest minimum. Different counted sets remain independent. Declaration syntax is part of T01 |
 | T04 | How do nominal and conformance selectors match exact and floating definitions? | Query issue includes task/bug by conformance; an exact historical contract must retain meaning | Define matching independently from presentation aliases, revision age and compatibility claims |
 | T05 | How are endpoint pins and unavailable definitions checked? | MemorySupports cites an old revision; Dependency schedules against current Issue state | Define local/current/historical/remote admission and revalidation, without treating unknown as false |
-| T06 | What is the definition representation and bootstrap? | issue/task and dependency/blocks need exact definitions; definitions may or may not be Beads | Specify fields, identities, finite bootstrap, retrieval and pinned closure availability |
+| T06 — representation selected | What are the definition Bead fields and bootstrap? | Both kinds of Type definitions are Beads under this profile; Core leaves the target kind unspecified | Specify fields, metatype, identities, finite bootstrap, retrieval and pinned closure availability |
 | T07 | What are lifecycle and migration operations? | Install a task definition; retype task to bug; remove a still-referenced parent definition | Distinguish publication, availability, acceptance for use, affiliation changes, retention and removal |
 | T08 | What does compatibility promise, and who checks it? | Adding mandatory approvalCode breaks replacement; cents/dollars changes meaning despite identical shapes | Define read/data/write/semantic guarantees and any SemVer/claim mechanism without relying on schema inclusion alone |
 | T09 | What happens to computed and operational fields? | heartbeat_at, lease expiry and is_blocked do not all behave like ordinary authored content | Separate storage, write authority, observation and revision identity; decide schema/view placement before claiming immutable complete records |
@@ -59,9 +62,9 @@ not edited by this pass.
 | T11 | What does replacement mean when reads include generated/nonwritable fields? | Preview Issue --replace-properties replaces only eleven writable fields; the shared draft requires complete properties replacement | Select the read/write boundary or explicit compatibility migration; do not falsely claim the current command implements the new rule |
 
 These are questions, not a requirement for eleven separate new mechanisms. Use the
-smallest contract that answers the concrete cases. For example, the definition
-representation may use ordinary Beads and existing operations if that satisfies
-bootstrap and retention; no installation API has been selected yet.
+smallest contract that answers the concrete cases. Definition representation now
+uses Beads, but bootstrap and retention still need explicit rules; no installation
+API has been selected yet.
 
 ## Follow-up precision and validation
 
@@ -93,7 +96,7 @@ bootstrap and retention; no installation API has been selected yet.
 | Types draft introduction | Previously said both domain drafts assume flat Types | Update pointer for the new Issue hierarchy; Memory reconciliation still pending |
 | Earlier Type lifecycle exploration | Assumes definitions as Beads and earlier nominal-affiliation/compatibility design | Historical design input; current Types draft is the forward-looking discussion authority, canonical BDP still governs implementation |
 | Issue/Dependency previous draft | One issue/one dependency with discriminator properties, flat endpoint assumptions, per-operation graph validity | Revise under the user's new direction and current Preview 2 evidence; preserve existing semantics and distinguish proposed mapping |
-| Memory §1 | Assumes Type definitions are Beads and Types are flat | Flag for the user's review; no edit to the file |
+| Memory §1 | Type definitions as Beads now agrees with the shared direction; flat Types remains an older assumption | Flag flat-Type assumptions for the user's review; no edit to the file |
 | Memory §1 external definitions | Describes pending Dependency discriminator | Follow-up should reference issue/dependency hierarchies once reviewed |
 | Memory §5 bounds and transactions | No mechanical minimums; says each staged operation must be valid | Superseded for shared arity design; revisit Memory-specific restrictions rather than silently relaxing all checks |
 | Memory §5 queries and catalog | No conformance closure; subtype installation cannot extend eligible sets | Re-evaluate intended extension semantics; preserve the selected one-Memory-plus-kind design unless the user changes it |
