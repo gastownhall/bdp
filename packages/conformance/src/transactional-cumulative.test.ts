@@ -1008,7 +1008,7 @@ it("pins the one-page matched-plus-updated witness without advertised-limit or o
   const row = manifest.scenarios.find(
     (r: { id: string }) => r.id === "transactional.receipt.pagination",
   );
-  expect(manifest.scenarios.indexOf(row)).toBe(9);
+  expect(manifest.scenarios.indexOf(row)).toBe(10);
   expect(row.actions).toHaveLength(18);
   const later = row.actions.find((a: { id: string }) => a.id === "p-later-state");
   expect(later.captures).toEqual([]); // HTTP capture is URL-only; no unimplemented array capture.
