@@ -1840,3 +1840,22 @@ profile qualification was run for this successor at this checkpoint; that fresh
 installed regression remains a separate gate. Earlier timeout-context evidence
 and its historical reports remain bound to their original snapshots; this
 repair is not retroactively part of PR120.
+
+
+### Context for observed missing Resource Event sources
+
+The private owner now captures an immutable Scope context in the same entry that
+observes an unknown Bead or Link Event source. Finite and initial SSE HTTP
+projections use that context on their existing404 resource-not-found responses.
+Missing identity still precedes semantic minimum and reconnect checks; malformed
+source syntax and unauthenticated requests still fail before this observation.
+A missing or corrupt Scope metadata value follows the existing internal-fault
+path rather than fabricating context or silently returning a contextless404.
+
+The draft adds focused owner and HTTP tests, reconciles the existing SSE missing
+expectation, and adds one eleven-request private installed witness. These tests
+have not yet been executed at this draft checkpoint. HEAD representation length
+is computed by the Read HTTP semantics before body removal and preserved by the
+runtime emitter. Prior source/installed evidence retains its original attribution.
+This is no public profile qualification, discovery activation, retained Snapshot
+minimum ruling or metadata-only incident-Link Event membership ruling.

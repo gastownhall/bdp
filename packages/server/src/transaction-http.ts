@@ -495,7 +495,8 @@ export function createTransactionHttpHandler(
           minimum,
           request.signal,
         );
-        if (observed.kind === "missing") return transactionHttpProblem("resource-not-found");
+        if (observed.kind === "missing")
+          return transactionHttpProblem("resource-not-found", observed.context);
         if (observed.kind === "unsupported") return developmentGap("minimum-position");
         return context(jsonResponse(observed.page), observed.context);
       }
@@ -509,7 +510,8 @@ export function createTransactionHttpHandler(
         request.signal,
         fields.length > 1,
       );
-      if (observed.kind === "missing") return transactionHttpProblem("resource-not-found");
+      if (observed.kind === "missing")
+        return transactionHttpProblem("resource-not-found", observed.context);
       if (observed.kind === "unsupported") return developmentGap("minimum-position");
       const response = streamResponse(request, observed.context);
       return response.status !== 200 || request.method === "HEAD"

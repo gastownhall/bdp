@@ -387,7 +387,7 @@ it("Event reconnect syntax, minimum ordering and exact context codes are preserv
       ],
       404,
       "resource-not-found",
-      false,
+      true,
     ],
     [
       "beads/missing?view=events&after=bad",
