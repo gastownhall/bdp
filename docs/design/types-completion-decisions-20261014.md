@@ -70,7 +70,16 @@ bootstrap and retention; no installation API has been selected yet.
 - Specify ownership matching under conformance. An Issue owning dependencies must
   include blocks/parent-child, not only exact nominal dependency affiliations.
 - Separate generic schema acceptance from domain-operation availability. Merely
-  registering a gate or waits-for definition cannot install its evaluator.
+  registering a gate or waits-for definition cannot install its evaluator. Richer
+  semantic declarations, CLI/BDP operation surfaces and agent skills are deferred
+  until the Type foundations are complete.
+- Selected mapping: codified workflow metadata becomes properties of the relevant
+  Type; storage may remain metadata behind read/write projection. Preserve existing
+  meaning, unknown metadata and historical data; exact child schemas remain open.
+- Custom-name management belongs with the later bd Type-management surface against
+  a complete Type draft. Do not design a separate ad hoc naming mechanism now.
+  Configuration-dependent meaning (Issue P01 and the lifecycle/compatibility policy questions) remains
+  explicitly open for a later discussion.
 
 ## Consistency findings and disposition
 

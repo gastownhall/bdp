@@ -8,9 +8,10 @@ catalog. Native classification values translate to the intrinsic `type` referenc
 `issue_type` and `dep_type` are not properties in the proposed records.
 
 This document preserves the names, fields and behavioral requirements discoverable
-in Janet's current Preview 2 candidate. The intentional classification-to-Type
-mapping is the only selected product-model change here. It does not redesign
-workflow, rename existing properties, or settle how live/computed fields should
+in Janet's current Preview 2 candidate. Selected changes are classification-to-Type mapping and promotion of codified
+workflow metadata into schema-declared properties on the relevant Types. Storage
+may retain its existing layout behind read/write adapters. This does not redesign
+workflow or settle how live/computed fields should
 appear in a versioned Type. No implementation change is made by this draft.
 
 The shared [Types draft](../types.md) supplies conformance, pinned definitions,
@@ -192,6 +193,10 @@ behavior. The shared Type design must distinguish the immutable Type contract fr
 an explicit Scope policy/configuration dependency. The definition must not change
 meaning silently when a local status category is edited (§9).
 
+**OPEN — P01, policy-dependent meaning:** decide how configuration such as status
+categories relates to immutable Type revisions. Record the dependency and settle
+activation/history semantics later; no policy-versioning mechanism is selected.
+
 The core native validator requires closed_at exactly when status equals the
 literal closed status. Do not assume every custom done-category status has that
 same timestamp rule. Status-category support does not automatically rewrite all
@@ -241,7 +246,7 @@ that interacts with immutable pins, caching, replicas and high-frequency updates
 No such change is implied by this document's classification mapping.
 
 Additional existing fields must survive adoption. Apart from the explicitly
-selected classification-to-Type mapping, they are not silently dropped or
+selected classification and codified-metadata mappings, they are not silently dropped or
 converted to new nominal Types by this specification:
 
 | Existing group | Native JSON fields / concepts | Adoption boundary |
@@ -396,7 +401,9 @@ adapter mapping; it is not a bound on the global Type URI. The inspected preview
 exposes dep_type only, common metadata as an empty object, and no generic
 Dependency properties/metadata editor. After the selected mapping, there are no
 remaining currently projected Dependency-specific properties, so the proposed
-core properties object can be empty. It deliberately forbids dep_type.
+base core properties object can be empty. It deliberately forbids dep_type.
+The selected promotion of codified metadata adds properties to relevant child
+definitions, such as waits-for; it does not make every child require those fields.
 Native Beads can already carry edge metadata
 and thread_id. This is a preview limitation, not evidence that those existing
 requirements can be omitted from the eventual Type specification.
@@ -406,10 +413,17 @@ optional spawner_id, and optional also_blocks. The actual scheduling evaluator
 reads gate and also_blocks; the latter preserves blocking when an additional
 blocks edge would collide with pair uniqueness. Missing gate is treated as
 all-children by current evaluation. This is executable domain meaning in metadata,
-not an opaque annotation. Preserve it and its validation rather than moving it
-into properties merely to fit a new general rule. Native metadata is serialized
-JSON in a string field; converting it to common object metadata needs explicit
-handling of malformed/non-object historical values, never silent loss.
+not an opaque annotation. **Selected direction:** promote these codified fields to properties of the relevant
+Type, preserving their names and existing meanings. The native implementation may
+continue storing them as metadata while the BDP adapter maps reads and writes.
+Exact child schemas, omission/default rules and conflict handling remain to write;
+this does not promote arbitrary metadata or select a new storage layout.
+
+Native metadata is serialized JSON in a string field. Projection and migration
+must account for malformed/non-object historical values, unknown metadata members,
+and simultaneous old/new input. Do not silently lose data or expose independently
+editable duplicate authorities. Preserve the existing gate evaluator behavior;
+adding a schema does not itself implement that evaluator.
 
 ### 4.3 Endpoint admission and pins
 
@@ -447,7 +461,8 @@ remain the existing ones below; conformance to the base does not make every chil
 a blocker. No additional hierarchy or new workflow is inferred.
 The child definitions inherit the dependency properties schema; this draft does
 not add per-child discriminator properties or invent additional fields. Existing
-metadata-sensitive behavior remains part of the relevant child's semantic promise.
+metadata-sensitive behavior remains part of the relevant child's semantic promise;
+its codified fields will be projected as properties under the selected mapping.
 
 | Proposed child Type | Existing role to preserve |
 | --- | --- |
@@ -649,7 +664,7 @@ The following are design acceptance cases, not executed product tests:
 | D08 | Dependency targets exact old Issue revision | Current graph contract refuses; portable workflow pin behavior undecided |
 | D09 | Unknown valid short dependency classification | Existing admission may accept; proposed mapping needs a defined Type, never a guessed URI or invented scheduling effect |
 | D10 | Self-edge or prohibited mixed scheduling cycle | Reject atomically through domain validation, not endpoint lists alone |
-| D11 | Native waits-for metadata also_blocks=true | Preserve both gate and carried blocking semantics; not opaque discardable metadata |
+| D11 | Native waits-for metadata also_blocks=true | Project codified fields as properties and map writes back; preserve gate/blocking semantics and unknown metadata |
 | D12 | Add informational supersedes relation | Do not infer a close operation; bd supersede is a separate workflow |
 | D13 | Attempt second pair edge with another nominal definition revision | A new definition pin must not evade pair uniqueness |
 | D14 | Custom dependency label through current graph CLI | Both dep add and link create reject unknown kinds despite wider storage admission; proposed mapping must distinguish surfaces |
@@ -676,7 +691,7 @@ The following are design acceptance cases, not executed product tests:
 | Classification becomes Type affiliation | Native issue_type and Dependency.type select domain behavior | Explicit type mapping and subtype registration must preserve those behaviors without duplicate property discriminators |
 | Pair uniqueness differs from endpoint arity | One Dependency per ordered pair, many pairs per Issue | Decide whether a reusable pair-key constraint belongs in BDP or remains a declared domain invariant; no new syntax selected here |
 | Graph validity is richer than endpoint Types | Mixed cycles, hierarchy and waits-for gates | Separate declarative shape/endpoint/count checks from domain operations; do not invent a universal workflow engine inside Type definitions |
-| Metadata can be contractual | waits-for gate and also_blocks are read by scheduling | Do not define metadata as necessarily semantically inert; preserve legacy placement and state which validator owns it |
+| Codified metadata becomes properties | waits-for gate and also_blocks are read by scheduling | Promote named semantic fields into the child Type schema; adapters may preserve metadata storage and must avoid duplicate authorities |
 | Shape validity is not write capability | Native adapters admit bounded fields and operations | A Type definition cannot imply every generic writer can persist or execute its contract |
 | Immutable revisions need a clear state boundary | Live lease fields vary under the same current graph revision | Distinguish durable versioned state from operational observations before claiming complete immutable representations |
 | Validation can depend on Scope policy | Custom kinds/status categories are configured | Name configuration dependencies and policy tightening explicitly; decide what must be versioned or pinned for reproducible historical interpretation |
@@ -702,7 +717,7 @@ qualifies the capability; some underlying native functionality already exists.
 | Ordinary content, status and classification | Existing behavior inventoried; core schema fragment provided | Full durable-field schema and configuration-dependent validation contract |
 | Dependency direction, pair uniqueness and kind roles | Existing behavior documented | Portable invariant/admission encoding; no implicit new maximum syntax |
 | Local floating endpoints | Current graph behavior documented; proposed initial boundary | Decide pins and remote workflow separately |
-| Edge metadata/thread data | Existing native requirement; preview gap explicit | Lossless common-metadata/thread mapping and supported editors |
+| Edge metadata/thread data | Codified semantic metadata selected for property promotion; preview gap explicit | Child schemas and lossless adapter mapping; thread placement and unknown metadata preservation still open |
 | Ownership and source History | Source-backed preview behavior | Complete capability/History qualification and final limit policy |
 | Scheduling and lifecycle | Existing implementation remains behavioral baseline | Standalone portable operation specification and conformance cases; not replaced by schema fragments |
 | Revision provenance | External V2 direction | Legacy timestamp/actor mapping, authenticated service attribution and integration |
