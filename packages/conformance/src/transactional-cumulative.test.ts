@@ -196,7 +196,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(237);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(236);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.unobservedIds).toContain("read-update.http.command-minimum-fields");
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
@@ -833,7 +833,248 @@ function assertOriginalObjects(text: string, name: keyof typeof originalObjectPi
     expect(createHash("sha256").update(raw).digest("hex"), id).toBe(hash);
   }
 }
+const sequenceMemberId = "transactional.sequence.member-transactions";
+const sequenceParentPins = {
+  manifest: [
+    [
+      "read-update.http.command-minimum-fields",
+      "f04c001617ccad14ef67a82586ea5f61ec918bc2545bb041fafc21dee07b5d7e",
+      54412,
+    ],
+    [
+      "transactional.batch.atomic-commit",
+      "0dfd3b9ed02d01f76ecac08c00b009b4bb9f03e57f7e15a2266eed82fc144747",
+      14936,
+    ],
+    [
+      "transactional.batch.rollback",
+      "be24067358af7b5acf7bc1beae2eb6534cbc0effa6f65406ab61b139310bfc37",
+      16319,
+    ],
+    [
+      "transactional.batch.deletion-safety",
+      "3e66e7c95aec963cc80e076249a5870b952765b2e98c1023ea148f8f628e6aeb",
+      131808,
+    ],
+    [
+      "transactional.batch.no-op-entries",
+      "9307b230eb053131e9127cbbb5e6285305b79d6794edd22f5432a07fc74d9faa",
+      81047,
+    ],
+    [
+      "transactional.set.mutation",
+      "6e7280a9ebbbc3faa1da989015cc802f82cd51b17a9cea11e7cc91392bef49d6",
+      71739,
+    ],
+    [
+      "transactional.set.zero-match",
+      "35aa23bd32539869ea3db41e1c9f3e81a3217e2eb983e764e860a6e00c9eb2c9",
+      36055,
+    ],
+    [
+      "transactional.set.cardinality",
+      "205af1c54d62efb09c9eadf20147a1730909e788c0d4763ce9718b8648f24ede",
+      28546,
+    ],
+    [
+      "transactional.set.singleton-targets",
+      "561b8ebc21106628918111332a9ab7b47be7350935925ed1e76a6cb5bed576b9",
+      40018,
+    ],
+    [
+      "transactional.receipt.readable",
+      "ddb97e450e233b941f7d905d49f48648d9965ed1b361dcdc5dee6f810038a1e0",
+      12545,
+    ],
+    [
+      "transactional.receipt.pagination",
+      "c531c260349347cdc3e54ba68282f1a266a5fa207d3775660615f836a4768782",
+      138750,
+    ],
+    [
+      "transactional.idempotency.conflict",
+      "ba93aea884ae462533d02695642f03a2ca854f5adabeb41867254216dabb2106",
+      29772,
+    ],
+    [
+      "transactional.idempotency.cross-carrier",
+      "4ad8c05fe5fbb4682809d4481c93e2684fe30fbbb8962b4da498590637f8f35b",
+      64106,
+    ],
+    [
+      "transactional.idempotency.failed-retained",
+      "a867694406dde07da71ac70197c60c478dd0fb3344cf2c8160795d1aa62d3378",
+      18404,
+    ],
+  ],
+  coverage: [
+    [
+      "read-update.http.command-minimum-fields",
+      "47914ed67c7b06e721e74134e0c633f3e1a7d461cb50ea200ff1874686885c2a",
+      8888,
+    ],
+    [
+      "transactional.batch.atomic-commit",
+      "ffd77a9d34ac41a6e1f960671bea6880eb5b2ab7b11b3af4ccf0177363d7f4d7",
+      2383,
+    ],
+    [
+      "transactional.batch.rollback",
+      "9e4f5cdb45f0133f1c6d23caa402701981db2e6f4198e23c667579622ace6769",
+      2857,
+    ],
+    [
+      "transactional.batch.deletion-safety",
+      "ac27a329a1cc013e6a0e24e0f5cad6b5b4af6c128ad65302d030422a3c7e3c0a",
+      17375,
+    ],
+    [
+      "transactional.batch.no-op-entries",
+      "383de4e0cb9b3bad310b9db7ff9009cb59fac55966f0309bc71c5d007bea6c1c",
+      10587,
+    ],
+    [
+      "transactional.set.mutation",
+      "058147f8194f091ee5a7ef3d4fd378f0324f6570049df777f993acb5f967d540",
+      11676,
+    ],
+    [
+      "transactional.set.zero-match",
+      "4e79e18a5e4c2735b5c686b9ad610dedc890386bfb06584f98268a421bbb832b",
+      6520,
+    ],
+    [
+      "transactional.set.cardinality",
+      "2a255ed4d364c435c9f985d7a770386bc7b20b2865887b9c8cc2d6cc5f0dd116",
+      5800,
+    ],
+    [
+      "transactional.set.singleton-targets",
+      "0c9008bac3e2c047d9aa8d47d343b7ed936c9c9352bb140c6422127c71b156b1",
+      7314,
+    ],
+    [
+      "transactional.receipt.readable",
+      "684eba200912ccb0932c0a8286e350a6e545262a205b3ea3df47a12fc6dd18ec",
+      2142,
+    ],
+    [
+      "transactional.receipt.pagination",
+      "0735edbca2fbf384f9f8147140a353dc084d9ad85facaddf2f5073f56a7256ee",
+      13057,
+    ],
+    [
+      "transactional.idempotency.conflict",
+      "de9b758f8ac4df7db5597b1eb2b402a116720becc30a41e7198f78f244358ec0",
+      5188,
+    ],
+    [
+      "transactional.idempotency.cross-carrier",
+      "c5e6076a2104c06f88fac88c77214522cab457faf925fe03881dff9778c35245",
+      11196,
+    ],
+    [
+      "transactional.idempotency.failed-retained",
+      "63918cbb495a504fd2043f52b60e7cd8ef1518b8022a96edb0d02660c7df1a8e",
+      2917,
+    ],
+  ],
+} as const;
+function withoutSequenceMemberRow(text: string, name: "manifest" | "coverage") {
+  const key = name === "manifest" ? "scenarios" : "rows";
+  const objects = objectSlices(text, key);
+  for (const [id, hash, bytes] of sequenceParentPins[name]) {
+    const raw = objects.get(id)!;
+    expect(Buffer.byteLength(raw), id).toBe(bytes);
+    expect(createHash("sha256").update(raw).digest("hex"), id).toBe(hash);
+  }
+  const raw = objects.get(sequenceMemberId)!;
+  expect(typeof raw).toBe("string");
+  const suffix = `,\n    ${raw}\n  ]\n}\n`;
+  expect(text.endsWith(suffix), "sequence-tail-position").toBe(true);
+  const parent = text.slice(0, -suffix.length) + "\n  ]\n}\n";
+  expect(createHash("sha256").update(parent).digest("hex"), "sequence-full-parent").toBe(
+    name === "manifest"
+      ? "29729151cf6da641545910ec3880f9609c13b319af7bbe99d3d2ad47833dab96"
+      : "4619813e9446e0e714a64c11eac184531950f57720e32c7ef414c7e3342121af",
+  );
+  return parent;
+}
+function assertSequenceMemberObservation(value: typeof manifest) {
+  const row = value.scenarios.find((r: { id: string }) => r.id === sequenceMemberId)!;
+  expect(
+    row.actions.map((a: { id: string }) => a.id),
+    "sequence-action-order",
+  ).toEqual([
+    "s-sequence",
+    "s-first-receipt",
+    "s-first-facts",
+    "s-failed-receipt",
+    "s-failed-facts",
+    "s-last-receipt",
+    "s-last-facts",
+    "s-replay",
+    "s-current",
+    "s-events",
+  ]);
+  const fact = (index: number, id: string) =>
+    row.actions[index].assertions.find((a: { id: string }) => a.id === id);
+  for (const index of [0, 7]) {
+    expect(fact(index, "middle-status"), "sequence-middle-status").toEqual({
+      id: "middle-status",
+      kind: "json-pointer",
+      pointer: "/results/1/status",
+      exists: true,
+      equals: 404,
+    });
+    expect(fact(index, "middle-retry"), "sequence-middle-retry").toEqual({
+      id: "middle-retry",
+      kind: "json-pointer",
+      pointer: "/results/1/retry",
+      exists: true,
+      equals: "after-state-change",
+    });
+  }
+  expect(fact(3, "problem"), "sequence-failed-internal-index").toEqual({
+    id: "problem",
+    kind: "json-pointer",
+    pointer: "/problem",
+    exists: true,
+    equals: {
+      type: "https://github.com/gastownhall/bdp/problems/not-found",
+      code: "resource-not-found",
+      status: 404,
+      retry: "after-state-change",
+      operationIndex: 0,
+    },
+  });
+  expect(row.actions.flatMap((a: { captures: unknown[] }) => a.captures)).toEqual([
+    { binding: "s-first-root", from: { kind: "json-pointer", pointer: "/id" } },
+    { binding: "s-failed-root", from: { kind: "json-pointer", pointer: "/id" } },
+    { binding: "s-last-root", from: { kind: "json-pointer", pointer: "/id" } },
+  ]);
+  expect(row.actions.flatMap((a: { assertions: unknown[] }) => a.assertions)).toHaveLength(209);
+  expect(
+    createHash("sha256").update(JSON.stringify(row)).digest("hex"),
+    "sequence-complete-independent-facts",
+  ).toBe("48e524596890fab7bf578cbbb653ed844178c33b568f8e0c033736d2745598ca");
+}
+
 it("preserves every original TX scenario and coverage object while adding one bounded partial cross-carrier row", () => {
+  assertSequenceMemberObservation(manifest);
+  for (const [index, id] of [
+    [0, "middle-status"],
+    [3, "problem"],
+  ] as const) {
+    const weak = structuredClone(manifest);
+    const row = weak.scenarios.find((r: { id: string }) => r.id === sequenceMemberId)!;
+    row.actions[index].assertions = row.actions[index].assertions.filter(
+      (a: { id: string }) => a.id !== id,
+    );
+    expect(() => assertSequenceMemberObservation(weak)).toThrow(
+      index === 0 ? "sequence-middle-status" : "sequence-failed-internal-index",
+    );
+  }
   assertCrossCarrierObservation(manifest);
   for (const kind of ["retained-body", "presentation", "old-record"] as const) {
     const weak = structuredClone(manifest);
@@ -854,7 +1095,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     expect(() => assertCrossCarrierObservation(weak)).toThrow(kind);
   }
   for (const name of ["manifest", "coverage"] as const) {
-    const text = withoutMinimumRow(read(name).toString(), name);
+    const text = withoutMinimumRow(withoutSequenceMemberRow(read(name).toString(), name), name);
     const raw = objectSlices(text, name === "manifest" ? "scenarios" : "rows").get(
       "transactional.idempotency.cross-carrier",
     )!;
@@ -887,6 +1128,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     "transactional.idempotency.conflict",
     "transactional.idempotency.cross-carrier",
     "transactional.idempotency.failed-retained",
+    "transactional.sequence.member-transactions",
   ]);
   const counts = new Map<string, number>();
   for (const [id, expected] of [
@@ -899,6 +1141,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     ["transactional.idempotency.cross-carrier", 12],
     ["transactional.batch.no-op-entries", 15],
     ["transactional.batch.deletion-safety", 21],
+    ["transactional.sequence.member-transactions", 10],
   ] as const) {
     const rows = manifest.scenarios.filter((r: { id: string }) => r.id === id);
     expect(rows, id).toHaveLength(1);
@@ -912,7 +1155,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
-  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(210);
+  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(220);
   // Historical root-accepted deletion-safety measurement: M620094/N16373/C88043/A333.
   // Schema-name repair uses4B of the accepted margin:4092B/64nodes/1024B.
   // Historical measurement-only draft retained the smaller guards pending root acceptance.
@@ -922,20 +1165,21 @@ it("preserves every original TX scenario and coverage object while adding one bo
   // coverage18405delta/91848absolute, nodes3418delta/17275absolute.
   // Root-accepted command-minimum: disk738783/normal750589/nodes19575/coverage108091.
   // Preserve bases488280/13019/70662 and margins4096B/64nodes/1024B.
+  // Root-accepted sequence-member: disk790009/normal802361/nodes20956/coverage117702.
   // These measured source authoring fences do not change runtime/parser limits.
-  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(254599);
-  expect(read("manifest").byteLength).toBeLessThanOrEqual(742879);
-  expect(Buffer.byteLength(JSON.stringify(manifest, null, 2) + "\n")).toBeLessThanOrEqual(754685);
-  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(38453);
-  expect(read("coverage").byteLength).toBeLessThanOrEqual(109115);
+  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(305825);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(794105);
+  expect(Buffer.byteLength(JSON.stringify(manifest, null, 2) + "\n")).toBeLessThanOrEqual(806457);
+  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(48064);
+  expect(read("coverage").byteLength).toBeLessThanOrEqual(118726);
   expect(
     Buffer.byteLength(JSON.stringify(JSON.parse(read("coverage").toString()), null, 2) + "\n"),
-  ).toBeLessThanOrEqual(109115);
+  ).toBeLessThanOrEqual(118726);
   expect(
     manifest.scenarios.flatMap((r: { actions: { assertions: unknown[] }[] }) =>
       r.actions.flatMap((a) => a.assertions),
     ),
-  ).toHaveLength(2294);
+  ).toHaveLength(2503);
   expect(read("fixture").byteLength).toBe(716);
   expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
     "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
@@ -947,8 +1191,8 @@ it("preserves every original TX scenario and coverage object while adding one bo
     nodes++;
     if (value && typeof value === "object") pending.push(...Object.values(value));
   }
-  expect(nodes - 13019).toBeLessThanOrEqual(6620);
-  expect(nodes).toBeLessThanOrEqual(19639);
+  expect(nodes - 13019).toBeLessThanOrEqual(8001);
+  expect(nodes).toBeLessThanOrEqual(21020);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
     "transactional.receipt.pagination": [
@@ -2728,7 +2972,7 @@ it("pins the inherited command-minimum manifest facts, read-header absence and a
   ).toContain(minimumId);
   expect(bundle().manifest.scenarios[0]?.id).toBe(minimumId);
   for (const name of ["manifest", "coverage"] as const) {
-    const original = withoutMinimumRow(read(name).toString(), name);
+    const original = withoutMinimumRow(withoutSequenceMemberRow(read(name).toString(), name), name);
     expect(createHash("sha256").update(original).digest("hex")).toBe(
       name === "manifest"
         ? "726fc623bbb115a0f39e0bb3aaa586ea37254522b254e55e555ea95587f14cb9"

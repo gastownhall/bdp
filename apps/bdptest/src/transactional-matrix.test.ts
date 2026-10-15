@@ -350,17 +350,15 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes fourteen partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+it("observes fifteen partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
   const crossWire = crossCarrierWire(),
-    minimumWire = commandMinimumWire();
+    minimumWire = commandMinimumWire(),
+    memberWire = sequenceMemberWire();
   const observed = await observe({
     children,
-    afterExchange: async (response) => {
-      await minimumWire.afterExchange(response);
-      await crossWire.afterExchange(response);
-    },
+    afterExchange: composedMemberWire(crossWire, minimumWire, memberWire),
     onObserved(observed) {
       if (process.env.BDP_TRANSACTIONAL_OBSERVATION_OUTPUT)
         writeFileSync(
@@ -371,6 +369,7 @@ it("observes fourteen partial Transactional contracts through packed-capable act
               entry,
               ...observed,
               supplemental: minimumWire.summary(),
+              sequenceMemberSupplemental: memberWire.summary(),
             },
             null,
             2,
@@ -383,10 +382,10 @@ it("observes fourteen partial Transactional contracts through packed-capable act
   expect(observed.result.scenarios).toHaveLength(256); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(14);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(15);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(21);
-  expect(children).toHaveLength(22); // Twenty-one scenario/reopen sessions plus separate bootstrap.
+  expect(observed.sessions).toHaveLength(22);
+  expect(children).toHaveLength(23); // Twenty-two scenario/reopen sessions plus separate bootstrap.
   expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
     true,
   );
@@ -581,12 +580,13 @@ it("observes fourteen partial Transactional contracts through packed-capable act
   expect(cross.exchanges.at(-1)!.request.id).toBe("x-events");
   crossWire.finish();
   assertCommandMinimumPositive(observed, minimumWire);
-  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(203);
+  assertMemberPositive(observed, memberWire);
+  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(213);
   expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
     JSON.stringify({
-      // Predecessor logs retain installed-tx-twelve/thirteen-partial-summary.
-      kind: "installed-tx-fourteen-partial-summary",
+      // Predecessor logs retain installed-tx-twelve/thirteen/fourteen-partial-summary.
+      kind: "installed-tx-fifteen-partial-summary",
       sourceCommit,
       elapsedMs: performance.now() - started,
       actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
@@ -1319,6 +1319,34 @@ it.each([
 );
 
 it("pins the matching no-op installed route digest and fifteen-action ledger", () => {
+  assertMemberReplayLedger(memberReplayLedger);
+  expect(() => assertMemberReplayLedger([])).toThrow("sequence-member-replay-ledger");
+  expect(() => assertMemberReplayLedger([["s-replay", "s-first-receipt", "whole-json"]])).toThrow(
+    "sequence-member-replay-ledger",
+  );
+  const digest = createHash("sha256")
+    .update(JSON.stringify(memberRequests()[0]!.body))
+    .digest("hex");
+  expect(digest).toBe("f3cde631127aaf530ea5349330e6c7bb46766b02b135f9c7c59acfcd2f2c71c7");
+  expect(digest).not.toBe(
+    createHash("sha256").update(JSON.stringify(minimumRequests()[4]!.body)).digest("hex"),
+  );
+  for (const index of [0, 4])
+    expect(memberHandoff(index, `${scope}operations/sequence`, digest, undefined, "complete")).toBe(
+      true,
+    );
+  for (const index of [1, 2, 3, 5, 6, 7])
+    expect(memberHandoff(index, `${scope}operations/sequence`, digest, undefined, "complete")).toBe(
+      false,
+    );
+  expect(
+    memberHandoff(0, `${scope}operations/sequence`, digest, "carrier-create", "complete"),
+  ).toBe(false);
+  expect(memberHandoff(0, `${scope}operations/sequence`, digest, undefined, "partial")).toBe(false);
+  for (const key of ["member-a", "member-fail", "member-b"]) {
+    expect(key.startsWith("minimum-")).toBe(false);
+    expect(["carrier-create", "carrier-update"]).not.toContain(key);
+  }
   assertMinimumReplayLedger(minimumReplayLedger);
   expect(() => assertMinimumReplayLedger(minimumReplayLedger.slice(1))).toThrow(
     "minimum-replay-comparison-ledger",
@@ -1453,9 +1481,9 @@ it.each(["bead-property", "link-metadata", "group-inventory-and-head"] as const)
       expect([...failed].sort()).toEqual([...intended].sort());
     expect(row.exchanges.at(-1)!.request.id).toBe(actionId);
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(22);
+    expect(children.length).toBeLessThanOrEqual(23);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBeLessThanOrEqual(control === "group-inventory-and-head" ? 197 : 192);
+    expect(exchanges).toBeLessThanOrEqual(control === "group-inventory-and-head" ? 207 : 202);
     for (const later of observed.result.scenarios.filter(
       (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
     ))
@@ -1605,6 +1633,7 @@ function applyDeletionControl(
 }
 
 it("pins deletion-safety derivative carriers, complete positives, and measured source bounds", () => {
+  assertMemberControl();
   assertCrossCarrierControls();
   assertCommandMinimumControls();
   const canonical = JSON.parse(manifestSource.bytes.toString());
@@ -1704,8 +1733,8 @@ it("pins deletion-safety derivative carriers, complete positives, and measured s
     }
     // Historical root-accepted maximum701716B/18263nodes plus4096B/64nodes.
     // Command-minimum measured maximum756707B/19731nodes plus4096B/64nodes.
-    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(760803);
-    expect(nodes).toBeLessThanOrEqual(19795);
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(812575);
+    expect(nodes).toBeLessThanOrEqual(21176);
     const loaded = createCumulativeTransactionalArtifactBundle(
       loadProfileContractSelection("transactional"),
       { fixture: fixtureSource, manifest: { bytes: Buffer.from(wire) } },
@@ -1788,10 +1817,10 @@ it.each(deletionControlNames)(
       );
     }
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(22);
+    expect(children.length).toBeLessThanOrEqual(23);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
     expect(exchanges).toBeLessThanOrEqual(
-      control === "incoming-order" ? 187 : control === "outgoing-order" ? 192 : 188,
+      control === "incoming-order" ? 197 : control === "outgoing-order" ? 202 : 198,
     );
     for (const later of observed.result.scenarios.filter(
       (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
@@ -2115,8 +2144,8 @@ function assertCrossCarrierControls() {
     // Historical measurement-only derivative guards were650386B/17275nodes.
     // Historical root-accepted maximum701716B/18263nodes plus4096B/64nodes.
     // Command-minimum measured maximum756707B/19731nodes plus4096B/64nodes.
-    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(760803);
-    expect(nodes).toBeLessThanOrEqual(19795);
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(812575);
+    expect(nodes).toBeLessThanOrEqual(21176);
     const loaded = createCumulativeTransactionalArtifactBundle(
       loadProfileContractSelection("transactional"),
       { fixture: fixtureSource, manifest: { bytes: Buffer.from(JSON.stringify(changed)) } },
@@ -2152,11 +2181,20 @@ it.each(crossCarrierControls)(
   "discriminates retained cross-carrier evidence against %s",
   async (control) => {
     const children: ChildProcess[] = [],
-      wire = crossCarrierWire(control);
+      wire = crossCarrierWire(control),
+      minimumWire = commandMinimumWire(),
+      memberWire = sequenceMemberWire();
     let description: ReturnType<typeof applyCrossCarrierControl> | undefined;
     const observed = await observe({
       children,
-      afterExchange: wire.afterExchange,
+      afterExchange: composedMemberWire(wire, minimumWire, memberWire),
+      onObserved(observed) {
+        if (process.env.BDP_TRANSACTIONAL_CROSS_CARRIER_CONTROL_OUTPUT)
+          writeFileSync(
+            `${process.env.BDP_TRANSACTIONAL_CROSS_CARRIER_CONTROL_OUTPUT}-${control}.json`,
+            JSON.stringify({ sourceCommit, entry, ...observed }, null, 2) + "\n",
+          );
+      },
       manifest(value) {
         description = applyCrossCarrierControl(value, control);
       },
@@ -2193,10 +2231,12 @@ it.each(crossCarrierControls)(
     ))
       expect(later.state).toBe("pass");
     wire.finish();
-    expect(children).toHaveLength(22);
+    assertCommandMinimumPositive(observed, minimumWire);
+    assertMemberPositive(observed, memberWire);
+    expect(children).toHaveLength(23);
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBe(control === "batch-semantic-conflict" ? 194 : 195);
+    expect(exchanges).toBe(control === "batch-semantic-conflict" ? 204 : 205);
     console.log(
       JSON.stringify({
         kind: "installed-tx-cross-carrier-control",
@@ -2214,11 +2254,6 @@ it.each(crossCarrierControls)(
         claimEligible: false,
       }),
     );
-    if (process.env.BDP_TRANSACTIONAL_CROSS_CARRIER_CONTROL_OUTPUT)
-      writeFileSync(
-        `${process.env.BDP_TRANSACTIONAL_CROSS_CARRIER_CONTROL_OUTPUT}-${control}.json`,
-        JSON.stringify({ sourceCommit, entry, ...observed }, null, 2) + "\n",
-      );
   },
   120000,
 );
@@ -2809,3 +2844,498 @@ it.each(minimumControls)(
   },
   120000,
 );
+
+const memberId = "transactional.sequence.member-transactions";
+const memberActionIds = [
+  "s-sequence",
+  "s-first-receipt",
+  "s-first-facts",
+  "s-failed-receipt",
+  "s-failed-facts",
+  "s-last-receipt",
+  "s-last-facts",
+  "s-replay",
+  "s-current",
+  "s-events",
+];
+const memberRawIds = memberActionIds.filter((id) => !id.endsWith("-facts"));
+const memberReplayLedger: readonly (readonly string[])[] = [
+  ["s-replay", "s-sequence", "whole-json"],
+];
+function assertMemberReplayLedger(ledger: readonly (readonly string[])[]) {
+  if (JSON.stringify(ledger) !== JSON.stringify([["s-replay", "s-sequence", "whole-json"]]))
+    throw new Error("sequence-member-replay-ledger");
+}
+function memberRequests(negative = false) {
+  const first = {
+      operation: "createBead",
+      id: "beads/a",
+      type: `${scope}types/task`,
+      properties: { title: "member-first" },
+    },
+    last = {
+      operation: "createBead",
+      id: "beads/b",
+      type: `${scope}types/task`,
+      properties: { title: "member-last" },
+    },
+    missing = { operation: "deleteBead", bead: "beads/missing" };
+  const sequence = {
+    operations: [
+      { ...first, idempotencyKey: "member-a" },
+      { ...missing, ...(negative ? { bead: "beads/a" } : {}), idempotencyKey: "member-fail" },
+      { ...last, idempotencyKey: "member-b" },
+    ],
+  };
+  const post = (route: string, body: unknown, key?: string) => ({
+    url: `${scope}operations/${route}`,
+    body,
+    headers: [
+      { name: "accept", value: "application/json" },
+      { name: "content-type", value: "application/json" },
+      ...(key === undefined ? [] : [{ name: "idempotency-key", value: key }]),
+    ],
+  });
+  return [
+    post("sequence", sequence),
+    post("batch", { operations: [first] }, "member-a"),
+    post("batch", { operations: [missing] }, "member-fail"),
+    post("batch", { operations: [last] }, "member-b"),
+    post("sequence", sequence),
+    {
+      url: `${scope}beads/?limit=32`,
+      body: undefined,
+      headers: [{ name: "accept", value: "application/json" }],
+    },
+    {
+      url: `${scope}events/`,
+      body: undefined,
+      headers: [{ name: "accept", value: "application/json" }],
+    },
+  ];
+}
+const memberFailureIds = [
+  "serving-position",
+  "middle-type",
+  "middle-code",
+  "middle-status",
+  "middle-retry",
+  "middle-no-outcome",
+  "middle-no-deleted",
+];
+function memberHandoff(
+  index: number,
+  url: string,
+  digest: string | undefined,
+  key: string | undefined,
+  writeState: string | undefined,
+) {
+  return (
+    (index === 0 || index === 4) &&
+    url === `${scope}operations/sequence` &&
+    digest === "f3cde631127aaf530ea5349330e6c7bb46766b02b135f9c7c59acfcd2f2c71c7" &&
+    key === undefined &&
+    writeState === "complete"
+  );
+}
+/** Full actual values stay local to assertions. Reports retain only identities,
+ * digests and performed-pair inventory; receipt helper equality is separate. */
+function sequenceMemberWire(negative = false) {
+  assertMemberReplayLedger(memberReplayLedger);
+  const validator = createJsonSchemaValidator(schema),
+    requests = memberRequests(negative);
+  const observedIds: string[] = [],
+    performed: string[][] = [],
+    resources: Record<string, unknown>[] = [],
+    receipts: Record<string, unknown>[] = [],
+    receiptFacts: { action: string; root: string; digest: string }[] = [];
+  let initial: unknown, epoch: string | undefined, view: string | undefined;
+  const problem = (index: number) => ({
+    type: "https://github.com/gastownhall/bdp/problems/not-found",
+    code: "resource-not-found",
+    status: 404,
+    retry: "after-state-change",
+    operationIndex: index,
+  });
+  function resource(actual: Record<string, unknown>, name: string, title: string) {
+    expect(typeof actual.revision).toBe("string");
+    expect((actual.revision as string).length).toBeGreaterThan(0);
+    expect(actual).toEqual({
+      id: `${scope}beads/${name}`,
+      type: `${scope}types/task`,
+      properties: { title },
+      metadata: {},
+      revision: actual.revision,
+    });
+  }
+  return {
+    count: () => observedIds.length,
+    async afterExchange(response: HttpExchangeResponse) {
+      const index = observedIds.length,
+        id = memberRawIds[index]!,
+        expected = requests[index]!;
+      expect(index).toBeLessThan(negative ? 1 : 7);
+      expect(response.url).toBe(expected.url);
+      const request = response.exactRequest!;
+      expect(request.source).toBe("raw-http1-serializer");
+      expect(request.writeState).toBe("complete");
+      expect(request.bodyPresent).toBe(expected.body !== undefined);
+      // Check names before values so an unexpected credential cannot appear in diagnostics.
+      expect(request.headerLines.slice(0, expected.headers.length).map((h) => h.name)).toEqual(
+        expected.headers.map((h) => h.name),
+      );
+      expect(request.headerLines.slice(0, expected.headers.length)).toEqual(expected.headers);
+      expect(
+        request.headerLines
+          .slice(expected.headers.length)
+          .some((h) => h.name.toLowerCase().startsWith("bdp-")),
+      ).toBe(false);
+      expect(request.bodyDigest).toBe(
+        expected.body === undefined
+          ? undefined
+          : createHash("sha256").update(JSON.stringify(expected.body)).digest("hex"),
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers["content-type"]).toBe("application/json");
+      const body = JSON.parse(response.bodyText);
+      expect(
+        validator.validate(
+          `#/$defs/${index === 0 || index === 4 ? "transactionalSequenceResponse" : index < 4 ? "mutationReceipt" : index === 5 ? "currentBeadCollection" : "eventPage"}`,
+          body,
+        ),
+      ).toEqual([]);
+      const actualEpoch = response.headers["bdp-scope-epoch"],
+        actualView = response.headers["bdp-authorization-view"];
+      expect(typeof actualEpoch).toBe("string");
+      expect(actualEpoch?.length).toBeGreaterThan(0);
+      expect(typeof actualView).toBe("string");
+      expect(actualView?.length).toBeGreaterThan(0);
+      expect(response.headers["bdp-scope-position"]).toBe(negative ? "pos-3" : "pos-2");
+      if (epoch !== undefined) {
+        expect(actualEpoch).toBe(epoch);
+        expect(actualView).toBe(view);
+      }
+      if (index === 0 || index === 4) {
+        expect(Object.keys(body)).toEqual(["results"]);
+        expect(body.results).toHaveLength(3);
+        resource(body.results[0].resource, "a", "member-first");
+        resource(body.results[2].resource, "b", "member-last");
+        for (const i of [0, 2])
+          expect(body.results[i]).toEqual({
+            operationIndex: i,
+            outcome: "created",
+            resource: body.results[i].resource,
+          });
+        if (negative) {
+          expect(body.results[1]).toEqual({
+            operationIndex: 1,
+            outcome: "deleted",
+            deleted: {
+              resourceKind: "bead",
+              resource: {
+                id: `${scope}beads/a`,
+                type: `${scope}types/task`,
+                revision: body.results[0].resource.revision,
+              },
+            },
+          });
+          expect(body.results[1].deleted.resource).not.toHaveProperty("properties");
+          expect(body.results[1].deleted.resource).not.toHaveProperty("metadata");
+        } else expect(body.results[1]).toEqual(problem(1));
+        const pair = memberReplayLedger.find(([replay]) => replay === id);
+        if (pair) {
+          expect(initial).toBeDefined();
+          expect(body).toEqual(initial);
+          performed.push([...pair]);
+        } else {
+          initial = structuredClone(body);
+          resources.push(
+            structuredClone(body.results[0].resource),
+            structuredClone(body.results[2].resource),
+          );
+        }
+      } else if (index < 4) {
+        const failed = index === 2,
+          position = index === 3 ? "pos-2" : "pos-1",
+          key = ["member-a", "member-fail", "member-b"][index - 1];
+        expect(body).toMatchObject({
+          status: failed ? "failed" : "completed",
+          detail: "available",
+          idempotencyKey: key,
+          scopeEpoch: actualEpoch,
+          authorizationView: actualView,
+          requiredPosition: position,
+        });
+        expect(typeof body.id).toBe("string");
+        expect(body.id.startsWith(`${scope}receipts/`)).toBe(true);
+        expect(body.id.slice(`${scope}receipts/`.length)).toMatch(/^[A-Za-z0-9_-]+$/);
+        expect(new URL(body.id).href).toBe(body.id);
+        expect(typeof body.transaction).toBe("string");
+        expect(body.transaction.length).toBeGreaterThan(0);
+        expect(typeof body.expiresAt).toBe("string");
+        expect(Number.isFinite(Date.parse(body.expiresAt))).toBe(true);
+        if (failed) {
+          expect(body.problem).toEqual(problem(0));
+          for (const field of ["effectPosition", "results", "next"])
+            expect(body).not.toHaveProperty(field);
+        } else {
+          expect(body.effectPosition).toBe(position);
+          expect(body.next).toBeNull();
+          expect(body.results).toEqual([
+            { operationIndex: 0, outcome: "created", resource: resources[index === 1 ? 0 : 1] },
+          ]);
+          expect(body).not.toHaveProperty("problem");
+        }
+        receipts.push(structuredClone(body));
+        expect(response.wireResponseBytes).toBeDefined();
+        receiptFacts.push({
+          action: id,
+          root: body.id,
+          digest: createHash("sha256").update(response.wireResponseBytes!).digest("hex"),
+        });
+      } else if (index === 5) {
+        expect(body.items).toEqual(resources);
+        expect(body.next).toBeNull();
+      } else {
+        expect(body.events).toHaveLength(2);
+        expect(body.next).toBeNull();
+        const identity = [
+          ["epoch", actualEpoch],
+          ["view", actualView],
+          ["source", `${scope}events/`],
+        ]
+          .map((tagged) => createHash("sha256").update(JSON.stringify(tagged)).digest("base64url"))
+          .join("_");
+        for (const [i, name] of ["a", "b"].entries()) {
+          const event = body.events[i],
+            record = resources[i]!;
+          expect(typeof event.time).toBe("string");
+          expect(Number.isFinite(Date.parse(event.time))).toBe(true);
+          expect(event).toEqual({
+            id: `ev_${identity}_${i === 0 ? "pos-1" : "pos-2"}_0`,
+            source: `${scope}events/`,
+            type: "created",
+            subject: `${scope}beads/${name}`,
+            subjectType: `${scope}types/task`,
+            ordinal: 0,
+            time: event.time,
+            transaction: receipts[i === 0 ? 0 : 2]!.transaction,
+            data: {
+              revision: record.revision,
+              properties: record.properties,
+              metadata: record.metadata,
+            },
+          });
+        }
+      }
+      epoch = actualEpoch;
+      view = actualView;
+      observedIds.push(id);
+    },
+    summary: () => ({
+      kind: "sequence-member-wire-supplement",
+      negative,
+      observedIds: [...observedIds],
+      performedComparisons: performed.map((p) => [...p]),
+      receiptFacts: receiptFacts.map((f) => ({ ...f })),
+    }),
+    finish() {
+      expect(observedIds).toEqual(negative ? ["s-sequence"] : memberRawIds);
+      expect(performed).toEqual(negative ? [] : memberReplayLedger);
+      if (!negative) {
+        expect(new Set(receipts.map((r) => r.id)).size).toBe(3);
+        expect(new Set(receipts.map((r) => r.transaction)).size).toBe(3);
+      }
+    },
+  };
+}
+function composedMemberWire(
+  cross: ReturnType<typeof crossCarrierWire>,
+  minimum: ReturnType<typeof commandMinimumWire>,
+  member: ReturnType<typeof sequenceMemberWire>,
+) {
+  let handedOff = false;
+  return async (response: HttpExchangeResponse) => {
+    await minimum.afterExchange(response);
+    const request = response.exactRequest,
+      key = request?.headerLines.find((h) => h.name.toLowerCase() === "idempotency-key")?.value;
+    const exempt = memberHandoff(
+      member.count(),
+      response.url,
+      request?.bodyDigest,
+      key,
+      request?.writeState,
+    );
+    if (exempt && !handedOff) {
+      cross.finish();
+      handedOff = true;
+    }
+    if (!exempt) await cross.afterExchange(response);
+    if (handedOff) await member.afterExchange(response);
+  };
+}
+function assertMemberPositive(
+  observed: Awaited<ReturnType<typeof observe>>,
+  wire: ReturnType<typeof sequenceMemberWire>,
+) {
+  const row = observed.result.scenarios.find((r) => r.id === memberId)!,
+    declared = bundle.manifest.scenarios.find((r) => r.id === memberId)!;
+  expect(row.state).toBe("pass");
+  expect(row.cleanupError).toBeUndefined();
+  expect(row.prerequisiteFailure).toBeUndefined();
+  expect(row.exchanges.map((e) => e.request.id)).toEqual(memberActionIds);
+  expect(row.exchanges.map((e) => e.request.method)).toEqual([
+    "POST",
+    "POST",
+    "GET",
+    "POST",
+    "GET",
+    "POST",
+    "GET",
+    "POST",
+    "GET",
+    "GET",
+  ]);
+  expect(row.actions!.map((a) => a.action.id)).toEqual([
+    "s-first-facts",
+    "s-failed-facts",
+    "s-last-facts",
+  ]);
+  for (const exchange of row.exchanges) {
+    expect(exchange.transportError).toBeUndefined();
+    expect(exchange.harnessError).toBeUndefined();
+    expect(exchange.assertions.every((a) => a.passed)).toBe(true);
+    expect(exchange.request.exact?.writeState).toBe("complete");
+    if (!exchange.request.id.endsWith("-facts"))
+      expect(exchange.assertions.map((a) => a.id)).toEqual(
+        declared.actions!.find((a) => a.id === exchange.request.id)!.assertions.map((a) => a.id),
+      );
+  }
+  for (const [i, index] of [2, 4, 6].entries()) {
+    const exchange = row.exchanges[index]!,
+      action = row.actions![i]!,
+      fact = wire.summary().receiptFacts[i]!;
+    expect(action.assertions.map((a) => a.id)).toEqual(
+      declared.actions!.find((a) => a.id === action.action.id)!.assertions.map((a) => a.id),
+    );
+    expect(action.assertions.every((a) => a.passed)).toBe(true);
+    expect(action.executionError).toBeUndefined();
+    expect(action.output).toEqual({ kind: "json" });
+    expect(exchange.sourceReceiptObservation).toMatchObject({
+      action: fact.action,
+      pointer: "/id",
+      receipt: fact.root,
+      responseDigest: fact.digest,
+      credentialRef: "operator",
+    });
+    expect(exchange.request.url).toBe(fact.root);
+    expect(exchange.request.exact?.bodyPresent).toBe(false);
+    expect(exchange.dynamicExactConfiguration).toMatchObject({
+      scope,
+      profile: "transactional",
+      routes: [{ method: "GET", url: fact.root }],
+    });
+    expect(exchange.servedSession).toEqual(exchange.sourceReceiptObservation!.session);
+    expect(exchange.assertions.map((a) => [a.id, a.passed])).toEqual([
+      ["actual-status", true],
+      ["actual-request", true],
+      ["actual-body", true],
+    ]);
+  }
+  wire.finish();
+}
+function applyMemberControl(value: CrossCarrierManifest) {
+  const row = value.scenarios.find((r) => r.id === memberId)!;
+  (row.actions[0]!.raw as { body: { value: string } }).body.value = JSON.stringify(
+    memberRequests(true)[0]!.body,
+  );
+}
+function assertMemberControl() {
+  const value = JSON.parse(manifestSource.bytes.toString()) as CrossCarrierManifest,
+    original = structuredClone(value);
+  applyMemberControl(value);
+  expect(value.scenarios.find((r) => r.id === memberId)!.actions).toHaveLength(10);
+  const changed = value.scenarios.find((r) => r.id === memberId)!.actions[0]!;
+  expect((changed.raw as { body: { value: string } }).body.value).toBe(
+    JSON.stringify(memberRequests(true)[0]!.body),
+  );
+  (changed.raw as { body: { value: string } }).body.value = JSON.stringify(
+    memberRequests()[0]!.body,
+  );
+  expect(value).toEqual(original);
+  applyMemberControl(value);
+  expect(() =>
+    createCumulativeTransactionalArtifactBundle(loadProfileContractSelection("transactional"), {
+      manifest: { bytes: Buffer.from(JSON.stringify(value)) },
+      fixture: fixtureSource,
+    }),
+  ).not.toThrow();
+}
+it("discriminates sequence member transactions against a successful middle delete", async () => {
+  const children: ChildProcess[] = [],
+    wire = sequenceMemberWire(true);
+  const observed = await observe({
+    children,
+    scenarioSelection: [memberId],
+    manifest: applyMemberControl,
+    afterExchange: wire.afterExchange,
+    onObserved(observed) {
+      if (process.env.BDP_TRANSACTIONAL_SEQUENCE_MEMBER_CONTROL_OUTPUT)
+        writeFileSync(
+          process.env.BDP_TRANSACTIONAL_SEQUENCE_MEMBER_CONTROL_OUTPUT,
+          JSON.stringify(
+            { sourceCommit, entry, ...observed, supplemental: wire.summary() },
+            null,
+            2,
+          ) + "\n",
+        );
+    },
+  });
+  expect(observed.result.selectedScenarioIds).toEqual([memberId]);
+  expect(observed.result.claimEligible).toBe(false);
+  expect(observed.result.scenarios).toHaveLength(1);
+  const row = observed.result.scenarios[0]!,
+    exchange = row.exchanges[0]!;
+  expect(row.state).toBe("fail");
+  expect(row.cleanupError).toBeUndefined();
+  expect(row.prerequisiteFailure).toBeUndefined();
+  expect(row.actions ?? []).toHaveLength(0);
+  expect(row.exchanges).toHaveLength(1);
+  expect(exchange.request.id).toBe("s-sequence");
+  expect(exchange.request.method).toBe("POST");
+  expect(exchange.request.exact?.writeState).toBe("complete");
+  expect(exchange.response?.status).toBe(200);
+  expect(exchange.transportError).toBeUndefined();
+  expect(exchange.harnessError).toBeUndefined();
+  expect(exchange.assertions.map((a) => a.id)).toEqual(
+    bundle.manifest.scenarios
+      .find((r) => r.id === memberId)!
+      .actions![0]!.assertions.map((a) => a.id),
+  );
+  expect(exchange.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual(memberFailureIds);
+  for (const id of [
+    "http-status",
+    "schema",
+    "media",
+    "request-headers",
+    "request-body",
+    "middle-no-resource",
+  ])
+    expect(exchange.assertions.find((a) => a.id === id)?.passed).toBe(true);
+  wire.finish();
+  expect(observed.sessions).toHaveLength(1);
+  expect(children).toHaveLength(2);
+  expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
+  console.log(
+    JSON.stringify({
+      kind: "installed-tx-sequence-member-control",
+      sourceCommit,
+      exchanges: 1,
+      childLaunches: children.length,
+      closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
+      failures: exchange.assertions.filter((a) => !a.passed).map((a) => a.id),
+      supplemental: wire.summary(),
+      claimEligible: observed.result.claimEligible,
+    }),
+  );
+}, 120000);
