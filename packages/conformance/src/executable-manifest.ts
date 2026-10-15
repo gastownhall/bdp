@@ -418,6 +418,15 @@ const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const HEADER_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const SECRET_HEADER_PATTERN =
   /^(?:authorization|cookie|proxy-authorization|set-cookie|x-api-key|x-auth-token)$/;
+// This protocol context field is authored input, never a credential field.
+function isSecretHeaderName(name: string): boolean {
+  const normalized = name.toLowerCase();
+  return (
+    normalized !== "bdp-authorization-view" &&
+    (SECRET_HEADER_PATTERN.test(normalized) ||
+      /(?:token|secret|password|credential|auth)/i.test(normalized))
+  );
+}
 const HTTP_FIELD_VALUE_PATTERN = /^[\t\x20-\x7e\x80-\xff]*$/;
 const MAXIMUM_RAW_REQUEST_TARGET_BYTES = 8_192;
 const STABLE_RESPONSE_METADATA_HEADERS = new Set([
@@ -972,11 +981,7 @@ function parseRequestInput(
         continue;
       }
       const normalized = name.toLowerCase();
-      if (
-        SECRET_HEADER_PATTERN.test(normalized) ||
-        /(?:token|secret|password|credential|auth)/i.test(normalized) ||
-        EXACT_RESERVED_FIELDS.has(normalized)
-      )
+      if (isSecretHeaderName(normalized) || EXACT_RESERVED_FIELDS.has(normalized))
         issues.push({ path, message: "raw source header is secret or executor-owned" });
       headerLines.push({ name, value });
     }
@@ -1469,10 +1474,7 @@ function parseHeaders(
     const fieldPath = `${path}.${name}`;
     if (!HEADER_PATTERN.test(name) || name !== name.toLowerCase())
       issues.push({ path: fieldPath, message: "must be a lowercase HTTP field name" });
-    if (
-      name === name.toLowerCase() &&
-      (SECRET_HEADER_PATTERN.test(name) || /(?:token|secret|password|credential|auth)/i.test(name))
-    )
+    if (name === name.toLowerCase() && isSecretHeaderName(name))
       issues.push({ path: fieldPath, message: "secret headers are not allowed in a scenario" });
     if (typeof field === "string") {
       if (!HTTP_FIELD_VALUE_PATTERN.test(field))

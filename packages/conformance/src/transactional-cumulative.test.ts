@@ -14,6 +14,7 @@ import {
   isCumulativeTransactionalArtifactBundle,
 } from "./artifact-bundle.js";
 import { canonicalJson } from "./canonical-json.js";
+import { selectApplicableScenariosForProfile } from "./selection.js";
 import { snapshotExactHttpMode } from "./http-executor.js";
 import { loadProfileContractSelection } from "./profile-contract-selection.js";
 import {
@@ -30,6 +31,9 @@ const read = (name: string) =>
   readFileSync(new URL(`../test-support/transactional/${name}-v1.json`, import.meta.url));
 const source = (value: unknown) => ({ bytes: Buffer.from(JSON.stringify(value)) });
 const manifest = JSON.parse(read("manifest").toString());
+const atomicCommit = manifest.scenarios.find(
+  (row: { id: string }) => row.id === "transactional.batch.atomic-commit",
+)!;
 const fixture = JSON.parse(read("fixture").toString());
 const inputs = () => ({
   manifest: { bytes: read("manifest") },
@@ -57,7 +61,7 @@ const ruManifest = {
   catalogId: "read-update-v1",
   scenarios: [
     {
-      ...manifest.scenarios[0],
+      ...atomicCommit,
       id: "read-update.discovery.document",
       requiredProfile: "read-update",
       actions: [
@@ -81,7 +85,7 @@ it("binds the canonical cumulative TX selection and exact source digests without
   expect(selected.required.map((row) => row.id)).toContain(
     "read-update.http.command-minimum-fields",
   );
-  expect(actual.manifest.scenarios.map((row) => row.id)).not.toContain(
+  expect(actual.manifest.scenarios.map((row) => row.id)).toContain(
     "read-update.http.command-minimum-fields",
   );
   expect(selected.retiredIds).toHaveLength(13);
@@ -140,8 +144,8 @@ it("rejects noncanonical selections, History, wrong factories, retired and mispr
   expect(() => createDevelopmentReadUpdateArtifactBundle(sources)).toThrow("diagnostic-only");
   for (const patch of [
     { catalogId: "read-update-v1" },
-    { scenarios: [{ ...manifest.scenarios[0], requiredProfile: "read-update" }] },
-    { scenarios: [{ ...manifest.scenarios[0], id: selected.retiredIds[0] }] },
+    { scenarios: [{ ...atomicCommit, requiredProfile: "read-update" }] },
+    { scenarios: [{ ...atomicCommit, id: selected.retiredIds[0] }] },
   ])
     expect(() =>
       createCumulativeTransactionalArtifactBundle(selected, {
@@ -154,9 +158,9 @@ it("rejects noncanonical selections, History, wrong factories, retired and mispr
     catalogId: "transactional-v1",
     scenarios: [
       {
-        id: manifest.scenarios[0].id,
+        id: atomicCommit.id,
         requiredProfile: "transactional",
-        setup: manifest.scenarios[0].setup,
+        setup: atomicCommit.setup,
         applicability: { requires: [] },
         cleanup: { resetFixture: true },
         requests: [
@@ -192,7 +196,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(238);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(237);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.unobservedIds).toContain("read-update.http.command-minimum-fields");
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
@@ -420,7 +424,7 @@ it("refuses reserved receipt actions in an ordinary RU run before setup or a pro
 
 it("uses preparation rather than HTTP timeout for private reopen lifecycle", async () => {
   const row = {
-    ...manifest.scenarios[0],
+    ...atomicCommit,
     actions: [
       {
         id: "reopen",
@@ -567,7 +571,7 @@ it.each(
     });
     const { resolveCredentials: _resolver, ...configuration } = mode;
     const row = {
-      ...manifest.scenarios[0],
+      ...atomicCommit,
       actions: [
         {
           id: "source",
@@ -850,7 +854,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     expect(() => assertCrossCarrierObservation(weak)).toThrow(kind);
   }
   for (const name of ["manifest", "coverage"] as const) {
-    const text = read(name).toString();
+    const text = withoutMinimumRow(read(name).toString(), name);
     const raw = objectSlices(text, name === "manifest" ? "scenarios" : "rows").get(
       "transactional.idempotency.cross-carrier",
     )!;
@@ -869,6 +873,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     "transactional.batch.atomic-commit",
   );
   expect(manifest.scenarios.map((r: { id: string }) => r.id)).toEqual([
+    "read-update.http.command-minimum-fields",
     "transactional.batch.atomic-commit",
     "transactional.batch.rollback",
     "transactional.batch.deletion-safety",
@@ -907,7 +912,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
-  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(199);
+  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(210);
   // Historical root-accepted deletion-safety measurement: M620094/N16373/C88043/A333.
   // Schema-name repair uses4B of the accepted margin:4092B/64nodes/1024B.
   // Historical measurement-only draft retained the smaller guards pending root acceptance.
@@ -915,19 +920,22 @@ it("preserves every original TX scenario and coverage object while adding one bo
   // Disk and normal-form fences are separate; margins are4096B/64nodes/1024B.
   // Historical deletion guards: manifest135906delta/650386absolute,
   // coverage18405delta/91848absolute, nodes3418delta/17275absolute.
-  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(200022);
-  expect(read("manifest").byteLength).toBeLessThanOrEqual(688302);
-  expect(Buffer.byteLength(JSON.stringify(manifest, null, 2) + "\n")).toBeLessThanOrEqual(699694);
-  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(29607);
-  expect(read("coverage").byteLength).toBeLessThanOrEqual(100269);
+  // Root-accepted command-minimum: disk738783/normal750589/nodes19575/coverage108091.
+  // Preserve bases488280/13019/70662 and margins4096B/64nodes/1024B.
+  // These measured source authoring fences do not change runtime/parser limits.
+  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(254599);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(742879);
+  expect(Buffer.byteLength(JSON.stringify(manifest, null, 2) + "\n")).toBeLessThanOrEqual(754685);
+  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(38453);
+  expect(read("coverage").byteLength).toBeLessThanOrEqual(109115);
   expect(
     Buffer.byteLength(JSON.stringify(JSON.parse(read("coverage").toString()), null, 2) + "\n"),
-  ).toBeLessThanOrEqual(100269);
+  ).toBeLessThanOrEqual(109115);
   expect(
     manifest.scenarios.flatMap((r: { actions: { assertions: unknown[] }[] }) =>
       r.actions.flatMap((a) => a.assertions),
     ),
-  ).toHaveLength(2102);
+  ).toHaveLength(2294);
   expect(read("fixture").byteLength).toBe(716);
   expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
     "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
@@ -939,8 +947,8 @@ it("preserves every original TX scenario and coverage object while adding one bo
     nodes++;
     if (value && typeof value === "object") pending.push(...Object.values(value));
   }
-  expect(nodes - 13019).toBeLessThanOrEqual(5152);
-  expect(nodes).toBeLessThanOrEqual(18171);
+  expect(nodes - 13019).toBeLessThanOrEqual(6620);
+  expect(nodes).toBeLessThanOrEqual(19639);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
     "transactional.receipt.pagination": [
@@ -1000,7 +1008,7 @@ it("pins the one-page matched-plus-updated witness without advertised-limit or o
   const row = manifest.scenarios.find(
     (r: { id: string }) => r.id === "transactional.receipt.pagination",
   );
-  expect(manifest.scenarios.indexOf(row)).toBe(9);
+  expect(manifest.scenarios.indexOf(row)).toBe(10);
   expect(row.actions).toHaveLength(18);
   const later = row.actions.find((a: { id: string }) => a.id === "p-later-state");
   expect(later.captures).toEqual([]); // HTTP capture is URL-only; no unimplemented array capture.
@@ -2395,3 +2403,356 @@ function assertCrossCarrierObservation(candidate: typeof manifest) {
     "complete cross-carrier authored row",
   ).toBe("9edceed3f23528cff25103143dc27aeac69be409420f0ed54c5a4f992c89ba73");
 }
+
+const minimumId = "read-update.http.command-minimum-fields";
+function withoutMinimumRow(text: string, name: "manifest" | "coverage") {
+  const raw = objectSlices(text, name === "manifest" ? "scenarios" : "rows").get(minimumId);
+  expect(raw).toBeDefined();
+  const reconstructed = text.replace(`    ${raw},\n`, "");
+  expect(reconstructed).not.toBe(text);
+  return reconstructed;
+}
+/** Independent literal HTTP, schema, capture and finite-state contract. Replay
+ * full JSON and Resource/revision comparisons are explicitly app supplements;
+ * private receipt GET equality is enforced by the existing observed authority. */
+function assertMinimumObservation(candidate: typeof manifest) {
+  const row = candidate.scenarios.find((r: { id: string }) => r.id === minimumId);
+  expect(row).toBeDefined();
+  expect(row.requiredProfile).toBe("read-update");
+  expect(row.setup).toEqual({
+    fixture: "reference-transactional-v1",
+    requires: ["installed-transactional-http", "transactional-receipt-observation"],
+  });
+  expect(row.actions.map((a: { id: string }) => a.id)).toEqual([
+    "m-create-a",
+    "m-replay-a",
+    "m-create-b",
+    "m-replay-b",
+    "m-create-c",
+    "m-replay-c",
+    "m-body-conflict",
+    "m-stale-update",
+    "m-retained-a",
+    "m-current",
+    "m-events",
+  ]);
+  const scope = "https://reference.invalid/acme/";
+  const create = (id: string) => ({
+    id: `beads/${id}`,
+    type: `${scope}types/task`,
+    properties: { title: `minimum-${id}` },
+  });
+  const batch = { operations: [{ operation: "createBead", ...create("b") }] };
+  const sequence = {
+    operations: [{ operation: "createBead", ...create("c"), idempotencyKey: "minimum-c" }],
+  };
+  const bodies = [
+    create("a"),
+    create("a"),
+    batch,
+    batch,
+    sequence,
+    sequence,
+    {
+      operations: [
+        { operation: "createBead", ...create("b"), properties: { title: "minimum-conflict" } },
+      ],
+    },
+    {
+      bead: "beads/a",
+      expectedRevision: "minimum-wrong-revision",
+      propertiesChange: [{ op: "replace", path: "/title", value: "minimum-stale" }],
+    },
+    undefined,
+    undefined,
+    undefined,
+  ];
+  const fields = ["bdp-minimum-scope-position", "bdp-scope-epoch", "bdp-authorization-view"];
+  const M = fields.map((name, i) => ({
+    name,
+    value: ["not a position!", "", "view-one, view-two"][i],
+  }));
+  const F = fields.map((name, i) => ({
+    name,
+    value: ["pos-99", "foreign-epoch", "foreign-view"][i],
+  }));
+  const Z = fields.map((name) => ({ name, value: "" }));
+  const copied = [
+    M,
+    [],
+    [{ name: "bdp-scope-epoch", value: "foreign-epoch" }],
+    Z,
+    F,
+    M,
+    F,
+    M,
+    [],
+    [],
+    [],
+  ];
+  const keys = [
+    "minimum-a",
+    "minimum-a",
+    "minimum-b",
+    "minimum-b",
+    undefined,
+    undefined,
+    "minimum-b",
+    "minimum-stale",
+    undefined,
+    undefined,
+    undefined,
+  ];
+  const paths = [
+    "operations/create-bead",
+    "operations/create-bead",
+    "operations/batch",
+    "operations/batch",
+    "operations/sequence",
+    "operations/sequence",
+    "operations/batch",
+    "operations/update-bead",
+    undefined,
+    "beads/",
+    "events/",
+  ];
+  const positions = [1, 1, 2, 2, 3, 3, 3, 3, 3, 3, 3];
+  const schemas = [
+    "mutationReceipt",
+    "mutationReceipt",
+    "mutationReceipt",
+    "mutationReceipt",
+    "transactionalSequenceResponse",
+    "transactionalSequenceResponse",
+    "transactionalProblem",
+    "mutationReceipt",
+    undefined,
+    "currentBeadCollection",
+    "eventPage",
+  ];
+  for (const [index, action] of row.actions.entries()) {
+    expect(action.captures, action.id).toEqual(
+      index === 0
+        ? [{ binding: "minimum-a-root", from: { kind: "json-pointer", pointer: "/id" } }]
+        : [],
+    );
+    const assertion = (id: string) => action.assertions.find((a: { id: string }) => a.id === id);
+    if (index === 8) {
+      expect(action).toMatchObject({
+        family: "client",
+        operation: "transactional.receipt-read",
+        input: { binding: "minimum-a-root", method: "GET" },
+      });
+      expect(assertion("root")).toEqual({
+        id: "root",
+        kind: "json-pointer",
+        pointer: "/body/id",
+        exists: true,
+        equalsBinding: "minimum-a-root",
+      });
+      for (const [id, pointer, value] of [
+        ["key", "/body/idempotencyKey", "minimum-a"],
+        ["required-position", "/body/requiredPosition", "pos-1"],
+        ["effect-position", "/body/effectPosition", "pos-1"],
+        ["serving-position", "/headers/bdp-scope-position", "pos-3"],
+      ])
+        expect(assertion(id!)).toEqual({
+          id,
+          kind: "json-pointer",
+          pointer,
+          exists: true,
+          equals: value,
+        });
+      continue;
+    }
+    expect(action.family).toBe("http");
+    expect(action.method).toBe(index < 8 ? "POST" : "GET");
+    expect(action.target).toEqual({
+      binding: "scope",
+      path: paths[index],
+      ...(index === 9 ? { query: { limit: "32" } } : {}),
+    });
+    expect(action.credentialRef).toBe("operator");
+    expect(action.raw.body).toEqual(
+      bodies[index] === undefined
+        ? undefined
+        : { encoding: "utf8", value: JSON.stringify(bodies[index]) },
+    );
+    const headers = [
+      ...(index < 8 ? [{ name: "content-type", value: "application/json" }] : []),
+      ...(keys[index] ? [{ name: "idempotency-key", value: keys[index] }] : []),
+      ...(index < 8 ? [{ name: "accept", value: "application/json" }] : []),
+      ...copied[index]!,
+    ];
+    if (index >= 9)
+      expect(
+        action.raw.headerLines.filter((h: { name: string }) =>
+          fields.includes(h.name.toLowerCase()),
+        ),
+        "minimum-read-header-absence",
+      ).toEqual([]);
+    expect(action.raw.headerLines, "minimum-empty-header-ledger").toEqual(headers);
+    expect(assertion("http-status")).toEqual({
+      id: "http-status",
+      kind: "status",
+      equals: index === 6 ? 409 : 200,
+    });
+    expect(assertion("schema")).toEqual({
+      id: "schema",
+      kind: "json-schema",
+      schema: `#/$defs/${schemas[index]}`,
+    });
+    expect(assertion("serving-position")).toEqual({
+      id: "serving-position",
+      kind: "header",
+      name: "bdp-scope-position",
+      equals: `pos-${positions[index]}`,
+    });
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(assertion(`present-${name}`)).toEqual({
+        id: `present-${name}`,
+        kind: "header",
+        name,
+        absent: false,
+      });
+    expect(assertion("request-headers")).toEqual({
+      id: "request-headers",
+      kind: "request-authored-headers",
+    });
+    expect(assertion("request-body")).toEqual({
+      id: "request-body",
+      kind: "request-authored-body",
+    });
+  }
+  const fact = (index: number, id: string) =>
+    row.actions[index].assertions.find((a: { id: string }) => a.id === id);
+  const problem = {
+    type: "https://github.com/gastownhall/bdp/problems/conflict",
+    code: "idempotency-conflict",
+    status: 409,
+    retry: "never",
+  };
+  expect(fact(6, "whole-problem")).toEqual({
+    id: "whole-problem",
+    kind: "json-pointer",
+    pointer: "",
+    exists: true,
+    equals: problem,
+  });
+  expect(fact(7, "whole-problem")).toEqual({
+    id: "whole-problem",
+    kind: "json-pointer",
+    pointer: "/problem",
+    exists: true,
+    equals: {
+      ...problem,
+      code: "revision-mismatch",
+      retry: "after-state-change",
+      operationIndex: 0,
+    },
+  });
+  for (const [index, key, position] of [
+    [0, "a", 1],
+    [1, "a", 1],
+    [2, "b", 2],
+    [3, "b", 2],
+  ] as const) {
+    for (const [id, pointer, value] of [
+      ["disposition", "/status", "completed"],
+      ["detail", "/detail", "available"],
+      ["key", "/idempotencyKey", `minimum-${key}`],
+      ["required-position", "/requiredPosition", `pos-${position}`],
+      ["effect-position", "/effectPosition", `pos-${position}`],
+    ] as const)
+      expect(fact(index, id)).toEqual({
+        id,
+        kind: "json-pointer",
+        pointer,
+        exists: true,
+        equals: value,
+      });
+  }
+  expect(fact(7, "no-effect")).toEqual({
+    id: "no-effect",
+    kind: "json-pointer",
+    pointer: "/effectPosition",
+    exists: false,
+  });
+  expect(fact(9, "ordered-state")).toEqual({
+    id: "ordered-state",
+    kind: "json-array-tuples",
+    pointer: "/items",
+    ordered: true,
+    projections: ["/id", "/type", "/properties", "/metadata"].map((pointer) => ({ pointer })),
+    equals: ["a", "b", "c"].map((k) => [
+      `${scope}beads/${k}`,
+      `${scope}types/task`,
+      { title: `minimum-${k}` },
+      {},
+    ]),
+  });
+  expect(fact(10, "ordered-facts")).toEqual({
+    id: "ordered-facts",
+    kind: "json-array-tuples",
+    pointer: "/events",
+    ordered: true,
+    projections: ["/source", "/type", "/subject", "/subjectType", "/ordinal"].map((pointer) => ({
+      pointer,
+    })),
+    equals: ["a", "b", "c"].map((k) => [
+      `${scope}events/`,
+      "created",
+      `${scope}beads/${k}`,
+      `${scope}types/task`,
+      0,
+    ]),
+  });
+  for (const index of [9, 10])
+    expect(fact(index, "no-next")).toEqual({
+      id: "no-next",
+      kind: "json-pointer",
+      pointer: "/next",
+      exists: true,
+      equals: null,
+    });
+  expect(row.actions.flatMap((a: { assertions: unknown[] }) => a.assertions)).toHaveLength(192);
+  expect(
+    createHash("sha256").update(JSON.stringify(row)).digest("hex"),
+    "complete minimum manifest facts",
+  ).toBe("4344f3701bc99031485bc4f7e327f738bc138084ff10e43c1623cdfa57d068b6");
+}
+it("pins the inherited command-minimum manifest facts, read-header absence and all thirteen prior objects", () => {
+  assertMinimumObservation(manifest);
+  expect(
+    selectApplicableScenariosForProfile(selected.catalog, "transactional").map((r) => r.id),
+  ).toContain(minimumId);
+  expect(bundle().manifest.scenarios[0]?.id).toBe(minimumId);
+  for (const name of ["manifest", "coverage"] as const) {
+    const original = withoutMinimumRow(read(name).toString(), name);
+    expect(createHash("sha256").update(original).digest("hex")).toBe(
+      name === "manifest"
+        ? "726fc623bbb115a0f39e0bb3aaa586ea37254522b254e55e555ea95587f14cb9"
+        : "a3a15b5143c118b24965698ec10289821664c90e935820b51c8cf76c05bdb1df",
+    );
+    const before = objectSlices(original, name === "manifest" ? "scenarios" : "rows"),
+      after = objectSlices(read(name).toString(), name === "manifest" ? "scenarios" : "rows");
+    expect(before.size).toBe(13);
+    for (const [id, raw] of before) expect(after.get(id), id).toBe(raw);
+  }
+  const empty = structuredClone(manifest);
+  empty.scenarios[0].actions[0].raw.headerLines =
+    empty.scenarios[0].actions[0].raw.headerLines.filter(
+      (h: { name: string }) => h.name !== "bdp-scope-epoch",
+    );
+  expect(() => assertMinimumObservation(empty)).toThrow("minimum-empty-header-ledger");
+  for (const index of [9, 10]) {
+    const changed = structuredClone(manifest);
+    changed.scenarios[0].actions[index].raw.headerLines.push({
+      name: "bdp-minimum-scope-position",
+      value: "pos-99",
+    });
+    expect(() => assertMinimumObservation(changed)).toThrow("minimum-read-header-absence");
+  }
+  // Full replay-pair ledger weakening is checked in an existing app static
+  // callback; arbitrary JSON raw captures are intentionally not manufactured.
+});
