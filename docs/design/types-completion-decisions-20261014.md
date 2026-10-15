@@ -19,6 +19,9 @@ not edited by this pass.
   definitions, the implementation resolves the complete available closure, and
   conformance cycles are forbidden. Different revisions of a common ancestor
   can both apply. Diamonds do not multiply a Link's count within one constraint.
+- Disjoint allowed values for the same optional property permit omission, with a
+  warning, if the remaining requirements permit it. Supplying the property fails
+  validation. If either schema requires it, the effective definition is invalid.
 - Valid-state conformance is not unrestricted write substitutability. Full
   properties replacement must satisfy the actual Type, including unknown-to-caller
   mandatory fields; it is not a merge. Explicit operation promises still bind.
@@ -62,8 +65,6 @@ bootstrap and retention; no installation API has been selected yet.
 
 ## Follow-up precision and validation
 
-- Same-name optional fields with disjoint allowed values can prohibit presence
-  without making every instance invalid. Decide diagnostics/admission explicitly.
 - Resolve schema dialect, references and closure composition, semantic-unit
   vocabulary, required contradiction checks and limits of mechanical proof.
 - Pair-wise uniqueness now spans the declaring conformance family, keyed by ordered

@@ -99,6 +99,16 @@ schema or semantic contradiction. Required admission checks, supported schema
 features and handling of contradictions that cannot be established mechanically
 remain to specify.
 
+When inherited schemas give the same optional property disjoint allowed values,
+the combination may still be valid by omitting that property. For example, A
+permits an optional string `code` and B permits an optional numeric `code`. A Type
+conforming to both may omit `code`, but cannot supply any value for it. Allow this
+combination with a warning identifying the unusable property, provided omission
+satisfies the other requirements. The warning does not relax instance validation.
+If either schema requires `code`, no value can satisfy both and the combination
+is invalid. Other requirements that force the property to be present have the
+same effect. This does not promise complete mechanical contradiction detection.
+
 ### 3.3 A conforming Type may add requirements
 
 ApprovedProduct may require an `approvalCode` or restrict `price` to nonnegative
@@ -437,6 +447,9 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | C permits extra string values; T adds string approvalCode | Allowed by that extra-property restriction |
 | C accepts price as number; T requires integer | Structural narrowing, not a string/number-style contradiction |
 | C requires string price; T requires numeric price | Impossible effective definition; invalid |
+| A permits optional string code; B permits optional numeric code; T conforms to both | Allow with a warning if omission satisfies all requirements; code cannot be supplied |
+| Such a T instance supplies code as string, number or null | Reject: no supplied value satisfies both property schemas |
+| Either inherited schema requires code in that combination | Invalid effective definition; omission cannot rescue a required incompatible field |
 | C means dollars; T reinterprets the same price as cents | Invalid semantic conformance, even with identical schemas |
 | C permits numeric price; T requires nonnegative price | Read conformance can hold; a negative write to T fails |
 | C explicitly promises an operation that T refuses under the same conditions | Invalid behavioral conformance |
@@ -484,9 +497,6 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 Conformance questions to work through next:
 
 - Repeated paths and deterministic closure identity; conformance cycles are forbidden.
-- Same-name optional fields with disjoint permitted values: omission can satisfy
-  both schemas. Decide whether to allow this with a diagnostic or reject the
-  conflicting declarations. The earlier recommendation was not an operator ruling.
 - Exact pinned versus floating conformance queries and constraint matching.
   Keep nominal affiliation matching distinct from inherited conformance matching.
 - Schema dialect/composition details and semantic annotations; minimum mandatory
