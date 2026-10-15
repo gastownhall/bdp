@@ -621,14 +621,28 @@ to the selected Resource revision; a floating endpoint refers to current state.
 Local availability and floating-endpoint revalidation still require explicit rules.
 External resources are opaque under §5.1; their Type is not remotely validated.
 
-The agreed direction is also to share the arity allowance across revisions of
-the declaring Link-Type identity, rather than letting a new definition pin create
-another allowance. Evolution when those exact revisions specify different limits
-remains OPEN: Assignment@1 maximum one and Assignment@2 maximum two cannot be
-resolved by silently choosing latest. This draft does not yet select activation,
-coexistence or migration rules for that case. This question is deliberately
-reserved for the next design discussion; no choice is implied by these
-representation decisions.
+The arity allowance is shared across revisions of the declaring Link-Type identity;
+a new definition pin does not create another allowance. Installing or publishing a
+new definition does not change existing affiliations or their guarantees.
+
+**Selected mixed-revision case:** Assignment@1 permits at most one incoming Link
+per Task, Assignment@2 permits two, and neither declares conformance to the other.
+If Task X already has an Assignment@1 Link, adding an Assignment@2 Link to X fails:
+both Links share the count, and the existing @1 Link keeps the maximum of one in
+force. The presence of @2 does not supersede @1's restriction.
+
+An explicit atomic migration can change the old Link's affiliation to @2 and add
+the second @2 Link. This may commit if the final graph satisfies all remaining
+constraints. No automatic migration follows from installing @2. If @2 conforms to
+@1, or another applicable declaration retains the maximum of one, changing the
+nominal affiliation does not escape that inherited or independent constraint.
+
+This settles the concrete coexistence/migration case, not the complete activation
+algorithm. Still open: precisely where a revision's graph constraints are active
+(other endpoint identities, zero matching Links, retained history and installed
+but unused definitions), inherited revision combinations, and activation of
+changed uniqueness/acyclicity rules. Do not silently generalize this ruling into
+a Scope-wide minimum over every installed or historical definition.
 
 ### 5.5 Validate arity at transaction commit
 
@@ -802,7 +816,9 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Batch finishes with an unsatisfied minimum or exceeded maximum | Roll back all operations and ownership revision effects |
 | Bounds are 0..0 and a matching Link exists at commit | Reject; zero maximum prohibits participation |
 | Deleting a Bead removes its own participation obligation | Still validate effects on surviving endpoints; other deletion rules remain applicable |
-| Definition revisions declare different limits for the same nominal Link Type | Evolution policy remains unresolved; do not invent separate allowances or latest-wins behavior |
+| X has an Assignment@1 Link with maximum one; add an Assignment@2 Link with maximum two | Reject: shared count exceeds the retained @1 guarantee; installing @2 alone changes nothing |
+| Atomically move that old Link to @2 and add the second @2 Link; @2 does not conform to @1 | May commit if final graph meets all other constraints; explicit migration removes this old affiliation |
+| @2 conforms to @1, or another applicable rule still limits X to one | Migration to @2 does not remove the inherited or independent maximum |
 | Distinct blocks and parent-child Links have the same ordered pair under dependency uniqueness | They share the constraint population; cannot both remain at commit |
 | Endpoint pins differ for the same source/target identities | Same uniqueness pair; no extra slot |
 | Reverse the source/target pair | Different uniqueness key; independent workflow constraints still apply |
