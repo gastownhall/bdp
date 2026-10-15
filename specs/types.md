@@ -54,6 +54,12 @@ Type reference is interpreted as a Bead reference to that definition; its identi
 and revision identify the definition Bead and the selected Bead revision. The
 exact definition fields and bootstrap remain to specify.
 
+Affiliation remains the distinguished `type` field on each Bead and Link; it is
+not represented by a Link to the definition Bead. Following ordinary incident
+Links does not implicitly follow this field into the Type graph. A Type-definition
+Bead may participate in explicit graph Links like other Beads, but an instance's
+reference to it does not create an edge, ownership or access permission.
+
 An instance saved under the Types profile pins its exact Type definition revision.
 Explicit floating Type input resolves before commit; an omitted Type on update
 preserves the existing exact affiliation. Supplying a Type reference replaces
@@ -222,11 +228,49 @@ higher-priced instances valid under that source Type while excluding them from
 its declared conformance. Evidence, review or confidence annotations do not relax
 the promise or turn membership into a probabilistic result.
 
-If conformance is represented by Links, a specialized Link Type that conforms to
-the base ConformsTo Link Type must preserve this same promise. This rule does not
-yet choose Links over descriptor fields or define qualifier syntax and execution.
+A specialized Link Type that conforms to the base ConformsTo Link Type must
+preserve this same promise. Qualifier syntax and execution remain to specify.
 A consumer recognizing the base relationship can rely on the base promise; that
 does not imply it can validate additional requirements it does not understand.
+
+### 3.10 Conformance declarations are owned Links
+
+Direct conformance declarations are represented by owned ConformsTo Links from
+one Type-definition Bead to another. The source declares conformance to the exact
+pinned target definition revision. Conforming specializations of ConformsTo also
+participate, under the tightening-only rule in §3.9 and transitive ownership
+matching in §5.7. The name here describes the selected relationship; production
+identity, definition schema and bootstrap remain to specify.
+
+The authoritative declarations for T@r are the Link records captured in that
+exact Type-definition Bead revision's owned-Link state. Creating, modifying or
+deleting a declaration has Core ownership revision effects on its source. Older
+Type revisions retain their recorded declarations. Unrelated assertions or Links
+stored elsewhere do not alter that owned state or the Type's contract. There is
+no separately writable conformsTo field competing with these Links.
+
+Resolve conformance using exact definition revisions at every step: follow the
+recorded Link revision and its pinned Link-Type definition, follow its pinned
+target, and then inspect that target revision's recorded owned declarations.
+For T@3 → A@2 → B@1, later changes to A do not change T@3's conformance. Live
+adjacency or ordinary identity-based incident-Link listing cannot substitute for
+this historical traversal. Missing required records do not permit falling back
+to newer revisions. Source endpoint pin syntax and the traversal API still need
+to express this recorded-state authority without conflating it with live incidence.
+
+Each declaration is a first-class Link with its own identity and revisions. Under
+Provenance V2, its revision provenance can record the declaration's author and
+sources; later Activity records can refer to the exact Link revision without
+changing it. Editing the declaration itself creates owner revision effects;
+recording an independent Activity does not. Provenance supplies evidence about a
+claim, not proof that its semantic promises hold.
+
+Both endpoints are definition Beads, but their described instance kinds must
+agree: no Bead-Type-to-Link-Type conformance. The precise metatype/check mechanism
+is open. Existing acyclicity, exact dependency availability, inherited validation
+and authorization requirements remain applicable. This selection does not choose
+representations for JSON Schema or other constraints and does not establish that
+existing traversal implementations already support the required historical walk.
 
 ## 4. Conformance is not revision compatibility
 
@@ -470,6 +514,12 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Core Scope uses a Type reference whose target is not a Bead | Not invalid merely for that reason; the applicable typing profile defines its interpretation |
 | Instance is stored under this Types profile | Its Type reference pins an exact revision of a Type-definition Bead |
 | A Bead represents a Link-Type definition | The definition is a Bead; its described instances are Links; no cross-kind conformance follows |
+| Traverse an instance's ordinary incident Links | Its distinguished type field creates no implicit Link into the Type graph |
+| T@3 owns a ConformsTo declaration targeting A@2; A@2 owns one targeting B@1 | T@3's closure includes those exact revisions even after A changes |
+| Delete or edit a conformance declaration | Apply source ownership revision effects; preserve the declaration in historical owner revisions |
+| Someone publishes an assertion outside T's authoritative owned set | It does not change T's conformance contract |
+| Record a later review as an Activity whose subject is the declaration Link revision | Preserve the declaration and owner revision; the Activity is independent |
+| Specialized ConformsTo Link has valid tightening-only semantics | Include it in conformance and ownership through transitive Link-Type conformance |
 | T conforms to C | Every valid T record satisfies C's structure and semantics |
 | A conformance qualifier adds a price ceiling to T | Enforce the ceiling as part of T's effective contract; preserve every target-Type promise |
 | A qualifier leaves some valid T instances outside the declared target contract | Invalid as a conformance declaration; qualifiers cannot weaken or make membership conditional |

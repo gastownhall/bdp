@@ -24,8 +24,13 @@ not edited by this pass.
   can both apply. Diamonds do not multiply a Link's count within one constraint.
 - Conformance qualifiers and specialized relationships may only tighten; every
   valid source-Type instance must satisfy the target's full contract. Conditional
-  or probabilistic membership cannot substitute for conformance. Owned ConformsTo
-  Links versus descriptor fields remains a representation decision, not yet selected.
+  or probabilistic membership cannot substitute for conformance.
+- Conformance declarations are owned ConformsTo Links, including conforming
+  specializations. Exact owner revision snapshots determine authoritative
+  declarations; historical traversal follows recorded Links and exact target pins,
+  never current adjacency. Each declaration has its own identity and provenance.
+- Instance affiliation stays in the distinguished type field, not an implicit
+  Link. JSON Schema and other constraint representations remain separate decisions.
 - Disjoint allowed values for the same optional property permit omission, with a
   warning, if the remaining requirements permit it. Supplying the property fails
   validation. If either schema requires it, the effective definition is invalid.
