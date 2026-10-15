@@ -752,8 +752,10 @@ it("preserves one guarded batch winner and rolls back the losing marker through 
     const pairErrors = pair.flatMap((result) =>
       result.status === "rejected" ? [result.reason] : [],
     );
-    if (pairErrors.length)
-      throw new AggregateError(pairErrors, "guarded-batch pair transport failed");
+    if (pairErrors.length) {
+      for (const error of pairErrors) addFailure(error);
+      throw pairErrors[0];
+    }
     const aWire = (pair[0] as PromiseFulfilledResult<Wire>).value,
       bWire = (pair[1] as PromiseFulfilledResult<Wire>).value;
     await Promise.all(closing);
@@ -813,16 +815,26 @@ it("preserves one guarded batch winner and rolls back the losing marker through 
     receiptUrl = loser.id;
     replayBody = losingInput.body;
     replayKey = losingInput.key;
+    const losingResponse = responses.find((response) => response.index === loserIndex + 2);
     check("frozen-loser-replay-input", () => {
-      expect(replayKey).toBe(loser.key);
-      expect(replayBody).toBe(loserIndex === 0 ? aBody : bBody);
-      expect(sha(replayBody!)).toBe(losingInput.hash);
-      expect(Buffer.from(replayBody!)).toStrictEqual(Buffer.from(losingInput.body));
+      expect(losingResponse?.index).toBe((loserIndex === 0 ? aWire : bWire).index);
+      expect(losingResponse?.sentKey).toBe(loser.key);
+      expect(losingResponse?.sentKey).toBe(replayKey);
+      expect(losingResponse?.requestBodySha256).toBe(losingInput.hash);
+      expect(losingResponse?.requestBodySha256).toBe(sha(replayBody!));
+      expect(losingResponse?.requestBodyBytes).toBe(Buffer.byteLength(replayBody!));
     });
     const replayWire = await send(4);
     await Promise.all(closing);
     const replay = receipt(replayWire, loser.key, losingInput.side);
-    check("retained-failure-full-equality", () => expect(replay.body).toStrictEqual(loser.body));
+    check("retained-failure-full-equality", () => {
+      const replayResponse = responses.find((response) => response.index === replayWire.index);
+      expect(replayResponse?.index).toBe(4);
+      expect(replayResponse?.sentKey).toBe(losingResponse?.sentKey);
+      expect(replayResponse?.requestBodySha256).toBe(losingResponse?.requestBodySha256);
+      expect(replayResponse?.requestBodyBytes).toBe(losingResponse?.requestBodyBytes);
+      expect(replay.body).toStrictEqual(loser.body);
+    });
     const recoveredWire = await send(5);
     await Promise.all(closing);
     const recovered = receipt(recoveredWire, loser.key, losingInput.side);
