@@ -97,6 +97,8 @@ type InstalledObservation = {
 };
 async function observe(control?: {
   readonly budgetMs?: number;
+  /** Negative-test deadline begins after the first real exchange, with startup still bounded. */
+  readonly afterFirstExchangeBudgetMs?: number;
   readonly scenarioSelection?: readonly string[];
   /** Retain genuine returned evidence before cleanup can fail; never replace it. */
   readonly onObserved?: (observed: InstalledObservation) => void;
@@ -118,6 +120,14 @@ async function observe(control?: {
   const budgetMs = control?.budgetMs ?? 90000;
   if (!Number.isSafeInteger(budgetMs) || budgetMs < 1 || budgetMs > 90000)
     throw new Error("invalid cohort budget");
+  const afterFirstExchangeBudgetMs = control?.afterFirstExchangeBudgetMs;
+  if (
+    afterFirstExchangeBudgetMs !== undefined &&
+    (!Number.isSafeInteger(afterFirstExchangeBudgetMs) ||
+      afterFirstExchangeBudgetMs < 1 ||
+      afterFirstExchangeBudgetMs > budgetMs)
+  )
+    throw new Error("invalid after-first-exchange cohort budget");
   const controller = new AbortController();
   const signal = control?.signal
     ? AbortSignal.any([control.signal, controller.signal])
@@ -149,10 +159,9 @@ async function observe(control?: {
   let target: ReturnType<typeof createTransactionalExecutionBinding> | undefined;
   const sessions: Record<string, unknown>[] = [];
   const deniedReceiptUrls = new Set<string>();
-  const timer = setTimeout(
-    () => controller.abort(new Error("installed cohort deadline")),
-    budgetMs,
-  );
+  const expireCohort = () => controller.abort(new Error("installed cohort deadline"));
+  const timer = setTimeout(expireCohort, budgetMs);
+  let firstExchangeTimer: ReturnType<typeof setTimeout> | undefined;
   let observed: InstalledObservation | undefined;
   let failure: unknown;
   const cleanupFailures: unknown[] = [];
@@ -268,6 +277,9 @@ async function observe(control?: {
         exactExecution: {
           execute: async (request) => {
             const response = await target!.target.execute(request);
+            if (afterFirstExchangeBudgetMs !== undefined && firstExchangeTimer === undefined) {
+              firstExchangeTimer = setTimeout(expireCohort, afterFirstExchangeBudgetMs);
+            }
             if (
               typeof control?.invalidReceiptCredentials === "string" &&
               response.status === 200 &&
@@ -325,6 +337,7 @@ async function observe(control?: {
       cleanupFailures.push(cleanup);
     } finally {
       clearTimeout(timer);
+      clearTimeout(firstExchangeTimer);
       rmSync(directory, { recursive: true, force: true });
     }
   }
@@ -878,7 +891,8 @@ it("aborts the actual cohort budget after real wire and drains all installed chi
     published = false;
   const started = performance.now();
   const run = observe({
-    budgetMs: 2000,
+    budgetMs: 10000,
+    afterFirstExchangeBudgetMs: 100,
     children,
     afterExchange: async (response, signal) => {
       expect(response.wireResponseBytes?.length).toBeGreaterThan(0);
