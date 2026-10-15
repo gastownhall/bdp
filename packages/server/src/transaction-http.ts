@@ -369,16 +369,21 @@ export function createTransactionHttpHandler(
           result.context,
         );
       }
-      if (result.code === "limit-exceeded" && result.limit === "transaction.operations") {
+      if (result.code === "limit-exceeded" && result.limit !== undefined) {
         if (!result.context) throw new Error("operation-limit refusal lost same-entry context");
         return context(
-          problem({ ...readProblem(result.code), limit: result.limit }),
+          problem({
+            ...readProblem(result.code),
+            limit: result.limit,
+            ...(result.pointer ? { pointer: result.pointer } : {}),
+          }),
           result.context,
         );
       }
       return problem({
         ...readProblem(result.code),
         ...(result.limit ? { limit: result.limit } : {}),
+        ...(result.pointer ? { pointer: result.pointer } : {}),
       });
     }
     if (authorization.kind === "unauthenticated") return transactionHttpProblem("unauthenticated");

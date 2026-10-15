@@ -11,7 +11,12 @@ import {
   isJsonSchemaDateTime,
 } from "@bdp/protocol";
 import * as batch from "./transaction-batch.js";
-import { transactionInputText, assertTransactionInputDepth } from "./transaction-set.js";
+import {
+  transactionInputText,
+  assertTransactionInputDepth,
+  TransactionSelectorSyntaxError,
+  transactionSelectorCapacity,
+} from "./transaction-set.js";
 import * as evaluator from "./resource-evaluator.js";
 import { openTransactionStore } from "./transaction-store.js";
 const scope = "https://example.test/set/",
@@ -371,12 +376,12 @@ it("enforces one total Event cap across ordinary and set facts, with atomic reta
   expect(f.owner.inspect().groups).toEqual(before.groups);
   expect(f.admit(operations, "over")).toMatchObject({ kind: "existing", receipt });
 });
-it("keeps unresolved negative Selector inputs a development gap while valid carriers share preparation", () => {
+it("rejects invalid set Selector grammar while valid carriers share preparation and sequence sets remain excluded", () => {
   const text = JSON.stringify({ operations: [update()] });
   expect(() => batch.prepareTransaction(scope, text)).not.toThrow();
   expect(() =>
     batch.prepareTransactionSetCore(scope, JSON.stringify({ operations: [update("$..*")] })),
-  ).toThrow(batch.TransactionDevelopmentLimitError);
+  ).toThrow(expect.objectContaining({ pointer: "/operations/0/selector" }));
   expect(() =>
     batch.prepareTransactionSequence(
       scope,
@@ -1027,4 +1032,89 @@ it("serializes byte-bounded deep syntax iteratively without changing number lexe
   const value = decodeJsonDocument(text);
   expect(transactionInputText(value)).toBe(text);
   expect(() => assertTransactionInputDepth(value)).toThrow("development batch depth limit");
+});
+
+it("preserves literal Selector identity and original mixed-carrier diagnostic pointers", () => {
+  const unicodeSelector = '$[?@.missing == "é😀"]';
+  const rawUnicode = JSON.stringify({ operations: [update(unicodeSelector)] });
+  const escapedUnicode = rawUnicode.replace("é", String.raw`\u00e9`);
+  expect(escapedUnicode).not.toBe(rawUnicode);
+  expect(JSON.parse(rawUnicode).operations[0].selector).toBe(unicodeSelector);
+  expect(JSON.parse(escapedUnicode).operations[0].selector).toBe(unicodeSelector);
+  const rawNormalized = batch.normalizeTransaction(
+    batch.prepareTransaction(scope, rawUnicode),
+    () => undefined,
+  );
+  const escapedNormalized = batch.normalizeTransaction(
+    batch.prepareTransaction(scope, escapedUnicode),
+    () => undefined,
+  );
+  expect(escapedNormalized.identity).toBe(rawNormalized.identity);
+  expect(escapedNormalized).toEqual(rawNormalized);
+  const literal = '$[?@.missing == "%41"]';
+  const original = JSON.stringify({ operations: [create("a"), update(literal)] });
+  const prepared = batch.prepareTransaction(scope, original);
+  const normalized = batch.normalizeTransaction(prepared, () => undefined);
+  expect(prepared.carrier.operations[1]?.input.selector).toBe(literal);
+  expect(Object.isFrozen(prepared.carrier.operations[1])).toBe(true);
+  expect(Object.keys(prepared.carrier.operations[1]!)).toEqual(["operation", "input"]);
+  expect(
+    batch.normalizeTransaction(batch.prepareTransaction(scope, original), () => undefined),
+  ).toEqual(normalized);
+  expect(
+    batch.normalizeTransaction(
+      batch.prepareTransaction(scope, original.replace("%41", "A")),
+      () => undefined,
+    ).identity,
+  ).not.toBe(normalized.identity);
+  expect(
+    batch.normalizeTransaction(
+      batch.prepareTransaction(scope, original.replace("@.missing", "@.missing ")),
+      () => undefined,
+    ).identity,
+  ).not.toBe(normalized.identity);
+  for (const [singleton, pointer] of [
+    [true, "/selector"],
+    [false, "/operations/1/selector"],
+  ] as const)
+    for (const invalid of ["$..*", ""]) {
+      try {
+        if (singleton)
+          batch.prepareTransactionSingleton(
+            scope,
+            "updateWhere",
+            JSON.stringify({
+              collection: "beads",
+              selector: invalid,
+              change: [{ op: "replace", path: "/n", value: 1 }],
+            }),
+          );
+        else
+          batch.prepareTransaction(
+            scope,
+            JSON.stringify({ operations: [create("a"), update(invalid)] }),
+          );
+        throw new Error("grammar should fail");
+      } catch (error) {
+        expect(error).toBeInstanceOf(TransactionSelectorSyntaxError);
+        expect(error).toMatchObject({ pointer });
+      }
+    }
+  let nested: unknown = 0;
+  for (let i = 0; i < 40; i++) nested = { nested };
+  const deep = { ...create("deep"), properties: { nested } };
+  expect(() =>
+    batch.prepareTransaction(scope, JSON.stringify({ operations: [deep, update("$..*")] })),
+  ).toThrow(TransactionSelectorSyntaxError);
+  expect(() =>
+    batch.prepareTransaction(scope, JSON.stringify({ operations: [deep, update()] })),
+  ).toThrow(batch.TransactionDevelopmentLimitError);
+  expect(() =>
+    transactionSelectorCapacity(
+      Object.freeze({
+        operation: "deleteWhere",
+        input: Object.freeze({ collection: "beads", selector: "$[?@.missing]" }),
+      }),
+    ),
+  ).toThrow("prepared set lost Selector grammar analysis");
 });

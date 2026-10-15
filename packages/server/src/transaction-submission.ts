@@ -1,3 +1,7 @@
+import {
+  TransactionSelectorSyntaxError,
+  type TransactionSelectorLimit,
+} from "./transaction-set.js";
 /** Private receiving/admission composition. No socket, export or profile claim. */
 import { JsonSyntaxError, ReadUpdateCarrierError } from "@bdp/protocol";
 import {
@@ -59,7 +63,8 @@ export type TransactionSubmissionResult =
         | "request-too-large"
         | "limit-exceeded"
         | "temporarily-unavailable";
-      readonly limit?: "transaction.operations";
+      readonly limit?: "transaction.operations" | TransactionSelectorLimit;
+      readonly pointer?: string;
       readonly retry?: "after-delay";
       readonly context?: TransactionReadContext;
     };
@@ -89,6 +94,8 @@ export async function submitTransaction(
         ? prepareTransaction(store.scope, body)
         : prepareTransactionSingleton(store.scope, submission.carrier.operation, body);
   } catch (error) {
+    if (error instanceof TransactionSelectorSyntaxError)
+      return { kind: "refused", status: 400, code: "malformed-request", pointer: error.pointer };
     if (error instanceof TransactionDevelopmentLimitError) developmentLimit = error;
     else if (
       error instanceof JsonSyntaxError ||
@@ -136,6 +143,7 @@ export async function submitTransaction(
     observed &&
     (result.kind === "conflict" ||
       result.kind === "operation-limit" ||
+      result.kind === "selector-limit" ||
       result.kind === "not-acceptable") &&
     !result.context
   )
@@ -154,6 +162,15 @@ export async function submitTransaction(
         status: 413,
         code: "limit-exceeded",
         limit: "transaction.operations",
+        ...(result.context ? { context: result.context } : {}),
+      };
+    case "selector-limit":
+      return {
+        kind: "refused",
+        status: 413,
+        code: "limit-exceeded",
+        limit: result.limit,
+        pointer: result.pointer,
         ...(result.context ? { context: result.context } : {}),
       };
     case "not-acceptable":

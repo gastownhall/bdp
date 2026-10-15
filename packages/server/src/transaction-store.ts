@@ -1,3 +1,4 @@
+import { transactionSelectorCapacity, type TransactionSelectorLimit } from "./transaction-set.js";
 import {
   TRANSACTION_SNAPSHOT_LIMITS,
   TRANSACTION_SNAPSHOT_TOKEN_POLICY,
@@ -135,7 +136,13 @@ export interface TransactionReceivingControls {
 export type TransactionReceivingAdmission =
   | TransactionAdmission
   | { readonly kind: "not-acceptable"; readonly context?: TransactionReadContext }
-  | { readonly kind: "operation-limit"; readonly context?: TransactionReadContext };
+  | { readonly kind: "operation-limit"; readonly context?: TransactionReadContext }
+  | {
+      readonly kind: "selector-limit";
+      readonly limit: TransactionSelectorLimit;
+      readonly pointer: string;
+      readonly context?: TransactionReadContext;
+    };
 export function snapshotTransactionReceivingControls(
   controls: TransactionReceivingControls,
 ): TransactionReceivingControls {
@@ -1081,6 +1088,19 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     // admission controls, and no refusal ever inserts a receipt or owner.
     if (controls && batch.carrier.operations.length > controls.maximumOperations)
       return { kind: "operation-limit" };
+    if (controls) {
+      for (const [index, op] of batch.carrier.operations.entries()) {
+        if (op.operation !== "updateWhere" && op.operation !== "deleteWhere") continue;
+        const limit = transactionSelectorCapacity(op);
+        if (limit)
+          return {
+            kind: "selector-limit",
+            limit,
+            pointer:
+              batch.carrier.kind === "singleton" ? "/selector" : `/operations/${index}/selector`,
+          };
+      }
+    }
     if (controls && !controls.acceptsJson) return { kind: "not-acceptable" };
     const receipt: TransactionReceipt = {
       id: `${scope}receipts/${randomUUID()}`,
@@ -1388,6 +1408,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         const result = admitKey(principal, key, batch, false, undefined, undefined, receiving);
         if (result.kind === "operation-limit" && controls === undefined)
           throw new TransactionDevelopmentLimitError("development transaction operation limit");
+        if (result.kind === "selector-limit" && controls === undefined)
+          throw new TransactionDevelopmentLimitError("development transaction Selector limit");
         if (result.kind === "existing") {
           if (!receiving.acceptsJson)
             return {
@@ -1400,6 +1422,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           observed &&
           (result.kind === "conflict" ||
             result.kind === "operation-limit" ||
+            result.kind === "selector-limit" ||
             result.kind === "not-acceptable")
         )
           return { ...result, context: readContext() };
