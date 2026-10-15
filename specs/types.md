@@ -205,7 +205,154 @@ Whether to retain that exact promise, how to express it, SemVer labels, and whet
 matching ever follows a compatibility claim remain explicit decisions. An exact
 conformance pin does not silently match another revision through SemVer or age.
 
-## 5. Concrete acceptance cases
+## 5. Endpoint constraints and arity
+
+These rules apply to Bead and Link Types under the same structural and semantic
+conformance principles. They do not select cross-kind conformance between a Bead
+Type and a Link Type. Examples below are conceptual, not selected wire syntax.
+
+### 5.1 Endpoint eligibility starts with OR
+
+A Link Type may constrain its source and target independently. The baseline is an
+explicit OR-list: an endpoint qualifies by having, or transitively conforming to,
+one of the specified definitions. Explicit AND, NOT and exact-only matching are
+deferred. Pinned versus floating definition selectors still need precise syntax
+and matching rules.
+
+For example:
+
+```text
+AnnotationLink source: Issue | Memory
+ReviewLink conforms to AnnotationLink
+ReviewLink source: Memory | Activity
+
+Effective ReviewLink source:
+    (Issue | Memory) & (Memory | Activity)
+```
+
+Every inherited constraint applies. A local declaration cannot widen or override
+one. Omitting a local constraint retains the inherited requirement. A broader
+local declaration is accepted with a warning explaining that the inherited
+restriction still applies; it is not rejected merely for being broader. The
+warning is diagnostic, not permission to accept an invalid endpoint.
+
+If Issue, Memory and Activity have no conformance relationships, Memory qualifies,
+but Activity alone does not. A Type conforming to both Issue and Activity also
+qualifies. Do not simplify this expression to a nominal list containing only
+Memory. Provably impossible effective requirements are distinct from harmless
+local underspecification and follow the invalid-definition rule in §3.2.
+
+### 5.2 Both Bead and Link Types can declare arity
+
+Arity constrains the number of matching Links at an endpoint. Bead Types can
+declare incoming or outgoing participation requirements, including obligations
+that exist before any matching Link exists. Link Types can impose source-side
+or target-side count constraints on their relationship.
+
+```text
+Assignment Link Type:
+    source accepts Issue
+    target accepts Person
+    at most five Assignments per target identity
+
+AssignedIssue conforms to Issue:
+    requires exactly one outgoing Link satisfying Assignment
+```
+
+Every qualifying local AssignedIssue must satisfy its own requirement, even when
+it currently has zero Links. An ordinary Issue does not acquire that obligation
+merely because Assignment permits Issue sources. The Assignment target maximum
+and the AssignedIssue outgoing requirement both apply.
+
+| Bounds | Meaning |
+| --- | --- |
+| 0..1 | Optional, at most one |
+| 1..1 | Exactly one |
+| 0..unbounded | No count restriction |
+| 0..0 | Matching Links are forbidden |
+
+An omitted minimum means zero. A maximum of zero is meaningful. Positive lower
+bounds are supported by the design; exact representation and the population to
+which a Link-Type-declared positive minimum applies remain to specify. Endpoint
+eligibility alone does not establish a mandatory relationship for every eligible
+Bead. No rule requires enumerating every eligible external resource.
+
+All inherited bounds remain in force. Requiring a Link and forbidding that same
+Link set are conflicting obligations, not an override. Constraint syntax must
+identify the counted Link set and incoming/outgoing direction explicitly.
+
+### 5.3 Counts include conforming Link Types
+
+Conformance brings Links into the declaring Type's count. If Assignment has a
+maximum of one per source, PrimaryAssignment and TemporaryAssignment both conform
+to Assignment, and one of each leaves X, X has two Assignments and violates the
+maximum. Separate allowances per conforming Type would defeat the promise.
+
+Each Link counts once within a given constraint, even when multiple conformance
+paths reach the declaring Type. A more specific Type's count constraint is an
+additional check, not a partition or replacement of the inherited count. The
+previously agreed ability to aggregate an explicit set of Link Types under one
+maximum remains a requirement for the eventual constraint syntax.
+
+### 5.4 Scope boundaries, identities and pins
+
+Count the storing Scope's own Link table, including its Links referring to external
+endpoints. Do not count or claim to validate other Scopes' Link tables. A constraint
+on one external endpoint identity can therefore be enforced against the Links
+this Scope stores without controlling that external resource's lifecycle.
+
+Count by endpoint identity across floating references and references pinned to
+different revisions. Three distinct Links whose source references are X, X@r1 and
+X@r2 consume three slots in the same source-identity count. Pins do not create
+additional arity allowances. Retained historical Link revisions are not additional
+current Links in that count.
+
+Endpoint eligibility is separate from count grouping: a pinned endpoint refers
+to the selected Resource revision; a floating endpoint refers to current state.
+Availability, remote validation and floating-endpoint revalidation still require
+explicit rules, rather than guessing conformance from an unresolved reference.
+
+The agreed direction is also to share the arity allowance across revisions of
+the declaring Link-Type identity, rather than letting a new definition pin create
+another allowance. Evolution when those exact revisions specify different limits
+remains OPEN: Assignment@1 maximum one and Assignment@2 maximum two cannot be
+resolved by silently choosing latest. This draft does not yet select activation,
+coexistence or migration rules for that case.
+
+### 5.5 Validate arity at transaction commit
+
+Arity is checked against the complete final staged state of an atomic transaction.
+Temporary lower- or upper-bound violations are permitted between its operations.
+Later operations see earlier staged changes; other clients do not see the invalid
+intermediate state. Commit succeeds only if all applicable arity constraints hold.
+Otherwise the entire transaction rolls back, including owned-Link/source revision
+effects. A single-operation write must also leave a valid committed graph.
+
+For an AssignedIssue requiring exactly one Assignment, a batch may create the new
+Assignment before deleting the old one (temporarily two), or delete the old one
+first (temporarily zero). Either ordering can commit if its final state satisfies
+all applicable constraints. A batch may likewise build the Beads and Links of a
+required graph segment before the arity check.
+
+Syntax, authorization and revision preconditions are not waived. This decision
+specifically defers arity validation; it does not silently defer every properties,
+endpoint, uniqueness or reference check. Which other graph checks should be
+commit-time constraints is separate design work.
+
+A server without optional batch support may be unable to express some valid
+transitions. It must reject the invalid single write rather than break an
+invariant. Creating or changing a Bead to a Type with a positive minimum creates
+an obligation on the resulting Bead. Deleting that Bead removes its own obligation,
+but effects on surviving Beads and Links must still satisfy their constraints.
+Activating stricter definitions over existing data requires explicit migration
+and activation rules; no implicit exemption for existing violations is selected.
+
+**These decisions supersede the earlier maximums-only rule and the requirement
+that arity hold after every operation.** They are proposed shared semantics, not
+claims about current BDP batch or Beads behavior. Canonical Write changes and
+implementation coordination remain separate landing work.
+
+## 6. Concrete acceptance cases
 
 These are design acceptance cases, not claims of implemented or executed tests.
 Product/ApprovedProduct are illustrative and do not add shipping domain Types.
@@ -233,8 +380,22 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | A newer revision of an inherited definition appears | Existing T revision retains its original exact promises |
 | A required transitive definition is unavailable | Do not accept the Type for use with incomplete conformance knowledge |
 | New Type revision adds a mandatory field | May break old-data acceptance even if conformance to a parent remains valid |
+| ReviewLink declares Memory OR Activity while conforming to AnnotationLink allowing Issue OR Memory | Warn about the broader local declaration; enforce both constraints |
+| Source conforms to both Issue and Activity in that example | Accept under both endpoint constraints; do not reduce the result to Memory only |
+| Ordinary Issue has no Assignment; only AssignedIssue requires one | No minimum obligation follows merely from Assignment accepting Issue sources |
+| AssignedIssue has zero Assignments at commit | Reject the transaction |
+| PrimaryAssignment and TemporaryAssignment conform to Assignment with maximum one per source | One of each from the same source exceeds the shared maximum |
+| Multiple paths reach the same declaring Link-Type revision | Count a given Link once in that constraint |
+| Distinct Links use X, X@r1 and X@r2 as source | Count all three under the source identity X |
+| This Scope stores two Links to the same external target with maximum one | Reject even though the target is external; other Scopes' Links are not counted |
+| Replace the sole Assignment in a batch, creating first or deleting first | Permit intermediate two or zero; accept only a valid final graph |
+| Batch creates an AssignedIssue and its required Assignment | Accept if the complete final graph satisfies all applicable constraints |
+| Batch finishes with an unsatisfied minimum or exceeded maximum | Roll back all operations and ownership revision effects |
+| Bounds are 0..0 and a matching Link exists at commit | Reject; zero maximum prohibits participation |
+| Deleting a Bead removes its own participation obligation | Still validate effects on surviving endpoints; other deletion rules remain applicable |
+| Definition revisions declare different limits for the same nominal Link Type | Evolution policy remains unresolved; do not invent separate allowances or latest-wins behavior |
 
-## 6. Decisions still needed
+## 7. Decisions still needed
 
 Conformance questions to work through next:
 
@@ -254,10 +415,11 @@ Other Type-system work:
 
 - Definition representation, bootstrap, IDs and revision availability; whether
   definitions are Beads; installation, removal, packaging and retention.
-- Endpoint AND/OR expressions and their wire representation. An endpoint accepting
-  Issue OR Memory differs from a Type promising both contracts. NOT remains
-  unselected; an unresolved definition must not be treated as proven nonmembership.
-- Ownership, maximum counts, ordered-pair uniqueness and other graph constraints.
+- Endpoint OR-list wire syntax, inherited conjunction and warning details. Explicit
+  AND/NOT/exact-only selectors remain deferred; unresolved does not mean nonmember.
+- Arity syntax, Link-Type minimum applicability, constraint identity and changing
+  limits across definition revisions; ownership, ordered-pair uniqueness and
+  which other graph constraints are checked at commit.
 - Explicit affiliation changes, migrations, floating endpoint revalidation and
   operation behavior during transitions.
 - Compatibility families and publication claims, including semantic changes.
@@ -268,13 +430,14 @@ citations and reference availability. Use these as requirements, not automatic
 precedent. Keep their domain semantics and the Provenance V2 proposal intact while
 reviewing shared Type mechanisms.
 
-## 7. Readiness and landing
+## 8. Readiness and landing
 
 | Item | Status |
 | --- | --- |
 | Optional Scope-wide Types boundary | Agreed design; canonical integration pending |
 | Conformance rules in §3 and distinctions in §4 | Agreed design foundation; detailed syntax/checks open |
-| Acceptance cases in §5 | Written for review; implementation qualification NYI |
+| Endpoint composition and arity in §5 | Agreed design direction; cross-revision evolution and detailed syntax open |
+| Acceptance cases in §6 | Written for review; implementation qualification NYI |
 | Definition wire schema, bootstrap and lifecycle | Not yet specified |
 | Constraint expression syntax and matching | Not yet specified |
 | Beads CLI/storage implementation of this draft | Not established by this document |
