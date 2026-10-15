@@ -516,6 +516,8 @@ The proposed issue base owns its outgoing Links satisfying dependency, including
 blocks, parent-child and the other conforming children. The current preview owns
 the single nominal preview-dependency Type. That ownership selector must be
 updated with the hierarchy; exact base-ID equality would lose child Links.
+Transitive user-defined dependency conformers participate too; they cannot opt out
+of this ownership match. Historical owned sets retain their recorded state.
 It does **not** acquire Memory's wildcard
 ownership of all outgoing Link Types. In the inspected preview an Issue-source
 informational Related Link is unowned, while a Memory-source informational Link

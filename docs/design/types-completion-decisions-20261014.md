@@ -68,8 +68,9 @@ bootstrap and retention; no installation API has been selected yet.
   endpoint identities regardless of pins, and validates at commit. Define its wire
   syntax and other graph invariants separately. Do not silently defer authorization,
   revision preconditions or every other check to commit.
-- Specify ownership matching under conformance. An Issue owning dependencies must
-  include blocks/parent-child, not only exact nominal dependency affiliations.
+- Ownership matching through transitive conformance is selected, including custom
+  descendants; no matching Link opts out. Specify selector syntax and evolution
+  while preserving recorded historical owned sets.
 - Separate generic schema acceptance from domain-operation availability. Merely
   registering a gate or waits-for definition cannot install its evaluator. Richer
   semantic declarations, CLI/BDP operation surfaces and agent skills are deferred

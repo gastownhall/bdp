@@ -386,6 +386,26 @@ Links. Wire syntax and constraint evolution across definition revisions still
 need the shared decisions already identified for graph constraints. No new
 allowance follows merely from a different child Type or endpoint revision pin.
 
+### 5.7 Ownership matches through conformance
+
+A Bead Type's ownership declaration matches qualifying Link Types through
+transitive conformance, not only exact nominal affiliation. If issue owns outgoing
+Links satisfying dependency, blocks conforms to dependency, and custom-blocker
+conforms to blocks, outgoing Links of both child Types are owned by an issue
+source. User-defined conformers need not be individually added to the ownership
+list. A conforming Link cannot opt out of matching the source's ownership rule.
+
+Creating, modifying or deleting a matching owned Link has the source-revision
+effects required by Core ownership semantics. Conformance establishes membership;
+it does not grant authorization or bypass other constraints. A Link outside the
+selected family is not owned by this declaration, though another ownership rule
+may apply. Historical Bead revisions retain their recorded owned-Link state;
+current matching rules must not reinterpret old revision contents.
+
+Ownership selector syntax and exact-definition evolution remain open alongside
+the other matching and lifecycle decisions. Registering a new definition alone
+does not rewrite an existing Resource revision or silently change its affiliation.
+
 ## 6. Concrete acceptance cases
 
 These are design acceptance cases, not claims of implemented or executed tests.
@@ -433,6 +453,9 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Reverse the source/target pair | Different uniqueness key; independent workflow constraints still apply |
 | A Link outside the dependency family uses the occupied pair | This dependency uniqueness declaration does not prohibit it |
 | Batch creates a replacement pair Link before deleting the old Link | Temporary duplicate allowed; final duplicate rolls back the complete transaction |
+| issue owns dependency; custom-blocker transitively conforms to dependency | Matching outgoing custom-blocker Links are owned without individual registration in the ownership list |
+| Create, modify or delete such an owned Link | Apply Core source-revision effects atomically; no subtype opt-out |
+| Read a historical Issue revision after new definitions are registered | Preserve its recorded owned set; do not recompute history using current rules |
 
 ## 7. Decisions still needed
 
