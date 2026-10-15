@@ -24,7 +24,9 @@ not edited by this pass.
   declaration warns and does not override. Explicit AND/NOT/exact-only deferred.
 - Bead and Link Types can declare arity. Counts use this Scope's Links, including
   external references, per endpoint identity across pins; conforming Link Types
-  share counts. Lower bounds and zero maximum are meaningful. Arity checks final
+  share counts. Bead Types declare minimums and maximums; Link Types declare only
+  maximums (including zero). Same-set bounds intersect; different sets retain
+  independent counts. Arity checks final
   transaction state, superseding maxima-only/per-operation rules.
 - Atomic batch is optional within the proposed Write profile; every supported
   batch is atomic. Non-atomic sequence is outside the proposed direction. Existing
@@ -41,7 +43,7 @@ not edited by this pass.
 | --- | --- | --- | --- |
 | T01 | What names the counted Link set, direction and constraint identity? | dependency pair uniqueness spans blocks and parent-child; an Issue may have many different dependencies | Define syntax and exact applicability without confusing a pair key with endpoint maximum |
 | T02 | How do arity limits coexist across definition revisions? | Assignment@1 max1 and Assignment@2 max2 share nominal allowance | Select activation/coexistence/migration rules; reject implicit latest-wins and revision-created extra slots |
-| T03 | What population owes a Link-Type positive minimum? | Assignment allows Issue sources; an ordinary zero-Link Issue is not automatically an AssignedIssue | Specify obligation trigger/lifetime, including external identities; no implicit global enumeration |
+| T03 — resolved | Positive minimums belong on Bead Types; both kinds may declare maximums | Assignment eligibility does not oblige an ordinary Issue; AssignedIssue can require one | Same-set effective maximum is the smallest maximum; minimum is the largest minimum. Different counted sets remain independent. Declaration syntax is part of T01 |
 | T04 | How do nominal and conformance selectors match exact and floating definitions? | Query issue includes task/bug by conformance; an exact historical contract must retain meaning | Define matching independently from presentation aliases, revision age and compatibility claims |
 | T05 | How are endpoint pins and unavailable definitions checked? | MemorySupports cites an old revision; Dependency schedules against current Issue state | Define local/current/historical/remote admission and revalidation, without treating unknown as false |
 | T06 | What is the definition representation and bootstrap? | issue/task and dependency/blocks need exact definitions; definitions may or may not be Beads | Specify fields, identities, finite bootstrap, retrieval and pinned closure availability |

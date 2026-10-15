@@ -272,15 +272,25 @@ and the AssignedIssue outgoing requirement both apply.
 | 0..unbounded | No count restriction |
 | 0..0 | Matching Links are forbidden |
 
-An omitted minimum means zero. A maximum of zero is meaningful. Positive lower
-bounds are supported by the design; exact representation and the population to
-which a Link-Type-declared positive minimum applies remain to specify. Endpoint
+Bead Types can declare both minimums and maximums on incoming or outgoing
+matching Links. Link Types can declare source-side and target-side maximums,
+including zero, but cannot independently impose positive minimums. A positive
+minimum belongs on the Bead Type whose instances owe that relationship. Endpoint
 eligibility alone does not establish a mandatory relationship for every eligible
 Bead. No rule requires enumerating every eligible external resource.
 
-All inherited bounds remain in force. Requiring a Link and forbidding that same
-Link set are conflicting obligations, not an override. Constraint syntax must
-identify the counted Link set and incoming/outgoing direction explicitly.
+An omitted minimum means zero. A maximum of zero is meaningful. All applicable
+bounds, including inherited bounds, remain in force. For the same counted Link
+set, direction and endpoint population, the effective maximum is the smallest
+maximum and the effective minimum is the largest minimum. For example, Assignment
+allows at most five outgoing Links per source, but RestrictedIssue allows at most
+two outgoing Assignments: a RestrictedIssue is limited to two. A more permissive
+Bead maximum cannot relax the Link maximum. Different counted sets remain separate
+checks; a bound on all Dependencies cannot be collapsed into a bound on blocks.
+
+If the effective minimum exceeds the effective maximum, the requirements conflict;
+neither overrides the other. Constraint syntax must identify the counted Link set
+and incoming/outgoing direction explicitly. Exact declaration syntax remains open.
 
 ### 5.3 Counts include conforming Link Types
 
@@ -437,6 +447,11 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | ReviewLink declares Memory OR Activity while conforming to AnnotationLink allowing Issue OR Memory | Warn about the broader local declaration; enforce both constraints |
 | Source conforms to both Issue and Activity in that example | Accept under both endpoint constraints; do not reduce the result to Memory only |
 | Ordinary Issue has no Assignment; only AssignedIssue requires one | No minimum obligation follows merely from Assignment accepting Issue sources |
+| Link maximum five and Bead maximum two govern the same outgoing Assignment set | Effective maximum two; all inherited constraints also apply |
+| Link maximum two and Bead maximum five govern the same set | Effective maximum two; the Bead declaration cannot relax the Link constraint |
+| Bead maximum five Dependencies and maximum two blocks | Enforce both counts independently; five is not reduced to two for all Dependencies |
+| Link Type declares a positive minimum | Invalid declaration; place the participation obligation on a Bead Type |
+| Bead minimum three and applicable maximum two govern the same set | Conflicting requirements; no valid final count |
 | AssignedIssue has zero Assignments at commit | Reject the transaction |
 | PrimaryAssignment and TemporaryAssignment conform to Assignment with maximum one per source | One of each from the same source exceeds the shared maximum |
 | Multiple paths reach the same declaring Link-Type revision | Count a given Link once in that constraint |
@@ -479,7 +494,7 @@ Other Type-system work:
   definitions are Beads; installation, removal, packaging and retention.
 - Endpoint OR-list wire syntax, inherited conjunction and warning details. Explicit
   AND/NOT/exact-only selectors remain deferred; unresolved does not mean nonmember.
-- Arity syntax, Link-Type minimum applicability, constraint identity and changing
+- Arity syntax, constraint identity and changing
   limits across definition revisions; ownership, pair-uniqueness declaration syntax
   and which other graph constraints are checked at commit.
 - Explicit affiliation changes, migrations, floating endpoint revalidation and

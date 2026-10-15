@@ -3,8 +3,10 @@
 Draft for review, October 14, 2026. **`issue` is a base Bead Type; `task`, `bug`
 and the other work classifications conform to it. `dependency` is a base Link
 Type; `blocks`, `parent-child` and the other dependency classifications conform
-to it.** These are the selected design directions, not the installed Preview 2
-catalog. Native classification values translate to the intrinsic `type` reference;
+to it.** Intrinsic Types for task, blocks and the other classifications are a
+settled product decision. Preview 2 exposes that direction through CLI shims; the
+inspected underlying catalog has not yet caught up. Native classification values
+translate to the intrinsic `type` reference;
 `issue_type` and `dep_type` are not properties in the proposed records.
 
 This document preserves the names, fields and behavioral requirements discoverable
@@ -22,9 +24,17 @@ Neither is a replacement for the current canonical BDP contract until adopted.
 ## 1. Preview 2 evidence and status
 
 **Inspected Preview 2** means the exact delivered candidate and corresponding
-source below, not upstream main or the old unmerged PR97 snapshot. **Proposed**
-means this document's new hierarchy/mapping. **Open** means no product ruling is
-inferred from observed behavior. Inspection is not fresh runtime qualification.
+source below, not upstream main or the old unmerged PR97 snapshot. **Selected**
+means a settled product decision, including intrinsic classification Types.
+**Proposed** marks specification details not yet implemented or qualified here; it
+does not reopen that product decision. **Open** means a remaining design choice.
+Inspection is not fresh runtime qualification.
+
+**Product update from Donna, October 14:** Preview 2's CLI ratifies intrinsic
+classification Types through shimming. The underlying implementation is planned
+to catch up for Preview 3 by Friday, October 16. This is the product plan, not a
+claim that this draft has inspected or qualified the future implementation. The
+source evidence below remains the inspected Preview 2 snapshot.
 
 | Evidence | Exact identity | What it establishes |
 | --- | --- | --- |
@@ -72,13 +82,13 @@ schema, semantics and applicable graph constraints. No additional parent relatio
 between these children is inferred. For example, `parent-child` does not conform
 to `blocks` merely because both affect readiness.
 
-| Observed Preview 2 | Proposed mapping |
+| Inspected Preview 2 implementation | Selected product mapping |
 | --- | --- |
 | One nominal preview-issue Type; properties.issue_type=task | Intrinsic Type is task, whose definition conforms to issue; no properties.issue_type |
 | One nominal preview-dependency Type; properties.dep_type=blocks | Intrinsic Type is blocks, whose definition conforms to dependency; no properties.dep_type |
 | Existing native issue_type and dependencies.type columns | May remain storage details; adapter translates both reads and writes |
 | Generic native classification editing | Becomes an explicit nominal Type change in the graph contract, with resulting-state and workflow validation |
-| Existing effective type/kind display | Presentation of the current catalog, not evidence of installed conformance or pinned definition support |
+| Existing effective type/kind display and CLI shims | Expose the settled intrinsic-Type product direction; do not by themselves establish installed conformance or pinned definition support |
 
 `issue` and `dependency` membership queries must include conforming children.
 An exact nominal query for task remains distinct from a query for everything
@@ -717,7 +727,7 @@ qualifies the capability; some underlying native functionality already exists.
 
 | Area | Design/source status | Remaining work |
 | --- | --- | --- |
-| issue/dependency bases with conforming classification Types | Selected design; differs from current singleton Preview 2 catalog | Production IDs, exact pins, custom registrations, adapter mapping and no duplicate discriminators |
+| issue/dependency bases with conforming classification Types | Intrinsic classification Types settled at product level; Preview 2 CLI shims expose the direction | Underlying implementation planned for Preview 3 Friday October 16; qualify delivered IDs, pins, conformance, registrations and adapter mapping when available |
 | Ordinary content, status and classification | Existing behavior inventoried; core schema fragment provided | Full durable-field schema and configuration-dependent validation contract |
 | Dependency direction, pair uniqueness and kind roles | Existing behavior documented | Portable invariant/admission encoding; no implicit new maximum syntax |
 | Local floating endpoints | Current graph behavior documented; proposed initial boundary | Decide pins and remote workflow separately |
