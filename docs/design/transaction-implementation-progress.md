@@ -1879,3 +1879,24 @@ proposed emitted HTTP control omits only the two context projections. Earlier
 Event and receipt evidence retains its original source attribution. Visible
 unsupported minimum handling remains a private limitation; this draft adds no
 public profile qualification, discovery activation or pending product ruling.
+
+
+### Context for observed changefeed parameter refusals
+
+This draft retains the immutable current Scope context when an entered changefeed
+read rejects a malformed selected reconnect value or a same-context checkpoint
+ahead of the observed head. The existing400 invalid-parameter response carries
+that same observation; no second owner read or fabricated checkpoint is added.
+URL grammar, authentication, repeated reconnect fields, epoch/view checks and
+minimum/conditional ordering retain their existing behavior. Refusals before an
+owner observation remain contextless.
+
+The bounded draft strengthens existing owner/parser assertions, adds a twelve-
+request source witness and a ten-request private installed witness, and proposes
+one copied-emitted HTTP context-omission control. No tests, builds, controls or
+installed execution have run at this draft checkpoint. Thirty-four new witness
+exchanges enforce a response-body cap; the seven selected historical regression
+exchanges retain their existing reader/deadlines without a new aggregate byte-cap
+claim. Earlier evidence remains attributed to its original source. This is not
+public discovery activation, profile qualification or a ruling on retained
+Snapshot minimums or metadata-only incident-Link Event membership.

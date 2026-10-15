@@ -1,6 +1,6 @@
 import { replica as createReplica } from "../test-support/transaction-replica.js";
 import { constants } from "node:buffer";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -280,8 +280,27 @@ it("uses bounded context-fenced checkpoints, never Event IDs/raw positions/futur
   const token = transactionCheckpoint(scope, context, Number.MAX_SAFE_INTEGER);
   expect(token.length).toBeLessThanOrEqual(256);
   expect(checkpointPosition(scope, context, token)).toBe(Number.MAX_SAFE_INTEGER);
-  for (const bad of ["", "pos-1", "ev_invalid", token, `${token}=`, token.toUpperCase()])
-    expect(() => f.owner.readChanges(bad)).toThrow(TransactionChangefeedParameterError);
+  function refusal(after: string): TransactionChangefeedParameterError {
+    try {
+      f.owner.readChanges(after);
+    } catch (error) {
+      expect(error).toBeInstanceOf(TransactionChangefeedParameterError);
+      if (!(error instanceof TransactionChangefeedParameterError)) throw error;
+      return error;
+    }
+    throw new Error("expected changefeed parameter refusal");
+  }
+  let retained: TransactionReadContext | undefined;
+  for (const bad of ["", "pos-1", "ev_invalid", token, `${token}=`, token.toUpperCase()]) {
+    const error = refusal(bad);
+    expect(error.context).toStrictEqual({
+      scopeEpoch: context.scopeEpoch,
+      authorizationView: context.authorizationView,
+      scopePosition: "pos-1",
+    });
+    expect(Object.isFrozen(error.context)).toBe(true);
+    if (bad === token) retained = error.context;
+  }
   expect(() =>
     f.owner.readChanges(transactionCheckpoint(scope, { ...context, scopeEpoch: "old" }, 1)),
   ).toThrowError(expect.objectContaining({ reason: "cursor-expired" }));
@@ -293,6 +312,17 @@ it("uses bounded context-fenced checkpoints, never Event IDs/raw positions/futur
   expect(() =>
     f.owner.readChanges(transactionCheckpoint("https://other.test/", context, 1)),
   ).toThrow(TransactionMinimumFailure);
+  f.run([create("b")]);
+  expect(refusal(token).context).toStrictEqual({
+    scopeEpoch: context.scopeEpoch,
+    authorizationView: context.authorizationView,
+    scopePosition: "pos-2",
+  });
+  expect(retained).toStrictEqual({
+    scopeEpoch: context.scopeEpoch,
+    authorizationView: context.authorizationView,
+    scopePosition: "pos-1",
+  });
 });
 it.each([
   "",
@@ -302,9 +332,15 @@ it.each([
   "?after=genesis&after=genesis",
   "?start=now&limit=1",
 ])("rejects invalid feed intent %s with the local parameter convention", (query) => {
-  expect(() => transactionChangefeedRequest(new URL(`${scope}changes/${query}`), scope)).toThrow(
-    TransactionChangefeedParameterError,
-  );
+  let failure: unknown;
+  try {
+    transactionChangefeedRequest(new URL(`${scope}changes/${query}`), scope);
+  } catch (error) {
+    failure = error;
+  }
+  expect(failure).toBeInstanceOf(TransactionChangefeedParameterError);
+  if (!(failure instanceof TransactionChangefeedParameterError)) throw failure;
+  expect(failure.context).toBeUndefined();
 });
 it("fails closed on corrupt stored framing without renumbering or changing graph state", () => {
   const f = fixture();
@@ -695,3 +731,278 @@ it("decides actual HTTP minimum refusal before conditional shortcuts with final 
   expect(satisfied.status).toBe(304);
   expect(satisfied.headers.get("bdp-scope-position")).toBe("pos-0");
 });
+
+it("preserves current context on owner-observed changefeed parameter refusals over HTTP", async () => {
+  const controller = new AbortController();
+  const deadlineReason = new Error("changefeed context cohort deadline");
+  let deadlineExceeded = false;
+  const timer = setTimeout(() => {
+    deadlineExceeded = true;
+    controller.abort(deadlineReason);
+  }, 45000);
+  const failures: unknown[] = [];
+  const contextFailures: string[] = [];
+  const names = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
+  const records: {
+    ordinal: number;
+    method: string;
+    url: string;
+    accept: string;
+    reconnect: string | null;
+    status: number;
+    bodyOctets: number;
+    context: (string | null)[];
+    contentType: string | null;
+    contentLength: string | null;
+  }[] = [];
+  let directory: string | undefined;
+  let runtime: Awaited<ReturnType<typeof startTransactionRuntime>> | undefined;
+  let closed = false;
+  let attempted = 0;
+  const token = "c".repeat(32);
+  const problem = {
+    type: "https://github.com/gastownhall/bdp/problems/request",
+    code: "invalid-parameter",
+    retry: "never",
+    status: 400,
+  };
+  const problemLength = String(Buffer.byteLength(JSON.stringify(problem)));
+  try {
+    directory = mkdtempSync(path.join(tmpdir(), "bdp-feed-http-"));
+    runtime = await startTransactionRuntime({
+      scope,
+      directory,
+      create: true,
+      port: 0,
+      types,
+      credentials: [{ token, principal: "p", canMutate: true }],
+    });
+    const listenUrl = runtime.listenUrl;
+    async function exchange(
+      target: string,
+      method: "GET" | "HEAD" | "POST" = "GET",
+      accept = "application/json",
+      extra: Record<string, string> = {},
+      body?: string,
+    ) {
+      controller.signal.throwIfAborted();
+      expect(++attempted, "changefeed context dispatch bound").toBeLessThanOrEqual(12);
+      const url = new URL(target, scope);
+      expect(url.origin).toBe(new URL(scope).origin);
+      expect(Buffer.byteLength(url.href)).toBeLessThanOrEqual(8192);
+      const headers = new Headers({ authorization: `Bearer ${token}`, accept, ...extra });
+      expect(
+        [...headers].reduce((n, [k, v]) => n + Buffer.byteLength(k + v) + 4, 0),
+      ).toBeLessThanOrEqual(16384);
+      expect(Buffer.byteLength(body ?? "")).toBeLessThanOrEqual(65536);
+      const requestController = new AbortController();
+      const requestTimer = setTimeout(
+        () => requestController.abort(new Error("changefeed exchange deadline")),
+        5000,
+      );
+      try {
+        const response = await fetch(new URL(url.pathname + url.search, listenUrl), {
+          method,
+          headers,
+          redirect: "error",
+          signal: AbortSignal.any([controller.signal, requestController.signal]),
+          ...(body === undefined ? {} : { body }),
+        });
+        const chunks: Uint8Array[] = [];
+        let bytes = 0;
+        const reader = response.body?.getReader();
+        if (reader) {
+          try {
+            for (;;) {
+              const chunk = await reader.read();
+              if (chunk.done) break;
+              bytes += chunk.value.byteLength;
+              if (bytes > 32768) throw new Error("changefeed response body bound");
+              chunks.push(chunk.value);
+            }
+          } catch (error) {
+            requestController.abort(error);
+            try {
+              await reader.cancel(error);
+            } catch (cleanupError) {
+              throw new AggregateError([error, cleanupError], "changefeed reader cleanup failed");
+            }
+            throw error;
+          } finally {
+            reader.releaseLock();
+          }
+        }
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
+        records.push({
+          ordinal: attempted,
+          method,
+          url: url.href,
+          accept,
+          reconnect: headers.get("last-event-id"),
+          status: response.status,
+          bodyOctets: bytes,
+          context: names.map((name) => response.headers.get(name)),
+          contentType: response.headers.get("content-type"),
+          contentLength: response.headers.get("content-length"),
+        });
+        return { status: response.status, headers: response.headers, text, bytes };
+      } finally {
+        clearTimeout(requestTimer);
+      }
+    }
+    const receiptValidator = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceipt` });
+    async function seed(id: string, position: string) {
+      const body = JSON.stringify({ operations: [create(id)] });
+      expect(Buffer.byteLength(body)).toBe(125);
+      const response = await exchange(
+        "operations/batch",
+        "POST",
+        "application/json",
+        {
+          "content-type": "application/json",
+          "idempotency-key": `changefeed-context-${id}`,
+        },
+        body,
+      );
+      expect(response.status).toBe(200);
+      const receipt = JSON.parse(response.text);
+      expect(receiptValidator(receipt), JSON.stringify(receiptValidator.errors)).toBe(true);
+      expect(receipt).toMatchObject({
+        status: "completed",
+        idempotencyKey: `changefeed-context-${id}`,
+        requiredPosition: position,
+        effectPosition: position,
+      });
+    }
+    await seed("a", "pos-1");
+    const initial = await exchange("changes/?after=genesis");
+    expect(initial.status).toBe(200);
+    const page = JSON.parse(initial.text) as TransactionChangefeedPage;
+    expect(validPage(page), JSON.stringify(validPage.errors)).toBe(true);
+    expect(page.scope).toBe(scope);
+    expect(page.after).toBe("genesis");
+    expect(page.observedHeadPosition).toBe("pos-1");
+    expect(page.next).toBeNull();
+    expect(page.groups).toHaveLength(1);
+    const group = page.groups[0];
+    if (!group) throw new Error("missing initial change group");
+    expect(group.position).toBe("pos-1");
+    expect(group.previousPosition).toBe("pos-0");
+    expect(group.changes).toHaveLength(1);
+    expect(group.changes[0]).toMatchObject({
+      operation: "upsert",
+      resourceKind: "bead",
+      resource: { id: `${scope}beads/a`, type: beadType, properties: { n: 0 } },
+    });
+    expect(group.events).toHaveLength(1);
+    expect(group.events[0]).toMatchObject({ type: "created", subject: `${scope}beads/a` });
+    const expected = [page.scopeEpoch, page.authorizationView, "pos-1"];
+    expect(expected[0]).toBeTruthy();
+    expect(expected[1]).toBeTruthy();
+    expect(names.map((name) => initial.headers.get(name))).toStrictEqual(expected);
+    const match = /^(cg_[A-Za-z0-9_-]{43}_[A-Za-z0-9_-]{43}_)1$/.exec(group.checkpoint);
+    if (!match) throw new Error("unexpected issued checkpoint encoding");
+    // Deliberately invalid private input; not an issued/durable replay checkpoint.
+    const future = `changes/?after=${match[1]}3`;
+    async function contextual(
+      method: "GET" | "HEAD",
+      accept: string,
+      target: string,
+      extra: Record<string, string> = {},
+      tuple = expected,
+    ) {
+      const response = await exchange(target, method, accept, extra);
+      const label = `changefeed-context:${attempted}`;
+      // A200 here requires transport/media/server diagnosis; it is not a context failure.
+      expect(response.status, `${label}:prerequisite:${JSON.stringify(records.at(-1))}`).toBe(400);
+      expect(response.headers.get("x-bdp-development-limit")).toBeNull();
+      expect(response.headers.get("content-type")).toBe("application/problem+json");
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      expect(response.headers.get("retry-after")).toBeNull();
+      expect(response.headers.get("www-authenticate")).toBeNull();
+      expect(response.headers.get("content-length")).toBe(problemLength);
+      if (method === "GET") {
+        const actual = JSON.parse(response.text);
+        expect(validProblem(actual), JSON.stringify(validProblem.errors)).toBe(true);
+        expect(actual).toStrictEqual(problem);
+        expect(String(response.bytes)).toBe(problemLength);
+      } else {
+        expect(response.text).toBe("");
+        expect(response.bytes).toBe(0);
+      }
+      const actualContext = names.map((name) => response.headers.get(name));
+      if (JSON.stringify(actualContext) !== JSON.stringify(tuple)) contextFailures.push(label);
+      expect.soft(actualContext, label).toStrictEqual(tuple);
+    }
+    for (const accept of ["application/json", "text/event-stream"])
+      for (const method of ["GET", "HEAD"] as const) await contextual(method, accept, future);
+    for (const method of ["GET", "HEAD"] as const)
+      await contextual(method, "text/event-stream", "changes/?after=genesis", {
+        "last-event-id": "malformed",
+      });
+    const anonymous = await exchange(future, "GET", "application/json", { authorization: "" });
+    expect(anonymous.status).toBe(401);
+    const unauthenticated = JSON.parse(anonymous.text);
+    expect(validProblem(unauthenticated), JSON.stringify(validProblem.errors)).toBe(true);
+    expect(unauthenticated).toStrictEqual({
+      type: "https://github.com/gastownhall/bdp/problems/authentication",
+      code: "unauthenticated",
+      retry: "after-state-change",
+      status: 401,
+    });
+    expect(names.map((name) => anonymous.headers.get(name))).toStrictEqual([null, null, null]);
+    const malformed = await exchange("changes/?after=genesis&start=now");
+    expect(malformed.status).toBe(400);
+    expect(JSON.parse(malformed.text)).toStrictEqual(problem);
+    expect(names.map((name) => malformed.headers.get(name))).toStrictEqual([null, null, null]);
+    await seed("b", "pos-2");
+    await contextual("GET", "application/json", future, { "if-none-match": "*" }, [
+      page.scopeEpoch,
+      page.authorizationView,
+      "pos-2",
+    ]);
+    expect(attempted).toBe(12);
+    expect(records).toHaveLength(12);
+    expect(records.map((r) => r.ordinal)).toStrictEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    controller.signal.throwIfAborted();
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    controller.abort();
+    try {
+      if (runtime) {
+        await runtime.close();
+        closed = true;
+      }
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      if (directory) rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      failures.push(error);
+    }
+    clearTimeout(timer);
+    if (deadlineExceeded && !failures.includes(deadlineReason)) failures.push(deadlineReason);
+    console.log(
+      JSON.stringify({
+        observation: "private-source-changefeed-parameter-context",
+        outcome: failures.length || contextFailures.length ? "failed" : "passed",
+        attempted,
+        completedResponses: records,
+        exchanges: records.length,
+        contextFailures,
+        hardFailureCount: failures.length,
+        deadlineExceeded,
+        startupCompleted: runtime !== undefined,
+        closed,
+        directory: directory ?? null,
+        directoryAbsent: directory === undefined || !existsSync(directory),
+        claimEligible: false,
+      }),
+    );
+  }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, "changefeed context observation and cleanup failed");
+}, 60000);
