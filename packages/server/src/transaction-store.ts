@@ -2016,7 +2016,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           readonly context: TransactionReadContext;
         }
       | { readonly kind: "expired"; readonly context: TransactionReadContext }
-      | { readonly kind: "missing" }
+      | { readonly kind: "missing"; readonly context?: TransactionReadContext }
       | { readonly kind: "unsupported" } {
       if (
         typeof principal !== "string" ||
@@ -2045,16 +2045,17 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             const parent = disclosedReceipt(principal, parentId);
             if (parent && parseReceipt(parent.receipt).status === "completed")
               throw new Error("receipt page plan missing");
-            return { kind: "missing" as const };
+            return Object.freeze({ kind: "missing" as const, context: readContext() });
           }
           const stored = row(principal, String(saved.key));
           if (!stored) throw new Error("receipt page parent missing");
           const original = parseReceipt(stored.receipt);
           if (original.id !== parentId) throw new Error("receipt page parent mismatch");
-          if (original.scopeEpoch !== epoch) return { kind: "missing" as const };
+          if (original.scopeEpoch !== epoch)
+            return Object.freeze({ kind: "missing" as const, context: readContext() });
           const plan = pagePlan(original),
             index = plan.pages.findIndex((page) => page.token === token);
-          if (index < 0) return { kind: "missing" as const };
+          if (index < 0) return Object.freeze({ kind: "missing" as const, context: readContext() });
           if (condition === "unsupported") return { kind: "unsupported" as const };
           const context = readContext();
           // Identity/nondisclosure precedes minimum; expiry is checked only afterwards.

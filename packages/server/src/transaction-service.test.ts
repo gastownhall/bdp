@@ -234,7 +234,12 @@ describe("private same-owner Transactional service", () => {
       status: 401,
       code: "unauthenticated",
     });
-    const hidden = { kind: "refused", status: 404, code: "resource-not-found" };
+    const hidden = {
+      kind: "refused",
+      status: 404,
+      code: "resource-not-found",
+      context: first.context,
+    };
     expect(
       service.receipt({ kind: "authenticated", principal: "other" }, first.receipt.id),
     ).toEqual(hidden);
@@ -2161,4 +2166,142 @@ it("preserves schema observation reentrancy, owner-fault causes and synchronous 
   });
   await service.close();
   expect(() => service.schemaObserved()).toThrow("closing or closed");
+});
+
+it("preserves current receipt absence context across ordinary and minimum service entrypoints", async () => {
+  const f = fixture({ receiptMaximumItems: 2 });
+  const owner = f.owner;
+  type RootResult = ReturnType<typeof owner.readReceipt>;
+  type OrdinaryRootResult = Exclude<RootResult, { readonly kind: "unsupported" }>;
+  let roots = 0,
+    pages = 0,
+    waits = 0,
+    tick = 0;
+  function countedReceipt(
+    principal: string,
+    id: string,
+    minimum?: TransactionMinimum,
+  ): OrdinaryRootResult;
+  function countedReceipt(principal: string, id: string, minimum: "unsupported"): RootResult;
+  function countedReceipt(
+    principal: string,
+    id: string,
+    minimum?: TransactionMinimum | "unsupported",
+  ): RootResult {
+    roots++;
+    return minimum === "unsupported"
+      ? owner.readReceipt(principal, id, minimum)
+      : owner.readReceipt(principal, id, minimum);
+  }
+  const service = createTransactionService(
+    {
+      ...owner,
+      readReceipt: countedReceipt,
+      readReceiptPage(...args: Parameters<typeof owner.readReceiptPage>) {
+        pages++;
+        return owner.readReceiptPage(...args);
+      },
+    },
+    {
+      ownerLifetime: "service",
+      read: {
+        ...f.read,
+        advertisedLimits: {
+          ...f.read.advertisedLimits,
+          page: { defaultItems: 2, maximumItems: 2 },
+        },
+        pagination: { ...f.read.pagination, maxPageItems: 2 },
+      },
+      minimumReads: {
+        budgetMs: 2,
+        now: () => tick++,
+        wait: async () => {
+          waits++;
+        },
+      },
+    },
+  );
+  cleanup.push(() => service.close());
+  const first = requireReceipt(
+    await service.submit(batch([create("a"), create("b"), create("c")])),
+  );
+  expect(first.context.scopePosition).toBe("pos-1");
+  if (typeof first.receipt.next !== "string") throw new Error("expected issued page");
+  const foreign = { kind: "authenticated", principal: "other" } as const;
+  const ahead = {
+    scopeEpoch: first.context.scopeEpoch,
+    authorizationView: first.context.authorizationView,
+    minimumPosition: "pos-99",
+  };
+  const retained = [];
+  for (const minimum of [undefined, "unsupported", ahead] as const) {
+    const before = { roots, pages, waits };
+    const root =
+      minimum === undefined
+        ? service.receipt(foreign, first.receipt.id)
+        : await service.receiptAtMinimum(foreign, first.receipt.id, minimum);
+    expect(root).toStrictEqual({
+      kind: "refused",
+      status: 404,
+      code: "resource-not-found",
+      context: first.context,
+    });
+    expect(Object.isFrozen(root)).toBe(true);
+    expect(roots).toBe(before.roots + 1);
+    expect(pages).toBe(before.pages);
+    expect(waits).toBe(before.waits);
+    const page = await service.receiptPage(foreign, first.receipt.next, minimum);
+    expect(page).toStrictEqual({
+      kind: "refused",
+      code: "resource-not-found",
+      context: first.context,
+    });
+    expect(Object.isFrozen(page)).toBe(true);
+    expect(pages).toBe(before.pages + 1);
+    expect(roots).toBe(before.roots + 1);
+    expect(waits).toBe(before.waits);
+    retained.push(root, page);
+  }
+  const beforeAnonymous = { roots, pages };
+  const anonymous = { kind: "unauthenticated" } as const;
+  expect(service.receipt(anonymous, first.receipt.id)).toStrictEqual({
+    kind: "refused",
+    status: 401,
+    code: "unauthenticated",
+  });
+  expect(await service.receiptAtMinimum(anonymous, first.receipt.id, ahead)).toStrictEqual({
+    kind: "refused",
+    status: 401,
+    code: "unauthenticated",
+  });
+  expect(await service.receiptPage(anonymous, first.receipt.next, ahead)).toStrictEqual({
+    kind: "refused",
+    code: "unauthenticated",
+  });
+  expect({ roots, pages }).toStrictEqual(beforeAnonymous);
+  const later = requireReceipt(await service.submit(batch([create("later")], "later")));
+  expect(later.context).toStrictEqual({ ...first.context, scopePosition: "pos-2" });
+  const beforeLater = { roots, pages };
+  expect(service.receipt(foreign, first.receipt.id)).toStrictEqual({
+    kind: "refused",
+    status: 404,
+    code: "resource-not-found",
+    context: later.context,
+  });
+  expect(await service.receiptPage(foreign, first.receipt.next)).toStrictEqual({
+    kind: "refused",
+    code: "resource-not-found",
+    context: later.context,
+  });
+  expect({ roots, pages }).toStrictEqual({
+    roots: beforeLater.roots + 1,
+    pages: beforeLater.pages + 1,
+  });
+  for (const result of retained) {
+    if (result.kind !== "refused" || result.code !== "resource-not-found")
+      throw new Error("expected hidden receipt");
+    expect(result.context).toStrictEqual(first.context);
+    expect(Object.isFrozen(result.context)).toBe(true);
+  }
+  expect(waits).toBe(0);
 });
