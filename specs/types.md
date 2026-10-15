@@ -7,9 +7,9 @@ that Beads implements these rules. The [current BDP specification](../docs/specs
 remains the protocol authority until coordinated amendments land.
 
 The [Issue and Dependency draft](types/issue.md) and [Memory draft](types/memory.md)
-provide requirements and acceptance scenarios. Issue/Dependency now proposes
-classification Types conforming to issue/dependency. Memory still contains older
-flat-Type assumptions and needs explicit reconciliation; this document does not
+provide requirements and acceptance scenarios. Issue/Dependency records the
+selected product hierarchy of classification Types conforming to issue/dependency.
+Memory still contains older flat-Type assumptions and needs explicit reconciliation; this document does not
 silently reinterpret its endpoint lists. The earlier [Type lifecycle exploration](../docs/design/type-lifecycle-preview2.md)
 is background. Where it conflicts, this document records the current design
 position: this Types profile represents definitions as Beads; Core does not
@@ -86,6 +86,16 @@ by this design. Independent factoring can be revisited if a concrete requirement
 emerges; it is not needed to complete the current profile. Schema reference and
 dependency-resolution rules still require definition and must preserve immutable
 meaning; embedding the schema does not by itself settle those rules.
+
+The representation boundary is:
+
+| Information | Authoritative representation |
+| --- | --- |
+| An instance's affiliation | Distinguished `type` field, pinned to a definition Bead revision under this profile |
+| The definition Bead's own affiliation | Its own `type` field; metatype and bootstrap still need specifying |
+| Direct conformance declarations | Owned ConformsTo Links, recorded with the source definition revision |
+| Properties schema and other constraints | Fields in the definition Bead's `properties`; concrete schema remains open |
+| Later review of a declaration | An independent Activity under Provenance V2, referencing the declaration Link revision |
 
 The current direction uses Type-to-Type conformance for reusable structural and
 semantic promises. A separate Capability entity is not required by the rules
@@ -184,12 +194,18 @@ upgrade occurs merely because the caller updates properties.
 A targeted change preserves properties it does not change. Updating `title` can
 preserve an unfamiliar `approvalCode`, although the result must still validate.
 
-Full properties replacement, such as Beads `--replace-properties`, supplies the
-whole new properties object. If `approvalCode` is mandatory, omitting it fails.
+The proposed full-properties replacement operation supplies the whole new
+properties object. If `approvalCode` is mandatory, omitting it fails.
 The server must not silently retain it and turn replacement into a merge.
 A client knowing only Product cannot assume it can create or replace an
 ApprovedProduct. Reading and preserving unfamiliar fields can help, but does not
 establish that an arbitrary change will be valid.
+
+This is the shared design rule, not a claim that the current Beads CLI already
+implements it. The inspected Issue `--replace-properties` replaces a writable
+subset and preserves nonwritable fields. The [Issue draft](types/issue.md#34-observed-write-surfaces)
+records this discrepancy; the boundary for generated/read-only properties remains
+an explicit decision before implementation alignment.
 
 ### 3.7 Behavioral promises must survive conformance
 
@@ -286,6 +302,29 @@ and authorization requirements remain applicable. JSON Schema and other constrai
 remain descriptor fields as specified in §2. Selecting owned conformance Links
 does not establish that existing traversal implementations already support the
 required historical walk.
+
+### 3.11 Evaluate conformance Links before extending the pattern
+
+ConformsTo is a bounded first use of relationships between definition Beads. It
+is selected for this draft so we can evaluate ordinary Link editing, declaration
+provenance, specialization and graph display together. It is not a decision to
+represent every constraint as a Link. Link constraints remain descriptor fields;
+possible later reuse of the pattern is a hypothesis to test.
+
+A general Bead/Link viewer can display an exposed Type hierarchy using the actual
+ConformsTo Links without understanding their semantic contract. This is a benefit
+of the representation, not a claim that today's `bd graph` is qualified against
+this future catalog. A current-state view and the exact historical hierarchy of
+T@r are different views; the latter requires §3.10's recorded-state traversal.
+Instance traversal does not implicitly enter either hierarchy through `type`.
+
+Evaluation should cover editing and retracting declarations, recording later
+reviews without altering history, displaying specialized ConformsTo Links, and
+reading historical closures after current declarations change. Measure query and
+index behavior rather than assume Links are faster than indexed fields. Bootstrap,
+publication/transaction behavior and retention must also be made concrete before
+claiming implementation readiness. An unfavorable result is reason to revisit the
+representation deliberately, not to maintain two writable declaration authorities.
 
 ## 4. Conformance is not revision compatibility
 
@@ -431,7 +470,9 @@ the declaring Link-Type identity, rather than letting a new definition pin creat
 another allowance. Evolution when those exact revisions specify different limits
 remains OPEN: Assignment@1 maximum one and Assignment@2 maximum two cannot be
 resolved by silently choosing latest. This draft does not yet select activation,
-coexistence or migration rules for that case.
+coexistence or migration rules for that case. This question is deliberately
+reserved for the next design discussion; no choice is implied by these
+representation decisions.
 
 ### 5.5 Validate arity at transaction commit
 
@@ -637,6 +678,7 @@ for user review. It supplies no additional normative rules.
 | Endpoint composition and arity in §5 | Agreed design direction; cross-revision evolution and detailed syntax open |
 | Acceptance cases in §6 | Written for review; implementation qualification NYI |
 | Definition representation | Beads with descriptor fields and owned conformance Links selected; concrete field schema, bootstrap and lifecycle still open |
+| ConformsTo editing, provenance and graph-display experiment | Evaluation cases identified; runtime behavior/performance not qualified |
 | Constraint expression syntax and matching | Not yet specified |
 | Beads CLI/storage implementation of this draft | Not established by this document |
 

@@ -6,14 +6,14 @@ Type; `blocks`, `parent-child` and the other dependency classifications conform
 to it.** Intrinsic Types for task, blocks and the other classifications are a
 settled product decision. Preview 2 exposes that direction through CLI shims; the
 inspected underlying catalog has not yet caught up. Native classification values
-translate to the intrinsic `type` reference;
-`issue_type` and `dep_type` are not properties in the proposed records.
+translate to the intrinsic `type` reference; `issue_type` and `dep_type` are not
+properties in the proposed records.
 
 This document preserves the names, fields and behavioral requirements discoverable
-in Janet's current Preview 2 candidate. Selected changes are classification-to-Type mapping and promotion of codified
-workflow metadata into schema-declared properties on the relevant Types. Storage
-may retain its existing layout behind read/write adapters. This does not redesign
-workflow or settle how live/computed fields should
+in Janet's inspected Preview 2 candidate. Selected changes are classification-to-Type
+mapping and promotion of codified workflow metadata into schema-declared properties
+on the relevant Types. Storage may retain its existing layout behind read/write
+adapters. This does not redesign workflow or settle how live/computed fields should
 appear in a versioned Type. No implementation change is made by this draft.
 
 The shared [Types draft](../types.md) supplies conformance, pinned definitions,
@@ -38,7 +38,7 @@ source evidence below remains the inspected Preview 2 snapshot.
 
 | Evidence | Exact identity | What it establishes |
 | --- | --- | --- |
-| Janet's integration source | [release/preview2-integration at b6f7115](https://github.com/donnabox/beads/tree/b6f7115adfd6b3da0055b8576c152d8d9456518a), tree 828a2ec229ac10d78e9683f1dbf446118d51cc44 | Current candidate selected from Janet's live ledger and verified remote ref |
+| Janet's integration source | [release/preview2-integration at b6f7115](https://github.com/donnabox/beads/tree/b6f7115adfd6b3da0055b8576c152d8d9456518a), tree 828a2ec229ac10d78e9683f1dbf446118d51cc44 | Inspected candidate selected from Janet's ledger and verified at the source audit; not a claim about subsequent heads |
 | Delivered PR106 build | bin/bd SHA256 0d42c7079cb510dfc4e5d368017cceca09a8181b3f4e41b1e6e49c8014c4174c | Build in Janet's existing PR106 playground; provenance records release_approved:false; no shared database exercised |
 | Source audit | [Preview 2 field and behavior audit](../../docs/design/issue-dependency-preview2-audit-20261014.md) | Build/source binding, field inventory, source line citations and limitations |
 | Shared design | [Types](../types.md), [Provenance V2](https://github.com/gastownhall/beads/issues/7510) | Proposed semantic contracts; installed subsets and remaining decisions stay distinct |
@@ -118,6 +118,56 @@ the inspected CLI, related selects the native Dependency kind, while
 preview-related-memory (also preview-related) selects the informational Type.
 Human bd types lists 14 Bead and 22 Link selectors without custom additions;
 JSON/details exposes six installed definitions, not a conformance hierarchy.
+
+### 2.1 Definition Beads, conformance Links and instance graphs
+
+Under the selected Types profile, issue, task, bug, dependency, blocks and the
+other definitions are Beads. Instance affiliation remains the distinguished
+`type` reference. Both Bead-Type and Link-Type definitions are Beads, but their
+described instance worlds do not intersect.
+
+The hierarchy above is represented by owned ConformsTo Links on the definition
+Beads, with exact target pins. For example, in conceptual snapshot notation:
+
+```text
+task@t1    -- owned ConformsTo --> issue@i1
+bug@b1     -- owned ConformsTo --> issue@i1
+blocks@l1  -- owned ConformsTo --> dependency@d1
+```
+
+The left labels identify the definition revisions whose recorded owned state
+contains the declarations; this does not select wire syntax for Link source pins.
+Each declaration has its own Link identity and revision, including provenance
+under V2. Conforming ConformsTo specializations may add requirements or evidence,
+but cannot weaken the declared structural and semantic promises. A later review
+can be an Activity about the exact declaration Link revision without changing it.
+
+Two ownership relationships must not be confused:
+
+- An Issue instance owns outgoing work Links satisfying dependency. A Dependency
+  mutation therefore has revision effects on that Issue instance.
+- A Type-definition Bead owns its conformance declarations, through its own
+  metatype's ownership contract. A declaration mutation has revision effects on
+  that definition Bead, not on every instance affiliated with it.
+
+A task pinned to task@t1 continues to use task@t1's recorded declaration to
+issue@i1 even if a newer task definition changes its declarations. No live
+adjacency query may silently reinterpret the historical contract. Retaining the
+required definitions and declaration records is a lifecycle requirement whose
+concrete mechanism remains to specify.
+
+A Type hierarchy viewer can show these actual definition Beads and Links. A
+work-graph traversal starting at an Issue does not automatically enter that
+hierarchy through its type field. Conversely, the definition's ConformsTo Links
+are not the Issue instance's work Dependencies and do not affect its scheduler.
+Generic viewer support and exact historical traversal still require qualification.
+
+The schemas below, endpoint eligibility, arity, pair uniqueness and ownership
+rules remain descriptor fields in the definition Bead's properties. They are
+not separate Schema/Constraint Beads. No competing writable conformsTo field is
+introduced. Concrete definition/metatype schemas, IDs and bootstrap remain shared
+Type decisions. Preview 2's classification shims do not establish that this
+representation is already installed or executable.
 
 ## 3. Issue data and validation
 
@@ -643,10 +693,11 @@ current preview wire syntax.
 }
 ```
 
-The task definition in the first example pins its conformance to issue; blocks
-in the second pins its conformance to dependency. These definition declarations
-are not duplicated on instance records. Production IDs and pin syntax still need
-the shared definition format.
+The task definition in the first example owns a ConformsTo Link pinned to an
+issue definition revision; blocks in the second owns one pinned to dependency.
+These declarations belong to the definition revisions, not the instance records.
+The schemas and other constraints are descriptor fields. Production definition
+IDs, metatypes and the remaining reference syntax still need the shared format.
 
 Repair depends on delivery; delivery blocks repair. A separate MemoryGuidance
 Link may point from repair to a procedure Memory. It is not a Dependency and
@@ -697,13 +748,21 @@ The following are design acceptance cases, not executed product tests:
 | T13 | Historical record predates the hierarchy | Preserve original representation meaning; conversion requires explicit compatibility mapping |
 | T14 | Only heartbeat observations change between reads | Observe existing same-revision behavior; do not infer a selected future query-time revision policy |
 | T15 | A custom native classification has no registered Type mapping | Explicit unresolved-mapping outcome needed; no silent fallback or guessed global identity |
+| T16 | Read task@t1 after the current task definition changes its conformance | Follow task@t1's recorded owned declarations and exact target pins; do not use current adjacency |
+| T17 | Edit a ConformsTo declaration on the task definition | Create definition-owner revision effects; existing task instances retain their affiliation and state |
+| T18 | Record a later review of the blocks-to-dependency declaration | An Activity may target the exact declaration Link revision without changing the definition |
+| T19 | Display the definition hierarchy with a generic graph viewer | Actual ConformsTo Links can supply edges; current and historical views require distinct qualification |
+| T20 | Traverse a work Issue's incident Links | Do not synthesize a Link from its type field or include definition declarations as work Dependencies |
+| T21 | A declaration connects task to dependency | Reject cross-kind conformance even though both endpoints are definition Beads |
+| T22 | A specialized ConformsTo relation adds evidence requirements | Preserve the full base promise; do not reinterpret workflow or allow conditional membership |
+| T23 | Encode Issue/Dependency schemas and graph constraints | Keep descriptor fields; no separate Schema/Constraint Beads or new domain limits implied |
 
 ## 9. What this teaches us about the shared Type system
 
 | Finding | Issue/Dependency evidence | Consequence for Type design |
 | --- | --- | --- |
 | Classification becomes Type affiliation | Native issue_type and Dependency.type select domain behavior | Explicit type mapping and subtype registration must preserve those behaviors without duplicate property discriminators |
-| Pair uniqueness differs from endpoint arity | One Dependency per ordered pair, many pairs per Issue | Decide whether a reusable pair-key constraint belongs in BDP or remains a declared domain invariant; no new syntax selected here |
+| Pair uniqueness differs from endpoint arity | One Dependency per ordered pair, many pairs per Issue | Shared Types now selects optional family-wide ordered-pair uniqueness at commit; concrete descriptor syntax remains open |
 | Graph validity is richer than endpoint Types | Mixed cycles, hierarchy and waits-for gates | Separate declarative shape/endpoint/count checks from domain operations; do not invent a universal workflow engine inside Type definitions |
 | Codified metadata becomes properties | waits-for gate and also_blocks are read by scheduling | Promote named semantic fields into the child Type schema; adapters may preserve metadata storage and must avoid duplicate authorities |
 | Shape validity is not write capability | Native adapters admit bounded fields and operations | A Type definition cannot imply every generic writer can persist or execute its contract |
@@ -728,6 +787,7 @@ qualifies the capability; some underlying native functionality already exists.
 | Area | Design/source status | Remaining work |
 | --- | --- | --- |
 | issue/dependency bases with conforming classification Types | Intrinsic classification Types settled at product level; Preview 2 CLI shims expose the direction | Underlying implementation planned for Preview 3 Friday October 16; qualify delivered IDs, pins, conformance, registrations and adapter mapping when available |
+| Definition representation and conformance hierarchy | Definition Beads, owned ConformsTo Links and descriptor constraint fields selected | Metatype/bootstrap, exact IDs, historical traversal, editing/provenance and viewer qualification NYI here |
 | Ordinary content, status and classification | Existing behavior inventoried; core schema fragment provided | Full durable-field schema and configuration-dependent validation contract |
 | Dependency direction, pair uniqueness and kind roles | Existing behavior documented | Portable invariant/admission encoding; no implicit new maximum syntax |
 | Local floating endpoints | Current graph behavior documented; proposed initial boundary | Decide pins and remote workflow separately |

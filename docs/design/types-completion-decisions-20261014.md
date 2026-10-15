@@ -29,6 +29,10 @@ not edited by this pass.
   specializations. Exact owner revision snapshots determine authoritative
   declarations; historical traversal follows recorded Links and exact target pins,
   never current adjacency. Each declaration has its own identity and provenance.
+- ConformsTo is a bounded experiment in using inter-Type Links. Ordinary graph
+  viewers can expose its hierarchy when they support the records, but exact
+  historical display requires recorded-state traversal. Editing, provenance and
+  performance need evaluation before widening the pattern; no runtime claim yet.
 - Instance affiliation stays in the distinguished type field, not an implicit
   Link. Everything else in the Type descriptor, including embedded JSON Schema,
   endpoint/arity/uniqueness/ownership constraints, remains fields in the definition
@@ -62,7 +66,7 @@ not edited by this pass.
 | ID | Concrete question | Evidence/example | Completion criterion |
 | --- | --- | --- | --- |
 | T01 | What names the counted Link set, direction and constraint identity? | dependency pair uniqueness spans blocks and parent-child; an Issue may have many different dependencies | Define syntax and exact applicability without confusing a pair key with endpoint maximum |
-| T02 | How do arity limits coexist across definition revisions? | Assignment@1 max1 and Assignment@2 max2 share nominal allowance | Select activation/coexistence/migration rules; reject implicit latest-wins and revision-created extra slots |
+| T02 — deferred to next discussion | How do arity limits coexist across definition revisions? | Assignment@1 max1 and Assignment@2 max2 share nominal allowance | Select activation/coexistence/migration rules; reject implicit latest-wins and revision-created extra slots |
 | T03 — resolved | Positive minimums belong on Bead Types; both kinds may declare maximums | Assignment eligibility does not oblige an ordinary Issue; AssignedIssue can require one | Same-set effective maximum is the smallest maximum; minimum is the largest minimum. Different counted sets remain independent. Declaration syntax is part of T01 |
 | T04 | How do nominal and conformance selectors match exact and floating definitions? | Query issue includes task/bug by conformance; an exact historical contract must retain meaning | Define matching independently from presentation aliases, revision age and compatibility claims |
 | T05 | How are endpoint pins and unavailable definitions checked? | MemorySupports cites an old revision; Dependency schedules against current Issue state | Define local/current/historical/remote admission and revalidation, without treating unknown as false |
@@ -80,6 +84,11 @@ API has been selected yet.
 
 ## Follow-up precision and validation
 
+- Reconcile Core's current prose about references in properties with optional
+  profile interpretation where needed, without turning recognized references into
+  implicit graph Links. Keep canonical Core/Write amendments separately coordinated.
+- Specify ConformsTo bootstrap, source-pin/traversal API precision and retention;
+  do not confuse current incident Links with an exact owner's recorded declarations.
 - Resolve schema dialect, references and closure composition, semantic-unit
   vocabulary, required contradiction checks and limits of mechanical proof.
 - Pair-wise uniqueness now spans the declaring conformance family, keyed by ordered
@@ -107,7 +116,7 @@ API has been selected yet.
 | --- | --- | --- |
 | Types draft introduction | Previously said both domain drafts assume flat Types | Update pointer for the new Issue hierarchy; Memory reconciliation still pending |
 | Earlier Type lifecycle exploration | Assumes definitions as Beads and earlier nominal-affiliation/compatibility design | Historical design input; current Types draft is the forward-looking discussion authority, canonical BDP still governs implementation |
-| Issue/Dependency previous draft | One issue/one dependency with discriminator properties, flat endpoint assumptions, per-operation graph validity | Revise under the user's new direction and current Preview 2 evidence; preserve existing semantics and distinguish proposed mapping |
+| Issue/Dependency draft | Prior versions used discriminator properties and omitted the representation of the Type hierarchy | Updated to the selected hierarchy, definition Beads, owned ConformsTo Links and descriptor constraints; keep inspected Preview 2 evidence distinct from selected design |
 | Memory §1 | Type definitions as Beads now agrees with the shared direction; flat Types remains an older assumption | Flag flat-Type assumptions for the user's review; no edit to the file |
 | Memory §1 external definitions | Describes pending Dependency discriminator | Follow-up should reference issue/dependency hierarchies once reviewed |
 | Memory §5 bounds and transactions | No mechanical minimums; says each staged operation must be valid | Superseded for shared arity design; revisit Memory-specific restrictions rather than silently relaxing all checks |
