@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -218,7 +219,15 @@ it("preserves endpoint pins, omits external sources and does not mutate Beads fo
   expect(events).toHaveLength(2);
   expect(events[1]?.data).toMatchObject({ target: pin, endpoint: "source" });
   expect(f.owner.inspect().resources[0]).toEqual(before);
-  expect(f.owner.readEvents(`${scope}beads/missing?view=events`)).toEqual({ kind: "missing" });
+  const config = f.owner.readConfiguration();
+  expect(f.owner.readEvents(`${scope}beads/missing?view=events`)).toStrictEqual({
+    kind: "missing",
+    context: {
+      scopeEpoch: config.scopeEpoch,
+      authorizationView: config.authorizationView,
+      scopePosition: "pos-2",
+    },
+  });
 });
 it("pages within groups, continues exclusively after end and rejects unrelated/fabricated cursors", () => {
   const f = fixture();
@@ -280,9 +289,16 @@ it("keeps unknown sources nondisclosing before minimum and refuses older success
     authorizationView: config.authorizationView,
     minimumPosition: "pos-2",
   };
-  expect(f.owner.readEvents(`${scope}beads/unknown?view=events`, undefined, minimum)).toEqual({
-    kind: "missing",
-  });
+  expect(f.owner.readEvents(`${scope}beads/unknown?view=events`, undefined, minimum)).toStrictEqual(
+    {
+      kind: "missing",
+      context: {
+        scopeEpoch: config.scopeEpoch,
+        authorizationView: config.authorizationView,
+        scopePosition: "pos-1",
+      },
+    },
+  );
   expect(() => f.owner.readEvents(`${scope}events/`, undefined, minimum)).toThrow(
     TransactionMinimumFailure,
   );
@@ -891,7 +907,7 @@ it("scan initial identity and minimum precede reconnect validity; contextual err
     minimumPosition: "pos-9",
   };
   expect(f.owner.beginEventScan(`${scope}beads/missing?view=events`, "bad", minimum, true)).toEqual(
-    { kind: "missing" },
+    { kind: "missing", context: current.context },
   );
   expect(() => f.owner.beginEventScan(`${scope}beads/a?view=events`, "bad", minimum, true)).toThrow(
     expect.objectContaining({ reason: "behind", context: current.context }),
@@ -990,3 +1006,319 @@ it("refuses configuration whose group step differs from the structural owner imp
     vi.resetModules();
   }
 });
+
+it.each([
+  { mode: "finite", kind: "Bead", id: "beads/missing" },
+  { mode: "finite", kind: "Link", id: "links/missing" },
+  { mode: "SSE", kind: "Bead", id: "beads/missing" },
+  { mode: "SSE", kind: "Link", id: "links/missing" },
+] as const)(
+  "captures immutable current context for missing $mode $kind Event source",
+  ({ mode, id }) => {
+    const f = fixture();
+    const config = f.owner.readConfiguration();
+    const url = `${scope}${id}?view=events`;
+    const expected = {
+      scopeEpoch: config.scopeEpoch,
+      authorizationView: config.authorizationView,
+      scopePosition: "pos-0",
+    };
+    const initial = mode === "finite" ? f.owner.readEvents(url) : f.owner.beginEventScan(url);
+    expect(initial).toStrictEqual({ kind: "missing", context: expected });
+    if (initial.kind !== "missing") throw new Error("expected missing Event source");
+    expect(Object.isFrozen(initial)).toBe(true);
+    expect(Object.isFrozen(initial.context)).toBe(true);
+    expect(f.run([bead("known")]).status).toBe("completed");
+    const current = { ...expected, scopePosition: "pos-1" };
+    expect(mode === "finite" ? f.owner.readEvents(url) : f.owner.beginEventScan(url)).toStrictEqual(
+      {
+        kind: "missing",
+        context: current,
+      },
+    );
+    expect(initial.context).toStrictEqual(expected);
+    expect(
+      mode === "finite"
+        ? f.owner.readEvents(url, undefined, "unsupported")
+        : f.owner.beginEventScan(url, undefined, "unsupported"),
+    ).toStrictEqual({ kind: "missing", context: current });
+    const minimum = {
+      scopeEpoch: config.scopeEpoch,
+      authorizationView: config.authorizationView,
+      minimumPosition: "pos-9",
+    };
+    expect(
+      mode === "finite"
+        ? f.owner.readEvents(url, "bad", minimum)
+        : f.owner.beginEventScan(url, "bad", minimum, true),
+    ).toStrictEqual({ kind: "missing", context: current });
+  },
+);
+
+it("serves contextual missing Event responses for Bead and Link JSON and SSE GET and HEAD", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-events-http-"));
+  const token = randomBytes(32).toString("base64url");
+  const controller = new AbortController();
+  const deadlineReason = new Error("Event context deadline");
+  let deadlineExceeded = false;
+  const deadline = setTimeout(() => {
+    deadlineExceeded = true;
+    controller.abort(deadlineReason);
+  }, 45000);
+  const failures: unknown[] = [];
+  let runtime:
+    | Awaited<ReturnType<typeof import("./transaction-runtime.js").startTransactionRuntime>>
+    | undefined;
+  let attempts = 0;
+  let closed = false;
+  const observations: {
+    method: string;
+    url: string;
+    accept: string;
+    status: number;
+    body: string;
+    headers: Record<string, string | null>;
+  }[] = [];
+  const names = [
+    "content-type",
+    "content-length",
+    "cache-control",
+    "retry-after",
+    "www-authenticate",
+    "x-bdp-development",
+    "x-bdp-development-limit",
+    "bdp-scope-epoch",
+    "bdp-authorization-view",
+    "bdp-scope-position",
+  ];
+  try {
+    const emitted = (await import(
+      new URL("../dist/transaction-runtime.js", import.meta.url).href
+    )) as typeof import("./transaction-runtime.js");
+    runtime = await emitted.startTransactionRuntime({
+      directory,
+      scope,
+      create: true,
+      port: 0,
+      types: types(scope),
+      credentials: [{ token, principal: "p", canMutate: true }],
+    });
+    const active = runtime;
+    expect(active.targets.batch).toBe(`${scope}operations/batch`);
+    const exchange = async (
+      target: string,
+      method: "GET" | "HEAD" | "POST",
+      accept: string,
+      body?: string,
+      authenticated = true,
+    ) => {
+      controller.signal.throwIfAborted();
+      expect(++attempts, "Event context dispatch bound").toBeLessThanOrEqual(11);
+      const canonical = new URL(target, scope);
+      const wire = new URL(canonical.pathname + canonical.search, active.listenUrl);
+      const requestAbort = new AbortController();
+      const timer = setTimeout(
+        () => requestAbort.abort(new Error("Event exchange deadline")),
+        5000,
+      );
+      try {
+        const response = await fetch(wire, {
+          method,
+          redirect: "error",
+          signal: AbortSignal.any([controller.signal, requestAbort.signal]),
+          headers: {
+            accept,
+            ...(authenticated ? { authorization: `Bearer ${token}` } : {}),
+            ...(body === undefined
+              ? {}
+              : {
+                  "content-type": "application/json",
+                  "idempotency-key": "missing-event-context-seed",
+                }),
+          },
+          ...(body === undefined ? {} : { body }),
+        });
+        const reader = response.body?.getReader();
+        const chunks: Uint8Array[] = [];
+        let bytes = 0;
+        try {
+          if (reader) {
+            for (;;) {
+              const chunk = await reader.read();
+              if (chunk.done) break;
+              if (bytes + chunk.value.byteLength > 32768) {
+                requestAbort.abort(new Error("Event response body limit"));
+                throw new Error("Event response body exceeds32768bytes");
+              }
+              bytes += chunk.value.byteLength;
+              chunks.push(chunk.value);
+            }
+          }
+        } catch (error) {
+          try {
+            await reader?.cancel();
+          } catch (cleanup) {
+            throw new AggregateError([error, cleanup], "Event body read and cleanup failed");
+          }
+          throw error;
+        } finally {
+          reader?.releaseLock();
+        }
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, bytes));
+        const headers = Object.fromEntries(names.map((name) => [name, response.headers.get(name)]));
+        const observation = {
+          method,
+          url: canonical.href,
+          accept,
+          status: response.status,
+          body: text,
+          headers,
+        };
+        observations.push(observation);
+        expect(Buffer.byteLength(text)).toBeLessThanOrEqual(32768);
+        expect(headers["x-bdp-development"]).toBe("non-attesting");
+        return observation;
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+    const seed = await exchange(
+      "operations/batch",
+      "POST",
+      "application/json",
+      JSON.stringify({ operations: [bead("known")] }),
+    );
+    expect(seed.status).toBe(200);
+    const receipt = JSON.parse(seed.body);
+    const receiptValid = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceipt` });
+    expect(receiptValid(receipt), JSON.stringify(receiptValid.errors)).toBe(true);
+    expect(receipt).toMatchObject({
+      status: "completed",
+      requiredPosition: "pos-1",
+      effectPosition: "pos-1",
+    });
+    const known = await exchange("events/", "GET", "application/json");
+    expect(known.status).toBe(200);
+    const page = JSON.parse(known.body);
+    expect(validPage(page), JSON.stringify(validPage.errors)).toBe(true);
+    expect(page.source).toBe(`${scope}events/`);
+    expect(page.next).toBe(null);
+    expect(page.events).toHaveLength(1);
+    expect(page.events[0]).toMatchObject({ type: "created", subject: `${scope}beads/known` });
+    const expected = [
+      known.headers["bdp-scope-epoch"],
+      known.headers["bdp-authorization-view"],
+      "pos-1",
+    ];
+    expect(expected[0]).toBeTruthy();
+    expect(expected[1]).toBeTruthy();
+    expect(known.headers["bdp-scope-position"]).toBe("pos-1");
+    const expectedProblem = {
+      type: "https://github.com/gastownhall/bdp/problems/not-found",
+      code: "resource-not-found",
+      retry: "after-state-change",
+      status: 404,
+    };
+    let tupleChecks = 0;
+    for (const [kind, collection] of [
+      ["Bead", "beads"],
+      ["Link", "links"],
+    ] as const) {
+      for (const [media, accept] of [
+        ["JSON", "application/json"],
+        ["SSE", "text/event-stream"],
+      ] as const) {
+        let getLength: string | null | undefined;
+        for (const method of ["GET", "HEAD"] as const) {
+          const response = await exchange(`${collection}/missing?view=events`, method, accept);
+          const label = `missing-event-context:${kind}:${media}:${method}`;
+          expect(response.status, label).toBe(404);
+          expect(response.headers["content-type"]).toBe("application/problem+json");
+          expect(response.headers["cache-control"]).toBe("private, no-store");
+          expect(response.headers["retry-after"]).toBe(null);
+          expect(response.headers["www-authenticate"]).toBe(null);
+          expect(response.headers["x-bdp-development-limit"]).toBe(null);
+          if (method === "GET") {
+            expect(JSON.parse(response.body)).toStrictEqual(expectedProblem);
+            getLength = response.headers["content-length"];
+            expect(Number(getLength)).toBe(Buffer.byteLength(response.body));
+          } else {
+            expect(response.body).toBe("");
+            expect(response.headers["content-length"]).toBe(getLength);
+          }
+          // Deliberately collect all eight context failures in the emitted control.
+          // Final Vitest results, not this function's synchronous flow, determine success.
+          tupleChecks++;
+          expect
+            .soft(
+              [
+                response.headers["bdp-scope-epoch"],
+                response.headers["bdp-authorization-view"],
+                response.headers["bdp-scope-position"],
+              ],
+              label,
+            )
+            .toStrictEqual(expected);
+        }
+      }
+    }
+    const anonymous = await exchange(
+      "beads/missing?view=events",
+      "GET",
+      "text/event-stream",
+      undefined,
+      false,
+    );
+    expect(anonymous.status).toBe(401);
+    expect(JSON.parse(anonymous.body)).toMatchObject({ code: "unauthenticated", status: 401 });
+    expect(anonymous.headers["www-authenticate"]).toBe(
+      'Bearer realm="bdp-transaction-development"',
+    );
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(anonymous.headers[name]).toBe(null);
+    expect(tupleChecks).toBe(8);
+    expect(attempts).toBe(11);
+    expect(observations).toHaveLength(11);
+    controller.signal.throwIfAborted();
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    controller.abort();
+    try {
+      if (runtime) {
+        await runtime.close();
+        closed = true;
+      }
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      failures.push(error);
+    }
+    clearTimeout(deadline);
+    if (deadlineExceeded && !failures.includes(deadlineReason)) failures.push(deadlineReason);
+    console.log(
+      JSON.stringify({
+        observation: "source-missing-event-context",
+        verdict: "see-final-vitest-result",
+        deadlineExceeded,
+        attempts,
+        completedResponses: observations.map(({ body, ...observation }) => ({
+          ...observation,
+          bodySha256: createHash("sha256").update(body).digest("hex"),
+        })),
+        closed,
+        startupCompleted: runtime !== undefined,
+        directory,
+        directoryAbsent: !existsSync(directory),
+        failureCount: failures.length,
+        responseDigest: createHash("sha256").update(JSON.stringify(observations)).digest("hex"),
+      }),
+    );
+  }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, "Event context observation and cleanup failed");
+}, 60000);

@@ -1550,7 +1550,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           readonly page: TransactionEventPage;
           readonly context: TransactionReadContext;
         }
-      | { readonly kind: "missing" }
+      | { readonly kind: "missing"; readonly context: TransactionReadContext }
       | { readonly kind: "unsupported" } {
       if (typeof sourceUrl !== "string" || (after !== undefined && typeof after !== "string"))
         throw new TypeError("Event source and cursor must be strings");
@@ -1562,7 +1562,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       return enter(() => {
         // Reference convention: unknown sources are nondisclosing before minimum
         // checks. A retained identity remains a source after Resource deletion.
-        if (!eventSourceKnown(source)) return Object.freeze({ kind: "missing" as const });
+        if (!eventSourceKnown(source))
+          return Object.freeze({ kind: "missing" as const, context: readContext() });
         if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
         const context = readContext(),
           head = Number(context.scopePosition.slice(4));
@@ -1632,7 +1633,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       after?: string,
       supplied?: TransactionMinimum | "unsupported",
       invalidReconnect = false,
-    ): TransactionEventPacket | { readonly kind: "missing" } | { readonly kind: "unsupported" } {
+    ):
+      | TransactionEventPacket
+      | { readonly kind: "missing"; readonly context: TransactionReadContext }
+      | { readonly kind: "unsupported" } {
       if (
         typeof sourceUrl !== "string" ||
         (after !== undefined && typeof after !== "string") ||
@@ -1645,7 +1649,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           ? supplied
           : snapshotTransactionMinimum(supplied);
       return enter(() => {
-        if (!eventSourceKnown(source)) return Object.freeze({ kind: "missing" as const });
+        if (!eventSourceKnown(source))
+          return Object.freeze({ kind: "missing" as const, context: readContext() });
         if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
         const context = readContext();
         if (minimum !== undefined) checkTransactionMinimum(minimum, context);
