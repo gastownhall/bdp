@@ -77,7 +77,13 @@ const ruManifest = {
 
 it("binds the canonical cumulative TX selection and exact source digests without qualification", () => {
   const actual = bundle();
-  expect(selected.required).toHaveLength(250);
+  expect(selected.required).toHaveLength(251);
+  expect(selected.required.map((row) => row.id)).toContain(
+    "read-update.http.command-minimum-fields",
+  );
+  expect(actual.manifest.scenarios.map((row) => row.id)).not.toContain(
+    "read-update.http.command-minimum-fields",
+  );
   expect(selected.retiredIds).toHaveLength(13);
   expect(actual.catalog).toEqual(selected.catalog);
   expect(actual.digests.catalogDigest).toBe(
@@ -186,8 +192,9 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(237);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(238);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
+  expect(plan.unobservedIds).toContain("read-update.http.command-minimum-fields");
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
   expect(() => planProfileExecution(selected, configuration("read-update"))).toThrow("disagree");
 });

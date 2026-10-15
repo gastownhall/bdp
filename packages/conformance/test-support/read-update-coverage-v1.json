@@ -13183,6 +13183,13 @@
       "bindings": []
     },
     {
+      "id": "read-update.http.command-minimum-fields",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "Private Read+Update and Transactional implementation tests cover ignored command minimum fields, but no cumulative executable row is bound to this required ID. Read minimum controls remain separate; no whole-contract credit is claimed.",
+      "bindings": []
+    },
+    {
       "id": "read-update.http.request-too-large",
       "status": "omitted",
       "wholeContract": false,

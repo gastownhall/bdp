@@ -221,6 +221,72 @@ describe("canonical cumulative profile contracts", () => {
         ).toThrow("clause lost");
     }
   });
+  it("inherits the command minimum-field exception without executable credit", () => {
+    const id = "read-update.http.command-minimum-fields";
+    const clause =
+      "On mutation POSTs to operation command targets, authorities MUST ignore the `BDP-Minimum-Scope-Position`, `BDP-Scope-Epoch`, and `BDP-Authorization-View` request fields. Their presence, absence, completeness, and field values do not impose a minimum-position barrier or affect command identity. Ordinary HTTP field syntax and transport, header, and body bounds still apply, as do authorization, idempotency, carrier validation, and `expectedRevision`. This rule applies to mutation POSTs under this profile and cumulative profiles. It does not change conditions on reads.";
+    const ruCatalog = loadScenarioCatalogJson(read("read-update-v1.json"));
+    const rows = ruCatalog.scenarios.filter((row) => row.id === id);
+    expect(rows).toEqual([
+      {
+        id,
+        title:
+          "Mutation POSTs ignore the three read-consistency fields without a minimum-position barrier or command-identity effect, preserving ordinary admission and read minima",
+        kind: "normative",
+        requiredProfile: "read-update",
+        requirements: [
+          {
+            source: "docs/specs/bdp.md",
+            anchor: "#mutation-command-preconditions",
+            selectedText: clause,
+          },
+        ],
+      },
+    ]);
+    const spec = readFileSync(new URL("../../../docs/specs/bdp.md", import.meta.url), "utf8");
+    expect(spec.replace(/\s+/g, " ")).toContain(clause);
+    for (const profile of ["read-update", "transactional"] as const) {
+      const selection = loadProfileContractSelection(profile);
+      expect(selection.required.filter((row) => row.id === id)).toEqual(rows);
+      expect(selection.retiredIds).not.toContain(id);
+    }
+    expect(loadProfileContractSelection("read-update").required).toHaveLength(130);
+    expect(loadProfileContractSelection("read").required.map((row) => row.id)).not.toContain(id);
+    expect(
+      loadScenarioCatalogJson(read("transactional-v1.json")).scenarios.map((row) => row.id),
+    ).not.toContain(id);
+    const coverage = JSON.parse(
+      readFileSync(
+        new URL("../test-support/read-update-coverage-v1.json", import.meta.url),
+        "utf8",
+      ),
+    ) as {
+      rows: {
+        id: string;
+        status: string;
+        wholeContract: boolean;
+        reason: string;
+        bindings: unknown[];
+      }[];
+    };
+    expect(coverage.rows).toHaveLength(130);
+    expect(coverage.rows.filter((row) => !row.wholeContract)).toHaveLength(97);
+    expect(coverage.rows.filter((row) => row.status === "omitted")).toHaveLength(76);
+    const omitted = coverage.rows.filter((row) => row.id === id);
+    expect(omitted).toHaveLength(1);
+    expect(omitted[0]).toMatchObject({ id, status: "omitted", wholeContract: false, bindings: [] });
+    expect(omitted[0]?.reason.trim().length).toBeGreaterThan(0);
+    for (const path of [
+      "../matrices/read-update-v1.json",
+      "../matrices/read-update-reference-continuation-v1.json",
+      "../test-support/transactional/manifest-v1.json",
+    ]) {
+      const manifest = JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as {
+        scenarios: { id: string }[];
+      };
+      expect(manifest.scenarios.map((row) => row.id)).not.toContain(id);
+    }
+  });
   it("locks every inheritance-audit row and replacement to the catalogs", () => {
     const doc = readFileSync(
       new URL("../../../docs/design/profile-contract-planning.md", import.meta.url),

@@ -8,7 +8,7 @@ This groundwork prepares the current required contract set for an actual served 
 
 A factory selection is immutable and cannot be replaced by a caller's smaller structural lookalike. The planning function preserves every selected obligation even when the executable manifest contains only one or no rows. Missing inherited behavior cannot disappear behind a delta-only manifest. Retirement also remains active transitively: a TX row retiring an RU row does not restore the Read row that RU already replaced.
 
-At this change's source, there are 44 normative Read obligations (the 49-row catalog also has five diagnostics), 129 cumulative Read+Update obligations, and 250 cumulative Transactional obligations. The numeric/owned companions add five distinct Update obligations; RU replaces one Read row; TX replaces 12 RU rows. Counts are explanatory snapshots, not hardcoded authority or coverage scores. History and configuration-triggered applicability remain separate.
+At this change's source, there are 44 normative Read obligations (the 49-row catalog also has five diagnostics), 130 cumulative Read+Update obligations, and 251 cumulative Transactional obligations. The numeric/owned companions add five distinct Update obligations; RU replaces one Read row; TX replaces 12 RU rows. Counts are explanatory snapshots, not hardcoded authority or coverage scores. History and configuration-triggered applicability remain separate.
 
 ## Discovery correction and inherited executable plans
 
@@ -56,9 +56,11 @@ The first installed Read+Update executor captures its SQLite listener configurat
 
 After council closure, author the actual cumulative Read+Update v2 manifest and fixture against the installed P1 factory, including profile-specific discovery/limits and repaired inherited prerequisites. Add a separately reviewed profile-specific artifact path while preserving the existing Read guard; execute actual credentialed HTTP and after-state observations through the exact Read+Update configuration. Bind candidate evidence only after the installed U2 repair source is frozen. This is the next delivery slice; this planning layer does not pre-enable it.
 
+The command-minimum catalog mapping adds one omitted inherited obligation to the explanatory snapshot above: historical 129 RU/250 TX and 81 audited RU rows become 130 RU/251 TX and 82 audited RU rows. The prior runtime evidence remains attributed to its original source; this metadata change adds no executable observation.
+
 ## RU→TX inheritance audit
 
-Audited every 81 current RU catalog rows against the existing Transactional forms. The 12 existing direct-form retirements remain sufficient for this reviewed set; no additional TX retirement is introduced. The key text is [Mutation Transactions](../specs/bdp.md#mutation-transactions): TX sequence keeps its envelope, declaration order, separate commitment and lack of isolation, projecting each receipt into the shared entry without adding a receipt member. [Batch operation target](../specs/bdp.md#batch-operation-target) explicitly requires sequence 200 while singleton/batch returns receipt 200/202. [Transactional problem details](../specs/bdp.md#transactional-problem-details) preserves code meaning but distinguishes direct, receipt and sequence contexts.
+Audited every 82 current RU catalog rows against the existing Transactional forms. The 12 existing direct-form retirements remain sufficient for this reviewed set; no additional TX retirement is introduced. The key text is [Mutation Transactions](../specs/bdp.md#mutation-transactions): TX sequence keeps its envelope, declaration order, separate commitment and lack of isolation, projecting each receipt into the shared entry without adding a receipt member. [Batch operation target](../specs/bdp.md#batch-operation-target) explicitly requires sequence 200 while singleton/batch returns receipt 200/202. [Transactional problem details](../specs/bdp.md#transactional-problem-details) preserves code meaning but distinguishes direct, receipt and sequence contexts.
 
 One misleading citation was removed from `read-update.singleton.owned-link-no-op`: “Read+Update has no durable Mutation Receipts and no BDP Events.” It described the lower profile, not the row's inherited no-op law. The row still binds revision/source/provenance retention; TX separately binds absence of no-op Events. No normative semantics changed.
 
@@ -142,6 +144,7 @@ One misleading citation was removed from `read-update.singleton.owned-link-no-op
 | `read-update.validation.diagnostics` | Inherited | Validation law survives; after-admission failures use failed receipts or projected sequence problems; no direct RU singleton error assumption. |
 | `read-update.validation.identity-taken` | Inherited | Validation law survives; after-admission failures use failed receipts or projected sequence problems; no direct RU singleton error assumption. |
 | `read-update.validation.aggregate-constraint` | Inherited | Validation law survives; after-admission failures use failed receipts or projected sequence problems; no direct RU singleton error assumption. |
+| `read-update.http.command-minimum-fields` | Inherited | The shared command-preconditions rule covers RU singleton/sequence and TX singleton/batch/sequence POSTs, independent of field presence or values. Existing private observations are not cumulative evidence; read and receipt minima remain unchanged. |
 | `read-update.http.request-too-large` | Inherited | Body octet limit rejection remains pre-admission 413 in TX, before body parsing; no receipt/key capture. |
 | `read-update.http.cache-no-store` | Inherited | TX receipt and sequence representations retain private,no-store. Additional streaming no-transform rule is independent. |
 | `read-update.http.cors-idempotency-key` | Inherited | Optional CORS, if enabled, still accepts Idempotency-Key and exposes applicable fields; TX adds its fields. |
