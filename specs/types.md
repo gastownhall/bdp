@@ -73,6 +73,20 @@ instances. This representation does not create conformance between the Bead-Type
 and Link-Type worlds. Choosing Beads for definitions does not yet settle the
 metatype, bootstrap, installation, publication or retention rules.
 
+Apart from owned conformance declarations, the Type contract is represented by
+fields in the Type-definition Bead's `properties`. This includes the embedded
+JSON Schema, endpoint eligibility, incoming/outgoing arity, pair-wise uniqueness,
+ownership declarations and other descriptor information. Their precise field
+names and schemas remain to specify. Ordinary changes to those fields produce a
+new definition-Bead revision, while its owned conformance Links are covered by
+that same revision's recorded owned state.
+
+No separate Schema or Constraint Beads, or Links to such resources, are introduced
+by this design. Independent factoring can be revisited if a concrete requirement
+emerges; it is not needed to complete the current profile. Schema reference and
+dependency-resolution rules still require definition and must preserve immutable
+meaning; embedding the schema does not by itself settle those rules.
+
 The current direction uses Type-to-Type conformance for reusable structural and
 semantic promises. A separate Capability entity is not required by the rules
 below; it should be introduced only if a distinct requirement warrants it.
@@ -268,9 +282,10 @@ claim, not proof that its semantic promises hold.
 Both endpoints are definition Beads, but their described instance kinds must
 agree: no Bead-Type-to-Link-Type conformance. The precise metatype/check mechanism
 is open. Existing acyclicity, exact dependency availability, inherited validation
-and authorization requirements remain applicable. This selection does not choose
-representations for JSON Schema or other constraints and does not establish that
-existing traversal implementations already support the required historical walk.
+and authorization requirements remain applicable. JSON Schema and other constraints
+remain descriptor fields as specified in §2. Selecting owned conformance Links
+does not establish that existing traversal implementations already support the
+required historical walk.
 
 ## 4. Conformance is not revision compatibility
 
@@ -513,6 +528,8 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | --- | --- |
 | Core Scope uses a Type reference whose target is not a Bead | Not invalid merely for that reason; the applicable typing profile defines its interpretation |
 | Instance is stored under this Types profile | Its Type reference pins an exact revision of a Type-definition Bead |
+| Author a Type's JSON Schema and graph constraints | Store them as descriptor properties; separate Schema/Constraint Beads are not required |
+| Change a descriptor constraint field | Create a new definition revision; older revisions retain their field values and recorded owned conformance state |
 | A Bead represents a Link-Type definition | The definition is a Bead; its described instances are Links; no cross-kind conformance follows |
 | Traverse an instance's ordinary incident Links | Its distinguished type field creates no implicit Link into the Type graph |
 | T@3 owns a ConformsTo declaration targeting A@2; A@2 owns one targeting B@1 | T@3's closure includes those exact revisions even after A changes |
@@ -619,7 +636,7 @@ for user review. It supplies no additional normative rules.
 | Conformance rules in §3 and distinctions in §4 | Agreed design foundation; detailed syntax/checks open |
 | Endpoint composition and arity in §5 | Agreed design direction; cross-revision evolution and detailed syntax open |
 | Acceptance cases in §6 | Written for review; implementation qualification NYI |
-| Definition wire schema, bootstrap and lifecycle | Not yet specified |
+| Definition representation | Beads with descriptor fields and owned conformance Links selected; concrete field schema, bootstrap and lifecycle still open |
 | Constraint expression syntax and matching | Not yet specified |
 | Beads CLI/storage implementation of this draft | Not established by this document |
 

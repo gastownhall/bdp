@@ -30,7 +30,10 @@ not edited by this pass.
   declarations; historical traversal follows recorded Links and exact target pins,
   never current adjacency. Each declaration has its own identity and provenance.
 - Instance affiliation stays in the distinguished type field, not an implicit
-  Link. JSON Schema and other constraint representations remain separate decisions.
+  Link. Everything else in the Type descriptor, including embedded JSON Schema,
+  endpoint/arity/uniqueness/ownership constraints, remains fields in the definition
+  Bead's properties. No separate Schema/Constraint Beads are introduced for now;
+  concrete field syntax and schema reference resolution remain open.
 - Disjoint allowed values for the same optional property permit omission, with a
   warning, if the remaining requirements permit it. Supplying the property fails
   validation. If either schema requires it, the effective definition is invalid.
