@@ -6364,6 +6364,1550 @@
       }
     },
     {
+      "id": "read-update.discovery.operation-directory",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-schema-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "operations",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/operations"
+              }
+            },
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            },
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            },
+            {
+              "binding": "links",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/links"
+              }
+            },
+            {
+              "binding": "aliases",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/aliases"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "read-update"
+            },
+            {
+              "id": "no-tx",
+              "kind": "json-pointer",
+              "pointer": "/transactional",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "directory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "operations"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateOperationDirectory"
+            }
+          ]
+        },
+        {
+          "id": "directory-captures",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "operations",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "create-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createBead"
+              }
+            },
+            {
+              "binding": "update-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateBead"
+              }
+            },
+            {
+              "binding": "delete-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteBead"
+              }
+            },
+            {
+              "binding": "create-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createLink"
+              }
+            },
+            {
+              "binding": "update-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateLink"
+              }
+            },
+            {
+              "binding": "delete-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteLink"
+              }
+            },
+            {
+              "binding": "put-alias",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/putAlias"
+              }
+            },
+            {
+              "binding": "delete-alias",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteAlias"
+              }
+            },
+            {
+              "binding": "sequence",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/sequence"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "directory-members",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "createBead": "create-bead",
+                "updateBead": "update-bead",
+                "deleteBead": "delete-bead",
+                "createLink": "create-link",
+                "updateLink": "update-link",
+                "deleteLink": "delete-link",
+                "putAlias": "put-alias",
+                "deleteAlias": "delete-alias",
+                "sequence": "sequence"
+              }
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        },
+        {
+          "id": "task",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            }
+          ]
+        },
+        {
+          "id": "relates",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "relates-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            }
+          ]
+        },
+        {
+          "id": "create-a",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "id": "beads/w1-a",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "a"
+              }
+            },
+            "idempotencyKey": "create-a",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "type": "task-type"
+            }
+          },
+          "captures": [
+            {
+              "binding": "a-created",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "a-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "a-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-location",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": false
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/w1-a"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "a"
+              }
+            }
+          ]
+        },
+        {
+          "id": "create-b",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "id": "beads/w1-b",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "b"
+              }
+            },
+            "idempotencyKey": "create-b",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "type": "task-type"
+            }
+          },
+          "captures": [
+            {
+              "binding": "b-created",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "b-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "b-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-location",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": false
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/w1-b"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "b"
+              }
+            }
+          ]
+        },
+        {
+          "id": "update-bead",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 2
+                }
+              ]
+            },
+            "idempotencyKey": "update-bead",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "bead": "a-id",
+              "expectedRevision": "a-rev"
+            }
+          },
+          "captures": [
+            {
+              "binding": "a-updated",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "a-updated-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-location",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": false
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/w1-a"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 2
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "a"
+              }
+            }
+          ]
+        },
+        {
+          "id": "create-link",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "id": "links/w1-l",
+              "properties": {
+                "edge": 1
+              },
+              "metadata": {
+                "tag": "link"
+              }
+            },
+            "idempotencyKey": "create-link",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "type": "relates-type",
+              "source": "a-id",
+              "target": "b-id"
+            }
+          },
+          "captures": [
+            {
+              "binding": "link-created",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "link-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "initial-link-revision",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-location",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": false
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/w1-l"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/relates"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "edge": 1
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "link"
+              }
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/w1-a"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/w1-b"
+            },
+            {
+              "id": "unowned-source",
+              "kind": "json-pointer",
+              "pointer": "/body/source",
+              "exists": false
+            },
+            {
+              "id": "unowned-source-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/sourceRevision",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "update-link",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/edge",
+                  "value": 2
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "replace",
+                  "path": "/tag",
+                  "value": "updated"
+                }
+              ]
+            },
+            "idempotencyKey": "update-link",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "link-id",
+              "expectedRevision": "initial-link-revision"
+            }
+          },
+          "captures": [
+            {
+              "binding": "updated-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "final-link-revision",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-location",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": false
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/w1-l"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/relates"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "edge": 2
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "updated"
+              }
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equalsBinding": "a-id"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equalsBinding": "b-id"
+            }
+          ]
+        },
+        {
+          "id": "put-alias",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "put-alias",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "alias": "alias/w1-locator"
+            },
+            "idempotencyKey": "put-alias",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "target": "a-id"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_aliasResult"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-location",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": false
+            },
+            {
+              "id": "alias-result",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "outcome": "created",
+                "alias": "https://reference.invalid/acme/alias/w1-locator",
+                "target": "https://reference.invalid/acme/beads/w1-a"
+              }
+            }
+          ]
+        },
+        {
+          "id": "put-alias-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "w1.alias"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 307
+            },
+            {
+              "id": "location",
+              "kind": "header",
+              "name": "location",
+              "equals": "https://reference.invalid/acme/beads/w1-a"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "delete-alias",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "delete-alias",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "alias": "alias/w1-locator"
+            },
+            "idempotencyKey": "delete-alias",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_aliasResult"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-location",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": false
+            },
+            {
+              "id": "alias-result",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "outcome": "deleted",
+                "alias": "https://reference.invalid/acme/alias/w1-locator"
+              }
+            }
+          ]
+        },
+        {
+          "id": "read-deleted-alias",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "w1.alias"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "delete-link",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "delete-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {},
+            "idempotencyKey": "delete-link",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "link": "link-id",
+              "expectedRevision": "final-link-revision"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-location",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": false
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "deleted-kind",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resourceKind",
+              "exists": true,
+              "equals": "link"
+            },
+            {
+              "id": "deleted-id",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/w1-l"
+            },
+            {
+              "id": "deleted-type",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/relates"
+            },
+            {
+              "id": "final-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/revision",
+              "exists": true,
+              "equalsBinding": "final-link-revision"
+            },
+            {
+              "id": "no-postimage",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "unowned-source",
+              "kind": "json-pointer",
+              "pointer": "/body/source",
+              "exists": false
+            },
+            {
+              "id": "unowned-source-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/sourceRevision",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "deleted-link",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "w1.l"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            }
+          ]
+        },
+        {
+          "id": "delete-bead",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "delete-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {},
+            "idempotencyKey": "delete-bead",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "bead": "a-id",
+              "expectedRevision": "a-updated-rev"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-location",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": false
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "deleted-kind",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resourceKind",
+              "exists": true,
+              "equals": "bead"
+            },
+            {
+              "id": "deleted-id",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/w1-a"
+            },
+            {
+              "id": "deleted-type",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "final-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/revision",
+              "exists": true,
+              "equalsBinding": "a-updated-rev"
+            },
+            {
+              "id": "no-postimage",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "deleted-bead",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "w1.a"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            }
+          ]
+        },
+        {
+          "id": "sequence",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "sequence",
+            "targetBaseBinding": "operations",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "operations": [
+                {
+                  "operation": "updateBead",
+                  "idempotencyKey": "directory-sequence-b",
+                  "bead": "beads/w1-b",
+                  "propertiesChange": [
+                    {
+                      "op": "replace",
+                      "path": "/n",
+                      "value": 3
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "captures": [
+            {
+              "binding": "b-final",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/0/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_sequenceResponse"
+            },
+            {
+              "id": "index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/id",
+              "exists": true,
+              "equalsBinding": "b-id"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/type",
+              "exists": true,
+              "equalsBinding": "task-type"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 3
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "b"
+              }
+            },
+            {
+              "id": "no-extra-result",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "final-b",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "w1.b"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equalsBinding": "b-final"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
       "id": "read-update.singleton.create-bead",
       "requiredProfile": "read-update",
       "setup": {
