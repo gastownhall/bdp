@@ -1,6 +1,6 @@
 # Memory Bead and Link Types
 
-Work-in-progress domain specification, October 15, 2026. Memory preserves reusable
+Work-in-progress domain specification, October 16, 2026. Memory preserves reusable
 knowledge; Issues represent work; Activities report what happened. A technician
 can save a useful note immediately, and an office team can record a decision with
 its reasons and sources. Neither must complete a taxonomy interview first.
@@ -784,6 +784,34 @@ this Memory section documents the additional domain artifacts and invocation.
 “Designed” means specified for review. “NYI here” means not implemented or qualified
 by this contribution, not proof every underlying facility is absent.
 
+### 10.1 Design, reference stack and bd are separate status planes
+
+This is a reviewed **WIP integration candidate**, not an adopted or implemented
+Memory contract. The distinct-Type ruling, local council fixes, schemas, definition
+graph and written cases are reviewable together. Shared decisions below still
+block a decided contract and runtime conformance claim. [PR143](https://github.com/gastownhall/bdp/pull/143)
+targets the shared specification integration branch under the
+[main-merge hold](https://github.com/gastownhall/bdp/issues/59); WIP integration does
+not settle those decisions or authorize a main merge.
+
+Implementation evidence inspected October 16 is bounded static source evidence:
+
+| Plane | Status | Exact evidence and limits |
+| --- | --- | --- |
+| This proposed Memory library | Reviewed WIP design; local definition/property artifacts checked; semantic decisions open | Six Bead and six Link definitions, 72 property cases and written operation cases in this directory and its linked fixtures. Passing artifacts do not implement capture, search, graph admission, History or CLI behavior. |
+| BDP reference stack | Current-Core mechanisms exist; proposed Memory-catalog integration is NYI in the inspected shipped path; custom configurations/runtime conformance unverified | At frozen main `8d6671ed19b0c0406428ccc2d2161768d01e8b9b`, the [reference catalog](https://github.com/gastownhall/bdp/blob/8d6671ed19b0c0406428ccc2d2161768d01e8b9b/packages/protocol/src/reference-domain.ts#L3) has generic work/reference Types, including a Decision ownership witness, not this Memory/conformer graph. [Installed reference configuration](https://github.com/gastownhall/bdp/blob/8d6671ed19b0c0406428ccc2d2161768d01e8b9b/packages/server/src/installed-reference-configuration.ts#L23) and [URL-conformance indexing](https://github.com/gastownhall/bdp/blob/8d6671ed19b0c0406428ccc2d2161768d01e8b9b/packages/protocol/src/type-conformance.ts#L34) are reusable mechanisms, not evidence of this exact-revision Type model or full Memory support. Custom Memory installation/qualification was not exercised. |
+| bd graph preview | Partial precursor exists; the proposed six-Bead/six-Link library is NYI in this closed catalog; no fresh runtime qualification | Final `graph-preview2`, peeled commit `703bb13e91aa2cab2092443319139006d74242c8`, defines a Scope-local [preview-memory](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/schema.go#L57) with title/body and bounded wildcard ownership; its descriptor explicitly disclaims the complete Memory/History contract. The [installation catalog builder](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/informational_types.go#L30) includes the informational related/example-follows/example-cites precursors and can append native relationship descriptors; [catalog reads](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/informational_types.go#L82) verify the resulting expected set. No total catalog count is used as evidence of Memory support. These are not the proposed Observation/Decision/Procedure/Policy/Lesson contracts or six informational Types. No new binary/store qualification was run. |
+| bd legacy memory plane | Keyed memory API exists; it is not canonical Memory-Type conformance | At the same `703bb13e` source, [memoryops](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/memoryops/memories.go#L6) accepts key/content, can derive a key, returns keyed maps and conflates an empty stored value with absence on recall. Its presence is compatibility evidence, not proof of canonical identity, this Type catalog or the required Memory semantics. |
+
+The reference catalog's Decision name and bd's preview-memory name do not establish
+identity or conformance to this library. Source presence is distinct from execution,
+an installed capability advertisement or release acceptance. Later reference/bd
+branches and Preview 3 builds were not audited here; their status is unverified,
+not inferred NYI from these frozen snapshots. Deeper Provenance redesign remains on
+hold; this contribution records its existing conflicts without extending it.
+
+### 10.2 Capability and integration gates
+
 | Area | Design status | Implementation/evidence status |
 | --- | --- | --- |
 | Distinct Types; no kind fields | Donna ruling applied; plain Memory plus five candidate specializations | New catalog/runtime adoption NYI here |
@@ -799,34 +827,33 @@ by this contribution, not proof every underlying facility is absent.
 | Pre-installation, aliases, retention and transfer | Uses shared identity/authority boundary | Bootstrap, registration granularity, installed-scope handling and packaging remain shared work |
 | Preview 3 | No cutline or protocol stability claim | Exact release integration/qualification remains Janet/Donna's work |
 
-No Beads runtime behavior is newly verified here. If implementation evidence is
-added, inspect and cite final `graph-preview2` peeled commit
-`703bb13e91aa2cab2092443319139006d74242c8`; do not relabel older authoring-draft
-observations or a passing JSON example as current runtime qualification.
+No Beads runtime behavior is newly verified by this pass. The source evidence in
+§10.1 does not replace Janet/Donna's exact-build requirement/scenario qualification.
+Do not relabel an older authoring audit, legacy feature or passing JSON example as
+current implementation conformance.
 
-Remaining decisions are explicit:
+### 10.3 Shared decisions needed
 
-1. Review the six-Bead/six-Link candidate catalog and detailed fields, including
-   R3's properties refinement and closure costs under the fixed no-kind ruling,
-   applicability, full human rendering and the cost of exact endpoint Type pins.
-   Identity-wide Issue matching is an explicit alternative for review.
-2. Coordinate source and self-Link admission, local floating revalidation, deletion cleanup,
-   identity-preserving re-pins and old/new owned-state effects with shared owners.
-   Resolve the surviving-minimum deletion conflict and propagate actor context to
-   indirect Memory revisions before qualifying those operations.
-3. Resolve R9/R19's expected/observed external-role encoding without remote Type
-   validation, and retain Types' installed-definition/Scope boundary as open.
-4. Follow shared choices for production identities/seed allocation, registration,
-   unpinned write selection, aliases, schema admission/closure and retention/package
-   mechanics. No Memory-specific substitute is introduced.
-5. Review title derivation and any finite owned-Link limit against real authoring
-   sizes; reconcile Core's required bound and complete-owned-state reads before
-   adoption. Do not silently retain 1024 as an established limit or omit Core's max.
-6. Select the existing `related` compatibility contract with shared/product owners,
-   and align Chris's proposal with native unknown sources, stronger actor admission
-   and direct-property discovery/exposure. These are not automatic ID substitutions.
-7. Resolve V2's Activity-admission body/comment conflict and actor-basis difference
-   from Core with its owner; Memory does not adjudicate those shared meanings.
+Alternatives are review options, not selected behavior. Donna/Trish retain the
+shared decisions and coordination with the Provenance owner.
+
+| Concrete scenario | Conflicting requirements | Alternatives | Specific decision needed |
+| --- | --- | --- | --- |
+| Delete Memory M, the floating target of a surviving Issue's sole required Guidance Link | R5/R20 remove the Link without a Link blocking deletion; Types §5.5 requires the survivor's minimum at commit | Restrict admissible minimums; require explicitly authorized atomic repair; or amend the deletion guarantee | Choose the admission/precedence rule and repair authority. No implicit survivor deletion, retyping, invariant waiver or invented replacement Link. |
+| Existing `--type related` is used for Issue→Memory | R17/R23/R31 retain the existing baseline; its Issue-family restrictions do not become Memory-capable through child conformance; this catalog has a distinct identity | Evolve the shared baseline; select an explicit compatible selector mapping; or acknowledge a product-contract change | Select canonical identity and selector behavior while preserving historical IDs, ownership and constraints. |
+| Activity reports a proven nonexistent or pruned local subject | V2's body allows no-lookup reports; owner comment 6149528423 requires an import path or retained evidence | Retain the body's base admission; or select the proof/import rule | The V2 owner must reconcile the authoritative rule. Keep graph endpoint and revision-source admission separate; Memory does not choose or redesign them. |
+| A native Memory revision records its responsible actor | R12 requires recorded responsibility; current Core excludes an authentication-asserting basis while V2 proposes one | Retain current Core vocabulary; or separately adopt a shared basis amendment | Resolve the shared attribution/attestation boundary and vocabulary. Memory's actor/time floor does not decide authentication or grant authority. |
+
+Other review items remain the candidate fields/catalog, title derivation, closure
+costs under the fixed no-kind ruling, exact versus identity-wide endpoint Type
+selection and any finite owned-Link bound. Reconcile Core's mandatory max and
+complete-owned-state reads before adoption; neither 1024 nor an unbounded runtime
+is selected. Shared Types still owns registration, aliases, seed identity, revision
+evolution, installed-definition/Scope behavior, retention and packaging. Shared
+graph/History work still owns pin admission, floating revalidation, re-pinning,
+ownership transitions, indirect attribution and R9/R19's remote-role observation
+encoding. Proposal alignment for native unknown sources and direct-property
+discovery/exposure remains explicit. None receives a Memory-only substitute here.
 
 This contribution changes only the Memory specification and its owned review
 artifacts. Applicable checks and independent Codex plus Claude review precede PR
