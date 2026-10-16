@@ -539,7 +539,7 @@ describe("canonical RU response parsers", () => {
     };
     // Take the actual version from the canonical bundle, not a duplicated version policy.
     const bundle = JSON.parse(
-      readFileSync(new URL("../specs/profiles/core/bdp-v0.schema.json", import.meta.url), "utf8"),
+      readFileSync(new URL("../schemas/bdp-v0.schema.json", import.meta.url), "utf8"),
     );
     input.bdpVersion = bundle.$defs.bdpVersion.const;
     expect(parseReadUpdateDiscovery(input).profile).toBe("read-update");

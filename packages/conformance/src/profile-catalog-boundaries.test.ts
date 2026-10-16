@@ -1,6 +1,9 @@
 import { readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { readSpecificationSource } from "../test-support/spec-source.js";
+import {
+  isProtocolSpecificationSource,
+  readSpecificationSource,
+} from "../test-support/spec-source.js";
 import { loadScenarioCatalogJson, validateCatalogCitations } from "./index.js";
 import { markdownAnchors, markdownSection } from "./markdown.js";
 
@@ -72,6 +75,24 @@ function assertProfileCitation(
     if (!normalized(ownership.sharedText).includes(normalized(selectedText)))
       throw new Error(`Shared anchor does not own nested excerpt: ${anchor}`);
   }
+}
+
+function assertSourceProfileCitation(
+  source: string,
+  anchor: string,
+  profile: keyof typeof rank,
+  selectedText?: string,
+): void {
+  if (!isProtocolSpecificationSource(source)) {
+    if (source.startsWith("specs/")) throw new Error(`Not a current protocol source: ${source}`);
+    return;
+  }
+  if (
+    source !== "docs/specs/bdp.md" &&
+    !markdownAnchors(read(source)).some((entry) => entry.anchor === anchor)
+  )
+    throw new Error(`Source does not own anchor: ${source}${anchor}`);
+  assertProfileCitation(anchor, profile, owners, selectedText);
 }
 
 function assertProfileLinks(markdown: string): void {
@@ -273,6 +294,37 @@ describe("catalog citations respect cumulative profile boundaries", () => {
     expect(owners.get("#readupdate-discovery")?.profile).toBe(2);
     expect(owners.get("#discovery-profile-membership")?.profile).toBe(3);
   });
+  it("checks direct authoritative citations for physical and cumulative ownership", () => {
+    const core = "specs/profiles/core/core.md";
+    const write = "specs/profiles/write/write.md";
+    const shared = "specs/conformance.md";
+    expect(() => assertSourceProfileCitation(core, "#types", "read")).not.toThrow();
+    expect(() =>
+      assertSourceProfileCitation(write, "#readupdate-discovery", "read-update"),
+    ).not.toThrow();
+    expect(() =>
+      assertSourceProfileCitation(write, "#batch-operation-target", "transactional"),
+    ).not.toThrow();
+    expect(() =>
+      assertSourceProfileCitation(shared, "#transactional-conformance-rows", "transactional"),
+    ).not.toThrow();
+    expect(() => assertSourceProfileCitation(write, "#batch-operation-target", "read")).toThrow(
+      "Later-profile",
+    );
+    expect(() =>
+      assertSourceProfileCitation(write, "#batch-operation-target", "read-update"),
+    ).toThrow("Later-profile");
+    expect(() =>
+      assertSourceProfileCitation(shared, "#transactional-conformance-rows", "read"),
+    ).toThrow("Later-profile");
+    expect(() =>
+      assertSourceProfileCitation(core, "#batch-operation-target", "transactional"),
+    ).toThrow("does not own");
+    expect(() => assertSourceProfileCitation(write, "#types", "read")).toThrow("does not own");
+    expect(() =>
+      assertSourceProfileCitation("specs/profiles/types/types.md", "#types", "read"),
+    ).toThrow("Not a current protocol source");
+  });
   it.each(catalogs)("audits every requirement in %s", (name) => {
     const catalog = loadScenarioCatalogJson(read(name));
     validateCatalogCitations(catalog, read);
@@ -286,14 +338,13 @@ describe("catalog citations respect cumulative profile boundaries", () => {
         citations.length,
       );
       for (const requirement of scenario.requirements) {
-        if (requirement.source !== "docs/specs/bdp.md") continue;
         const label = `${scenario.id}: ${requirement.anchor}`;
         expect(
           () =>
-            assertProfileCitation(
+            assertSourceProfileCitation(
+              requirement.source,
               requirement.anchor,
               scenario.requiredProfile,
-              owners,
               requirement.selectedText,
             ),
           label,

@@ -2,7 +2,10 @@ import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { readSpecificationSource } from "../test-support/spec-source.js";
+import {
+  PROTOCOL_SPECIFICATION_PATHS,
+  readSpecificationSource,
+} from "../test-support/spec-source.js";
 
 import {
   loadExecutableScenarioManifestJson,
@@ -18,7 +21,11 @@ const readText = (relativePath: string): string => readSpecificationSource(relat
 const CATALOG_PATH = "packages/conformance/catalog/owned-wildcard-v1.json";
 const READ_CATALOG_PATH = "packages/conformance/catalog/read-v1.json";
 const MATRICES_DIRECTORY = "packages/conformance/matrices";
-const CITATION_SOURCES = new Set(["docs/specs/bdp.md", "docs/design/requirements.md"]);
+const CITATION_SOURCES = new Set([
+  "docs/specs/bdp.md",
+  "docs/design/requirements.md",
+  ...PROTOCOL_SPECIFICATION_PATHS,
+]);
 
 describe("draft owned-Link wildcard catalog", () => {
   const catalog = loadScenarioCatalogJson(readText(CATALOG_PATH), "owned-wildcard-v1.json");

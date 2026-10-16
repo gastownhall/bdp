@@ -208,7 +208,17 @@ for key, value, valid in [("priority", 0, True), ("priority", 5, False), ("title
 check(dependency_name, {"dep_type": "blocks"}, False, "removed Dependency discriminator")
 check(dependency_name, {"extensionNote": "preserved"}, True, "open Dependency properties")
 
-for path in [HERE / "types.md", HERE / "README.md"]:
+# The recovered Issue draft embeds these fragments; only document annotations differ.
+issue_text = (ISSUE / "issue.md").read_text()
+inline = [json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", issue_text, re.S)]
+inline_schemas = [block for block in inline if "$schema" in block]
+assert len(inline_schemas) == 2
+for name, block in zip((issue_name, dependency_name), inline_schemas):
+    artifact = {key: value for key, value in SCHEMAS[name].items()
+                if key not in {"$id", "title", "$comment"}}
+    assert block == artifact, (name, "inline properties schema drift")
+
+for path in [HERE / "types.md", HERE / "README.md", ISSUE / "issue.md"]:
     text = path.read_text()
     assert text.count("```") % 2 == 0, path
     for destination in re.findall(r"\]\(([^)]+)\)", text):

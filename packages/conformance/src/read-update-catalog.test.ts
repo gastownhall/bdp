@@ -2,7 +2,10 @@ import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { readSpecificationSource } from "../test-support/spec-source.js";
+import {
+  isProtocolSpecificationSource,
+  readSpecificationSource,
+} from "../test-support/spec-source.js";
 import {
   loadExecutableScenarioManifestJson,
   loadScenarioCatalogJson,
@@ -35,9 +38,9 @@ describe("draft Read+Update catalog", () => {
     for (const scenario of catalog.scenarios) {
       expect(scenario.requiredProfile, scenario.id).toBe("read-update");
       expect(scenario.id, scenario.id).toMatch(/^read-update\./);
-      expect(scenario.requirements.every(({ source }) => source === "docs/specs/bdp.md")).toBe(
-        true,
-      );
+      expect(
+        scenario.requirements.every(({ source }) => isProtocolSpecificationSource(source)),
+      ).toBe(true);
     }
     expect(selectNormativeScenariosForProfile(catalog, "read").map(({ id }) => id)).toEqual([]);
   });

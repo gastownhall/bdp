@@ -38,7 +38,7 @@ export {
 /**
  * The three cumulative BDP conformance profile tokens, as they appear on the
  * wire and in discovery. See **Scope discovery and human documentation** in
- * `specs/profiles/core/core.md` for the normative spelling: `read`, `read-update`, and
+ * `docs/specs/bdp.md` for the normative spelling: `read`, `read-update`, and
  * `transactional`. `read` is
  * lowest, `transactional` highest; each higher token cumulatively claims every
  * lower one.

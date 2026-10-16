@@ -2,7 +2,10 @@ import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { readSpecificationSource } from "../test-support/spec-source.js";
+import {
+  isProtocolSpecificationSource,
+  readSpecificationSource,
+} from "../test-support/spec-source.js";
 
 import {
   loadExecutableScenarioManifestJson,
@@ -111,9 +114,9 @@ describe("draft Transactional catalog", () => {
       expect(scenario.kind, scenario.id).toBe("normative");
       expect(scenario.id, scenario.id).toMatch(/^transactional\.[a-z-]+\.[a-z0-9-]+$/);
       areas.add(scenario.id.split(".")[1] ?? "");
-      expect(scenario.requirements.every(({ source }) => source === "docs/specs/bdp.md")).toBe(
-        true,
-      );
+      expect(
+        scenario.requirements.every(({ source }) => isProtocolSpecificationSource(source)),
+      ).toBe(true);
     }
     expect([...areas].sort()).toEqual([
       "alias",
