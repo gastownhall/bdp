@@ -7,7 +7,8 @@ This is specification work; do not implement Memory runtime or CLI behavior yet.
 
 ## Start with the current sources
 
-1. Fetch `gastownhall/bdp` main and read `specs/types.md` in full, including its open
+1. After https://github.com/gastownhall/bdp/pull/142 lands, fetch `gastownhall/bdp`
+   main and read `specs/types.md` in full, including its open
    decisions and readiness section. Trish is landing this as a work-in-progress
    design specification. Main's Type draft is the shared design authority after
    that landing; `docs/specs/bdp.md` remains the existing protocol contract. Do not
@@ -24,7 +25,7 @@ This is specification work; do not implement Memory runtime or CLI behavior yet.
    https://github.com/gastownhall/beads/issues/7590 . It supplies product context;
    shared meanings belong in `specs/types.md`, not duplicated CLI rules.
 5. Recover the existing Memory draft and research from BDP PR #60's authoring branch:
-   https://github.com/gastownhall/bdp/tree/codex/trish-bdp-design-authority . Inspect:
+   https://github.com/gastownhall/bdp/tree/cbd59b601875ec5c20dd189c22a95ccad4b33390 . Inspect:
    - `specs/types/memory.md`: starting proposal, currently one Memory Bead Type with
      knowledge-form kinds and six distinct informational Link Types.
    - `specs/types/memory-approaches.md`: historical A/B comparison; keep for comparison,

@@ -264,3 +264,13 @@ narrower (alias/ root, in-Scope Beads only); coordinated amendment is needed. Se
 A Scope-selected default Type revision was proposed after alias pinning was agreed.
 Donna has not selected it. Neither registry-latest nor local-default selection is
 accepted by implication; do not implement either as a settled rule.
+
+### WIP main landing follow-up
+
+Fresh [Codex + Claude landing council](type-wip-landing-council-20261015.md) found
+no blocker to the focused WIP landing. Next editorial increment: retitle §7 to cover
+selected lifecycle decisions as well as open questions; cross-reference unresolved
+unpinned write revision selection; narrow checker coverage to affiliation/declaration
+pins and owned consistency; make general inherited Bead ownership explicit without
+requiring all selectors to match; distinguish CLI alias shorthand from shared alias
+representation/semantics. These do not reopen agreed design decisions.
