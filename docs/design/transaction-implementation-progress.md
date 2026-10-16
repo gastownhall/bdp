@@ -2023,3 +2023,35 @@ provenance; no qualification is claimed.
 
 
 Private sequence depth/retained-member draft (unexecuted): receiving preparation now preserves branded per-member depth facts so an existing member key can reach its ordered retained comparison, while strict source preparation still rejects deep input. Fresh deep JSON requests remain unsupported private500 responses; an unacceptable sequence Accept is refused with406 before admission. If a retained failed key expires between turns, a later private depth500 may follow an already committed and retained prefix; remaining claims are retracted without undoing that prefix. The proposed source and fresh-installed witnesses are not yet executed. This does not add arbitrary-depth execution, public Transactional discovery/admission, or cumulative qualification, and leaves the documented policy and consistency limitations unchanged.
+
+
+### Fresh deep JSON serving draft
+
+This isolated draft starts from working branch68b0f462, the reviewed test-only
+successor of77b4cf98 with exact push CI green. Its product tree is identical to
+reviewed11742645. It removes the private JSON nesting-depth refusal
+while retaining request bytes, Resource size, Selector depth and other existing
+limits. Resource no-op and Snapshot owned-Link integrity comparisons share an
+internal iterative JSON comparator. Receipt maintenance filters available detail
+with the existing JavaScript parser instead of SQLite JSON extraction, allowing
+valid deep receipt text to survive maintenance and reopen. No storage format,
+public export or profile-admission change is proposed. Both complete receipt and
+receipt-page freezing now use a private iterative walk, preserving nested
+immutability for deep receipt values.
+
+The planned regressions cover real deep writes, retained retries/conflicts,
+no-ops, set and sequence operations, failed-batch rollback, receipt pages and
+expiry, Events, and Snapshot integrity. New deep fixtures require independent
+iterative comparisons so recursive test matchers cannot mask a serving failure.
+The two existing installed witnesses retain their request counts; two direct
+fresh-write requests change Accept to application/json to exercise success,
+while the sequence witness retains its unacceptable-Accept checks.
+
+Production and source review findings are dispositioned; source validation is
+next. Full installed-test council and frozen control/package/installed validation
+remain pending. The eight-request installed sequence witness observes its deep
+metadata in the command response, without independent metadata readback; separate
+Snapshot and reopen witnesses check deep sequence properties persistence.
+Earlier evidence keeps its original source attribution. This draft does not
+qualify or advertise a write profile and does not settle retained-Snapshot
+minimum semantics or incident-Link metadata Event membership.

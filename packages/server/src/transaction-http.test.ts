@@ -591,7 +591,7 @@ describe("source-private actual Transactional HTTP", () => {
     expect(after.status).toBe(307);
     expect(after.headers.get("location")).toBe(`${f.runtime.scope}beads/other`);
   });
-  it("rejects invalid set Selector grammar and preserves private depth refusal without key capture or partial effects", async () => {
+  it("rejects invalid set Selector grammar and admits valid deep content without partial effects", async () => {
     const f = await fixture();
     const set = await f.post(
       batch([
@@ -615,13 +615,14 @@ describe("source-private actual Transactional HTTP", () => {
     let nested: unknown = "leaf";
     for (let depth = 0; depth < 40; depth++) nested = { nested };
     const depth = await f.post(batch([{ ...create("c"), properties: { nested } }]), "deep");
-    expect(depth.status).toBe(500);
-    expect(depth.headers.get("x-bdp-development-limit")).toBe(
-      "unsupported-transaction-composition",
-    );
-    expect(await depth.text()).toBe("");
-    expect((await f.get(`${f.runtime.scope}beads/c`)).status).toBe(404);
-    expect((await f.post(batch([create("c")]), "deep")).status).toBe(200);
+    expect(depth.status).toBe(200);
+    expect(depth.headers.has("x-bdp-development-limit")).toBe(false);
+    expect(await body(depth)).toMatchObject({
+      status: "completed",
+      results: [{ outcome: "created", resource: { properties: { nested } } }],
+    });
+    expect((await f.get(`${f.runtime.scope}beads/c`)).status).toBe(200);
+    expect((await f.post(batch([create("c")]), "deep")).status).toBe(409);
   });
   it("preserves retained receipt identities across actual listener close/reopen and detail expiry", async () => {
     const f = await fixture(),
@@ -1622,7 +1623,7 @@ it("does not invent a Read method table for unrouted or noncanonical operation U
   expect((await f.post(batch(), "unrouted")).status).toBe(200);
 });
 
-it("labels sequence depth gaps honestly and keeps sequence capacity distinct from direct transaction capacity", async () => {
+it("accepts byte-bounded deep sequences and keeps sequence capacity distinct from direct transaction capacity", async () => {
   const f = await fixture({ maximumOperations: 1 });
   let nested: unknown = "leaf";
   for (let depth = 0; depth < 40; depth++) nested = { nested };
@@ -1631,12 +1632,12 @@ it("labels sequence depth gaps honestly and keeps sequence capacity distinct fro
     null,
     "sequence",
   );
-  expect(refused.status).toBe(500);
-  expect(refused.headers.get("x-bdp-development-limit")).toBe(
-    "unsupported-transaction-composition",
-  );
-  expect(await refused.text()).toBe("");
-  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+  expect(refused.status).toBe(200);
+  expect(refused.headers.has("x-bdp-development-limit")).toBe(false);
+  expect(await body(refused)).toMatchObject({
+    results: [{ outcome: "created", resource: { properties: { nested } } }],
+  });
+  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(200);
   const sequence = await f.post(
     batch([
       { ...create("a"), idempotencyKey: "deep_sequence" },
@@ -1647,6 +1648,14 @@ it("labels sequence depth gaps honestly and keeps sequence capacity distinct fro
   );
   expect(sequence.status).toBe(200);
   expect(sequence.headers.get("bdp-scope-position")).toBe("pos-2");
+  // Both members are processed despite the one-operation direct-transaction limit.
+  // The first reuses the earlier deep key with a different body; the second commits.
+  expect(await body(sequence)).toMatchObject({
+    results: [
+      { code: "idempotency-conflict", status: 409 },
+      { outcome: "created", resource: { id: `${f.runtime.scope}beads/b` } },
+    ],
+  });
   const direct = await f.post(batch([create("c"), create("d")]), "direct");
   expect(direct.status).toBe(413);
   expect(await body(direct)).toMatchObject({ limit: "transaction.operations" });
@@ -2580,7 +2589,7 @@ it.each(["updateWhere", "deleteWhere"] as const)(
   },
 );
 
-it("preserves actual singleton bytes and wrapper-equivalent depth without accepting a body operation override", async () => {
+it("preserves actual singleton bytes and wrapper-equivalent deep content without accepting a body operation override", async () => {
   const f = await fixture();
   const invalid = await f.post(
     JSON.stringify({ operation: "deleteWhere", collection: "beads", selector: "$[?@.id]" }),
@@ -2591,7 +2600,7 @@ it("preserves actual singleton bytes and wrapper-equivalent depth without accept
   expect(await f.receiptRows("override")).toEqual([]);
   for (const [depth, status] of [
     [27, 200],
-    [28, 500],
+    [28, 200],
   ] as const) {
     let value: unknown = 0;
     for (let i = 0; i < depth; i++) value = { nested: value };
@@ -2610,17 +2619,11 @@ it("preserves actual singleton bytes and wrapper-equivalent depth without accept
         target,
       );
       expect(response.status).toBe(status);
-      if (status === 500) {
-        expect(response.headers.get("x-bdp-development-limit")).toBe(
-          "unsupported-transaction-composition",
-        );
-        expect(await response.text()).toBe("");
-        expect(await f.receiptRows(key)).toEqual([]);
-      } else
-        expect(await body(response)).toMatchObject({
-          status: "completed",
-          results: [{ outcome: "matched", count: 0 }],
-        });
+      expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+      expect(await body(response)).toMatchObject({
+        status: "completed",
+        results: [{ outcome: "matched", count: 0 }],
+      });
     }
   }
   const template = {
@@ -4116,7 +4119,7 @@ it("serves current missing receipt root and page context without changing nondis
     throw new AggregateError(failures, "receipt context observation and cleanup failed");
 }, 60000);
 
-it("serves retained direct key conflicts before private depth and preserves fresh refusal", async () => {
+it("serves retained direct key conflicts and genuine fresh deep effects", async () => {
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(new Error("depth-key work deadline")), 25000);
   const cleanupStart = cleanup.length;
@@ -4256,7 +4259,13 @@ it("serves retained direct key conflicts before private depth and preserves fres
       }
     }
   }
-  function completed(response: Observed, name: string, key: string, position: string) {
+  function completed(
+    response: Observed,
+    name: string,
+    key: string,
+    position: string,
+    metadata: unknown = {},
+  ) {
     expect(response.status).toBe(200);
     const value = record(JSON.parse(response.text));
     expect(validateSelectorReceipt(value), JSON.stringify(validateSelectorReceipt.errors)).toBe(
@@ -4283,7 +4292,7 @@ it("serves retained direct key conflicts before private depth and preserves fres
       id: `${f?.runtime.scope}beads/${name}`,
       type: bead,
       properties: { title: name },
-      metadata: {},
+      metadata,
       revision: resource.revision,
     });
     if (!expectedContext) {
@@ -4337,7 +4346,7 @@ it("serves retained direct key conflicts before private depth and preserves fres
         key,
         "text/plain",
       );
-      expect(conflict.status, `depth-key:${kind}:conflict-before-depth`).toBe(409);
+      expect(conflict.status, `depth-key:${kind}:conflict-before-negotiation`).toBe(409);
       expect(checkedProblem(record(JSON.parse(conflict.text)))).toEqual({
         type: "https://github.com/gastownhall/bdp/problems/conflict",
         code: "idempotency-conflict",
@@ -4356,18 +4365,16 @@ it("serves retained direct key conflicts before private depth and preserves fres
         fresh,
         "text/plain",
       );
-      expect(refused.status).toBe(500);
+      expect(refused.status).toBe(406);
       expect(refused.text).toBe("");
-      expect(refused.headers.get("x-bdp-development-limit")).toBe(
-        "unsupported-transaction-composition",
-      );
-      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-        expect(refused.headers.get(name)).toBeNull();
+      expect(refused.headers.get("x-bdp-development-limit")).toBeNull();
+      checkedContext(refused, `pos-${position}`);
       completed(
-        await exchange(`${kind}-fresh-reuse`, target, input(b), fresh),
+        await exchange(`${kind}-fresh-reuse`, target, input(b, true), fresh),
         b,
         fresh,
         `pos-${position + 1}`,
+        { nested },
       );
       const point = await exchange(`${kind}-point-unchanged`, `${f.runtime.scope}beads/${a}`);
       expect(point.status).toBe(200);
@@ -4872,7 +4879,7 @@ it("waits only for existing current Resource unknown minima and keeps unsupporte
   expect(waits).toBe(2);
 });
 
-it("compares retained sequence members before private depth refusal and preserves receiving failures", async () => {
+it("compares retained sequence members and accepts deep input while preserving receiving failures", async () => {
   const boundary = cleanup.length;
   const controller = new AbortController();
   const failures: unknown[] = [];
@@ -4903,7 +4910,7 @@ it("compares retained sequence members before private depth refusal and preserve
       position,
     ]);
   }
-  function resource(value: unknown, name: string) {
+  function resource(value: unknown, name: string, metadata: unknown = {}) {
     const result = record(value);
     expect(typeof result.revision).toBe("string");
     expect(result.revision).not.toBe("");
@@ -4912,7 +4919,7 @@ it("compares retained sequence members before private depth refusal and preserve
       type: bead,
       revision: result.revision,
       properties: { title: name },
-      metadata: {},
+      metadata,
     });
     return result;
   }
@@ -5112,20 +5119,9 @@ it("compares retained sequence members before private depth refusal and preserve
       f.runtime.targets.sequence,
       sequenceBody("sequence-b", "sequence-fresh", true),
     );
-    expect(fresh.status).toBe(500);
-    expect(fresh.text).toBe("");
-    expect(fresh.headers.get("x-bdp-development-limit")).toBe(
-      "unsupported-transaction-composition",
-    );
-    expect(fresh.headers.get("content-length")).toBe("0");
-    expect(contextNames.map((name) => fresh.headers.get(name))).toStrictEqual([null, null, null]);
-    const reuse = await exchange(
-      "fresh-key-reuse",
-      f.runtime.targets.sequence,
-      sequenceBody("sequence-b", "sequence-fresh"),
-    );
-    expect(reuse.status).toBe(200);
-    const created = parse(reuse, validateSequence),
+    expect(fresh.status).toBe(200);
+    expect(fresh.headers.get("x-bdp-development-limit")).toBeNull();
+    const created = parse(fresh, validateSequence),
       createdEntry = record((created.results as unknown[])[0]);
     expect(created).toStrictEqual({
       results: [
@@ -5133,7 +5129,26 @@ it("compares retained sequence members before private depth refusal and preserve
           operationIndex: 0,
           operationName: "present",
           outcome: "created",
-          resource: resource(createdEntry.resource, "sequence-b"),
+          resource: resource(createdEntry.resource, "sequence-b", { nested }),
+        },
+      ],
+    });
+    tuple(fresh, "pos-2");
+    const reuse = await exchange(
+      "fresh-key-reuse",
+      f.runtime.targets.sequence,
+      sequenceBody("sequence-b", "sequence-fresh"),
+    );
+    expect(reuse.status).toBe(200);
+    expect(parse(reuse, validateSequence)).toStrictEqual({
+      results: [
+        {
+          type: "https://github.com/gastownhall/bdp/problems/conflict",
+          code: "idempotency-conflict",
+          status: 409,
+          retry: "never",
+          operationIndex: 0,
+          operationName: "present",
         },
       ],
     });

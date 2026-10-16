@@ -10,7 +10,6 @@ import {
   prepareTransaction,
   prepareTransactionSequence,
   prepareTransactionSequenceForReceiving,
-  TransactionDevelopmentLimitError,
   prepareTransactionSingleton,
 } from "./transaction-batch.js";
 import { openTransactionStore } from "./transaction-store.js";
@@ -622,51 +621,34 @@ describe("private Transactional sequence slice", () => {
       expect(f.store.inspect().groups).toHaveLength(2);
     });
   }, 15000);
-  it("rolls back every new reservation when a fresh deep sequence member is refused", () => {
+  it("admits fresh deep sequence members without changing atomic reservation behavior", () => {
     withDepthFixture({}, (f) => {
       const foreignRequest = singleton("createBead", { id: "beads/foreign", type: bead });
       const foreign = own(f.store, "foreign", foreignRequest);
-      const before = f.store.inspect();
-      const refuse = () =>
-        createTransactionSequenceStepper(
-          f.store,
-          "p",
-          receivingSequence([
-            create("first", "first"),
-            { ...create("deep", "deep"), metadata: depthMetadata() },
-            create("tail", "tail"),
-          ]),
-        );
-      let caught: unknown;
-      try {
-        refuse();
-      } catch (error) {
-        caught = error;
-      }
-      expect(caught).toBeInstanceOf(TransactionDevelopmentLimitError);
-      expect(caught).toMatchObject({ message: "development batch depth limit" });
-      expect(f.store.inspect()).toStrictEqual(before);
-      expect(f.store.admit("p", "foreign", foreignRequest)).toStrictEqual({
-        kind: "existing",
-        receipt: foreign.receipt,
-      });
-      const reused = runSteps(
-        createTransactionSequenceStepper(
-          f.store,
-          "p",
-          sequence([create("first", "first"), create("deep", "deep"), create("tail", "tail")]),
-        ),
-      );
-      expect(reused?.results.map((entry) => entry.outcome)).toStrictEqual([
+      const request = receivingSequence([
+        create("first", "first"),
+        { ...create("deep", "deep"), metadata: depthMetadata() },
+        create("tail", "tail"),
+      ]);
+      const created = runSteps(createTransactionSequenceStepper(f.store, "p", request));
+      expect(created?.results.map((entry) => entry.outcome)).toStrictEqual([
         "created",
         "created",
         "created",
       ]);
+      expect(f.store.admit("p", "foreign", foreignRequest)).toStrictEqual({
+        kind: "existing",
+        receipt: foreign.receipt,
+      });
+      const replay = runSteps(createTransactionSequenceStepper(f.store, "p", request));
+      // This fixture is bounded to 41 metadata levels. JSON preserves every wire
+      // field/value while ignoring decoded null-vs-Object prototypes on replay.
+      expect(JSON.stringify(replay)).toBe(JSON.stringify(created));
       expect(f.store.execute(foreign).status).toBe("completed");
       expect(f.store.inspect().groups).toHaveLength(4);
     });
   }, 15000);
-  it("refuses fresh depth after a retained failed member expires between sequence turns", () => {
+  it("executes fresh deep input after a retained failed member expires between sequence turns", () => {
     let now = 1000;
     withDepthFixture({ clock: () => now }, (f) => {
       commit(f.store, "seed", "createBead", { id: "beads/a", type: bead });
@@ -677,36 +659,26 @@ describe("private Transactional sequence slice", () => {
         "p",
         receivingSequence([
           create("prefix", "prefix"),
-          { ...create("a", "failed"), metadata: depthMetadata() },
+          { ...create("deep", "failed"), metadata: depthMetadata() },
           create("tail", "tail"),
         ]),
       );
       expect(stepper.step().entry.outcome).toBe("created");
       now = Date.parse(String(failed.expiresAt)) + 1;
-      let caught: unknown;
-      try {
-        stepper.step();
-      } catch (error) {
-        caught = error;
-      }
-      expect(caught).toBeInstanceOf(TransactionDevelopmentLimitError);
-      expect(caught).toMatchObject({ message: "development batch depth limit" });
-      // The failed atomic turn rolled back expiry deletion. This normal read
-      // performs retention; do not attribute a raw deletion to that failed turn.
+      expect(stepper.step().entry.outcome).toBe("created");
       expect(f.store.receipt("p", failed.id)).toBeUndefined();
-      expect(f.store.inspect().groups).toHaveLength(2);
-      expect(f.store.inspect().resources).toStrictEqual([
-        expect.objectContaining({ id: `${scope}beads/a` }),
-        expect.objectContaining({ id: `${scope}beads/prefix` }),
+      expect(stepper.step().entry.outcome).toBe("created");
+      expect(f.store.inspect().resources.map((r) => (r as { id: string }).id)).toStrictEqual([
+        `${scope}beads/a`,
+        `${scope}beads/deep`,
+        `${scope}beads/prefix`,
+        `${scope}beads/tail`,
       ]);
-      expect(
-        commit(f.store, "failed", "createBead", { id: "beads/reused", type: bead }).status,
-      ).toBe("completed");
-      expect(commit(f.store, "tail", "createBead", { id: "beads/tail", type: bead }).status).toBe(
-        "completed",
-      );
       expect(f.store.inspect().groups).toHaveLength(4);
-      expect(() => stepper.step()).toThrow("cancelled");
+      expect(
+        f.store.admit("p", "failed", singleton("createBead", { id: "beads/reused", type: bead }))
+          .kind,
+      ).toBe("conflict");
     });
   }, 15000);
 });

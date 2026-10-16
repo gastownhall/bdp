@@ -641,10 +641,15 @@ export function createTransactionService(owner: Owner, options: TransactionServi
               projectTransactionEntry(entry, policy.readPolicy === "all-visible"),
             ),
           };
+          // Traverse frozen parents too: this observation guarantees every descendant is frozen.
           const freeze = (value: unknown): void => {
-            if (value !== null && typeof value === "object") {
-              for (const child of Object.values(value)) freeze(child);
-              Object.freeze(value);
+            const pending: unknown[] = [value];
+            while (pending.length) {
+              const node = pending.pop();
+              if (node !== null && typeof node === "object") {
+                for (const child of Object.values(node)) pending.push(child);
+                Object.freeze(node);
+              }
             }
           };
           freeze(body);

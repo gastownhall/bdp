@@ -177,7 +177,7 @@ const requests = [
     body: '{"operations":[{"operation":"createBead","id":"beads/sequence-b","type":"https://reference.invalid/acme/types/task","properties":{"title":"sequence-b"},"metadata":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":"leaf"}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"idempotencyKey":"sequence-fresh","name":"present"}]}',
     bodyBytes: 674,
     bodySha256: "66f3c980ebb072c775200bda8b73f5d64176d00196eecf4de0fa69240958735e",
-    status: 500,
+    status: 200,
   },
   {
     index: 6,
@@ -220,7 +220,7 @@ const requests = [
   },
 ] as const;
 
-it("observes retained sequence member conflict before private depth refusal over packed bytes", async () => {
+it("observes retained sequence member conflict and fresh deep execution over packed bytes", async () => {
   const controller = new AbortController();
   const deadlineReason = new Error("installed sequence depth work deadline");
   let deadlineExceeded = false;
@@ -262,10 +262,12 @@ it("observes retained sequence member conflict before private depth refusal over
     expect(requests).toHaveLength(8);
     expect(requests.reduce((sum, row) => sum + row.bodyBytes, 0)).toBe(3179);
     expect(Math.max(...requests.map((row) => row.bodyBytes))).toBe(680);
+    let deepChecked = 0;
     for (const row of requests) {
       expect(Buffer.byteLength(row.body ?? ""), row.label).toBe(row.bodyBytes);
       expect(digest(row.body ?? ""), row.label).toBe(row.bodySha256);
       if (row.label.includes("deep") || row.label.endsWith("fresh-depth")) {
+        deepChecked++;
         const parsed = record(JSON.parse(row.body!));
         const input = "operations" in parsed ? records(parsed.operations)[0]! : parsed;
         let value: unknown = input.metadata;
@@ -277,6 +279,7 @@ it("observes retained sequence member conflict before private depth refusal over
         expect(value, row.label).toBe("leaf");
       }
     }
+    expect(deepChecked).toBe(4);
     directory = mkdtempSync(path.join(tmpdir(), "bdp-sequence-depth-installed-"));
     controller.signal.throwIfAborted();
     launchAttempted = true;
@@ -469,20 +472,11 @@ it("observes retained sequence member conflict before private depth refusal over
     expect(checked(point.bodyText, "beadRecord")).toStrictEqual(seed.resource);
     context(point, "pos-1");
     const fresh = await exchange(5);
-    status(fresh, 500, "sequence-depth:fresh-refusal");
-    expect(fresh.bodyText).toBe("");
-    expect(fresh.bodyOctets).toBe(0);
-    expect(fresh.headers["content-length"]).toBe("0");
-    expect(fresh.headers["x-bdp-development-limit"]).toBe("unsupported-transaction-composition");
-    expect(fresh.headers["content-type"]).toBeUndefined();
-    expect(contextNames.map((name) => fresh.headers[name])).toStrictEqual([
-      undefined,
-      undefined,
-      undefined,
-    ]);
-    const reuse = await exchange(6);
-    status(reuse, 200, "sequence-depth:fresh-key-reuse");
-    const created = checked(reuse.bodyText, "transactionalSequenceResponse");
+    status(fresh, 200, "sequence-depth:fresh-completed");
+    expect(fresh.headers["content-type"]).toBe("application/json");
+    context(fresh, "pos-2");
+    expect(fresh.headers["x-bdp-development-limit"]).toBeUndefined();
+    const created = checked(fresh.bodyText, "transactionalSequenceResponse");
     const resource = record(records(created.results)[0]!.resource);
     expect(typeof resource.revision).toBe("string");
     expect(resource.revision).not.toBe("");
@@ -491,12 +485,28 @@ it("observes retained sequence member conflict before private depth refusal over
       type: beadType,
       revision: resource.revision,
       properties: { title: "sequence-b" },
-      metadata: {},
+      metadata: records(record(JSON.parse(requests[4].body)).operations)[0]!.metadata,
     });
     expect(created).toStrictEqual({
       results: [{ operationIndex: 0, operationName: "present", outcome: "created", resource }],
     });
+    const reuse = await exchange(6);
+    status(reuse, 200, "sequence-depth:fresh-retained-conflict");
+    expect(reuse.headers["content-type"]).toBe("application/json");
     context(reuse, "pos-2");
+    expect(reuse.headers["x-bdp-development-limit"]).toBeUndefined();
+    expect(checked(reuse.bodyText, "transactionalSequenceResponse")).toStrictEqual({
+      results: [
+        {
+          type: "https://github.com/gastownhall/bdp/problems/conflict",
+          code: "idempotency-conflict",
+          status: 409,
+          retry: "never",
+          operationIndex: 0,
+          operationName: "present",
+        },
+      ],
+    });
     for (const index of [7, 8]) {
       const refused = await exchange(index);
       status(refused, 406, `sequence-depth:negotiation-${index}`);

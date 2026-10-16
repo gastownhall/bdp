@@ -690,6 +690,85 @@ describe("private same-owner Transactional service", () => {
     expect(() => service.sequenceObserved("p", sequence())).toThrow("closing");
   });
 
+  it("freezes complete deep sequence observations across fresh execution and retained replay", async () => {
+    const f = fixture(),
+      service = f.open();
+    const depth = 12000;
+    const deepText = "[".repeat(depth) + "1" + "]".repeat(depth);
+    const carrier = prepareTransactionSequence(
+      scope,
+      '{"operations":[{"operation":"createBead","id":"beads/deep","type":"' +
+        bead +
+        '","idempotencyKey":"deep-observed","properties":{"deep":' +
+        deepText +
+        "}}]}",
+    );
+    // Independent full JSON comparison; never hand deep values to a recursive matcher.
+    // Traverse even identical/already-frozen objects so every child is checked.
+    function checkJson(actual: unknown, expected: unknown, frozen = false): number {
+      const pending: [unknown, unknown][] = [[actual, expected]];
+      let objects = 0;
+      while (pending.length) {
+        const pair = pending.pop();
+        if (!pair) throw new Error("deep observation worklist invariant");
+        const [left, right] = pair;
+        if (right === null || typeof right !== "object") {
+          expect(left === right, "complete JSON leaf equality").toBe(true);
+          continue;
+        }
+        if (left === null || typeof left !== "object")
+          throw new Error("deep observation object shape differs");
+        expect(Array.isArray(left)).toBe(Array.isArray(right));
+        if (frozen) expect(Object.isFrozen(left), "every observed container frozen").toBe(true);
+        const l = left as Record<string, unknown>,
+          r = right as Record<string, unknown>;
+        expect(Object.keys(l).sort()).toStrictEqual(Object.keys(r).sort());
+        if (Array.isArray(left) && Array.isArray(right)) expect(left.length).toBe(right.length);
+        for (const key of Object.keys(r)) pending.push([l[key], r[key]]);
+        objects++;
+      }
+      return objects;
+    }
+    const created = await service.sequenceObserved("p", carrier);
+    expect(created.context.scopePosition).toBe("pos-1");
+    expect(created.body.results).toHaveLength(1);
+    const entry = created.body.results[0] as Record<string, unknown>;
+    const resource = entry.resource as Record<string, unknown>;
+    expect(typeof resource.revision).toBe("string");
+    expect(resource.revision).not.toBe("");
+    const expectedResource = {
+      id: `${scope}beads/deep`,
+      type: bead,
+      revision: resource.revision,
+      properties: { deep: JSON.parse(deepText) as unknown },
+      metadata: {},
+    };
+    expect(
+      checkJson(
+        created,
+        {
+          body: {
+            results: [{ outcome: "created", resource: expectedResource, operationIndex: 0 }],
+          },
+          context: created.context,
+        },
+        true,
+      ),
+    ).toBeGreaterThan(depth);
+    const before = f.owner.inspect();
+    expect(before.position).toBe("1");
+    expect(before.resources).toHaveLength(1);
+    expect(before.groups).toHaveLength(1);
+    checkJson(before.resources, [expectedResource]);
+    const events = await service.events(`${scope}beads/deep?view=events`);
+    if (events.kind !== "page") throw new Error("expected deep Resource Event page");
+    expect(events.page.events).toHaveLength(1);
+    const replay = await service.sequenceObserved("p", carrier);
+    expect(checkJson(replay, created, true)).toBeGreaterThan(depth);
+    checkJson(f.owner.inspect(), before);
+    checkJson(await service.events(`${scope}beads/deep?view=events`), events);
+  }, 20000);
+
   it("does not return an observed sequence when the final owner observation fails", async () => {
     const f = fixture(),
       scheduler = manualScheduler();
