@@ -4,7 +4,7 @@ Status: draft
 
 This document records requirements for the BDP reference implementation. It is
 not a second protocol specification. Protocol behavior comes from the
-[BDP v0 draft](../../specs/profiles/core/core.md); unresolved protocol behavior remains unresolved
+[BDP v0 specification](../../specs/README.md); unresolved protocol behavior remains unresolved
 here rather than being invented by an implementation.
 
 ## Product requirements

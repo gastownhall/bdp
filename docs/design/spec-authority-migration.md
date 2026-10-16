@@ -40,3 +40,43 @@ Existing Issue prose is recovered from the authoring worktree at `7bc1758`
 (`specs/types/issue.md`), with links repaired and the companion Memory status
 updated to PR143. Its product decisions and inspected Preview 2 evidence remain
 unchanged. It is WIP design, not current wire behavior.
+
+The Issue source audit remains an unmerged historical artifact linked at the
+immutable `cbd59b60` authoring snapshot. It was deliberately not copied into the
+current normative tree or represented as fresh evidence.
+
+## Review dispositions
+
+Independent reviews inspected `8614b4f5`. Both confirmed protocol text and schema
+preservation. The initial full suite exposed eleven migration failures across
+four files (180 other files passed): package-relative schema lookup, two segmented
+monolith readers, and a comment-only edit to a hash-bound source. These were
+corrected; the hash-bound source and its policy pin remain unchanged.
+
+Review also required direct authoritative citation allowlists, physical anchor
+ownership and cumulative-profile checks, with fail-closed handling of alternate
+path spellings. Those guards and negative cases were added; native follow-up
+review found no remaining issue. Issue inline-schema correspondence is now checked.
+
+The remaining editorial findings were repaired: the Read+Update alias moved with
+its heading into Write, all current authority statements point into specs, the
+descriptor schema fragment path and artifact labels are current, historical Issue
+evidence is disclosed, and the private citation reader preserves the repository
+path boundary. Physical alias/stub ownership now has regression coverage.
+
+The source comment in hash-bound `packages/protocol/src/index.ts` intentionally
+retains its former document path, which now resolves to the navigation page.
+Changing that evidence-bound module is outside this editorial move; its comment
+does not grant the navigation page independent authority.
+
+External [full findings](reviews/spec-authority-layout-20261015-claude.md) remain
+attributed to their reviewed head, including faults already fixed before delivery.
+The test-only helper remains under conformance test-support: it imports only the
+filesystem, is not a package/runtime export, and the dependency-boundary check
+passes. Moving this leaf helper to another shared directory is optional cleanup,
+not a protocol dependency change.
+
+Full local validation at `c105ec77`: 184 test files passed, 9,349 cases passed and
+one existing case skipped, in 243.69 seconds. Final editorial/guard follow-up
+receives targeted revalidation and its own exact-head CI; the earlier run is not
+relabeled as a final-head observation.

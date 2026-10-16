@@ -202,7 +202,7 @@ files in memory. Do not add requirements here.
 
 <a id="part-ii--readupdate"></a>
 
-[part-ii--readupdate](../../specs/profiles/core/core.md#part-ii--readupdate)
+[part-ii--readupdate](../../specs/profiles/write/write.md#part-ii--readupdate)
 
 <a id="part-iii--readupdate"></a>
 

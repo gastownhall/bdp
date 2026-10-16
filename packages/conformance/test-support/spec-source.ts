@@ -21,9 +21,11 @@ export function readProtocolSpecification(): string {
 }
 
 export function readSpecificationSource(source: string): string {
-  return source === "docs/specs/bdp.md"
-    ? readProtocolSpecification()
-    : readFileSync(new URL(source, root), "utf8");
+  if (source === "docs/specs/bdp.md") return readProtocolSpecification();
+  const resolved = new URL(source, root);
+  if (!resolved.href.startsWith(root.href))
+    throw new Error("artifact path escapes the repository root");
+  return readFileSync(resolved, "utf8");
 }
 
 export function isProtocolSpecificationSource(source: string): boolean {
