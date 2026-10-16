@@ -151,6 +151,570 @@ type RetryControl = {
   value?: unknown;
   binding?: string;
 };
+
+const coldDirectoryId = "read-update.discovery.operation-directory";
+const coldDirectory = {
+  createBead: "create-bead",
+  updateBead: "update-bead",
+  deleteBead: "delete-bead",
+  createLink: "create-link",
+  updateLink: "update-link",
+  deleteLink: "delete-link",
+  putAlias: "put-alias",
+  deleteAlias: "delete-alias",
+  sequence: "sequence",
+} as const;
+const coldDirectoryRequests = [
+  {
+    id: "scope",
+    family: "http",
+    method: "GET",
+    url: "https://reference.invalid/acme/",
+    expectedStatus: 204,
+  },
+  {
+    id: "discovery",
+    family: "http",
+    method: "GET",
+    url: "https://reference.invalid/acme/bdp.json",
+    expectedStatus: 200,
+  },
+  {
+    id: "directory",
+    family: "http",
+    method: "GET",
+    url: "https://reference.invalid/acme/operations/",
+    expectedStatus: 200,
+  },
+  {
+    id: "directory-captures",
+    family: "client",
+    method: "GET",
+    url: "https://reference.invalid/acme/operations/",
+    expectedStatus: 200,
+  },
+  {
+    id: "task",
+    family: "http",
+    method: "GET",
+    url: "https://reference.invalid/acme/types/task",
+    expectedStatus: 200,
+  },
+  {
+    id: "relates",
+    family: "http",
+    method: "GET",
+    url: "https://reference.invalid/acme/types/relates",
+    expectedStatus: 200,
+  },
+  {
+    id: "create-a",
+    family: "client",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/create-bead",
+    expectedStatus: 200,
+  },
+  {
+    id: "create-b",
+    family: "client",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/create-bead",
+    expectedStatus: 200,
+  },
+  {
+    id: "update-bead",
+    family: "client",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/update-bead",
+    expectedStatus: 200,
+  },
+  {
+    id: "create-link",
+    family: "client",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/create-link",
+    expectedStatus: 200,
+  },
+  {
+    id: "update-link",
+    family: "client",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/update-link",
+    expectedStatus: 200,
+  },
+  {
+    id: "put-alias",
+    family: "client",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/put-alias",
+    expectedStatus: 200,
+  },
+  {
+    id: "put-alias-get",
+    family: "http",
+    method: "GET",
+    url: "https://reference.invalid/acme/alias/w1-locator",
+    expectedStatus: 307,
+  },
+  {
+    id: "delete-alias",
+    family: "client",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/delete-alias",
+    expectedStatus: 200,
+  },
+  {
+    id: "read-deleted-alias",
+    family: "http",
+    method: "GET",
+    url: "https://reference.invalid/acme/alias/w1-locator",
+    expectedStatus: 404,
+  },
+  {
+    id: "delete-link",
+    family: "client",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/delete-link",
+    expectedStatus: 200,
+  },
+  {
+    id: "deleted-link",
+    family: "http",
+    method: "GET",
+    url: "https://reference.invalid/acme/links/w1-l",
+    expectedStatus: 404,
+  },
+  {
+    id: "delete-bead",
+    family: "client",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/delete-bead",
+    expectedStatus: 200,
+  },
+  {
+    id: "deleted-bead",
+    family: "http",
+    method: "GET",
+    url: "https://reference.invalid/acme/beads/w1-a",
+    expectedStatus: 404,
+  },
+  {
+    id: "sequence",
+    family: "client",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/sequence",
+    expectedStatus: 200,
+  },
+  {
+    id: "final-b",
+    family: "http",
+    method: "GET",
+    url: "https://reference.invalid/acme/beads/w1-b",
+    expectedStatus: 200,
+  },
+] as const;
+const coldDirectoryClientBindings = {
+  "directory-captures": {
+    targetBinding: "operations",
+    bodyBindings: {},
+  },
+  "create-a": {
+    targetBinding: "create-bead",
+    bodyBindings: {
+      type: "task-type",
+    },
+  },
+  "create-b": {
+    targetBinding: "create-bead",
+    bodyBindings: {
+      type: "task-type",
+    },
+  },
+  "update-bead": {
+    targetBinding: "update-bead",
+    bodyBindings: {
+      bead: "a-id",
+      expectedRevision: "a-rev",
+    },
+  },
+  "create-link": {
+    targetBinding: "create-link",
+    bodyBindings: {
+      type: "relates-type",
+      source: "a-id",
+      target: "b-id",
+    },
+  },
+  "update-link": {
+    targetBinding: "update-link",
+    bodyBindings: {
+      link: "link-id",
+      expectedRevision: "initial-link-revision",
+    },
+  },
+  "put-alias": {
+    targetBinding: "put-alias",
+    bodyBindings: {
+      target: "a-id",
+    },
+  },
+  "delete-alias": {
+    targetBinding: "delete-alias",
+    bodyBindings: {},
+  },
+  "delete-link": {
+    targetBinding: "delete-link",
+    bodyBindings: {
+      link: "link-id",
+      expectedRevision: "final-link-revision",
+    },
+  },
+  "delete-bead": {
+    targetBinding: "delete-bead",
+    bodyBindings: {
+      bead: "a-id",
+      expectedRevision: "a-updated-rev",
+    },
+  },
+  sequence: {
+    targetBinding: "sequence",
+    bodyBindings: {},
+  },
+};
+type ColdWrite = {
+  source: string;
+  writeState: string;
+  bodyPresent: boolean;
+  bodyOctets: number;
+  bodyDigest?: string;
+};
+type ColdFact = ColdWrite & {
+  family: "http" | "client";
+  ordinal: number;
+  method: string;
+  url: string;
+  status: number;
+};
+type ColdClient = {
+  request: Record<string, unknown>;
+  status: number;
+  headers: Record<string, unknown>;
+  observation: ColdWrite;
+  body?: unknown;
+};
+function coldObject(value: unknown): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    throw Error("cold directory object missing");
+  return value as Record<string, unknown>;
+}
+function coldString(value: unknown): string {
+  if (typeof value !== "string" || value.length === 0) throw Error("cold directory string missing");
+  return value;
+}
+function coldWrite(value: unknown): ColdWrite {
+  const actual = coldObject(value);
+  if (typeof actual.bodyPresent !== "boolean" || typeof actual.bodyOctets !== "number")
+    throw Error("cold directory serializer fields missing");
+  return {
+    source: coldString(actual.source),
+    writeState: coldString(actual.writeState),
+    bodyPresent: actual.bodyPresent,
+    bodyOctets: actual.bodyOctets,
+    ...(actual.bodyDigest === undefined ? {} : { bodyDigest: coldString(actual.bodyDigest) }),
+  };
+}
+function coldClient(value: unknown): ColdClient {
+  const actual = coldObject(value);
+  if (typeof actual.status !== "number") throw Error("cold directory client status missing");
+  return {
+    request: coldObject(actual.request),
+    status: actual.status,
+    headers: coldObject(actual.headers),
+    observation: coldWrite(actual.observation),
+    ...(actual.body === undefined ? {} : { body: structuredClone(actual.body) }),
+  };
+}
+function assertColdDirectory(
+  result: ArtifactObservation["result"],
+  attempts: { ordinal: number; method: string; url: string }[],
+  raw: { fact: ColdFact; body?: unknown }[],
+  clients: ColdClient[],
+  mixed: ColdFact[],
+  controlled: boolean,
+) {
+  const observed = result.scenarios.find((row) => row.id === coldDirectoryId);
+  if (!observed) throw Error("cold directory runner result missing");
+  const expected = controlled ? coldDirectoryRequests.slice(0, 3) : coldDirectoryRequests;
+  const expectedRaw = expected.filter((r) => r.family === "http");
+  const expectedClients = expected.filter((r) => r.family === "client");
+  expect(attempts).toEqual(
+    expectedRaw.map((r, ordinal) => ({ ordinal, method: r.method, url: r.url })),
+  );
+  expect(raw).toHaveLength(expectedRaw.length);
+  expect(clients).toHaveLength(expectedClients.length);
+  expect(mixed.map(({ family, method, url, status }) => ({ family, method, url, status }))).toEqual(
+    expected.map((r) => ({
+      family: r.family,
+      method: r.method,
+      url: r.url,
+      status: r.expectedStatus,
+    })),
+  );
+  expect(raw.map((r) => r.fact.ordinal)).toEqual(expectedRaw.map((_, i) => i));
+  expect(mixed.filter((r) => r.family === "http")).toEqual(raw.map((r) => r.fact));
+  expect(mixed.filter((r) => r.family === "client").map((r) => r.ordinal)).toEqual(
+    expectedClients.map((_, i) => i),
+  );
+  expect(
+    observed.exchanges.map((r) => ({
+      id: r.request.id,
+      method: r.request.method,
+      url: r.request.url,
+    })),
+  ).toEqual(expectedRaw.map(({ id, method, url }) => ({ id, method, url })));
+  expect((observed.actions ?? []).map((r) => r.action.id)).toEqual(
+    expectedClients.map((r) => r.id),
+  );
+  for (const [i, actual] of raw.entries()) {
+    expect(observed.exchanges[i]?.response?.status).toBe(actual.fact.status);
+    expect(observed.exchanges[i]?.request.exact).toMatchObject({
+      source: actual.fact.source,
+      writeState: actual.fact.writeState,
+      bodyPresent: actual.fact.bodyPresent,
+      bodyOctets: actual.fact.bodyOctets,
+    });
+  }
+  for (const fact of mixed) {
+    expect(fact.source).toBe("raw-http1-serializer");
+    expect(fact.writeState).toBe("complete");
+    expect(fact.bodyPresent).toBe(fact.method === "POST");
+    expect(fact.bodyOctets).toBeLessThanOrEqual(4096);
+    if (fact.method === "GET") expect(fact.bodyOctets).toBe(0);
+  }
+  if (controlled) {
+    expect(observed.state).toBe("fail");
+    expect(
+      observed.exchanges.flatMap((r) =>
+        r.assertions.filter((a) => !a.passed).map((a) => `${r.request.id}:${a.id}`),
+      ),
+    ).toEqual(["directory:schema"]);
+    expect(observed.exchanges[2]?.assertions.map(({ id, passed }) => ({ id, passed }))).toEqual([
+      { id: "status", passed: true },
+      { id: "schema", passed: false },
+    ]);
+    return;
+  }
+  expect(observed.state).toBe("pass");
+  expect(
+    [...observed.exchanges, ...(observed.actions ?? [])].flatMap((r) => r.assertions),
+  ).toHaveLength(134);
+  expect(
+    [...observed.exchanges, ...(observed.actions ?? [])]
+      .flatMap((r) => r.assertions)
+      .every((a) => a.passed),
+  ).toBe(true);
+  const byId = new Map(
+    expectedClients.map((r, i) => {
+      const actual = clients[i];
+      if (!actual) throw Error("cold directory client count mismatch");
+      return [r.id, actual] as const;
+    }),
+  );
+  function client(id: string) {
+    const actual = byId.get(id as (typeof expectedClients)[number]["id"]);
+    if (!actual) throw Error(`cold directory client missing: ${id}`);
+    return actual;
+  }
+  for (const [i, actual] of clients.entries()) {
+    const expected = expectedClients[i];
+    if (!expected) throw Error("unexpected cold directory client");
+    const binding =
+      coldDirectoryClientBindings[expected.id as keyof typeof coldDirectoryClientBindings];
+    expect(actual.request).toMatchObject({
+      method: expected.method,
+      url: expected.url,
+      credentialRef: "operator",
+    });
+    expect(actual.request.targetBinding).toBe(binding.targetBinding);
+    expect(actual.request.bodyBindings).toEqual(binding.bodyBindings);
+    expect(actual.status).toBe(200);
+    if (expected.method === "POST") {
+      expect(actual.headers).not.toHaveProperty("etag");
+      expect(actual.headers).not.toHaveProperty("location");
+      const bytes = Buffer.from(JSON.stringify(actual.request.body));
+      expect(actual.observation.bodyOctets).toBe(bytes.length);
+      expect(actual.observation.bodyDigest).toBe(createHash("sha256").update(bytes).digest("hex"));
+    } else expect(actual.request).not.toHaveProperty("body");
+  }
+  expect(client("directory-captures").body).toEqual(coldDirectory);
+  function resource(id: string, expected: Record<string, unknown>) {
+    const value = coldObject(coldObject(client(id).body).resource);
+    const revision = coldString(value.revision);
+    expect(value).toEqual({ ...expected, revision });
+    expect(client(id).body).toEqual({
+      outcome: id.startsWith("create") ? "created" : "updated",
+      resource: value,
+    });
+    return value;
+  }
+  const aBase = {
+    id: `${scope}beads/w1-a`,
+    type: `${scope}types/task`,
+    properties: { n: 1 },
+    metadata: { tag: "a" },
+  };
+  const bBase = {
+    id: `${scope}beads/w1-b`,
+    type: `${scope}types/task`,
+    properties: { n: 1 },
+    metadata: { tag: "b" },
+  };
+  const aCreated = resource("create-a", aBase);
+  resource("create-b", bBase);
+  const aUpdated = resource("update-bead", { ...aBase, properties: { n: 2 } });
+  const linkBase = {
+    id: `${scope}links/w1-l`,
+    type: `${scope}types/relates`,
+    properties: { edge: 1 },
+    metadata: { tag: "link" },
+    source: aBase.id,
+    target: bBase.id,
+  };
+  const linkCreated = resource("create-link", linkBase);
+  const linkUpdated = resource("update-link", {
+    ...linkBase,
+    properties: { edge: 2 },
+    metadata: { tag: "updated" },
+  });
+  expect(client("delete-link").body).toEqual({
+    outcome: "deleted",
+    deleted: {
+      resourceKind: "link",
+      resource: { id: linkBase.id, type: linkBase.type, revision: linkUpdated.revision },
+    },
+  });
+  expect(client("delete-bead").body).toEqual({
+    outcome: "deleted",
+    deleted: {
+      resourceKind: "bead",
+      resource: { id: aBase.id, type: aBase.type, revision: aUpdated.revision },
+    },
+  });
+  expect(client("put-alias").body).toEqual({
+    outcome: "created",
+    alias: `${scope}alias/w1-locator`,
+    target: aBase.id,
+  });
+  expect(client("delete-alias").body).toEqual({
+    outcome: "deleted",
+    alias: `${scope}alias/w1-locator`,
+  });
+  const sequence = coldObject(client("sequence").body);
+  if (!Array.isArray(sequence.results)) throw Error("cold directory sequence results missing");
+  const final = coldObject(coldObject(sequence.results[0]).resource);
+  expect(final).toEqual({ ...bBase, properties: { n: 3 }, revision: coldString(final.revision) });
+  expect(sequence).toEqual({
+    results: [{ operationIndex: 0, outcome: "updated", resource: final }],
+  });
+  expect(raw.at(-1)?.body).toEqual(final);
+  const bodies: Record<string, unknown> = {
+    "create-a": {
+      id: "beads/w1-a",
+      properties: {
+        n: 1,
+      },
+      metadata: {
+        tag: "a",
+      },
+      type: "https://reference.invalid/acme/types/task",
+    },
+    "create-b": {
+      id: "beads/w1-b",
+      properties: {
+        n: 1,
+      },
+      metadata: {
+        tag: "b",
+      },
+      type: "https://reference.invalid/acme/types/task",
+    },
+    "update-bead": {
+      propertiesChange: [
+        {
+          op: "replace",
+          path: "/n",
+          value: 2,
+        },
+      ],
+      bead: "https://reference.invalid/acme/beads/w1-a",
+      expectedRevision: aCreated.revision,
+    },
+    "create-link": {
+      id: "links/w1-l",
+      properties: {
+        edge: 1,
+      },
+      metadata: {
+        tag: "link",
+      },
+      type: "https://reference.invalid/acme/types/relates",
+      source: "https://reference.invalid/acme/beads/w1-a",
+      target: "https://reference.invalid/acme/beads/w1-b",
+    },
+    "update-link": {
+      propertiesChange: [
+        {
+          op: "replace",
+          path: "/edge",
+          value: 2,
+        },
+      ],
+      metadataChange: [
+        {
+          op: "replace",
+          path: "/tag",
+          value: "updated",
+        },
+      ],
+      link: "https://reference.invalid/acme/links/w1-l",
+      expectedRevision: linkCreated.revision,
+    },
+    "put-alias": {
+      alias: "alias/w1-locator",
+      target: "https://reference.invalid/acme/beads/w1-a",
+    },
+    "delete-alias": {
+      alias: "alias/w1-locator",
+    },
+    "delete-link": {
+      link: "https://reference.invalid/acme/links/w1-l",
+      expectedRevision: linkUpdated.revision,
+    },
+    "delete-bead": {
+      bead: "https://reference.invalid/acme/beads/w1-a",
+      expectedRevision: aUpdated.revision,
+    },
+    sequence: {
+      operations: [
+        {
+          operation: "updateBead",
+          idempotencyKey: "directory-sequence-b",
+          bead: "beads/w1-b",
+          propertiesChange: [
+            {
+              op: "replace",
+              path: "/n",
+              value: 3,
+            },
+          ],
+        },
+      ],
+    },
+  };
+  for (const [id, body] of Object.entries(bodies))
+    expect(client(id).request.body, id).toEqual(body);
+}
+
 async function run(
   manifestValue?: unknown,
   selectedIds?: string[],
@@ -181,6 +745,7 @@ async function run(
     | (typeof numericAdmissionRawControls)[number]
     | (typeof numericRClosureRawControls)[number]
     | Extract<(typeof schemaPropertyControls)[number], { transport: "raw" }>,
+  directoryControl?: "missing-update-link",
 ) {
   signal?.throwIfAborted();
   if (artifact) assertReadUpdateArtifactSet(artifact.set);
@@ -332,6 +897,17 @@ async function run(
   const observations: unknown[] = [];
   const setupObservations: unknown[] = [];
   const nativeReadObservations: unknown[] = [];
+  const coldAttempts: { ordinal: number; method: string; url: string }[] = [];
+  const coldRaw: { fact: ColdFact; body?: unknown }[] = [];
+  const coldClients: ColdClient[] = [];
+  const coldMixed: ColdFact[] = [];
+  let coldAliasRetryPassed = false;
+  let coldControlApplications = 0;
+  let coldValidator: ReturnType<typeof createJsonSchemaValidator> | undefined;
+  const validateCold = (schema: string, value: unknown) => {
+    coldValidator ??= createJsonSchemaValidator(installedObservationSchema);
+    expect(coldValidator.validate(schema, value)).toEqual([]);
+  };
   let currentScenario = "";
   let counterfactualApplications = 0;
   let aliasPutObserved = false;
@@ -448,7 +1024,45 @@ async function run(
         raw: { ...request.raw, bodyBytes: Buffer.from(original.replace('"one":1.0', '"one":2.0')) },
       };
     }
+    const cold = currentScenario === coldDirectoryId;
+    if (cold) {
+      if (coldAttempts.length >= 10) throw Error("extra cold directory raw attempt");
+      coldAttempts.push({ ordinal: coldAttempts.length, method: sent.method, url: sent.url });
+    }
     const actual = await target.execute(sent);
+    if (cold) {
+      const fact: ColdFact = {
+        family: "http",
+        ordinal: coldAttempts.length - 1,
+        method: sent.method,
+        url: actual.url,
+        status: actual.status,
+        ...coldWrite(actual.exactRequest),
+      };
+      const body = actual.bodyText === "" ? undefined : JSON.parse(actual.bodyText);
+      coldRaw.push({ fact, ...(body === undefined ? {} : { body }) });
+      coldMixed.push(fact);
+      if (sent.url === `${scope}alias/w1-locator` && actual.status === 404) {
+        validateCold("#/$defs/readProblem", body);
+        expect(coldObject(body).code).toBe("resource-not-found");
+        expect(coldObject(body).retry).toBe("after-state-change");
+        coldAliasRetryPassed = true;
+      }
+      if (sent.method === "GET" && sent.url === `${scope}operations/`) {
+        expect(actual.status).toBe(200);
+        validateCold("#/$defs/readUpdateOperationDirectory", body);
+        expect(body).toEqual(coldDirectory);
+        if (directoryControl === "missing-update-link") {
+          expect(coldControlApplications).toBe(0);
+          const changed = { ...coldObject(body) };
+          delete changed.updateLink;
+          const bodyText = JSON.stringify(changed);
+          counterfactualApplications++;
+          coldControlApplications++;
+          return { ...actual, bodyText, bodyOctets: Buffer.byteLength(bodyText) };
+        }
+      }
+    }
     if (admissionHit) {
       counterfactualApplications++;
       if (admissionControl.mode === "request-number") return actual;
@@ -504,9 +1118,23 @@ async function run(
   };
   async function observe() {
     if (!target.exactConfiguration) throw Error("exact target configuration missing");
-    const executeClient = createInstalledExactClient(exactMode, dialRoute, (observation) =>
-      observations.push({ scenario: currentScenario, observation }),
-    );
+    const executeClient = createInstalledExactClient(exactMode, dialRoute, (observation) => {
+      observations.push({ scenario: currentScenario, observation });
+      if (currentScenario === coldDirectoryId) {
+        if (coldClients.length >= 11) throw Error("extra cold directory client observation");
+        const actual = coldClient(observation);
+        const ordinal = coldClients.length;
+        coldClients.push(actual);
+        coldMixed.push({
+          family: "client",
+          ordinal,
+          method: coldString(actual.request.method),
+          url: coldString(actual.request.url),
+          status: actual.status,
+          ...actual.observation,
+        });
+      }
+    });
     const result = await runConformanceMatrix({
       ...(signal === undefined ? {} : { signal }),
       scope,
@@ -962,11 +1590,40 @@ async function run(
       observations,
       setupObservations,
       nativeReadObservations,
+      coldDirectory: {
+        attempts: coldAttempts,
+        rawCompletions: coldRaw.map((r) => r.fact),
+        completions: coldMixed,
+        aliasRetryPassed: coldAliasRetryPassed,
+        checksPassed: false,
+        controlApplications: coldControlApplications,
+      },
       result,
     };
     // The runner's genuine partial/failed result must survive post-return aborts,
     // assertion failures and target cleanup failures.
     lifecycle?.returned?.(report);
+    if (coldAttempts.length) {
+      saveColdDirectoryReport(report);
+      assertColdDirectory(
+        result,
+        coldAttempts,
+        coldRaw,
+        coldClients,
+        coldMixed,
+        directoryControl !== undefined,
+      );
+      expect(setupObservations.filter((r) => coldObject(r).scenario === coldDirectoryId)).toEqual(
+        [],
+      );
+      expect(
+        nativeReadObservations.filter((r) => coldObject(r).scenario === coldDirectoryId),
+      ).toEqual([]);
+      expect(coldControlApplications).toBe(directoryControl ? 1 : 0);
+      expect(coldAliasRetryPassed).toBe(!directoryControl);
+      report.coldDirectory.checksPassed = true;
+      saveColdDirectoryReport(report);
+    }
     return report;
   }
   const execution = await observe().then(
@@ -990,6 +1647,13 @@ async function run(
     (!execution.ok ||
       execution.report.result.scenarios.every((row) => row.cleanupError === undefined));
   if (execution.ok) execution.report.cleanupComplete = cleanupComplete;
+  if (execution.ok && coldAttempts.length) {
+    try {
+      saveColdDirectoryReport(execution.report);
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+  }
   try {
     lifecycle?.cleaned?.(cleanupComplete ? "complete" : "failed");
   } catch (error) {
@@ -1014,6 +1678,36 @@ async function run(
   }
   if (!execution.ok) throw execution.error;
   return execution.report;
+}
+
+function saveColdDirectoryReport(report: Awaited<ReturnType<typeof run>>) {
+  const filename = process.env.BDP_COLD_DIRECTORY_REPORT_PATH;
+  if (!filename) return;
+  if (!path.isAbsolute(filename)) throw Error("cold directory report path must be absolute");
+  const safe = JSON.stringify(
+    {
+      sourceCommit: report.sourceCommit,
+      sourceDirty: report.sourceDirty,
+      targetEntry: report.targetEntry,
+      configuration: report.configuration,
+      baselineReceipt: report.baselineReceipt,
+      reportBinding: report.reportBinding,
+      sessions: report.sessions.filter((r) => r.scenario === coldDirectoryId),
+      claimEligible: false,
+      cleanupComplete: report.cleanupComplete,
+      counterfactualApplications: report.counterfactualApplications,
+      coldDirectory: report.coldDirectory,
+      clientObservations: report.observations.filter(
+        (r) => coldObject(r).scenario === coldDirectoryId,
+      ),
+      result: report.result.scenarios.find((r) => r.id === coldDirectoryId),
+    },
+    null,
+    2,
+  );
+  if (Buffer.byteLength(safe) > 262144 || safe.includes(token) || safe.includes(wrongToken))
+    throw Error("unsafe or oversized cold directory report");
+  writeFileSync(filename, safe, { mode: 0o600 });
 }
 
 function installedArtifactSet() {
@@ -1096,8 +1790,105 @@ async function runShard(
   }
 }
 
+it("pins cold RU directory literals, actual target bindings and parent preservation", () => {
+  const set = installedArtifactSet();
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const row = manifest.scenarios.find((r: { id: string }) => r.id === coldDirectoryId);
+  expect(createHash("sha256").update(JSON.stringify(row)).digest("hex")).toBe(
+    "7930b51eea68914b24ece231d9b30479e14936572bcd67d18351ffc6562efeff",
+  );
+  expect(
+    row.actions.map((a: { id: string; family: string }) => ({ id: a.id, family: a.family })),
+  ).toEqual(coldDirectoryRequests.map(({ id, family }) => ({ id, family })));
+  expect(row.actions).toHaveLength(21);
+  expect(coldDirectoryRequests.filter((r) => r.method === "POST")).toHaveLength(10);
+  const validator = createJsonSchemaValidator(installedObservationSchema);
+  for (const action of row.actions) {
+    for (const assertion of action.assertions)
+      if (assertion.kind === "json-schema") validator.resolve(assertion.schema);
+    if (action.family === "client") {
+      const binding =
+        coldDirectoryClientBindings[action.id as keyof typeof coldDirectoryClientBindings];
+      expect(action.input.targetBinding).toBe(binding.targetBinding);
+      expect(action.input.bodyBindings ?? {}).toEqual(binding.bodyBindings);
+      if (action.input.method === "POST") expect(action.input.targetBaseBinding).toBe("operations");
+    }
+  }
+  expect(row.actions[3].assertions).toContainEqual({
+    id: "directory-members",
+    kind: "json-pointer",
+    pointer: "/body",
+    exists: true,
+    equals: coldDirectory,
+  });
+  expect(row.actions[3].captures.map((c: { binding: string }) => c.binding)).toEqual(
+    Object.values(coldDirectory),
+  );
+  const coverage = set.coverage.rows.find((r) => r.id === coldDirectoryId);
+  expect(coverage?.wholeContract).toBe(true);
+  expect(coverage?.bindings).toEqual([
+    {
+      scenario: coldDirectoryId,
+      assertions: row.actions.flatMap((a: { id: string; assertions: { id: string }[] }) =>
+        a.assertions.map((q) => `${a.id}.${q.id}`),
+      ),
+    },
+  ]);
+  expect(coverage?.bindings[0]?.assertions).toHaveLength(134);
+  expect(set.shards.map((s) => s.scenarioIds.length)).toEqual([50, 5]);
+  expect(set.claimEligible).toBe(false);
+  expect(Buffer.byteLength(JSON.stringify(manifest))).toBeLessThanOrEqual(4194304);
+  const countNodes = (value: unknown): number =>
+    1 +
+    (value && typeof value === "object"
+      ? Object.values(value).reduce<number>((n, child) => n + countNodes(child), 0)
+      : 0);
+  expect(countNodes(manifest)).toBeLessThanOrEqual(100000);
+});
+
+it("observes all nine discovered RU operation targets through cold navigation", async () => {
+  const report = await run(undefined, [coldDirectoryId]);
+  expect(report.result.scenarioSelection).toEqual([coldDirectoryId]);
+  expect(report.sessions).toHaveLength(1);
+  expect(report.cleanupComplete).toBe(true);
+  expect(report.claimEligible).toBe(false);
+  expect(report.coldDirectory.checksPassed).toBe(true);
+  expect(report.coldDirectory.completions).toHaveLength(21);
+  expect(report.counterfactualApplications).toBe(0);
+}, 30000);
+
+it("rejects a missing updateLink directory member in actual response assertion input", async () => {
+  const report = await run(
+    undefined,
+    [coldDirectoryId],
+    false,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    "missing-update-link",
+  );
+  expect(report.result.scenarioSelection).toEqual([coldDirectoryId]);
+  expect(report.sessions).toHaveLength(1);
+  expect(report.cleanupComplete).toBe(true);
+  expect(report.claimEligible).toBe(false);
+  expect(report.coldDirectory.checksPassed).toBe(true);
+  expect(report.coldDirectory.completions).toHaveLength(3);
+  expect(report.counterfactualApplications).toBe(1);
+}, 30000);
+
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  // One aggregate budget for both shards and 54 isolated scenario authorities.
+  // One aggregate budget for both shards and 55 isolated scenario authorities.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
   const started = performance.now();
@@ -1261,9 +2052,9 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
     // Pin the existing runner projection; credential identity is bound separately in configuration.
     expect(report.reportBinding.exactConfigurationDigest).toBe(
-      "3224c31c83988dc0606cb76ee1f4ba8e6394159bdf7daaccc301461316cc2477",
+      "26da5a286d9887bebbb0fcf73a92c5d09aa7b7fcfdcc9ed91f767f4db1578c69",
     );
-    expect(report.uncoveredIds).toHaveLength(97);
+    expect(report.uncoveredIds).toHaveLength(96);
     expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
     expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
     expect(report.sessions).toHaveLength(report.plannedIds.length);
@@ -1280,9 +2071,9 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       }[])
         expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(65536);
     }
-    expect(progress.authoredIds).toHaveLength(54);
-    expect(progress.reviewedWholeIds).toHaveLength(33);
-    expect(progress.omittedRequiredIds).toHaveLength(76);
+    expect(progress.authoredIds).toHaveLength(55);
+    expect(progress.reviewedWholeIds).toHaveLength(34);
+    expect(progress.omittedRequiredIds).toHaveLength(75);
     expect(progress.omittedRequiredIds).toContain("read-update.http.command-minimum-fields");
     expect(progress.shards[1]!.selectedIds).toEqual([
       attributionId,
@@ -1358,7 +2149,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(progress.uncoveredIds).toEqual(
       set.coverage.rows.filter((r) => !r.wholeContract).map((r) => r.id),
     );
-    expect(progress.uncoveredIds).toHaveLength(97);
+    expect(progress.uncoveredIds).toHaveLength(96);
     expect(progress.uncoveredIds).toContain("read-update.http.command-minimum-fields");
     expect(JSON.stringify(progress)).not.toContain(token);
     expect(JSON.stringify(progress)).not.toContain(wrongToken);
@@ -1694,7 +2485,7 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "3224c31c83988dc0606cb76ee1f4ba8e6394159bdf7daaccc301461316cc2477",
+    "26da5a286d9887bebbb0fcf73a92c5d09aa7b7fcfdcc9ed91f767f4db1578c69",
   );
 }, 30000);
 
@@ -2021,7 +2812,7 @@ it("observes retained retry dispositions across actual installed carriers and cu
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(97);
+  expect(report.uncoveredIds).toHaveLength(96);
   expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
@@ -2443,7 +3234,7 @@ it("observes key and media admission against installed HTTP with paired aftersta
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(97);
+  expect(report.uncoveredIds).toHaveLength(96);
   expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
@@ -2874,7 +3665,7 @@ it("observes reference syntax and retained category failures against installed H
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(97);
+  expect(report.uncoveredIds).toHaveLength(96);
   expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
@@ -3880,7 +4671,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
     createHash("sha256")
       .update(source("packages/conformance/matrices/read-update-v1.json").bytes)
       .digest("hex"),
-  ).toBe("c86b33535f25a1d117ce021a3bb70164f5635bdaee50758e3428c130ccc3227f");
+  ).toBe("80f74625b6074892b707365859572f8bc0b8c10478d36ac307370ef6027f5fc3");
   const text = bytes.toString();
   const start = text.lastIndexOf(
     "    {",
@@ -4197,9 +4988,8 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
   expect(bytes.length - NUMERIC_ADMISSION_CONTINUATION_BYTES_BASE).toBeLessThanOrEqual(450 * 1024);
   expect(nodes(manifest) - NUMERIC_ADMISSION_CONTINUATION_NODES_BASE).toBeLessThanOrEqual(12000);
   expect(nodes(manifest)).toBeLessThanOrEqual(27158);
-  expect(coverageBytes.length - NUMERIC_ADMISSION_COVERAGE_BYTES_BASE).toBeLessThanOrEqual(
-    65 * 1024,
-  );
+  // Cold-directory coverage grows this historical source-data delta to exactly 70150 bytes.
+  expect(coverageBytes.length - NUMERIC_ADMISSION_COVERAGE_BYTES_BASE).toBeLessThanOrEqual(70150);
   expect(fixtureBytes.length - NUMERIC_ADMISSION_FIXTURE_BYTES_BASE).toBeLessThanOrEqual(8192);
   const text = bytes.toString();
   for (const [id, digest] of [
@@ -4586,10 +5376,11 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   // The 06b0e04 anchor predates this +2048 coverage allowance.
   // Command-minimum catalog row adds 401B; the 243B excess raises 14336 to 14579.
   // Both historical bases stay fixed; this measured allowance has zero slack.
+  // Cold directory adds5114B:14579 ->19693; parser and runtime caps stay unchanged.
   expect(
     source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.length -
       METADATA_CLOSURE_COVERAGE_BYTES_BASE,
-  ).toBeLessThanOrEqual(14579);
+  ).toBeLessThanOrEqual(19693);
   expect(
     createHash("sha256")
       .update(source("packages/conformance/fixtures/read-update-reference-v1.json").bytes)
@@ -4969,7 +5760,8 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
   // The b604 anchor above predates this +2560 coverage allowance.
   // The same 401B omitted row exceeds this allowance by 50B: 9728 -> 9778.
   // Keep the historical base and other fences; no speculative margin is added.
-  expect(coverage.length - 703415).toBeLessThanOrEqual(9778);
+  // Cold directory adds5114B:9778 ->14892.
+  expect(coverage.length - 703415).toBeLessThanOrEqual(14892);
   const row = manifest.scenarios.find((r: { id: string }) => r.id === numericRoundTripId) as {
     actions: readonly NumericRAction[];
   };
@@ -5112,7 +5904,8 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
       0,
     ),
   ).toBe(5546);
-  expect(coverage.length - 703415 - 5546 - 3700).toBeLessThanOrEqual(1708);
+  // Cold directory consumes1176B prior slack;1708 ->5646 is the measured residual.
+  expect(coverage.length - 703415 - 5546 - 3700).toBeLessThanOrEqual(5646);
   expect(row.actions!.reduce((n, a) => n + a.assertions.length, 0)).toBe(687);
   expect(numericRClosureRawControls).toHaveLength(3);
   expect(

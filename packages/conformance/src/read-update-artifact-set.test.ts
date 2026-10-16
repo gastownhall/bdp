@@ -151,6 +151,39 @@ function sizedManifest(
   });
 }
 
+function coldDirectorySpan(text: string, key: "scenarios" | "rows") {
+  const start = text.indexOf("[", text.indexOf(JSON.stringify(key))) + 1;
+  let depth = 0,
+    begin = -1,
+    quoted = false,
+    escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') quoted = false;
+      continue;
+    }
+    if (char === '"') {
+      quoted = true;
+      continue;
+    }
+    if (char === "{" || char === "[") {
+      if (depth === 0) begin = i;
+      depth++;
+    } else if (char === "}" || char === "]") {
+      if (depth === 0) break;
+      if (
+        --depth === 0 &&
+        JSON.parse(text.slice(begin, i + 1)).id === "read-update.discovery.operation-directory"
+      )
+        return { start: begin, end: i + 1 };
+    }
+  }
+  throw Error("missing cold directory object");
+}
+
 describe("private two-artifact Read+Update set", () => {
   it.each(["setup", "applicability"] as const)(
     "rejects absent owned %s capabilities, including hidden missing oracles",
@@ -184,6 +217,43 @@ describe("private two-artifact Read+Update set", () => {
       bytes: readFileSync(new URL(`../${name}`, import.meta.url)),
     });
     const manifest = decode(read("matrices/read-update-v1.json"));
+    const manifestText = Buffer.from(read("matrices/read-update-v1.json").bytes).toString();
+    const span = coldDirectorySpan(manifestText, "scenarios");
+    expect(manifestText.slice(span.end, span.end + 6)).toBe(",\n    ");
+    const parent = manifestText.slice(0, span.start) + manifestText.slice(span.end + 6);
+    expect(createHash("sha256").update(parent).digest("hex")).toBe(
+      "c86b33535f25a1d117ce021a3bb70164f5635bdaee50758e3428c130ccc3227f",
+    );
+    expect(JSON.parse(parent).scenarios).toHaveLength(49);
+    expect(
+      createHash("sha256")
+        .update(read("matrices/read-update-reference-continuation-v1.json").bytes)
+        .digest("hex"),
+    ).toBe("24d754618b51f255b5885d83c53ccf9a06593031e1812739a4f2b504c4a1df8d");
+    const coverageText = Buffer.from(
+      read("test-support/read-update-coverage-v1.json").bytes,
+    ).toString();
+    const coverageSpan = coldDirectorySpan(coverageText, "rows");
+    const previous =
+      '{\n      "id": "read-update.discovery.operation-directory",\n      "status": "omitted",\n      "wholeContract": false,\n      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",\n      "bindings": []\n    }';
+    expect(
+      createHash("sha256")
+        .update(
+          coverageText.slice(0, coverageSpan.start) +
+            previous +
+            coverageText.slice(coverageSpan.end),
+        )
+        .digest("hex"),
+    ).toBe("f8f0b001928f8488292403b57c973bd918cba224ef9e00fe0691482bf5cfac0c");
+    const cold = manifest.scenarios.find(
+      (row: { id: string }) => row.id === "read-update.discovery.operation-directory",
+    );
+    expect(manifest.scenarios.indexOf(cold)).toBe(18);
+    expect(cold.actions).toHaveLength(21);
+    expect(cold.actions.flatMap((a: { assertions: unknown[] }) => a.assertions)).toHaveLength(134);
+    expect(createHash("sha256").update(JSON.stringify(cold)).digest("hex")).toBe(
+      "7930b51eea68914b24ece231d9b30479e14936572bcd67d18351ffc6562efeff",
+    );
     const last = manifest.scenarios.at(-1);
     expect(
       (last.actions ?? last.requests).every(
