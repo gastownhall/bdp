@@ -17,6 +17,18 @@ across all bead and link types.
 This uniformity and adherence to HTTP and JSON norms lowers the bar of
 entry for people, systems, and agents to interact with beads.
 
+## Work-in-progress Type design
+
+The [Types design specification](specs/types.md) records the evolving optional,
+Scope-wide Types profile, including definitions as Beads, exact revisions,
+conformance, graph constraints and lifecycle decisions. Its [candidate schemas and
+examples](specs/schemas/README.md) support design review. Settled design rules and
+open decisions are distinguished explicitly. Landing this work on main does not
+adopt new wire forms, modify the current protocol contract, or claim implementation.
+Issue/Dependency and Memory remain separate domain drafts linked from that document.
+
+## Protocol and reference implementation
+
 A protocol also carries the two problems no single bead-store
 implementation can solve alone: **versioning** — naming and citing exact
 states of a bead with tokens that survive copying, syncing, and storage
