@@ -1,25 +1,27 @@
 # Proposal: Bead and Link Types
 
 Draft for discussion, October 15, 2026. Intended for an issue in
-`gastownhall/beads`; not yet posted. This proposal covers the model, the Beads CLI
-and a small first implementation. The detailed shared rules live in the
-[BDP Types draft](https://github.com/gastownhall/bdp/blob/codex/trish-bdp-design-authority/specs/types.md).
-Command spellings remain proposals; the readiness table distinguishes design from
-implementation. The supporting design record is
+`gastownhall/beads`; not yet posted. This proposal covers the model and the Beads CLI. The shared rules are being
+developed in public [draft BDP PR #60](https://github.com/gastownhall/bdp/pull/60),
+including its [Types design draft](https://github.com/gastownhall/bdp/blob/codex/trish-bdp-design-authority/specs/types.md).
+That draft is not an adopted BDP specification.
+Command spellings remain proposals. The supporting design record is
 [BDP #59](https://github.com/gastownhall/bdp/issues/59).
 
 ## Proposal
 
-Let users define Bead Types and Link Types, give those definitions stable identities
-and immutable revisions, and declare when one Type conforms to another. Represent
-the definitions as Beads and the conformance declarations as owned Links. Keep an
-instance's Type affiliation in its existing distinguished `type` field, pinned to
-the exact definition revision it uses.
+In the shipping product, built-in Bead and Link Types are effectively hard-coded,
+and the constraints they impose on Issue/Dependency graphs are enforced by
+imperative code. Users can configure additional categorization labels, but adding
+new Type-specific behavior or validation generally means changing code through PRs.
 
-Add convenient `bd type` commands on top of ordinary Bead/Link operations. Begin
-with open application-property schemas and a working conformance graph. This gives
-us a useful way to classify information and exercise the representation before
-implementing the full schema and graph-constraint system.
+As we generalize the graph model beyond Issues and Dependencies, this is a good
+time to look at how we define Bead and Link Types and manage them within a workspace.
+
+This proposal defines a model for Bead and Link Types, including schemas for their
+properties, constraints on their relationships, and declarations of Type-to-Type
+conformance. The initial authoring surface is the CLI, with a `bd type` command
+prefix for operations on or related to Types.
 
 ## How Types have worked so far
 
@@ -35,8 +37,7 @@ selectors. `bd types` helps users discover available choices; detailed/JSON outp
 exposes installed definitions. This is useful groundwork, but the inspected code
 still treats the catalog as a fixed installation rather than arbitrary user-authored,
 versioned definition Beads. Existing Issue and Dependency classifications are being
-brought forward as intrinsic Types; the exact implementation stage is recorded in
-the source notes below.
+brought forward as intrinsic Types.
 
 The proposed domain hierarchy preserves established vocabulary and behavior:
 `task`, `bug` and the other work-item Types conform to `issue`; `blocks`,
@@ -56,13 +57,13 @@ mean, or whether an existing record can safely adopt it.
 | Need | User question | Proposed capability |
 | --- | --- | --- |
 | Categorization | “What kind of thing is this, and how do I find related kinds?” | A stable Type identity; explicit conformance lets a query for a general Type include more specific Types |
-| Schematization | “What properties can this thing have, and what do they mean?” | A JSON Schema for properties, semantic documentation, and applicable relationship constraints |
+| Schematization | “What properties can this thing have, and what do they mean?” | A JSON Schema for properties and documentation of their meaning |
+| Relationship constraints | “What kinds of Beads can this Link connect, and in what combinations?” | Allowed source/target Type pairs, plus participation counts, pair uniqueness and cycle restrictions |
 | Conformance testing and enforcement | “Does this record satisfy that contract, and will writes preserve it?” | Prospective checks against a proposed Type; write-time enforcement of supported structural and graph requirements; explicit author responsibility for meaning that cannot be mechanically proved |
 
-These capabilities can be introduced incrementally. A Type with open properties
-and no required application fields is still useful for categorization and declared
-conformance. Later revisions can add structure; existing instances retain their
-original exact affiliation until explicitly changed.
+A Type can have open properties with no required application fields, or a schema
+that requires particular structure. Both participate in categorization and declared
+conformance. The definition makes those promises explicit.
 
 Three questions must remain distinct:
 
@@ -95,6 +96,86 @@ are identical. Definitions must document meaning; validators enforce the vocabul
 and constraints they understand, while diagnostics distinguish those checks from
 semantic claims requiring human or application review.
 
+## The model
+
+**A Type definition is a Bead.** Its `properties` describe the properties and
+relationships permitted for instances of that Type. A schema is part of that
+descriptor; it is not a separate resource.
+
+Three foundational Bead Types organize the definitions:
+
+- **Type** is the common contract for Type definitions.
+- **BeadType** conforms to Type. Its instances define Bead Types.
+- **LinkType** conforms to Type. Its instances define Link Types. A Link-Type
+  definition is a Bead, even though the things it describes are Links.
+
+**ConformsTo** is a Link Type. Its Links say that one Type promises to satisfy
+another Type's contract. The source and target must both define Bead Types or both
+define Link Types. Conformance can add requirements or narrow permissions, but it
+cannot withdraw inherited promises.
+
+Here is a small definition graph. Solid arrows are ConformsTo Links. Dashed arrows
+show `type` fields; they are references, not additional graph Links.
+
+```mermaid
+flowchart BT
+  BT[BeadType] -->|conformsTo| T[Type]
+  LT[LinkType] -->|conformsTo| T
+  Task[task] -->|conformsTo| Issue[issue]
+  Blocks[blocks] -->|conformsTo| Dependency[dependency]
+  Task -. type .-> BT
+  Issue -. type .-> BT
+  Blocks -. type .-> LT
+  Dependency -. type .-> LT
+```
+
+The bootstrap affiliations of the foundational definitions are intentionally
+omitted here. They are not needed to understand authoring and using Types.
+
+Now some work records can refer to those definitions. The Link record is drawn as
+a box so that its fields can be shown; it remains a Link, not a Bead vertex.
+
+```mermaid
+flowchart LR
+  A["A: Fix the build"] -. type .-> Task[task]
+  B["B: Repair the test runner"] -. type .-> Issue[issue]
+  L["L: Dependency Link"] -->|source| A
+  L -->|target| B
+  L -. type .-> Blocks[blocks]
+```
+
+Because task conforms to issue, A can satisfy an issue Type constraint. L is a
+blocks Link and therefore also satisfies dependency through declared conformance.
+Its existing domain meaning is preserved: A depends on B, so B blocks A.
+
+An ordinary Bead or Link has one distinguished `type` reference. This is how it
+selects its definition; it does not require an extra affiliation Link. Displaying
+an Issue's work graph does not automatically traverse into the Type hierarchy.
+The hierarchy itself is available to ordinary graph tools.
+
+Canonical identity comes from the resource ID. Generic resource aliases can make
+references friendlier. There is no separate Type-name identity or Type-specific
+display-name setting; aliases do not change equality or conformance.
+
+## Revisions, briefly
+
+Definitions evolve using the same revision model as other Beads. Each instance
+pins the exact Type-definition revision it uses. Editing a definition does not
+silently change existing instances; changing affiliation is an explicit update.
+
+ConformsTo Links also pin their target definitions and are owned by their source
+definition. “Owned” means changing a declaration produces a new source-definition
+revision. Older definitions retain the declaration state that gave them meaning.
+Conformance is transitive and must not form a cycle through exact revisions.
+
+A pinned constraint such as `Product@r1` requires that exact contract, directly or
+through conformance. An unpinned `Product` constraint deliberately accepts any
+revision of that identity or conformance to one; it does not resolve “latest” on
+each check. Stored affiliations and declaration targets remain exact pins.
+
+Optional SemVer is still an informational-label proposal. It would not replace
+resource revisions or prove compatibility.
+
 ## Why model definitions as Beads?
 
 A Type definition needs many of the things ordinary Beads already need. Reusing
@@ -117,62 +198,12 @@ is a sufficiently fast conformance-query implementation; indexes may still be ne
 There are costs. The first metatypes need a trusted bootstrap; historical Type
 meaning requires retained definitions and declaration revisions; and generic
 editing must enforce Type integrity just as carefully as specialized commands.
-We should test those costs with a small working graph before adding richer features.
-
-## The model in a little more detail
-
-**A definition is a Bead. Its descriptor is its properties object.** That object
-contains the instance-properties schema and other contract information. Its common
-envelope supplies identity, revision, Type affiliation, metadata and recorded owned
-Links. The properties schema of the foundational Type is therefore the schema for
-the common descriptor itself; no second descriptor-schema concept is required.
-
-There are three foundational Bead Types:
-
-- **Type:** the common contract for definitions.
-- **BeadType:** conforms to Type and describes Bead Types.
-- **LinkType:** conforms to Type and describes Link Types. An instance of LinkType
-  is still a Bead; it defines a Type whose instances are Links.
-
-A fourth foundation, **ConformsTo**, is a Link Type. Its owned declarations connect
-BeadType definitions to BeadType definitions, or LinkType definitions to LinkType
-definitions. Cross-kind conformance is invalid. Each target pins an exact definition
-revision. Conformance is transitive, has no exact-revision cycles, and can only add
-requirements or narrow permissions; it cannot withdraw inherited promises.
-
-Illustratively:
-
-```text
-Definition Bead       Own Type       Owned conformance declaration
-issue                 BeadType       —
-task                  BeadType       task → issue@REVISION
-dependency            LinkType       —
-blocks                LinkType       blocks → dependency@REVISION
-```
-
-Both definitions and declarations have ordinary resource identities and revisions.
-The complete meaning of a definition revision includes its recorded owned Links.
-Reading an old Type must follow that snapshot, not today's live adjacency. Changing
-a declaration produces a new owner revision; old definitions remain interpretable.
-
-An ordinary instance still has one distinguished `type` reference. That reference
-is not an implicit graph Link: displaying an Issue's work graph does not automatically
-wander into the Type hierarchy. Users can inspect the hierarchy explicitly.
-
-Stored affiliations and ConformsTo targets pin exact revisions. Explicit unpinned
-input for those roles resolves once before commit. Constraint selectors can be
-pinned or deliberately identity-wide: `Product@r1` requires that exact contract
-through affiliation or conformance; `Product` accepts any revision of that identity
-or conformance to one. Identity-wide matching does not repeatedly resolve “latest.”
-
-A Type's ID supplies identity. Friendly aliases can make references easier to type;
-an optional display label can improve presentation. Neither changes equality or
-conformance. Optional SemVer remains proposed informational author metadata, not a
-replacement for the resource revision or a mechanical compatibility guarantee.
+Those obligations must hold through ordinary graph operations as well as the
+specialized Type commands.
 
 ## Shared BDP semantics and Beads behavior
 
-The BDP Types profile defines the shared meaning of definitions, conformance,
+The proposed BDP Types profile defines the shared meaning of definitions, conformance,
 matching and constraints. It is optional and Scope-wide. Core defines the common
 resource/reference/revision contract without requiring every Type reference to
 point to a Bead or every server to implement this particular Type system. Servers
@@ -185,7 +216,6 @@ supported protocol operation. BDP and Beads must be brought into alignment throu
 coordinated changes; this proposal does not describe the draft as today's wire format.
 
 ## Operational rules
-
 
 Make Type Beads practical to author using both ordinary graph operations and
 specialized commands. The specialized commands supply file-reading, convenient
@@ -201,8 +231,6 @@ The proposed operating rules are:
 - Canonical identity comes from the resource ID. There is no required independent
   name. Friendly aliases may provide convenient references; alias storage,
   collisions, Scope lookup and pin resolution still need a precise CLI contract.
-- Optional descriptor name is a display label only. Display can otherwise derive
-  from the resource's local path, including Scope/path context when ambiguous.
 - Existing instance affiliations never move when a definition is revised.
 - Instance retyping is an explicit ordinary update, optionally combined with
   properties changes atomically. Proposed `--set-type` requires `--if-revision`.
@@ -234,13 +262,18 @@ Ordinary `bd show`, `update`, `versions`, `compare`, `delete`, `link` and generi
 `graph` remain routes to the same records. Do not duplicate every generic command
 under `bd type` without a Type-specific benefit.
 
+`bd types` already ships in
+[v1.3.1](https://github.com/gastownhall/beads/blob/v1.3.1/cmd/bd/types.go), so this
+proposal preserves it as a familiar spelling rather than removing an existing
+command. Exact legacy options and machine-output compatibility need reconciliation
+when `bd type list` is introduced.
+
 ## Create and update affordances
 
 | Argument | Meaning |
 | --- | --- |
 | `--bead` / `--link` | Select one definition category on create |
 | `--id ID` | Explicit resource identity under the normal ID rules; requiredness/default allocation still to finalize |
-| `--display-name TEXT` | Optional presentation override; proposed mapping to descriptor name, never an identity/alias registration |
 | `--schema FILE` | Read and embed the file as propertiesSchema; does not persist a mutable file/URL dependency |
 | `--properties JSON` | Existing Preview 2 convention for other descriptor properties |
 | `--conforms-to TYPE_REF` | Repeatable create-only convenience; create the initial owned declarations with exact target pins atomically |
@@ -266,7 +299,7 @@ conformance editing uses ordinary `bd link create/update/delete`: declarations
 have identity, properties and provenance that replacement-list conveniences must
 not silently discard. Generic property edits cannot change owned declarations.
 
-An open-schema default is proposed for the first exercise: omitted `--schema`
+An open-schema default is proposed: omitted `--schema`
 materializes an explicit open object schema, with no required application fields.
 The descriptor still contains propertiesSchema. It does not mean skipping validation
 of the Type-definition envelope, category, closure, ownership or conformance graph.
@@ -282,7 +315,7 @@ bd update BEAD_ID --set-type TYPE_REF \
 bd link update LINK_ID --set-type TYPE_REF --if-revision CURRENT_REVISION
 ```
 
-Selected direction: explicit single-resource retyping through update. Omission
+Retyping is an explicit single-resource update. Omission
 preserves the whole existing exact affiliation. Supplied target replaces that
 reference as a whole; floating author input resolves once before commit. Require a
 revision precondition for this operation. Validate the proposed complete properties
@@ -314,83 +347,52 @@ For per-Link acyclicity, prospective cycle checks traverse all family revisions.
 A future whole-family preflight can help operators see old cycles before adoption;
 it must not redefine or waive the per-Link protocol invariant. No new flags selected.
 
-## Suggested first implementation: open definitions and their graph
+## Relationship-constraint requirements
 
-Use an isolated experimental branch and fresh workspace to implement the smallest
-end-to-end Type representation. This is proposed work, not a claim that implementation
-has started or that an existing workspace can already be upgraded in place.
+The target model needs the following behavior. The detailed descriptor vocabulary
+and some interactions remain open for review; these requirements do not claim that
+the current product implements them.
 
-1. Establish trusted Type/BeadType/LinkType/ConformsTo seeds with exact pins through
-   an explicit atomic bootstrap mechanism.
-2. Create local Bead/Link definitions with open instance properties and no optional
-   application-specific graph constraints. Creation makes them available for use.
-3. Create/read/edit owned ConformsTo Links, enforcing exact available targets,
-   category agreement and exact-revision cycle checks. Preserve historical owner
-   snapshots; traverse those snapshots rather than mutable current adjacency.
-4. Exercise generic show/versions/graph plus a small specialized create/list/validate
-   path. Demonstrate ownership revision effects and optimistic concurrency.
-5. Include a tiny Bead and Link using authored Types to prove exact affiliations
-   and conformance matching. Otherwise label the result a definition-graph prototype,
-   not completion of the usable-Type slice. This is a recommendation for coverage,
-   not a requirement for full Issue/Dependency conversion in the first increment.
-
-The foundation definitions still need structural integrity schemas; “open schema”
-refers to application-instance properties. Unsupported rich schemas/constraints
-must fail explicitly in the experiment rather than silently being ignored.
-No full Types-profile qualification is claimed by a partial experimental surface.
-
-### Implementation notes from Preview 2
-
-Source inspected at
-[`703bb13e91aa2cab2092443319139006d74242c8`](https://github.com/donnabox/beads/tree/703bb13e91aa2cab2092443319139006d74242c8).
-BDP main checked at `67a2842e3f1918e70978f745587cf11eaf0df5a8`; this design does not
-modify its current wire contract or assert draft-profile adoption.
-
-| Current code | Consequence for the exercise |
+| Requirement | Intended meaning |
 | --- | --- |
-| [Type reader](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/types_read.go) reads installed descriptors through known types/ paths | Custom Type Beads need generic identity/discovery and revision reads, not just a command wrapper |
-| [Catalog checks](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/informational_types.go) require a fixed count and exact descriptor fingerprints | Dynamic definitions require a deliberately new storage/installation boundary; do not relax release integrity checks blindly |
-| [Graph values](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/graphops/types.go) carry typeURL strings; TypeDescriptor carries conformsTo ID arrays and a schema URL | Exact affiliation pins and owned declaration records affect model, serialization, storage/history and validation |
-| [Type CLI](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/cmd/bd/graph_preview_types.go) separates human selectors from descriptor output | Preserve recognizable listing behavior while removing assumptions that labels imply installed Type identities |
+| Allowed endpoint pairs | A Link must match both sides of at least one allowed pair; for example `(Person → Task) OR (Team → Task)` |
+| Type alternatives and wildcards | Each side accepts an OR-list of Type references, or an unrestricted wildcard; Type matching includes declared conformance |
+| Correlated endpoint categories | ConformsTo permits `(BeadType → BeadType) OR (LinkType → LinkType)`, preventing cross-kind declarations |
+| Participation counts | Bead Types can require minimums/maximums; Link Types can impose maximums. Count across endpoint alternatives and conforming Types per endpoint identity |
+| Ordered-pair uniqueness | A constrained Link's source/target pair must be unique within the applicable family population, including other revisions |
+| Per-Link acyclicity | A constrained Link cannot participate in a directed cycle; cycle traversal includes all current Links in the applicable family |
+| Inherited requirements | Every inherited constraint applies; a local declaration cannot loosen it |
+| Atomic enforcement | Validate graph invariants against the final transaction state, permitting temporary violations repaired within the same atomic operation |
 
-Before execution, settle three bounded contracts: seed identities/revision allocation;
-compatibility boundary for old types/ descriptors versus new definition-Bead IDs;
-and exact historical declaration traversal/closure indexing. A disposable workspace
-can defer an in-place storage migration but cannot erase the distinction in its design.
-The current graph model mints opaque revisions; transaction-local preallocation is
-worth evaluating for bootstrap, not yet an adopted protocol mechanism.
+Endpoint pins do not create extra arity or uniqueness allowances; those checks use
+endpoint identity. Existing constraints continue to apply until an explicit change
+removes their applicability. Introducing a new Type revision does not impose its
+new requirements on unrelated old records.
 
-### Acceptance cases for the exercise
+Checks use the storing Scope's own Link table. External references remain references;
+this model does not promise to validate or monitor outside resources. The rules for
+local endpoint deletion and changing a floating endpoint's Type still need precision.
 
-| Case | Expected result |
-| --- | --- |
-| Create a Bead Type with omitted schema convenience input | Store the explicit chosen open object schema; valid definition usable immediately |
-| Create a Link Type and its initial conformance declaration | Atomic definition/owned Link state; proper category and exact target pin |
-| Cross-kind conformance or exact-revision cycle | Refuse atomically |
-| Revise a declaration | Source Type gets a new revision; old definition snapshot retains old declaration |
-| Change an ancestor's current definition | Existing child revision retains its exact ancestor contract |
-| Use the Type on a tiny instance, then revise the definition | Instance keeps its original Type pin |
-| Explicitly retype with stale revision precondition | Refuse without partial effects |
-| Match Product@r1 versus Product | Exact affiliation/conformance versus any revision by identity/conformance, never latest lookup |
-| Inspect definition graph | Generic graph operations show explicit hierarchy without synthesized affiliation edges |
-| Supply unsupported rich constraints in the limited experiment | Report unsupported behavior; do not claim successful validation |
+## Open questions
 
-## Remaining work and readiness
+- **Endpoint-constraint description:** finalize the representation of allowed
+  pairs, Type-reference arrays/wildcards and local-versus-external endpoint policies.
+  The requirements above are the intended behavior, not a frozen schema format.
+- **Definition removal and retention:** what can be deleted while instances,
+  dependent definitions and historical records still reference it?
+- **Bootstrap:** how do the foundational definitions acquire their identities and
+  pinned references through the normal versioning model?
+- **Type evolution:** finish the rules for inherited constraint revisions and
+  local floating-endpoint revalidation, preserving explicit migration and old pins.
+- **CLI details:** finalize alias resolution, file/stdin conventions, prospective
+  graph-change input, diagnostics and machine output, including existing `bd types`
+  compatibility.
+- **Validation limits:** define required mechanical checks and the boundary between
+  supported semantic vocabularies and author-attested meaning.
 
-| Area | Review-draft status | Work still needed |
-| --- | --- | --- |
-| Command responsibilities and ordinary-operation equivalence | Selected direction captured | One consistency/editorial pass and command examples |
-| Definition authoring and identity | Selected direction; flag spellings proposed | Alias resolution, file/stdin conventions, category/default requiredness |
-| Single-resource retyping | Selected | Precise target resolution/precondition errors and adapter contract |
-| Prospective check and validate distinction | Selected | Proposed-change input, machine output/exit codes and semantic-review reporting |
-| Type deletion | Intentionally incomplete | Current references, dependent definitions, history retention and allowed operations |
-| Minimal implementation exercise | Bounded proposal with code seams and cases | Resolve three foundation contracts, qualify isolated slice; no runtime implemented here |
-| Import/export and general migration | Parked/deferred | Separate proposals when resumed |
-
-A reasonable discussion draft exists with explicit open questions. A complete CLI
-contract still needs input/output/errors and deletion policy. The small implementation
-exercise can proceed once its three foundation contracts are decided; it need not
-wait for every richer schema, lifecycle or operational-observation decision.
+Import/export, a general migration engine and deeper provenance questions are
+separate discussions. Implementation sequencing is deliberately outside this
+proposal's target-design review.
 
 ## Feedback requested
 
@@ -400,9 +402,5 @@ wait for every richer schema, lifecycle or operational-observation decision.
   unnecessary authoring burden?
 - Does the CLI make definition integrity, prospective adoption and actual changes
   easy to distinguish?
-- Is the suggested open-schema/conformance-graph implementation the right first
-  increment for testing the model against real Beads code?
-
-Definition removal/retention, bootstrap details and remaining CLI input/output
-contracts are explicit open work. Import/export, automatic migration and deeper
-provenance questions are separate discussions.
+- Do the relationship-constraint requirements express the graph rules people need,
+  without implying guarantees about resources outside the Scope?

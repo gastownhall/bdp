@@ -69,23 +69,23 @@ def category(definition):
 
 for definition in definitions:
     own_type = by_pin[pin_of(definition["type"])]
-    expected_name = {"bead-type": "BeadType", "link-type": "LinkType"}[category(definition)]
-    assert own_type["properties"]["name"] == expected_name
+    assert category(definition) in {"bead-type", "link-type"}
+    assert own_type["id"] == prefix + category(definition)
     check(bead_name if category(definition) == "bead-type" else link_name,
-          definition["properties"], True, definition["properties"]["name"])
+          definition["properties"], True, definition["id"])
 
-base = {"name": "Example", "propertiesSchema": {"type": "object"}}
+base = {"description": "Example", "propertiesSchema": {"type": "object"}}
 for key in ["propertiesSchema"]:
     candidate = deepcopy(base)
     del candidate[key]
     check(type_name, candidate, False, "missing " + key)
-for key, value in [("name", ""), ("describes", "bead"), ("propertiesSchema", "https://example.org/schema"),
+for key, value in [("description", 42), ("describes", "bead"), ("propertiesSchema", "https://example.org/schema"),
                    ("propertiesSchema", {"type": 42}), ("propertiesSchema", {"required": "title"}),
                    ("propertiesSchema", {"$schema": "http://json-schema.org/draft-07/schema#"}),
                    ("conformsTo", []), ("id", "https://example.org/type"), ("revision", "r1"),
                    ("ownedLinks", {}), ("source", {}), ("pairUnique", True)]:
     check(type_name, altered(base, **{key: value}), False, "invalid " + key + repr(value))
-check(type_name, {"propertiesSchema": {"type": "object"}}, True, "name optional; identity is envelope")
+check(type_name, {"propertiesSchema": {"type": "object"}}, True, "identity is envelope; no display-name field needed")
 check(type_name, altered(base, propertiesSchema=True), True, "explicit permissive schema")
 check(type_name, altered(base, propertiesSchema=False), True, "false schema is syntax-valid only")
 check(type_name, altered(base, extensionNote="example"), True, "open descriptor root")
@@ -148,7 +148,7 @@ for declaration in fixture["declarations"]:
     target = by_pin[pin_of(declaration["target"])]
     assert category(source) == category(target)
     assert declaration in source["ownedLinks"][conforms_id]
-    assert by_pin[pin_of(declaration["type"])]["properties"]["name"] == "ConformsTo"
+    assert by_pin[pin_of(declaration["type"])]["id"] == conforms_id
 for definition in definitions:
     for declaration in definition["ownedLinks"][conforms_id]:
         assert declaration in fixture["declarations"]
@@ -164,9 +164,9 @@ def closure(pin, visiting=()):
 
 for pin in by_pin:
     closure(pin)
-for label, file_name in [("Type", type_name), ("BeadType", bead_name), ("LinkType", link_name),
-                          ("ConformsTo", conformance_name), ("issue", issue_name), ("dependency", dependency_name)]:
-    definition = next(d for d in definitions if d["properties"]["name"] == label)
+for label, file_name in [("type", type_name), ("bead-type", bead_name), ("link-type", link_name),
+                          ("conforms-to", conformance_name), ("issue", issue_name), ("dependency", dependency_name)]:
+    definition = next(d for d in definitions if d["id"] == prefix + label)
     assert definition["properties"]["propertiesSchema"] == SCHEMAS[file_name]
 
 # Check pair correlation using the finite foundation graph's exact Type closure.

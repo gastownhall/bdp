@@ -109,7 +109,7 @@ below; it should be introduced only if a distinct requirement warrants it.
 The profile defines three Bead Types: **Type**, **BeadType** (`bead-type`) and
 **LinkType** (`link-type`). BeadType and LinkType each declare conformance to Type.
 An instance of LinkType is a Bead defining a Link Type; it is not itself a Link.
-The common Type contract supplies name, description, properties schema and
+The common Type contract supplies description, properties schema and
 ownership of outgoing ConformsTo declarations. Category-specific schemas supply
 Bead participation/ownership rules or Link endpoint/graph constraints.
 
@@ -148,7 +148,7 @@ record the starting descriptor and the candidate changes.
 
 | Descriptor property | Candidate structure and meaning |
 | --- | --- |
-| `name`, `description` | Optional display label and semantic documentation; identity is the Bead ID, not its label |
+| `description` | Optional semantic documentation; canonical identity comes from the Bead ID |
 | `propertiesSchema` | Required embedded JSON Schema applying to described instances' properties |
 | `version` | Optional proposed SemVer label; author information, not a revision or conformance proof |
 | `incoming`, `outgoing` | Bead-only participation rules with Link-Type selectors and minimum and/or maximum |
@@ -971,15 +971,16 @@ upgrade existing affiliations or activate graph constraints on old instances.
 Imported definitions, removal/history retention and bootstrap remain separate
 lifecycle questions; import/export is parked for a later design discussion.
 
-Canonical identity comes from the Bead ID. The descriptor's optional `name` is
-presentation only; no separate name is required. CLI-friendly aliases may resolve
+Canonical identity comes from the Bead ID. This profile defines no separate
+Type-specific name or display-name field. Generic resource aliases may resolve
 references without changing identity, equality or conformance. Alias persistence,
 Scope resolution and ambiguity handling belong to the CLI design.
 
 The independent [CLI proposal](../docs/design/type-cli-proposal.md) captures
-Type-specific CRUD affordances, check versus validate, and a bounded first
-implementation exercise. It is review material, not a requirement that BDP adopt
-CLI command names or an assertion that the preview implements them.
+Type-specific CRUD affordances and check versus validate. A bounded first
+implementation exercise is kept in separate [implementation notes](../docs/design/type-cli-implementation-notes.md).
+Both are review material, not requirements that BDP adopt CLI command names or
+assertions that the preview implements them.
 
 ### 7.1 Portable graph files and command-line literals
 

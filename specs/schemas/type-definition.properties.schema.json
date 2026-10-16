@@ -6,11 +6,6 @@
   "type": "object",
   "required": ["propertiesSchema"],
   "properties": {
-    "name": {
-      "type": "string",
-      "minLength": 1,
-      "$comment": "Optional display label. Canonical identity comes from the resource ID. Friendly aliases are CLI resolution, not Type identity."
-    },
     "description": {
       "type": "string"
     },

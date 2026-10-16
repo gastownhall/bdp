@@ -217,9 +217,11 @@ permitting protocol bypass. Next: exact versus floating constraint selectors.
 
 Independent proposal: [Type CLI](type-cli-proposal.md). Local valid definition
 creation makes its exact revision usable, no activation step. Ordinary operations
-and Type-specific CRUD share semantics. Name becomes optional display information;
-explicit ID is identity, friendly aliases are CLI resolution. Pinned/identity-wide
+and Type-specific CRUD share semantics. The editorial pass removed the
+Type-specific display-name field; explicit ID is identity, generic resource aliases
+provide friendly references. Pinned/identity-wide
 selector predicates selected in Types §4.2. User favors a first implementation
 exercise with open properties and a conformance graph. Full implementation is not
-claimed or started; proposal records bootstrap/reference/storage gates, source
-seams and acceptance cases. Import/export and general migrate are parked.
+claimed or started; separate [implementation notes](type-cli-implementation-notes.md)
+record bootstrap/reference/storage gates, source seams and acceptance cases.
+Import/export and general migrate are parked.

@@ -9,7 +9,6 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "name": "Type",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json",
@@ -18,11 +17,6 @@
           "type": "object",
           "required": ["propertiesSchema"],
           "properties": {
-            "name": {
-              "type": "string",
-              "minLength": 1,
-              "$comment": "Optional display label. Canonical identity comes from the resource ID. Friendly aliases are CLI resolution, not Type identity."
-            },
             "description": {
               "type": "string"
             },
@@ -280,7 +274,6 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "name": "BeadType",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/bdp-draft/schemas/bead-type-definition.properties.schema.json",
@@ -343,7 +336,6 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "name": "LinkType",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/bdp-draft/schemas/link-type-definition.properties.schema.json",
@@ -393,7 +385,6 @@
         "revision": "link-type-1"
       },
       "properties": {
-        "name": "ConformsTo",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/bdp-draft/schemas/conforms-to.properties.schema.json",
@@ -464,7 +455,6 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "name": "issue",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/bdp-draft/schemas/issue.properties.schema.json",
@@ -570,7 +560,6 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "name": "task",
         "propertiesSchema": {
           "type": "object"
         }
@@ -602,7 +591,6 @@
         "revision": "link-type-1"
       },
       "properties": {
-        "name": "dependency",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/bdp-draft/schemas/dependency.properties.schema.json",
@@ -655,7 +643,6 @@
         "revision": "link-type-1"
       },
       "properties": {
-        "name": "blocks",
         "propertiesSchema": {
           "type": "object"
         },

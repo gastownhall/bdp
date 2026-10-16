@@ -146,7 +146,8 @@ the finite foundation graph, schema-copy equality and domain prose fragments.
 It preloads resources and forbids retrieval. It does not implement a generic Type
 checker, import a graph, exercise a BDP server or qualify a release.
 
-The common descriptor's name is now optional and only a display label. Resource
-ID supplies identity; CLI aliases do not alter equality or conformance. See the
-[independent CLI proposal](../../docs/design/type-cli-proposal.md) for authoring
-affordances and the proposed initial implementation scope.
+The common descriptor defines no Type-specific name or display-name field. Resource
+ID supplies identity; generic resource aliases do not alter equality or conformance.
+See the [independent CLI proposal](../../docs/design/type-cli-proposal.md) for
+authoring affordances and the separate [implementation notes](../../docs/design/type-cli-implementation-notes.md)
+for the proposed initial exercise.
