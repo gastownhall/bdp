@@ -2021,19 +2021,20 @@ describe("nonexecuting sequence refusal observation", () => {
     },
   );
 
-  it("keeps excluded sequence responses unobserved and without refusal context", async () => {
+  it("keeps early sequence refusals unobserved and observes deep negotiation refusal", async () => {
     const f = fixture(),
       service = f.open();
     const observed = vi.fn(service.sequenceRefusalObserved);
+    const execute = vi.fn(service.sequenceObserved);
     const handler = createTransactionHttpHandler(
-      { ...service, sequenceRefusalObserved: observed },
+      { ...service, sequenceRefusalObserved: observed, sequenceObserved: execute },
       scope,
     );
     const valid = JSON.stringify({ operations: [{ ...create(), idempotencyKey: "unused" }] });
     let nested: unknown = "leaf";
     for (let i = 0; i < 40; i++) nested = { nested };
-    const unsupported = JSON.stringify({
-      operations: [{ ...create(), properties: { nested }, idempotencyKey: "unsupported" }],
+    const deep = JSON.stringify({
+      operations: [{ ...create(), properties: { nested }, idempotencyKey: "deep" }],
     });
     const authorized = { kind: "authenticated", principal: "p", canMutate: true } as const;
     for (const [text, headers, auth, status, code] of [
@@ -2042,13 +2043,7 @@ describe("nonexecuting sequence refusal observation", () => {
       [valid, {}, { kind: "unauthenticated" }, 401, "unauthenticated"],
       [valid, {}, { ...authorized, canMutate: false }, 403, "forbidden"],
       [valid, { "content-type": "text/plain" }, authorized, 415, "unsupported-media-type"],
-      [
-        unsupported,
-        { accept: "text/plain" },
-        authorized,
-        500,
-        "unsupported-transaction-composition",
-      ],
+      [deep, { accept: "text/plain" }, authorized, 406, "not-acceptable"],
     ] as const) {
       const response = await handler.handle(
         new Request(`${scope}operations/sequence`, {
@@ -2060,18 +2055,25 @@ describe("nonexecuting sequence refusal observation", () => {
       );
       expect(response.status).toBe(status);
       expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
-      if (status === 500) {
-        expect(response.headers.get("x-bdp-development-limit")).toBe(code);
+      if (status === 406) {
+        expect(response.headers.has("x-bdp-development-limit")).toBe(false);
         expect(response.body).toBeUndefined();
         expect(response.headers.get("content-length")).toBe("0");
         expect(response.headers.has("content-type")).toBe(false);
-      } else expect(response.body).toMatchObject({ code, status });
-      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-        expect(
-          response.headers.has(name),
-          `excluded sequence refusal ${code} context: ${name}`,
-        ).toBe(false);
-      expect(observed).not.toHaveBeenCalled();
+        expect(response.headers.get("bdp-scope-epoch")).toBe(f.owner.scopeEpoch);
+        expect(response.headers.get("bdp-authorization-view")).toBe("development-all-visible");
+        expect(response.headers.get("bdp-scope-position")).toBe("pos-0");
+        expect(observed).toHaveBeenCalledTimes(1);
+      } else {
+        expect(response.body).toMatchObject({ code, status });
+        for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+          expect(
+            response.headers.has(name),
+            `excluded sequence refusal ${code} context: ${name}`,
+          ).toBe(false);
+        expect(observed).not.toHaveBeenCalled();
+      }
+      expect(execute).not.toHaveBeenCalled();
     }
     expect(f.owner.inspect().position).toBe("0");
   });
