@@ -35,7 +35,7 @@ export class TransactionChangefeedParameterError extends Error {
   }
 }
 export type TransactionChangefeedIntent = { readonly after: string } | { readonly start: "now" };
-export interface TransactionChangeGroup {
+interface TransactionVisibleChangeGroup {
   readonly scopeEpoch: string;
   readonly authorizationView: string;
   readonly checkpoint: string;
@@ -48,6 +48,20 @@ export interface TransactionChangeGroup {
   readonly eventCount: number;
   readonly events: readonly TransactionEvent[];
 }
+export type TransactionChangeGroup =
+  | TransactionVisibleChangeGroup
+  | {
+      readonly scopeEpoch: string;
+      readonly authorizationView: string;
+      readonly checkpoint: string;
+      readonly position: string;
+      readonly previousPosition: string;
+      readonly projectionAdvance: true;
+      readonly changes: readonly never[];
+      readonly erasures: readonly never[];
+      readonly eventCount: 0;
+      readonly events: readonly never[];
+    };
 export interface TransactionChangefeedPage {
   readonly scope: string;
   readonly scopeEpoch: string;
@@ -116,6 +130,7 @@ export function projectTransactionChangeGroup(
   scope: string,
   context: TransactionReadContext,
   position: number,
+  visible = true,
 ): TransactionChangeGroup {
   if (!value || typeof value !== "object") throw new Error("invalid retained change group");
   const group = value as TransactionChangeGroup;
@@ -148,7 +163,21 @@ export function projectTransactionChangeGroup(
     { kind: "scope", url: `${scope}events/` },
     scope,
     position,
+    visible,
   );
+  if (!visible)
+    return {
+      scopeEpoch: context.scopeEpoch,
+      authorizationView: context.authorizationView,
+      checkpoint: transactionCheckpoint(scope, context, position),
+      position: group.position,
+      previousPosition: group.previousPosition,
+      projectionAdvance: true,
+      changes: [],
+      erasures: [],
+      eventCount: 0,
+      events: [],
+    };
   return {
     scopeEpoch: group.scopeEpoch,
     authorizationView: group.authorizationView,

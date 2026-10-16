@@ -1,3 +1,4 @@
+import { TransactionAuthorizationFailure } from "./transaction-authorization.js";
 /** Source-private loopback fixture. Never selected by installed config/profile
  * admission. It exposes actual routes, not an incomplete BDP discovery claim. */
 import { createTransactionSchemaHttp } from "./transaction-schema-http.js";
@@ -190,56 +191,60 @@ export async function startTransactionRuntime(
         }
         const activeService = service!;
         streamContext = selected.context;
-        await activeService.stream(async (streamSignal) => {
-          try {
-            streamSignal.throwIfAborted();
-            if (!selected || selected.kind === "finite")
-              throw new Error("missing stream selection");
-            response.writeHead(selected.status, Object.fromEntries(selected.headers));
-            response.flushHeaders();
-            const pumping =
-              selected.kind === "changefeed-stream"
-                ? pumpTransactionChanges(
-                    response,
-                    selected.page,
-                    async (after, nextSignal) => {
-                      const observed = await activeService.changes(
-                        { after },
-                        undefined,
-                        nextSignal,
-                      );
-                      if (observed.kind !== "page")
-                        throw new Error("changefeed stream lost serving entry");
-                      return observed.page;
-                    },
-                    streamSignal,
-                    settings.changefeedStream,
-                  )
-                : pumpTransactionEvents(
-                    response,
-                    selected.packet,
-                    (scan, nextSignal) => activeService.nextEvents(scan, nextSignal),
-                    streamSignal,
-                    settings.changefeedStream,
-                  );
-            // Transfer the initial packet into the pump; do not retain the HTTP
-            // result/group body for the lifetime of the live stream.
-            selected = undefined;
-            await pumping;
-          } catch (error) {
-            // Capture before destroy() turns a genuine fault into a disconnect.
-            if (
-              response.headersSent &&
-              !streamSignal.aborted &&
-              !response.destroyed &&
-              !firstStreamFault
-            )
-              firstStreamFault = { cause: error };
-            throw error;
-          } finally {
-            response.destroy();
-          }
-        }, signal);
+        await activeService.stream(
+          async (streamSignal) => {
+            try {
+              streamSignal.throwIfAborted();
+              if (!selected || selected.kind === "finite")
+                throw new Error("missing stream selection");
+              response.writeHead(selected.status, Object.fromEntries(selected.headers));
+              response.flushHeaders();
+              const pumping =
+                selected.kind === "changefeed-stream"
+                  ? pumpTransactionChanges(
+                      response,
+                      selected.page,
+                      async (after, nextSignal) => {
+                        const observed = await activeService.changes(
+                          { after },
+                          undefined,
+                          nextSignal,
+                        );
+                        if (observed.kind !== "page")
+                          throw new Error("changefeed stream lost serving entry");
+                        return observed.page;
+                      },
+                      streamSignal,
+                      settings.changefeedStream,
+                    )
+                  : pumpTransactionEvents(
+                      response,
+                      selected.packet,
+                      (scan, nextSignal) => activeService.nextEvents(scan, nextSignal),
+                      streamSignal,
+                      settings.changefeedStream,
+                    );
+              // Transfer the initial packet into the pump; do not retain the HTTP
+              // result/group body for the lifetime of the live stream.
+              selected = undefined;
+              await pumping;
+            } catch (error) {
+              // Capture before destroy() turns a genuine fault into a disconnect.
+              if (
+                response.headersSent &&
+                !streamSignal.aborted &&
+                !response.destroyed &&
+                !firstStreamFault
+              )
+                firstStreamFault = { cause: error };
+              throw error;
+            } finally {
+              response.destroy();
+            }
+          },
+          signal,
+          streamContext,
+        );
       }
     } catch (error) {
       if (
@@ -248,6 +253,8 @@ export async function startTransactionRuntime(
         error instanceof ScopeServerOperationAbortedError
       ) {
         response.destroy();
+      } else if (error instanceof TransactionAuthorizationFailure) {
+        deliver(response, transactionHttpProblem(error.code, error.context));
       } else if (error instanceof TransactionStreamCapacityError) {
         deliver(response, transactionHttpProblem("temporarily-unavailable", streamContext));
       } else if (!response.destroyed) {
@@ -360,6 +367,10 @@ export async function startTransactionRuntime(
     scope,
     listenUrl,
     configurationMetadata,
+    replaceAuthorizationPolicy: (options: {
+      readonly timeoutMs: number;
+      readonly signal?: AbortSignal;
+    }) => service!.replaceAuthorizationPolicy(options),
     /** Test-only inventory, not an HTTP Operation Directory. */ targets: handler.targets,
     close(): Promise<void> {
       if (!completion) {

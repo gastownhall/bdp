@@ -359,7 +359,7 @@ export function captureTransactionRuntimeConfiguration(
       if (!isDeepStrictEqual(actual.scopeSnapshot, settings.scopeSnapshot))
         throw new Error("live transaction Snapshot configuration mismatch");
       if (
-        actual.authorizationView !== "development-all-visible" ||
+        actual.authorizationView !== actual.authorization.authorizationView ||
         actual.scopeConfiguration.policyIdentity !== actual.authorizationView ||
         actual.scopeConfiguration.maximumEndpointMultiplicity.length !== 0
       )
@@ -373,7 +373,7 @@ export function captureTransactionRuntimeConfiguration(
       const policyIdentity = transactionRuntimeDigest({
         revision: "transaction-policy-1",
         view: actual.authorizationView,
-        read: "all-visible",
+        read: actual.authorization.readPolicy,
         aggregate: actual.scopeConfiguration.maximumEndpointMultiplicity,
         associations,
       });

@@ -904,14 +904,16 @@ it.each(["different-view", "prior-format-9"])(
       db.prepare("SELECT value FROM metadata WHERE name='configuration'").get()?.value,
     );
     const config = JSON.parse(original);
-    expect(config.authorizationView).toBe("development-all-visible");
+    expect(config.initialAuthorizationView).toBe("development-all-visible");
+    expect(config.policyStorageRevision).toBe(1);
     const incompatible: Record<string, unknown> = {
       ...config,
-      authorizationView: "different-view",
+      initialAuthorizationView: "different-view",
     };
     if (fault === "prior-format-9") {
       incompatible.format = "bdp-private-transaction-snapshot-9";
-      delete incompatible.authorizationView;
+      delete incompatible.initialAuthorizationView;
+      delete incompatible.policyStorageRevision;
     }
     db.prepare("UPDATE metadata SET value=? WHERE name='configuration'").run(
       JSON.stringify(incompatible),

@@ -2305,3 +2305,109 @@ it("preserves current receipt absence context across ordinary and minimum servic
   }
   expect(waits).toBe(0);
 });
+
+it("rejects an old selected Event packet before stream registration and accepts a current lease", async () => {
+  const boundary = cleanup.length,
+    failures: unknown[] = [];
+  const caller = new AbortController();
+  let observed: Promise<unknown> | undefined;
+  let ownerReady = false;
+  let callbacks = 0,
+    writes = 0,
+    pulls = 0;
+  try {
+    const f = fixture();
+    ownerReady = true;
+    const service = f.open();
+    const receipt = f.owner.execute(owned(f.owner, batch([create("a"), create("b")])));
+    expect(receipt.status).toBe("completed");
+    const selected = f.owner.beginEventScan(`${scope}events/`);
+    if (selected.kind !== "packet") throw Error("actual selected packet required");
+    expect(selected.events).toHaveLength(2);
+    const policy = await service.replaceAuthorizationPolicy({ timeoutMs: 1000 });
+    expect(policy.generation).toBe(1);
+    // Handler selection occurred before publication; actual service acquisition occurs after.
+    const stale = Promise.resolve().then(() =>
+      service.stream(
+        async () => {
+          callbacks++;
+          writes += selected.events.length;
+          pulls++;
+          f.owner.advanceEventScan(selected.scan);
+        },
+        caller.signal,
+        selected.context,
+      ),
+    );
+    const staleResult = await stale.then(
+      () => ({ accepted: true }),
+      (error: unknown) => error,
+    );
+    expect(staleResult).toMatchObject({ code: "foreign-view" });
+    expect([callbacks, writes, pulls]).toEqual([0, 0, 0]);
+    const current = f.owner.beginEventScan(`${scope}events/`);
+    if (current.kind !== "packet") throw Error("actual current packet required");
+    expect(current.context).toEqual({
+      ...selected.context,
+      authorizationView: policy.authorizationView,
+    });
+    expect(current.events).toEqual([]);
+    const registered = Promise.withResolvers<void>();
+    const fresh = service.stream(
+      async (signal) => {
+        callbacks++;
+        registered.resolve();
+        await new Promise<never>((_resolve, reject) => {
+          const aborted = () => {
+            signal.removeEventListener("abort", aborted);
+            reject(signal.reason);
+          };
+          signal.addEventListener("abort", aborted, { once: true });
+          if (signal.aborted) aborted();
+          // No nextpull or wire callback: this case isolates registration.
+        });
+      },
+      caller.signal,
+      current.context,
+    );
+    observed = fresh.then(
+      () => ({ completed: true }),
+      (error: unknown) => error,
+    );
+    await registered.promise;
+    expect([callbacks, writes, pulls]).toEqual([1, 0, 0]);
+    const reason = Error("current lease test complete");
+    caller.abort(reason);
+    expect(await observed).toBe(reason);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    caller.abort(Error("stale lease fixture cleanup"));
+    if (observed) {
+      try {
+        await observed;
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    const added = cleanup.splice(boundary),
+      removeDirectory = added.shift();
+    let stopped = ownerReady;
+    for (const close of added.reverse()) {
+      try {
+        await close();
+      } catch (error) {
+        stopped = false;
+        failures.push(error);
+      }
+    }
+    if (stopped && removeDirectory) {
+      try {
+        await removeDirectory();
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+  }
+  if (failures.length) throw new AggregateError(failures, "stale Event lease witness cleanup");
+}, 5000);

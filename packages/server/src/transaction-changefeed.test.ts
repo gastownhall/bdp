@@ -216,7 +216,15 @@ it("replica refuses partial publication, gaps, conflicts and owned upsert/tombst
     config = f.owner.readConfiguration();
   const client = replica({ ...config, scopePosition: "pos-0" });
   const [seed, created, deleted] = groups;
-  if (!seed || !created || !deleted) throw Error("groups");
+  if (
+    !seed ||
+    !created ||
+    !deleted ||
+    seed.projectionAdvance ||
+    created.projectionAdvance ||
+    deleted.projectionAdvance
+  )
+    throw Error("visible groups");
   expect(() => client.apply(seed, true)).toThrow("publication failed");
   expect(client.state()).toEqual({ graph: new Map(), checkpoint: "genesis", position: "pos-0" });
   client.apply(page(f.owner, client.state().checkpoint).groups[0]!);

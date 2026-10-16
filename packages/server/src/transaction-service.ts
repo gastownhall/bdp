@@ -1,3 +1,4 @@
+import { projectTransactionEntry } from "./transaction-authorization.js";
 import { assembleTransactionDiscovery } from "./transaction-discovery.js";
 import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
@@ -11,7 +12,7 @@ import {
 /** Source-private same-owner lifecycle. No HTTP receiver, directory or profile
  * advertisement. Passing ownerLifetime:"service" transfers owner shutdown to
  * this service after successful construction; callers must stop using the owner.
- * Only the existing fixed all-visible installation policy applies. */
+ * Trusted policy publication drains finite mutations before revoking delivery. */
 import { createNodeLifecycleScheduler, type LifecycleScheduler } from "./sequence-executor.js";
 import type { PreparedTransactionSequence } from "./transaction-batch.js";
 import {
@@ -116,6 +117,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
   const minimumReads = Object.freeze({ ...options.minimumReads });
   const read = createTransactionReadPlane(owner, capturedRead);
   const active = new Set<Promise<unknown>>();
+  const mutations = new Set<Promise<unknown>>();
   const maximumStreams = options.maximumStreams ?? 1;
   if (!Number.isSafeInteger(maximumStreams) || maximumStreams < 1)
     throw new TypeError("invalid private stream capacity");
@@ -147,6 +149,15 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       task.reject(error);
     }
     return task.promise;
+  }
+  function mutate<T>(start: () => Promise<T>): Promise<T> {
+    const task = run(start);
+    mutations.add(task);
+    void task.then(
+      () => mutations.delete(task),
+      () => mutations.delete(task),
+    );
+    return task;
   }
   function nextTurn(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -279,12 +290,23 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     },
     /** Separate cancellable lifetime, never an infinite finite-work drain. The
      * callback starts only after capacity registration and abort wiring. */
-    stream(start: (signal: AbortSignal) => Promise<void>, supplied: AbortSignal): Promise<void> {
+    stream(
+      start: (signal: AbortSignal) => Promise<void>,
+      supplied: AbortSignal,
+      expected?: TransactionReadContext,
+    ): Promise<void> {
       check();
       if (supplied.aborted) return Promise.reject(supplied.reason);
       if (streams.size >= maximumStreams)
         throw new TransactionStreamCapacityError("private live stream capacity reached");
+      const selected = expected ?? owner.withRead((_reader, context) => context);
+      const context =
+        "kind" in selected ? (selected.kind === "read" ? selected.value : undefined) : selected;
+      if (!context) throw new Error("stream context observation refused");
+      const lease = owner.acquireAuthorizationLease(context);
       const controller = new AbortController();
+      const revoke = () => controller.abort(lease.signal.reason);
+      lease.signal.addEventListener("abort", revoke, { once: true });
       const abort = () => controller.abort(supplied.reason);
       supplied.addEventListener("abort", abort, { once: true });
       const task = Promise.withResolvers<void>();
@@ -292,6 +314,8 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       const finish = () => {
         supplied.removeEventListener("abort", abort);
         streams.delete(controller);
+        lease.signal.removeEventListener("abort", revoke);
+        lease.release();
       };
       void task.promise.then(finish, finish);
       try {
@@ -300,6 +324,47 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         task.reject(error);
       }
       return task.promise;
+    },
+    /** Trusted administration, never HTTP. Cancellation stops waiting, not writes. */
+    replaceAuthorizationPolicy(options: {
+      readonly timeoutMs: number;
+      readonly signal?: AbortSignal;
+    }) {
+      const timeoutMs = options.timeoutMs,
+        signal = options.signal;
+      if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2147483647)
+        throw new TypeError("finite administrative timeout required");
+      check();
+      signal?.throwIfAborted();
+      const deadline = performance.now() + timeoutMs;
+      const resume = owner.pauseMutationAdmission();
+      return run(async () => {
+        let abort: (() => void) | undefined;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const cancelled = new Promise<never>((_resolve, reject) => {
+            abort = () => reject(signal?.reason);
+            signal?.addEventListener("abort", abort, { once: true });
+            timer = setTimeout(() => reject(new Error("authorization drain deadline")), timeoutMs);
+            if (signal?.aborted) abort();
+          });
+          const settled = await Promise.race([Promise.allSettled([...mutations]), cancelled]);
+          signal?.throwIfAborted();
+          if (performance.now() >= deadline) throw new Error("authorization drain deadline");
+          check();
+          const failed = settled.filter((result) => result.status === "rejected");
+          if (failed.length)
+            throw new AggregateError(
+              failed.map((result) => result.reason),
+              "authorization drain failed",
+            );
+          return owner.replaceAuthorizationPolicy();
+        } finally {
+          clearTimeout(timer);
+          if (abort) signal?.removeEventListener("abort", abort);
+          resume();
+        }
+      });
     },
     closed: completion.promise,
     /** Actual fixed-owner Read configuration; no Transactional discovery claims. */
@@ -512,7 +577,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       });
     },
     submit(request: TransactionSubmission): Promise<TransactionServiceSubmissionResult> {
-      return run(async () => {
+      return mutate(async () => {
         const authorization = Object.freeze({ ...request.authorization });
         const result = await submitTransaction(
           owner,
@@ -535,7 +600,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       principal: string,
       sequence: PreparedTransactionSequence,
     ): Promise<TransactionSequenceResponse> {
-      return run(() => executeSequence(principal, sequence));
+      return mutate(() => executeSequence(principal, sequence));
     },
     /** Authenticated exact local schema response; no mutation or minimum wait. */
     schemaObserved() {
@@ -558,21 +623,29 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         return observed.value;
       });
     },
-    /** The fixed all-visible owner projects stable member execution facts and
-     * captures the current serving context together, after ordered execution.
-     * This does not project mutable grants or erasure; those remain unsupported. */
+    /** Project stable member execution facts in the current serving entry after
+     * ordered execution. Version erasure remains outside this private policy. */
     sequenceObserved(principal: string, sequence: PreparedTransactionSequence) {
-      return run(async () => {
+      return mutate(async () => {
         const response = await executeSequence(principal, sequence);
-        const observed = owner.withRead((_reader, context) => {
+        const observed = owner.withRead((reader, context) => {
+          const policy = owner.captureReadAuthorization(reader, {
+            kind: "authenticated",
+            principal: { id: principal },
+          });
+          const body = {
+            results: response.results.map((entry) =>
+              projectTransactionEntry(entry, policy.readPolicy === "all-visible"),
+            ),
+          };
           const freeze = (value: unknown): void => {
             if (value !== null && typeof value === "object") {
               for (const child of Object.values(value)) freeze(child);
               Object.freeze(value);
             }
           };
-          freeze(response);
-          return Object.freeze({ body: response, context });
+          freeze(body);
+          return Object.freeze({ body, context });
         });
         if (observed.kind === "entry-refused")
           throw new Error("transaction sequence observation refused", { cause: observed.cause });
@@ -580,7 +653,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       });
     },
     /** Authentication is transport-supplied, never inferred from actor or URL.
-     * Current owner policy is all-visible; principal binding still denies foreign
+     * Current owner policy projects contents; principal binding denies foreign
      * receipts uniformly. No key lookup, receipt listing or fabricated page URL. */
     receipt(
       access:
