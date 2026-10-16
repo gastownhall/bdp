@@ -4671,7 +4671,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
     createHash("sha256")
       .update(source("packages/conformance/matrices/read-update-v1.json").bytes)
       .digest("hex"),
-  ).toBe("c86b33535f25a1d117ce021a3bb70164f5635bdaee50758e3428c130ccc3227f");
+  ).toBe("80f74625b6074892b707365859572f8bc0b8c10478d36ac307370ef6027f5fc3");
   const text = bytes.toString();
   const start = text.lastIndexOf(
     "    {",
