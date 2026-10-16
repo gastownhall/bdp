@@ -260,12 +260,25 @@ export function prepareTransactionSequence(
   scope: string,
   text: string,
 ): PreparedTransactionSequence {
+  const sequence = prepareSequence(scope, text);
+  for (const member of sequence.members) requireTransactionDepth(member.request);
+  return sequence;
+}
+/** Private receiving syntax; retained member identity precedes fresh capacity. */
+export function prepareTransactionSequenceForReceiving(
+  scope: string,
+  text: string,
+): PreparedTransactionSequence {
+  return prepareSequence(scope, text);
+}
+function prepareSequence(scope: string, text: string): PreparedTransactionSequence {
   if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
     throw new RangeError("development sequence byte limit");
   const carrier = prepareReadUpdateSequence(scope, text);
   if (carrier.operations.length > TRANSACTION_MAXIMUM_OPERATIONS)
     throw new RangeError("development sequence member limit");
-  assertTransactionInputDepth(object(decodeJsonDocument(text)));
+  const raw = object(decodeJsonDocument(text)).operations;
+  if (!Array.isArray(raw)) throw new Error("parsed sequence lost operations");
   const labels = new Map<string, number>();
   const members = carrier.operations.map((op, index) => {
     const aliasOperands: { readonly field: string; readonly locator: string }[] = [];
@@ -303,12 +316,18 @@ export function prepareTransactionSequence(
     // whose syntax correctly rejects @name outside a sequence.
     const key = carrier.keys[index];
     if (key === undefined) throw new Error("prepared sequence lost member key");
-    const request = prepareCarrier({
-      kind: "singleton",
-      scope: carrier.scope,
-      operations: [op],
-      keys: [key],
-    });
+    // Original raw member depth2 equals root0 / operations array1 / member2.
+    // The complete carrier parser already validated every label and reference.
+    const request = prepareDepthCarrier(
+      Object.freeze({
+        kind: "singleton",
+        scope: carrier.scope,
+        operations: Object.freeze([op]),
+        keys: Object.freeze([key]),
+      }),
+      object(raw[index]),
+      2,
+    );
     if (op.name) labels.set(op.name, index);
     return Object.freeze({
       key,

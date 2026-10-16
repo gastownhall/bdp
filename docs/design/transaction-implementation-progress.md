@@ -1991,3 +1991,6 @@ installed validation and exact-head CI have not yet been credited here. These
 local source results do not establish public Transactional qualification. Unknown
 identity and the retained Snapshot/incident-Link product questions remain outside
 this change.
+
+
+Private sequence depth/retained-member draft (unexecuted): receiving preparation now preserves branded per-member depth facts so an existing member key can reach its ordered retained comparison, while strict source preparation still rejects deep input. Fresh deep JSON requests remain unsupported private500 responses; an unacceptable sequence Accept is refused with406 before admission. If a retained failed key expires between turns, a later private depth500 may follow an already committed and retained prefix; remaining claims are retracted without undoing that prefix. The proposed source and fresh-installed witnesses are not yet executed. This does not add arbitrary-depth execution, public Transactional discovery/admission, or cumulative qualification, and leaves the documented policy and consistency limitations unchanged.

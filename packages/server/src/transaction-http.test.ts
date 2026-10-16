@@ -4791,3 +4791,399 @@ it("enforces the minimum-receiving-malformed-request boundary over the emitted l
     });
   });
 }, 20000);
+
+it("compares retained sequence members before private depth refusal and preserves receiving failures", async () => {
+  const boundary = cleanup.length;
+  const controller = new AbortController();
+  const failures: unknown[] = [];
+  const observations: Record<string, unknown>[] = [];
+  const deadlineReason = new Error("sequence depth work deadline");
+  let deadlineExceeded = false;
+  const deadline = setTimeout(() => {
+    deadlineExceeded = true;
+    controller.abort(deadlineReason);
+  }, 25000);
+  let f: Awaited<ReturnType<typeof fixture>> | undefined;
+  let attempts = 0,
+    cleanupCompleted = false,
+    cleanupExceeded = false;
+  let expectedContext: readonly [string, string] | undefined;
+  const contextNames = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
+  const validBead = ajv.compile({ $ref: `${schema.$id}#/$defs/beadRecord` });
+  type Wire = { status: number; headers: Headers; text: string };
+  function parse(response: Wire, validate: typeof validateSequence) {
+    const value = record(JSON.parse(response.text));
+    expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
+    return value;
+  }
+  function tuple(response: Wire, position: string) {
+    if (!expectedContext) throw new Error("sequence seed context missing");
+    expect(contextNames.map((name) => response.headers.get(name))).toStrictEqual([
+      ...expectedContext,
+      position,
+    ]);
+  }
+  function resource(value: unknown, name: string) {
+    const result = record(value);
+    expect(typeof result.revision).toBe("string");
+    expect(result.revision).not.toBe("");
+    expect(result).toStrictEqual({
+      id: `${f!.runtime.scope}beads/${name}`,
+      type: bead,
+      revision: result.revision,
+      properties: { title: name },
+      metadata: {},
+    });
+    return result;
+  }
+  async function exchange(
+    label: string,
+    url: string,
+    text?: string,
+    key?: string,
+    accept = "application/json",
+    credential: "operator" | "reader" | "none" = "operator",
+  ): Promise<Wire> {
+    if (!f) throw new Error("sequence listener missing");
+    controller.signal.throwIfAborted();
+    expect(++attempts, "sequence depth exact dispatch bound").toBeLessThanOrEqual(11);
+    const method = text === undefined ? "GET" : "POST";
+    expect(
+      [
+        ["POST", f.runtime.targets.createBead],
+        ["POST", f.runtime.targets.sequence],
+        ["GET", `${f.runtime.scope}beads/sequence-a`],
+      ].some(([m, target]) => m === method && target === url),
+    ).toBe(true);
+    const headers = {
+      accept,
+      ...(credential === "none"
+        ? {}
+        : { authorization: `Bearer ${credential === "reader" ? readToken : token}` }),
+      ...(text === undefined ? {} : { "content-type": "application/json" }),
+      ...(key === undefined ? {} : { "idempotency-key": key }),
+    };
+    expect(Buffer.byteLength(text ?? "")).toBeLessThanOrEqual(65536);
+    expect(
+      Object.entries(headers).reduce(
+        (sum, [name, value]) => sum + Buffer.byteLength(name + value) + 4,
+        0,
+      ),
+    ).toBeLessThanOrEqual(16384);
+    const request = new AbortController();
+    const timer = setTimeout(() => request.abort(new Error("sequence request deadline")), 5000);
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let complete = false;
+    try {
+      const response = await fetch(url, {
+        method,
+        headers,
+        ...(text === undefined ? {} : { body: text }),
+        redirect: "error",
+        signal: AbortSignal.any([controller.signal, request.signal]),
+      });
+      expect(
+        [...response.headers].reduce(
+          (sum, [name, value]) => sum + Buffer.byteLength(name + value) + 4,
+          0,
+        ),
+      ).toBeLessThanOrEqual(65536);
+      const chunks: Uint8Array[] = [];
+      let bytes = 0;
+      reader = response.body?.getReader();
+      if (reader)
+        for (;;) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          bytes += chunk.value.byteLength;
+          if (bytes > 131072) throw new Error("sequence response body ceiling");
+          chunks.push(chunk.value);
+        }
+      complete = true;
+      const result = {
+        status: response.status,
+        headers: response.headers,
+        text: Buffer.concat(chunks).toString("utf8"),
+      };
+      observations.push({
+        ordinal: attempts,
+        label,
+        method,
+        url,
+        credential,
+        accept,
+        requestBodyBytes: Buffer.byteLength(text ?? ""),
+        requestBodySha256: createHash("sha256")
+          .update(text ?? "")
+          .digest("hex"),
+        status: result.status,
+        responseBodyBytes: bytes,
+        responseBodySha256: createHash("sha256").update(result.text).digest("hex"),
+        headers: Object.fromEntries(
+          [
+            ...contextNames,
+            "x-bdp-development",
+            "x-bdp-development-limit",
+            "content-type",
+            "content-length",
+          ].map((name) => [name, result.headers.get(name)]),
+        ),
+      });
+      return result;
+    } finally {
+      clearTimeout(timer);
+      request.abort();
+      if (reader) {
+        try {
+          if (!complete) await reader.cancel();
+        } catch (error) {
+          failures.push(error);
+        }
+        try {
+          reader.releaseLock();
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+    }
+  }
+  try {
+    f = await fixture();
+    let nested: unknown = "leaf";
+    for (let i = 0; i < 40; i++) nested = { nested };
+    const input = (name: string, deep = false) => ({
+      id: `beads/${name}`,
+      type: bead,
+      properties: { title: name },
+      metadata: deep ? { nested } : {},
+    });
+    const sequenceBody = (name: string, key: string, deep = false) =>
+      JSON.stringify({
+        operations: [
+          { operation: "createBead", ...input(name, deep), idempotencyKey: key, name: "present" },
+        ],
+      });
+    const seedText = JSON.stringify(input("sequence-a"));
+    const seed = await exchange(
+      "seed",
+      f.runtime.targets.createBead,
+      seedText,
+      "sequence-retained",
+    );
+    expect(seed.status).toBe(200);
+    const receipt = parse(seed, validateSelectorReceipt);
+    expect(typeof receipt.scopeEpoch).toBe("string");
+    expect(receipt.scopeEpoch).not.toBe("");
+    expect(typeof receipt.authorizationView).toBe("string");
+    expect(receipt.authorizationView).not.toBe("");
+    expectedContext = [receipt.scopeEpoch as string, receipt.authorizationView as string];
+    tuple(seed, "pos-1");
+    const savedResource = resource(
+      record((receipt.results as unknown[])[0]).resource,
+      "sequence-a",
+    );
+    expect(receipt).toStrictEqual({
+      id: receipt.id,
+      status: "completed",
+      detail: "available",
+      idempotencyKey: "sequence-retained",
+      scopeEpoch: expectedContext[0],
+      authorizationView: expectedContext[1],
+      transaction: receipt.transaction,
+      requiredPosition: "pos-1",
+      effectPosition: "pos-1",
+      results: [{ operationIndex: 0, outcome: "created", resource: savedResource }],
+      next: null,
+      expiresAt: receipt.expiresAt,
+    });
+    const deep = sequenceBody("sequence-a", "sequence-retained", true);
+    const conflict = await exchange("retained-deep", f.runtime.targets.sequence, deep);
+    // First oracle for C1: a preparation throw is generic500, without the private marker.
+    expect(conflict.status, "sequence-depth:retained-member-conflict").toBe(200);
+    expect(parse(conflict, validateSequence)).toStrictEqual({
+      results: [
+        {
+          type: "https://github.com/gastownhall/bdp/problems/conflict",
+          code: "idempotency-conflict",
+          status: 409,
+          retry: "never",
+          operationIndex: 0,
+          operationName: "present",
+        },
+      ],
+    });
+    expect(conflict.headers.get("x-bdp-development-limit")).toBeNull();
+    tuple(conflict, "pos-1");
+    const replay = await exchange(
+      "original-replay",
+      f.runtime.targets.createBead,
+      seedText,
+      "sequence-retained",
+    );
+    expect(replay.status).toBe(200);
+    expect(parse(replay, validateSelectorReceipt)).toStrictEqual(receipt);
+    tuple(replay, "pos-1");
+    const point = await exchange("original-resource", `${f.runtime.scope}beads/sequence-a`);
+    expect(point.status).toBe(200);
+    expect(parse(point, validBead)).toStrictEqual(savedResource);
+    tuple(point, "pos-1");
+    const fresh = await exchange(
+      "fresh-deep",
+      f.runtime.targets.sequence,
+      sequenceBody("sequence-b", "sequence-fresh", true),
+    );
+    expect(fresh.status).toBe(500);
+    expect(fresh.text).toBe("");
+    expect(fresh.headers.get("x-bdp-development-limit")).toBe(
+      "unsupported-transaction-composition",
+    );
+    expect(fresh.headers.get("content-length")).toBe("0");
+    expect(contextNames.map((name) => fresh.headers.get(name))).toStrictEqual([null, null, null]);
+    const reuse = await exchange(
+      "fresh-key-reuse",
+      f.runtime.targets.sequence,
+      sequenceBody("sequence-b", "sequence-fresh"),
+    );
+    expect(reuse.status).toBe(200);
+    const created = parse(reuse, validateSequence),
+      createdEntry = record((created.results as unknown[])[0]);
+    expect(created).toStrictEqual({
+      results: [
+        {
+          operationIndex: 0,
+          operationName: "present",
+          outcome: "created",
+          resource: resource(createdEntry.resource, "sequence-b"),
+        },
+      ],
+    });
+    tuple(reuse, "pos-2");
+    for (const [label, text] of [
+      ["retained-deep-negotiation", deep],
+      ["fresh-deep-negotiation", sequenceBody("sequence-c", "sequence-negotiation", true)],
+    ] as const) {
+      const refused = await exchange(
+        label,
+        f.runtime.targets.sequence,
+        text,
+        undefined,
+        "text/plain",
+      );
+      expect(refused.status).toBe(406);
+      expect(refused.text).toBe("");
+      expect(refused.headers.get("x-bdp-development-limit")).toBeNull();
+      tuple(refused, "pos-2");
+    }
+    for (const [credential, status, code] of [
+      ["none", 401, "unauthenticated"],
+      ["reader", 403, "forbidden"],
+    ] as const) {
+      const refused = await exchange(
+        credential,
+        f.runtime.targets.sequence,
+        deep,
+        undefined,
+        "application/json",
+        credential,
+      );
+      expect(refused.status).toBe(status);
+      expect(parse(refused, validateTransactionalProblem)).toStrictEqual({
+        type: `https://github.com/gastownhall/bdp/problems/${status === 401 ? "authentication" : "authorization"}`,
+        code,
+        status,
+        retry: "after-state-change",
+      });
+      expect(contextNames.map((name) => refused.headers.get(name))).toStrictEqual([
+        null,
+        null,
+        null,
+      ]);
+    }
+    const member = record((record(JSON.parse(deep)).operations as unknown[])[0]);
+    const malformed = await exchange(
+      "duplicate-key",
+      f.runtime.targets.sequence,
+      JSON.stringify({
+        operations: [
+          { ...member, name: "first" },
+          { ...member, name: "second" },
+        ],
+      }),
+    );
+    expect(malformed.status).toBe(400);
+    expect(parse(malformed, validateTransactionalProblem)).toStrictEqual({
+      type: "https://github.com/gastownhall/bdp/problems/request",
+      code: "malformed-request",
+      status: 400,
+      retry: "never",
+    });
+    expect(contextNames.map((name) => malformed.headers.get(name))).toStrictEqual([
+      null,
+      null,
+      null,
+    ]);
+    expect(attempts).toBe(11);
+    expect(observations).toHaveLength(11);
+    controller.signal.throwIfAborted();
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    controller.abort();
+    const callbacks = cleanup.splice(boundary).reverse();
+    const cleanupReason = new Error("sequence cleanup deadline");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      // A startup failure has no returned owner handle: retain its directory.
+      const close = f ? callbacks.shift() : undefined;
+      if (!f) failures.push(new Error("sequence startup stop state unknown"));
+      else if (!close) failures.push(new Error("sequence close callback missing"));
+      else {
+        await Promise.race([
+          Promise.resolve().then(close),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => {
+              cleanupExceeded = true;
+              reject(cleanupReason);
+            }, 5000);
+          }),
+        ]);
+        for (const remove of callbacks) {
+          try {
+            await remove();
+          } catch (error) {
+            failures.push(error);
+          }
+        }
+        cleanupCompleted = true;
+      }
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      if (timer) clearTimeout(timer);
+      clearTimeout(deadline);
+    }
+    if (deadlineExceeded && !failures.includes(deadlineReason)) failures.push(deadlineReason);
+    try {
+      console.log(
+        JSON.stringify({
+          observation: "private-source-sequence-depth",
+          outcome: failures.length ? "failed" : "passed",
+          attempts,
+          completedResponses: observations,
+          deadlineExceeded,
+          cleanupExceeded,
+          cleanupCompleted,
+          failureCount: failures.length,
+          claimEligible: false,
+          retention:
+            "safe response headers/fingerprints; full schema/body equality in memory; no authorization retained",
+        }),
+      );
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, "sequence HTTP witness and cleanup failed");
+}, 30000);

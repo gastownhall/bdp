@@ -6,6 +6,7 @@ import { afterEach, expect, expectTypeOf, it, vi } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import {
   decodeJsonDocument,
+  ReadUpdateCarrierError,
   parseTypeDescriptor,
   isJsonSchemaUri,
   isJsonSchemaDateTime,
@@ -1198,5 +1199,83 @@ it("keeps receiving depth facts private while legacy preparation still throws", 
     }
     expect(caught).toBeInstanceOf(Error);
     expect(caught).not.toBeInstanceOf(batch.TransactionDevelopmentLimitError);
+  }
+});
+
+it("annotates only deep sequence members after complete carrier syntax while strict preparation stays strict", () => {
+  const input = (wraps: number) => {
+    let value: unknown = 0;
+    for (let i = 0; i < wraps; i++) value = { nested: value };
+    return { id: "beads/depth", type, metadata: { nested: value } };
+  };
+  for (const [wraps, refused] of [
+    [28, false],
+    [29, true],
+  ] as const) {
+    const operation = { operation: "createBead", ...input(wraps) };
+    const direct = JSON.stringify({ operations: [operation] });
+    const sequence = JSON.stringify({ operations: [{ ...operation, idempotencyKey: "deep" }] });
+    const received = batch.prepareTransactionSequenceForReceiving(scope, sequence);
+    const member = received.members[0]!;
+    const directReceived = batch.prepareTransactionForReceiving(scope, { kind: "batch" }, direct);
+    const message = refused ? "development batch depth limit" : undefined;
+    expect(batch.transactionDepthRefusal(member.request)).toBe(message);
+    expect(batch.transactionDepthRefusal(directReceived)).toBe(message);
+    expect(batch.normalizeTransaction(member.request, () => undefined).identity).toBe(
+      batch.normalizeTransaction(directReceived, () => undefined).identity,
+    );
+    for (const prepare of [
+      () => batch.prepareTransaction(scope, direct),
+      () => batch.prepareTransactionSequence(scope, sequence),
+    ]) {
+      if (refused) {
+        expect(prepare).toThrow(batch.TransactionDevelopmentLimitError);
+        expect(prepare).toThrow("development batch depth limit");
+      } else expect(prepare).not.toThrow();
+    }
+    expect(Object.isFrozen(received)).toBe(true);
+    expect(Object.isFrozen(member.request)).toBe(true);
+    const memberCarrier = member.request.carrier;
+    expect(Object.isFrozen(memberCarrier)).toBe(true);
+    expect(Object.isFrozen(memberCarrier.operations)).toBe(true);
+    expect(Object.isFrozen(memberCarrier.keys)).toBe(true);
+    expect(Reflect.set(memberCarrier, "operations", [])).toBe(false);
+    expect(Reflect.set(memberCarrier.operations, "0", memberCarrier.operations[0])).toBe(false);
+    expect(Reflect.set(memberCarrier.keys, "0", memberCarrier.keys[0])).toBe(false);
+    expect(Object.keys(member.request)).toStrictEqual(["carrier"]);
+    expect(() => batch.transactionDepthRefusal({ ...member.request })).toThrow(TypeError);
+    expect(() => batch.assertPreparedTransaction({ ...member.request }, scope)).toThrow(TypeError);
+    expect(() => batch.assertPreparedTransactionSequence({ ...received }, scope)).toThrow(
+      TypeError,
+    );
+  }
+  const deep = { operation: "createBead", ...input(40), idempotencyKey: "deep", name: "creator" };
+  const shallow = { operation: "createBead", id: "beads/shallow", type, idempotencyKey: "shallow" };
+  const mixed = batch.prepareTransactionSequenceForReceiving(
+    scope,
+    JSON.stringify({ operations: [shallow, deep] }),
+  );
+  expect(batch.transactionDepthRefusal(mixed.members[0]!.request)).toBeUndefined();
+  expect(batch.transactionDepthRefusal(mixed.members[1]!.request)).toBe(
+    "development batch depth limit",
+  );
+  const invalid = [
+    [deep, { ...shallow, idempotencyKey: "deep" }],
+    [deep, { operation: "deleteLink", link: "@creator", idempotencyKey: "wrong-kind" }],
+  ];
+  for (const operations of invalid) {
+    for (const prepare of [
+      batch.prepareTransactionSequence,
+      batch.prepareTransactionSequenceForReceiving,
+    ]) {
+      let caught: unknown;
+      try {
+        prepare(scope, JSON.stringify({ operations }));
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(ReadUpdateCarrierError);
+      expect(caught).not.toBeInstanceOf(batch.TransactionDevelopmentLimitError);
+    }
   }
 });
