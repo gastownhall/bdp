@@ -369,8 +369,6 @@ export function createTransactionHttpHandler(
         if (!result.context) throw new Error("negotiation refusal lost same-entry context");
         return context(empty(406), result.context);
       }
-      if (result.kind === "development-limit")
-        return developmentGap("unsupported-transaction-composition");
       if (result.code === "idempotency-conflict") {
         if (!result.context) throw new Error("conflict refusal lost same-entry context");
         return context(

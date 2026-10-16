@@ -14,8 +14,7 @@ export interface PreparedTransactionSet {
   readonly name?: never;
 }
 export const TRANSACTION_SELECTOR_LIMITS = Object.freeze({ bytes: 4096, depth: 32, nodes: 256 });
-/** Serialize already decoded, byte-bounded syntax without prematurely applying
- * the executable depth limit. Preserve original numeric lexemes and key order. */
+/** Serialize already decoded, byte-bounded syntax iteratively. Preserve original numeric lexemes and key order. */
 export function transactionInputText(value: LosslessJsonValue): string {
   const pending: (string | { value: LosslessJsonValue })[] = [{ value }];
   const chunks: string[] = [];
@@ -46,19 +45,6 @@ export function transactionInputText(value: LosslessJsonValue): string {
     } else chunks.push(JSON.stringify(item));
   }
   return chunks.join("");
-}
-/** Private execution capacity only, after complete known carrier syntax. The
- * depth convention is unchanged: the batch root is 0, singleton input is 2. */
-export function assertTransactionInputDepth(value: LosslessJsonValue, depth = 0): void {
-  const pending = [{ value, depth }];
-  while (pending.length) {
-    const item = pending.pop()!;
-    if (item.depth > 32)
-      throw new TransactionDevelopmentLimitError("development batch depth limit");
-    if (item.value && typeof item.value === "object" && !(item.value instanceof JsonNumberLiteral))
-      for (const child of Object.values(item.value))
-        pending.push({ value: child, depth: item.depth + 1 });
-  }
 }
 function nonnegativeInteger(value: LosslessJsonValue): boolean {
   if (!(value instanceof JsonNumberLiteral)) return false;

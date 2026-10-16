@@ -14,7 +14,6 @@ import {
 import * as batch from "./transaction-batch.js";
 import {
   transactionInputText,
-  assertTransactionInputDepth,
   TransactionSelectorSyntaxError,
   transactionSelectorCapacity,
 } from "./transaction-set.js";
@@ -1032,7 +1031,7 @@ it("serializes byte-bounded deep syntax iteratively without changing number lexe
   expect(Buffer.byteLength(text)).toBeLessThan(65536);
   const value = decodeJsonDocument(text);
   expect(transactionInputText(value)).toBe(text);
-  expect(() => assertTransactionInputDepth(value)).toThrow("development batch depth limit");
+  expect(transactionInputText(decodeJsonDocument(transactionInputText(value)))).toBe(text);
 });
 
 it("preserves literal Selector identity and original mixed-carrier diagnostic pointers", () => {
@@ -1120,7 +1119,7 @@ it("preserves literal Selector identity and original mixed-carrier diagnostic po
   ).toThrow("prepared set lost Selector grammar analysis");
 });
 
-it("keeps receiving depth facts private while legacy preparation still throws", () => {
+it("keeps receiving and legacy preparation branded while accepting byte-bounded deep input", () => {
   let nested: unknown = "leaf";
   for (let i = 0; i < 40; i++) nested = { nested };
   const input = { id: "beads/a", type, metadata: { nested } };
@@ -1137,16 +1136,8 @@ it("keeps receiving depth facts private while legacy preparation still throws", 
           operations: [{ operation: "createBead", ...input, idempotencyKey: "deep" }],
         }),
       ),
-  ]) {
-    let caught: unknown;
-    try {
-      prepare();
-    } catch (error) {
-      caught = error;
-    }
-    expect(caught).toBeInstanceOf(batch.TransactionDevelopmentLimitError);
-    expect(caught).toMatchObject({ message: "development batch depth limit" });
-  }
+  ])
+    expect(prepare).not.toThrow();
   const singleton = batch.prepareTransactionForReceiving(
     scope,
     { kind: "singleton", operation: "createBead" },
@@ -1154,10 +1145,9 @@ it("keeps receiving depth facts private while legacy preparation still throws", 
   );
   const wrapped = batch.prepareTransactionForReceiving(scope, { kind: "batch" }, mixed);
   for (const prepared of [singleton, wrapped]) {
-    expect(batch.transactionDepthRefusal(prepared)).toBe("development batch depth limit");
+    batch.assertPreparedTransaction(prepared, scope);
     expect(Object.keys(prepared)).toEqual(["carrier"]);
     expect(Object.isFrozen(prepared)).toBe(true);
-    expect(() => batch.transactionDepthRefusal({ ...prepared })).toThrow(TypeError);
     expect(() => batch.assertPreparedTransaction({ ...prepared }, scope)).toThrow(TypeError);
   }
   expect(batch.normalizeTransaction(singleton, () => undefined).identity).toBe(
@@ -1176,7 +1166,7 @@ it("keeps receiving depth facts private while legacy preparation still throws", 
       JSON.stringify({ operations: [{ operation: "createBead", id: "beads/a", type }] }),
     ),
   ])
-    expect(batch.transactionDepthRefusal(prepared)).toBeUndefined();
+    expect(() => batch.assertPreparedTransaction(prepared, scope)).not.toThrow();
   for (const prepare of [
     () =>
       batch.prepareTransactionForReceiving(
@@ -1202,25 +1192,19 @@ it("keeps receiving depth facts private while legacy preparation still throws", 
   }
 });
 
-it("annotates only deep sequence members after complete carrier syntax while strict preparation stays strict", () => {
+it("prepares deep sequence members after complete carrier syntax with strict brands and frozen wrappers", () => {
   const input = (wraps: number) => {
     let value: unknown = 0;
     for (let i = 0; i < wraps; i++) value = { nested: value };
     return { id: "beads/depth", type, metadata: { nested: value } };
   };
-  for (const [wraps, refused] of [
-    [28, false],
-    [29, true],
-  ] as const) {
+  for (const wraps of [28, 29] as const) {
     const operation = { operation: "createBead", ...input(wraps) };
     const direct = JSON.stringify({ operations: [operation] });
     const sequence = JSON.stringify({ operations: [{ ...operation, idempotencyKey: "deep" }] });
     const received = batch.prepareTransactionSequenceForReceiving(scope, sequence);
     const member = received.members[0]!;
     const directReceived = batch.prepareTransactionForReceiving(scope, { kind: "batch" }, direct);
-    const message = refused ? "development batch depth limit" : undefined;
-    expect(batch.transactionDepthRefusal(member.request)).toBe(message);
-    expect(batch.transactionDepthRefusal(directReceived)).toBe(message);
     expect(batch.normalizeTransaction(member.request, () => undefined).identity).toBe(
       batch.normalizeTransaction(directReceived, () => undefined).identity,
     );
@@ -1228,10 +1212,7 @@ it("annotates only deep sequence members after complete carrier syntax while str
       () => batch.prepareTransaction(scope, direct),
       () => batch.prepareTransactionSequence(scope, sequence),
     ]) {
-      if (refused) {
-        expect(prepare).toThrow(batch.TransactionDevelopmentLimitError);
-        expect(prepare).toThrow("development batch depth limit");
-      } else expect(prepare).not.toThrow();
+      expect(prepare).not.toThrow();
     }
     expect(Object.isFrozen(received)).toBe(true);
     expect(Object.isFrozen(member.request)).toBe(true);
@@ -1243,7 +1224,6 @@ it("annotates only deep sequence members after complete carrier syntax while str
     expect(Reflect.set(memberCarrier.operations, "0", memberCarrier.operations[0])).toBe(false);
     expect(Reflect.set(memberCarrier.keys, "0", memberCarrier.keys[0])).toBe(false);
     expect(Object.keys(member.request)).toStrictEqual(["carrier"]);
-    expect(() => batch.transactionDepthRefusal({ ...member.request })).toThrow(TypeError);
     expect(() => batch.assertPreparedTransaction({ ...member.request }, scope)).toThrow(TypeError);
     expect(() => batch.assertPreparedTransactionSequence({ ...received }, scope)).toThrow(
       TypeError,
@@ -1255,10 +1235,7 @@ it("annotates only deep sequence members after complete carrier syntax while str
     scope,
     JSON.stringify({ operations: [shallow, deep] }),
   );
-  expect(batch.transactionDepthRefusal(mixed.members[0]!.request)).toBeUndefined();
-  expect(batch.transactionDepthRefusal(mixed.members[1]!.request)).toBe(
-    "development batch depth limit",
-  );
+  for (const member of mixed.members) batch.assertPreparedTransaction(member.request, scope);
   const invalid = [
     [deep, { ...shallow, idempotencyKey: "deep" }],
     [deep, { operation: "deleteLink", link: "@creator", idempotencyKey: "wrong-kind" }],

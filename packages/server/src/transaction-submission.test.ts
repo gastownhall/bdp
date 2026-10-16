@@ -8,12 +8,17 @@ import { parseTypeDescriptor } from "@bdp/protocol";
 import { openTransactionStore } from "./transaction-store.js";
 import {
   prepareTransaction,
+  prepareTransactionSingleton,
+  normalizeTransaction,
   prepareTransactionSequence,
   prepareTransactionForReceiving,
-  TransactionDevelopmentLimitError,
 } from "./transaction-batch.js";
 import * as setCore from "./transaction-set.js";
 import { submitTransaction, type TransactionSubmission } from "./transaction-submission.js";
+import { compileDevelopmentContracts } from "./development-contracts.js";
+import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
+import { dependencyTemplate } from "./transaction-dependencies.js";
+import { createTransactionSequenceStepper } from "./transaction-sequence.js";
 const scope = "https://example.test/submission/",
   bead = "https://example.test/bead",
   link = "https://example.test/link";
@@ -143,7 +148,7 @@ describe("private direct Transactional receiving order", () => {
     expect(claim.receipt.status).toBe("pending");
     f.store.retract(claim);
   });
-  it("keeps invalid Selector grammar distinct from excessive private depth", async () => {
+  it("keeps invalid Selector grammar distinct from valid deep input", async () => {
     const f = fixture();
     expect(
       await submitTransaction(
@@ -160,9 +165,8 @@ describe("private direct Transactional receiving order", () => {
     for (let i = 0; i < 40; i++) deep = { deep };
     expect(
       await submitTransaction(f.store, submission([{ ...create(), properties: { deep } }])),
-    ).toMatchObject({ kind: "development-limit" });
-    expect(f.store.inspect().resources).toEqual([]);
-    f.store.retract(own(f.store));
+    ).toMatchObject({ kind: "receipt", receipt: { status: "completed" } });
+    expect(f.store.inspect().resources).toHaveLength(1);
   });
   it("compares conflict before negotiation and negotiates exact pending/terminal replay without changing it", async () => {
     const f = fixture(),
@@ -701,12 +705,9 @@ describe("valid private set admission", () => {
     });
     expect(f.store.inspect()).toMatchObject({ resources: [], groups: [] });
   });
-  it("uses the same depth boundary for singleton and wrapped set content", async () => {
+  it("accepts byte-bounded singleton and wrapped set content across the former depth boundary", async () => {
     const f = fixture();
-    for (const [depth, kind] of [
-      [27, "receipt"],
-      [28, "development-limit"],
-    ] as const) {
+    for (const depth of [27, 28]) {
       let value: unknown = 0;
       for (let i = 0; i < depth; i++) value = { nested: value };
       const input = {
@@ -722,7 +723,10 @@ describe("valid private set admission", () => {
             singleton ? input : { operations: [{ operation: "updateWhere", ...input }] },
           ),
         };
-        expect(await submitTransaction(f.store, request)).toMatchObject({ kind });
+        expect(await submitTransaction(f.store, request)).toMatchObject({
+          kind: "receipt",
+          receipt: { status: "completed", results: [{ outcome: "matched", count: 0 }] },
+        });
       }
     }
   });
@@ -842,7 +846,7 @@ it("charges actual singleton bytes rather than its synthetic batch wrapper", asy
 });
 
 it.each(["batch", "singleton"] as const)(
-  "finishes %s synthetic syntax before depth, including deeply nested received input",
+  "finishes %s synthetic syntax before admission, including deeply nested received input",
   async (kind) => {
     const f = fixture();
     const nested = `${"[".repeat(20000)}1e+30${"]".repeat(20000)}`;
@@ -856,7 +860,10 @@ it.each(["batch", "singleton"] as const)(
     };
     const before = f.store.inspect();
     expect(Buffer.byteLength(request.body)).toBeLessThan(65536);
-    expect(await submitTransaction(f.store, request)).toMatchObject({ kind: "development-limit" });
+    expect(await submitTransaction(f.store, request)).toMatchObject({
+      kind: "receipt",
+      receipt: { status: "completed" },
+    });
     expect(await submitTransaction(f.store, { ...request, key: "bad key" })).toMatchObject({
       kind: "refused",
       status: 400,
@@ -872,9 +879,14 @@ it.each(["batch", "singleton"] as const)(
       kind: "refused",
       status: 400,
     });
-    expect(f.store.inspect()).toEqual(before);
+    expect(f.store.inspect().resources).toEqual(before.resources);
+    expect(f.store.inspect().groups).toEqual(before.groups);
+    expect(f.store.inspect().position).toBe(before.position);
+    expect(f.store.inspect().identities).toEqual(before.identities);
     expect(await submitTransaction(f.store, submission([create()], "deep_key"))).toMatchObject({
-      kind: "receipt",
+      kind: "refused",
+      status: 409,
+      code: "idempotency-conflict",
     });
   },
 );
@@ -1544,7 +1556,7 @@ it("preserves genuine pending completed and failed receipts before Selector capa
   expect(f.store.inspect()).toEqual(before);
 });
 
-it("compares retained direct keys before private carrier depth without admitting fresh deep input", async () => {
+it("compares retained direct keys before negotiation and admits valid fresh deep input", async () => {
   const f = fixture();
   let nested: unknown = "leaf";
   for (let i = 0; i < 40; i++) nested = { nested };
@@ -1606,7 +1618,7 @@ it("compares retained direct keys before private carrier depth without admitting
         ...request(kind, freshId, freshKey, true),
         receiving: { acceptsJson: false, maximumOperations: 32 },
       }),
-    ).toEqual({ kind: "development-limit", message: "development batch depth limit" });
+    ).toEqual({ kind: "not-acceptable", context: context() });
     expect(f.store.inspect()).toEqual(before);
     const reused = await submit(request(kind, freshId, freshKey));
     expect(reused.kind).toBe("receipt");
@@ -1615,18 +1627,13 @@ it("compares retained direct keys before private carrier depth without admitting
     expect(reused.context).toEqual(context());
     expect(f.store.inspect().resources).toHaveLength(kind === "batch" ? 2 : 4);
   }
-  const beforeLegacy = f.store.inspect();
   const legacy = request("batch", "legacy", "legacy", true);
   const prepared = prepareTransactionForReceiving(scope, legacy.carrier, legacy.body);
-  let caught: unknown;
-  try {
-    f.store.admit("p", legacy.key, prepared);
-  } catch (error) {
-    caught = error;
-  }
-  expect(caught).toBeInstanceOf(TransactionDevelopmentLimitError);
-  expect(caught).toMatchObject({ message: "development batch depth limit" });
-  expect(f.store.inspect()).toEqual(beforeLegacy);
+  const legacyAdmission = f.store.admit("p", legacy.key, prepared);
+  expect(legacyAdmission.kind).toBe("owned");
+  if (legacyAdmission.kind !== "owned") throw new Error("deep legacy claim missing");
+  expect(f.store.execute(legacyAdmission.claim).status).toBe("completed");
+  const beforeLegacy = f.store.inspect();
   const stressBody = `{"operations":[{"operation":"createBead","id":"beads/a","type":"https://example.test/bead","metadata":{"deep":${"[".repeat(20000)}1e+30${"]".repeat(20000)}}}]}`;
   expect(Buffer.byteLength(stressBody)).toBe(40119);
   expect(createHash("sha256").update(stressBody).digest("hex")).toBe(
@@ -1736,3 +1743,316 @@ it("compares deep metadata against genuine pending and dependent keys without ch
   if (failures.length)
     throw new AggregateError(failures, "depth-key pending ownership or cleanup failed");
 });
+
+function assertDeepSubmissionValue(actual: unknown, expected: unknown) {
+  const stack: [unknown, unknown][] = [[actual, expected]];
+  while (stack.length) {
+    const [a, b] = stack.pop()!;
+    if (a === b) continue;
+    if (a === null || b === null || typeof a !== "object" || typeof b !== "object")
+      throw new Error("deep submission primitive mismatch");
+    expect(Array.isArray(a)).toBe(Array.isArray(b));
+    const keys = Object.keys(a).sort();
+    expect(keys).toEqual(Object.keys(b).sort());
+    for (const key of keys)
+      stack.push([(a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]]);
+  }
+}
+function assertDeepReceiptFrozen(value: unknown) {
+  const pending: unknown[] = [value];
+  while (pending.length) {
+    const node = pending.pop();
+    if (node !== null && typeof node === "object") {
+      if (!Object.isFrozen(node)) throw new Error("mutable nested receipt value");
+      for (const child of Object.values(node)) pending.push(child);
+    }
+  }
+}
+it("executes deep values through set and dependent sequence with durable receipt recovery", () => {
+  const bead = `${scope}types/deep`,
+    link = `${scope}types/deep-link`;
+  const started = performance.now(),
+    directory = mkdtempSync(path.join(tmpdir(), "bdp-tx-deep-"));
+  const errors: unknown[] = [];
+  let store: ReturnType<typeof openTransactionStore> | undefined;
+  let now = 1000000;
+  try {
+    const schemaUri = `${scope}deep-schema`;
+    const artifact = (retrievalUri: string, value: unknown) => ({
+      retrievalUri,
+      utf8Bytes: Buffer.from(JSON.stringify(value)),
+    });
+    const contracts = compileDevelopmentContracts({
+      limits: CONTRACT_ARTIFACT_CEILINGS,
+      descriptors: [
+        artifact(bead, {
+          id: bead,
+          name: "Deep",
+          describes: "bead",
+          conformsTo: [],
+          propertiesSchema: schemaUri,
+        }),
+        artifact(link, {
+          id: link,
+          name: "Link",
+          describes: "link",
+          conformsTo: [],
+          source: { conformsTo: [bead], external: "none" },
+          target: { conformsTo: [bead], external: "none" },
+        }),
+      ],
+      schemas: [
+        artifact(schemaUri, {
+          $id: schemaUri,
+          type: "object",
+          properties: { deep: { type: "array" } },
+        }),
+      ],
+    });
+    const options = {
+      file: path.join(directory, "store.sqlite"),
+      scope,
+      create: true,
+      types: contracts.descriptors,
+      contracts,
+      clock: () => now,
+      receiptMaximumItems: 2,
+    };
+    store = openTransactionStore(options);
+    const deep = "[".repeat(12000) + "1" + "]".repeat(12000);
+    const measured: { label: string; bodyBytes: number; identityBytes: number }[] = [];
+    const execute = (key: string, body: string, singleton = false) => {
+      expect(Buffer.byteLength(body)).toBeLessThanOrEqual(65536);
+      const prepared = singleton
+        ? prepareTransactionSingleton(scope, "createBead", body)
+        : prepareTransaction(scope, body);
+      measured.push({
+        label: key,
+        bodyBytes: Buffer.byteLength(body),
+        identityBytes: Buffer.byteLength(normalizeTransaction(prepared, () => undefined).identity),
+      });
+      const admitted = store!.admit("p", key, prepared);
+      if (admitted.kind === "existing") return admitted.receipt;
+      if (admitted.kind !== "owned") throw new Error("deep submission admission");
+      return store!.execute(admitted.claim);
+    };
+    const single = execute(
+      "single",
+      `{"id":"beads/s","type":"${bead}","properties":{"deep":${deep}}}`,
+      true,
+    );
+    expect(single.status).toBe("completed");
+    const singleRead = store.readReceipt("p", single.id);
+    assertDeepSubmissionValue(singleRead.receipt, single);
+    assertDeepReceiptFrozen(singleRead.receipt);
+    const seedBody = `{"operations":[{"operation":"createBead","id":"beads/a","type":"${bead}"},{"operation":"createBead","id":"beads/b","type":"${bead}"},{"operation":"createBead","id":"beads/c","type":"${bead}","properties":{"deep":${deep}},"metadata":{"n":0}}]}`;
+    const seed = execute("seed", seedBody);
+    expect(seed.status).toBe("completed");
+    const seedResults = seed.results as { resource: Record<string, unknown> }[];
+    const original = seedResults[2]!.resource;
+    assertDeepSubmissionValue(
+      original,
+      JSON.parse(
+        `{"id":"${scope}beads/c","type":"${bead}","revision":${JSON.stringify(original.revision)},"properties":{"deep":${deep}},"metadata":{"n":0}}`,
+      ),
+    );
+    expect(seed.id).toMatch(new RegExp(`^${scope}receipts/[0-9a-f-]{36}$`));
+    expect(seed.transaction).toMatch(/^[0-9a-f-]{36}$/);
+    expect(seed.expiresAt).toBe(new Date(now + 86400000).toISOString());
+    const expectedSeedResults = seedResults.map((r, operationIndex) => {
+      expect(typeof r.resource.revision).toBe("string");
+      const id = ["a", "b", "c"][operationIndex]!;
+      return {
+        operationIndex,
+        outcome: "created",
+        resource:
+          operationIndex === 2
+            ? JSON.parse(
+                `{"id":"${scope}beads/c","type":"${bead}","revision":${JSON.stringify(r.resource.revision)},"properties":{"deep":${deep}},"metadata":{"n":0}}`,
+              )
+            : {
+                id: `${scope}beads/${id}`,
+                type: bead,
+                revision: r.resource.revision,
+                properties: {},
+                metadata: {},
+              },
+      };
+    });
+    assertDeepSubmissionValue(seed, {
+      id: seed.id,
+      status: "completed",
+      detail: "available",
+      idempotencyKey: "seed",
+      scopeEpoch: store.scopeEpoch,
+      authorizationView: store.authorizationSnapshot().authorizationView,
+      transaction: seed.transaction,
+      requiredPosition: "pos-2",
+      effectPosition: "pos-2",
+      results: expectedSeedResults,
+      next: null,
+      expiresAt: new Date(now + 86400000).toISOString(),
+    });
+    const root = store.readReceipt("p", seed.id);
+    if (!root.receipt || typeof root.receipt.next !== "string")
+      throw new Error("issued deep receipt page required");
+    assertDeepReceiptFrozen(root.receipt);
+    const pageUrl = root.receipt.next;
+    const page = store.readReceiptPage("p", pageUrl);
+    if (page.kind !== "page") throw new Error("deep receipt page missing");
+    assertDeepSubmissionValue(page.page.results, seedResults.slice(2));
+    assertDeepReceiptFrozen(page.page);
+    const patched = execute(
+      "patch",
+      `{"operations":[{"operation":"updateBead","bead":"beads/c","propertiesChange":[{"op":"add","path":"/copy","value":${deep}},{"op":"add","path":"/deep/-","value":2}]}]}`,
+    );
+    expect(patched.status).toBe("completed");
+    const patchedResource = (patched.results as { resource: Record<string, unknown> }[])[0]!
+      .resource;
+    const changedDeep = "[" + "[".repeat(11999) + "1" + "]".repeat(11999) + ",2]";
+    const expectedProperties = `{"deep":${changedDeep},"copy":${deep}}`;
+    assertDeepSubmissionValue(
+      patchedResource,
+      JSON.parse(
+        `{"id":"${scope}beads/c","type":"${bead}","revision":${JSON.stringify(patchedResource.revision)},"properties":${expectedProperties},"metadata":{"n":0}}`,
+      ),
+    );
+    const beforeNoop = store.inspect();
+    const noop = execute(
+      "noop",
+      `{"operations":[{"operation":"updateBead","bead":"beads/c","propertiesChange":[{"op":"replace","path":"","value":{"copy":${deep},"deep":${changedDeep}}}],"metadataChange":[{"op":"replace","path":"/n","value":-0.0}]}]}`,
+    );
+    expect(noop.status).toBe("completed");
+    assertDeepSubmissionValue(
+      (noop.results as { resource: unknown }[])[0]!.resource,
+      patchedResource,
+    );
+    expect(store.inspect().position).toBe(beforeNoop.position);
+    assertDeepSubmissionValue(store.inspect().groups, beforeNoop.groups);
+    const afterNoop = store.inspect();
+    assertDeepSubmissionValue(afterNoop.resources, beforeNoop.resources);
+    for (const [index, resource] of afterNoop.resources.entries()) {
+      const before = beforeNoop.resources[index] as { properties: object };
+      expect(Object.keys((resource as { properties: object }).properties)).toEqual(
+        Object.keys(before.properties),
+      );
+    }
+    const selected = execute(
+      "set",
+      '{"operations":[{"operation":"updateWhere","collection":"beads","selector":"$[?@.id]","change":[{"op":"add","path":"/selected","value":true}]}]}',
+    );
+    expect(selected.status).toBe("completed");
+    expect((selected.results as { count: number }[])[0]!.count).toBe(4);
+    const sequenceBody = `{"operations":[{"operation":"createBead","name":"made","idempotencyKey":"made","type":"${bead}","properties":{"deep":${deep}}},{"operation":"createLink","idempotencyKey":"linked","type":"${link}","source":"@made","target":"@made","properties":{"deep":${deep}}}]}`;
+    expect(Buffer.byteLength(sequenceBody)).toBeLessThanOrEqual(65536);
+    const preparedSequence = prepareTransactionSequence(scope, sequenceBody);
+    for (const member of preparedSequence.members)
+      measured.push({
+        label: member.key,
+        bodyBytes: Buffer.byteLength(sequenceBody),
+        identityBytes: Buffer.byteLength(
+          member.deferred
+            ? dependencyTemplate("measurement-only", member).identity
+            : normalizeTransaction(member.request, () => undefined).identity,
+        ),
+      });
+    const stepper = createTransactionSequenceStepper(store, "p", preparedSequence);
+    const first = stepper.step();
+    const createdId = String((first.entry.resource as { id: string }).id);
+    const deferredMember = preparedSequence.members[1]!;
+    measured.push({
+      label: "linked-resolved",
+      bodyBytes: Buffer.byteLength(sequenceBody),
+      identityBytes: Buffer.byteLength(
+        normalizeTransaction(
+          deferredMember.request,
+          () => undefined,
+          undefined,
+          new Map(deferredMember.dependencies.map((d) => [d.field, createdId])),
+        ).identity,
+      ),
+    });
+    const second = stepper.step();
+    expect(first.entry.outcome).toBe("created");
+    expect(second.entry.outcome).toBe("created");
+    expect(second.done).toBe(true);
+    const made = first.entry.resource as Record<string, unknown>,
+      linked = second.entry.resource as Record<string, unknown>;
+    expect(linked.source).toBe(made.id);
+    expect(linked.target).toBe(made.id);
+    assertDeepSubmissionValue(made.properties, JSON.parse(`{"deep":${deep}}`));
+    assertDeepSubmissionValue(linked.properties, JSON.parse(`{"deep":${deep}}`));
+    const beforeFailure = store.inspect();
+    const failedBody =
+      '{"operations":[{"operation":"updateBead","bead":"beads/c","propertiesChange":[{"op":"add","path":"/rollback","value":true}]},{"operation":"updateBead","bead":"beads/c","metadataChange":[{"op":"remove","path":"/absent"}]}]}';
+    const failed = execute("failed", failedBody);
+    expect(failed.status).toBe("failed");
+    const failedRead = store.readReceipt("p", failed.id);
+    expect(failedRead.receipt?.status).toBe("failed");
+    assertDeepReceiptFrozen(failedRead.receipt);
+    expect((failed.problem as { status: number; operationIndex: number }).status).toBe(422);
+    expect((failed.problem as { operationIndex: number }).operationIndex).toBe(1);
+    assertDeepSubmissionValue(store.inspect().resources, beforeFailure.resources);
+    assertDeepSubmissionValue(store.inspect().groups, beforeFailure.groups);
+    expect(store.inspect().position).toBe(beforeFailure.position);
+    assertDeepSubmissionValue(execute("failed", failedBody), failed);
+    assertDeepSubmissionValue(execute("seed", seedBody), seed);
+    expect(store.maintain()).toEqual({ completedExpired: 0, failedForgotten: 0 });
+    assertDeepSubmissionValue(store.receipt("p", seed.id), seed);
+    const durable = store.inspect();
+    store.close();
+    store = undefined;
+    store = openTransactionStore({ ...options, create: false });
+    assertDeepSubmissionValue(store.inspect(), durable);
+    assertDeepSubmissionValue(store.receipt("p", seed.id), seed);
+    const reopenedPage = store.readReceiptPage("p", pageUrl);
+    if (reopenedPage.kind !== "page") throw new Error("reopened deep receipt page missing");
+    assertDeepSubmissionValue(reopenedPage.page, page.page);
+    assertDeepReceiptFrozen(reopenedPage.page);
+    now = Math.max(Date.parse(String(seed.expiresAt)), Date.parse(String(failed.expiresAt))) + 1;
+    const expired = store.maintain();
+    expect(expired.completedExpired).toBeGreaterThan(0);
+    expect(expired.failedForgotten).toBe(1);
+    const compact = store.receipt("p", seed.id);
+    expect(compact?.detail).toBe("expired");
+    const expiredRead = store.readReceipt("p", seed.id);
+    expect(expiredRead.receipt?.detail).toBe("expired");
+    assertDeepReceiptFrozen(expiredRead.receipt);
+    expect(store.readReceiptPage("p", pageUrl)).toMatchObject({ kind: "expired" });
+    expect(compact?.allocated).toEqual(
+      seedResults.map((r, operationIndex) => ({
+        operationIndex,
+        id: r.resource.id,
+        type: r.resource.type,
+      })),
+    );
+    expect(store.receipt("p", failed.id)).toBeUndefined();
+    expect(store.admit("p", "seed", prepareTransaction(scope, seedBody)).kind).toBe("existing");
+    expect(
+      execute(
+        "failed",
+        JSON.stringify({
+          operations: [{ operation: "createBead", id: "beads/after-expiry", type: bead }],
+        }),
+      ).status,
+    ).toBe("completed");
+    expect(measured.every((entry) => entry.identityBytes > 0)).toBe(true);
+    console.log(JSON.stringify({ witness: "fresh-depth-source-identities", measured }));
+    expect(performance.now() - started).toBeLessThan(20000);
+  } catch (error) {
+    errors.push(error);
+  }
+  const cleaning = performance.now();
+  try {
+    store?.close();
+  } catch (error) {
+    errors.push(error);
+  }
+  try {
+    rmSync(directory, { recursive: true, force: true });
+  } catch (error) {
+    errors.push(error);
+  }
+  if (performance.now() - cleaning >= 5000) errors.push(new Error("deep source cleanup deadline"));
+  if (errors.length) throw new AggregateError(errors, "deep source witness failed");
+}, 30000);
