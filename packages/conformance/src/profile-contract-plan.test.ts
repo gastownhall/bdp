@@ -270,8 +270,8 @@ describe("canonical cumulative profile contracts", () => {
       }[];
     };
     expect(coverage.rows).toHaveLength(130);
-    expect(coverage.rows.filter((row) => !row.wholeContract)).toHaveLength(97);
-    expect(coverage.rows.filter((row) => row.status === "omitted")).toHaveLength(76);
+    expect(coverage.rows.filter((row) => !row.wholeContract)).toHaveLength(96);
+    expect(coverage.rows.filter((row) => row.status === "omitted")).toHaveLength(75);
     const omitted = coverage.rows.filter((row) => row.id === id);
     expect(omitted).toHaveLength(1);
     expect(omitted[0]).toMatchObject({ id, status: "omitted", wholeContract: false, bindings: [] });
