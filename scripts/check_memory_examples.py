@@ -1,6 +1,6 @@
 """Offline review-artifact checks, not a Memory runtime or Type-profile implementation.
 
-Run: uv run --no-project --with 'jsonschema[format]' python specs/schemas/check_memory_examples.py
+Run: uv run --no-project --with 'jsonschema[format]' python scripts/check_memory_examples.py
 """
 import argparse
 import json
@@ -11,9 +11,11 @@ from jsonschema.validators import SPECIFICATIONS
 from referencing import Registry, Resource
 from referencing.exceptions import NoSuchResource
 
-HERE = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
+MEMORY_DIR = ROOT / "specs/types/memory"
+FIXTURES = ROOT / "fixtures/specs/memory"
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--shared-schemas", type=Path, default=HERE,
+parser.add_argument("--shared-schemas", type=Path, default=ROOT / "specs/schemas",
                     help="Optional pinned shared-artifact snapshot for preparatory checks")
 args = parser.parse_args()
 K = "https://example.org/memory-types/"
@@ -42,7 +44,7 @@ def unavailable(uri):
     raise NoSuchResource(ref=uri)
 
 
-schemas = {name: read(HERE / filename) for name, filename in NAMES.items()}
+schemas = {name: read(MEMORY_DIR / filename) for name, filename in NAMES.items()}
 shared = {name: read(args.shared_schemas / name) for name in SHARED_NAMES}
 all_schemas = [*schemas.values(), *shared.values()]
 registry = Registry(retrieve=unavailable).with_resources(
@@ -59,7 +61,7 @@ def validator(schema):
 
 validators = {name: validator(schema) for name, schema in schemas.items()}
 shared_validators = {name: validator(schema) for name, schema in shared.items()}
-cases = read(HERE / "examples/memory-schema-cases.json")["cases"]
+cases = read(FIXTURES / "schema-cases.json")["cases"]
 require(bool(cases), "No property cases loaded")
 for case in cases:
     name = case["type"]
@@ -70,7 +72,7 @@ for case in cases:
               for error in selected_validator.iter_errors(case["properties"])]
     require((not errors) == case["valid"], (case["label"], errors))
 
-fixture = read(HERE / "examples/memory-types.json")
+fixture = read(MEMORY_DIR / "definitions.json")
 definitions = fixture["definitions"]
 require(len(definitions) == 12, "Expected six Bead and six Link definitions")
 by_pin = {(d["id"], d["revision"]): d for d in definitions}
@@ -129,7 +131,7 @@ for name in CHILDREN:
 require(by_pin[MEMORY]["properties"]["ownsOutgoing"] == [{"any": True}],
         "Base Memory must own every outgoing Link")
 
-records = read(HERE / "examples/memory-records.json")
+records = read(FIXTURES / "records.json")
 for record in records["records"]:
     pin = exact(record["type"])
     require(pin in by_pin, ("Unknown record affiliation", pin))

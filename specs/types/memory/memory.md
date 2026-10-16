@@ -19,11 +19,11 @@ syntax, runtime delivery, release acceptance or a Preview 3 cutline.
 
 ## 1. Sources, authority and reconciliation
 
-The shared [Types design](../types.md) owns definition representation, exact
+The shared [Types design](../../types.md) owns definition representation, exact
 affiliation, conformance, schema composition and graph-constraint matching. It is
 an optional Scope-wide profile depending on Core, not Write. This domain uses
 Types and Core; its write obligations apply where writes are supported. The
-[existing protocol](../../docs/specs/bdp.md) remains authoritative until separately
+[existing protocol](../../../docs/specs/bdp.md) remains authoritative until separately
 amended. Publishing design on main does not adopt candidate wire forms.
 
 **Shared design baseline:** public BDP main at
@@ -96,7 +96,7 @@ pre-installation does not make Memory intrinsic or exempt from ordinary lifecycl
 Each child definition owns a ConformsTo Link to the exact Memory contract it
 promises. Recorded historical owner state supplies those declarations. Editing
 Memory or a declaration does not change an existing instance or descendant pin.
-The [illustrative definition graph](../schemas/examples/memory-types.json) shows
+The [illustrative definition graph](./definitions.json) shows
 these domain declarations without defining new bootstrap or package mechanics.
 
 Conformance holds because every valid specialization preserves title/body,
@@ -128,7 +128,7 @@ properties schema is not an envelope schema or complete domain-operation validat
 | inception | Optional origin/transfer object; method native, converted, imported or unknown; optional origin reference, not a source list |
 | applicability | Optional claimed conditions: nonblank description and optional validFrom/validUntil RFC3339 instants |
 
-The [Memory properties schema](../schemas/memory.properties.schema.json) has an
+The [Memory properties schema](./memory.properties.schema.json) has an
 open root for future/conforming properties. The `inception` and `applicability`
 objects are deliberately closed in this candidate; conformers cannot add nested
 members without adopting a revised base contract. A specialization may introduce
@@ -167,11 +167,11 @@ recorded ConformsTo graph; a local fragment passing alone is not complete accept
 
 | Type | Added properties | Meaning |
 | --- | --- | --- |
-| [Observation](../schemas/memory-observation.local-properties.schema.json) | statement required/nonblank; observedAt optional RFC3339 instant | Caller-reported observation and observation time; omitted time remains unknown, never commit time |
-| [Decision](../schemas/memory-decision.local-properties.schema.json) | choice required/nonblank; alternatives optional ordered array of nonblank strings | A recorded choice, without approval, Issue completion or exhaustive-alternatives claim |
-| [Procedure](../schemas/memory-procedure.local-properties.schema.json) | steps required/nonempty ordered array of nonblank strings | Reusable instructions; no automatic execution, work plan, progress or step identities |
-| [Policy](../schemas/memory-policy.local-properties.schema.json) | rule required/nonblank; authority optional URI or `{uri, revision}` authored value | A recorded rule and claimed authority reference, never an access grant or compliance certification |
-| [Lesson](../schemas/memory-lesson.local-properties.schema.json) | takeaway required/nonblank | A reusable lesson, not proof of general applicability |
+| [Observation](./memory-observation.local-properties.schema.json) | statement required/nonblank; observedAt optional RFC3339 instant | Caller-reported observation and observation time; omitted time remains unknown, never commit time |
+| [Decision](./memory-decision.local-properties.schema.json) | choice required/nonblank; alternatives optional ordered array of nonblank strings | A recorded choice, without approval, Issue completion or exhaustive-alternatives claim |
+| [Procedure](./memory-procedure.local-properties.schema.json) | steps required/nonempty ordered array of nonblank strings | Reusable instructions; no automatic execution, work plan, progress or step identities |
+| [Policy](./memory-policy.local-properties.schema.json) | rule required/nonblank; authority optional URI or `{uri, revision}` authored value | A recorded rule and claimed authority reference, never an access grant or compliance certification |
+| [Lesson](./memory-lesson.local-properties.schema.json) | takeaway required/nonblank | A reusable lesson, not proof of general applicability |
 
 All inherit the common contract. Fields are directly named: no `kind`, `details`
 wrapper or inference from prose. Missing alternatives means unrecorded; an empty
@@ -179,7 +179,7 @@ array means none listed, not exhaustive consideration. Order of procedure steps
 is significant; numbers are positions, not persistent step identities.
 
 `inception.origin` and `authority` reuse only the existing Core Reference **value
-shape**: a URI or `{uri, revision}`. Under [Core's Reference rule](../../docs/specs/bdp.md#references),
+shape**: a URI or `{uri, revision}`. Under [Core's Reference rule](../../../docs/specs/bdp.md#references),
 values inside properties are authored data, not protocol References or graph edges.
 These fields confer no Core canonicalization, resolution, traversal, incident-Link
 behavior or target validation. Their shape restrictions are this Type's own
@@ -222,7 +222,7 @@ shape matching cannot establish that their prose is truthful. No workflow catego
 field or semantic-classification language is introduced here. Automated discovery
 and enforcement for arbitrary custom contracts remain shared design work. Report
 the declarable checks actually supported; do not label them full semantic validation.
-The [common relationship properties schema](../schemas/memory-link.properties.schema.json)
+The [common relationship properties schema](./memory-link.properties.schema.json)
 allows an optional nonblank note; it has no relationship selector. Common metadata
 holds application annotations. A note explains the relationship, not a competing
 canonical rationale or evidence envelope.
@@ -432,7 +432,7 @@ fetches, rather than designing a new evidence index here.
 
 ## 7. Worked field and office examples
 
-The [worked records](../schemas/examples/memory-records.json) are illustrative
+The [worked records](../../../fixtures/specs/memory/records.json) are illustrative
 final-state excerpts using exact Type pins, not import/creation payloads, package
 syntax or permission to assign revisions. Work/inspection Issue endpoints are assumed existing Issue-contract fixtures, not
 new Issue definitions or Memory Bead excerpts. Separate schema cases validate property
@@ -552,14 +552,14 @@ evidence; this traceability table does not duplicate its as-built verdicts.
 
 ## 9. Positive and negative acceptance cases
 
-The [schema cases](../schemas/examples/memory-schema-cases.json) and
-[offline checker](../schemas/check_memory_examples.py) exercise artifact shapes
+The [schema cases](../../../fixtures/specs/memory/schema-cases.json) and
+[offline checker](../../../scripts/check_memory_examples.py) exercise artifact shapes
 and the explicitly listed finite definition examples. The evidence column below
 distinguishes checked property shapes from written operation requirements. No
 case here executes History, transactions, remote resolution, graph runtime, CLI
 or full semantic conformance. Literal records are illustrative fixtures. Run the
 Memory checker from the repository root with
-`uv run --no-project --with 'jsonschema[format]' python specs/schemas/check_memory_examples.py`.
+`uv run --no-project --with 'jsonschema[format]' python scripts/check_memory_examples.py`.
 The shared schemas README/checker describes its separate foundational artifacts;
 this Memory section documents the additional domain artifacts and invocation.
 
