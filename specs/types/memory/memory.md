@@ -19,11 +19,11 @@ syntax, runtime delivery, release acceptance or a Preview 3 cutline.
 
 ## 1. Sources, authority and reconciliation
 
-The shared [Types design](../../types.md) owns definition representation, exact
+The shared [Types design](../../profiles/types/types.md) owns definition representation, exact
 affiliation, conformance, schema composition and graph-constraint matching. It is
 an optional Scope-wide profile depending on Core, not Write. This domain uses
 Types and Core; its write obligations apply where writes are supported. The
-[existing protocol](../../../docs/specs/bdp.md) remains authoritative until separately
+[existing protocol](../../profiles/core/core.md) remains authoritative until separately
 amended. Publishing design on main does not adopt candidate wire forms.
 
 **Shared design baseline:** public BDP main at
@@ -179,7 +179,7 @@ array means none listed, not exhaustive consideration. Order of procedure steps
 is significant; numbers are positions, not persistent step identities.
 
 `inception.origin` and `authority` reuse only the existing Core Reference **value
-shape**: a URI or `{uri, revision}`. Under [Core's Reference rule](../../../docs/specs/bdp.md#references),
+shape**: a URI or `{uri, revision}`. Under [Core's Reference rule](../../profiles/core/core.md#references),
 values inside properties are authored data, not protocol References or graph edges.
 These fields confer no Core canonicalization, resolution, traversal, incident-Link
 behavior or target validation. Their shape restrictions are this Type's own

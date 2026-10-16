@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MEMORY_DIR = ROOT / "specs/types/memory"
 FIXTURES = ROOT / "fixtures/specs/memory"
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--shared-schemas", type=Path, default=ROOT / "specs/schemas",
+parser.add_argument("--shared-schemas", type=Path, default=ROOT / "specs/profiles/types",
                     help="Optional pinned shared-artifact snapshot for preparatory checks")
 args = parser.parse_args()
 K = "https://example.org/memory-types/"
@@ -77,7 +77,7 @@ definitions = fixture["definitions"]
 require(len(definitions) == 12, "Expected six Bead and six Link definitions")
 by_pin = {(d["id"], d["revision"]): d for d in definitions}
 require(len(by_pin) == len(definitions), "Duplicate exact domain definition")
-foundation = read(args.shared_schemas / "examples/type-foundation.json")
+foundation = read(args.shared_schemas / "definitions.json")
 combined = {(d["id"], d["revision"]): d for d in foundation["definitions"]}
 require(not set(combined).intersection(by_pin), "Domain fixture overwrites foundation")
 combined.update(by_pin)
