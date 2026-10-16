@@ -640,9 +640,10 @@ describe("private Transactional sequence slice", () => {
         kind: "existing",
         receipt: foreign.receipt,
       });
-      expect(runSteps(createTransactionSequenceStepper(f.store, "p", request))).toStrictEqual(
-        created,
-      );
+      const replay = runSteps(createTransactionSequenceStepper(f.store, "p", request));
+      // This fixture is bounded to 41 metadata levels. JSON preserves every wire
+      // field/value while ignoring decoded null-vs-Object prototypes on replay.
+      expect(JSON.stringify(replay)).toBe(JSON.stringify(created));
       expect(f.store.execute(foreign).status).toBe("completed");
       expect(f.store.inspect().groups).toHaveLength(4);
     });
