@@ -196,9 +196,12 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(235);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(234);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.unobservedIds).toContain("read-update.http.command-minimum-fields");
+  expect(plan.requirements.find((r) => r.id === "read.http.conditional-reads")?.readiness).toBe(
+    "unplanned",
+  );
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
   expect(() => planProfileExecution(selected, configuration("read-update"))).toThrow("disagree");
 });
@@ -1112,7 +1115,15 @@ it("preserves every original TX scenario and coverage object while adding one bo
   }
   for (const name of ["manifest", "coverage"] as const)
     assertOriginalObjects(read(name).toString(), name);
-  const changed = read("manifest").toString().replace('"equals": 401', '"equals": 402');
+  const originalText = read("manifest").toString();
+  const atomicRaw = objectSlices(originalText, "scenarios").get(
+    "transactional.batch.atomic-commit",
+  )!;
+  expect(atomicRaw.match(/"equals": 401/g)).toHaveLength(1);
+  const changed = originalText.replace(
+    atomicRaw,
+    atomicRaw.replace('"equals": 401', '"equals": 402'),
+  );
   expect(() => assertOriginalObjects(changed, "manifest")).toThrow(
     "transactional.batch.atomic-commit",
   );
@@ -1133,9 +1144,11 @@ it("preserves every original TX scenario and coverage object while adding one bo
     "transactional.idempotency.cross-carrier",
     "transactional.idempotency.failed-retained",
     "transactional.sequence.member-transactions",
+    "transactional.http.conditional-reads",
   ]);
   const counts = new Map<string, number>();
   for (const [id, expected] of [
+    ["transactional.http.conditional-reads", 14],
     ["transactional.set.cardinality", 16],
     ["transactional.set.singleton-targets", 22],
     ["transactional.set.mutation", 30],
@@ -1159,7 +1172,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
-  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(227);
+  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(241);
   // Historical root-accepted deletion-safety measurement: M620094/N16373/C88043/A333.
   // Schema-name repair uses4B of the accepted margin:4092B/64nodes/1024B.
   // Historical measurement-only draft retained the smaller guards pending root acceptance.
@@ -1171,20 +1184,24 @@ it("preserves every original TX scenario and coverage object while adding one bo
   // Preserve bases488280/13019/70662 and margins4096B/64nodes/1024B.
   // Root-accepted sequence-member: disk790009/normal802361/nodes20956/coverage117702.
   // Root-accepted principal: disk825049/normal837765/nodes21908/coverage124537.
+  // Root-accepted conditional Read: disk870122/normal883414/nodes23196/coverage133517.
+  // Prior TX rebind measurement: disk869264/normal882556/nodes23166/coverage133568.
+  // Portability successor: disk867804/normal881096/nodes23126/coverage133364.
+  // Root must independently accept these measured fences before execution.
   // These measured source authoring fences do not change runtime/parser limits.
-  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(340865);
-  expect(read("manifest").byteLength).toBeLessThanOrEqual(829145);
-  expect(Buffer.byteLength(JSON.stringify(manifest, null, 2) + "\n")).toBeLessThanOrEqual(841861);
-  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(54899);
-  expect(read("coverage").byteLength).toBeLessThanOrEqual(125561);
+  expect(read("manifest").byteLength - 488280).toBeLessThanOrEqual(383620);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(871900);
+  expect(Buffer.byteLength(JSON.stringify(manifest, null, 2) + "\n")).toBeLessThanOrEqual(885192);
+  expect(read("coverage").byteLength - 70662).toBeLessThanOrEqual(63726);
+  expect(read("coverage").byteLength).toBeLessThanOrEqual(134388);
   expect(
     Buffer.byteLength(JSON.stringify(JSON.parse(read("coverage").toString()), null, 2) + "\n"),
-  ).toBeLessThanOrEqual(125561);
+  ).toBeLessThanOrEqual(134388);
   expect(
     manifest.scenarios.flatMap((r: { actions: { assertions: unknown[] }[] }) =>
       r.actions.flatMap((a) => a.assertions),
     ),
-  ).toHaveLength(2642);
+  ).toHaveLength(2828);
   expect(read("fixture").byteLength).toBe(716);
   expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
     "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
@@ -1196,8 +1213,8 @@ it("preserves every original TX scenario and coverage object while adding one bo
     nodes++;
     if (value && typeof value === "object") pending.push(...Object.values(value));
   }
-  expect(nodes - 13019).toBeLessThanOrEqual(8953);
-  expect(nodes).toBeLessThanOrEqual(21972);
+  expect(nodes - 13019).toBeLessThanOrEqual(10171);
+  expect(nodes).toBeLessThanOrEqual(23190);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
     "transactional.receipt.pagination": [
@@ -3170,6 +3187,7 @@ const principalParentPins = {
   ],
 } as const;
 function withoutPrincipalRow(text: string, name: "manifest" | "coverage") {
+  text = withoutConditionalRow(text, name);
   const objects = objectSlices(text, name === "manifest" ? "scenarios" : "rows");
   for (const [id, hash, bytes] of principalParentPins[name]) {
     const raw = objects.get(id)!;
@@ -3538,4 +3556,272 @@ it("pins the partial principal namespace row, full parent and exact credential r
   ]);
   for (const name of ["manifest", "coverage"] as const)
     withoutPrincipalRow(read(name).toString(), name);
+});
+
+const conditionalId = "transactional.http.conditional-reads";
+const conditionalParentPins = {
+  manifest: [
+    [
+      "read-update.idempotency.principal-isolation",
+      "154e599e9c3fd3fc050af199f4ab6158c8633bfe66cb39fd15e099fb85a7b1e5",
+      35034,
+    ],
+    [
+      "read-update.http.command-minimum-fields",
+      "f04c001617ccad14ef67a82586ea5f61ec918bc2545bb041fafc21dee07b5d7e",
+      54412,
+    ],
+    [
+      "transactional.batch.atomic-commit",
+      "0dfd3b9ed02d01f76ecac08c00b009b4bb9f03e57f7e15a2266eed82fc144747",
+      14936,
+    ],
+    [
+      "transactional.batch.rollback",
+      "be24067358af7b5acf7bc1beae2eb6534cbc0effa6f65406ab61b139310bfc37",
+      16319,
+    ],
+    [
+      "transactional.batch.deletion-safety",
+      "3e66e7c95aec963cc80e076249a5870b952765b2e98c1023ea148f8f628e6aeb",
+      131808,
+    ],
+    [
+      "transactional.batch.no-op-entries",
+      "9307b230eb053131e9127cbbb5e6285305b79d6794edd22f5432a07fc74d9faa",
+      81047,
+    ],
+    [
+      "transactional.set.mutation",
+      "6e7280a9ebbbc3faa1da989015cc802f82cd51b17a9cea11e7cc91392bef49d6",
+      71739,
+    ],
+    [
+      "transactional.set.zero-match",
+      "35aa23bd32539869ea3db41e1c9f3e81a3217e2eb983e764e860a6e00c9eb2c9",
+      36055,
+    ],
+    [
+      "transactional.set.cardinality",
+      "205af1c54d62efb09c9eadf20147a1730909e788c0d4763ce9718b8648f24ede",
+      28546,
+    ],
+    [
+      "transactional.set.singleton-targets",
+      "561b8ebc21106628918111332a9ab7b47be7350935925ed1e76a6cb5bed576b9",
+      40018,
+    ],
+    [
+      "transactional.receipt.readable",
+      "ddb97e450e233b941f7d905d49f48648d9965ed1b361dcdc5dee6f810038a1e0",
+      12545,
+    ],
+    [
+      "transactional.receipt.pagination",
+      "c531c260349347cdc3e54ba68282f1a266a5fa207d3775660615f836a4768782",
+      138750,
+    ],
+    [
+      "transactional.idempotency.conflict",
+      "ba93aea884ae462533d02695642f03a2ca854f5adabeb41867254216dabb2106",
+      29772,
+    ],
+    [
+      "transactional.idempotency.cross-carrier",
+      "4ad8c05fe5fbb4682809d4481c93e2684fe30fbbb8962b4da498590637f8f35b",
+      64106,
+    ],
+    [
+      "transactional.idempotency.failed-retained",
+      "a867694406dde07da71ac70197c60c478dd0fb3344cf2c8160795d1aa62d3378",
+      18404,
+    ],
+    [
+      "transactional.sequence.member-transactions",
+      "c46b34914118dd34ea1e5f12304124550b9d3c4bfcd9671b99995d6af44a2e1b",
+      51379,
+    ],
+  ],
+  coverage: [
+    [
+      "read-update.idempotency.principal-isolation",
+      "6bbf6691e1c89ab2ef32ecd9f16868943af85414f6b4a689cf6e41cc5a3e27e7",
+      6829,
+    ],
+    [
+      "read-update.http.command-minimum-fields",
+      "47914ed67c7b06e721e74134e0c633f3e1a7d461cb50ea200ff1874686885c2a",
+      8888,
+    ],
+    [
+      "transactional.batch.atomic-commit",
+      "ffd77a9d34ac41a6e1f960671bea6880eb5b2ab7b11b3af4ccf0177363d7f4d7",
+      2383,
+    ],
+    [
+      "transactional.batch.rollback",
+      "9e4f5cdb45f0133f1c6d23caa402701981db2e6f4198e23c667579622ace6769",
+      2857,
+    ],
+    [
+      "transactional.batch.deletion-safety",
+      "ac27a329a1cc013e6a0e24e0f5cad6b5b4af6c128ad65302d030422a3c7e3c0a",
+      17375,
+    ],
+    [
+      "transactional.batch.no-op-entries",
+      "383de4e0cb9b3bad310b9db7ff9009cb59fac55966f0309bc71c5d007bea6c1c",
+      10587,
+    ],
+    [
+      "transactional.set.mutation",
+      "058147f8194f091ee5a7ef3d4fd378f0324f6570049df777f993acb5f967d540",
+      11676,
+    ],
+    [
+      "transactional.set.zero-match",
+      "4e79e18a5e4c2735b5c686b9ad610dedc890386bfb06584f98268a421bbb832b",
+      6520,
+    ],
+    [
+      "transactional.set.cardinality",
+      "2a255ed4d364c435c9f985d7a770386bc7b20b2865887b9c8cc2d6cc5f0dd116",
+      5800,
+    ],
+    [
+      "transactional.set.singleton-targets",
+      "0c9008bac3e2c047d9aa8d47d343b7ed936c9c9352bb140c6422127c71b156b1",
+      7314,
+    ],
+    [
+      "transactional.receipt.readable",
+      "684eba200912ccb0932c0a8286e350a6e545262a205b3ea3df47a12fc6dd18ec",
+      2142,
+    ],
+    [
+      "transactional.receipt.pagination",
+      "0735edbca2fbf384f9f8147140a353dc084d9ad85facaddf2f5073f56a7256ee",
+      13057,
+    ],
+    [
+      "transactional.idempotency.conflict",
+      "de9b758f8ac4df7db5597b1eb2b402a116720becc30a41e7198f78f244358ec0",
+      5188,
+    ],
+    [
+      "transactional.idempotency.cross-carrier",
+      "c5e6076a2104c06f88fac88c77214522cab457faf925fe03881dff9778c35245",
+      11196,
+    ],
+    [
+      "transactional.idempotency.failed-retained",
+      "63918cbb495a504fd2043f52b60e7cd8ef1518b8022a96edb0d02660c7df1a8e",
+      2917,
+    ],
+    [
+      "transactional.sequence.member-transactions",
+      "aea606d1456549f6dd9dc1903e42568282154a61a9fbef50dab3526202eb4045",
+      9557,
+    ],
+  ],
+} as const;
+/** Removing only the new tail object recovers the complete byte-exact parent. */
+function withoutConditionalRow(text: string, name: "manifest" | "coverage") {
+  const key = name === "manifest" ? "scenarios" : "rows";
+  const objects = objectSlices(text, key);
+  for (const [id, hash, bytes] of conditionalParentPins[name]) {
+    const raw = objects.get(id)!;
+    expect(Buffer.byteLength(raw), id).toBe(bytes);
+    expect(createHash("sha256").update(raw).digest("hex"), id).toBe(hash);
+  }
+  const raw = objects.get(conditionalId)!;
+  expect(typeof raw).toBe("string");
+  const suffix = `,\n    ${raw}\n  ]\n}\n`;
+  expect(text.endsWith(suffix), "conditional-tail-object").toBe(true);
+  const parent = text.slice(0, -suffix.length) + "\n  ]\n}\n";
+  expect(createHash("sha256").update(parent).digest("hex"), "conditional-full-parent").toBe(
+    name === "manifest"
+      ? "cd90592e76cace65b115dbfedf5f604c9c4011ed2e1a0fad954c1edb12aca6cd"
+      : "0c991feb128a50625397e337464badcb17d22a0c31e1d57a6b66fa1032a92a51",
+  );
+  return parent;
+}
+it("pins partial Transactional conditional actions, full parent bytes and the two-failure control", () => {
+  const row = manifest.scenarios.find((r: { id: string }) => r.id === conditionalId)!;
+  expect(manifest.scenarios.indexOf(row)).toBe(16);
+  expect(row.id).toBe(conditionalId);
+  expect(row.requiredProfile).toBe("transactional");
+  expect(row.setup).toEqual({
+    fixture: "reference-transactional-v1",
+    requires: ["installed-transactional-http"],
+  });
+  expect(row.applicability).toEqual({ requires: [] });
+  expect(row.cleanup).toEqual({ resetFixture: true });
+  expect(row.actions.map((a: { id: string }) => a.id)).toEqual([
+    "seed",
+    "initial-get",
+    "initial-head",
+    "conditional-get",
+    "conditional-head",
+    "mismatch-get",
+    "mismatch-head",
+    "anonymous-get",
+    "anonymous-head",
+    "missing-get",
+    "missing-head",
+    "update",
+    "current-get",
+    "current-head",
+  ]);
+  expect(row.actions.flatMap((a: { assertions: unknown[] }) => a.assertions)).toHaveLength(186);
+  expect(
+    createHash("sha256").update(JSON.stringify(row)).digest("hex"),
+    "conditional-complete-oracle",
+  ).toBe("faf0d8e65446c97549081797bf81fb281e95209434445afe99d2aef14dd0947a");
+  // HTTP captureValue accepts URL strings only; full dynamic receipt/postimage
+  // equality is enforced independently by the app's original-wire observer.
+  expect(row.actions.flatMap((a: { captures: unknown[] }) => a.captures)).toEqual([]);
+  for (const name of ["manifest", "coverage"] as const)
+    withoutConditionalRow(read(name).toString(), name);
+  const coverage = JSON.parse(read("coverage").toString()).rows.find(
+    (r: { id: string }) => r.id === conditionalId,
+  )!;
+  expect(Object.keys(coverage)).toEqual(["id", "wholeContract", "reason", "bindings"]);
+  expect(coverage.id).toBe(conditionalId);
+  expect(coverage.wholeContract).toBe(false);
+  expect(coverage.reason).toContain("Whole contract remains unqualified");
+  expect(coverage.bindings).toEqual([
+    {
+      scenario: conditionalId,
+      assertions: row.actions.flatMap((a: { id: string; assertions: { id: string }[] }) =>
+        a.assertions.map((s) => `${a.id}:${s.id}`),
+      ),
+    },
+  ]);
+  const control = structuredClone(row);
+  const controlAction = control.actions.find((a: { id: string }) => a.id === "conditional-get")!;
+  const header = controlAction.raw.headerLines.find(
+    (h: { name: string }) => h.name === "if-none-match",
+  );
+  expect(header.value).toBe("*");
+  header.value = '"conditional-no-match"';
+  expect(
+    controlAction.assertions
+      .filter((a: { kind: string }) => ["status", "body-absent"].includes(a.kind))
+      .map((a: { id: string }) => a.id),
+  ).toEqual(["status", "body-absent"]);
+  header.value = "*";
+  expect(control).toEqual(row);
+  // Existing route pairs remain declared; only these three method/URL pairs are new.
+  const routes = row.actions.map(
+    (a: { method: string; target: { binding: string; path?: string } }) =>
+      `${a.method} ${a.target.binding}:${a.target.path ?? ""}`,
+  );
+  expect([...new Set(routes)]).toEqual([
+    "POST batch:",
+    "GET subject:",
+    "HEAD subject:",
+    "GET scope:beads/missing",
+    "HEAD scope:beads/missing",
+  ]);
 });
