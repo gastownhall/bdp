@@ -503,6 +503,44 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
           }),
         );
       }
+      let opaqueGetBody = "";
+      for (const method of ["GET", "HEAD"] as const) {
+        const started = performance.now();
+        const timeout = await f.exchange(target, method, {
+          ...minimum(seeded, "opaque"),
+          ...(method === "GET" ? { "if-none-match": "*" } : { "if-match": '"wrong"' }),
+        });
+        const elapsedMs = performance.now() - started;
+        expect(elapsedMs).toBeGreaterThanOrEqual(1000);
+        expect(elapsedMs).toBeLessThan(5000);
+        expect(timeout.status).toBe(503);
+        context(timeout, headers);
+        expect(timeout.headers["content-type"]).toBe("application/problem+json");
+        expect(timeout.headers["retry-after"]).toBe("1");
+        expect(timeout.headers["x-bdp-development-limit"]).toBeUndefined();
+        if (method === "GET") {
+          opaqueGetBody = timeout.bodyText;
+          expect(json<Record<string, unknown>>(timeout, 503)).toEqual({
+            type: "https://github.com/gastownhall/bdp/problems/unavailable",
+            status: 503,
+            code: "catch-up-timeout",
+            retry: "after-delay",
+          });
+        } else {
+          expect(timeout.bodyOctets).toBe(0);
+          expect(timeout.bodyText).toBe("");
+        }
+        expect(timeout.headers["content-length"]).toBe(String(Buffer.byteLength(opaqueGetBody)));
+        console.log(
+          JSON.stringify({
+            observation: "installed-unknown-collection-minimum-timeout",
+            collection,
+            method,
+            elapsedMs,
+            claimEligible: false,
+          }),
+        );
+      }
       for (const [field, value, status, code] of [
         ["bdp-authorization-view", "foreign", 409, "foreign-view"],
         ["bdp-scope-epoch", "foreign", 410, "cursor-expired"],

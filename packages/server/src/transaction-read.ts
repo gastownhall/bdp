@@ -83,7 +83,9 @@ function dataOnlyReadRequest(request: ReadRequest): boolean {
 }
 
 /** Classify only own data fields. Authority receiving still validates the full request. */
-export function currentReadMinimumKind(request: ReadRequest): "resource" | "missing" | "strict" {
+export function currentReadMinimumKind(
+  request: ReadRequest,
+): "resource" | "missing" | "initial-collection" | "strict" {
   if (isProxy(request) || !request || typeof request !== "object") return "strict";
   const fields = Object.getOwnPropertyDescriptors(request);
   const data = (key: string): unknown => {
@@ -96,11 +98,17 @@ export function currentReadMinimumKind(request: ReadRequest): "resource" | "miss
   )
     return "resource";
   if (data("kind") === "bead-links" && data("continuation") === undefined) return "missing";
+  if (
+    data("kind") === "collection" &&
+    (data("collection") === "beads" || data("collection") === "links") &&
+    data("continuation") === undefined
+  )
+    return "initial-collection";
   return "strict";
 }
 type MinimumCondition = Readonly<{
   minimum: TransactionMinimum;
-  kind: "resource" | "missing" | "strict";
+  kind: ReturnType<typeof currentReadMinimumKind>;
 }>;
 const minimumConditions = new WeakSet<object>();
 function minimumCondition(
@@ -205,7 +213,7 @@ export function createTransactionReadPlane(
       const { minimum, kind } = capturedCondition(condition);
       const current = transactionReadContexts(observation).current;
       if (refusal?.code === "resource-not-found") {
-        if (kind !== "strict") return;
+        if (kind === "resource" || kind === "missing") return;
         try {
           checkCurrentReadMinimum(minimum, current, false);
           return;
@@ -223,7 +231,11 @@ export function createTransactionReadPlane(
           throw error;
         }
       }
-      checkCurrentReadMinimum(minimum, current, kind === "resource");
+      checkCurrentReadMinimum(
+        minimum,
+        current,
+        kind === "resource" || kind === "initial-collection",
+      );
     },
     captureReadAuthorization: (reader, principal) => {
       const policy = owner.captureReadAuthorization(reader, principal);

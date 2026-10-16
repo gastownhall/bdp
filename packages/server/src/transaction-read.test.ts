@@ -611,6 +611,122 @@ it("checks visible point rows and their minimum in the same entry and leaves the
 });
 
 describe("initial collection minimums", () => {
+  it("bounds unrecognized initial collection minima without retaining state or holding the owner", async () => {
+    const f = fixture();
+    const seeded = f.write([
+      ...seed,
+      {
+        operation: "createLink",
+        id: "links/out",
+        type: link,
+        source: "beads/a",
+        target: "beads/b",
+      },
+    ]);
+    expect(seeded.status).toBe("completed");
+    let entries = 0,
+      allocations = 0,
+      tick = 0,
+      ownerChecks = 0;
+    const waits: number[] = [];
+    let abortDuringWait: AbortController | undefined;
+    const owner: typeof f.store = {
+      ...f.store,
+      withRead: (callback) => {
+        entries++;
+        return f.store.withRead(callback);
+      },
+    };
+    const service = createTransactionService(owner, {
+      ownerLifetime: "service",
+      read: {
+        ...f.readOptions,
+        advertisedLimits: {
+          ...f.readOptions.advertisedLimits,
+          page: { defaultItems: 2, maximumItems: 32 },
+        },
+        pagination: {
+          ...f.readOptions.pagination,
+          maxPageItems: 32,
+          generateOpaqueToken: () => `unknown_minimum_${++allocations}`,
+        },
+      },
+      minimumReads: {
+        budgetMs: 7,
+        now: () => tick,
+        wait: async (ms) => {
+          waits.push(ms);
+          tick += ms;
+          // Bypass the attempt counter: an actual raw owner entry must work between attempts.
+          expect(f.store.withRead((_reader, context) => context.scopePosition)).toEqual({
+            kind: "read",
+            value: "pos-1",
+          });
+          ownerChecks++;
+          abortDuringWait?.abort();
+        },
+      },
+    });
+    const principal = { kind: "authenticated" as const, principal: { id: "principal" } };
+    const minimum = {
+      scopeEpoch: f.store.scopeEpoch,
+      authorizationView: "development-all-visible",
+      minimumPosition: "opaque",
+    };
+    try {
+      const initialEntries = entries;
+      for (const collection of ["beads", "links"] as const) {
+        for (const token of ["opaque", "pos-01", "pos-9007199254740992"]) {
+          const beforeEntries = entries,
+            beforeWaits = waits.length,
+            beforeTick = tick,
+            beforeOwnerChecks = ownerChecks;
+          await expect(
+            service
+              .readAtMinimum(principal, { ...minimum, minimumPosition: token })
+              .perform({ kind: "collection", collection, limit: 1 }),
+          ).rejects.toMatchObject({
+            reason: "catch-up-timeout",
+            context: {
+              scopeEpoch: minimum.scopeEpoch,
+              authorizationView: minimum.authorizationView,
+              scopePosition: "pos-1",
+            },
+          });
+          expect(entries - beforeEntries).toBe(3);
+          expect(waits.slice(beforeWaits)).toEqual([5, 2]);
+          expect(tick - beforeTick).toBe(7);
+          expect(ownerChecks - beforeOwnerChecks).toBe(2);
+          expect(allocations).toBe(0);
+        }
+      }
+      expect(entries - initialEntries).toBe(18);
+      expect(waits).toHaveLength(12);
+      const request = { kind: "collection", collection: "beads", limit: 1 } as const;
+      const preabort = new AbortController();
+      preabort.abort();
+      const beforeAbortEntries = entries,
+        beforeAbortWaits = waits.length;
+      await expect(
+        service.readAtMinimum(principal, minimum).perform(request, { signal: preabort.signal }),
+      ).rejects.toThrow("abort");
+      expect(entries).toBe(beforeAbortEntries);
+      expect(waits).toHaveLength(beforeAbortWaits);
+      abortDuringWait = new AbortController();
+      await expect(
+        service
+          .readAtMinimum(principal, minimum)
+          .perform(request, { signal: abortDuringWait.signal }),
+      ).rejects.toThrow("abort");
+      expect(entries - beforeAbortEntries).toBe(1);
+      expect(waits.slice(beforeAbortWaits)).toEqual([5]);
+      expect(ownerChecks).toBe(13);
+      expect(allocations).toBe(0);
+    } finally {
+      await service.close();
+    }
+  });
+
   it("preserves behind-minimum control refusals without allocating retained state", async () => {
     const f = fixture();
     f.write(seed);

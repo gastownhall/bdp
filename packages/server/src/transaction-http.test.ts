@@ -4816,7 +4816,7 @@ it("enforces the minimum-receiving-malformed-request boundary over the emitted l
   });
 }, 20000);
 
-it("waits only for existing current Resource unknown minima and keeps unsupported route labels", async () => {
+it("waits for current Resources and initial collections with unknown minima and preserves residual refusals", async () => {
   let tick = 0,
     waits = 0;
   const f = await fixture({
@@ -4852,14 +4852,77 @@ it("waits only for existing current Resource unknown minima and keeps unsupporte
     expect(response.headers.get("retry-after")).toBe("1");
     expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
   }
-  expect(waits).toBe(2);
-  for (const suffix of ["beads/?limit=1", "types/", "beads/a?view=links"]) {
+  const timeoutProblem = {
+    type: "https://github.com/gastownhall/bdp/problems/unavailable",
+    status: 503,
+    code: "catch-up-timeout",
+    retry: "after-delay",
+  };
+  for (const collection of ["beads", "links"]) {
+    let getBody = "";
+    for (const method of ["GET", "HEAD"] as const) {
+      const response = await f.get(`${f.runtime.scope}${collection}/?limit=1`, {
+        method,
+        headers: {
+          ...tuple,
+          ...(method === "GET" ? { "if-none-match": "*" } : { "if-match": '"wrong"' }),
+        },
+      });
+      expect(response.status).toBe(503);
+      expect(response.headers.get("content-type")).toBe("application/problem+json");
+      expect(response.headers.get("retry-after")).toBe("1");
+      expect(response.headers.get("bdp-scope-epoch")).toBe(tuple["bdp-scope-epoch"]);
+      expect(response.headers.get("bdp-authorization-view")).toBe(tuple["bdp-authorization-view"]);
+      expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+      expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+      const text = await response.text();
+      if (method === "GET") {
+        getBody = text;
+        expect(checkedProblem(record(JSON.parse(text)))).toEqual(timeoutProblem);
+      } else expect(text).toBe("");
+      expect(response.headers.get("content-length")).toBe(String(Buffer.byteLength(getBody)));
+    }
+  }
+  for (const token of ["pos-01", "pos-9007199254740992"]) {
+    const response = await f.get(`${f.runtime.scope}beads/?limit=1`, {
+      headers: { ...minimumHeaders(seed, token), "if-none-match": "*" },
+    });
+    expect(response.status).toBe(503);
+    expect(checkedProblem(await body(response))).toEqual(timeoutProblem);
+    expect(response.headers.get("retry-after")).toBe("1");
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+    expect(response.headers.get("bdp-scope-epoch")).toBe(tuple["bdp-scope-epoch"]);
+    expect(response.headers.get("bdp-authorization-view")).toBe(tuple["bdp-authorization-view"]);
+    expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+  }
+  expect(waits).toBe(8);
+  // Excluded residuals: strict/parser-rejected routes stop at the early unknown-token gap;
+  // the incident-Link route is refused after classification. Both retain the private label.
+  for (const suffix of [
+    "types/",
+    "beads/a?view=links",
+    "beads/?limit=0",
+    "beads/?limit=1&limit=2",
+  ]) {
     const response = await f.get(f.runtime.scope + suffix, { headers: tuple });
     expect(response.status).toBe(500);
     expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
     expect(response.headers.has("bdp-scope-position")).toBe(false);
     expect(await response.text()).toBe("");
   }
+  for (const [query, status, code] of [
+    ["limit=33", 413, "limit-exceeded"],
+    [`selector=${encodeURIComponent("$[?")}`, 400, "invalid-parameter"],
+  ] as const) {
+    const response = await f.get(`${f.runtime.scope}beads/?${query}`, { headers: tuple });
+    expect(response.status).toBe(status);
+    expect(checkedProblem(await body(response))).toMatchObject({ status, code, retry: "never" });
+    expect(response.headers.get("bdp-scope-epoch")).toBe(tuple["bdp-scope-epoch"]);
+    expect(response.headers.get("bdp-authorization-view")).toBe(tuple["bdp-authorization-view"]);
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+    expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+  }
+  expect(waits).toBe(8);
   const published = await f.runtime.replaceAuthorizationPolicy({ timeoutMs: 1000 });
   let expectedBody: unknown;
   for (const suffix of ["beads/a", "beads/missing", "beads/a?view=links"]) {
@@ -4876,7 +4939,7 @@ it("waits only for existing current Resource unknown minima and keeps unsupporte
     expect(response.headers.get("bdp-authorization-view")).toBe(published.authorizationView);
     expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
   }
-  expect(waits).toBe(2);
+  expect(waits).toBe(8);
 });
 
 it("compares retained sequence members and accepts deep input while preserving receiving failures", async () => {
