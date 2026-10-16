@@ -151,7 +151,11 @@ function sizedManifest(
   });
 }
 
-function coldDirectorySpan(text: string, key: "scenarios" | "rows") {
+function coldDirectorySpan(
+  text: string,
+  key: "scenarios" | "rows",
+  id = "read-update.discovery.operation-directory",
+) {
   const start = text.indexOf("[", text.indexOf(JSON.stringify(key))) + 1;
   let depth = 0,
     begin = -1,
@@ -174,10 +178,7 @@ function coldDirectorySpan(text: string, key: "scenarios" | "rows") {
       depth++;
     } else if (char === "}" || char === "]") {
       if (depth === 0) break;
-      if (
-        --depth === 0 &&
-        JSON.parse(text.slice(begin, i + 1)).id === "read-update.discovery.operation-directory"
-      )
+      if (--depth === 0 && JSON.parse(text.slice(begin, i + 1)).id === id)
         return { start: begin, end: i + 1 };
     }
   }
@@ -217,7 +218,18 @@ describe("private two-artifact Read+Update set", () => {
       bytes: readFileSync(new URL(`../${name}`, import.meta.url)),
     });
     const manifest = decode(read("matrices/read-update-v1.json"));
-    const manifestText = Buffer.from(read("matrices/read-update-v1.json").bytes).toString();
+    const currentText = Buffer.from(read("matrices/read-update-v1.json").bytes).toString();
+    const minimum = coldDirectorySpan(
+      currentText,
+      "scenarios",
+      "read-update.http.command-minimum-fields",
+    );
+    expect(currentText.slice(minimum.start - 6, minimum.start)).toBe(",\n    ");
+    const manifestText = currentText.slice(0, minimum.start - 6) + currentText.slice(minimum.end);
+    expect(createHash("sha256").update(manifestText).digest("hex")).toBe(
+      "80f74625b6074892b707365859572f8bc0b8c10478d36ac307370ef6027f5fc3",
+    );
+    expect(JSON.parse(manifestText).scenarios).toHaveLength(50);
     const span = coldDirectorySpan(manifestText, "scenarios");
     expect(manifestText.slice(span.end, span.end + 6)).toBe(",\n    ");
     const parent = manifestText.slice(0, span.start) + manifestText.slice(span.end + 6);
@@ -230,9 +242,23 @@ describe("private two-artifact Read+Update set", () => {
         .update(read("matrices/read-update-reference-continuation-v1.json").bytes)
         .digest("hex"),
     ).toBe("24d754618b51f255b5885d83c53ccf9a06593031e1812739a4f2b504c4a1df8d");
-    const coverageText = Buffer.from(
+    const currentCoverage = Buffer.from(
       read("test-support/read-update-coverage-v1.json").bytes,
     ).toString();
+    const minimumCoverage = coldDirectorySpan(
+      currentCoverage,
+      "rows",
+      "read-update.http.command-minimum-fields",
+    );
+    const priorMinimum =
+      '{\n      "id": "read-update.http.command-minimum-fields",\n      "status": "omitted",\n      "wholeContract": false,\n      "reason": "Private Read+Update and Transactional implementation tests cover ignored command minimum fields, but no cumulative executable row is bound to this required ID. Read minimum controls remain separate; no whole-contract credit is claimed.",\n      "bindings": []\n    }';
+    const coverageText =
+      currentCoverage.slice(0, minimumCoverage.start) +
+      priorMinimum +
+      currentCoverage.slice(minimumCoverage.end);
+    expect(createHash("sha256").update(coverageText).digest("hex")).toBe(
+      "85b717f1817d8ea295d0a7c51f8914bdfb942d1786d414924d3d5f80be7cd10a",
+    );
     const coverageSpan = coldDirectorySpan(coverageText, "rows");
     const previous =
       '{\n      "id": "read-update.discovery.operation-directory",\n      "status": "omitted",\n      "wholeContract": false,\n      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",\n      "bindings": []\n    }';

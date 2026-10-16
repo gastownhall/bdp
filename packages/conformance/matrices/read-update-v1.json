@@ -121564,6 +121564,664 @@
           ]
         }
       ]
+    },
+    {
+      "id": "read-update.http.command-minimum-fields",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-schema-v1",
+        "requires": [
+          "installed-read-update-http"
+        ]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "singleton-create",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "operations/create-bead"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "minimum-singleton"
+              },
+              {
+                "name": "bdp-minimum-scope-position",
+                "value": "pos-999"
+              },
+              {
+                "name": "bdp-scope-epoch",
+                "value": "foreign-epoch"
+              },
+              {
+                "name": "bdp-authorization-view",
+                "value": "foreign-view"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"beads/w1-a\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"minimum-singleton\"}}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "singleton-replay",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "operations/create-bead"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "minimum-singleton"
+              },
+              {
+                "name": "bdp-minimum-scope-position",
+                "value": ""
+              },
+              {
+                "name": "bdp-scope-epoch",
+                "value": "epoch-one"
+              },
+              {
+                "name": "BDP-Scope-Epoch",
+                "value": "epoch-two"
+              },
+              {
+                "name": "bdp-authorization-view",
+                "value": "not a view!"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"beads/w1-a\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"minimum-singleton\"}}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "singleton-conflict",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "operations/create-bead"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "minimum-singleton"
+              },
+              {
+                "name": "bdp-minimum-scope-position",
+                "value": "not a token!"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"beads/w1-a\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"changed\"}}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 409
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "missing-key",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "operations/create-bead"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "bdp-scope-epoch",
+                "value": "epoch-one"
+              },
+              {
+                "name": "BDP-Scope-Epoch",
+                "value": "epoch-two"
+              },
+              {
+                "name": "bdp-authorization-view",
+                "value": "not a view!"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"beads/w1-a\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"minimum-singleton\"}}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "unauthenticated",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "operations/create-bead"
+          },
+          "credentialRef": "unknown",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "minimum-unauthenticated"
+              },
+              {
+                "name": "bdp-minimum-scope-position",
+                "value": "pos-999"
+              },
+              {
+                "name": "bdp-scope-epoch",
+                "value": "foreign-epoch"
+              },
+              {
+                "name": "bdp-authorization-view",
+                "value": "foreign-view"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"beads/w1-a\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"minimum-singleton\"}}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 401
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "unauthenticated"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            }
+          ]
+        },
+        {
+          "id": "stale-revision",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "operations/update-bead"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "minimum-stale"
+              },
+              {
+                "name": "bdp-minimum-scope-position",
+                "value": ""
+              },
+              {
+                "name": "bdp-scope-epoch",
+                "value": "epoch-one"
+              },
+              {
+                "name": "BDP-Scope-Epoch",
+                "value": "epoch-two"
+              },
+              {
+                "name": "bdp-authorization-view",
+                "value": "not a view!"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"bead\":\"https://reference.invalid/acme/beads/w1-a\",\"expectedRevision\":\"minimum-stale-revision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"must-not-commit\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 409
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            }
+          ]
+        },
+        {
+          "id": "invalid-carrier",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "operations/create-bead"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "minimum-invalid"
+              },
+              {
+                "name": "bdp-minimum-scope-position",
+                "value": "not a token!"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "singleton-point",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/w1-a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            }
+          ]
+        },
+        {
+          "id": "sequence-create",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "operations/sequence"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "bdp-minimum-scope-position",
+                "value": "not a token!"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"createBead\",\"id\":\"beads/w1-b\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"minimum-sequence\"},\"idempotencyKey\":\"minimum-sequence\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/sequenceResponse"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "sequence-replay",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "operations/sequence"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "bdp-minimum-scope-position",
+                "value": ""
+              },
+              {
+                "name": "bdp-scope-epoch",
+                "value": "epoch-one"
+              },
+              {
+                "name": "BDP-Scope-Epoch",
+                "value": "epoch-two"
+              },
+              {
+                "name": "bdp-authorization-view",
+                "value": "not a view!"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"createBead\",\"id\":\"beads/w1-b\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"minimum-sequence\"},\"idempotencyKey\":\"minimum-sequence\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/sequenceResponse"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "sequence-point",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/w1-b"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
     }
   ]
 }
