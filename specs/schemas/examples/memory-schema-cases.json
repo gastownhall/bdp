@@ -808,11 +808,12 @@
     },
     {
       "label": "conformer may add an allowed root property",
-      "type": "memory",
+      "type": "observation",
       "properties": {
         "title": "Housing B uses a different seal",
         "body": "Check the housing before ordering the seal.",
-        "region": "west"
+        "region": "west",
+        "statement": "The old seal leaked on housing B."
       },
       "valid": true
     }

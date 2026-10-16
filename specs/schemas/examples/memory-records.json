@@ -1,5 +1,5 @@
 {
-  "_comment": "Illustrative final-state excerpts, not complete wire envelopes or creation/import syntax. Common lifecycle/owned-state details omitted. revisionProvenance source members use proposed V2. Work/inspection Issue endpoints are fixtures of the existing Issue contract. Remote Bead and external URI/URN endpoints stay opaque; neither expected role nor a pin proves existence, Type or immutability, and no remote owner revision is claimed. No new Activity or observation-envelope shape is defined.",
+  "_comment": "Illustrative final-state excerpts, not complete wire envelopes or creation/import syntax. Common lifecycle/owned-state details omitted. revisionProvenance source members require the proposed V2 Core-envelope amendment and are not current-Core-valid. Work/inspection Issue endpoints are fixtures of the existing Issue contract. Remote Bead and external URI/URN endpoints stay opaque; neither expected role nor a pin proves existence, Type or immutability, and no remote owner revision is claimed. No new Activity or observation-envelope shape is defined.",
   "records": [
     {
       "id": "https://example.org/project/beads/memory",

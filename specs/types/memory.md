@@ -170,23 +170,25 @@ recorded ConformsTo graph; a local fragment passing alone is not complete accept
 | [Observation](../schemas/memory-observation.local-properties.schema.json) | statement required/nonblank; observedAt optional RFC3339 instant | Caller-reported observation and observation time; omitted time remains unknown, never commit time |
 | [Decision](../schemas/memory-decision.local-properties.schema.json) | choice required/nonblank; alternatives optional ordered array of nonblank strings | A recorded choice, without approval, Issue completion or exhaustive-alternatives claim |
 | [Procedure](../schemas/memory-procedure.local-properties.schema.json) | steps required/nonempty ordered array of nonblank strings | Reusable instructions; no automatic execution, work plan, progress or step identities |
-| [Policy](../schemas/memory-policy.local-properties.schema.json) | rule required/nonblank; authority optional Reference to a Bead, Link or opaque external document/URI | A recorded rule and claimed authority reference, never an access grant or compliance certification |
+| [Policy](../schemas/memory-policy.local-properties.schema.json) | rule required/nonblank; authority optional URI or `{uri, revision}` authored value | A recorded rule and claimed authority reference, never an access grant or compliance certification |
 | [Lesson](../schemas/memory-lesson.local-properties.schema.json) | takeaway required/nonblank | A reusable lesson, not proof of general applicability |
 
 All inherit the common contract. Fields are directly named: no `kind`, `details`
 wrapper or inference from prose. Missing alternatives means unrecorded; an empty
 array means none listed, not exhaustive consideration. Order of procedure steps
-is significant; numbers are positions, not persistent step identities. References
-retain normal exact/unpinned meaning and do not authenticate their targets.
+is significant; numbers are positions, not persistent step identities.
 
-`inception.origin` and `authority` use the existing Core Reference value directly:
-a URI or `{uri, revision}`. Both may name canonical resources or opaque external
-URIs/URNs; neither promises target existence or verification. The inline schemas
-mirror that value shape for offline review, not a new reference grammar or adopted
-property-reference admission mechanism. V2's `{ref, rel?, note?}` is an entry
-containing a Reference, not a competing spelling of the Reference itself. Sources
-remain in V2. Interpretation/admission of these property references must align with
-Core and the applicable profile before implementation.
+`inception.origin` and `authority` reuse only the existing Core Reference **value
+shape**: a URI or `{uri, revision}`. Under [Core's Reference rule](../../docs/specs/bdp.md#references),
+values inside properties are authored data, not protocol References or graph edges.
+These fields confer no Core canonicalization, resolution, traversal, incident-Link
+behavior or target validation. Their shape restrictions are this Type's own
+properties contract, not Core Reference admission. They may contain resource URIs
+or opaque external URIs/URNs, without authenticating a target or its content. For
+graph semantics, use a declared owned Link under the applicable shared contract;
+do not silently promote a property value into an edge. The inline schemas mirror
+the value shape only. V2's `{ref, rel?, note?}` is a source entry containing a
+Reference; sources remain in V2, not these authored fields.
 
 Structured fields carry their defined assertions; body supplies narrative,
 reasoning, limitations and tradeoffs. Repeated prose is not synchronized or
@@ -211,6 +213,15 @@ incoming and outgoing Links and to custom registered Link Types, even when their
 property schema or a permissive endpoint pair would otherwise pass. Do not infer
 these semantics from a short name or treat every Dependency as a blocker. Opaque
 external roles remain expectations, not a remotely verified endpoint Type.
+This is a semantic obligation of Type authors and registrars as well as writers.
+Supported admission can check exact conformance to a recognized workflow Link
+contract with that declared promise; neither conformance to Dependency in general
+nor an Issue endpoint alone proves workflow dependence. For custom Types without
+such a declaration, authors/registrars must preserve the non-workflow contract;
+shape matching cannot establish that their prose is truthful. No workflow category
+field or semantic-classification language is introduced here. Automated discovery
+and enforcement for arbitrary custom contracts remain shared design work. Report
+the declarable checks actually supported; do not label them full semantic validation.
 The [common relationship properties schema](../schemas/memory-link.properties.schema.json)
 allows an optional nonblank note; it has no relationship selector. Common metadata
 holds application annotations. A note explains the relationship, not a competing
@@ -272,7 +283,9 @@ and the current pair descriptors. In particular, no irreflexivity member is adde
 to shared `linkConstraints`: generic acyclicity would also prohibit longer cycles,
 which these informational Types do not promise. Keep self-Link admission as a named
 shared-coordination dependency. A server must not claim full domain validation while
-silently ignoring any of these required checks.
+silently ignoring any supported required check. An implementation limited to
+property shapes and declared contracts must report that limit; it cannot certify
+arbitrary custom Type semantics from those checks.
 
 Endpoint references default to floating. An explicit exact-target requirement is
 not fulfilled by silently pinning a bare input to current content. No generic
@@ -381,7 +394,10 @@ with Types. Use exact illustrative pins here rather than deciding those defaults
 ## 6. Revision provenance, relationships and Activity
 
 Use [Provenance V2](https://github.com/gastownhall/beads/issues/7510), not a second
-Memory-derived-from envelope. Revision provenance records the containing revision's
+Memory-derived-from envelope. V2 adds sources/source completeness to Core's
+currently closed revision-provenance envelope; adopting those members requires a
+Core amendment. The worked source-bearing excerpts are V2-shaped, not valid under
+the current Core envelope. Revision provenance records the containing revision's
 writer/context and its claimed input sources. Source absence, known empty list and
 declared completeness are distinct. Omitted update sources preserve prior source
 knowledge per V2, without claiming a reread. A source/completeness correction makes
@@ -418,7 +434,8 @@ fetches, rather than designing a new evidence index here.
 
 The [worked records](../schemas/examples/memory-records.json) are illustrative
 final-state excerpts using exact Type pins, not import/creation payloads, package
-syntax or permission to assign revisions. Separate schema cases validate property
+syntax or permission to assign revisions. Work/inspection Issue endpoints are assumed existing Issue-contract fixtures, not
+new Issue definitions or Memory Bead excerpts. Separate schema cases validate property
 shape only; the sequences below remain written operation acceptance scenarios.
 
 ### 7.1 Field service: recurring pump fault
@@ -429,7 +446,7 @@ shape only; the sequences below remain written operation acceptance scenarios.
    An Issue gets Guidance to its identity; the Procedure AppliesTo an asset Bead
    or external asset reference. Discovery is compact and the technician explicitly
    reads the complete procedure. No readiness or operational approval follows.
-3. An Observation records a measurement in its statement, optional observed time,
+3. An Observation records an inspection finding in its statement, optional observed time,
    and the actual report/procedure references in revision sources when those were
    inputs. An independent Activity reports the inspection of the Issue, preserving
    the procedure edition recorded as used and the report artifact under V2.
@@ -438,12 +455,12 @@ shape only; the sequences below remain written operation acceptance scenarios.
    the Procedure through a new revision with deliberate new source information.
 5. The completed job's exact reference still identifies procedure-r1; current guidance may
    follow the new procedure. Retention can yield accurate gone, never substitution.
-   A disagreement in measurements is kept with its conditions, not resolved by age.
+   A disagreement in observations is kept with its stated context, not resolved by age.
 
 ### 7.2 Office work: supplier decision
 
-1. A Policy records a spending rule; it confers no purchasing authority. A supplier
-   assessment is an Observation with its own sources and conditions.
+1. A Policy records a supplier-selection rule; it confers no purchasing authority. A supplier
+   assessment is an Observation with its own sources and stated context.
 2. A Decision records choice, optional alternatives and body reasons, citing exact
    policy/assessment revisions where those were the writer's inputs. The work Issue
    can use Guidance to discover this knowledge; it retains its own workflow.
@@ -540,7 +557,11 @@ The [schema cases](../schemas/examples/memory-schema-cases.json) and
 and the explicitly listed finite definition examples. The evidence column below
 distinguishes checked property shapes from written operation requirements. No
 case here executes History, transactions, remote resolution, graph runtime, CLI
-or full semantic conformance. Literal records are illustrative fixtures.
+or full semantic conformance. Literal records are illustrative fixtures. Run the
+Memory checker from the repository root with
+`uv run --no-project --with 'jsonschema[format]' python specs/schemas/check_memory_examples.py`.
+The shared schemas README/checker describes its separate foundational artifacts;
+this Memory section documents the additional domain artifacts and invocation.
 
 | Case | Required outcome | Evidence here |
 | --- | --- | --- |
@@ -589,7 +610,7 @@ or full semantic conformance. Literal records are illustrative fixtures.
 | Full human record omits Procedure steps but calls itself complete | Invalid completeness claim even when body is rendered whole | Written requirement |
 | Summary/automatic export includes full body or metadata values | Violates the specified projection posture | Written requirement |
 | Consolidation joins conflicting bodies | No automatic equivalence/truth claim or demonstrated retrieval benefit follows | Written requirement |
-| Core Reference in origin/authority: URI, opaque URN or exact URI/revision object | Accept valid forms; reject incomplete objects, extra members, relative URI and a V2 source-entry wrapper | Property shape checked |
+| Core Reference in origin/authority: URI, opaque URN or exact URI/revision object | Accept valid Type property shapes; reject incomplete objects, extra members, relative URI and a V2 source-entry wrapper; no Core reference admission or graph semantics | Property shape checked |
 | Unknown inception/applicability member versus an unknown root property | Reject the closed nested member; allow the root extension subject to applicable schemas | Property shape checked |
 | Issue or Memory definition advances without exact required conformance | Reject the old Link contract match; use justified conformance or a revised Link definition | Written requirement |
 | Outgoing Link cites a historical source revision | Preserve that historical owner set; new mutation uses the source identity under the applicable current contract and shared ownership rules | Written requirement |
@@ -606,7 +627,7 @@ by this contribution, not proof every underlying facility is absent.
 | Conformance-aware matching/paired endpoints | Uses shared Types; no new Type system | Shared runtime/closure/query support not qualified here |
 | Required citation pins, self-Link exclusion and expected remote roles | Domain semantics explicit; generic pin/irreflexivity syntax not invented | Domain admission and observation dependencies beyond generic descriptors |
 | Owned state, lifecycle and re-pinning | Required observable outcomes stated | Core/History/Write amendments and product qualification required |
-| Revision sources and Activity | Composes with current V2; no competing envelope | Remaining V2 capabilities stay proposals; no complete delivery claim |
+| Revision sources and Activity | Composes with current V2; no competing envelope | Core envelope amendment required; V2-shaped excerpts are not current-Core-valid; no complete delivery claim |
 | Capture/recall/search/consolidation/exposure | Product/consumer boundaries and compatibility obligations mapped | No Memory runtime or CLI implementation in this change |
 | Pre-installation, aliases, retention and transfer | Uses shared identity/authority boundary | Bootstrap, registration granularity, installed-scope handling and packaging remain shared work |
 | Preview 3 | No cutline or protocol stability claim | Exact release integration/qualification remains Janet/Donna's work |
