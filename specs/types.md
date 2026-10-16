@@ -148,7 +148,7 @@ record the starting descriptor and the candidate changes.
 
 | Descriptor property | Candidate structure and meaning |
 | --- | --- |
-| `name`, `description` | Required nonempty name and optional semantic documentation |
+| `name`, `description` | Optional display label and semantic documentation; identity is the Bead ID, not its label |
 | `propertiesSchema` | Required embedded JSON Schema applying to described instances' properties |
 | `version` | Optional proposed SemVer label; author information, not a revision or conformance proof |
 | `incoming`, `outgoing` | Bead-only participation rules with Link-Type selectors and minimum and/or maximum |
@@ -485,6 +485,23 @@ The field and its spelling are review proposals. Whether a published label must
 uniquely name one definition revision is left to publication/lifecycle design;
 no uniqueness rule or version-range resolution is introduced here.
 
+### 4.2 Exact and identity-wide Type selectors
+
+A pinned constraint `Product@r1` matches nominal affiliation with that exact
+revision or transitive conformance to that exact revision. Product@r2 does not
+match merely because it has the same identity, a higher version or a SemVer label.
+An unpinned constraint `Product` matches any revision of that identity, or a Type
+whose exact conformance closure includes any revision of that identity. It never
+means “resolve latest each time validation runs.” The predicate is stable even
+though future incompatible revisions can satisfy it by identity. Use a pin when
+the relationship relies on a particular structural/semantic contract.
+
+This selector rule does not change storage of affiliations or ConformsTo targets:
+those still pin exact revisions; explicit floating author input resolves once
+before commit. Constraint selectors may intentionally remain identity-wide.
+Nominal-only query filtering is a distinct operation; it must not accidentally
+acquire conformance matching just because both accept Type references.
+
 ## 5. Endpoint constraints and arity
 
 These rules apply within the separate Bead-Type and Link-Type worlds under the
@@ -498,7 +515,7 @@ match at least one pair, and both endpoints must match **that same pair**. Withi
 each side, a nonempty Type-reference array means OR. `['*']` means no Type
 restriction and the wildcard must appear alone. Actual JSON uses double quotes.
 Each non-wildcard entry may be a floating Type reference or `{uri, revision}`;
-precise matching across definition revisions remains open. These are pins on
+matching follows §4.2. These are pins on
 **Type references**, not requirements that endpoint references be pinned.
 
 ```text
@@ -898,6 +915,10 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Link endpoints use differing revisions of the same identity in a cycle | Pins do not evade identity-based acyclicity |
 | T@2 declares conformance to T@1 | Do not decide revision-evolution policy via a generic acyclic flag; exact-revision and identity cycles differ |
 | Type definition has version 2.1.0 and exact revision r7 | Pins still identify r7; label alone establishes no matching or conformance |
+| Constraint requires Product@r1; endpoint is nominally Product@r2 with no conformance to r1 | Reject; shared identity does not satisfy the exact contract |
+| Constraint requires unpinned Product; endpoint is Product@r2 or conforms to Product@r1 | Match identity-wide without resolving latest |
+| Create a valid local Type definition with no name property | Accept; ID supplies identity and display can be derived |
+| Create a valid definition with complete admitted closure | Make exact revision usable without a separate activation step; existing instances do not move |
 | X uses Assignment@1 max1; independent Y uses two Assignment@2 max2 Links | Y may have two; X's incoming limit does not apply at Y |
 | @1 is retained only as an installed definition or in history, with no other applicable contract | Do not activate its limit on the current graph |
 | Create an @1 max1 Link at Y already having two @2 Links | Reject before commit: all three count, even though @1 was previously unused there |
@@ -909,8 +930,8 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 Conformance questions to work through next:
 
 - Repeated paths and deterministic closure identity; conformance cycles are forbidden.
-- Exact pinned versus floating conformance queries and constraint matching.
-  Keep nominal affiliation matching distinct from inherited conformance matching.
+- Operational/query syntax for the selected exact versus identity-wide matching
+  rules; keep nominal affiliation filters distinct from conformance-aware matching.
 - Schema dialect/composition details and semantic annotations; minimum mandatory
   checks versus author responsibility, without claiming complete satisfiability
   or semantic proofs.
@@ -938,6 +959,27 @@ reviewing shared Type mechanisms.
 The [completion decision list](../docs/design/types-completion-decisions-20261014.md)
 collects unresolved questions and consistency work, including Memory updates held
 for user review. It supplies no additional normative rules.
+
+### 7.0 Local authoring and availability
+
+Successful creation of a valid Type-definition Bead makes that exact definition
+revision available for explicit use in the Scope. There is no separate local
+activation/publish step in this proposal. Validate the definition and required
+conformance closure before acceptance. Ordinary Bead operations and specialized
+CLI commands must enforce the same rules. A new definition revision does not
+upgrade existing affiliations or activate graph constraints on old instances.
+Imported definitions, removal/history retention and bootstrap remain separate
+lifecycle questions; import/export is parked for a later design discussion.
+
+Canonical identity comes from the Bead ID. The descriptor's optional `name` is
+presentation only; no separate name is required. CLI-friendly aliases may resolve
+references without changing identity, equality or conformance. Alias persistence,
+Scope resolution and ambiguity handling belong to the CLI design.
+
+The independent [CLI proposal](../docs/design/type-cli-proposal.md) captures
+Type-specific CRUD affordances, check versus validate, and a bounded first
+implementation exercise. It is review material, not a requirement that BDP adopt
+CLI command names or an assertion that the preview implements them.
 
 ### 7.1 Portable graph files and command-line literals
 
@@ -982,7 +1024,7 @@ importer and these runtime cases are NYI.
 | Acceptance cases in §6 | Written for review; implementation qualification NYI |
 | Definition representation | Beads with descriptor fields and owned conformance Links selected; candidate property schemas and seed example in §2; bootstrap/lifecycle decisions remain open |
 | ConformsTo editing, provenance and graph-display experiment | Evaluation cases identified; runtime behavior/performance not qualified |
-| Constraint expression syntax and matching | Candidate selector/bound syntax in the descriptor schema; exact/floating matching and local revalidation open; external validation explicitly excluded |
+| Constraint expression syntax and matching | Candidate selector/bound syntax in the descriptor schema; exact/identity-wide predicates selected; query syntax and local revalidation open; external validation explicitly excluded |
 | Beads CLI/storage implementation of this draft | Not established by this document |
 
 Develop here on the isolated design branch. Land coordinated, bounded amendments

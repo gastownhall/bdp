@@ -75,7 +75,7 @@ for definition in definitions:
           definition["properties"], True, definition["properties"]["name"])
 
 base = {"name": "Example", "propertiesSchema": {"type": "object"}}
-for key in base:
+for key in ["propertiesSchema"]:
     candidate = deepcopy(base)
     del candidate[key]
     check(type_name, candidate, False, "missing " + key)
@@ -85,6 +85,7 @@ for key, value in [("name", ""), ("describes", "bead"), ("propertiesSchema", "ht
                    ("conformsTo", []), ("id", "https://example.org/type"), ("revision", "r1"),
                    ("ownedLinks", {}), ("source", {}), ("pairUnique", True)]:
     check(type_name, altered(base, **{key: value}), False, "invalid " + key + repr(value))
+check(type_name, {"propertiesSchema": {"type": "object"}}, True, "name optional; identity is envelope")
 check(type_name, altered(base, propertiesSchema=True), True, "explicit permissive schema")
 check(type_name, altered(base, propertiesSchema=False), True, "false schema is syntax-valid only")
 check(type_name, altered(base, extensionNote="example"), True, "open descriptor root")
@@ -173,7 +174,9 @@ def matches(types, reference):
     if types == ["*"]:
         return True
     p = pin_of(reference)
-    return any(pin_of(t) in {p} | closure(p) for t in types)
+    members = {p} | closure(p)
+    return any((any(member[0] == t for member in members) if isinstance(t, str)
+                else pin_of(t) in members) for t in types)
 
 conforms = next(d for d in definitions if d["id"] == conforms_id)
 pairs = conforms["properties"]["linkConstraints"]["typeConstraints"]
@@ -183,6 +186,13 @@ for source in definitions:
                       matches(p["target"]["types"], target["type"]) for p in pairs)
         assert matched == (category(source) == category(target))
 assert "acyclic" not in conforms["properties"]["linkConstraints"]
+# Identity-wide selectors are not aliases for the latest revision.
+task_ref = {"uri": prefix + "task", "revision": "task-1"}
+assert matches([prefix + "issue"], task_ref)
+assert matches([{"uri": prefix + "issue", "revision": "issue-1"}], task_ref)
+assert not matches([{"uri": prefix + "issue", "revision": "issue-2"}], task_ref)
+assert not matches([prefix + "dependency"], task_ref)
+
 
 # Inline domain fragments mirror these review artifacts, apart from document annotations.
 issue_doc = (ROOT / "specs/types/issue.md").read_text()
@@ -202,7 +212,7 @@ for key, value, valid in [("priority", 0, True), ("priority", 5, False), ("title
 check(dependency_name, {"dep_type": "blocks"}, False, "removed Dependency discriminator")
 check(dependency_name, {"extensionNote": "preserved"}, True, "open Dependency properties")
 
-for path in [ROOT / "specs/types.md", ROOT / "specs/types/issue.md", HERE / "README.md"]:
+for path in [ROOT / "specs/types.md", ROOT / "specs/types/issue.md", ROOT / "docs/design/type-cli-proposal.md", HERE / "README.md"]:
     text = path.read_text()
     assert text.count("```") % 2 == 0, path
     for destination in re.findall(r"\]\(([^)]+)\)", text):

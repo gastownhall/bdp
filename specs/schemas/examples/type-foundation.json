@@ -16,11 +16,12 @@
           "title": "Common Type descriptor properties",
           "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
           "type": "object",
-          "required": ["name", "propertiesSchema"],
+          "required": ["propertiesSchema"],
           "properties": {
             "name": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "$comment": "Optional display label. Canonical identity comes from the resource ID. Friendly aliases are CLI resolution, not Type identity."
             },
             "description": {
               "type": "string"
@@ -117,7 +118,7 @@
                   "additionalProperties": false
                 }
               ],
-              "$comment": "Candidate OR selector syntax, not JSON Schema anyOf evaluation. Exact/floating matching remains a product decision; any:true imposes no Type restriction."
+              "$comment": "Candidate selector syntax. Pinned entries match exact affiliation/conformance; unpinned entries match any revision of the identity or conformance to such a revision, never latest lookup. any:true imposes no Type restriction."
             },
             "participationConstraint": {
               "type": "object",

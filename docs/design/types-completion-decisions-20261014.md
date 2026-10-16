@@ -68,7 +68,7 @@ not edited by this pass.
 | T01 | What names the counted Link set, direction and constraint identity? | dependency pair uniqueness spans blocks and parent-child; an Issue may have many different dependencies | Define syntax and exact applicability without confusing a pair key with endpoint maximum |
 | T02 — local activation selected; inherited/selector precision remains | Where are differing revision constraints active? | An existing Assignment@1 Link keeps max1 at X; adding @2 max2 fails until explicit migration, absent other constraints | Complete inherited-revision/selector precision; endpoint/pair locality, per-Link acyclicity and inactive unused/history-only definitions are selected |
 | T03 — resolved | Positive minimums belong on Bead Types; both kinds may declare maximums | Assignment eligibility does not oblige an ordinary Issue; AssignedIssue can require one | Same-set effective maximum is the smallest maximum; minimum is the largest minimum. Different counted sets remain independent. Declaration syntax is part of T01 |
-| T04 | How do nominal and conformance selectors match exact and floating definitions? | Query issue includes task/bug by conformance; an exact historical contract must retain meaning | Define matching independently from presentation aliases, revision age and compatibility claims |
+| T04 — predicate selected; query syntax open | How are exact and identity-wide selectors exposed? | Pinned means exact affiliation/conformance; unpinned means any revision by identity/conformance, never latest | Finish query/diagnostic syntax; preserve distinction from nominal-only filters and alias resolution |
 | T05 | How are endpoint pins and unavailable definitions checked? | MemorySupports cites an old revision; Dependency schedules against current Issue state | Define local/current/historical admission and revalidation; external validation is excluded, pin-mode constraints deferred |
 | T06 — representation selected, syntax drafted | Which candidate definition fields and bootstrap should be adopted? | Type, BeadType, LinkType and ConformsTo contracts, six property schemas and a seed example are drafted; Core leaves target kind unspecified | Review candidate fields/seed; select production identities, installation, retrieval and pinned closure rules |
 | T07 | What are lifecycle and migration operations? | Install a task definition; retype task to bug; remove a still-referenced parent definition | Distinguish publication, availability, acceptance for use, affiliation changes, retention and removal |
@@ -212,3 +212,14 @@ old-Type Link cannot complete a cycle through a constrained Link. Final-transact
 validation remains. Types §5.8 discusses the whole-family alternative and explicitly
 reserves CLI preflight/reporting/atomic-migration UX without selecting flags or
 permitting protocol bypass. Next: exact versus floating constraint selectors.
+
+## October 15 CLI sidebar and first implementation exercise
+
+Independent proposal: [Type CLI](type-cli-proposal.md). Local valid definition
+creation makes its exact revision usable, no activation step. Ordinary operations
+and Type-specific CRUD share semantics. Name becomes optional display information;
+explicit ID is identity, friendly aliases are CLI resolution. Pinned/identity-wide
+selector predicates selected in Types §4.2. User favors a first implementation
+exercise with open properties and a conformance graph. Full implementation is not
+claimed or started; proposal records bootstrap/reference/storage gates, source
+seams and acceptance cases. Import/export and general migrate are parked.

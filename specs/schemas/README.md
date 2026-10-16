@@ -61,8 +61,10 @@ Each pair has explicit source and target endpoint objects. For local Beads, each
 contains `resourceKind: bead`, `scope: same`, and a nonempty `types` array. Entries
 are absolute HTTP(S) Type URLs or exact `{uri, revision}` references. `['*']` (shown
 here in prose) is a wildcard array and must appear alone. Empty arrays, omitted
-sides and wildcard mixed with specific Types are invalid. Floating selector
-matching still needs definition; admitting its syntax does not settle it.
+sides and wildcard mixed with specific Types are invalid. Unpinned selectors match any revision of the identity or conformance to any such
+revision, never a repeatedly resolved latest definition. Pinned selectors require
+exact nominal affiliation or conformance. This does not change exact stored
+affiliation and ConformsTo target pins.
 
 A Link must match both sides of one pair. Within either side, arrays mean OR.
 Inherited pair lists remain separate conjunctions; concatenating them would widen
@@ -143,3 +145,8 @@ references and owned-state consistency, category-preserving pair matches over
 the finite foundation graph, schema-copy equality and domain prose fragments.
 It preloads resources and forbids retrieval. It does not implement a generic Type
 checker, import a graph, exercise a BDP server or qualify a release.
+
+The common descriptor's name is now optional and only a display label. Resource
+ID supplies identity; CLI aliases do not alter equality or conformance. See the
+[independent CLI proposal](../../docs/design/type-cli-proposal.md) for authoring
+affordances and the proposed initial implementation scope.
