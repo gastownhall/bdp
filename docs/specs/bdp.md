@@ -5823,7 +5823,7 @@ repeated, or lexically invalid values MUST return `400 malformed-request`
 after ordinary transport, target/method, and authentication/authorization checks,
 but before any owner read or target-existence lookup. All three absent means
 no minimum is requested. Lexical validity does not establish that a position
-identity is known or supported; existing semantic consistency decisions remain.
+identity is known or supported; semantic handling follows the rules below.
 
 This receiving refusal observes no projected prefix and MUST NOT report
 `BDP-Scope-Epoch`, `BDP-Authorization-View`, or `BDP-Scope-Position`. It MUST NOT
@@ -5831,10 +5831,24 @@ become a conditional `304` or `412`, a negotiation `406`, or an SSE stream.
 Earlier ordinary target/method and Origin-policy refusals remain unchanged.
 HEAD retains the corresponding GET response metadata and sends no body.
 
-The authority then does one of three things: it returns a representation at
-that position or later, it waits or routes to an eligible replica, or it
-returns the normative foreign-view, cursor-expired, or catch-up-timeout
-problem. It never reports success with an older position.
+For an ordinary unknown, deleted, or authorization-hidden Bead or Link
+Resource (including its properties view), alias target, or initial Bead
+view=links anchor, the authority MUST return the uniform 404 resource-not-found
+before semantic minimum comparison or waiting. This refusal reports the actual
+current observation context and does not disclose the hidden target. Ordinary
+request validation and the lexical receiving rule above still apply.
+
+For the remaining reads, the authority returns a representation at that position
+or later, waits or routes to an eligible replica, or returns the normative
+foreign-view, cursor-expired, or catch-up-timeout problem. It never reports
+success with an older position. For an existing authorized current Bead or Link
+Resource or properties view, a lexically valid but unrecognized minimum position
+with the actual current epoch and view does not prove eligibility. The authority
+MUST use its bounded minimum-read wait and, if eligibility remains unproved,
+return 503 catch-up-timeout with retry: "after-delay"; it MUST NOT substitute
+a stale success, fabricated expiry, or lexical malformed-request refusal.
+This rule does not establish precedence for retained continuations or Snapshots,
+nor extend unrecognized-position waiting to successful incident-Link lists.
 
 Transactional mutation POSTs follow the shared
 [mutation command preconditions](#mutation-command-preconditions): copied read

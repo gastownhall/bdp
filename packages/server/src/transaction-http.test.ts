@@ -1781,13 +1781,15 @@ it("uses actual epoch/view decisions and an exhausted wait before conditional or
     expect(unsupported.status).toBe(500);
     expect(unsupported.headers.get("x-bdp-development-limit")).toBe("minimum-position-route");
   }
-  expect(
-    (
-      await f.get(`${f.runtime.scope}beads/a`, {
-        headers: { ...headers, "bdp-minimum-scope-position": "opaque-unknown" },
-      })
-    ).status,
-  ).toBe(500);
+  const unknown = await f.get(f.runtime.scope + "beads/a", {
+    headers: { ...headers, "bdp-minimum-scope-position": "opaque-unknown" },
+  });
+  expect(unknown.status).toBe(503);
+  expect(checkedProblem(await body(unknown))).toMatchObject({
+    code: "catch-up-timeout",
+    status: 503,
+    retry: "after-delay",
+  });
 });
 
 it("preserves authentication on commands carrying copied read controls without reserving keys", async () => {
@@ -1823,7 +1825,7 @@ it("preserves authentication on commands carrying copied read controls without r
   }
 });
 
-it("serves compatible missing Resource404 with context and preserves incompatible gaps without waiting", async () => {
+it("serves missing Resource404 with current context before semantic minimum comparisons", async () => {
   const wait = vi.fn(async () => {});
   const f = await fixture({ minimumReads: { budgetMs: 2, wait } });
   const created = await f.post(
@@ -1906,18 +1908,27 @@ it("serves compatible missing Resource404 with context and preserves incompatibl
           method,
           headers: { ...minimumHeaders(removed), ...extra },
         });
-        expect(response.status).toBe(500);
-        expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
+        expect(response.status).toBe(404);
+        expect(response.headers.has("x-bdp-development-limit")).toBe(false);
         for (const name of ["bdp-scope-position", "bdp-scope-epoch", "bdp-authorization-view"])
-          expect(response.headers.has(name)).toBe(false);
-        expect(await response.text()).toBe("");
+          expect(response.headers.get(name)).toBe(removed.headers.get(name));
+        if (method === "HEAD") expect(await response.text()).toBe("");
+        else
+          expect(checkedProblem(await body(response))).toMatchObject({
+            code: "resource-not-found",
+            status: 404,
+          });
       }
   expect(wait).not.toHaveBeenCalled();
   const malformed = await f.get(`${f.runtime.scope}beads/missing`, {
     headers: minimumHeaders(removed, "unissued"),
   });
-  expect(malformed.status).toBe(500);
-  expect(malformed.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+  expect(malformed.status).toBe(404);
+  expect(malformed.headers.has("x-bdp-development-limit")).toBe(false);
+  expect(checkedProblem(await body(malformed))).toMatchObject({
+    code: "resource-not-found",
+    status: 404,
+  });
   const anonymous = await f.get(`${f.runtime.scope}beads/missing`, {
     headers: { ...minimumHeaders(removed), authorization: "" },
   });
@@ -3028,9 +3039,15 @@ it("serves canonical current Type and incident minimums with truthful context an
       { "bdp-authorization-view": "foreign" },
     ]) {
       const refused = await send(suffix, { ...headers, ...patch });
-      expect(refused.status).toBe(500);
-      expect(refused.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
-      expect(refused.headers.has("bdp-scope-position")).toBe(false);
+      if (suffix === "types/absent") {
+        expect(refused.status).toBe(500);
+        expect(refused.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
+        expect(refused.headers.has("bdp-scope-position")).toBe(false);
+      } else {
+        expect(refused.status).toBe(404);
+        assertContext(refused);
+        expect(checkedProblem(await body(refused))).toMatchObject({ code: "resource-not-found" });
+      }
     }
   }
 });
@@ -3102,12 +3119,7 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
   expect(context(missing)).toEqual(context(created));
   expect(checkedProblem(await body(missing))).toMatchObject({ code: "resource-not-found" });
   for (const [suffix, supplied, status, marker] of [
-    [
-      "alias/missing",
-      { ...headers, "bdp-minimum-scope-position": "pos-2" },
-      500,
-      "minimum-position-visibility",
-    ],
+    ["alias/missing", { ...headers, "bdp-minimum-scope-position": "pos-2" }, 404, null],
     ["alias/work?invalid=1", { ...headers, "bdp-minimum-scope-position": "pos-2" }, 404, null],
     ["alias/work", { "bdp-minimum-scope-position": "pos-1" }, 400, null],
     [
@@ -3127,8 +3139,13 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
         retry: "never",
       });
     expect(response.headers.has("location")).toBe(false);
-    for (const name of Object.keys(context(created)))
-      expect(response.headers.has(name)).toBe(false);
+    if (suffix === "alias/missing") {
+      expect(context(response)).toEqual(context(created));
+      expect(checkedProblem(await body(response))).toMatchObject({ code: "resource-not-found" });
+    } else {
+      for (const name of Object.keys(context(created)))
+        expect(response.headers.has(name)).toBe(false);
+    }
   }
   const anonymous = await fetch(target, { headers, redirect: "manual" });
   expect(anonymous.status).toBe(401);
@@ -4791,3 +4808,66 @@ it("enforces the minimum-receiving-malformed-request boundary over the emitted l
     });
   });
 }, 20000);
+
+it("waits only for existing current Resource unknown minima and keeps unsupported route labels", async () => {
+  let tick = 0,
+    waits = 0;
+  const f = await fixture({
+    minimumReads: {
+      budgetMs: 2,
+      now: () => tick,
+      wait: async (ms) => {
+        tick += ms;
+        waits++;
+      },
+    },
+  });
+  const seed = await f.post(batch([create("a")]), "minimum-current-source");
+  expect(seed.status).toBe(200);
+  const seedReceipt = await body(seed);
+  expect(validateSelectorReceipt(seedReceipt), JSON.stringify(validateSelectorReceipt.errors)).toBe(
+    true,
+  );
+  expect(seedReceipt).toMatchObject({ status: "completed", requiredPosition: "pos-1" });
+
+  const tuple = minimumHeaders(seed, "opaque");
+  for (const suffix of ["beads/a", "beads/a?view=properties"]) {
+    const response = await f.get(f.runtime.scope + suffix, {
+      headers: { ...tuple, "if-none-match": "*" },
+    });
+    expect(response.status).toBe(503);
+    expect(checkedProblem(await body(response))).toEqual({
+      type: "https://github.com/gastownhall/bdp/problems/unavailable",
+      status: 503,
+      code: "catch-up-timeout",
+      retry: "after-delay",
+    });
+    expect(response.headers.get("retry-after")).toBe("1");
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+  }
+  expect(waits).toBe(2);
+  for (const suffix of ["beads/?limit=1", "types/", "beads/a?view=links"]) {
+    const response = await f.get(f.runtime.scope + suffix, { headers: tuple });
+    expect(response.status).toBe(500);
+    expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+    expect(response.headers.has("bdp-scope-position")).toBe(false);
+    expect(await response.text()).toBe("");
+  }
+  const published = await f.runtime.replaceAuthorizationPolicy({ timeoutMs: 1000 });
+  let expectedBody: unknown;
+  for (const suffix of ["beads/a", "beads/missing", "beads/a?view=links"]) {
+    const response = await f.get(f.runtime.scope + suffix, {
+      headers: {
+        ...tuple,
+        "bdp-authorization-view": published.authorizationView,
+      },
+    });
+    expect(response.status).toBe(404);
+    const value = checkedProblem(await body(response));
+    if (expectedBody === undefined) expectedBody = value;
+    expect(value).toEqual(expectedBody);
+    expect(response.headers.get("bdp-authorization-view")).toBe(published.authorizationView);
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+  }
+  expect(waits).toBe(2);
+});

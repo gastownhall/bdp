@@ -1991,3 +1991,32 @@ installed validation and exact-head CI have not yet been credited here. These
 local source results do not establish public Transactional qualification. Unknown
 identity and the retained Snapshot/incident-Link product questions remain outside
 this change.
+
+
+### Current Resource minimum ordering draft
+
+This draft is authored from reviewed authorization candidate 1647c5d, which was
+not merged main at authoring time. It implements the operator-ruled ordinary
+missing/hidden Resource, alias and initial incident-anchor precedence and bounded
+unproved-position waiting for existing current Bead/Link Resource/properties.
+Strict consumers and pending Snapshot/incident-Event questions remain separate.
+On that isolated candidate, all 11 source-validation stages passed, including
+the fresh build and 15 selected source callbacks; preceding fixture-type and
+report-lint failures remain preserved under their original bindings. Actual
+authorization main df80f8cb is ordinarily integrated through bf50e1e8. On clean
+733728cf, five narrow integration stages passed, including the fresh build and
+two selected owner-read callbacks. Fresh archives and their external consumer
+passed package and dependency verification. The first installed positive failed
+before ready with zero HTTP requests: its compiled Type fixture used identities
+outside the configured Scope. That failure and its unknown-stop/retained-directory
+report remain preserved. The test-only Scope-local Type correction leaves all
+production bytes and the verified archives unchanged. Targeted typecheck and
+format checks passed. The corrected installed positive passed all 32 exchanges;
+two separate emitted controls each produced only their intended named failure
+after two exchanges. All three children exited cleanly and stores were absent.
+The external fingerprint adapter's initial JSON key-order mismatch is preserved;
+its source-grounded correction re-adjudicated the same positive without repeating
+HTTP. Exact-head CI remains pending. Unknown positions combined with foreign
+epoch/view remain a private unsupported development gap, outside the current
+operator ruling. Source and installed evidence retain their exact commit/build
+provenance; no qualification is claimed.
