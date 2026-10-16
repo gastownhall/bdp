@@ -2004,8 +2004,8 @@ On that isolated candidate, all 11 source-validation stages passed, including
 the fresh build and 15 selected source callbacks; the preceding fixture-type and
 report-lint failures remain preserved under their original bindings. An installed
 minimum-current observation test is authored but unexecuted; no installed or
-counterfactual control run is recorded. Actual authorization main df80f8cb must
-still be integrated ordinarily before final installed validation. Unknown
+counterfactual control run is recorded. Actual authorization main df80f8cb is ordinarily integrated through bf50e1e8;
+final installed validation remains pending. Unknown
 positions combined with foreign epoch/view remain a private unsupported
 development gap, outside the current operator ruling. Source and later installed
 evidence retain their exact commit/build provenance; no qualification is claimed.
