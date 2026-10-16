@@ -130,7 +130,13 @@ export function createTransactionReadPlane(
     entry: owner,
     scopeEpoch: configuration.scopeEpoch,
     installedTypes: configuration.installedTypes,
-    scopeConfiguration: { capture: () => configuration.scopeConfiguration },
+    scopeConfiguration: {
+      capture: (reader) => ({
+        ...configuration.scopeConfiguration,
+        policyIdentity: owner.captureReadAuthorization(reader, { kind: "anonymous" })
+          .authorizationView,
+      }),
+    },
     selectorLimits: options.selectorLimits,
     pagination: options.pagination,
     advertisedLimits: options.advertisedLimits,
@@ -160,15 +166,18 @@ export function createTransactionReadPlane(
       }
       checkTransactionMinimum(minimum, current);
     },
-    captureReadAuthorization: () => ({
-      kind: "authorized",
-      authorization: {
-        scopeEpoch: configuration.scopeEpoch,
-        authorizationView: configuration.authorizationView,
-        policy: { canRead: () => true },
-        canReadType: () => true,
-      },
-    }),
+    captureReadAuthorization: (reader, principal) => {
+      const policy = owner.captureReadAuthorization(reader, principal);
+      return {
+        kind: "authorized",
+        authorization: {
+          scopeEpoch: configuration.scopeEpoch,
+          authorizationView: policy.authorizationView,
+          policy: { canRead: () => policy.readPolicy === "all-visible" },
+          canReadType: () => policy.readPolicy === "all-visible",
+        },
+      };
+    },
   });
   const checked = <Result extends AuthorityReadResult<ReadRequest> | AuthorityAliasResult>(
     result: Result,
