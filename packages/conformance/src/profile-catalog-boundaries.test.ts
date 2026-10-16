@@ -83,10 +83,11 @@ function assertSourceProfileCitation(
   profile: keyof typeof rank,
   selectedText?: string,
 ): void {
-  if (!isProtocolSpecificationSource(source)) {
-    if (source.startsWith("specs/")) throw new Error(`Not a current protocol source: ${source}`);
-    return;
-  }
+  // Historical requirements citations are the only non-protocol source in these catalogs.
+  // Reject other spellings too: URL resolution must not let ./specs/ bypass this gate.
+  if (source === "docs/design/requirements.md") return;
+  if (!isProtocolSpecificationSource(source))
+    throw new Error(`Not a current protocol source: ${source}`);
   if (
     source !== "docs/specs/bdp.md" &&
     !markdownAnchors(read(source)).some((entry) => entry.anchor === anchor)
@@ -324,6 +325,17 @@ describe("catalog citations respect cumulative profile boundaries", () => {
     expect(() =>
       assertSourceProfileCitation("specs/profiles/types/types.md", "#types", "read"),
     ).toThrow("Not a current protocol source");
+  });
+  it("rejects alternate spellings instead of bypassing source ownership", () => {
+    for (const source of [
+      "./specs/profiles/write/write.md",
+      "./specs/profiles/types/types.md",
+      "specs/profiles/core/../write/write.md",
+      "docs/../specs/profiles/write/write.md",
+    ])
+      expect(() => assertSourceProfileCitation(source, "#batch-operation-target", "read")).toThrow(
+        "Not a current protocol source",
+      );
   });
   it.each(catalogs)("audits every requirement in %s", (name) => {
     const catalog = loadScenarioCatalogJson(read(name));
