@@ -9,9 +9,9 @@ authentication and retry seams, remaining boundary policy, shared adapter
 evidence, and port freeze are complete. The current contract is an implementation checkpoint
 rather than a frozen compatibility promise; the port is frozen only after both
 the deterministic and `bd` adapters exercise the complete Read surface, per
-[component-specifications.md → Server module and Scope port](./component-specifications.md#server-module-and-scope-port).
+[component-specifications.md → Server module and Scope port](component-specifications.md#server-module-and-scope-port).
 
-The normative source of truth is the [BDP v0 draft](../specs/bdp.md); if this
+The normative source of truth is the [BDP v0 draft](../../specs/profiles/core/core.md); if this
 document conflicts with the draft, the draft governs.
 
 ## Why item 9 is still open
@@ -41,18 +41,18 @@ What remains is completion rather than initial existence:
 
 The startup-configuration contract already accepts an `auth.token` input on
 the process side
-([startup-configuration.md → Fields](./startup-configuration.md#fields));
+([startup-configuration.md → Fields](startup-configuration.md#fields));
 that is a runtime input to the executables and does not settle the
 programmatic client's authentication seam, which is still open and must not
 assume a specific scheme
-([architecture.md → Client module](./architecture.md#client-module),
-[CLIENT-001..003](./requirements.md#client-requirements)).
+([architecture.md → Client module](architecture.md#client-module),
+[CLIENT-001..003](requirements.md#client-requirements)).
 
 ## Read surface represented by the current contracts
 
-From the [Conformance profiles](../specs/bdp.md#conformance-profiles-and-reading-guide),
-[Types and Type Descriptors](../specs/bdp.md#types-and-type-descriptors), and
-[Collection retrieval and selection](../specs/bdp.md#collection-retrieval-and-selection)
+From the [Conformance profiles](../../specs/profiles/core/core.md#conformance-profiles-and-reading-guide),
+[Types and Type Descriptors](../../specs/profiles/core/core.md#types-and-type-descriptors), and
+[Collection retrieval and selection](../../specs/profiles/core/core.md#collection-retrieval-and-selection)
 sections of the normative draft, the minimum Read profile is:
 
 - the canonical Scope response and its `service-desc` discovery document;
@@ -81,7 +81,7 @@ discriminated request union on both the client and the Scope port:
   request-kind union plus one branch in an adapter, not a new method on
   both the client and the port; and
 - the port never mirrors HTTP routes
-  ([architecture.md → Server module](./architecture.md#server-module)).
+  ([architecture.md → Server module](architecture.md#server-module)).
 
 This shape is exercised but not frozen. Operation-family or capability-shaped
 interfaces remain possible if later-profile pressure demonstrates a deeper
@@ -90,7 +90,7 @@ That rejection rests on
 architecture, interface depth, and duplication: mirroring the wire produces
 a wide shallow interface and duplicates route vocabulary and dispatch logic
 between the port surface and each adapter. It does not rest on
-[PROTO-001](./requirements.md#protocol-requirements), which is only about
+[PROTO-001](requirements.md#protocol-requirements), which is only about
 truthful profile advertisement and neither requires nor forbids any
 particular interface shape. Route mirroring remains one rejected extreme;
 family- and capability-shaped alternatives require evidence before replacing
@@ -333,7 +333,7 @@ freezes.
 ## Client navigation and opaque tokens
 
 The current client honors the discovery and continuation obligations
-[CLIENT-002](./requirements.md#client-requirements) already places on the
+[CLIENT-002](requirements.md#client-requirements) already places on the
 reusable client:
 
 - follow the `service-desc`, discovered inventory, view, and authoritative

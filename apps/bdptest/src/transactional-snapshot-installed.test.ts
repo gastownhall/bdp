@@ -76,7 +76,7 @@ function json<T>(response: HttpExchangeResponse, status = 200): T {
   return JSON.parse(response.bodyText) as T;
 }
 const snapshotSchemaBundle = JSON.parse(
-  readFileSync(path.join(root, "schemas/bdp-v0.schema.json"), "utf8"),
+  readFileSync(path.join(root, "specs/profiles/core/bdp-v0.schema.json"), "utf8"),
 );
 const snapshotAjv = new Ajv2020({ strict: true, allErrors: true });
 snapshotAjv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });

@@ -10,6 +10,7 @@ import {
   planProfileExecution,
   type ServedProfileConfigurationInput,
 } from "../test-support/profile-contract-plan.js";
+import { readProtocolSpecification } from "../test-support/spec-source.js";
 import { loadScenarioCatalogJson } from "./catalog.js";
 import type { ExecutableScenarioManifest } from "./executable-manifest.js";
 
@@ -243,7 +244,7 @@ describe("canonical cumulative profile contracts", () => {
         ],
       },
     ]);
-    const spec = readFileSync(new URL("../../../docs/specs/bdp.md", import.meta.url), "utf8");
+    const spec = readProtocolSpecification();
     expect(spec.replace(/\s+/g, " ")).toContain(clause);
     for (const profile of ["read-update", "transactional"] as const) {
       const selection = loadProfileContractSelection(profile);
@@ -362,7 +363,7 @@ describe("canonical cumulative profile contracts", () => {
       "read-update.http.request-too-large",
     ])
       expect(ids).toContain(id);
-    const spec = readFileSync(new URL("../../../docs/specs/bdp.md", import.meta.url), "utf8");
+    const spec = readProtocolSpecification();
     expect(spec).toContain("| `sequence` | `POST` | `200` envelope");
     expect(spec).toContain("its envelope, its member records, its declaration order, its separate");
     expect(

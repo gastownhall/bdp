@@ -3,16 +3,16 @@
 Work-in-progress design specification, October 15, 2026. This document records agreed design rules and
 explicit open decisions for an optional, Scope-wide Types profile. It is not yet
 an adopted protocol specification, an installable definition format, or a claim
-that Beads implements these rules. The [current BDP specification](../docs/specs/bdp.md)
-remains the protocol authority until coordinated amendments land. Landing this
+that Beads implements these rules. The [current BDP specifications](../../README.md)
+remain the protocol authority until coordinated amendments land. Landing this
 document on main makes the evolving design available for collaboration; it does
 not adopt its candidate wire shapes or require implementation of unfinished rules.
 
-The [Issue and Dependency draft](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/issue.md) and [Memory draft](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/memory.md)
+The [Issue and Dependency draft](../../types/issue/issue.md) and [Memory draft](https://github.com/gastownhall/bdp/pull/143)
 provide requirements and acceptance scenarios. Issue/Dependency records the
 selected product hierarchy of classification Types conforming to issue/dependency.
-Memory still contains older flat-Type assumptions and needs explicit reconciliation; this document does not
-silently reinterpret its endpoint lists. The earlier [Type lifecycle exploration](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-lifecycle-preview2.md)
+Memory is being reconciled and reviewed separately in PR143; this document does
+not silently settle its remaining shared-design questions. The earlier [Type lifecycle exploration](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-lifecycle-preview2.md)
 is background. Where it conflicts, this document records the current design
 position: this Types profile represents definitions as Beads; Core does not
 require that representation.
@@ -141,13 +141,13 @@ still open; the candidate uses the category-specific affiliations for usable def
 
 Candidate schemas:
 
-- [Common Type properties](schemas/type-definition.properties.schema.json).
-- [BeadType properties](schemas/bead-type-definition.properties.schema.json).
-- [LinkType properties](schemas/link-type-definition.properties.schema.json).
+- [Common Type properties](type-definition.properties.schema.json).
+- [BeadType properties](bead-type-definition.properties.schema.json).
+- [LinkType properties](link-type-definition.properties.schema.json).
 
 The latter two schemas include the common schema and add category restrictions.
 Their `$ref` factoring is repository authoring; published immutable schema
-closure/resolution still requires lifecycle rules. The [schema notes](schemas/README.md)
+closure/resolution still requires lifecycle rules. The [schema notes](README.md)
 record the starting descriptor and the candidate changes.
 
 | Descriptor property | Candidate structure and meaning |
@@ -193,7 +193,7 @@ on both sides would wrongly admit cross-kind declarations.
 | Provenance | Common Link revision provenance; later Activities may reference the exact declaration revision |
 | Specialization | Additional requirements/evidence may only tighten the base promise |
 
-The [ConformsTo properties schema](schemas/conforms-to.properties.schema.json)
+The [ConformsTo properties schema](conforms-to.properties.schema.json)
 is an open object with no required relationship-specific fields. No conditional
 membership, confidence or method semantics are invented. No arbitrary maximum or
 pair-uniqueness rule is added: multiple direct declarations with independent
@@ -210,7 +210,7 @@ endpoint pin-mode constraint added to the descriptor language.
 
 ### 2.3 Literal graph and bootstrap candidate
 
-The [foundation graph](schemas/examples/type-foundation.json) contains eight
+The [foundation graph](definitions.json) contains eight
 illustrative definition Beads and four owned declarations: BeadType→Type,
 LinkType→Type, task→issue and blocks→dependency. All affiliations and declaration
 targets pin revisions. Schema copies match the adjacent artifacts.
@@ -331,7 +331,7 @@ establish that an arbitrary change will be valid.
 
 This is the shared design rule, not a claim that the current Beads CLI already
 implements it. The inspected Issue `--replace-properties` replaces a writable
-subset and preserves nonwritable fields. The [Issue draft](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/issue.md#34-observed-write-surfaces)
+subset and preserves nonwritable fields. The [Issue draft](../../types/issue/issue.md#34-observed-write-surfaces)
 records this discrepancy; the boundary for generated/read-only properties remains
 an explicit decision before implementation alignment.
 
@@ -1134,7 +1134,8 @@ This expands the current canonical BDP alias contract, which uses an alias/ root
 and targets only in-Scope Bead URLs. Its existing alias table/operations provide a
 starting point, not evidence that cross-Scope, Link or pinned aliases work today.
 Any adoption requires coordinated Core/Write alias schema and operation changes;
-this draft does not silently amend docs/specs/bdp.md or active Write work.
+this draft does not silently amend [Core](../core/core.md),
+[Write](../write/write.md), or active Write work.
 
 ## 8. Readiness and landing
 

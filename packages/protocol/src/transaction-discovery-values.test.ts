@@ -7,7 +7,7 @@ const fixture = JSON.parse(
 const document = fixture.exchanges[0].response.body;
 const directory = fixture.exchanges[1].response.body;
 const schema = JSON.parse(
-  readFileSync(new URL("../../../schemas/bdp-v0.schema.json", import.meta.url), "utf8"),
+  readFileSync(new URL("../../../specs/profiles/core/bdp-v0.schema.json", import.meta.url), "utf8"),
 );
 it("parses the normative illustrative discovery and exact directory without granting readiness", () => {
   const result = parseTransactionalDiscovery(document);

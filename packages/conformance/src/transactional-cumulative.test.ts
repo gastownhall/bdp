@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { createRawHttpExchangeExecutor } from "./http-executor.js";
 import { createJsonSchemaValidator } from "./schema-validator.js";
-import schema from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import schema from "../../../specs/profiles/core/bdp-v0.schema.json" with { type: "json" };
 import { createTransactionalObservations } from "./transactional-observation.js";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";

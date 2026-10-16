@@ -19,7 +19,7 @@ import {
 } from "./index.js";
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const schemaPath = path.join(workspaceRoot, "schemas", "bdp-v0.schema.json");
+const schemaPath = path.join(workspaceRoot, "specs", "profiles", "core", "bdp-v0.schema.json");
 const schemaText = readFileSync(schemaPath, "utf8");
 const packagedSchemaPath = path.join(
   workspaceRoot,
