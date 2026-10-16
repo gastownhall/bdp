@@ -1751,13 +1751,41 @@ function assertDeepSubmissionValue(actual: unknown, expected: unknown) {
     if (a === b) continue;
     if (a === null || b === null || typeof a !== "object" || typeof b !== "object")
       throw new Error("deep submission primitive mismatch");
-    expect(Array.isArray(a)).toBe(Array.isArray(b));
+    if (Array.isArray(a) !== Array.isArray(b)) {
+      expect(Array.isArray(a)).toBe(Array.isArray(b));
+      throw new Error("deep submission array-kind mismatch");
+    }
     const keys = Object.keys(a).sort();
-    expect(keys).toEqual(Object.keys(b).sort());
+    const expectedKeys = Object.keys(b).sort();
+    if (keys.length !== expectedKeys.length || keys.some((key, i) => key !== expectedKeys[i])) {
+      expect(keys).toEqual(expectedKeys);
+      throw new Error("deep submission keys mismatch");
+    }
     for (const key of keys)
       stack.push([(a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]]);
   }
 }
+it("preserves independent deep submission oracle equality and rejection", () => {
+  const nested = (leaf: string) => `${"[".repeat(12000)}${leaf}${"]".repeat(12000)}`;
+  const left: unknown = JSON.parse(nested("0"));
+  const right: unknown = JSON.parse(nested("0"));
+  expect(() => assertDeepSubmissionValue(left, right)).not.toThrow();
+  const differing: unknown = JSON.parse(nested("1"));
+  expect(() => assertDeepSubmissionValue(left, differing)).toThrow(
+    "deep submission primitive mismatch",
+  );
+  expect(() => assertDeepSubmissionValue([], {})).toThrow();
+  expect(() => assertDeepSubmissionValue({ a: 1 }, { b: 1 })).toThrow();
+  expect(() => assertDeepSubmissionValue({ a: 1 }, { a: 1, b: 2 })).toThrow();
+  expect(() => assertDeepSubmissionValue({ a: 1, b: 2 }, { a: 1 })).toThrow();
+  expect(() => assertDeepSubmissionValue(null, {})).toThrow();
+  expect(() => assertDeepSubmissionValue({ a: 1, b: 2 }, { b: 2, a: 1 })).not.toThrow();
+  expect(() => assertDeepSubmissionValue(-0, 0)).not.toThrow();
+  expect(() =>
+    assertDeepSubmissionValue(Object.assign(Object.create(null), { a: 1 }), JSON.parse('{"a":1}')),
+  ).not.toThrow();
+  expect(() => assertDeepSubmissionValue([1, 2], [2, 1])).toThrow();
+});
 function assertDeepReceiptFrozen(value: unknown) {
   const pending: unknown[] = [value];
   while (pending.length) {

@@ -1106,9 +1106,15 @@ it("preserves literal Selector identity and original mixed-carrier diagnostic po
   expect(() =>
     batch.prepareTransaction(scope, JSON.stringify({ operations: [deep, update("$..*")] })),
   ).toThrow(TransactionSelectorSyntaxError);
-  expect(() =>
-    batch.prepareTransaction(scope, JSON.stringify({ operations: [deep, update()] })),
-  ).toThrow(batch.TransactionDevelopmentLimitError);
+  const preparedDeep = batch.prepareTransaction(
+    scope,
+    JSON.stringify({ operations: [deep, update()] }),
+  );
+  expect(preparedDeep.carrier.operations).toHaveLength(2);
+  const preparedSet = preparedDeep.carrier.operations[1]!;
+  if (preparedSet.operation !== "updateWhere") throw new Error("expected prepared updateWhere");
+  expect(preparedSet.input.selector).toBe(update().selector);
+  expect(transactionSelectorCapacity(preparedSet)).toBeUndefined();
   expect(() =>
     transactionSelectorCapacity(
       Object.freeze({
