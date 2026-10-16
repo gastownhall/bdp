@@ -1,4 +1,4 @@
-# Bead Protocol
+# Beads Protocol
 
 This glossary defines BDP-specific terms used across the repository.
 

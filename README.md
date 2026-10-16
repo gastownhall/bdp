@@ -1,6 +1,6 @@
-# Bead Protocol
+# Beads Protocol
 
-This repository is the source of truth for the Bead Protocol (BDP).
+This repository is the source of truth for the Beads Protocol (BDP).
 
 **📜 The specification lives at [`docs/specs/bdp.md`](docs/specs/bdp.md).**
 It is a draft: by its own terms, it is not a conformance target until

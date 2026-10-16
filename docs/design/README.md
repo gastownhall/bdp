@@ -1,7 +1,7 @@
 # BDP implementation design
 
 These documents describe the planned Node/TypeScript reference implementation
-of the Bead Protocol. They are non-normative. If a design document conflicts
+of the Beads Protocol. They are non-normative. If a design document conflicts
 with the [BDP v0 draft](../specs/bdp.md), the protocol draft governs and the
 design document must be corrected.
 
