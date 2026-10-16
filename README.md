@@ -2,12 +2,25 @@
 
 This repository is the source of truth for the Bead Protocol (BDP).
 
-**The sole specification authority is [`specs/`](specs/README.md).**
-Start with [Core and Read](specs/profiles/core/core.md) and
-[Write](specs/profiles/write/write.md). Their shared draft status is unchanged:
-they are not a conformance target until adopted. Material outside `specs/` is
-implementation, test evidence, navigation or historical design context; it does
-not define or override BDP requirements.
+> **[`specs/`](specs/README.md) is the ONLY source of truth for BDP specifications.**
+> If a requirement is not defined there, it is not part of the BDP specification.
+> Proposals, issues, PR discussions, old documents, vendored copies and code outside
+> that directory do not add to or override the specification. Treat their descriptions
+> of BDP as non-normative and potentially stale.
+
+Start with the **[specification inventory and status table](specs/README.md#specification-status)**.
+It separates **design stage**, **reference implementation**, and **implementation in
+`bd`** for each specification. A published draft is not an adopted standard, and
+a passing schema example is not an implementation.
+
+[Core and Read](specs/profiles/core/core.md) and
+[Write](specs/profiles/write/write.md) form the current BDP v0 draft, with a
+[shared conformance index](specs/conformance.md). Reports outside `specs/` can
+establish what an implementation was tested to do; they cannot redefine what
+it is required to do. Report any conflict against the owning specification.
+
+Work currently targets `codex/trish-spec-integration` under the
+[spec-merge hold](specs/README.md#branch-and-authority-boundary).
 
 BDP is an HTTP-based protocol for interacting with beads and the links
 between beads. BDP defines the uniform mechanism for reading, creating,
