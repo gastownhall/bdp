@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
 import {
   createTypeConformanceIndex,
   READ_PROBLEM_DEFINITIONS,
@@ -9,6 +8,7 @@ import {
   type TypeDescriptor,
 } from "@bdp/protocol";
 import { describe, expect, it } from "vitest";
+import { readSpecificationSource } from "../test-support/spec-source.js";
 import {
   controlledReadExternalTypePublisherCapability,
   controlledReadUnauthenticatedChallenge,
@@ -37,8 +37,7 @@ const resolveArtifactPath = (relativePath: string): string => {
     throw new Error("artifact path escapes the repository root");
   return resolved;
 };
-const readText = (relativePath: string): string =>
-  readFileSync(resolveArtifactPath(relativePath), "utf8");
+const readText = (relativePath: string): string => readSpecificationSource(relativePath);
 const readBytes = (relativePath: string): Uint8Array =>
   readFileSync(resolveArtifactPath(relativePath));
 const bdLinkLocalId = (source: string, target: string, type: string): string => {
@@ -1390,7 +1389,10 @@ describe("checked-in Read matrix artifacts", () => {
 
   it("resolves every checked-in schema assertion against the canonical bundle", () => {
     const manifest = loadManifest();
-    const schema = JSON.parse(readText("schemas/bdp-v0.schema.json")) as Record<string, unknown>;
+    const schema = JSON.parse(readText("specs/profiles/core/bdp-v0.schema.json")) as Record<
+      string,
+      unknown
+    >;
     const validator = createJsonSchemaValidator(schema);
     const references = manifest.scenarios.flatMap((scenario) =>
       scenarioRequests(scenario).flatMap((request) =>

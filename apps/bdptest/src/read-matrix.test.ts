@@ -205,7 +205,7 @@ describe("bdptest reference target Read matrix", () => {
         },
       });
       const schemaValidator = createJsonSchemaValidator(
-        JSON.parse(readText("schemas/bdp-v0.schema.json")),
+        JSON.parse(readText("specs/profiles/core/bdp-v0.schema.json")),
       );
       const port = createPortableReferenceFixturePort(scope, artifactBundle.fixture);
       try {
@@ -350,7 +350,7 @@ describe("bdptest reference target Read matrix", () => {
         createBdpClientScenarioActionExecutor({ fetchImplementation: missingMetadata })(execution),
       ).resolves.toMatchObject({ outcome: "success" });
       const validator = createCurrentReadWireValidator(
-        createJsonSchemaValidator(JSON.parse(readText("schemas/bdp-v0.schema.json"))),
+        createJsonSchemaValidator(JSON.parse(readText("specs/profiles/core/bdp-v0.schema.json"))),
       );
       await expect(
         createBdpClientScenarioActionExecutor({
@@ -387,7 +387,10 @@ describe("bdptest reference target Read matrix", () => {
           label: "fixtures/read-reference-v1.json",
         },
       });
-      const schema = JSON.parse(readText("schemas/bdp-v0.schema.json")) as Record<string, unknown>;
+      const schema = JSON.parse(readText("specs/profiles/core/bdp-v0.schema.json")) as Record<
+        string,
+        unknown
+      >;
       const schemaValidator = createJsonSchemaValidator(schema);
       const portablePort = createPortableReferenceFixturePort(scope, artifactBundle.fixture);
       await expectReferenceFixtureParity(portablePort);

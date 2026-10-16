@@ -62,7 +62,9 @@ type Page = { items: Row[]; next: string | null };
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
 ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
-const bundle = JSON.parse(readFileSync(path.join(root, "schemas/bdp-v0.schema.json"), "utf8"));
+const bundle = JSON.parse(
+  readFileSync(path.join(root, "specs/profiles/core/bdp-v0.schema.json"), "utf8"),
+);
 ajv.addSchema(bundle);
 const receiptSchema = ajv.compile({ $ref: `${bundle.$id}#/$defs/mutationReceipt` });
 const problemSchema = ajv.compile({ $ref: `${bundle.$id}#/$defs/transactionalProblem` });

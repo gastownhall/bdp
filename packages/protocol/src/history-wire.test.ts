@@ -23,7 +23,9 @@ import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
 
 type RecordValue = Record<string, unknown>;
 const root = new URL("../../../", import.meta.url);
-const schema = JSON.parse(readFileSync(new URL("schemas/bdp-v0.schema.json", root), "utf8"));
+const schema = JSON.parse(
+  readFileSync(new URL("specs/profiles/core/bdp-v0.schema.json", root), "utf8"),
+);
 const fixture = JSON.parse(readFileSync(new URL("fixtures/history/wire.json", root), "utf8")) as {
   examples: { id: string; schema: string; condition: string; body: RecordValue }[];
 };

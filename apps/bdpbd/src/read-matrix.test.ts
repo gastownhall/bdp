@@ -537,7 +537,7 @@ setTimeout(() => process.exit(0), 1500);
             ]);
           }
 
-          const schema = JSON.parse(readText("schemas/bdp-v0.schema.json")) as Record<
+          const schema = JSON.parse(readText("specs/profiles/core/bdp-v0.schema.json")) as Record<
             string,
             unknown
           >;

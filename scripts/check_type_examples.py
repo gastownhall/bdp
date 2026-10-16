@@ -9,8 +9,9 @@ from jsonschema.validators import SPECIFICATIONS
 from referencing import Registry, Resource
 from referencing.exceptions import NoSuchResource
 
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[1]
+ROOT = Path(__file__).resolve().parent.parent
+HERE = ROOT / "specs/profiles/types"
+ISSUE = ROOT / "specs/types/issue"
 NAMES = (
     "type-definition.properties.schema.json",
     "bead-type-definition.properties.schema.json",
@@ -19,7 +20,7 @@ NAMES = (
     "issue.properties.schema.json",
     "dependency.properties.schema.json",
 )
-SCHEMAS = {name: json.loads((HERE / name).read_text()) for name in NAMES}
+SCHEMAS = {name: json.loads(((ISSUE if name in {"issue.properties.schema.json", "dependency.properties.schema.json"} else HERE) / name).read_text()) for name in NAMES}
 
 
 def unavailable(uri):
@@ -54,7 +55,7 @@ def altered(base, **fields):
 
 
 type_name, bead_name, link_name, conformance_name, issue_name, dependency_name = NAMES
-fixture = json.loads((HERE / "examples/type-foundation.json").read_text())
+fixture = json.loads((HERE / "definitions.json").read_text())
 definitions = fixture["definitions"]
 by_pin = {(d["id"], d["revision"]): d for d in definitions}
 assert len(by_pin) == len(definitions)
@@ -195,7 +196,7 @@ assert not matches([prefix + "dependency"], task_ref)
 
 
 # Illustrative domain properties keep these shape cases independent of the separate domain spec.
-domain_cases = json.loads((HERE / "examples/domain-property-cases.json").read_text())
+domain_cases = json.loads((ROOT / "fixtures/specs/issue/domain-property-cases.json").read_text())
 issue_instance = domain_cases["issue"]
 check(issue_name, issue_instance, True, "Issue payload")
 check(dependency_name, domain_cases["dependency"], True, "Dependency payload")
@@ -207,7 +208,17 @@ for key, value, valid in [("priority", 0, True), ("priority", 5, False), ("title
 check(dependency_name, {"dep_type": "blocks"}, False, "removed Dependency discriminator")
 check(dependency_name, {"extensionNote": "preserved"}, True, "open Dependency properties")
 
-for path in [ROOT / "specs/types.md", HERE / "README.md"]:
+# The recovered Issue draft embeds these fragments; only document annotations differ.
+issue_text = (ISSUE / "issue.md").read_text()
+inline = [json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", issue_text, re.S)]
+inline_schemas = [block for block in inline if "$schema" in block]
+assert len(inline_schemas) == 2
+for name, block in zip((issue_name, dependency_name), inline_schemas):
+    artifact = {key: value for key, value in SCHEMAS[name].items()
+                if key not in {"$id", "title", "$comment"}}
+    assert block == artifact, (name, "inline properties schema drift")
+
+for path in [HERE / "types.md", HERE / "README.md", ISSUE / "issue.md"]:
     text = path.read_text()
     assert text.count("```") % 2 == 0, path
     for destination in re.findall(r"\]\(([^)]+)\)", text):

@@ -27,7 +27,7 @@ export const ALLOWED_EVIDENCE_DELTA_PATHS = Object.freeze([
 
 const CATALOG_PATH = "packages/conformance/catalog/read-v1.json";
 const MANIFEST_PATH = "packages/conformance/matrices/read-v1.json";
-const SCHEMA_BUNDLE_PATH = "schemas/bdp-v0.schema.json";
+const SCHEMA_BUNDLE_PATH = "specs/profiles/core/bdp-v0.schema.json";
 const FIXTURE_PATHS = Object.freeze({
   bdptest: "packages/conformance/fixtures/read-reference-v1.json",
   bdpbd: "packages/conformance/fixtures/read-bdpbd-v1.json",

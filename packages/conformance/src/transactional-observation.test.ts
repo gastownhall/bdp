@@ -9,7 +9,7 @@ import {
 } from "./transactional-observation.js";
 import { createJsonSchemaValidator } from "./schema-validator.js";
 import type { HttpExchangeResponse } from "./http-executor.js";
-import schema from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import schema from "../../../specs/profiles/core/bdp-v0.schema.json" with { type: "json" };
 const scope = "https://reference.invalid/acme/",
   id = `${scope}receipts/r1`;
 const body = {

@@ -6,8 +6,8 @@ erasure, recovery or retention result. `schema` names the owning canonical bundl
 shape. The protocol tests validate bodies, composition and rejected corruption;
 they do not establish server/client/adapter behavior or capability support.
 
-The owning law is [Historical resolution](../../docs/specs/bdp.md#historical-resolution)
-and [Immutable change context](../../docs/specs/bdp.md#immutable-change-context).
+The owning law is [Historical resolution](../../specs/profiles/core/core.md#historical-resolution)
+and [Immutable change context](../../specs/profiles/core/core.md#immutable-change-context).
 The new `history-v1` catalog is unbound metadata. Its future executable manifest
 must gate History rows on actual advertised capability and preserve cumulative
 profile obligations. No existing Read cohort, original catalog row, manifest or
