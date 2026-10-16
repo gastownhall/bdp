@@ -360,7 +360,7 @@
         "revision": "link-type-1"
       },
       "properties": {
-        "description": "Related informational relationship; endpoint roles, pins and non-workflow semantics are specified in memory.md.",
+        "description": "Related informational relationship with at least one known or expected Memory role; not the existing Issue-related identity. See memory.md for compatibility, endpoint and pin semantics.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
@@ -382,11 +382,50 @@
               "source": {
                 "resourceKind": "bead",
                 "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/memory-types/memory",
+                    "revision": "memory-contract-1"
+                  }
+                ]
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": ["*"]
+              }
+            },
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "same",
                 "types": ["*"]
               },
               "target": {
                 "resourceKind": "bead",
                 "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/memory-types/memory",
+                    "revision": "memory-contract-1"
+                  }
+                ]
+              }
+            },
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/memory-types/memory",
+                    "revision": "memory-contract-1"
+                  }
+                ]
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "cross",
                 "types": ["*"]
               }
             },
@@ -411,6 +450,23 @@
               "target": {
                 "resourceKind": "bead",
                 "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/memory-types/memory",
+                    "revision": "memory-contract-1"
+                  }
+                ]
+              }
+            },
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "cross",
+                "types": ["*"]
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "same",
                 "types": ["*"]
               }
             },
@@ -418,7 +474,12 @@
               "source": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": ["*"]
+                "types": [
+                  {
+                    "uri": "https://example.org/memory-types/memory",
+                    "revision": "memory-contract-1"
+                  }
+                ]
               },
               "target": {
                 "resourceKind": "resource"
@@ -431,7 +492,12 @@
               "target": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": ["*"]
+                "types": [
+                  {
+                    "uri": "https://example.org/memory-types/memory",
+                    "revision": "memory-contract-1"
+                  }
+                ]
               }
             }
           ]

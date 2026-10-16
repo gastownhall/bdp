@@ -816,6 +816,28 @@
         "statement": "The old seal leaked on housing B."
       },
       "valid": true
+    },
+    {
+      "label": "explicit unknown Inception method is recorded",
+      "type": "memory",
+      "properties": {
+        "title": "Imported field note",
+        "body": "",
+        "inception": {
+          "method": "unknown"
+        }
+      },
+      "valid": true
+    },
+    {
+      "label": "present Inception requires a method",
+      "type": "memory",
+      "properties": {
+        "title": "Imported field note",
+        "body": "",
+        "inception": {}
+      },
+      "valid": false
     }
   ]
 }

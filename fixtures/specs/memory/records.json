@@ -295,14 +295,14 @@
       "metadata": {}
     },
     {
-      "id": "https://example.org/project/links/related-work-issues",
+      "id": "https://example.org/project/links/memory-related-work",
       "revision": "link-r1",
       "type": {
         "uri": "https://example.org/memory-types/memory-related",
         "revision": "related-contract-1"
       },
-      "source": "https://example.org/project/beads/work-issue",
-      "target": "https://example.org/project/beads/inspection-issue",
+      "source": "https://example.org/project/beads/decision",
+      "target": "https://example.org/project/beads/work-issue",
       "properties": {},
       "metadata": {}
     },
