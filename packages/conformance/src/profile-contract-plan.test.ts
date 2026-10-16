@@ -221,7 +221,7 @@ describe("canonical cumulative profile contracts", () => {
         ).toThrow("clause lost");
     }
   });
-  it("inherits partial TX command-minimum evidence while preserving RU omission", () => {
+  it("maps ordinary Update command-minimum evidence while TX mapping remains partial", () => {
     const id = "read-update.http.command-minimum-fields";
     const clause =
       "On mutation POSTs to operation command targets, authorities MUST ignore the `BDP-Minimum-Scope-Position`, `BDP-Scope-Epoch`, and `BDP-Authorization-View` request fields. Their presence, absence, completeness, and field values do not impose a minimum-position barrier or affect command identity. Ordinary HTTP field syntax and transport, header, and body bounds still apply, as do authorization, idempotency, carrier validation, and `expectedRevision`. This rule applies to mutation POSTs under this profile and cumulative profiles. It does not change conditions on reads.";
@@ -271,20 +271,32 @@ describe("canonical cumulative profile contracts", () => {
     };
     expect(coverage.rows).toHaveLength(130);
     expect(coverage.rows.filter((row) => !row.wholeContract)).toHaveLength(96);
-    expect(coverage.rows.filter((row) => row.status === "omitted")).toHaveLength(75);
-    const omitted = coverage.rows.filter((row) => row.id === id);
-    expect(omitted).toHaveLength(1);
-    expect(omitted[0]).toMatchObject({ id, status: "omitted", wholeContract: false, bindings: [] });
-    expect(omitted[0]?.reason.trim().length).toBeGreaterThan(0);
-    for (const path of [
-      "../matrices/read-update-v1.json",
-      "../matrices/read-update-reference-continuation-v1.json",
-    ]) {
-      const manifest = JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as {
-        scenarios: { id: string }[];
-      };
-      expect(manifest.scenarios.map((row) => row.id)).not.toContain(id);
-    }
+    expect(coverage.rows.filter((row) => row.status === "omitted")).toHaveLength(74);
+    const observed = coverage.rows.filter((row) => row.id === id);
+    expect(observed).toHaveLength(1);
+    expect(observed[0]).toMatchObject({ id, status: "bounded-observation", wholeContract: false });
+    expect(observed[0]?.reason).toContain("harness-local");
+    const ruManifest = JSON.parse(
+      readFileSync(new URL("../matrices/read-update-v1.json", import.meta.url), "utf8"),
+    );
+    const ru = ruManifest.scenarios.filter((row: { id: string }) => row.id === id);
+    expect(ru).toHaveLength(1);
+    expect(ru[0].actions).toHaveLength(11);
+    expect(observed[0]?.bindings).toEqual([
+      {
+        scenario: id,
+        assertions: ru[0].actions.flatMap((a: { id: string; assertions: { id: string }[] }) =>
+          a.assertions.map((q) => `${a.id}.${q.id}`),
+        ),
+      },
+    ]);
+    const continuation = JSON.parse(
+      readFileSync(
+        new URL("../matrices/read-update-reference-continuation-v1.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    expect(continuation.scenarios.map((row: { id: string }) => row.id)).not.toContain(id);
     const txManifest = JSON.parse(
       readFileSync(
         new URL("../test-support/transactional/manifest-v1.json", import.meta.url),
