@@ -13325,8 +13325,8 @@
     {
       "id": "read-update.http.command-minimum-fields",
       "status": "bounded-observation",
-      "wholeContract": true,
-      "reason": "Installed ordinary Update commands ignore copied minimum fields and preserve authentication, keys, key conflict, carrier validation and revision refusal. The 47 portable assertions are supplemented by a harness-local raw-header and full Resource/replay oracle; that supplement is not portable runner credit. The command-ignore obligation does not alter ordinary Read dispatch or conditions (development-runtime.ts and read-http.ts); unchanged read.http.conditional-reads and read.http.head-conditional-parity remain partial preservation context, not additional credit. No Read minimum-position rule, Transactional credit or public qualification is claimed.",
+      "wholeContract": false,
+      "reason": "Installed ordinary Update commands ignore copied minimum fields and preserve authentication, keys, key conflict, carrier validation and revision refusal. The 47 portable assertions are supplemented by a harness-local raw-header and full Resource/replay oracle; that supplement is not portable runner credit. The command-ignore obligation does not alter ordinary Read dispatch or conditions (development-runtime.ts and read-http.ts); unchanged read.http.conditional-reads and read.http.head-conditional-parity remain partial preservation context, not additional credit. No Read minimum-position rule, Transactional credit or public qualification is claimed. Transport/header/body-bound receiving variants remain unobserved; whole-contract credit is withheld.",
       "bindings": [
         {
           "scenario": "read-update.http.command-minimum-fields",

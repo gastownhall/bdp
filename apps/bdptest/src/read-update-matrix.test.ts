@@ -2413,7 +2413,7 @@ it("pins command minimum literals, ordinary admission and parent preservation", 
   const set = installedArtifactSet();
   const coverage = set.coverage.rows.find((r) => r.id === commandMinimumId);
   expect(createHash("sha256").update(JSON.stringify(coverage)).digest("hex")).toBe(
-    "63fc576c428b8d9ad0441a8e1840c5774188aa7f1080b691acc48b300def19e8",
+    "758b8f8e647eeae93b1fd34f2b18e3f1c73411ea2beb7acd35a0d94b33daee33",
   );
   expect(coverage?.bindings).toEqual([
     {
@@ -2423,11 +2423,11 @@ it("pins command minimum literals, ordinary admission and parent preservation", 
       ),
     },
   ]);
-  expect(coverage?.wholeContract).toBe(true);
+  expect(coverage?.wholeContract).toBe(false);
   expect(set.shards.map((s) => s.scenarioIds.length)).toEqual([51, 5]);
   expect(set.coverage.rows.filter((r) => r.status === "bounded-observation")).toHaveLength(56);
   expect(set.coverage.rows.filter((r) => r.status === "omitted")).toHaveLength(74);
-  expect(set.coverage.rows.filter((r) => r.wholeContract)).toHaveLength(35);
+  expect(set.coverage.rows.filter((r) => r.wholeContract)).toHaveLength(34);
   expect(set.claimEligible).toBe(false);
   expect(smallExecutionSet().shards.flatMap((s) => s.scenarioIds)).not.toContain(commandMinimumId);
   // Complete historical-parent byte reconstruction is asserted in the corpus-split callback.
@@ -2727,8 +2727,8 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(report.reportBinding.exactConfigurationDigest).toBe(
       "26da5a286d9887bebbb0fcf73a92c5d09aa7b7fcfdcc9ed91f767f4db1578c69",
     );
-    expect(report.uncoveredIds).toHaveLength(95);
-    expect(report.uncoveredIds).not.toContain(commandMinimumId);
+    expect(report.uncoveredIds).toHaveLength(96);
+    expect(report.uncoveredIds).toContain(commandMinimumId);
     expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
     expect(report.sessions).toHaveLength(report.plannedIds.length);
     expect(report.observations.length).toBeGreaterThan(30);
@@ -2745,7 +2745,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
         expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(65536);
     }
     expect(progress.authoredIds).toHaveLength(56);
-    expect(progress.reviewedWholeIds).toHaveLength(35);
+    expect(progress.reviewedWholeIds).toHaveLength(34);
     expect(progress.omittedRequiredIds).toHaveLength(74);
     expect(progress.omittedRequiredIds).not.toContain(commandMinimumId);
     expect(progress.shards[1]!.selectedIds).toEqual([
@@ -2822,8 +2822,8 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(progress.uncoveredIds).toEqual(
       set.coverage.rows.filter((r) => !r.wholeContract).map((r) => r.id),
     );
-    expect(progress.uncoveredIds).toHaveLength(95);
-    expect(progress.uncoveredIds).not.toContain(commandMinimumId);
+    expect(progress.uncoveredIds).toHaveLength(96);
+    expect(progress.uncoveredIds).toContain(commandMinimumId);
     expect(JSON.stringify(progress)).not.toContain(token);
     expect(JSON.stringify(progress)).not.toContain(wrongToken);
     controller.signal.throwIfAborted();
@@ -3485,8 +3485,8 @@ it("observes retained retry dispositions across actual installed carriers and cu
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(95);
-  expect(report.uncoveredIds).not.toContain(commandMinimumId);
+  expect(report.uncoveredIds).toHaveLength(96);
+  expect(report.uncoveredIds).toContain(commandMinimumId);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -3907,8 +3907,8 @@ it("observes key and media admission against installed HTTP with paired aftersta
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(95);
-  expect(report.uncoveredIds).not.toContain(commandMinimumId);
+  expect(report.uncoveredIds).toHaveLength(96);
+  expect(report.uncoveredIds).toContain(commandMinimumId);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -4338,8 +4338,8 @@ it("observes reference syntax and retained category failures against installed H
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(95);
-  expect(report.uncoveredIds).not.toContain(commandMinimumId);
+  expect(report.uncoveredIds).toHaveLength(96);
+  expect(report.uncoveredIds).toContain(commandMinimumId);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -5661,8 +5661,8 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
   expect(bytes.length - NUMERIC_ADMISSION_CONTINUATION_BYTES_BASE).toBeLessThanOrEqual(450 * 1024);
   expect(nodes(manifest) - NUMERIC_ADMISSION_CONTINUATION_NODES_BASE).toBeLessThanOrEqual(12000);
   expect(nodes(manifest)).toBeLessThanOrEqual(27158);
-  // Cold directory retained its70150B delta; command-minimum coverage adds2320B.
-  expect(coverageBytes.length - NUMERIC_ADMISSION_COVERAGE_BYTES_BASE).toBeLessThanOrEqual(72470);
+  // Cold directory retained its70150B delta; command-minimum partial coverage adds2422B.
+  expect(coverageBytes.length - NUMERIC_ADMISSION_COVERAGE_BYTES_BASE).toBeLessThanOrEqual(72572);
   expect(fixtureBytes.length - NUMERIC_ADMISSION_FIXTURE_BYTES_BASE).toBeLessThanOrEqual(8192);
   const text = bytes.toString();
   for (const [id, digest] of [
@@ -6049,11 +6049,11 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   // The 06b0e04 anchor predates this +2048 coverage allowance.
   // Command-minimum catalog row adds 401B; the 243B excess raises 14336 to 14579.
   // Both historical bases stay fixed; this measured allowance has zero slack.
-  // Cold directory added5114B; command-minimum adds2320B to19693. Runtime caps unchanged.
+  // Cold directory added5114B; command-minimum partial coverage adds2422B to19693. Runtime caps unchanged.
   expect(
     source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.length -
       METADATA_CLOSURE_COVERAGE_BYTES_BASE,
-  ).toBeLessThanOrEqual(22013);
+  ).toBeLessThanOrEqual(22115);
   expect(
     createHash("sha256")
       .update(source("packages/conformance/fixtures/read-update-reference-v1.json").bytes)
@@ -6433,8 +6433,8 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
   // The b604 anchor above predates this +2560 coverage allowance.
   // The same 401B omitted row exceeds this allowance by 50B: 9728 -> 9778.
   // Keep the historical base and other fences; no speculative margin is added.
-  // Cold directory added5114B; command-minimum adds2320B to14892.
-  expect(coverage.length - 703415).toBeLessThanOrEqual(17212);
+  // Cold directory added5114B; command-minimum partial coverage adds2422B to14892.
+  expect(coverage.length - 703415).toBeLessThanOrEqual(17314);
   const row = manifest.scenarios.find((r: { id: string }) => r.id === numericRoundTripId) as {
     actions: readonly NumericRAction[];
   };
@@ -6577,8 +6577,8 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
       0,
     ),
   ).toBe(5546);
-  // Cold directory residual5646 retained; command-minimum adds2320B.
-  expect(coverage.length - 703415 - 5546 - 3700).toBeLessThanOrEqual(7966);
+  // Cold directory residual5646 retained; command-minimum partial coverage adds2422B.
+  expect(coverage.length - 703415 - 5546 - 3700).toBeLessThanOrEqual(8068);
   expect(row.actions!.reduce((n, a) => n + a.assertions.length, 0)).toBe(687);
   expect(numericRClosureRawControls).toHaveLength(3);
   expect(

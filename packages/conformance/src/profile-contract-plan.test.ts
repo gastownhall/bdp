@@ -270,11 +270,11 @@ describe("canonical cumulative profile contracts", () => {
       }[];
     };
     expect(coverage.rows).toHaveLength(130);
-    expect(coverage.rows.filter((row) => !row.wholeContract)).toHaveLength(95);
+    expect(coverage.rows.filter((row) => !row.wholeContract)).toHaveLength(96);
     expect(coverage.rows.filter((row) => row.status === "omitted")).toHaveLength(74);
     const observed = coverage.rows.filter((row) => row.id === id);
     expect(observed).toHaveLength(1);
-    expect(observed[0]).toMatchObject({ id, status: "bounded-observation", wholeContract: true });
+    expect(observed[0]).toMatchObject({ id, status: "bounded-observation", wholeContract: false });
     expect(observed[0]?.reason).toContain("harness-local");
     const ruManifest = JSON.parse(
       readFileSync(new URL("../matrices/read-update-v1.json", import.meta.url), "utf8"),
