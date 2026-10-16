@@ -1235,7 +1235,7 @@ Type-ID arrays contain unique Type URLs and
 may be empty where this specification permits an unconstrained endpoint.
 
 The canonical `typeDescriptor` definition exists only in the single BDP v0
-schema bundle at `schemas/bdp-v0.schema.json#/$defs/typeDescriptor`. The
+schema bundle at `specs/profiles/core/bdp-v0.schema.json#/$defs/typeDescriptor`. The
 specification prose above and that schema definition must remain aligned.
 This section therefore does not carry a second inline schema copy.
 
@@ -2023,6 +2023,3 @@ limits and non-disclosure. Optional History obligations apply only when that
 complete capability is advertised. The shared conformance index records
 case identifiers and evidence requirements; profile tags select only Read
 obligations for a Read implementation.
-
-<a id="part-ii--readupdate"></a>
-

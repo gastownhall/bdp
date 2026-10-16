@@ -2,7 +2,7 @@
 
 These documents describe the planned Node/TypeScript reference implementation
 of the Bead Protocol. They are non-normative. If a design document conflicts
-with the [BDP v0 draft](../../specs/profiles/core/core.md), the protocol draft governs and the
+with the [BDP v0 specification](../../specs/README.md), the protocol draft governs and the
 design document must be corrected.
 
 Terminology: "Gate 0" is this project's name for the pre-implementation

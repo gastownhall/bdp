@@ -3,7 +3,7 @@
 Status: draft
 
 This document specifies the implementation deliverables. Protocol requirements
-remain in the [BDP v0 draft](../../specs/profiles/core/core.md), and traceable implementation
+remain in the [BDP v0 specification](../../specs/README.md), and traceable implementation
 requirements are in [requirements.md](requirements.md).
 
 ## `bdp`: client library and executable

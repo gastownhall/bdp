@@ -50,7 +50,7 @@
     "bead-data-model": "specs/profiles/core/core.md",
     "references": "specs/profiles/core/core.md",
     "part-i--read": "specs/profiles/core/core.md",
-    "part-ii--readupdate": "specs/profiles/core/core.md",
+    "part-ii--readupdate": "specs/profiles/write/write.md",
     "part-iii--readupdate": "specs/profiles/write/write.md",
     "readupdate-discovery": "specs/profiles/write/write.md",
     "readupdate-schema-and-limits": "specs/profiles/write/write.md",

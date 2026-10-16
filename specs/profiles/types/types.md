@@ -3,16 +3,16 @@
 Work-in-progress design specification, October 15, 2026. This document records agreed design rules and
 explicit open decisions for an optional, Scope-wide Types profile. It is not yet
 an adopted protocol specification, an installable definition format, or a claim
-that Beads implements these rules. The [current BDP specification](../core/core.md)
-remains the protocol authority until coordinated amendments land. Landing this
+that Beads implements these rules. The [current BDP specifications](../../README.md)
+remain the protocol authority until coordinated amendments land. Landing this
 document on main makes the evolving design available for collaboration; it does
 not adopt its candidate wire shapes or require implementation of unfinished rules.
 
 The [Issue and Dependency draft](../../types/issue/issue.md) and [Memory draft](https://github.com/gastownhall/bdp/pull/143)
 provide requirements and acceptance scenarios. Issue/Dependency records the
 selected product hierarchy of classification Types conforming to issue/dependency.
-Memory still contains older flat-Type assumptions and needs explicit reconciliation; this document does not
-silently reinterpret its endpoint lists. The earlier [Type lifecycle exploration](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-lifecycle-preview2.md)
+Memory is being reconciled and reviewed separately in PR143; this document does
+not silently settle its remaining shared-design questions. The earlier [Type lifecycle exploration](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-lifecycle-preview2.md)
 is background. Where it conflicts, this document records the current design
 position: this Types profile represents definitions as Beads; Core does not
 require that representation.
@@ -1134,7 +1134,8 @@ This expands the current canonical BDP alias contract, which uses an alias/ root
 and targets only in-Scope Bead URLs. Its existing alias table/operations provide a
 starting point, not evidence that cross-Scope, Link or pinned aliases work today.
 Any adoption requires coordinated Core/Write alias schema and operation changes;
-this draft does not silently amend docs/specs/bdp.md or active Write work.
+this draft does not silently amend [Core](../core/core.md),
+[Write](../write/write.md), or active Write work.
 
 ## 8. Readiness and landing
 

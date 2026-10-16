@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { readSpecificationSource } from "../test-support/spec-source.js";
 import { markdownAnchors } from "./markdown.js";
 
 const root = new URL("../../../", import.meta.url);
@@ -44,6 +45,25 @@ describe("single specification authority and physical layout", () => {
           `${source}: ${href}`,
         ).toContain(anchor);
     }
+  });
+
+  it("keeps the historical Read+Update alias with its heading in Write", () => {
+    const source = "specs/profiles/write/write.md";
+    const alias = markdownAnchors(read(source)).find(
+      (entry) => entry.anchor === "#part-ii--readupdate",
+    );
+    expect(alias?.aliasOf).toBe("#part-iii--readupdate");
+    expect(map.anchors["part-ii--readupdate"]).toBe(source);
+    for (const [anchor, owner] of Object.entries(map.anchors))
+      expect(read("docs/specs/bdp.md")).toContain(`](../../${owner}#${anchor})`);
+  });
+
+  it("retains repository boundaries for test citation source reads", () => {
+    expect(() => readSpecificationSource("../outside.md")).toThrow("escapes the repository root");
+    expect(() => readSpecificationSource("file:///etc/hosts")).toThrow(
+      "escapes the repository root",
+    );
+    expect(readSpecificationSource("specs/profiles/core/core.md")).toContain("Part II — Read");
   });
 
   it("leaves navigation rather than competing requirements at the former monolith", () => {

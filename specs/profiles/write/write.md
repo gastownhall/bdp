@@ -14,6 +14,8 @@ document name, not a new advertised profile. `sequence` remains non-atomic;
 
 <!-- protocol-text -->
 
+<a id="part-ii--readupdate"></a>
+
 ## Part III — Read+Update
 
 Part III inherits the Data Model and the Read profile, adding

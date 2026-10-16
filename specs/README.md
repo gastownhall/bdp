@@ -15,6 +15,10 @@ outside this directory are non-normative and may be stale.
 | Issue/Dependency library | [issue.md](types/issue/issue.md) | WIP domain design using the proposed Types profile; historical implementation evidence is labeled |
 | Memory library | [PR143](https://github.com/gastownhall/bdp/pull/143) | WIP on its own branch at `specs/types/memory/memory.md`; not yet adopted or merged |
 
+The Issue draft links its source audit at an immutable authoring commit. That
+audit remains unmerged historical evidence outside this specification tree; it
+is not a new normative source or a current-build qualification.
+
 `core`, `write`, and `types` directory names organize documents. This editorial
 move does not change discovery values, profile inheritance, operation semantics,
 or capability advertisements. In particular Read+Update `sequence` is still
