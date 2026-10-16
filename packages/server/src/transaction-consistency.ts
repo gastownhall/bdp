@@ -29,7 +29,8 @@ const position = (value: unknown): number | undefined => {
   const number = Number(value.slice(4));
   return Number.isSafeInteger(number) ? number : undefined;
 };
-export function snapshotTransactionMinimum(value: unknown): TransactionMinimum {
+/** Lexical data-only capture for the selected current-Read paths. */
+export function snapshotCurrentReadMinimum(value: unknown): TransactionMinimum {
   if (!value || typeof value !== "object" || isProxy(value))
     throw new TypeError("unsupported minimum tuple");
   const fields = Object.getOwnPropertyDescriptors(value);
@@ -48,11 +49,27 @@ export function snapshotTransactionMinimum(value: unknown): TransactionMinimum {
     typeof authorizationView !== "string" ||
     !token.test(authorizationView) ||
     typeof minimumPosition !== "string" ||
-    !token.test(minimumPosition) ||
-    position(minimumPosition) === undefined
+    !token.test(minimumPosition)
   )
     throw new TypeError("unsupported minimum tuple");
   return Object.freeze({ scopeEpoch, authorizationView, minimumPosition });
+}
+export function snapshotTransactionMinimum(value: unknown): TransactionMinimum {
+  const minimum = snapshotCurrentReadMinimum(value);
+  if (position(minimum.minimumPosition) === undefined)
+    throw new TypeError("unsupported minimum tuple");
+  return minimum;
+}
+export function currentReadMinimumHeaders(headers: Headers): TransactionMinimum | undefined {
+  try {
+    return snapshotCurrentReadMinimum({
+      scopeEpoch: headers.get("bdp-scope-epoch"),
+      authorizationView: headers.get("bdp-authorization-view"),
+      minimumPosition: headers.get("bdp-minimum-scope-position"),
+    });
+  } catch {
+    return undefined;
+  }
 }
 export function transactionMinimumHeaders(headers: Headers): TransactionMinimum | undefined {
   try {
@@ -88,6 +105,31 @@ export function checkTransactionMinimum(
     throw new Error("invalid owner minimum position");
   if (current < required) throw new TransactionMinimumFailure("behind", context);
 }
+/** An unknown identity is not behind or malformed, and carries no ordering claim. */
+export class TransactionMinimumUnproved extends Error {
+  constructor(readonly context: TransactionReadContext) {
+    super("current Resource minimum eligibility unproved");
+  }
+}
+export class TransactionMinimumUnsupported extends Error {}
+export function checkCurrentReadMinimum(
+  minimum: TransactionMinimum,
+  context: TransactionReadContext,
+  waitable: boolean,
+): void {
+  if (position(context.scopePosition) === undefined)
+    throw new Error("invalid owner minimum position");
+  if (position(minimum.minimumPosition) === undefined) {
+    if (
+      !waitable ||
+      minimum.scopeEpoch !== context.scopeEpoch ||
+      minimum.authorizationView !== context.authorizationView
+    )
+      throw new TransactionMinimumUnsupported("minimum-position");
+    throw new TransactionMinimumUnproved(context);
+  }
+  checkTransactionMinimum(minimum, context);
+}
 export interface TransactionMinimumWaitOptions {
   readonly budgetMs?: number;
   readonly now?: () => number;
@@ -120,7 +162,11 @@ export async function waitForTransactionMinimum<T>(
     try {
       return await attempt();
     } catch (error) {
-      if (!(error instanceof TransactionMinimumFailure) || error.reason !== "behind") throw error;
+      if (
+        !(error instanceof TransactionMinimumUnproved) &&
+        (!(error instanceof TransactionMinimumFailure) || error.reason !== "behind")
+      )
+        throw error;
       const current = now();
       if (!Number.isFinite(current) || current < previous)
         throw new TypeError("invalid minimum-read clock");

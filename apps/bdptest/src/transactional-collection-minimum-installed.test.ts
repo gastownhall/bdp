@@ -585,7 +585,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
   });
 }, 120000);
 
-it("observes genuine installed compatible missing minimum404 and preserved behind gap", async () => {
+it("observes genuine installed compatible and ahead missing minimum404", async () => {
   await withInstalled(
     async (f) => {
       let count = 0;
@@ -733,11 +733,20 @@ it("observes genuine installed compatible missing minimum404 and preserved behin
         "GET",
         minimum(removed, "pos-3"),
       );
-      expect(behind.status).toBe(500);
-      expect(behind.bodyText).toBe("");
-      expect(behind.headers["x-bdp-development-limit"]).toBe("minimum-position-visibility");
-      for (const name of ["bdp-scope-position", "bdp-scope-epoch", "bdp-authorization-view"])
-        expect(behind.headers[name]).toBeUndefined();
+      const missingProblem = {
+        type: "https://github.com/gastownhall/bdp/problems/not-found",
+        code: "resource-not-found",
+        retry: "after-state-change",
+        status: 404,
+      };
+      expect(json(behind, 404)).toEqual(missingProblem);
+      expect(behind.bodyText).toBe(JSON.stringify(missingProblem));
+      expect(behind.bodyOctets).toBe(Buffer.byteLength(behind.bodyText));
+      expect(behind.headers["content-length"]).toBe(String(behind.bodyOctets));
+      expect(behind.headers["cache-control"]).toBe("private, no-store");
+      expect(behind.headers["x-bdp-development-limit"]).toBeUndefined();
+      expect(behind.headers.location).toBeUndefined();
+      context(behind, equal);
       expect(count).toBe(10);
       expect(urls.size).toBe(9);
     },
@@ -1127,9 +1136,26 @@ it("observes genuine installed current alias minimums within18requests", async (
           expect(response.headers[h]).toBeUndefined();
       };
       const collision = await exchange(`${scope}alias/never`, "HEAD", future);
-      noDisclosure(collision, 500);
+      expect(collision.status).toBe(404);
+      expect(collision.bodyText).toBe("");
       expect(collision.bodyOctets).toBe(0);
-      expect(collision.headers["x-bdp-development-limit"]).toBe("minimum-position-visibility");
+      expect(collision.headers["content-type"]?.split(";", 1)[0]).toBe("application/problem+json");
+      expect(collision.headers["content-length"]).toBe(
+        String(
+          Buffer.byteLength(
+            JSON.stringify({
+              type: "https://github.com/gastownhall/bdp/problems/not-found",
+              code: "resource-not-found",
+              retry: "after-state-change",
+              status: 404,
+            }),
+          ),
+        ),
+      );
+      expect(collision.headers["cache-control"]).toBe("private, no-store");
+      expect(collision.headers["x-bdp-development-limit"]).toBeUndefined();
+      expect(collision.headers.location).toBeUndefined();
+      context(collision, headers);
       await aliasCommand("delete-alias", "alias-min-delete", "deleted");
       const deleted = await exchange(`${scope}alias/work`, "GET", headers);
       expect(json(deleted, 404)).toMatchObject({ code: "resource-not-found" });
