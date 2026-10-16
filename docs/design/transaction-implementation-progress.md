@@ -1991,3 +1991,21 @@ installed validation and exact-head CI have not yet been credited here. These
 local source results do not establish public Transactional qualification. Unknown
 identity and the retained Snapshot/incident-Link product questions remain outside
 this change.
+
+
+### Current Resource minimum ordering draft
+
+This draft is authored from reviewed authorization candidate 1647c5d, which was
+not merged main at authoring time. It implements the operator-ruled ordinary
+missing/hidden Resource, alias and initial incident-anchor precedence and bounded
+unproved-position waiting for existing current Bead/Link Resource/properties.
+Strict consumers and pending Snapshot/incident-Event questions remain separate.
+On that isolated candidate, all 11 source-validation stages passed, including
+the fresh build and 15 selected source callbacks; the preceding fixture-type and
+report-lint failures remain preserved under their original bindings. An installed
+minimum-current observation test is authored but unexecuted; no installed or
+counterfactual control run is recorded. Actual authorization main df80f8cb must
+still be integrated ordinarily before final installed validation. Unknown
+positions combined with foreign epoch/view remain a private unsupported
+development gap, outside the current operator ruling. Source and later installed
+evidence retain their exact commit/build provenance; no qualification is claimed.
