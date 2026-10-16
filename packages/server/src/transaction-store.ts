@@ -1,3 +1,14 @@
+import {
+  INITIAL_TRANSACTION_VIEW,
+  initialTransactionAuthorization,
+  emptyTransactionAuthorization,
+  parseTransactionAuthorization,
+  projectTransactionReceipt,
+  projectTransactionEntry,
+  TransactionAuthorizationFailure,
+  type TransactionAuthorizationSnapshot,
+  type TransactionAuthorizationLease,
+} from "./transaction-authorization.js";
 import { transactionSelectorCapacity, type TransactionSelectorLimit } from "./transaction-set.js";
 import {
   TRANSACTION_SNAPSHOT_LIMITS,
@@ -43,7 +54,7 @@ import { DatabaseSync } from "node:sqlite";
 import { parseCanonicalScope, parseTypeDescriptor, type TypeDescriptor } from "@bdp/protocol";
 import { assertDevelopmentContracts, type DevelopmentContracts } from "./development-contracts.js";
 import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
-import type { AuthorityReadReader, OwnerReadEntryResult } from "./authority-read.js";
+import type { AuthorityReadReader, OwnerReadEntryResult, ReadPrincipal } from "./authority-read.js";
 import type { EvaluatorStoredResource } from "./resource-evaluator.js";
 import {
   TransactionDevelopmentLimitError,
@@ -192,7 +203,9 @@ export interface TransactionStoreOptions {
       | "after-sequence-admission"
       | "after-dependency-resolution"
       | "after-snapshot-copy"
-      | "after-snapshot-commit",
+      | "after-snapshot-commit"
+      | "before-policy-commit"
+      | "after-policy-commit",
   ) => void;
 }
 interface Row {
@@ -206,7 +219,7 @@ interface Row {
 }
 const day = 86400000;
 export const TRANSACTION_RECEIPT_DETAIL_MS = day;
-const format = "bdp-private-transaction-snapshot-10";
+const format = "bdp-private-transaction-snapshot-11";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
 const identityPolicy = "transaction-revision-provenance-4";
@@ -245,10 +258,19 @@ interface ReceiptPagePlan {
 /** Owns a single SQLite connection under persistent EXCLUSIVE locking. Admission
  * is durable separately; graph/positions/group/terminal receipt are one commit.
  * Startup retracts abandoned pending receipts instead of running requests itself.
- * Fixed all-visible private policy only; this is not an authentication boundary. */
+ * Private Scope policy; this is not an authentication boundary. */
 export function openTransactionStore(options: TransactionStoreOptions) {
   const scope = parseCanonicalScope(options.scope);
-  const view = "development-all-visible";
+  const view = INITIAL_TRANSACTION_VIEW;
+  let authorization: TransactionAuthorizationSnapshot = initialTransactionAuthorization();
+  const leases = new Set<AbortController>();
+  const readAuthorizations = new WeakMap<AuthorityReadReader, TransactionAuthorizationSnapshot>();
+  const activeSequences = new Set<TransactionSequenceAdmission>();
+  let mutationPause: object | undefined;
+  const revokeLeases = () => {
+    for (const lease of leases) lease.abort(new Error("authorization lease ended"));
+    leases.clear();
+  };
   if (Buffer.byteLength(json(`${scope}events/`)) > TRANSACTION_RUNTIME_LIMITS.scopeSourceBytes)
     throw new TypeError("transaction Scope exceeds private materialization bound");
   if (!path.isAbsolute(options.file))
@@ -286,13 +308,27 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     receiptMaximumItems,
     snapshotLimits: TRANSACTION_SNAPSHOT_LIMITS,
     snapshotTokenPolicy: TRANSACTION_SNAPSHOT_TOKEN_POLICY,
-    authorizationView: view,
+    initialAuthorizationView: view,
+    policyStorageRevision: 1,
     identityPolicy,
     contractIdentity: compiled?.identity ?? null,
     runtimeLimits: TRANSACTION_RUNTIME_LIMITS,
     scope,
     types: [...installed].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
   });
+  // Preserve the exact format-10 property ordering, not a permissive JSON comparison.
+  const legacyObject = JSON.parse(configuration) as Record<string, unknown>;
+  const legacyEntries = Object.entries(legacyObject).flatMap(([key, value]) =>
+    key === "policyStorageRevision"
+      ? []
+      : [
+          [
+            key === "initialAuthorizationView" ? "authorizationView" : key,
+            key === "format" ? "bdp-private-transaction-snapshot-10" : value,
+          ],
+        ],
+  );
+  const legacyBytes = json(Object.fromEntries(legacyEntries));
   const clock = options.clock ?? Date.now;
   const maintenanceInterval = options.maintenanceIntervalMs ?? 1000;
   if (
@@ -361,6 +397,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   }
   function fence(cause: unknown): Error {
     clearInterval(maintenanceTimer);
+    revokeLeases();
     // Cleanup can add the original application error to an earlier storage
     // failure. Replace the wrapper; mutating its cause would create a cycle.
     ownerFailure = new Error("transaction storage failure; owner fenced; reopen before use", {
@@ -501,7 +538,12 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     );
     return { row: { ...stored, receipt: receiptText }, change: "completedExpired" };
   }
-  const snapshots = transactionSnapshotStorage(db, scope, descriptors);
+  const snapshots = transactionSnapshotStorage(
+    db,
+    scope,
+    descriptors,
+    () => authorization.readPolicy === "all-visible",
+  );
   function sweep(now: number) {
     snapshots.expire(now, readContext());
     const counts = { completedExpired: 0, failedForgotten: 0 };
@@ -536,13 +578,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         put.run("contractCapture", capture);
         put.run("epoch", randomUUID());
         put.run("position", "0");
+        put.run("authorizationPolicy", json(authorization));
       } else {
         const storedConfiguration = metadata("configuration");
         if (JSON.parse(storedConfiguration).identityPolicy !== identityPolicy)
           throw new Error(
             "transaction identity policy mismatch; explicit new-store provisioning required",
           );
-        if (storedConfiguration !== configuration)
+        if (storedConfiguration !== configuration && storedConfiguration !== legacyBytes)
           throw new Error("transaction installation mismatch");
         // Exact bytes validate retained capture, including constant witnesses, even
         // if the stored claimed identity was left unchanged by corruption.
@@ -557,6 +600,22 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           metadata("contractCapture") !== capture
         )
           throw new Error("transaction contract capture mismatch");
+        if (storedConfiguration === legacyBytes) {
+          if (db.prepare("SELECT 1 FROM metadata WHERE name='authorizationPolicy'").get())
+            throw new Error("unexpected legacy authorization policy");
+          db.prepare("INSERT INTO metadata VALUES('authorizationPolicy',?)").run(
+            json(authorization),
+          );
+          db.prepare("UPDATE metadata SET value=? WHERE name='configuration'").run(configuration);
+        }
+        const policyLength = db
+          .prepare(
+            "SELECT length(CAST(value AS BLOB)) AS bytes FROM metadata WHERE name='authorizationPolicy'",
+          )
+          .get();
+        if (!policyLength || Number(policyLength.bytes) > 4096)
+          throw new Error("invalid stored authorization policy");
+        authorization = parseTransactionAuthorization(metadata("authorizationPolicy"));
       }
       // Immutable for this exclusive owner; establish it before the first sweep.
       epoch = metadata("epoch");
@@ -573,7 +632,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     throw error;
   }
   // Immutable installation facts are the same ones used by mutation evaluation.
-  // No named policy registry exists in this fixed all-visible development owner.
+  // Current authorization is captured separately inside each serialized entry.
   const readConfiguration = Object.freeze({
     scopeEpoch: epoch,
     authorizationView: view,
@@ -595,7 +654,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       throw new Error("invalid transaction read position");
     return Object.freeze({
       scopeEpoch: epoch,
-      authorizationView: view,
+      authorizationView: authorization.authorizationView,
       scopePosition: `pos-${position}`,
     });
   }
@@ -623,9 +682,12 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   function eventSourceKnown(source: TransactionEventSource): boolean {
     return (
       !source.subject ||
-      Boolean(
-        db.prepare("SELECT id FROM identities WHERE id=?").get(source.subject.slice(scope.length)),
-      )
+      (authorization.readPolicy === "all-visible" &&
+        Boolean(
+          db
+            .prepare("SELECT id FROM identities WHERE id=?")
+            .get(source.subject.slice(scope.length)),
+        ))
     );
   }
   function eventSource(sourceUrl: string): TransactionEventSource {
@@ -654,7 +716,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     source: TransactionEventSource,
     cursor?: { position: number; ordinal: number; id: string },
   ) {
-    const projected = projectTransactionEventGroup(row.value, context, source, scope, row.position);
+    const projected = projectTransactionEventGroup(
+      row.value,
+      context,
+      source,
+      scope,
+      row.position,
+      authorization.readPolicy === "all-visible",
+    );
     if (
       cursor &&
       (row.position !== cursor.position ||
@@ -802,7 +871,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       next: plan.pages[0] ? pageUrl(receipt.id, plan.pages[0].token) : null,
     };
   }
-  // Fixed all-visible projection and current position are captured before this
+  // Current projection and position are captured before this
   // authoritative transaction releases. No second clock/retention observation.
   function observeReceipt(
     receipt: TransactionReceipt,
@@ -832,12 +901,24 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         Object.freeze(value);
       }
     };
-    const projected = receiptPrefix(receipt);
+    const prefix = receiptPrefix(receipt); // Validate retained page plan even when every entry is withheld.
+    const projection = projectTransactionReceipt(
+      receipt,
+      authorization.readPolicy === "all-visible",
+    );
+    const projected =
+      projection.detail === "available" && Array.isArray(projection.results)
+        ? {
+            ...projection,
+            results: projection.results.slice(0, receiptMaximumItems),
+            next: prefix.next,
+          }
+        : projection;
     freeze(projected);
     return Object.freeze({ receipt: projected, context });
   }
-  // Called only inside the guarded owner's transaction. The fixed all-visible
-  // policy projects retained facts, including postimages since updated/deleted.
+  // Called only inside the guarded owner's transaction. Principal binding is
+  // distinct from current-view projection of retained execution facts.
   function disclosedReceipt(principal: string, id: string): Row | undefined {
     for (const stored of db
       .prepare("SELECT * FROM receipts WHERE principal=?")
@@ -948,6 +1029,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           return undefined;
         },
       });
+      readAuthorizations.set(reader, authorization);
       try {
         const value = callback(reader, readContext());
         if (
@@ -963,6 +1045,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         return Object.freeze({ kind: "read", value });
       } finally {
         active = false;
+        readAuthorizations.delete(reader);
       }
     });
   }
@@ -1361,6 +1444,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       }),
     );
     state.cancelled = true;
+    activeSequences.delete(attempt);
     for (const claim of state.owned.values()) claims.delete(claim);
     return released;
   }
@@ -1370,6 +1454,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     } catch (cause) {
       // Background failure is sticky and observable on the next owner entry;
       // stop the timer and release the database instead of silently continuing.
+      revokeLeases();
       maintenanceFailure = { cause };
       clearInterval(maintenanceTimer);
       try {
@@ -1411,6 +1496,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     return enter(() => {
       assertPreparedTransaction(batch, scope);
       checkPrincipalKey(principal, key);
+      if (mutationPause)
+        throw new TransactionAuthorizationFailure("temporarily-unavailable", readContext());
+      if (!authorization.canMutate)
+        throw new TransactionAuthorizationFailure("forbidden", readContext());
       const admission = atomic(() => {
         const result = admitKey(principal, key, batch, false, undefined, undefined, receiving);
         if (result.kind === "development-limit" && controls === undefined)
@@ -1732,7 +1821,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         if ((!row && start < head) || (row && row.position !== start + 1))
           throw new Error("missing retained change group");
         const group = row
-          ? projectTransactionChangeGroup(row.value, scope, context, row.position)
+          ? projectTransactionChangeGroup(
+              row.value,
+              scope,
+              context,
+              row.position,
+              authorization.readPolicy === "all-visible",
+            )
           : undefined;
         let next: string | null = null;
         if (group && row && row.position < head) {
@@ -1757,7 +1852,79 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         });
       });
     },
-    readConfiguration: () => enter(() => readConfiguration),
+    readConfiguration: () =>
+      enter(() =>
+        Object.freeze({
+          ...readConfiguration,
+          authorizationView: authorization.authorizationView,
+          authorization,
+          scopeConfiguration: Object.freeze({
+            ...readConfiguration.scopeConfiguration,
+            policyIdentity: authorization.authorizationView,
+          }),
+        }),
+      ),
+    captureReadAuthorization(reader: AuthorityReadReader, principal: ReadPrincipal) {
+      // The reader is a capability for this exact live serialized entry.
+      const snapshot = readAuthorizations.get(reader);
+      if (!snapshot || !principal || typeof principal !== "object")
+        throw new Error("authorization capture outside owner entry");
+      return snapshot;
+    },
+    authorizationSnapshot: () => enter(() => authorization),
+    acquireAuthorizationLease(expected: TransactionReadContext): TransactionAuthorizationLease {
+      return enter(() => {
+        if (
+          expected.scopeEpoch !== epoch ||
+          expected.authorizationView !== authorization.authorizationView
+        )
+          throw new TransactionAuthorizationFailure("foreign-view", readContext());
+        const controller = new AbortController();
+        leases.add(controller);
+        return Object.freeze({
+          signal: controller.signal,
+          release: () => {
+            leases.delete(controller);
+          },
+        });
+      });
+    },
+    pauseMutationAdmission() {
+      return enter(() => {
+        if (mutationPause)
+          throw new TransactionAuthorizationFailure("temporarily-unavailable", readContext());
+        const token = Object.freeze({});
+        mutationPause = token;
+        return () => {
+          if (mutationPause === token) mutationPause = undefined;
+        };
+      });
+    },
+    replaceAuthorizationPolicy() {
+      return enter(() => {
+        if (
+          activeSequences.size ||
+          db.prepare("SELECT 1 FROM receipts WHERE owner IS NOT NULL LIMIT 1").get()
+        )
+          throw new TransactionAuthorizationFailure("temporarily-unavailable", readContext());
+        if (authorization.generation === 1) return authorization;
+        const next = emptyTransactionAuthorization();
+        atomic(() => {
+          db.prepare("UPDATE metadata SET value=? WHERE name='authorizationPolicy'").run(
+            json(next),
+          );
+          options.fault?.("before-policy-commit");
+        });
+        try {
+          options.fault?.("after-policy-commit");
+          authorization = next;
+          revokeLeases();
+        } catch (error) {
+          throw fence(error);
+        }
+        return authorization;
+      });
+    },
     comparisonEpoch: () => {
       if (closed && !ownerFailure && !maintenanceFailure) return undefined;
       return enter(() => metadata("epoch"));
@@ -1794,6 +1961,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     ): TransactionSequenceAdmission {
       return enter(() => {
         assertPreparedTransactionSequence(sequence, scope);
+        if (mutationPause)
+          throw new TransactionAuthorizationFailure("temporarily-unavailable", readContext());
+        if (!authorization.canMutate)
+          throw new TransactionAuthorizationFailure("forbidden", readContext());
         for (const member of sequence.members) checkPrincipalKey(principal, member.key);
         const owned = new Map<number, TransactionClaim>();
         const id = randomUUID();
@@ -1847,6 +2018,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             for (const claim of owned.values()) claims.delete(claim);
           }
         }
+        activeSequences.add(attempt);
         sequenceAdmissions.set(attempt, {
           principal,
           id,
@@ -1977,6 +2149,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           );
         state.next++;
         const done = state.next === state.sequence.members.length;
+        if (done) activeSequences.delete(attempt);
         if (done)
           enter(() =>
             atomic(() => db.prepare("DELETE FROM creator_facts WHERE attempt=?").run(state.id)),
@@ -2009,7 +2182,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       });
     },
     receipt(principal: string, id: string): TransactionReceipt | undefined {
-      return enter(() => atomic(() => retainedReceipt(principal, id)));
+      return enter(() =>
+        atomic(() => {
+          const value = retainedReceipt(principal, id);
+          return (
+            value && projectTransactionReceipt(value, authorization.readPolicy === "all-visible")
+          );
+        }),
+      );
     },
     /** Trusted authenticated principal, never actor/provenance. Lookup, retention
      * cleanup, fixed current projection and source context share one owner entry.
@@ -2076,10 +2256,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           observeReceipt(receipt, context); // same projection/integrity policy, no second clock
           const boundary = plan.pages[index];
           if (!boundary) throw new Error("receipt page boundary missing");
-          const results = (receipt.results as readonly unknown[]).slice(
-            boundary.start,
-            boundary.end,
-          );
+          const results = (receipt.results as readonly unknown[])
+            .slice(boundary.start, boundary.end)
+            .map((entry) =>
+              projectTransactionEntry(entry, authorization.readPolicy === "all-visible"),
+            );
           // Freeze the selected page entries before they escape the owner entry.
           const freeze = (value: unknown): void => {
             if (value && typeof value === "object") {
@@ -2126,6 +2307,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     close() {
       if (busy) throw new Error("transaction store reentrant close");
       clearInterval(maintenanceTimer);
+      revokeLeases();
       if (!closed) {
         db.close();
         closed = true;

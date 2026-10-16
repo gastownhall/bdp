@@ -910,3 +910,84 @@ it("Event delivery receives the shared captured cadence object, separate from ow
   expect(received).toEqual({ pollMilliseconds: 17, heartbeatMilliseconds: 31, maximumStreams: 1 });
   await live.close();
 });
+
+it("publication cancels a queued Event frame before its drain permits another write", async () => {
+  const boundary = cleanups.length,
+    failures: unknown[] = [];
+  let lease:
+    | ReturnType<ReturnType<typeof openTransactionStore>["acquireAuthorizationLease"]>
+    | undefined;
+  let observed: Promise<unknown> | undefined;
+  try {
+    const f = ownerFixture(32);
+    f.run([create("a"), create("b")]);
+    const initial = f.owner.beginEventScan(`${scope}events/`);
+    if (initial.kind !== "packet") throw Error("actual initial Event packet required");
+    expect(initial.events).toHaveLength(2);
+    lease = f.owner.acquireAuthorizationLease(initial.context);
+    const firstWrite = Promise.withResolvers<void>();
+    class BlockedSink extends Sink {
+      override write(text: string) {
+        this.chunks.push(text);
+        firstWrite.resolve();
+        return false;
+      }
+    }
+    const sink = new BlockedSink();
+    let pulls = 0;
+    const pumping = pumpTransactionEvents(
+      sink,
+      initial,
+      async (scan) => {
+        pulls++;
+        return f.owner.advanceEventScan(scan);
+      },
+      lease.signal,
+    );
+    observed = pumping.then(
+      () => ({ completed: true }),
+      (error: unknown) => error,
+    );
+    await Promise.race([
+      firstWrite.promise,
+      observed.then(() => {
+        throw Error("Event pump ended before first-write barrier");
+      }),
+    ]);
+    expect(sink.chunks).toEqual([transactionEventFrame(initial.events[0]!)]);
+    expect(pulls).toBe(0);
+    const policy = f.owner.replaceAuthorizationPolicy();
+    expect(policy.generation).toBe(1);
+    expect(lease.signal.aborted).toBe(true);
+    sink.emit("drain");
+    expect(await observed).toBe(lease.signal.reason);
+    expect(sink.chunks).toEqual([transactionEventFrame(initial.events[0]!)]);
+    expect(pulls).toBe(0);
+    expect([
+      sink.listenerCount("drain"),
+      sink.listenerCount("close"),
+      sink.listenerCount("error"),
+    ]).toEqual([0, 0, 0]);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    // Closing the real owner aborts a pump if a pre-publication assertion failed.
+    for (const close of cleanups.splice(boundary).reverse()) {
+      try {
+        await close();
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    lease?.release();
+    if (observed) {
+      try {
+        await observed;
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+  }
+  if (failures.length)
+    throw new AggregateError(failures, "queued Event publication witness cleanup");
+}, 5000);

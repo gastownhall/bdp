@@ -1,3 +1,4 @@
+import { INITIAL_TRANSACTION_VIEW } from "./transaction-authorization.js";
 /** Source-private durable Snapshot owner support. No HTTP route or admission claim. */
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
@@ -87,6 +88,7 @@ export class TransactionSnapshotFailure extends Error {
     readonly code:
       | "resource-not-found"
       | "cursor-expired"
+      | "foreign-view"
       | "limit-exceeded"
       | "temporarily-unavailable",
     readonly retryAfter?: number,
@@ -95,6 +97,7 @@ export class TransactionSnapshotFailure extends Error {
     const [family, status, retry] = {
       "resource-not-found": ["not-found", 404, "after-state-change"],
       "cursor-expired": ["gone", 410, "after-state-change"],
+      "foreign-view": ["conflict", 409, "after-state-change"],
       "limit-exceeded": ["size", 413, "never"],
       "temporarily-unavailable": ["unavailable", 503, "after-delay"],
     }[code];
@@ -155,6 +158,7 @@ export function transactionSnapshotStorage(
   db: DatabaseSync,
   canonicalScope: string,
   types: readonly TypeDescriptor[],
+  visible: () => boolean = () => true,
 ) {
   const scope = parseCanonicalScope(canonicalScope),
     limits = TRANSACTION_SNAPSHOT_LIMITS;
@@ -203,7 +207,8 @@ export function transactionSnapshotStorage(
       "issued page counts",
     );
     integrity(
-      d.epoch === context.scopeEpoch && d.view === context.authorizationView,
+      d.epoch === context.scopeEpoch &&
+        (d.view === context.authorizationView || d.view === INITIAL_TRANSACTION_VIEW),
       "persisted context mismatch",
     );
     integrity(
@@ -570,6 +575,9 @@ export function transactionSnapshotStorage(
       )
         throw new TransactionSnapshotFailure("resource-not-found");
     }
+    // Qualified witnesses separate unexpired foreign-view and same-view expiry.
+    // The simultaneous foreign+expired collision is not an admission claim.
+    if (d.view !== context.authorizationView) throw new TransactionSnapshotFailure("foreign-view");
     if (d.expired || now > d.expires) throw new TransactionSnapshotFailure("cursor-expired");
     return { d, ranges: plan(id, d) };
   }
@@ -613,9 +621,11 @@ export function transactionSnapshotStorage(
     if (ledgerBounds() >= limits.issuedHandles)
       throw new TransactionSnapshotFailure("limit-exceeded");
     const live = liveLedger(now, context);
-    const totals = statement(
-      "SELECT count(*) AS count,coalesce(sum(length(CAST(body AS BLOB))),0) AS bytes,coalesce(sum(length(CAST(id AS BLOB))),0) AS idBytes FROM resources",
-    ).get()!;
+    const totals = !visible()
+      ? { count: 0, bytes: 0, idBytes: 0 }
+      : statement(
+          "SELECT count(*) AS count,coalesce(sum(length(CAST(body AS BLOB))),0) AS bytes,coalesce(sum(length(CAST(id AS BLOB))),0) AS idBytes FROM resources",
+        ).get()!;
     if (Number(totals.count) > limits.resources || Number(totals.bytes) > limits.recordBytes)
       throw new TransactionSnapshotFailure("limit-exceeded");
     // Empty-live pressure cannot occur with the current recordBytes < liveRecordBytes
@@ -633,7 +643,9 @@ export function transactionSnapshotStorage(
     }
     integrity(Number(totals.idBytes) <= limits.recordBytes, "authority identity bytes");
     // Count/byte checks precede bounded identity enumeration and every body load.
-    const ids = statement("SELECT id,kind FROM resources LIMIT ?").all(limits.resources + 1);
+    const ids = visible()
+      ? statement("SELECT id,kind FROM resources LIMIT ?").all(limits.resources + 1)
+      : [];
     integrity(ids.length === Number(totals.count), "authority inventory changed inside owner");
     ids.sort((a, b) => compareCanonicalIds(String(a.id), String(b.id)));
     // The nonallocating path uses fixed-width layout witnesses, never an issued

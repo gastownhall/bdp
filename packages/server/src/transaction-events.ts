@@ -1,3 +1,4 @@
+import { INITIAL_TRANSACTION_VIEW } from "./transaction-authorization.js";
 /** Private finite projection of committed facts. No pruning, mutable views,
  * SSE, replication bootstrap or public profile admission. */
 import { createHash } from "node:crypto";
@@ -193,12 +194,13 @@ export function projectTransactionEventGroup(
   source: TransactionEventSource,
   scope: string,
   expectedPosition: number,
+  visible = true,
 ): readonly TransactionEvent[] {
   if (!value || typeof value !== "object") throw new Error("invalid retained Event group");
   const group = value as TransactionEventGroup;
   if (
     group.scopeEpoch !== context.scopeEpoch ||
-    group.authorizationView !== context.authorizationView ||
+    group.authorizationView !== (visible ? context.authorizationView : INITIAL_TRANSACTION_VIEW) ||
     group.position !== `pos-${expectedPosition}` ||
     group.checkpoint !== group.position ||
     !Array.isArray(group.events) ||
@@ -246,7 +248,7 @@ export function projectTransactionEventGroup(
       throw new Error("invalid retained Event framing");
     const data = event.data as Record<string, unknown>;
     let include = source.kind === "scope";
-    if (source.kind !== "scope") {
+    if (visible && source.kind !== "scope") {
       include =
         event.subject === source.subject && ["created", "updated", "deleted"].includes(event.type);
       if (source.kind === "bead" && (event.type === "linked" || event.type === "unlinked")) {
@@ -264,7 +266,8 @@ export function projectTransactionEventGroup(
           throw new TransactionEventProjectionGap("incident-link-metadata");
       }
     }
-    if (include) result.push(renderTransactionEvent(context, source.url, group.checkpoint, event));
+    if (visible && include)
+      result.push(renderTransactionEvent(context, source.url, group.checkpoint, event));
   }
   return result;
 }

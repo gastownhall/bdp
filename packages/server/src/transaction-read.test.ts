@@ -1916,15 +1916,26 @@ describe("current alias minimum subset", () => {
     const f = prepared(),
       sentinel = new Error("alias provider failed");
     let fault: "context" | "provider" | "target" | undefined = "context";
+    type Reader = Parameters<typeof f.store.captureReadAuthorization>[0];
+    const originalReaders = new WeakMap<Reader, Reader>();
     const owner: typeof f.store = {
       ...f.store,
+      captureReadAuthorization: (reader, principal) =>
+        f.store.captureReadAuthorization(originalReaders.get(reader) ?? reader, principal),
       withRead: (callback) =>
         f.store.withRead((reader, captured) => {
           if (fault === "provider") throw sentinel;
-          return callback(
-            fault === "target" ? { ...reader, alias: () => "links/not-a-bead" } : reader,
-            fault === "context" ? { ...captured, scopePosition: "pos-02" } : captured,
-          );
+          const exposed =
+            fault === "target" ? { ...reader, alias: () => "links/not-a-bead" } : reader;
+          originalReaders.set(exposed, reader);
+          try {
+            return callback(
+              exposed,
+              fault === "context" ? { ...captured, scopePosition: "pos-02" } : captured,
+            );
+          } finally {
+            originalReaders.delete(exposed);
+          }
         }),
     };
     const plane = createTransactionReadPlane(owner, f.readOptions);

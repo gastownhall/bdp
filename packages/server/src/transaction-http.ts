@@ -1,3 +1,4 @@
+import { TransactionAuthorizationFailure } from "./transaction-authorization.js";
 import type { TransactionEventPacket } from "./transaction-store.js";
 import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import {
@@ -192,6 +193,15 @@ export function createTransactionHttpHandler(
     }
     return response;
   }
+  const readPrincipals = new WeakMap<
+    Request,
+    { readonly kind: "authenticated"; readonly principal: { readonly id: string } }
+  >();
+  const readPrincipal = (request: Request) => {
+    const principal = readPrincipals.get(request);
+    if (!principal) throw new Error("missing authenticated Read principal");
+    return principal;
+  };
   const readRoute = createReadHttpRoute({
     scope,
     probe: async () => ({ serviceDescription: new URL("bdp.json", scope).href }),
@@ -201,8 +211,8 @@ export function createTransactionHttpHandler(
       if (isReadProblem(suffix)) return problem(suffix);
       const minimum = transactionMinimumHeaders(request.headers);
       const facet = minimum
-        ? service.readAtMinimum({ kind: "anonymous" }, minimum)
-        : service.readFor({ kind: "anonymous" });
+        ? service.readAtMinimum(readPrincipal(request), minimum)
+        : service.readFor(readPrincipal(request));
       const result = await facet.resolveAlias(request.url, { signal: request.signal });
       const response =
         result.kind === "problem"
@@ -222,8 +232,8 @@ export function createTransactionHttpHandler(
     async perform(parsed, request) {
       const minimum = transactionMinimumHeaders(request.headers);
       const facet = minimum
-        ? service.readAtMinimum({ kind: "anonymous" }, minimum)
-        : service.readFor({ kind: "anonymous" });
+        ? service.readAtMinimum(readPrincipal(request), minimum)
+        : service.readFor(readPrincipal(request));
       const result = await facet.perform(parsed, { signal: request.signal });
       const response =
         result.kind === "problem"
@@ -594,6 +604,14 @@ export function createTransactionHttpHandler(
     ): Promise<TransactionHttpResult> {
       let response: HttpResponse | ChangefeedStream | EventStream;
       try {
+        if (authorization.kind === "authenticated")
+          readPrincipals.set(
+            request,
+            Object.freeze({
+              kind: "authenticated",
+              principal: Object.freeze({ id: authorization.principal }),
+            }),
+          );
         response = await route(request, authorization, received, lastEventIds);
       } catch (error) {
         if (error instanceof ScopeServerOperationAbortedError) throw error;
@@ -611,7 +629,9 @@ export function createTransactionHttpHandler(
             ),
             error.context,
           );
-        } else if (
+        } else if (error instanceof TransactionAuthorizationFailure)
+          response = transactionHttpProblem(error.code, error.context);
+        else if (
           error instanceof TransactionEventParameterError ||
           error instanceof TransactionChangefeedParameterError
         )
@@ -621,6 +641,8 @@ export function createTransactionHttpHandler(
         else if (error instanceof TransactionMinimumVisibilityGap)
           response = developmentGap("minimum-position-visibility");
         else response = empty(500);
+      } finally {
+        readPrincipals.delete(request);
       }
       response.headers.set("x-bdp-development", "non-attesting");
       if (request.method === "POST") response.headers.set("vary", "Accept");
