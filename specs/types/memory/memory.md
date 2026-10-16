@@ -34,6 +34,16 @@ was checked at `9df574a9ac980272fa31be9f443a771233b69c6a`; its relevant envelope
 History and deletion rules remain unchanged in this base. This is a source read,
 not fresh implementation qualification.
 
+The illustrative definitions below use the **candidate Types-profile format**,
+not a current-Core installation format. In particular, Core uses object-keyed
+ownership declarations with mandatory `max`; Types proposes selector arrays and
+separates ownership from count constraints. Core v0 also lacks these endpoint-pair
+unions. Adopting either change requires a shared semantic amendment, separately
+from editorial file moves. This draft neither translates the formats nor waives
+Core's current limits, complete-owned-state reads or authorization closure.
+Compact discovery projections need their own shared view contract; a partial Core
+Bead record cannot simply be relabeled complete.
+
 Sources reviewed October 15, 2026:
 
 | Source | Reviewed identity and effect |
@@ -42,7 +52,7 @@ Sources reviewed October 15, 2026:
 | [Revision 4 response](https://github.com/gastownhall/beads/issues/5877#issuecomment-5787432078) | Registration, aliases, duplicate Links, ownership, deletion and shared-operation gaps; its fixed-Link-Type sentence is superseded here by the newer explicit-retyping design. |
 | [Applicability and relationship conventions](https://github.com/gastownhall/beads/issues/5877#issuecomment-5963448303) | Preserve circumstances and meaningful relationships without imposing a universal claim engine. |
 | [Consolidation follow-up](https://github.com/gastownhall/beads/issues/5877#issuecomment-6009424090), [experiment](https://github.com/gastownhall/beads/issues/5877#issuecomment-6028640616) | Consolidation is external consumer work; merging records is not adjudication or proven retrieval improvement. |
-| [Provenance V2 #7510](https://github.com/gastownhall/beads/issues/7510) | Current body updated October 14 and all six comments reviewed. Revision sources and Activity remain distinct; current Activity admission supersedes older existence-check suggestions. |
+| [Provenance V2 #7510](https://github.com/gastownhall/beads/issues/7510) | Current body and all six comments refreshed October 15. Revision sources and Activity remain distinct. The body/comment Activity-admission conflict and Core/V2 actor-basis difference are named in §6. |
 | [Product Types #7590](https://github.com/gastownhall/beads/issues/7590) | October 15 proposal and its triage comment; product context, not a duplicate CLI specification. |
 | [Earlier Memory draft](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/memory.md) | Starting proposal at exact authoring commit `cbd59b601875ec5c20dd189c22a95ccad4b33390`; useful semantics/examples retained, flat-Type and kind-dispatch assumptions replaced. |
 | [Historical A/B comparison](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/memory-approaches.md), [rationale](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/memory-bead-link-model-20261013.md) | Background preserved unchanged, not a second current specification. |
@@ -60,6 +70,18 @@ as properties of distinct Types. That is a visible proposed refinement, not
 unchanged R3 conformance. Open application metadata remains available. Type
 granularity is settled by Donna's ruling; detailed property/metadata boundaries
 and upstream proposal alignment remain review items.
+
+Other reconciliation points must not disappear behind the requirement mapping:
+
+| Proposal requirement | Reconciliation in this draft |
+| --- | --- |
+| R1/TC1/R31, first-class Memory | A first-class Beads product concept can use an ordinary registered domain Type, not a new intrinsic BDP bootstrap definition. The literal `type: "memory"` test becomes affiliation/conformance matching, including specializations, for generic lists and typed workflow refusal. This requires shared closure/query support; installation alone does not supply it. |
+| R3, absent derivation | V2 permits unknown sources on native creation too, preserving body-only capture. This broadens Chris's pre-schema/converted description; omission never fabricates a deliberate empty list. |
+| R6/R27a, knowledge in direct properties | Discovery must search the declared knowledge fields, and compact outputs must not expose them in full merely because they are outside Markdown. |
+| R4/R31, authoring and Type operations | Specialized creation explicitly supplies the Type and complete properties in one write. Product contracts must account for this, guarded retyping and Type-aware discovery beyond the old command table; their grammar remains with the product/shared owners. |
+| R12, responsible actor | New native Memory revisions require an actor even though the general shared envelope permits absence. This is a domain operation requirement, not a new provenance representation. |
+| R17/R23/R31, existing `related` | The candidate Memory Related identity does not itself extend the existing product selector or Dependency-related contract. Compatibility needs an explicit shared/product decision. |
+| R5/R20 versus Type participation minimums | Unconditional cleanup can invalidate a surviving Bead's minimum. This is an unresolved cross-contract conflict, not a completed requirement. |
 
 ## 2. Catalog, identity and conformance
 
@@ -140,6 +162,9 @@ Open roots do not confer semantics on unknown fields. Preserve
 unfamiliar values on safe targeted edits, or refuse edits that cannot preserve them.
 Application-specific annotations may use common open metadata; this proposal
 introduces no second metadata/extension store.
+Properties and metadata are retained versioned state. A value that must not
+persist belongs in neither; editing or deleting current state does not erase
+retained history. Required removal uses the shared erasure contract.
 
 Creation receives a nonblank title or body. With body but no title, authoring
 derives a title before storage. The earlier first-nonblank-line/80-code-point rule
@@ -148,9 +173,23 @@ An explicit title permits empty body; omitted body on create becomes empty. Empt
 content is a found Memory, not absence. Updates preserve omitted values. Body
 headings/frontmatter never create properties or Links or synthesize a classification.
 
+Plain capture selects Memory without asking for a knowledge form. A specialized
+creation deliberately supplies its exact Type affiliation and complete properties,
+including required local fields, in one atomic write validated against the whole
+inherited contract. Creating a Procedure does not require first publishing a plain
+note and then retyping it. Type/property selection is an R4/R31 product extension;
+this document defines the outcome without inventing CLI arguments or an envelope.
+On legacy conversion, an empty value keeps its empty body and gets a title derived
+from the legacy key. The key remains an alias, never canonical identity. This is a
+conversion rule, not permission for ordinary capture to invent keys or content.
+
 Native creation may default Inception to native; conversion/import records only
 known origin. Absent legacy Inception is unknown, not inferred native. Inception
 changes are durable state changes, distinct from revision attribution.
+Absence means Inception was not recorded; an explicit `{method: "unknown"}` records
+that the origin method is deliberately unknown and may carry other known fields.
+Both leave origin knowledge unknown, but their presence differs. Complete reads
+preserve that distinction rather than synthesizing or normalizing either state.
 
 For applicability, validFrom is inclusive and validUntil exclusive. Both supplied
 requires from < until after normalization; malformed timestamps fail. Omitted
@@ -201,6 +240,10 @@ A full human record must render the specialized knowledge alongside body. An exp
 body-only projection returns the complete body and must not claim to be the full
 record. Do not duplicate structured fields into stored Markdown to disguise an
 incomplete reader. This rendering/product refinement is explicit under R7/R31.
+Stored content and provider diagnostics remain untrusted input under Chris's TC8:
+human renderers prevent terminal-diagnostic impersonation, structured renderers
+escape values correctly, and neither turns stored knowledge into instructions or
+rewrites the stored body to implement display protection.
 
 ## 4. Informational Link contracts
 
@@ -226,6 +269,10 @@ The [common relationship properties schema](./memory-link.properties.schema.json
 allows an optional nonblank note; it has no relationship selector. Common metadata
 holds application annotations. A note explains the relationship, not a competing
 canonical rationale or evidence envelope.
+The six definitions deliberately share one schema resource with identical bytes
+under one `$id`. A changed common schema requires a new schema identity and affected
+definition revisions; a per-Type divergence needs its own `$id` and new definition
+revision. Independent Type revisioning cannot give that shared schema ID two meanings.
 
 ### 4.1 Allowed pairs and external expectations
 
@@ -237,7 +284,7 @@ not a typed external constraint or a claim of verified membership.
 
 | Link | Source → target alternatives | Target reference and meaning |
 | --- | --- | --- |
-| Related | L→L; L→E; E→L; L→X; X→L | Floating or exact; navigation only |
+| Related | M→L; L→M; M→E; L→E(Memory); E→M; E(Memory)→L; M→X; X→M | Floating or exact; navigation with at least one known/expected Memory role |
 | Guidance | I→M; I→E(Memory); E(Issue)→M | Floating or exact; intended guidance, not proof it was read or used |
 | AppliesTo | M→L; M→E; M→X; E(Memory)→L | Floating or exact; source claims relevance under its stated conditions |
 | Supports | M→M; M→E(Memory); E(Memory)→M | Exact target required by this proposed domain contract; source offers support for that content |
@@ -249,8 +296,17 @@ source/target lists cannot be flattened independently. Every inherited pair set
 also applies. The illustrative descriptors use current candidate pair syntax;
 external-capable arms use wildcard Types and never request a remote Memory/Issue
 Type check. At least one endpoint is local. Links-as-graph-endpoints are not enabled.
-Related deliberately also permits Issue→Issue; that breadth does not reinterpret
-existing Dependency related or supersedes records.
+Related in this catalog requires at least one known or expected Memory role.
+An entirely local Issue→Issue pair uses the existing Issue/Dependency contract,
+not this new Type. Existing related or supersedes records are not reinterpreted.
+
+In particular, `K/memory-related` is a distinct illustrative identity. It does not
+silently rebind the existing `--type related` selector or change historical Links.
+R17/R23/R31's baseline requires an explicit choice by the shared Type/product owners:
+evolve the baseline contract, define a compatible selector mapping, or acknowledge
+a change to Chris's requirement. Conformance cannot widen an inherited Issue-only
+endpoint restriction. No option is selected here, and this candidate catalog alone
+does not establish the promised existing-command compatibility.
 
 The local M/I arms deliberately pin `memory-contract-1` and the shared foundation's
 `issue-1` in this conservative candidate. They rely on those exact semantic contracts,
@@ -260,6 +316,11 @@ to those contracts: accepting a changed base requires justified conformance back
 to the selected contract or explicit new Link-definition revisions. Identity-wide
 Issue selection is a review alternative if no exact Issue promise is needed; it is
 not silently substituted here. Stored Link affiliations never upgrade automatically.
+Same-identity cross-revision conformance remains an open Types evolution question;
+this document does not assume that a new base revision may declare the old one.
+A breaking base change can instead require new specialization and Link-definition
+revisions with new exact pins and an explicit migration. Relaxing a closed nested
+schema cannot claim conformance back to a contract that forbids the added members.
 
 No target fetch, import or control is required for cross-Scope admission. The Link
 Type records an expected role, not an observed Type. Reads distinguish stored
@@ -308,6 +369,16 @@ from an Issue follows the external Issue ownership contract; this file cannot ad
 Issue ownership or otherwise change established workflow. For a source outside
 the storing Scope, do not pretend this Scope revised the remote owner. Incoming
 Links never become durable target Memory state.
+With the illustrative Issue ownership list, a Guidance Link is not thereby part
+of the Issue's owned snapshot either. Its own retention and query visibility need
+the shared Link/History contract; do not promise an Issue revision or infer that
+the Link has no independent history. Issue ownership remains with its owner.
+
+Current Core also requires owned-state view closure: a Memory with an owned Link
+or local endpoint hidden from a view is itself hidden from that view. A reader
+must not return a partial owned set as complete or reveal the hidden endpoint to
+explain the omission. Historical/pinned endpoint authorization needs the shared
+History/graph resolution contract; this draft creates no Memory-specific exception.
 
 A pinned source Reference identifies retained state; it is never permission to
 edit that historical revision. Where mutation of such a Link is supported, owner
@@ -322,6 +393,11 @@ Types' precise count population and activation rules: endpoint identities across
 pins, current local Links across relevant Type revisions/conformers, no separate
 budget per alternative or subtype. Product operation limits may still be disclosed
 and rejected before mutation under R14.
+This does not permit a current-Core writer to omit its mandatory wildcard `max`.
+Types-profile adoption must explicitly reconcile that bound and complete-owned-set
+reads. Large owned sets amplify record size and source-version writes; finite
+admission/capacity limits and truthful refusal are required before qualification,
+not silent truncation or a claim that an unbounded catalog is operationally proven.
 
 Arity, pair uniqueness and declared acyclicity are checked against the final
 atomic state where applicable. This supersedes the old draft's each-operation-valid
@@ -356,6 +432,20 @@ must not claim structural compatibility with every future revision. Unsupported
 query/matching/continuation guarantees must be reported, not emulated by filtering
 one page or concatenating incomplete first pages.
 
+Discovery also searches the knowledge that this catalog places outside Markdown:
+`statement`, `choice`, `alternatives`, `steps`, `rule`, `takeaway` and
+`applicability.description`, when those members belong to the record's declared
+contract. This extends R6's keys/title/body search for the direct-property design;
+it does not infer a subtype from a similarly named property. A matching result
+identifies the property path, including the relevant array position where needed,
+and supplies only a bounded excerpt under the same compact-result budget. Multiple
+field/key matches still produce one Memory result. No field's full value is an
+implicit discovery projection. Arbitrary metadata, unknown extension properties,
+provenance and referenced resources are not automatically searched; additional
+custom-contract search coverage must be documented truthfully. The shared query
+surface owns result encoding, continuation and ordering. Neither an embedding
+service nor a full-text index is required by this search contract.
+
 For a specific Procedure-only relationship, a Type selector can now express that
 contract without a property-sensitive kind predicate. No additional supplied Link
 Type is created without an actual use case. Changing a Type revision is not an
@@ -368,8 +458,12 @@ Memory requires these shared outcomes, which registration alone does not impleme
   fail; accepted unguarded writes disclose their actual predecessor and attribution.
 - Deletion removes current state, releases keys, and preserves retained history.
   Local incident Links with latest endpoints are cleaned up per R20; exact pinned
-  Links survive while their states are retained. Affected source revisions and
-  removed Links are disclosed. Historical owner sets are never rewritten.
+  Links survive while their states are retained. Reports of affected source revisions
+  and removed Links follow shared authorization and completeness rules. Do not leak
+  hidden identities or claim a Scope-complete enumeration from an authorized subset;
+  an operation unable to satisfy the required authorized mutation/reporting contract
+  must refuse before mutation. R20/R29 need that shared contract, not truncated success.
+  Historical owner sets are never rewritten.
 - Restoration creates a new live revision under the same identity, with the new
   operation's provenance. It does not resurrect cleaned-up Links or take keys now
   belonging to another live resource. Proposed V2 terminal history/revert behavior
@@ -382,6 +476,18 @@ Memory requires these shared outcomes, which registration alone does not impleme
   requirement. Coordinate explicit amendments to existing immutable-pin and
   incident-Link deletion rules; this document does not silently change them.
 
+One shared conflict is still unresolved. An Issue conformer may validly require
+at least one outgoing Guidance Link; its sole Link may float to Memory M. R20 says
+deleting M removes that Link, and R5 says no Link blocks deletion. Types §5.5 says
+the surviving Issue must still meet its minimum at commit. Atomicity alone cannot
+make all three outcomes hold. This needs a joint decision about admissible
+constraints, explicitly authorized repair, or the deletion guarantee. Do not
+silently drop the minimum, cascade-delete/retype the survivor, invent a replacement
+Link, or present a rollback as satisfying R5/R20. Until resolved, implementations
+cannot claim these requirements are jointly qualified for such a graph. Required
+actor context for any cleanup-created Memory revisions is another shared-operation
+integration gate; accepted indirect changes must remain attributable.
+
 Aliases are generic names, potentially pinned under the shared draft, not identity
 or registration. Key placement, namespace collisions, historical visibility and
 restore outcomes remain shared decisions. Creation of a name never implicitly
@@ -390,6 +496,9 @@ preserves global identity and exact dependency pins without granting publication
 authority; a local fork and authorized origin update are different operations.
 Registration granularity, unpinned write selection, bootstrap and packaging stay
 with Types. Use exact illustrative pins here rather than deciding those defaults.
+Historical restoration here does not select the existing `bd restore` command,
+which has a pre-compaction recovery meaning. Shared History/product compatibility
+must select its surface explicitly rather than silently overloading that command.
 
 ## 6. Revision provenance, relationships and Activity
 
@@ -403,6 +512,31 @@ declared completeness are distinct. Omitted update sources preserve prior source
 knowledge per V2, without claiming a reread. A source/completeness correction makes
 a new revision; actor/agent/message-only no-ops do not. A newly minted revision uses
 the new write's provenance, never wholesale copied prior actor/time.
+
+On native creation, omitted sources mean unknown, not an empty source list or a
+claim that the author asserted the content directly. This includes ordinary
+body-only capture under S1. Explicit `[]` remains a deliberate value; omitted
+completeness means unknown under V2. Native unknown sources are an explicit R3
+refinement requiring alignment of Chris's absent-state description, rather than
+new Memory-specific defaults.
+
+R12 is a stronger Memory capability requirement than the optional actor in the
+general envelope. An operation minting a new native Memory revision must record
+a responsible actor from the accepted service/caller context and the shared commit
+timestamp. This includes owned-Link writes and cleanup revisions caused by an
+operation on another Bead; the initiating operation's accepted context must reach
+those effects. If either actor or commit time cannot be recorded truthfully, refuse before mutation
+with a typed attribution failure. Never invent an actor, infer one from an assisting
+agent or OS username, or infer authentication from a recorded identity. Use the
+selected shared actor encoding and basis vocabulary; this rule does not adopt
+V2's proposed authentication basis ahead of the shared contract. An actorless
+semantic no-op creates no revision and retains existing provenance. Legacy or
+imported historical absence remains unknown; conversion/restoration attributes
+the new native operation without fabricating the older writer. The excerpts omit
+some common envelope fields; that is not an example of actorless native acceptance.
+In particular, current Core excludes an authentication-asserting basis while V2
+proposes `authenticated`. That difference requires an explicit shared decision;
+recording a required actor here does not resolve it or supply attestation.
 
 Inception is editable origin/transfer state, separate from who wrote this revision
 or what information informed it. Import cannot fabricate original authorship or
@@ -422,11 +556,16 @@ of its subject or of the Activity record. A subject can be an Issue, Memory, Lin
 or external work artifact under V2 without making Links valid graph endpoints.
 Do not guess Bead revisions from Git SHAs, event time or opaque legacy strings.
 
-The current V2 base proposal accepts well-formed Activity subjects without an
-existence lookup, including hidden, nonexistent, deleted or pruned subjects;
-stricter policy must be declared. Activity retention after subject deletion is
-independent. This does not relax R19 graph admission or settle revision-source
-admission. The latter remains a shared design decision: record the contradiction
+The current V2 body accepts well-formed Activity subjects without an existence
+lookup, including nonexistent subjects. However, its owner's
+[October 13 comment](https://github.com/gastownhall/beads/issues/7510#issuecomment-6149528423)
+says proven nonexistent local subjects require an import path and qualifies pruned
+ones with retained evidence. Those statements conflict; Memory does not declare
+the comment superseded or select an admission rule on V2's behalf. Acceptance of
+these cases remains contingent on the V2 owner's reconciliation. Hidden or
+unavailable is not proof of never-existence. Activity retention remains independent.
+Neither possible rule relaxes R19 graph admission or settles revision-source
+admission. The latter also remains a shared design decision: record a contradiction
 if a proposed rule would require false existence claims or unavailable external
 fetches, rather than designing a new evidence index here.
 
@@ -492,26 +631,26 @@ of requirements, not evidence of complete current implementation or a release pl
 
 | Requirement | Type data, shared operation, product obligation or explicit gap |
 | --- | --- |
-| R1 | Memory/conformer knowledge contract; workflow dispatch/typed refusal and peer graph operations are product enforcement |
+| R1 | First-class product knowledge via exact Memory affiliation/conformance, replacing the literal `type: memory` test; closure-aware workflow refusal and peer graph operations need product/shared query enforcement |
 | R2 | Canonical identity, title and optional aliases; key placement/version/restore unresolved |
 | R3 | Body/metadata/Inception and V2 sources; known properties are an explicit proposed refinement, not unchanged conformance |
 | R4 | Minimal title/body contract; deliberate write-only authoring, defaults and visible identity result are product work |
 | R5 | Shared disappearance/restore/erasure, alias release and incident-Link cleanup; explicit lifecycle amendment |
-| R6 | Memory contract matching; compact deterministic discovery, exact addresses and bound cursors are query/product obligations |
+| R6 | Contract matching and known direct-content field search; compact deterministic discovery, property-path match information, exact addresses and bound cursors are query/product obligations |
 | R7 | Complete selected record/provenance/owned state and keys/aliases; full structured-knowledge rendering and empty-versus-absent handling |
 | R8 | Selective retrieval and actual supported guidance commands/budget disclosure; no recursive body injection |
 | R9 | Link ID/Type/target and separate expected/observed target information; shared observation encoding dependency |
 | R10 | Exact attributable building blocks and truthful bounds; context budgets/receipts remain consumer-owned |
 | R11 | Versioned durable/metadata/owned state, no-op detection and refusal of unversioned Memory |
-| R12 | Common revisionProvenance actor/time/agent/message; Inception remains distinct writable state |
+| R12 | Common revisionProvenance encoding; new native Memory revisions require responsible actor/time, including indirect writes, beyond the general optional-actor envelope; Inception remains distinct writable state |
 | R13 | Shared history/compare/exact reads/restore/change queries and removal reasons; not supplied by schemas |
 | R14 | Shared guards/retries/conflicts/finite limits and actual-predecessor disclosure |
 | R15 | Claiming Memory support requires the consumed History capability; registration is insufficient |
 | R16 | Accurate retention/erasure/gone outcomes and immutable addresses; no current fallback |
-| R17 | Registered open informational vocabulary/custom conformers, preserved unknown IDs and non-workflow Memory endpoints |
+| R17 | Registered informational vocabulary/custom conformers, preserved unknown IDs and non-workflow endpoints; existing `related` identity/selector compatibility remains an explicit shared/product gate |
 | R18 | Shared latest/exact references; exact local graph endpoint admission requires retained state |
 | R19 | Local expected-contract and self-Link admission checks, opaque external references and accurate observations; revalidation/encoding dependencies |
-| R20 | Floating local incident cleanup, exact survivors and affected-source disclosure; shared graph amendment |
+| R20 | Floating cleanup, exact survivors and affected-source disclosure; shared amendment must resolve surviving participation minimums and attributable indirect revisions |
 | R21 | Informational semantics and body-free nonrecursive traversal; no authority or execution |
 | R22 | Wildcard outgoing ownership and exact historical sets; bounded computed incoming views |
 | R23 | Link-ID update/removal and identity-preserving re-pin; explicit shared operation amendment |
@@ -523,12 +662,12 @@ of requirements, not evidence of complete current implementation or a release pl
 | R28 | Provider-independent current/history/Link/provenance state with accurate bounds |
 | R29 | Shared authorization/deployment/governance; no Memory-specific role or topology semantics |
 | R30 | Preserve claims/evidence, leave truth/quality/applicability judgments with humans and consumers |
-| R31 | Product documents each selected command/input/output change and its compatibility rationale; no new CLI grammar here |
+| R31 | Product must extend the original table for specialized creation, guarded retyping, Type-aware search and `related` compatibility, with explicit rationale; no new CLI grammar here |
 
 | Scenario | Observable realization and dependency |
 | --- | --- |
 | S1 | Ordinary Memory from body/title without taxonomy/key; authoring derives title and History records provenance |
-| S2 | Compact search then exact recall/update; external tools judge duplication |
+| S2 | Compact search includes declared knowledge properties, then exact recall/update; external tools judge duplication |
 | S3 | Delete current knowledge, retain exact history, restore identity without resurrecting Links; shared lifecycle |
 | S4 | Guidance/search returns summaries; explicit complete recall and exact references |
 | S5 | Issue Guidance to policy/other Memory contract; target body remains separate |
@@ -550,6 +689,19 @@ export creates no Memory rows. Installing Types does not enumerate or fix those
 projection surfaces. Janet/Donna's exact-source gap audit remains the release
 evidence; this traceability table does not duplicate its as-built verdicts.
 
+Moving knowledge into direct properties does not create a summary-output escape.
+Statements, choices, alternatives, steps, rules, takeaways, Inception and
+applicability values are omitted from summary views except for an explicitly
+bounded excerpt governed by the same discovery budget. Summaries carry only the
+declared compact identity, title, keys, exact address, attribution, match and
+completeness information; an exact Type affiliation may identify the contract
+without expanding its knowledge fields. Returning complete knowledge properties
+is subject to the same explicit body-carrying posture and disclosure as returning
+the complete Markdown body, even if that body is empty. Generated guidance, Link
+summaries and ordinary discovery must not invoke a bulk compatibility projection
+to bypass that boundary. This extends R27a's exposure rule to the direct-property
+refinement of R3.
+
 ## 9. Positive and negative acceptance cases
 
 The [schema cases](../../../fixtures/specs/memory/schema-cases.json) and
@@ -567,10 +719,13 @@ this Memory section documents the additional domain artifacts and invocation.
 | --- | --- | --- |
 | Plain Memory with title and empty body | Valid final properties; complete recall is found, not absent | Property shape checked; recall written |
 | Ordinary body-only authoring | Derive title before final-state validation; never infer a subtype or key | Written requirement |
+| Specialized creation supplies exact Procedure Type and complete steps | Create one valid inherited instance atomically; no intermediate plain-note revision is required | Written requirement |
+| Legacy key has an empty value | Preserve key and empty body, derive the nonblank title from that key, and never use the key as identity | Written requirement |
 | Former kind/details authoring route | No discriminator dispatch; reject kind input under the new domain schema and require an explicit compatibility/migration path | Kind rejection checked; migration written |
 | Observation without statement; Decision without choice; Procedure without steps; Policy without rule; Lesson without takeaway | Reject the complete specialized instance | Property shape checked |
 | Procedure steps empty or containing blank text | Reject; order of valid steps is preserved | Property shape checked; ordering written |
 | Observation time omitted | Unknown; do not substitute revision commit time | Property shape checked; semantics written |
+| Search term appears only in Policy.rule or Procedure.steps | Return the matching Memory once with property-path match provenance and a bounded excerpt, without the full rule/steps payload | Written requirement |
 | Invalid applicability instant or from >= until | Reject at domain admission; clock crossing alone is no write | Instant format checked; ordering/clock written |
 | Custom Type conforms to exact Memory and adds a required field | Apply both contracts and preserve shared meaning/owned state | Written requirement |
 | Custom Type has same shape but claims Memory participates in readiness | Not valid semantic conformance | Written requirement |
@@ -584,7 +739,8 @@ this Memory section documents the additional domain artifacts and invocation.
 | Endpoint pinned before target Type/content changes | Evaluate retained historical state; never new current Type | Written requirement |
 | Task/custom Issue conformer uses Guidance to a Memory conformer | Accept if exact required contracts and all domain checks hold | Written requirement |
 | Endpoints match different arms but no one permitted pair | Reject; independent OR flattening is incorrect | Written requirement |
-| Related joins two Issues | Informational only; do not reinterpret a Dependency record | Written requirement |
+| Memory Related joins two local Issues without a Memory endpoint | Reject its endpoint mismatch; existing Issue-related meaning and ownership remain with that separate contract | Written requirement |
+| Existing `--type related` selector is used with a Memory | Use only an explicitly selected shared/product compatibility contract; this new identity alone does not establish that mapping | Written requirement; compatibility gate open |
 | A custom workflow-dependent Link passes its shape/endpoint checks at a local Memory | Reject before mutation; wildcard ownership/eligibility does not waive the Memory non-workflow contract | Written requirement |
 | Supports source is a local Issue rather than Memory/conformer | Reject endpoint mismatch | Written requirement |
 | Required citation target is floating | Reject; do not silently pin current state | Written requirement |
@@ -601,17 +757,25 @@ this Memory section documents the additional domain artifacts and invocation.
 | Specialized relationship adopts acyclicity alongside old cyclic Links | Preserve Types' per-Link promise and complete family traversal, not whole-family DAG shorthand | Written requirement |
 | Two measurements or replacement decisions conflict | Keep both conditions/claims; no automatic truth, exclusivity or winner | Written requirement |
 | Source/completeness alone changes versus actor/message-only no-op | First creates revision; second does not fabricate provenance/time | Written requirement |
+| Native body-only creation omits sources | Preserve unknown sources/completeness; do not manufacture an explicit empty direct-assertion list | Written requirement; R3 refinement |
+| A native Memory revision would be minted without a responsible actor or commit time | Refuse before mutation; do not synthesize an actor or infer authentication; an actorless semantic no-op still preserves the existing revision | Written requirement |
+| A generic deletion causes an owned-Link cleanup revision of a Memory | Propagate accepted operation attribution to the new Memory revision; source history remains unchanged | Written requirement; shared integration gate |
 | Unknown sources versus explicit empty sources round-trip | Preserve distinction, completeness and original historical values | Written requirement |
-| Activity reports nonexistent/pruned/hidden subject under V2's base policy | Well-formed authorized report may be accepted without subject lookup; no access or verification claim | Written requirement |
+| Activity reports a nonexistent/pruned local subject | Body and owner-comment admission rules conflict; acceptance is contingent on V2 reconciliation, never a Memory-specific lookup policy | Written conflict case; unresolved |
 | Activity corrects an old inspection/contract report | New Activity revision; subject and original decision sources unchanged | Written requirement |
 | A new local graph citation borrows Activity's permissive subject rule | Reject invalid graph admission; revision-source admission remains separately specified | Written requirement |
 | Delete subject with floating Links, exact Links and Activity reports | Apply the three separate selected contracts; enumerate affected sources/Links accurately | Written requirement |
+| Deletion would expose hidden source/Link identities in its result | Apply shared authorization and truthful view bounds; never leak hidden identities or claim a partial enumeration is Scope-complete | Written requirement; shared contract |
+| A Memory owns a Link whose local endpoint is hidden from the reader's view | Apply current Core view closure; hide the Memory rather than return an incomplete owned snapshot as complete | Written requirement |
+| Deleting Memory M would remove a surviving Issue's sole required Guidance Link | Current Type minimum and R5/R20 cleanup guarantees conflict; require a shared decision before claiming this graph is qualified, with no silent invariant waiver or survivor cascade | Written conflict case; unresolved |
 | Restore knowledge under a retained identity | New operation provenance; no revived cleaned-up Links or stolen alias | Written requirement |
 | Full human record omits Procedure steps but calls itself complete | Invalid completeness claim even when body is rendered whole | Written requirement |
 | Summary/automatic export includes full body or metadata values | Violates the specified projection posture | Written requirement |
+| Procedure summary omits body but includes its complete steps, or Decision summary includes complete choice/alternatives | Reject the summary claim; complete structured knowledge requires an explicitly selected body-carrying contract | Written requirement |
 | Consolidation joins conflicting bodies | No automatic equivalence/truth claim or demonstrated retrieval benefit follows | Written requirement |
 | Core Reference in origin/authority: URI, opaque URN or exact URI/revision object | Accept valid Type property shapes; reject incomplete objects, extra members, relative URI and a V2 source-entry wrapper; no Core reference admission or graph semantics | Property shape checked |
 | Unknown inception/applicability member versus an unknown root property | Reject the closed nested member; allow the root extension subject to applicable schemas | Property shape checked |
+| Inception is absent versus explicitly unknown | Preserve recorded presence; both leave origin knowledge unknown, but reads do not synthesize or normalize one into the other | Unknown-object shape checked; read/write semantics written |
 | Issue or Memory definition advances without exact required conformance | Reject the old Link contract match; use justified conformance or a revised Link definition | Written requirement |
 | Outgoing Link cites a historical source revision | Preserve that historical owner set; new mutation uses the source identity under the applicable current contract and shared ownership rules | Written requirement |
 
@@ -624,11 +788,14 @@ by this contribution, not proof every underlying facility is absent.
 | --- | --- | --- |
 | Distinct Types; no kind fields | Donna ruling applied; plain Memory plus five candidate specializations | New catalog/runtime adoption NYI here |
 | Property schemas and literal records | Review artifacts with exact illustrative pins and inherited validation | Offline artifact checks only; not runtime admission |
+| Ownership descriptors, endpoint pairs and compact views | Consumes candidate Types syntax; current Core mandatory bounds, ownership syntax and view contracts differ | Shared semantic adoption required; not current-Core-installable artifacts |
 | Conformance-aware matching/paired endpoints | Uses shared Types; no new Type system | Shared runtime/closure/query support not qualified here |
 | Required citation pins, self-Link exclusion and expected remote roles | Domain semantics explicit; generic pin/irreflexivity syntax not invented | Domain admission and observation dependencies beyond generic descriptors |
 | Owned state, lifecycle and re-pinning | Required observable outcomes stated | Core/History/Write amendments and product qualification required |
-| Revision sources and Activity | Composes with current V2; no competing envelope | Core envelope amendment required; V2-shaped excerpts are not current-Core-valid; no complete delivery claim |
-| Capture/recall/search/consolidation/exposure | Product/consumer boundaries and compatibility obligations mapped | No Memory runtime or CLI implementation in this change |
+| Revision sources and Activity | Uses V2, with actor-basis and body/comment Activity-admission conflicts named | Core envelope amendment and owner reconciliation required; V2-shaped excerpts are not current-Core-valid |
+| Capture/recall/search/consolidation/exposure | Includes direct-property search and bounded exposure; `related` compatibility decision open | No Memory runtime or CLI implementation in this change |
+| Responsible actor and indirect writes | R12 tightens optional shared attribution for new native Memory revisions; no-op and legacy distinctions explicit | Admission and cross-operation attribution not qualified here |
+| Deletion and surviving participation minimums | Concrete R5/R20 versus Types §5.5 conflict identified | Unresolved shared decision; escalation is not conformance evidence |
 | Pre-installation, aliases, retention and transfer | Uses shared identity/authority boundary | Bootstrap, registration granularity, installed-scope handling and packaging remain shared work |
 | Preview 3 | No cutline or protocol stability claim | Exact release integration/qualification remains Janet/Donna's work |
 
@@ -637,21 +804,29 @@ added, inspect and cite final `graph-preview2` peeled commit
 `703bb13e91aa2cab2092443319139006d74242c8`; do not relabel older authoring-draft
 observations or a passing JSON example as current runtime qualification.
 
-Remaining decisions are small and explicit:
+Remaining decisions are explicit:
 
 1. Review the six-Bead/six-Link candidate catalog and detailed fields, including
-   R3's properties refinement, closed nested objects, inherited kind prohibition,
+   R3's properties refinement and closure costs under the fixed no-kind ruling,
    applicability, full human rendering and the cost of exact endpoint Type pins.
    Identity-wide Issue matching is an explicit alternative for review.
 2. Coordinate source and self-Link admission, local floating revalidation, deletion cleanup,
    identity-preserving re-pins and old/new owned-state effects with shared owners.
+   Resolve the surviving-minimum deletion conflict and propagate actor context to
+   indirect Memory revisions before qualifying those operations.
 3. Resolve R9/R19's expected/observed external-role encoding without remote Type
    validation, and retain Types' installed-definition/Scope boundary as open.
 4. Follow shared choices for production identities/seed allocation, registration,
    unpinned write selection, aliases, schema admission/closure and retention/package
    mechanics. No Memory-specific substitute is introduced.
 5. Review title derivation and any finite owned-Link limit against real authoring
-   sizes; do not silently retain the old proposed 1024 as an established limit.
+   sizes; reconcile Core's required bound and complete-owned-state reads before
+   adoption. Do not silently retain 1024 as an established limit or omit Core's max.
+6. Select the existing `related` compatibility contract with shared/product owners,
+   and align Chris's proposal with native unknown sources, stronger actor admission
+   and direct-property discovery/exposure. These are not automatic ID substitutions.
+7. Resolve V2's Activity-admission body/comment conflict and actor-basis difference
+   from Core with its owner; Memory does not adjudicate those shared meanings.
 
 This contribution changes only the Memory specification and its owned review
 artifacts. Applicable checks and independent Codex plus Claude review precede PR
