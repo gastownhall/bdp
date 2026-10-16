@@ -1101,7 +1101,12 @@ fail; unauthorized local publication under an imported registry identity fails;
 an authorized routed origin update follows ordinary write rules; an explicit local fork
 has a new identity; obtaining a newer publisher revision leaves existing pins intact.
 Installed replicas' exposure through Scope reads/listing, distribution format,
-authority verification and retention/deletion behavior remain to specify.
+authority verification and retention/deletion behavior remain to specify. In
+particular, local availability does not silently turn a globally addressed replica
+into an in-Scope resource. Reconcile the endpoint scope/category rules for exact
+installed Type graphs with §5's opaque-external-endpoint policy before implementing
+registry-backed conformance. This is an open integration question, not a promise to
+validate arbitrary external resources.
 
 ### 7.3 Local aliases for canonical references
 
@@ -1144,8 +1149,9 @@ this draft does not silently amend docs/specs/bdp.md or active Write work.
 | Constraint expression syntax and matching | Candidate selector/bound syntax in the descriptor schema; exact/identity-wide predicates selected; query syntax and local revalidation open; external validation explicitly excluded |
 | Beads CLI/storage implementation of this draft | Not established by this document |
 
-Develop here on the isolated design branch. Land coordinated, bounded amendments
-against current BDP and Beads sources, with acceptance cases and explicit
+Continue this work-in-progress design through focused branches from BDP main.
+Land coordinated, bounded amendments against current BDP and Beads sources, with
+acceptance cases and explicit
 implementation status. Do not merge the accumulated design branch as an implicit
 runtime migration. Core/Write document extraction and changes to active Write work
 are not prerequisites for finishing the Types and Memory designs.
