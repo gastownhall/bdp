@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/memory-types/schemas/memory.properties.schema.json",
+  "title": "Memory properties",
+  "$comment": "WIP domain schema; known fields refine Memory R3. Shape is not lifecycle/Type admission. No domain kind discriminator.",
+  "type": "object",
+  "required": ["title", "body"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "body": {
+      "type": "string"
+    },
+    "kind": false,
+    "inception": {
+      "type": "object",
+      "required": ["method"],
+      "properties": {
+        "method": {
+          "enum": ["native", "converted", "imported", "unknown"]
+        },
+        "origin": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "uri"
+            },
+            {
+              "type": "object",
+              "required": ["uri", "revision"],
+              "properties": {
+                "uri": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "revision": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "applicability": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "validFrom": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "validUntil": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false,
+      "$comment": "Interval ordering is a separate domain admission check; no truth or clock-driven lifecycle claim."
+    }
+  },
+  "additionalProperties": true
+}

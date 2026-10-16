@@ -1,0 +1,161 @@
+{
+  "_comment": "Final-state excerpts for review, not complete wire envelopes. Common lifecycle/owned-state details omitted. revisionProvenance sources/completeness use proposed V2; no Activity shape is redefined here. The work-issue is an external fixture of the existing Issue contract, not a new domain Type.",
+  "records": [
+    {
+      "id": "https://example.org/project/beads/memory",
+      "revision": "memory-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory",
+        "revision": "memory-contract-1"
+      },
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal."
+      },
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/beads/observation",
+      "revision": "observation-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/observation",
+        "revision": "observation-contract-1"
+      },
+      "properties": {
+        "title": "Seal inspection",
+        "body": "Housing B leaked after the old seal was fitted.",
+        "statement": "The old seal leaked on housing B.",
+        "observedAt": "2026-10-01T10:00:00Z"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/beads/decision",
+      "revision": "decision-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/decision",
+        "revision": "decision-contract-1"
+      },
+      "properties": {
+        "title": "Supplier choice",
+        "body": "Acme met the delivery window; Beta did not.",
+        "choice": "Use Acme for the next quarter",
+        "alternatives": ["Beta"],
+        "applicability": {
+          "description": "Western-region purchasing next quarter"
+        }
+      },
+      "metadata": {},
+      "revisionProvenance": {
+        "actor": {
+          "id": "human:alice",
+          "basis": "writer-supplied"
+        },
+        "sources": [
+          {
+            "ref": {
+              "uri": "https://example.org/project/beads/observation",
+              "revision": "observation-r1"
+            }
+          },
+          {
+            "ref": {
+              "uri": "https://example.org/project/beads/policy",
+              "revision": "policy-r1"
+            }
+          }
+        ],
+        "sourcesCompleteness": "incomplete"
+      }
+    },
+    {
+      "id": "https://example.org/project/beads/procedure",
+      "revision": "procedure-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/procedure",
+        "revision": "procedure-contract-1"
+      },
+      "properties": {
+        "title": "Seal replacement",
+        "body": "Use this for housing B; consult the job's authorized work plan.",
+        "steps": ["Isolate the pump", "Replace the seal", "Inspect for leaks"],
+        "applicability": {
+          "description": "Housing B only"
+        }
+      },
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/beads/policy",
+      "revision": "policy-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/policy",
+        "revision": "policy-contract-1"
+      },
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "The policy records a rule, not authority to spend.",
+        "rule": "Record delivery capability before selecting a supplier"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/beads/lesson",
+      "revision": "lesson-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/lesson",
+        "revision": "lesson-contract-1"
+      },
+      "properties": {
+        "title": "Identify the housing",
+        "body": "Different housings needed different seals.",
+        "takeaway": "Record the housing edition before selecting the procedure"
+      },
+      "metadata": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "https://example.org/project/links/guidance",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-guidance",
+        "revision": "guidance-contract-1"
+      },
+      "source": "https://example.org/project/beads/work-issue",
+      "target": "https://example.org/project/beads/procedure",
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/supports",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-supports",
+        "revision": "supports-contract-1"
+      },
+      "source": "https://example.org/project/beads/observation",
+      "target": {
+        "uri": "https://example.org/project/beads/decision",
+        "revision": "decision-r1"
+      },
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/challenges",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-challenges",
+        "revision": "challenges-contract-1"
+      },
+      "source": "https://example.org/project/beads/lesson",
+      "target": {
+        "uri": "https://example.org/project/beads/procedure",
+        "revision": "procedure-r1"
+      },
+      "properties": {},
+      "metadata": {}
+    }
+  ]
+}

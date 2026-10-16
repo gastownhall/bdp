@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/memory-types/schemas/memory-lesson.local-properties.schema.json",
+  "title": "Lesson local properties requirements",
+  "$comment": "Local fragment only. Complete validation also applies the exact Memory contract through owned ConformsTo; this fragment alone is insufficient.",
+  "type": "object",
+  "required": ["takeaway"],
+  "properties": {
+    "takeaway": {
+      "type": "string",
+      "pattern": "\\S"
+    }
+  },
+  "additionalProperties": true
+}
