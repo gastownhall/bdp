@@ -17,6 +17,51 @@ across all bead and link types.
 This uniformity and adherence to HTTP and JSON norms lowers the bar of
 entry for people, systems, and agents to interact with beads.
 
+## Architecture and design authority
+
+BDP owns the abstract data model and its semantics as well as the wire
+protocol. Shared concepts such as Resource and Type identity, conformance,
+references, versioning, and the meaning of current and historical states
+are defined in the [BDP specification](docs/specs/bdp.md).
+
+Beads owns its CLI, storage design, and product and operator workflows.
+For overlapping decisions, the boundary is whether independent BDP
+implementations must agree for the data to mean the same thing: BDP
+defines those semantics and invariants; Beads chooses how to implement
+and expose them. This does not require BDP to prescribe storage layouts
+or administration interfaces.
+
+Beads implementation experience can motivate changes to the model, but
+shared model and protocol decisions are made explicitly in this repository
+and reflected in the specification. Shipping a Beads behavior does not by
+itself make that behavior part of BDP. Vendored BDP schemas, examples, and
+fixtures in Beads are pinned copies of upstream artifacts, not independent
+sources of design authority.
+
+The [Types specification draft](specs/types.md) records the current optional,
+Scope-wide Types direction and plain-language conformance and compatibility rules.
+It separates agreed design from open decisions and implementation status; it does
+not yet amend the canonical protocol. Issue/Dependency and Memory provide its
+concrete requirements.
+
+The [Preview 2 Type design draft](docs/design/type-lifecycle-preview2.md)
+explores versioned Type definitions and lifecycle rules. It is a proposal,
+not an amendment to the current specification or a claim of implementation.
+Its [decision packet](docs/design/type-preview2-decision-packet.md) identifies
+the product rulings and release gates still needed.
+
+The [Memory Types proposal](specs/types/memory.md) recommends one Memory Bead
+Type with knowledge-form kinds and distinct informational Link Types. It records
+shared-protocol dependencies and Beads adoption work. The [earlier A/B comparison](specs/types/memory-approaches.md)
+is preserved as historical design background.
+The companion [Issue and Dependency draft](specs/types/issue.md) inventories the
+current Preview 2 build and proposes issue/dependency bases with conforming
+classification Types, preserving workflow semantics while removing discriminator
+properties. The [completion decision list](docs/design/types-completion-decisions-20261014.md)
+tracks remaining Type decisions and reconciliation with Memory.
+
+## Protocol and reference implementation
+
 A protocol also carries the two problems no single bead-store
 implementation can solve alone: **versioning** — naming and citing exact
 states of a bead with tokens that survive copying, syncing, and storage
