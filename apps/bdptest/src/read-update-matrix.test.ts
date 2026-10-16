@@ -715,6 +715,515 @@ function assertColdDirectory(
     expect(client(id).request.body, id).toEqual(body);
 }
 
+const commandMinimumId = "read-update.http.command-minimum-fields";
+const commandMinimumRequests = [
+  {
+    id: "singleton-create",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/create-bead",
+    credentialRef: "operator",
+    bodyBytes: 113,
+    bodySha256: "3b0ac96a63000ddbc456bc622996b2d29a709a94ddb0022c4d7bdd1bbd792541",
+    headers: [
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "minimum-singleton",
+      },
+      {
+        name: "bdp-minimum-scope-position",
+        value: "pos-999",
+      },
+      {
+        name: "bdp-scope-epoch",
+        value: "foreign-epoch",
+      },
+      {
+        name: "bdp-authorization-view",
+        value: "foreign-view",
+      },
+    ],
+    expectedStatus: 200,
+  },
+  {
+    id: "singleton-replay",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/create-bead",
+    credentialRef: "operator",
+    bodyBytes: 113,
+    bodySha256: "3b0ac96a63000ddbc456bc622996b2d29a709a94ddb0022c4d7bdd1bbd792541",
+    headers: [
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "minimum-singleton",
+      },
+      {
+        name: "bdp-minimum-scope-position",
+        value: "",
+      },
+      {
+        name: "bdp-scope-epoch",
+        value: "epoch-one",
+      },
+      {
+        name: "BDP-Scope-Epoch",
+        value: "epoch-two",
+      },
+      {
+        name: "bdp-authorization-view",
+        value: "not a view!",
+      },
+    ],
+    expectedStatus: 200,
+  },
+  {
+    id: "singleton-conflict",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/create-bead",
+    credentialRef: "operator",
+    bodyBytes: 103,
+    bodySha256: "553c7e4b63db182cbe9b18d7a2911e71f2b5f40b1ff9436438ccc9b81410e5a3",
+    headers: [
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "minimum-singleton",
+      },
+      {
+        name: "bdp-minimum-scope-position",
+        value: "not a token!",
+      },
+    ],
+    expectedStatus: 409,
+  },
+  {
+    id: "missing-key",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/create-bead",
+    credentialRef: "operator",
+    bodyBytes: 113,
+    bodySha256: "3b0ac96a63000ddbc456bc622996b2d29a709a94ddb0022c4d7bdd1bbd792541",
+    headers: [
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "bdp-scope-epoch",
+        value: "epoch-one",
+      },
+      {
+        name: "BDP-Scope-Epoch",
+        value: "epoch-two",
+      },
+      {
+        name: "bdp-authorization-view",
+        value: "not a view!",
+      },
+    ],
+    expectedStatus: 400,
+  },
+  {
+    id: "unauthenticated",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/create-bead",
+    credentialRef: "unknown",
+    bodyBytes: 113,
+    bodySha256: "3b0ac96a63000ddbc456bc622996b2d29a709a94ddb0022c4d7bdd1bbd792541",
+    headers: [
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "minimum-unauthenticated",
+      },
+      {
+        name: "bdp-minimum-scope-position",
+        value: "pos-999",
+      },
+      {
+        name: "bdp-scope-epoch",
+        value: "foreign-epoch",
+      },
+      {
+        name: "bdp-authorization-view",
+        value: "foreign-view",
+      },
+    ],
+    expectedStatus: 401,
+  },
+  {
+    id: "stale-revision",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/update-bead",
+    credentialRef: "operator",
+    bodyBytes: 176,
+    bodySha256: "e0ae796e8a992c27102711f854d8cdf7db1dc83ca1b0d0d0b3c5859c261728c2",
+    headers: [
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "minimum-stale",
+      },
+      {
+        name: "bdp-minimum-scope-position",
+        value: "",
+      },
+      {
+        name: "bdp-scope-epoch",
+        value: "epoch-one",
+      },
+      {
+        name: "BDP-Scope-Epoch",
+        value: "epoch-two",
+      },
+      {
+        name: "bdp-authorization-view",
+        value: "not a view!",
+      },
+    ],
+    expectedStatus: 409,
+  },
+  {
+    id: "invalid-carrier",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/create-bead",
+    credentialRef: "operator",
+    bodyBytes: 1,
+    bodySha256: "021fb596db81e6d02bf3d2586ee3981fe519f275c0ac9ca76bbcf2ebb4097d96",
+    headers: [
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "idempotency-key",
+        value: "minimum-invalid",
+      },
+      {
+        name: "bdp-minimum-scope-position",
+        value: "not a token!",
+      },
+    ],
+    expectedStatus: 400,
+  },
+  {
+    id: "singleton-point",
+    method: "GET",
+    url: "https://reference.invalid/acme/beads/w1-a",
+    credentialRef: "operator",
+    bodyBytes: 0,
+    bodySha256: null,
+    headers: [],
+    expectedStatus: 200,
+  },
+  {
+    id: "sequence-create",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/sequence",
+    credentialRef: "operator",
+    bodyBytes: 190,
+    bodySha256: "76bd4c1c05ceb414c5da1c4f31892dbe55c0f41bdf3796532341f00f7785163f",
+    headers: [
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "bdp-minimum-scope-position",
+        value: "not a token!",
+      },
+    ],
+    expectedStatus: 200,
+  },
+  {
+    id: "sequence-replay",
+    method: "POST",
+    url: "https://reference.invalid/acme/operations/sequence",
+    credentialRef: "operator",
+    bodyBytes: 190,
+    bodySha256: "76bd4c1c05ceb414c5da1c4f31892dbe55c0f41bdf3796532341f00f7785163f",
+    headers: [
+      {
+        name: "content-type",
+        value: "application/json",
+      },
+      {
+        name: "bdp-minimum-scope-position",
+        value: "",
+      },
+      {
+        name: "bdp-scope-epoch",
+        value: "epoch-one",
+      },
+      {
+        name: "BDP-Scope-Epoch",
+        value: "epoch-two",
+      },
+      {
+        name: "bdp-authorization-view",
+        value: "not a view!",
+      },
+    ],
+    expectedStatus: 200,
+  },
+  {
+    id: "sequence-point",
+    method: "GET",
+    url: "https://reference.invalid/acme/beads/w1-b",
+    credentialRef: "operator",
+    bodyBytes: 0,
+    bodySha256: null,
+    headers: [],
+    expectedStatus: 200,
+  },
+] as const;
+
+// Private installed oracle; header values and complete bodies never leave this closure.
+function commandMinimumOracle(controlled: boolean) {
+  const attempts: {
+    localIndex: number;
+    method: string;
+    url: string;
+    credentialRef: string | undefined;
+  }[] = [];
+  const completions: {
+    localIndex: number;
+    method: string;
+    url: string;
+    status: number;
+    source: string;
+    writeState: string;
+    bodyPresent: boolean;
+    bodyOctets: number;
+    bodyDigest?: string;
+    headersMatched: boolean;
+    bodyValidated: boolean;
+  }[] = [];
+  const bodies: unknown[] = [];
+  let validator: ReturnType<typeof createJsonSchemaValidator> | undefined;
+  let applications = 0;
+  let checksPassed = false;
+  function schema(ref: string, body: unknown) {
+    validator ??= createJsonSchemaValidator(installedObservationSchema);
+    expect(validator.validate(`#/$defs/${ref}`, body)).toEqual([]);
+  }
+  function resource(body: unknown, id: string, title: string) {
+    const actual = coldObject(body);
+    expect(actual).toEqual({
+      id: `${scope}beads/${id}`,
+      type: `${scope}types/task`,
+      properties: { title },
+      metadata: {},
+      revision: expect.any(String),
+    });
+    expect(coldString(actual.revision).length).toBeGreaterThan(0);
+    return actual;
+  }
+  function begin(request: Parameters<RawHttpExchangeExecutor>[0]) {
+    const localIndex = attempts.length;
+    const expected = commandMinimumRequests[localIndex];
+    if (!expected || localIndex >= (controlled ? 2 : 11))
+      throw Error("extra command minimum request");
+    if (!request.raw) throw Error("command minimum requires actual raw request");
+    expect({
+      method: request.method,
+      url: request.url,
+      credentialRef: request.credentialRef,
+    }).toEqual({
+      method: expected.method,
+      url: expected.url,
+      credentialRef: expected.credentialRef,
+    });
+    // Check names before values so an unexpected credential line cannot enter a diff.
+    expect(request.raw.headerLines.map((h) => h.name)).toEqual(expected.headers.map((h) => h.name));
+    expect(request.raw.headerLines).toEqual(expected.headers);
+    expect(request.raw.bodyBytes?.byteLength ?? 0).toBe(expected.bodyBytes);
+    expect(
+      request.raw.bodyBytes === undefined
+        ? undefined
+        : createHash("sha256").update(request.raw.bodyBytes).digest("hex"),
+    ).toBe(expected.bodySha256 ?? undefined);
+    if (localIndex === 5) {
+      const original = coldObject(coldObject(bodies[0]).resource);
+      expect(original.revision).not.toBe("minimum-stale-revision");
+    }
+    attempts.push({
+      localIndex,
+      method: request.method,
+      url: request.url,
+      credentialRef: request.credentialRef,
+    });
+    return localIndex;
+  }
+  function complete(localIndex: number, actual: Awaited<ReturnType<RawHttpExchangeExecutor>>) {
+    const expected = commandMinimumRequests[localIndex];
+    if (!expected || localIndex !== completions.length)
+      throw Error("command minimum completion order");
+    const exact = actual.exactRequest;
+    if (!exact) throw Error("command minimum serialized request absent");
+    const authored = exact.headerLines.slice(0, expected.headers.length);
+    expect(authored.map((h) => h.name)).toEqual(expected.headers.map((h) => h.name));
+    expect(authored).toEqual(expected.headers);
+    expect(
+      exact.headerLines
+        .slice(expected.headers.length)
+        .filter((h) =>
+          ["bdp-minimum-scope-position", "bdp-scope-epoch", "bdp-authorization-view"].includes(
+            h.name.toLowerCase(),
+          ),
+        ),
+    ).toEqual([]);
+    expect(exact.source).toBe("raw-http1-serializer");
+    expect(exact.writeState).toBe("complete");
+    expect(exact.bodyPresent).toBe(expected.method === "POST");
+    expect(exact.bodyOctets).toBe(expected.bodyBytes);
+    expect(exact.bodyDigest).toBe(expected.bodySha256 ?? undefined);
+    expect(actual.url).toBe(expected.url);
+    expect(actual.status).toBe(expected.expectedStatus);
+    expect(actual.bodyOctets).toBe(Buffer.byteLength(actual.bodyText));
+    for (const name of [
+      "bdp-minimum-scope-position",
+      "bdp-scope-epoch",
+      "bdp-authorization-view",
+      "bdp-scope-position",
+      "bdp-effect-scope-position",
+      "bdp-required-scope-position",
+      "location",
+    ]) {
+      expect(Object.keys(actual.headers).some((h) => h.toLowerCase() === name)).toBe(false);
+    }
+    const body: unknown = JSON.parse(actual.bodyText);
+    const ref =
+      expected.expectedStatus !== 200
+        ? "readUpdateProblem"
+        : expected.method === "GET"
+          ? "currentBeadRecord"
+          : localIndex >= 8
+            ? "sequenceResponse"
+            : "mutationResult";
+    schema(ref, body);
+    if (localIndex === 0) {
+      const r = resource(coldObject(body).resource, "w1-a", "minimum-singleton");
+      expect(body).toEqual({ outcome: "created", resource: r });
+    } else if (localIndex === 1) expect(body).toEqual(bodies[0]);
+    else if (localIndex === 7) expect(body).toEqual(coldObject(bodies[0]).resource);
+    else if (localIndex === 8) {
+      const results = coldObject(body).results;
+      if (!Array.isArray(results)) throw Error("command minimum sequence results absent");
+      expect(results).toHaveLength(1);
+      const r = resource(coldObject(results[0]).resource, "w1-b", "minimum-sequence");
+      expect(body).toEqual({ results: [{ operationIndex: 0, outcome: "created", resource: r }] });
+    } else if (localIndex === 9) expect(body).toEqual(bodies[8]);
+    else if (localIndex === 10) {
+      const results = coldObject(bodies[8]).results;
+      if (!Array.isArray(results)) throw Error("command minimum original sequence absent");
+      expect(body).toEqual(coldObject(results[0]).resource);
+    }
+    bodies.push(body);
+    completions.push({
+      localIndex,
+      method: expected.method,
+      url: actual.url,
+      status: actual.status,
+      source: exact.source,
+      writeState: exact.writeState,
+      bodyPresent: exact.bodyPresent,
+      bodyOctets: exact.bodyOctets,
+      ...(exact.bodyDigest === undefined ? {} : { bodyDigest: exact.bodyDigest }),
+      headersMatched: true,
+      bodyValidated: true,
+    });
+    if (controlled && localIndex === 1) {
+      expect(applications).toBe(0);
+      // Genuine full replay equality and schema have already passed. Keep bodies unchanged.
+      const bodyText = JSON.stringify({ ...coldObject(body), outcome: "updated" });
+      expect(Buffer.byteLength(bodyText)).toBe(actual.bodyOctets);
+      applications++;
+      return { ...actual, bodyText, bodyOctets: Buffer.byteLength(bodyText) };
+    }
+    return actual;
+  }
+  function finish(result: ArtifactObservation["result"]) {
+    const observed = result.scenarios.find((r) => r.id === commandMinimumId);
+    if (!observed) throw Error("command minimum runner result absent");
+    const expected = controlled ? commandMinimumRequests.slice(0, 2) : commandMinimumRequests;
+    expect(attempts).toEqual(
+      expected.map((r, localIndex) => ({
+        localIndex,
+        method: r.method,
+        url: r.url,
+        credentialRef: r.credentialRef,
+      })),
+    );
+    expect(completions).toHaveLength(expected.length);
+    expect(observed.actions ?? []).toEqual([]);
+    expect(
+      observed.exchanges.map((r) => ({
+        id: r.request.id,
+        method: r.request.method,
+        url: r.request.url,
+      })),
+    ).toEqual(expected.map(({ id, method, url }) => ({ id, method, url })));
+    for (const [i, exchange] of observed.exchanges.entries()) {
+      const actual = completions[i];
+      if (!actual) throw Error("command minimum completion absent");
+      expect(exchange.response?.status).toBe(actual.status);
+      expect(exchange.request.exact).toMatchObject({
+        source: actual.source,
+        writeState: actual.writeState,
+        bodyPresent: actual.bodyPresent,
+        bodyOctets: actual.bodyOctets,
+      });
+    }
+    const outcomes = observed.exchanges.flatMap((r) =>
+      r.assertions.map((a) => ({ exchange: r.request.id, id: a.id, passed: a.passed })),
+    );
+    expect(outcomes).toHaveLength(controlled ? 8 : 47);
+    expect(outcomes.filter((a) => !a.passed)).toEqual(
+      controlled ? [{ exchange: "singleton-replay", id: "outcome", passed: false }] : [],
+    );
+    expect(outcomes.filter((a) => a.passed)).toHaveLength(controlled ? 7 : 47);
+    expect(observed.state).toBe(controlled ? "fail" : "pass");
+    expect(observed.cleanupError).toBeUndefined();
+    expect(applications).toBe(controlled ? 1 : 0);
+    checksPassed = true;
+  }
+  return {
+    begin,
+    complete,
+    finish,
+    snapshot: () => ({
+      status: attempts.length ? "observed" : "not-run",
+      checksPassed,
+      control: controlled ? { name: "replay-outcome", kind: "assertion-input-only" } : null,
+      applications,
+      dispatches: attempts.map((r) => ({ ...r })),
+      completions: completions.map((r) => ({ ...r })),
+      provenance: {
+        dispatch: "actual executeExact input, zero-based index; no action ID",
+        ids: "actual ObservedExchange.request IDs joined by order/method/url",
+        completion: "actual original response and exactRequest, before assertion-input control",
+      },
+    }),
+  };
+}
+
 async function run(
   manifestValue?: unknown,
   selectedIds?: string[],
@@ -746,6 +1255,7 @@ async function run(
     | (typeof numericRClosureRawControls)[number]
     | Extract<(typeof schemaPropertyControls)[number], { transport: "raw" }>,
   directoryControl?: "missing-update-link",
+  commandMinimumControl?: "replay-outcome",
 ) {
   signal?.throwIfAborted();
   if (artifact) assertReadUpdateArtifactSet(artifact.set);
@@ -908,6 +1418,49 @@ async function run(
     coldValidator ??= createJsonSchemaValidator(installedObservationSchema);
     expect(coldValidator.validate(schema, value)).toEqual([]);
   };
+  const minimum = commandMinimumOracle(commandMinimumControl !== undefined);
+  let minimumResult: ArtifactObservation["result"] | undefined;
+  let minimumReportCreated = false;
+  const persistMinimum = (cleanupComplete: boolean) => {
+    const filename = process.env.BDP_COMMAND_MINIMUM_REPORT_PATH;
+    if (!filename || !minimumResult) return;
+    if (!path.isAbsolute(filename)) throw Error("command minimum report path must be absolute");
+    const observed = minimumResult.scenarios.find((r) => r.id === commandMinimumId);
+    const safe = JSON.stringify(
+      {
+        sourceCommit,
+        targetEntry: entry,
+        configuration: baseline,
+        baselineReceipt,
+        artifacts: minimumResult.artifacts,
+        exactConfigurationDigest:
+          "exactConfigurationDigest" in minimumResult.declarations
+            ? minimumResult.declarations.exactConfigurationDigest
+            : undefined,
+        claimEligible: false,
+        cleanupComplete,
+        commandMinimum: minimum.snapshot(),
+        result:
+          observed === undefined
+            ? undefined
+            : {
+                id: observed.id,
+                state: observed.state,
+                exchanges: observed.exchanges.map((r) => ({
+                  request: { id: r.request.id, method: r.request.method, url: r.request.url },
+                  status: r.response?.status,
+                  assertions: r.assertions.map(({ id, passed }) => ({ id, passed })),
+                })),
+              },
+      },
+      null,
+      2,
+    );
+    if (Buffer.byteLength(safe) > 262144 || safe.includes(token) || safe.includes(wrongToken))
+      throw Error("unsafe or oversized command minimum report");
+    writeFileSync(filename, safe, { flag: minimumReportCreated ? "w" : "wx", mode: 0o600 });
+    minimumReportCreated = true;
+  };
   let currentScenario = "";
   let counterfactualApplications = 0;
   let aliasPutObserved = false;
@@ -1029,7 +1582,13 @@ async function run(
       if (coldAttempts.length >= 10) throw Error("extra cold directory raw attempt");
       coldAttempts.push({ ordinal: coldAttempts.length, method: sent.method, url: sent.url });
     }
+    const minimumIndex = currentScenario === commandMinimumId ? minimum.begin(sent) : undefined;
     const actual = await target.execute(sent);
+    if (minimumIndex !== undefined) {
+      const projected = minimum.complete(minimumIndex, actual);
+      if (projected !== actual) counterfactualApplications++;
+      return projected;
+    }
     if (cold) {
       const fact: ColdFact = {
         family: "http",
@@ -1590,6 +2149,7 @@ async function run(
       observations,
       setupObservations,
       nativeReadObservations,
+      commandMinimum: minimum.snapshot(),
       coldDirectory: {
         attempts: coldAttempts,
         rawCompletions: coldRaw.map((r) => r.fact),
@@ -1603,6 +2163,15 @@ async function run(
     // The runner's genuine partial/failed result must survive post-return aborts,
     // assertion failures and target cleanup failures.
     lifecycle?.returned?.(report);
+    if (minimum.snapshot().dispatches.length) {
+      minimumResult = result;
+      persistMinimum(false);
+      for (const collected of [observations, setupObservations, nativeReadObservations])
+        expect(collected.filter((r) => coldObject(r).scenario === commandMinimumId)).toEqual([]);
+      minimum.finish(result);
+      report.commandMinimum = minimum.snapshot();
+      persistMinimum(false);
+    }
     if (coldAttempts.length) {
       saveColdDirectoryReport(report);
       assertColdDirectory(
@@ -1644,12 +2213,21 @@ async function run(
   }
   const cleanupComplete =
     cleanupErrors.length === 0 &&
+    (minimumResult === undefined ||
+      minimumResult.scenarios.every((row) => row.cleanupError === undefined)) &&
     (!execution.ok ||
       execution.report.result.scenarios.every((row) => row.cleanupError === undefined));
   if (execution.ok) execution.report.cleanupComplete = cleanupComplete;
   if (execution.ok && coldAttempts.length) {
     try {
       saveColdDirectoryReport(execution.report);
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+  }
+  if (minimumResult) {
+    try {
+      persistMinimum(cleanupComplete);
     } catch (error) {
       cleanupErrors.push(error);
     }
@@ -1790,6 +2368,101 @@ async function runShard(
   }
 }
 
+it("pins command minimum literals, ordinary admission and parent preservation", () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const row = manifest.scenarios.find((r: { id: string }) => r.id === commandMinimumId);
+  expect(createHash("sha256").update(JSON.stringify(row)).digest("hex")).toBe(
+    "61d74c4cae007646ea04d928503e57933fa6bae7496758cb50d3e4b7907058c6",
+  );
+  expect(row.actions).toHaveLength(11);
+  const validator = createJsonSchemaValidator(installedObservationSchema);
+  let postBytes = 0;
+  for (const [index, action] of row.actions.entries()) {
+    const expected = commandMinimumRequests[index];
+    if (!expected) throw Error("unexpected command minimum action");
+    expect({
+      id: action.id,
+      method: action.method,
+      url: new URL(action.target.path, scope).href,
+      credentialRef: action.credentialRef,
+      headers: action.raw.headerLines,
+    }).toEqual({
+      id: expected.id,
+      method: expected.method,
+      url: expected.url,
+      credentialRef: expected.credentialRef,
+      headers: expected.headers,
+    });
+    const body = action.raw.body;
+    expect(body === undefined).toBe(expected.method === "GET");
+    if (body !== undefined) {
+      expect(body.encoding).toBe("utf8");
+      const bytes = Buffer.from(body.value);
+      expect(bytes.length).toBe(expected.bodyBytes);
+      expect(createHash("sha256").update(bytes).digest("hex")).toBe(expected.bodySha256);
+      expect(bytes.length).toBeLessThanOrEqual(190);
+      postBytes += bytes.length;
+    }
+    for (const assertion of action.assertions)
+      if (assertion.kind === "json-schema") validator.resolve(assertion.schema);
+  }
+  expect(postBytes).toBe(1112);
+  expect(row.actions.flatMap((a: { assertions: unknown[] }) => a.assertions)).toHaveLength(47);
+  const set = installedArtifactSet();
+  const coverage = set.coverage.rows.find((r) => r.id === commandMinimumId);
+  expect(createHash("sha256").update(JSON.stringify(coverage)).digest("hex")).toBe(
+    "63fc576c428b8d9ad0441a8e1840c5774188aa7f1080b691acc48b300def19e8",
+  );
+  expect(coverage?.bindings).toEqual([
+    {
+      scenario: commandMinimumId,
+      assertions: row.actions.flatMap((a: { id: string; assertions: { id: string }[] }) =>
+        a.assertions.map((q) => `${a.id}.${q.id}`),
+      ),
+    },
+  ]);
+  expect(coverage?.wholeContract).toBe(true);
+  expect(set.shards.map((s) => s.scenarioIds.length)).toEqual([51, 5]);
+  expect(set.coverage.rows.filter((r) => r.status === "bounded-observation")).toHaveLength(56);
+  expect(set.coverage.rows.filter((r) => r.status === "omitted")).toHaveLength(74);
+  expect(set.coverage.rows.filter((r) => r.wholeContract)).toHaveLength(35);
+  expect(set.claimEligible).toBe(false);
+  expect(smallExecutionSet().shards.flatMap((s) => s.scenarioIds)).not.toContain(commandMinimumId);
+  // Complete historical-parent byte reconstruction is asserted in the corpus-split callback.
+  const fixture = JSON.parse(
+    source("packages/conformance/fixtures/read-update-reference-v1.json").bytes.toString(),
+  );
+  expect(fixture.readSeedScenarios).not.toContain(commandMinimumId);
+});
+
+it("observes ignored command minimum fields with ordinary Update admission", async () => {
+  const report = await run(undefined, [commandMinimumId]);
+  expect(report.result.scenarioSelection).toEqual([commandMinimumId]);
+  expect(report.sessions).toHaveLength(1);
+  expect(report.cleanupComplete).toBe(true);
+  expect(report.claimEligible).toBe(false);
+  expect(report.commandMinimum.checksPassed).toBe(true);
+  expect(report.commandMinimum.completions).toHaveLength(11);
+  expect(report.commandMinimum.applications).toBe(0);
+  expect(report.counterfactualApplications).toBe(0);
+}, 30000);
+
+it("rejects a changed retained outcome in command minimum assertion input", async () => {
+  const args: Parameters<typeof run> = [undefined, [commandMinimumId]];
+  args[16] = "replay-outcome";
+  const report = await run(...args);
+  expect(report.result.scenarioSelection).toEqual([commandMinimumId]);
+  expect(report.sessions).toHaveLength(1);
+  expect(report.cleanupComplete).toBe(true);
+  expect(report.claimEligible).toBe(false);
+  expect(report.commandMinimum.checksPassed).toBe(true);
+  expect(report.commandMinimum.completions).toHaveLength(2);
+  expect(report.commandMinimum.applications).toBe(1);
+  expect(report.counterfactualApplications).toBe(1);
+}, 30000);
+
 it("pins cold RU directory literals, actual target bindings and parent preservation", () => {
   const set = installedArtifactSet();
   const manifest = JSON.parse(
@@ -1837,7 +2510,7 @@ it("pins cold RU directory literals, actual target bindings and parent preservat
     },
   ]);
   expect(coverage?.bindings[0]?.assertions).toHaveLength(134);
-  expect(set.shards.map((s) => s.scenarioIds.length)).toEqual([50, 5]);
+  expect(set.shards.map((s) => s.scenarioIds.length)).toEqual([51, 5]);
   expect(set.claimEligible).toBe(false);
   expect(Buffer.byteLength(JSON.stringify(manifest))).toBeLessThanOrEqual(4194304);
   const countNodes = (value: unknown): number =>
@@ -1888,7 +2561,7 @@ it("rejects a missing updateLink directory member in actual response assertion i
 }, 30000);
 
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  // One aggregate budget for both shards and 55 isolated scenario authorities.
+  // One aggregate budget for both shards and 56 isolated scenario authorities.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
   const started = performance.now();
@@ -2054,8 +2727,8 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(report.reportBinding.exactConfigurationDigest).toBe(
       "26da5a286d9887bebbb0fcf73a92c5d09aa7b7fcfdcc9ed91f767f4db1578c69",
     );
-    expect(report.uncoveredIds).toHaveLength(96);
-    expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
+    expect(report.uncoveredIds).toHaveLength(95);
+    expect(report.uncoveredIds).not.toContain(commandMinimumId);
     expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
     expect(report.sessions).toHaveLength(report.plannedIds.length);
     expect(report.observations.length).toBeGreaterThan(30);
@@ -2071,10 +2744,10 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       }[])
         expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(65536);
     }
-    expect(progress.authoredIds).toHaveLength(55);
-    expect(progress.reviewedWholeIds).toHaveLength(34);
-    expect(progress.omittedRequiredIds).toHaveLength(75);
-    expect(progress.omittedRequiredIds).toContain("read-update.http.command-minimum-fields");
+    expect(progress.authoredIds).toHaveLength(56);
+    expect(progress.reviewedWholeIds).toHaveLength(35);
+    expect(progress.omittedRequiredIds).toHaveLength(74);
+    expect(progress.omittedRequiredIds).not.toContain(commandMinimumId);
     expect(progress.shards[1]!.selectedIds).toEqual([
       attributionId,
       continuationId,
@@ -2149,8 +2822,8 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(progress.uncoveredIds).toEqual(
       set.coverage.rows.filter((r) => !r.wholeContract).map((r) => r.id),
     );
-    expect(progress.uncoveredIds).toHaveLength(96);
-    expect(progress.uncoveredIds).toContain("read-update.http.command-minimum-fields");
+    expect(progress.uncoveredIds).toHaveLength(95);
+    expect(progress.uncoveredIds).not.toContain(commandMinimumId);
     expect(JSON.stringify(progress)).not.toContain(token);
     expect(JSON.stringify(progress)).not.toContain(wrongToken);
     controller.signal.throwIfAborted();
@@ -2812,8 +3485,8 @@ it("observes retained retry dispositions across actual installed carriers and cu
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(96);
-  expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
+  expect(report.uncoveredIds).toHaveLength(95);
+  expect(report.uncoveredIds).not.toContain(commandMinimumId);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -3234,8 +3907,8 @@ it("observes key and media admission against installed HTTP with paired aftersta
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(96);
-  expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
+  expect(report.uncoveredIds).toHaveLength(95);
+  expect(report.uncoveredIds).not.toContain(commandMinimumId);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -3665,8 +4338,8 @@ it("observes reference syntax and retained category failures against installed H
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(96);
-  expect(report.uncoveredIds).toContain("read-update.http.command-minimum-fields");
+  expect(report.uncoveredIds).toHaveLength(95);
+  expect(report.uncoveredIds).not.toContain(commandMinimumId);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -4671,7 +5344,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
     createHash("sha256")
       .update(source("packages/conformance/matrices/read-update-v1.json").bytes)
       .digest("hex"),
-  ).toBe("80f74625b6074892b707365859572f8bc0b8c10478d36ac307370ef6027f5fc3");
+  ).toBe("10a7c6f97a280cf88e58d3aa2039fe580904b74bfffcebda4747fc3c1a34b583");
   const text = bytes.toString();
   const start = text.lastIndexOf(
     "    {",
@@ -4988,8 +5661,8 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
   expect(bytes.length - NUMERIC_ADMISSION_CONTINUATION_BYTES_BASE).toBeLessThanOrEqual(450 * 1024);
   expect(nodes(manifest) - NUMERIC_ADMISSION_CONTINUATION_NODES_BASE).toBeLessThanOrEqual(12000);
   expect(nodes(manifest)).toBeLessThanOrEqual(27158);
-  // Cold-directory coverage grows this historical source-data delta to exactly 70150 bytes.
-  expect(coverageBytes.length - NUMERIC_ADMISSION_COVERAGE_BYTES_BASE).toBeLessThanOrEqual(70150);
+  // Cold directory retained its70150B delta; command-minimum coverage adds2320B.
+  expect(coverageBytes.length - NUMERIC_ADMISSION_COVERAGE_BYTES_BASE).toBeLessThanOrEqual(72470);
   expect(fixtureBytes.length - NUMERIC_ADMISSION_FIXTURE_BYTES_BASE).toBeLessThanOrEqual(8192);
   const text = bytes.toString();
   for (const [id, digest] of [
@@ -5376,11 +6049,11 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   // The 06b0e04 anchor predates this +2048 coverage allowance.
   // Command-minimum catalog row adds 401B; the 243B excess raises 14336 to 14579.
   // Both historical bases stay fixed; this measured allowance has zero slack.
-  // Cold directory adds5114B:14579 ->19693; parser and runtime caps stay unchanged.
+  // Cold directory added5114B; command-minimum adds2320B to19693. Runtime caps unchanged.
   expect(
     source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.length -
       METADATA_CLOSURE_COVERAGE_BYTES_BASE,
-  ).toBeLessThanOrEqual(19693);
+  ).toBeLessThanOrEqual(22013);
   expect(
     createHash("sha256")
       .update(source("packages/conformance/fixtures/read-update-reference-v1.json").bytes)
@@ -5760,8 +6433,8 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
   // The b604 anchor above predates this +2560 coverage allowance.
   // The same 401B omitted row exceeds this allowance by 50B: 9728 -> 9778.
   // Keep the historical base and other fences; no speculative margin is added.
-  // Cold directory adds5114B:9778 ->14892.
-  expect(coverage.length - 703415).toBeLessThanOrEqual(14892);
+  // Cold directory added5114B; command-minimum adds2320B to14892.
+  expect(coverage.length - 703415).toBeLessThanOrEqual(17212);
   const row = manifest.scenarios.find((r: { id: string }) => r.id === numericRoundTripId) as {
     actions: readonly NumericRAction[];
   };
@@ -5904,8 +6577,8 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
       0,
     ),
   ).toBe(5546);
-  // Cold directory consumes1176B prior slack;1708 ->5646 is the measured residual.
-  expect(coverage.length - 703415 - 5546 - 3700).toBeLessThanOrEqual(5646);
+  // Cold directory residual5646 retained; command-minimum adds2320B.
+  expect(coverage.length - 703415 - 5546 - 3700).toBeLessThanOrEqual(7966);
   expect(row.actions!.reduce((n, a) => n + a.assertions.length, 0)).toBe(687);
   expect(numericRClosureRawControls).toHaveLength(3);
   expect(
