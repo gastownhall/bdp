@@ -559,6 +559,262 @@
         "applicationNote": "unknown extension"
       },
       "valid": true
+    },
+    {
+      "label": "origin canonical URI",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "inception": {
+          "method": "imported",
+          "origin": "https://example.org/project/beads/memory"
+        }
+      },
+      "valid": true
+    },
+    {
+      "label": "authority canonical URI",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "The policy records a rule, not authority to spend.",
+        "rule": "Record delivery capability before selecting a supplier",
+        "authority": "https://example.org/project/beads/memory"
+      },
+      "valid": true
+    },
+    {
+      "label": "origin opaque URN",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "inception": {
+          "method": "imported",
+          "origin": "urn:example:document"
+        }
+      },
+      "valid": true
+    },
+    {
+      "label": "authority opaque URN",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "The policy records a rule, not authority to spend.",
+        "rule": "Record delivery capability before selecting a supplier",
+        "authority": "urn:example:document"
+      },
+      "valid": true
+    },
+    {
+      "label": "origin exact Reference",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "inception": {
+          "method": "imported",
+          "origin": {
+            "uri": "https://example.org/project/beads/memory",
+            "revision": "memory-r1"
+          }
+        }
+      },
+      "valid": true
+    },
+    {
+      "label": "authority exact Reference",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "The policy records a rule, not authority to spend.",
+        "rule": "Record delivery capability before selecting a supplier",
+        "authority": {
+          "uri": "https://example.org/project/beads/memory",
+          "revision": "memory-r1"
+        }
+      },
+      "valid": true
+    },
+    {
+      "label": "origin missing revision",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "inception": {
+          "method": "imported",
+          "origin": {
+            "uri": "https://example.org/project/beads/memory"
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "authority missing revision",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "The policy records a rule, not authority to spend.",
+        "rule": "Record delivery capability before selecting a supplier",
+        "authority": {
+          "uri": "https://example.org/project/beads/memory"
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "origin empty revision",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "inception": {
+          "method": "imported",
+          "origin": {
+            "uri": "https://example.org/project/beads/memory",
+            "revision": ""
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "authority empty revision",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "The policy records a rule, not authority to spend.",
+        "rule": "Record delivery capability before selecting a supplier",
+        "authority": {
+          "uri": "https://example.org/project/beads/memory",
+          "revision": ""
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "origin extra Reference member",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "inception": {
+          "method": "imported",
+          "origin": {
+            "uri": "https://example.org/project/beads/memory",
+            "revision": "memory-r1",
+            "unrecognized": 1
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "authority extra Reference member",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "The policy records a rule, not authority to spend.",
+        "rule": "Record delivery capability before selecting a supplier",
+        "authority": {
+          "uri": "https://example.org/project/beads/memory",
+          "revision": "memory-r1",
+          "unrecognized": 1
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "origin relative URI",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "inception": {
+          "method": "imported",
+          "origin": "relative/path"
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "authority relative URI",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "The policy records a rule, not authority to spend.",
+        "rule": "Record delivery capability before selecting a supplier",
+        "authority": "relative/path"
+      },
+      "valid": false
+    },
+    {
+      "label": "origin source-entry wrapper",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "inception": {
+          "method": "imported",
+          "origin": {
+            "ref": "https://example.org/project/beads/memory"
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "authority source-entry wrapper",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "The policy records a rule, not authority to spend.",
+        "rule": "Record delivery capability before selecting a supplier",
+        "authority": {
+          "ref": "https://example.org/project/beads/memory"
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "closed applicability rejects nested extension",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "applicability": {
+          "description": "Western region",
+          "region": "west"
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "closed Inception rejects nested extension",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "inception": {
+          "method": "native",
+          "publisher": "team"
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "conformer may add an allowed root property",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "region": "west"
+      },
+      "valid": true
     }
   ]
 }

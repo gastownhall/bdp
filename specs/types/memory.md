@@ -128,9 +128,15 @@ properties schema is not an envelope schema or complete domain-operation validat
 | inception | Optional origin/transfer object; method native, converted, imported or unknown; optional origin reference, not a source list |
 | applicability | Optional claimed conditions: nonblank description and optional validFrom/validUntil RFC3339 instants |
 
-The [Memory properties schema](../schemas/memory.properties.schema.json) is open
-for future/conforming properties. It explicitly rejects the former `kind`
-discriminator. Open roots do not confer semantics on unknown fields. Preserve
+The [Memory properties schema](../schemas/memory.properties.schema.json) has an
+open root for future/conforming properties. The `inception` and `applicability`
+objects are deliberately closed in this candidate; conformers cannot add nested
+members without adopting a revised base contract. A specialization may introduce
+well-named root properties where the inherited schemas permit them. The inherited
+prohibition on `kind` also applies to every conformer, including unrelated uses
+of that property name; this makes Donna's no-discriminator boundary explicit.
+These are reviewable closure choices, not an ability to override a parent schema.
+Open roots do not confer semantics on unknown fields. Preserve
 unfamiliar values on safe targeted edits, or refuse edits that cannot preserve them.
 Application-specific annotations may use common open metadata; this proposal
 introduces no second metadata/extension store.
@@ -164,7 +170,7 @@ recorded ConformsTo graph; a local fragment passing alone is not complete accept
 | [Observation](../schemas/memory-observation.local-properties.schema.json) | statement required/nonblank; observedAt optional RFC3339 instant | Caller-reported observation and observation time; omitted time remains unknown, never commit time |
 | [Decision](../schemas/memory-decision.local-properties.schema.json) | choice required/nonblank; alternatives optional ordered array of nonblank strings | A recorded choice, without approval, Issue completion or exhaustive-alternatives claim |
 | [Procedure](../schemas/memory-procedure.local-properties.schema.json) | steps required/nonempty ordered array of nonblank strings | Reusable instructions; no automatic execution, work plan, progress or step identities |
-| [Policy](../schemas/memory-policy.local-properties.schema.json) | rule required/nonblank; authority optional Resource reference | A recorded rule and claimed authority reference, never an access grant or compliance certification |
+| [Policy](../schemas/memory-policy.local-properties.schema.json) | rule required/nonblank; authority optional Reference to a Bead, Link or opaque external document/URI | A recorded rule and claimed authority reference, never an access grant or compliance certification |
 | [Lesson](../schemas/memory-lesson.local-properties.schema.json) | takeaway required/nonblank | A reusable lesson, not proof of general applicability |
 
 All inherit the common contract. Fields are directly named: no `kind`, `details`
@@ -173,11 +179,23 @@ array means none listed, not exhaustive consideration. Order of procedure steps
 is significant; numbers are positions, not persistent step identities. References
 retain normal exact/unpinned meaning and do not authenticate their targets.
 
+`inception.origin` and `authority` use the existing Core Reference value directly:
+a URI or `{uri, revision}`. Both may name canonical resources or opaque external
+URIs/URNs; neither promises target existence or verification. The inline schemas
+mirror that value shape for offline review, not a new reference grammar or adopted
+property-reference admission mechanism. V2's `{ref, rel?, note?}` is an entry
+containing a Reference, not a competing spelling of the Reference itself. Sources
+remain in V2. Interpretation/admission of these property references must align with
+Core and the applicable profile before implementation.
+
 Structured fields carry their defined assertions; body supplies narrative,
 reasoning, limitations and tradeoffs. Repeated prose is not synchronized or
-semantically checked. Full structured reads include all properties, metadata,
-Inception, exact affiliation/revision, owned Links and revision provenance. A full
-human record must render the specialized knowledge alongside body. An explicitly
+semantically checked. Full structured reads keep canonical Project/Scope and Bead
+identity, the selected exact state Reference, all properties, metadata, Inception,
+exact affiliation, owned Links, revision provenance and keys/aliases together.
+Historical key visibility and restoration follow the eventual shared alias
+contract and Memory Open question 1; missing historical names are not invented.
+A full human record must render the specialized knowledge alongside body. An explicitly
 body-only projection returns the complete body and must not claim to be the full
 record. Do not duplicate structured fields into stored Markdown to disguise an
 incomplete reader. This rendering/product refinement is explicit under R7/R31.
@@ -223,6 +241,15 @@ Type check. At least one endpoint is local. Links-as-graph-endpoints are not ena
 Related deliberately also permits Issue→Issue; that breadth does not reinterpret
 existing Dependency related or supersedes records.
 
+The local M/I arms deliberately pin `memory-contract-1` and the shared foundation's
+`issue-1` in this conservative candidate. They rely on those exact semantic contracts,
+not merely familiar names. An Issue@issue-2 or Memory@memory-contract-2 without
+conformance to the selected revision does not match. This couples the Link catalog
+to those contracts: accepting a changed base requires justified conformance back
+to the selected contract or explicit new Link-definition revisions. Identity-wide
+Issue selection is a review alternative if no exact Issue promise is needed; it is
+not silently substituted here. Stored Link affiliations never upgrade automatically.
+
 No target fetch, import or control is required for cross-Scope admission. The Link
 Type records an expected role, not an observed Type. Reads distinguish stored
 expectations from observed kind/lifecycle/availability; unavailable is not proof
@@ -238,6 +265,14 @@ Type pins. Self-Links compare canonical endpoint identity, regardless of revisio
 and fail before mutation under this domain contract.
 
 ### 4.2 Pins, ownership and graph restrictions
+
+Self-Link rejection, required citation pins, retained local endpoint admission and
+non-workflow participation need domain admission support beyond properties schemas
+and the current pair descriptors. In particular, no irreflexivity member is added
+to shared `linkConstraints`: generic acyclicity would also prohibit longer cycles,
+which these informational Types do not promise. Keep self-Link admission as a named
+shared-coordination dependency. A server must not claim full domain validation while
+silently ignoring any of these required checks.
 
 Endpoint references default to floating. An explicit exact-target requirement is
 not fulfilled by silently pinning a bare input to current content. No generic
@@ -260,6 +295,13 @@ from an Issue follows the external Issue ownership contract; this file cannot ad
 Issue ownership or otherwise change established workflow. For a source outside
 the storing Scope, do not pretend this Scope revised the remote owner. Incoming
 Links never become durable target Memory state.
+
+A pinned source Reference identifies retained state; it is never permission to
+edit that historical revision. Where mutation of such a Link is supported, owner
+write effects apply to the source identity under the applicable current write and
+ownership contract, creating new state rather than changing the pinned snapshot.
+Source-pin operation syntax and old/new ownership admission remain shared
+dependencies; unsupported cases must refuse accurately.
 
 No new finite domain count limit is selected. The previous proposed 1024-owned-Link
 bound remains a review item, not a shipping guarantee. Any adopted bound follows
@@ -391,10 +433,10 @@ shape only; the sequences below remain written operation acceptance scenarios.
    and the actual report/procedure references in revision sources when those were
    inputs. An independent Activity reports the inspection of the Issue, preserving
    the procedure edition recorded as used and the report artifact under V2.
-4. Another Observation Challenges Procedure@p2 for a different housing. It does
+4. Another Observation Challenges Procedure@procedure-r1 for a different housing. It does
    not alter the old procedure or original inspection report. The author corrects
    the Procedure through a new revision with deliberate new source information.
-5. The completed job's exact reference still identifies p2; current guidance may
+5. The completed job's exact reference still identifies procedure-r1; current guidance may
    follow the new procedure. Retention can yield accurate gone, never substitution.
    A disagreement in measurements is kept with its conditions, not resolved by age.
 
@@ -413,6 +455,12 @@ shape only; the sequences below remain written operation acceptance scenarios.
 5. An Activity records a contract landing with a PR/document artifact. Its reporter,
    participant, occurrence time and revision writer remain distinct under V2. It
    is not a new source entry silently appended to the old Decision.
+
+The literal excerpts include all six Link Types, an opaque asset reference, a
+cross-Scope asset Bead, a replacement Decision and references in both directions
+across a Scope boundary. External roles are expected roles, not verified Types.
+The Activity steps above remain V2 operation scenarios rather than invented
+Activity payloads.
 
 A consolidation consumer may compare, recall, revise one Memory and forget others
 while preserving exact citations/history and recording its own inputs. It must not
@@ -433,7 +481,7 @@ of requirements, not evidence of complete current implementation or a release pl
 | R4 | Minimal title/body contract; deliberate write-only authoring, defaults and visible identity result are product work |
 | R5 | Shared disappearance/restore/erasure, alias release and incident-Link cleanup; explicit lifecycle amendment |
 | R6 | Memory contract matching; compact deterministic discovery, exact addresses and bound cursors are query/product obligations |
-| R7 | Complete selected record/provenance/owned state; full structured-knowledge rendering and empty-versus-absent handling |
+| R7 | Complete selected record/provenance/owned state and keys/aliases; full structured-knowledge rendering and empty-versus-absent handling |
 | R8 | Selective retrieval and actual supported guidance commands/budget disclosure; no recursive body injection |
 | R9 | Link ID/Type/target and separate expected/observed target information; shared observation encoding dependency |
 | R10 | Exact attributable building blocks and truthful bounds; context budgets/receipts remain consumer-owned |
@@ -445,7 +493,7 @@ of requirements, not evidence of complete current implementation or a release pl
 | R16 | Accurate retention/erasure/gone outcomes and immutable addresses; no current fallback |
 | R17 | Registered open informational vocabulary/custom conformers, preserved unknown IDs and non-workflow Memory endpoints |
 | R18 | Shared latest/exact references; exact local graph endpoint admission requires retained state |
-| R19 | Local expected-contract checks, opaque external references and accurate observations; revalidation/encoding dependencies |
+| R19 | Local expected-contract and self-Link admission checks, opaque external references and accurate observations; revalidation/encoding dependencies |
 | R20 | Floating local incident cleanup, exact survivors and affected-source disclosure; shared graph amendment |
 | R21 | Informational semantics and body-free nonrecursive traversal; no authority or execution |
 | R22 | Wildcard outgoing ownership and exact historical sets; bounded computed incoming views |
@@ -489,57 +537,62 @@ evidence; this traceability table does not duplicate its as-built verdicts.
 
 The [schema cases](../schemas/examples/memory-schema-cases.json) and
 [offline checker](../schemas/check_memory_examples.py) exercise artifact shapes
-and the explicitly listed finite definition examples. They do not execute History,
-transactions, remote resolution, graph runtime, CLI, full semantic conformance or
-the following written operation cases.
+and the explicitly listed finite definition examples. The evidence column below
+distinguishes checked property shapes from written operation requirements. No
+case here executes History, transactions, remote resolution, graph runtime, CLI
+or full semantic conformance. Literal records are illustrative fixtures.
 
-| Case | Required outcome |
-| --- | --- |
-| Plain Memory with title and empty body | Valid final properties; complete recall is found, not absent |
-| Ordinary body-only authoring | Derive title before final-state validation; never infer a subtype or key |
-| Former kind/details authoring route | No discriminator dispatch; reject kind input under the new domain schema and require an explicit compatibility/migration path |
-| Observation without statement; Decision without choice; Procedure without steps; Policy without rule; Lesson without takeaway | Reject the complete specialized instance |
-| Procedure steps empty or containing blank text | Reject; order of valid steps is preserved |
-| Observation time omitted | Unknown; do not substitute revision commit time |
-| Invalid applicability instant or from >= until | Reject at domain admission; clock crossing alone is no write |
-| Custom Type conforms to exact Memory and adds a required field | Apply both contracts and preserve shared meaning/owned state |
-| Custom Type has same shape but claims Memory participates in readiness | Not valid semantic conformance |
-| Parent Memory reader replaces specialized properties but omits a mandatory field | Reject atomically; full replacement is not merge |
-| Prospective schema check succeeds for an unrelated Type | No conformance declaration is created |
-| Exact versus identity-wide Type selectors after a definition revision | Exact matches only that affiliation/closure; identity-wide matches across revisions without latest resolution |
-| New definition or alias target is installed/repointed | Existing instance and historical conformance pins do not move |
-| Generic note explicitly becomes Procedure with valid steps | Preserve identity and old note revision; validate resulting properties and affected graph |
-| Explicit retyping uses a stale guard or invalid properties | Reject without partial property/ownership/Link effects |
-| Floating local endpoint becomes incompatible after retyping | Use the resolved shared rejection/repair contract; do not silently admit invalid state or invent a migration |
-| Endpoint pinned before target Type/content changes | Evaluate retained historical state; never new current Type |
-| Task/custom Issue conformer uses Guidance to a Memory conformer | Accept if exact required contracts and all domain checks hold |
-| Endpoints match different arms but no one permitted pair | Reject; independent OR flattening is incorrect |
-| Related joins two Issues | Informational only; do not reinterpret a Dependency record |
-| A custom workflow-dependent Link passes its shape/endpoint checks at a local Memory | Reject before mutation; wildcard ownership/eligibility does not waive the Memory non-workflow contract |
-| Supports source is a local Issue rather than Memory/conformer | Reject endpoint mismatch |
-| Required citation target is floating | Reject; do not silently pin current state |
-| External target claims a Memory role | Preserve reference/expectation, perform no remote Type verification or import |
-| External target is unreachable | Accurate unavailable observation, not invented gone/type/approval |
-| Self-Link uses two revision pins of one identity | Reject under the domain self-Link rule |
-| Parallel Links have independent IDs | Allowed absent an independently applicable constraint |
-| Outgoing custom informational Link changes | Version the local Memory source atomically; target unchanged |
-| Incoming late Support/Challenge is recorded | Target revision and original provenance stay unchanged |
-| Historical owner is read after Links/definitions change | Retain its exact recorded owned-Link set and Type closure |
-| Link source is outside the storing Scope | No fictitious remote owner revision is reported |
-| Another Type pin/subtype/endpoint arm is used under a finite bound | Same relevant identity/family population, no fresh allowance |
-| Atomic replacement temporarily violates an applicable bound | Final-state validation may permit it; guard/auth checks still apply |
-| Specialized relationship adopts acyclicity alongside old cyclic Links | Preserve Types' per-Link promise and complete family traversal, not whole-family DAG shorthand |
-| Two measurements or replacement decisions conflict | Keep both conditions/claims; no automatic truth, exclusivity or winner |
-| Source/completeness alone changes versus actor/message-only no-op | First creates revision; second does not fabricate provenance/time |
-| Unknown sources versus explicit empty sources round-trip | Preserve distinction, completeness and original historical values |
-| Activity reports nonexistent/pruned/hidden subject under V2's base policy | Well-formed authorized report may be accepted without subject lookup; no access or verification claim |
-| Activity corrects an old inspection/contract report | New Activity revision; subject and original decision sources unchanged |
-| A new local graph citation borrows Activity's permissive subject rule | Reject invalid graph admission; revision-source admission remains separately specified |
-| Delete subject with floating Links, exact Links and Activity reports | Apply the three separate selected contracts; enumerate affected sources/Links accurately |
-| Restore knowledge under a retained identity | New operation provenance; no revived cleaned-up Links or stolen alias |
-| Full human record omits Procedure steps but calls itself complete | Invalid completeness claim even when body is rendered whole |
-| Summary/automatic export includes full body or metadata values | Violates the specified projection posture |
-| Consolidation joins conflicting bodies | No automatic equivalence/truth claim or demonstrated retrieval benefit follows |
+| Case | Required outcome | Evidence here |
+| --- | --- | --- |
+| Plain Memory with title and empty body | Valid final properties; complete recall is found, not absent | Property shape checked; recall written |
+| Ordinary body-only authoring | Derive title before final-state validation; never infer a subtype or key | Written requirement |
+| Former kind/details authoring route | No discriminator dispatch; reject kind input under the new domain schema and require an explicit compatibility/migration path | Kind rejection checked; migration written |
+| Observation without statement; Decision without choice; Procedure without steps; Policy without rule; Lesson without takeaway | Reject the complete specialized instance | Property shape checked |
+| Procedure steps empty or containing blank text | Reject; order of valid steps is preserved | Property shape checked; ordering written |
+| Observation time omitted | Unknown; do not substitute revision commit time | Property shape checked; semantics written |
+| Invalid applicability instant or from >= until | Reject at domain admission; clock crossing alone is no write | Instant format checked; ordering/clock written |
+| Custom Type conforms to exact Memory and adds a required field | Apply both contracts and preserve shared meaning/owned state | Written requirement |
+| Custom Type has same shape but claims Memory participates in readiness | Not valid semantic conformance | Written requirement |
+| Parent Memory reader replaces specialized properties but omits a mandatory field | Reject atomically; full replacement is not merge | Written requirement |
+| Prospective schema check succeeds for an unrelated Type | No conformance declaration is created | Written requirement |
+| Exact versus identity-wide Type selectors after a definition revision | Exact matches only that affiliation/closure; identity-wide matches across revisions without latest resolution | Written requirement |
+| New definition or alias target is installed/repointed | Existing instance and historical conformance pins do not move | Written requirement |
+| Generic note explicitly becomes Procedure with valid steps | Preserve identity and old note revision; validate resulting properties and affected graph | Written requirement |
+| Explicit retyping uses a stale guard or invalid properties | Reject without partial property/ownership/Link effects | Written requirement |
+| Floating local endpoint becomes incompatible after retyping | Use the resolved shared rejection/repair contract; do not silently admit invalid state or invent a migration | Written requirement |
+| Endpoint pinned before target Type/content changes | Evaluate retained historical state; never new current Type | Written requirement |
+| Task/custom Issue conformer uses Guidance to a Memory conformer | Accept if exact required contracts and all domain checks hold | Written requirement |
+| Endpoints match different arms but no one permitted pair | Reject; independent OR flattening is incorrect | Written requirement |
+| Related joins two Issues | Informational only; do not reinterpret a Dependency record | Written requirement |
+| A custom workflow-dependent Link passes its shape/endpoint checks at a local Memory | Reject before mutation; wildcard ownership/eligibility does not waive the Memory non-workflow contract | Written requirement |
+| Supports source is a local Issue rather than Memory/conformer | Reject endpoint mismatch | Written requirement |
+| Required citation target is floating | Reject; do not silently pin current state | Written requirement |
+| External target claims a Memory role | Preserve reference/expectation, perform no remote Type verification or import | Written requirement |
+| External target is unreachable | Accurate unavailable observation, not invented gone/type/approval | Written requirement |
+| Self-Link uses two revision pins of one identity | Reject under the domain self-Link rule | Written requirement |
+| Parallel Links have independent IDs | Allowed absent an independently applicable constraint | Written requirement |
+| Outgoing custom informational Link changes | Version the local Memory source atomically; target unchanged | Written requirement |
+| Incoming late Support/Challenge is recorded | Target revision and original provenance stay unchanged | Written requirement |
+| Historical owner is read after Links/definitions change | Retain its exact recorded owned-Link set and Type closure | Written requirement |
+| Link source is outside the storing Scope | No fictitious remote owner revision is reported | Written requirement |
+| Another Type pin/subtype/endpoint arm is used under a finite bound | Same relevant identity/family population, no fresh allowance | Written requirement |
+| Atomic replacement temporarily violates an applicable bound | Final-state validation may permit it; guard/auth checks still apply | Written requirement |
+| Specialized relationship adopts acyclicity alongside old cyclic Links | Preserve Types' per-Link promise and complete family traversal, not whole-family DAG shorthand | Written requirement |
+| Two measurements or replacement decisions conflict | Keep both conditions/claims; no automatic truth, exclusivity or winner | Written requirement |
+| Source/completeness alone changes versus actor/message-only no-op | First creates revision; second does not fabricate provenance/time | Written requirement |
+| Unknown sources versus explicit empty sources round-trip | Preserve distinction, completeness and original historical values | Written requirement |
+| Activity reports nonexistent/pruned/hidden subject under V2's base policy | Well-formed authorized report may be accepted without subject lookup; no access or verification claim | Written requirement |
+| Activity corrects an old inspection/contract report | New Activity revision; subject and original decision sources unchanged | Written requirement |
+| A new local graph citation borrows Activity's permissive subject rule | Reject invalid graph admission; revision-source admission remains separately specified | Written requirement |
+| Delete subject with floating Links, exact Links and Activity reports | Apply the three separate selected contracts; enumerate affected sources/Links accurately | Written requirement |
+| Restore knowledge under a retained identity | New operation provenance; no revived cleaned-up Links or stolen alias | Written requirement |
+| Full human record omits Procedure steps but calls itself complete | Invalid completeness claim even when body is rendered whole | Written requirement |
+| Summary/automatic export includes full body or metadata values | Violates the specified projection posture | Written requirement |
+| Consolidation joins conflicting bodies | No automatic equivalence/truth claim or demonstrated retrieval benefit follows | Written requirement |
+| Core Reference in origin/authority: URI, opaque URN or exact URI/revision object | Accept valid forms; reject incomplete objects, extra members, relative URI and a V2 source-entry wrapper | Property shape checked |
+| Unknown inception/applicability member versus an unknown root property | Reject the closed nested member; allow the root extension subject to applicable schemas | Property shape checked |
+| Issue or Memory definition advances without exact required conformance | Reject the old Link contract match; use justified conformance or a revised Link definition | Written requirement |
+| Outgoing Link cites a historical source revision | Preserve that historical owner set; new mutation uses the source identity under the applicable current contract and shared ownership rules | Written requirement |
 
 ## 10. Readiness and decisions
 
@@ -551,7 +604,7 @@ by this contribution, not proof every underlying facility is absent.
 | Distinct Types; no kind fields | Donna ruling applied; plain Memory plus five candidate specializations | New catalog/runtime adoption NYI here |
 | Property schemas and literal records | Review artifacts with exact illustrative pins and inherited validation | Offline artifact checks only; not runtime admission |
 | Conformance-aware matching/paired endpoints | Uses shared Types; no new Type system | Shared runtime/closure/query support not qualified here |
-| Required citation pins and expected remote roles | Domain semantics explicit; generic pin-mode syntax not invented | Admission/observation representation dependencies |
+| Required citation pins, self-Link exclusion and expected remote roles | Domain semantics explicit; generic pin/irreflexivity syntax not invented | Domain admission and observation dependencies beyond generic descriptors |
 | Owned state, lifecycle and re-pinning | Required observable outcomes stated | Core/History/Write amendments and product qualification required |
 | Revision sources and Activity | Composes with current V2; no competing envelope | Remaining V2 capabilities stay proposals; no complete delivery claim |
 | Capture/recall/search/consolidation/exposure | Product/consumer boundaries and compatibility obligations mapped | No Memory runtime or CLI implementation in this change |
@@ -566,8 +619,10 @@ observations or a passing JSON example as current runtime qualification.
 Remaining decisions are small and explicit:
 
 1. Review the six-Bead/six-Link candidate catalog and detailed fields, including
-   R3's properties refinement, applicability and full human rendering.
-2. Coordinate source admission, local floating revalidation, deletion cleanup,
+   R3's properties refinement, closed nested objects, inherited kind prohibition,
+   applicability, full human rendering and the cost of exact endpoint Type pins.
+   Identity-wide Issue matching is an explicit alternative for review.
+2. Coordinate source and self-Link admission, local floating revalidation, deletion cleanup,
    identity-preserving re-pins and old/new owned-state effects with shared owners.
 3. Resolve R9/R19's expected/observed external-role encoding without remote Type
    validation, and retain Types' installed-definition/Scope boundary as open.

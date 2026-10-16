@@ -31,7 +31,8 @@
           },
           "additionalProperties": false
         }
-      ]
+      ],
+      "$comment": "Mirrors the existing Core Reference value: URI or {uri, revision}. Canonical resources and opaque external URIs/URNs are allowed; no target existence/authority or property-reference admission is proved. This is not a V2 source-entry wrapper."
     }
   },
   "additionalProperties": true

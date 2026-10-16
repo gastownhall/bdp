@@ -1,5 +1,5 @@
 {
-  "_comment": "Final-state excerpts for review, not complete wire envelopes. Common lifecycle/owned-state details omitted. revisionProvenance sources/completeness use proposed V2; no Activity shape is redefined here. The work-issue is an external fixture of the existing Issue contract, not a new domain Type.",
+  "_comment": "Illustrative final-state excerpts, not complete wire envelopes or creation/import syntax. Common lifecycle/owned-state details omitted. revisionProvenance source members use proposed V2. Work/inspection Issue endpoints are fixtures of the existing Issue contract. Remote Bead and external URI/URN endpoints stay opaque; neither expected role nor a pin proves existence, Type or immutability, and no remote owner revision is claimed. No new Activity or observation-envelope shape is defined.",
   "records": [
     {
       "id": "https://example.org/project/beads/memory",
@@ -27,7 +27,25 @@
         "statement": "The old seal leaked on housing B.",
         "observedAt": "2026-10-01T10:00:00Z"
       },
-      "metadata": {}
+      "metadata": {},
+      "revisionProvenance": {
+        "actor": {
+          "id": "human:technician",
+          "basis": "writer-supplied"
+        },
+        "sources": [
+          {
+            "ref": {
+              "uri": "https://example.org/project/beads/procedure",
+              "revision": "procedure-r1"
+            }
+          },
+          {
+            "ref": "urn:example:inspection:report-7"
+          }
+        ],
+        "sourcesCompleteness": "incomplete"
+      }
     },
     {
       "id": "https://example.org/project/beads/decision",
@@ -54,8 +72,8 @@
         "sources": [
           {
             "ref": {
-              "uri": "https://example.org/project/beads/observation",
-              "revision": "observation-r1"
+              "uri": "https://example.org/project/beads/supplier-assessment",
+              "revision": "supplier-assessment-r1"
             }
           },
           {
@@ -95,7 +113,8 @@
       "properties": {
         "title": "Supplier assessment policy",
         "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier"
+        "rule": "Record delivery capability before selecting a supplier",
+        "authority": "https://example.org/documents/purchasing-charter"
       },
       "metadata": {}
     },
@@ -112,6 +131,100 @@
         "takeaway": "Record the housing edition before selecting the procedure"
       },
       "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/beads/supplier-assessment",
+      "revision": "supplier-assessment-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/observation",
+        "revision": "observation-contract-1"
+      },
+      "properties": {
+        "title": "Delivery assessment",
+        "body": "Acme met the requested delivery window; Beta did not.",
+        "statement": "Acme can deliver in the requested window."
+      },
+      "metadata": {},
+      "revisionProvenance": {
+        "actor": {
+          "id": "human:alice",
+          "basis": "writer-supplied"
+        },
+        "sources": [
+          {
+            "ref": "urn:example:reports:supplier-assessment"
+          }
+        ],
+        "sourcesCompleteness": "incomplete"
+      }
+    },
+    {
+      "id": "https://example.org/project/beads/housing-followup",
+      "revision": "housing-followup-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/observation",
+        "revision": "observation-contract-1"
+      },
+      "properties": {
+        "title": "Different housing needs different seal",
+        "body": "A later inspection found the recorded procedure unsuitable for housing C.",
+        "statement": "The housing B seal leaked when used on housing C."
+      },
+      "metadata": {},
+      "revisionProvenance": {
+        "actor": {
+          "id": "human:bob",
+          "basis": "writer-supplied"
+        },
+        "sources": [
+          {
+            "ref": {
+              "uri": "https://example.org/project/beads/procedure",
+              "revision": "procedure-r1"
+            }
+          },
+          {
+            "ref": "urn:example:inspection:housing-c-report"
+          }
+        ],
+        "sourcesCompleteness": "incomplete"
+      }
+    },
+    {
+      "id": "https://example.org/project/beads/decision-replacement",
+      "revision": "decision-replacement-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/decision",
+        "revision": "decision-contract-1"
+      },
+      "properties": {
+        "title": "Revised supplier choice",
+        "body": "Acme capacity no longer meets the new order window. This choice applies to new orders only.",
+        "choice": "Use Delta for new orders",
+        "alternatives": ["Acme", "Beta"],
+        "applicability": {
+          "description": "New western-region orders after the capacity review"
+        }
+      },
+      "metadata": {},
+      "revisionProvenance": {
+        "actor": {
+          "id": "human:alice",
+          "basis": "writer-supplied"
+        },
+        "sources": [
+          {
+            "ref": {
+              "uri": "https://example.org/project/beads/decision",
+              "revision": "decision-r1"
+            }
+          },
+          {
+            "ref": "urn:example:reports:capacity-review"
+          }
+        ],
+        "sourcesCompleteness": "incomplete"
+      }
     }
   ],
   "links": [
@@ -134,7 +247,7 @@
         "uri": "https://example.org/memory-types/memory-supports",
         "revision": "supports-contract-1"
       },
-      "source": "https://example.org/project/beads/observation",
+      "source": "https://example.org/project/beads/supplier-assessment",
       "target": {
         "uri": "https://example.org/project/beads/decision",
         "revision": "decision-r1"
@@ -149,10 +262,91 @@
         "uri": "https://example.org/memory-types/memory-challenges",
         "revision": "challenges-contract-1"
       },
-      "source": "https://example.org/project/beads/lesson",
+      "source": "https://example.org/project/beads/housing-followup",
       "target": {
         "uri": "https://example.org/project/beads/procedure",
         "revision": "procedure-r1"
+      },
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/procedure-applies-to-external-asset",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-applies-to",
+        "revision": "applies-to-contract-1"
+      },
+      "source": "https://example.org/project/beads/procedure",
+      "target": "urn:example:assets:pump-7",
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/procedure-applies-to-remote-asset",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-applies-to",
+        "revision": "applies-to-contract-1"
+      },
+      "source": "https://example.org/project/beads/procedure",
+      "target": "https://assets.example/site/beads/pump-7",
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/related-work-issues",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-related",
+        "revision": "related-contract-1"
+      },
+      "source": "https://example.org/project/beads/work-issue",
+      "target": "https://example.org/project/beads/inspection-issue",
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/replacement-offered",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-supersedes",
+        "revision": "supersedes-contract-1"
+      },
+      "source": "https://example.org/project/beads/decision-replacement",
+      "target": {
+        "uri": "https://example.org/project/beads/decision",
+        "revision": "decision-r1"
+      },
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/supports-remote-decision",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-supports",
+        "revision": "supports-contract-1"
+      },
+      "source": "https://example.org/project/beads/supplier-assessment",
+      "target": {
+        "uri": "https://partner.example/project/beads/decision",
+        "revision": "remote-decision-r7"
+      },
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/remote-observation-supports-decision",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-supports",
+        "revision": "supports-contract-1"
+      },
+      "source": "https://partner.example/project/beads/observation",
+      "target": {
+        "uri": "https://example.org/project/beads/decision",
+        "revision": "decision-r1"
       },
       "properties": {},
       "metadata": {}
