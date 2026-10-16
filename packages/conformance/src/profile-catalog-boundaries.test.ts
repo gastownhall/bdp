@@ -1,10 +1,11 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { readSpecificationSource } from "../test-support/spec-source.js";
 import { loadScenarioCatalogJson, validateCatalogCitations } from "./index.js";
 import { markdownAnchors, markdownSection } from "./markdown.js";
 
 const root = new URL("../../../", import.meta.url);
-const read = (source: string) => readFileSync(new URL(source, root), "utf8");
+const read = (source: string) => readSpecificationSource(source);
 const spec = read("docs/specs/bdp.md");
 const rank = { read: 1, "read-update": 2, transactional: 3 };
 

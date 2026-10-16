@@ -25,7 +25,10 @@ const type = scope + "types/bead";
 const types = [parseTypeDescriptor({ id: type, name: "Bead", describes: "bead", conformsTo: [] })];
 const receiptValidators = (() => {
   const schema = JSON.parse(
-    readFileSync(new URL("../../../schemas/bdp-v0.schema.json", import.meta.url), "utf8"),
+    readFileSync(
+      new URL("../../../specs/profiles/core/bdp-v0.schema.json", import.meta.url),
+      "utf8",
+    ),
   );
   const ajv = new Ajv2020({ strict: true, allErrors: true });
   ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });

@@ -2,9 +2,12 @@
 
 This repository is the source of truth for the Bead Protocol (BDP).
 
-**📜 The specification lives at [`docs/specs/bdp.md`](docs/specs/bdp.md).**
-It is a draft: by its own terms, it is not a conformance target until
-adopted.
+**The sole specification authority is [`specs/`](specs/README.md).**
+Start with [Core and Read](specs/profiles/core/core.md) and
+[Write](specs/profiles/write/write.md). Their shared draft status is unchanged:
+they are not a conformance target until adopted. Material outside `specs/` is
+implementation, test evidence, navigation or historical design context; it does
+not define or override BDP requirements.
 
 BDP is an HTTP-based protocol for interacting with beads and the links
 between beads. BDP defines the uniform mechanism for reading, creating,
@@ -19,10 +22,10 @@ entry for people, systems, and agents to interact with beads.
 
 ## Work-in-progress Type design
 
-The [Types design specification](specs/types.md) records the evolving optional,
+The [Types design specification](specs/profiles/types/types.md) records the evolving optional,
 Scope-wide Types profile, including definitions as Beads, exact revisions,
 conformance, graph constraints and lifecycle decisions. Its [candidate schemas and
-examples](specs/schemas/README.md) support design review. Settled design rules and
+examples](specs/profiles/types/README.md) support design review. Settled design rules and
 open decisions are distinguished explicitly. Landing this work on main does not
 adopt new wire forms, modify the current protocol contract, or claim implementation.
 Issue/Dependency and Memory remain separate domain drafts linked from that document.
@@ -40,7 +43,7 @@ rewrites, an ordered change feed, and honest capability advertising.
 What's in this repository:
 
 - the normative specification and its canonical JSON Schemas
-  (`schemas/bdp-v0.schema.json`);
+  (`specs/profiles/core/bdp-v0.schema.json`);
 - a Node/TypeScript reference stack: a generic client (`bdp`), a
   deterministic test server (`bdptest`), and a server that adapts the `bd`
   CLI (`bdpbd`);

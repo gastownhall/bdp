@@ -1,8 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
+import { readSpecificationSource } from "../test-support/spec-source.js";
 
 import {
   loadExecutableScenarioManifestJson,
@@ -27,8 +27,7 @@ import {
  * (T48) — never the behavior a row describes.
  */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const readText = (relativePath: string): string =>
-  readFileSync(path.resolve(root, relativePath), "utf8");
+const readText = (relativePath: string): string => readSpecificationSource(relativePath);
 
 const CATALOG_PATH = "packages/conformance/catalog/transactional-v1.json";
 const READ_UPDATE_CATALOG_PATH = "packages/conformance/catalog/read-update-v1.json";

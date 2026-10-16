@@ -1,8 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
+import { readSpecificationSource } from "../test-support/spec-source.js";
 
 import {
   loadExecutableScenarioManifestJson,
@@ -13,8 +13,7 @@ import {
 
 /** Companion source metadata stays intact; only its Read rows enter the successor Read manifest. */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const readText = (relativePath: string): string =>
-  readFileSync(path.resolve(root, relativePath), "utf8");
+const readText = (relativePath: string): string => readSpecificationSource(relativePath);
 
 const CATALOG_PATH = "packages/conformance/catalog/owned-wildcard-v1.json";
 const READ_CATALOG_PATH = "packages/conformance/catalog/read-v1.json";

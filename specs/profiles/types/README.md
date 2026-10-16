@@ -1,6 +1,6 @@
 # Draft Type-profile property schemas
 
-Review artifacts for [Types](../types.md) and [Issue/Dependency](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/issue.md).
+Review artifacts for [Types](types.md) and [Issue/Dependency](../../types/issue/issue.md).
 They are not the canonical BDP schema bundle, registered Type IDs, an installable
 package, or implementation qualification. Schema IDs under
 `https://example.org/bdp-draft/schemas/` identify schema documents, not Type Beads.
@@ -11,10 +11,10 @@ package, or implementation qualification. Schema IDs under
 | [bead-type-definition.properties.schema.json](bead-type-definition.properties.schema.json) | BeadType instances (definitions of Bead Types) | Includes common schema, allows participation/ownership rules, prohibits Link constraints |
 | [link-type-definition.properties.schema.json](link-type-definition.properties.schema.json) | LinkType instances (definitions of Link Types) | Includes common schema and requires endpoint-pair constraints |
 | [conforms-to.properties.schema.json](conforms-to.properties.schema.json) | ConformsTo Link properties | Open base object; semantic qualifiers still require understanding/enforcement |
-| [issue.properties.schema.json](issue.properties.schema.json) | Issue instance properties | Base review fragment; not full domain/write validation |
-| [dependency.properties.schema.json](dependency.properties.schema.json) | Dependency instance properties | Base review fragment; child-specific workflow fields remain open |
-| [examples/domain-property-cases.json](examples/domain-property-cases.json) | Illustrative Issue/Dependency properties | Shape-test inputs, not a domain specification |
-| [examples/type-foundation.json](examples/type-foundation.json) | Eight definition Beads and four owned declarations | Literal final graph, not creation/import syntax |
+| [issue.properties.schema.json](../../types/issue/issue.properties.schema.json) | Issue instance properties | Base review fragment; not full domain/write validation |
+| [dependency.properties.schema.json](../../types/issue/dependency.properties.schema.json) | Dependency instance properties | Base review fragment; child-specific workflow fields remain open |
+| [examples/domain-property-cases.json](../../../fixtures/specs/issue/domain-property-cases.json) | Illustrative Issue/Dependency properties | Shape-test inputs, not a domain specification |
+| [examples/type-foundation.json](definitions.json) | Eight definition Beads and four owned declarations | Literal final graph, not creation/import syntax |
 
 ## Source and status
 
@@ -138,14 +138,14 @@ promise; publication-label uniqueness is still open.
 Run from the repository root:
 
 ```sh
-uv run --no-project --with 'jsonschema[format]' python specs/schemas/check_examples.py
+uv run --no-project --with 'jsonschema[format]' python scripts/check_type_examples.py
 ```
 
 The check validates six schemas and positive/negative shape cases, exact example
 references and owned-state consistency, category-preserving pair matches over
 the finite foundation graph, schema-copy equality and illustrative domain property
-cases. The separate Issue/Dependency prose is not landed by this change; its
-inline-schema correspondence was checked in the source authoring branch.
+cases. The Issue/Dependency prose is the existing WIP authoring draft, relocated with
+its inspected Preview 2 evidence intact; it is not a fresh runtime qualification.
 It preloads resources and forbids retrieval. It does not implement a generic Type
 checker, import a graph, exercise a BDP server or qualify a release.
 

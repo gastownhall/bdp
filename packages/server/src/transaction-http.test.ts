@@ -20,7 +20,7 @@ const ajv = new Ajv2020({ allErrors: true, strict: true });
 ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
 ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
 const schema = JSON.parse(
-  readFileSync(new URL("../../../schemas/bdp-v0.schema.json", import.meta.url), "utf8"),
+  readFileSync(new URL("../../../specs/profiles/core/bdp-v0.schema.json", import.meta.url), "utf8"),
 );
 ajv.addSchema(schema);
 const validateTransactionalProblem = ajv.compile({

@@ -218,7 +218,10 @@ function manifestWith(schemaRefs: {
 
 function committedBundle(): Json {
   return JSON.parse(
-    readFileSync(path.join(workspaceRoot, "schemas", "bdp-v0.schema.json"), "utf8"),
+    readFileSync(
+      path.join(workspaceRoot, "specs", "profiles", "core", "bdp-v0.schema.json"),
+      "utf8",
+    ),
   ) as Json;
 }
 

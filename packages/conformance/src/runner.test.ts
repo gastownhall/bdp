@@ -3,7 +3,7 @@ import { createRawHttpScenarioTarget } from "./raw-http-scenario-target.js";
 import { createHash } from "node:crypto";
 import { HttpTransportError } from "./http-executor.js";
 import { describe, expect, it, vi } from "vitest";
-import schemaBundle from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import schemaBundle from "../../../specs/profiles/core/bdp-v0.schema.json" with { type: "json" };
 import readManifest from "../matrices/read-v1.json" with { type: "json" };
 import {
   type ConformanceArtifactBundle,

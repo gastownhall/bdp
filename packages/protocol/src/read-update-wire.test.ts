@@ -22,7 +22,7 @@ import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
  */
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const schema = JSON.parse(
-  readFileSync(path.join(workspaceRoot, "schemas", "bdp-v0.schema.json"), "utf8"),
+  readFileSync(path.join(workspaceRoot, "specs", "profiles", "core", "bdp-v0.schema.json"), "utf8"),
 ) as SchemaRecord;
 const specification = readFileSync(path.join(workspaceRoot, "docs", "specs", "bdp.md"), "utf8");
 const fixturesDirectory = path.join(workspaceRoot, "fixtures", "read-update");
