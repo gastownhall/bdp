@@ -375,6 +375,7 @@ it("serves byte-bounded deep mutations receipts Events and owned-Link Snapshots 
     accept: string;
     key: string | null;
     requestBodyBytes: number;
+    requestBodyPresent: boolean | null;
     requestBodySha256: string;
     status: number;
     bodyOctets: number | undefined;
@@ -405,6 +406,15 @@ it("serves byte-bounded deep mutations receipts Events and owned-Link Snapshots 
       { b: JSON.parse(deepText), a: 0 },
       "independent deep oracle numeric and key-order equality",
     );
+    for (const [actual, expected, label] of [
+      [deepValue, JSON.parse("[".repeat(12000) + "2" + "]".repeat(12000)), "changed deep leaf"],
+      [{ a: 1 }, { a: 1, b: 2 }, "unequal key counts"],
+      [[], {}, "array versus object"],
+      [null, {}, "null versus object"],
+    ] as const) {
+      const rejection = `independent deep oracle rejects ${label}`;
+      expect(() => sameJson(actual, expected, rejection)).toThrow(rejection);
+    }
     // Qualification requires an explicit external executable; development fallback earns no such claim.
     if (process.env.BDP_TRANSACTIONAL_INSTALLED_ENTRY) {
       expect(workspaceDirty).toBe(false);
@@ -462,7 +472,6 @@ it("serves byte-bounded deep mutations receipts Events and owned-Link Snapshots 
         url,
         body: literal.bodyRef === null ? null : bodies[literal.bodyRef],
       };
-      if (!row) throw new Error("unbound installed fresh depth request");
       controller.signal.throwIfAborted();
       expect(attempted + 1, "installed fresh depth exact dispatch order").toBe(index);
       expect(++attempted, "installed fresh depth dispatch bound").toBeLessThanOrEqual(13);
@@ -494,6 +503,7 @@ it("serves byte-bounded deep mutations receipts Events and owned-Link Snapshots 
         accept: row.accept,
         key: row.key,
         requestBodyBytes: row.bodyBytes,
+        requestBodyPresent: response.exactRequest?.bodyPresent ?? null,
         requestBodySha256: row.bodySha256,
         status: response.status,
         bodyOctets: response.bodyOctets,
