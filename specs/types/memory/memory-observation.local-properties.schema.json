@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/memory-types/schemas/memory-observation.local-properties.schema.json",
+  "title": "Observation local properties requirements",
+  "$comment": "Local fragment only. Complete validation also applies the exact Memory contract through owned ConformsTo; this fragment alone is insufficient.",
+  "type": "object",
+  "required": ["statement"],
+  "properties": {
+    "statement": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}

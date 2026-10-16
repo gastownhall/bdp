@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
+  "title": "Informational Memory Link properties",
+  "$comment": "Shared shape for six distinct Link Types. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+  "type": "object",
+  "properties": {
+    "note": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "kind": false
+  },
+  "additionalProperties": true
+}

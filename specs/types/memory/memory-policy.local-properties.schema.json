@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/memory-types/schemas/memory-policy.local-properties.schema.json",
+  "title": "Policy local properties requirements",
+  "$comment": "Local fragment only. Complete validation also applies the exact Memory contract through owned ConformsTo; this fragment alone is insufficient.",
+  "type": "object",
+  "required": ["rule"],
+  "properties": {
+    "rule": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "authority": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "uri"
+        },
+        {
+          "type": "object",
+          "required": ["uri", "revision"],
+          "properties": {
+            "uri": {
+              "type": "string",
+              "format": "uri"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "$comment": "Reuses only the Core Reference value shape. This property is authored data, not a protocol Reference or graph edge; no Core canonicalization, resolution, traversal or target validation. Opaque external URIs are allowed."
+    }
+  },
+  "additionalProperties": true
+}
