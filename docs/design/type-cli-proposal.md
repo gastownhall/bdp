@@ -1,12 +1,14 @@
-# Proposal: Bead and Link Types
+# [Memory] Proposal: Bead and Link Types
 
-Draft for discussion, October 15, 2026. Intended for an issue in
-`gastownhall/beads`; not yet posted. This proposal covers the model and the Beads CLI. The shared rules are being
+Proposal for discussion, October 15, 2026. This covers the model and the Beads CLI.
+The shared rules are being
 developed in public [draft BDP PR #60](https://github.com/gastownhall/bdp/pull/60),
 including its [Types design draft](https://github.com/gastownhall/bdp/blob/codex/trish-bdp-design-authority/specs/types.md).
 That draft is not an adopted BDP specification.
 Command spellings remain proposals. The supporting design record is
 [BDP #59](https://github.com/gastownhall/bdp/issues/59).
+
+Published as [[Memory] Proposal: Bead and Link Types](https://github.com/gastownhall/beads/issues/7590).
 
 ## Proposal
 
