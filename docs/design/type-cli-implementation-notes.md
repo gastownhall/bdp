@@ -4,7 +4,8 @@ Companion to [Proposal: Bead and Link Types](type-cli-proposal.md), October 15,
 2026. These notes are not part of the proposed issue body. They preserve the
 implementation exercise, inspected code seams and acceptance cases for a possible
 follow-up discussion on [beads#7590](https://github.com/gastownhall/beads/issues/7590).
-The tagged-source foundation audit is active; runtime implementation has not begun.
+The tagged-source foundation audit and execution-plan council are complete; runtime
+implementation has not begun. Findings are linked below.
 
 ## First implementation candidate: open definitions and their graph
 
@@ -72,7 +73,7 @@ worth evaluating for bootstrap, not yet an adopted protocol mechanism.
 
 Planning draft for discussion, October 15, 2026. Janet's release branch policy below
 is an instruction; slice boundaries and product gates are proposed. This plan has
-entered a Codex + Claude review council. The foundation audit is assigned below;
+completed a Codex + Claude review council. The foundation audit is recorded below;
 product decisions and later implementation assignments remain explicit.
 
 ### Release branch policy
@@ -181,9 +182,36 @@ Beads #7590 remain the records while Janet determines Preview 3 tracking.
 
 | Worker | Scope | State |
 | --- | --- | --- |
-| types_foundation_audit | Tagged-source audit and implementation contract packet | Active in isolated codex/trish-types-foundation-audit at exact graph-preview2 commit; no runtime edits authorized in this assignment |
-| types_execution_plan_review | Independent Codex + Claude review of this plan | Active; findings pending, no review approval claimed |
+| types_foundation_audit | Tagged-source audit and implementation contract packet | Complete; [source audit](type-foundation-preview2-audit-20261015.md); no runtime edits |
+| types_execution_plan_review | Independent Codex + Claude review of this plan | Complete; [council findings](type-execution-council-20261015.md), no runtime qualification |
 
 Trish stays interactive for product decisions, integrates findings, and owns external
 coordination. These are bounded background workers, not a recurring schedule or a
 promise of unattended completion of the full Type implementation.
+
+### Council and source-audit corrections
+
+The first working milestone spans the foundation slices; minimal exact owned
+ConformsTo snapshot and closure support must accompany seeds, because the seed
+BeadType/LinkType definitions already conform to Type and inherit declaration
+ownership. Later work extends ordinary editing and query integration.
+
+The tagged-source audit found existing atomic ownership/history machinery with
+Memory/Issue-specific admission, and historical Type validation coupled to the
+current catalog. Preserve that machinery and repair both native and generic
+historical admission before enabling retyping. Native bd batch does not yet
+compose arbitrary graph/type operations. Coordinate Write integration explicitly.
+
+Add acceptance cases for missing exact ancestors even when a newer revision is
+available, two-hop closure after ancestor edits, diamonds, simultaneous revisions
+of one ancestor identity, declaration retraction, stale owner preconditions,
+failed-transaction owner/index stability, and historical reads after retyping.
+The experiment must retain required history through every generic mutation path;
+unsupported destructive operations must reject rather than bypass deferred policy.
+Choose an explicit Link endpoint baseline before instance-writing experiments.
+Known unsupported constraints reject admission/writes rather than passing unchecked.
+
+Safe independent coding candidate: a pure, revision-keyed closure/matching evaluator
+with captured snapshot inputs, no storage/network/wire integration and no publication
+of candidate schema shapes. The audit defines its testable contract. This does not
+require unresolved installation, registry, alias or bootstrap mechanics.

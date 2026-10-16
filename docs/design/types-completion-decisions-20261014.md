@@ -225,3 +225,42 @@ exercise with open properties and a conformance graph. Full implementation is no
 claimed or started; separate [implementation notes](type-cli-implementation-notes.md)
 record bootstrap/reference/storage gates, source seams and acceptance cases.
 Import/export and general migrate are parked.
+
+## October 15 registry identity and publication authority
+
+Selected: intrinsic Types are the binary-supplied bootstrap minimum and cannot be
+updated or removed by Scope clients. Pre-installed Types are ordinary definitions;
+registry graphs can supply them, with mechanics deferred. Registry installation
+preserves global IDs and exact revisions by default for federated equality.
+Installation does not grant authority to revise the publisher's identity. A Scope
+holding only a copy rejects local publication under that identity; future absolute-ID
+CLI routing can send updates to the origin, where ordinary authorization applies.
+Local variation uses an explicit new identity; denied/offline origin writes cannot
+silently edit the installed copy or create a fork.
+Keep exact installed dependency/history closure available independently of cache
+eviction or registry availability. See Types §7.2. Acquisition-on-use, replica
+exposure and removal/retention details remain open.
+
+### Registration and acquisition modes
+
+Selected: default use fails when the Type is not registered for the Scope. An
+explicit automatic-install mode may acquire and validate the Type and its required
+graph before use. Brute-force/unvalidated use is deferred and unsupported initially;
+any future support must record that the instance was not validated. Registration is
+acceptance for local use, not cache presence or a new activation step. Identity-versus-
+revision registration granularity and policy controls remain to decide.
+
+### Generic aliases and prefix shorthand
+
+Selected: aliases may identify an absolute external Bead/Link and optionally pin a
+revision; one local name has one target and cannot collide with a local resource.
+Creating an alias does not fetch/register the target. Stored references are canonical,
+so later alias changes cannot move stored pins. Use current Bead/Link prefix shearing
+as the reference behavior; root placement is still open. Existing BDP aliases are
+narrower (alias/ root, in-Scope Beads only); coordinated amendment is needed. See §7.3.
+
+### Unpinned write revision selection remains open
+
+A Scope-selected default Type revision was proposed after alias pinning was agreed.
+Donna has not selected it. Neither registry-latest nor local-default selection is
+accepted by implication; do not implement either as a settled rule.

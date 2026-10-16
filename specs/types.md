@@ -1,10 +1,12 @@
 # BDP Types
 
-Design draft, October 14, 2026. This document records agreed design rules and
+Work-in-progress design specification, October 15, 2026. This document records agreed design rules and
 explicit open decisions for an optional, Scope-wide Types profile. It is not yet
 an adopted protocol specification, an installable definition format, or a claim
 that Beads implements these rules. The [current BDP specification](../docs/specs/bdp.md)
-remains the protocol authority until coordinated amendments land.
+remains the protocol authority until coordinated amendments land. Landing this
+document on main makes the evolving design available for collaboration; it does
+not adopt its candidate wire shapes or require implementation of unfinished rules.
 
 The [Issue and Dependency draft](types/issue.md) and [Memory draft](types/memory.md)
 provide requirements and acceptance scenarios. Issue/Dependency records the
@@ -72,7 +74,9 @@ Both Bead-Type and Link-Type definitions are represented as Beads. A Bead that
 describes a Link Type is itself a Bead; the Type it describes governs Link
 instances. This representation does not create conformance between the Bead-Type
 and Link-Type worlds. Choosing Beads for definitions does not yet settle the
-metatype, bootstrap, installation, publication or retention rules.
+remaining bootstrap mechanics, installation controls or retention rules. The
+foundation categories and publication-authority decisions are recorded in §§2.1–2.3
+and §7.2.
 
 Apart from owned conformance declarations, the Type contract is represented by
 fields in the Type-definition Bead's `properties`. This includes the embedded
@@ -211,13 +215,16 @@ illustrative definition Beads and four owned declarations: BeadType→Type,
 LinkType→Type, task→issue and blocks→dependency. All affiliations and declaration
 targets pin revisions. Schema copies match the adjacent artifacts.
 
-Type, BeadType, LinkType and ConformsTo need an explicit trusted bootstrap boundary.
+Type, BeadType, LinkType and ConformsTo are the intrinsic bootstrap definitions.
+They are supplied by the implementation and cannot be updated or removed through
+ordinary Scope operations. They need an explicit trusted bootstrap boundary.
 The candidate affiliates all three metatype definitions with BeadType; BeadType
 therefore pins itself. These definition-reference dependencies are not conformance
 cycles. This supersedes the earlier lone self-typed Type seed. Ordinary create
 cannot be assumed to know its future opaque revision. Seed establishment,
-authorization, revision allocation, metatype upgrades and production identities
-remain proposals/open decisions.
+trusted installation mechanics, revision allocation, binary-upgrade coordination
+and production identities remain proposals/open decisions. This does not reopen
+ordinary client mutation of intrinsic definitions.
 
 This file is a **literal final-state example**, not a BDP transaction, installation
 API or package format. Its revision strings are illustrative, not permission for
@@ -968,8 +975,9 @@ activation/publish step in this proposal. Validate the definition and required
 conformance closure before acceptance. Ordinary Bead operations and specialized
 CLI commands must enforce the same rules. A new definition revision does not
 upgrade existing affiliations or activate graph constraints on old instances.
-Imported definitions, removal/history retention and bootstrap remain separate
-lifecycle questions; import/export is parked for a later design discussion.
+Registry identity and publication authority are selected in §7.2. Removal/history
+retention and bootstrap mechanics remain separate lifecycle questions; the portable
+import/export format is parked for a later design discussion.
 
 Canonical identity comes from the Bead ID. This profile defines no separate
 Type-specific name or display-name field. Generic resource aliases may resolve
@@ -1014,6 +1022,114 @@ references; reject an unresolved exact pin without falling back to latest; rejec
 an ID collision without overwriting implicitly; preserve opaque outside references;
 and roll back the whole installation on a final graph-constraint failure. Format,
 importer and these runtime cases are NYI.
+
+### 7.2 Definition origin, installed identity and publication authority
+
+The following lifecycle distinctions are selected design. They do not introduce
+four different Type systems; registry-published definitions may also be pre-installed.
+
+| Category | Meaning |
+| --- | --- |
+| Intrinsic | The minimum definitions needed to bootstrap the Types system; supplied by the implementation binary. Scope clients cannot update or remove them. |
+| Pre-installed | Ordinary definitions supplied initially because product users expect them; governed by ordinary Type lifecycle rules rather than intrinsic status. |
+| Registry-published | Discoverable Type graphs published through a public read-only BDP server and available for installation. Registry publication is a distribution/authority role, not a different definition representation. |
+| Locally authored | Ordinary Type-definition Beads created in the Scope through normal operations. |
+
+Only intrinsic Types belong in the binary. The intended distribution model for
+common pre-installed Types is locally supplied copies of graphs published by the
+registry. Pre-installation mechanics are still to be discussed. Foundation binary
+upgrade/version coordination is not permission for ordinary clients to revise
+intrinsic definitions.
+
+By default, installing a registry Type preserves its globally recognized ID and
+exact revision, along with the identities and pins of its required definition
+graph. The same ID denotes the same nominal Type across federated graphs; the same
+ID/revision pair denotes the same immutable definition and meaning. Conflicting
+content under an already known exact identity must be rejected rather than silently
+overwritten. Content-equivalence and publisher-verification mechanisms still need
+specification; this does not require selecting a hash or signature scheme now.
+
+Installation grants availability, not publication authority over the registry ID.
+A receiving Scope that only holds an installed copy must reject an attempt to
+publish a new definition revision locally under that imported identity. This does
+not prohibit an authorized update at the origin. With future absolute-ID routing,
+a CLI update can be sent over BDP to the authoritative origin server, which applies
+its normal write authorization and Type validation. Public registry access may be
+read-only while authorized publishers have a write path. Routing is CLI/client
+behavior, not a special Type mutation mechanism; offline or denied origin writes
+must not silently become edits to a local copy or forks. Intrinsic definitions
+remain subject to their separate no-update rule.
+
+Users obtain later revisions from the publisher, publish at the origin when
+authorized, or explicitly fork under an identity they control. A fork is a new Type; any conformance
+to its source must be declared and justified rather than inferred from copying.
+Generic operations and specialized Type commands must enforce the same authority
+boundary. Local removal of a retained copy is a separate retention-policy question,
+not deletion of the publisher's resource.
+
+Installed definitions must remain usable when their registry is unavailable.
+Retain the exact dependency closure, schemas and historical owned declarations
+needed for their interpretation; eviction of an opportunistic cache must not
+invalidate installed or retained historical meaning. Updating installed availability
+with a later publisher revision does not move existing instance affiliations.
+Registration means that a definition is accepted for use in this Scope, not merely
+present in an opportunistic cache. Successful valid local creation or installation
+provides that status; this does not add a separate activation step.
+
+The selected acquisition modes are:
+
+| Mode | Behavior |
+| --- | --- |
+| Require registration (default) | Refuse use of a Type not registered for the Scope; do not automatically install it. |
+| Automatic installation (explicit mode) | Acquire and validate the requested Type and its required definition graph, retain them locally, then validate the instance before accepting its write. Retrieval alone is not acceptance; failed installation or validation must not admit an unvalidated instance. |
+| Unvalidated use | Not supported initially. A possible future mode would need an explicit persisted indication that a Bead/Link was not validated; it must not silently claim ordinary Types-profile validation. No representation or bypass mechanism is selected. |
+
+Whether acquisition policy is configured per Scope, requested per operation, or
+both remains open, as do permissions for enabling automatic installation. The
+precise registration granularity (identity versus exact revision/closure) remains
+open; identity recognition must not be confused with possessing and validating the
+exact definition required by a stored pin. Cache population alone does not authorize
+use. Registry discovery and absolute-ID routing do not imply automatic installation.
+Selection of a revision for an explicit unpinned Type write is also unresolved:
+a Scope-selected default versus the origin's current revision was proposed but
+not decided. Do not infer a latest-selection policy from identity-wide query matching,
+installation order, alias creation or revision-token ordering.
+
+Acceptance cases: two Scopes installing the same graph preserve exact Type equality;
+registry outage does not break use of retained definitions; conflicting exact copies
+fail; unauthorized local publication under an imported registry identity fails;
+an authorized routed origin update follows ordinary write rules; an explicit local fork
+has a new identity; obtaining a newer publisher revision leaves existing pins intact.
+Installed replicas' exposure through Scope reads/listing, distribution format,
+authority verification and retention/deletion behavior remain to specify.
+
+### 7.3 Local aliases for canonical references
+
+Selected direction: a local alias may target an absolute Bead or Link ID in another
+Scope and may optionally include an exact revision. A name has exactly one target;
+it cannot simultaneously name a local resource and an alias or have multiple alias
+bindings. Naming/uniqueness granularity follows the eventual resource namespace
+contract; this does not select one shared bare-name namespace across Beads and Links.
+
+Alias creation is independent of fetching or registering its target. At use, resolve
+the alias to the canonical reference and apply normal acquisition, registration,
+authorization and validation rules. An unpinned target names an identity; a pinned
+target names an exact revision. Stored instance Type affiliation remains an exact
+canonical pin, never a mutable alias. Repointing an alias cannot change existing
+stored affiliations or other canonical references.
+
+The existing CLI's Bead/Link prefix shorthand is the precedent: general resource
+commands interpret a bare path as beads/PATH; Link-only commands interpret it as
+links/PATH. Explicit selectors retain their resource meaning. Placement of aliases
+under these namespaces versus a dedicated root, possible types/ shorthand, collision
+and explicit revision-override diagnostics, and alias lookup precedence remain to
+specify. CLI shorthand is not a change to global canonical identity.
+
+This expands the current canonical BDP alias contract, which uses an alias/ root
+and targets only in-Scope Bead URLs. Its existing alias table/operations provide a
+starting point, not evidence that cross-Scope, Link or pinned aliases work today.
+Any adoption requires coordinated Core/Write alias schema and operation changes;
+this draft does not silently amend docs/specs/bdp.md or active Write work.
 
 ## 8. Readiness and landing
 
