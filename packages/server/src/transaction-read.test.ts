@@ -1255,7 +1255,21 @@ describe("current Type and incident-Link minimums", () => {
         delivery = minimum.perform(malformed[kind] as ReadRequest);
       }).not.toThrow();
       expect(delivery).toBeInstanceOf(Promise);
-      await expect(delivery).rejects.toThrow("outside supported subset");
+      const requestShapeMessage =
+        kind === "accessor"
+          ? "Read request cannot have accessors"
+          : kind === "inherited"
+            ? "Read request must have a plain prototype"
+            : kind === "proxy" || kind === "revoked"
+              ? "Read request must be a plain data object"
+              : undefined;
+      if (requestShapeMessage !== undefined) {
+        await expect(delivery).rejects.toBeInstanceOf(AuthorityReadError);
+        await expect(delivery).rejects.toMatchObject({
+          reason: "invalid-input",
+          message: requestShapeMessage,
+        });
+      } else await expect(delivery).rejects.toThrow("outside supported subset");
       expect(invoked).not.toHaveBeenCalled();
       expect(body(await minimum.perform(requests[0]!))).toEqual(descriptor);
       const external = { kind: "resource", resource: "type", id: link } as ReadRequest;
