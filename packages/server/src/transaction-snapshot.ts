@@ -1,3 +1,4 @@
+import { jsonValueEqual } from "./json-value-equality.js";
 import { INITIAL_TRANSACTION_VIEW } from "./transaction-authorization.js";
 /** Source-private durable Snapshot owner support. No HTTP route or admission claim. */
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
@@ -404,7 +405,7 @@ export function transactionSnapshotStorage(
           );
           for (const link of inline)
             integrity(
-              isDeepStrictEqual(link, records.get(link.id.slice(scope.length))?.value) &&
+              jsonValueEqual(link, records.get(link.id.slice(scope.length))?.value) &&
                 referenceUri(link.source) === bead.id,
               "owned Link differs from first-class record",
             );

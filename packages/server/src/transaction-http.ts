@@ -41,7 +41,7 @@ import {
 import type { HttpResponse } from "./index.js";
 import {
   type TransactionSingletonOperation,
-  prepareTransactionSequence,
+  prepareTransactionSequenceForReceiving,
   TransactionDevelopmentLimitError,
   TRANSACTION_RUNTIME_LIMITS,
   TRANSACTION_MAXIMUM_OPERATIONS,
@@ -328,20 +328,19 @@ export function createTransactionHttpHandler(
             observed.context,
           );
         }
-        let prepared: ReturnType<typeof prepareTransactionSequence>;
+        const prepared = prepareTransactionSequenceForReceiving(scope, received.text);
+        if (!acceptsJson(request.headers.get("accept"))) {
+          const observed = await service.sequenceRefusalObserved();
+          return context(empty(406), observed.context);
+        }
         try {
-          prepared = prepareTransactionSequence(scope, received.text);
+          const observed = await service.sequenceObserved(authorization.principal, prepared);
+          return context(jsonResponse(observed.body), observed.context);
         } catch (error) {
           if (error instanceof TransactionDevelopmentLimitError)
             return developmentGap("unsupported-transaction-composition");
           throw error;
         }
-        if (!acceptsJson(request.headers.get("accept"))) {
-          const observed = await service.sequenceRefusalObserved();
-          return context(empty(406), observed.context);
-        }
-        const observed = await service.sequenceObserved(authorization.principal, prepared);
-        return context(jsonResponse(observed.body), observed.context);
       }
       const decision: TransactionSubmission["authorization"] =
         authorization.kind === "unauthenticated"
@@ -370,8 +369,6 @@ export function createTransactionHttpHandler(
         if (!result.context) throw new Error("negotiation refusal lost same-entry context");
         return context(empty(406), result.context);
       }
-      if (result.kind === "development-limit")
-        return developmentGap("unsupported-transaction-composition");
       if (result.code === "idempotency-conflict") {
         if (!result.context) throw new Error("conflict refusal lost same-entry context");
         return context(

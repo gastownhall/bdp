@@ -690,6 +690,85 @@ describe("private same-owner Transactional service", () => {
     expect(() => service.sequenceObserved("p", sequence())).toThrow("closing");
   });
 
+  it("freezes complete deep sequence observations across fresh execution and retained replay", async () => {
+    const f = fixture(),
+      service = f.open();
+    const depth = 12000;
+    const deepText = "[".repeat(depth) + "1" + "]".repeat(depth);
+    const carrier = prepareTransactionSequence(
+      scope,
+      '{"operations":[{"operation":"createBead","id":"beads/deep","type":"' +
+        bead +
+        '","idempotencyKey":"deep-observed","properties":{"deep":' +
+        deepText +
+        "}}]}",
+    );
+    // Independent full JSON comparison; never hand deep values to a recursive matcher.
+    // Traverse even identical/already-frozen objects so every child is checked.
+    function checkJson(actual: unknown, expected: unknown, frozen = false): number {
+      const pending: [unknown, unknown][] = [[actual, expected]];
+      let objects = 0;
+      while (pending.length) {
+        const pair = pending.pop();
+        if (!pair) throw new Error("deep observation worklist invariant");
+        const [left, right] = pair;
+        if (right === null || typeof right !== "object") {
+          expect(left === right, "complete JSON leaf equality").toBe(true);
+          continue;
+        }
+        if (left === null || typeof left !== "object")
+          throw new Error("deep observation object shape differs");
+        expect(Array.isArray(left)).toBe(Array.isArray(right));
+        if (frozen) expect(Object.isFrozen(left), "every observed container frozen").toBe(true);
+        const l = left as Record<string, unknown>,
+          r = right as Record<string, unknown>;
+        expect(Object.keys(l).sort()).toStrictEqual(Object.keys(r).sort());
+        if (Array.isArray(left) && Array.isArray(right)) expect(left.length).toBe(right.length);
+        for (const key of Object.keys(r)) pending.push([l[key], r[key]]);
+        objects++;
+      }
+      return objects;
+    }
+    const created = await service.sequenceObserved("p", carrier);
+    expect(created.context.scopePosition).toBe("pos-1");
+    expect(created.body.results).toHaveLength(1);
+    const entry = created.body.results[0] as Record<string, unknown>;
+    const resource = entry.resource as Record<string, unknown>;
+    expect(typeof resource.revision).toBe("string");
+    expect(resource.revision).not.toBe("");
+    const expectedResource = {
+      id: `${scope}beads/deep`,
+      type: bead,
+      revision: resource.revision,
+      properties: { deep: JSON.parse(deepText) as unknown },
+      metadata: {},
+    };
+    expect(
+      checkJson(
+        created,
+        {
+          body: {
+            results: [{ outcome: "created", resource: expectedResource, operationIndex: 0 }],
+          },
+          context: created.context,
+        },
+        true,
+      ),
+    ).toBeGreaterThan(depth);
+    const before = f.owner.inspect();
+    expect(before.position).toBe("1");
+    expect(before.resources).toHaveLength(1);
+    expect(before.groups).toHaveLength(1);
+    checkJson(before.resources, [expectedResource]);
+    const events = await service.events(`${scope}beads/deep?view=events`);
+    if (events.kind !== "page") throw new Error("expected deep Resource Event page");
+    expect(events.page.events).toHaveLength(1);
+    const replay = await service.sequenceObserved("p", carrier);
+    expect(checkJson(replay, created, true)).toBeGreaterThan(depth);
+    checkJson(f.owner.inspect(), before);
+    checkJson(await service.events(`${scope}beads/deep?view=events`), events);
+  }, 20000);
+
   it("does not return an observed sequence when the final owner observation fails", async () => {
     const f = fixture(),
       scheduler = manualScheduler();
@@ -2021,19 +2100,20 @@ describe("nonexecuting sequence refusal observation", () => {
     },
   );
 
-  it("keeps excluded sequence responses unobserved and without refusal context", async () => {
+  it("keeps early sequence refusals unobserved and observes deep negotiation refusal", async () => {
     const f = fixture(),
       service = f.open();
     const observed = vi.fn(service.sequenceRefusalObserved);
+    const execute = vi.fn(service.sequenceObserved);
     const handler = createTransactionHttpHandler(
-      { ...service, sequenceRefusalObserved: observed },
+      { ...service, sequenceRefusalObserved: observed, sequenceObserved: execute },
       scope,
     );
     const valid = JSON.stringify({ operations: [{ ...create(), idempotencyKey: "unused" }] });
     let nested: unknown = "leaf";
     for (let i = 0; i < 40; i++) nested = { nested };
-    const unsupported = JSON.stringify({
-      operations: [{ ...create(), properties: { nested }, idempotencyKey: "unsupported" }],
+    const deep = JSON.stringify({
+      operations: [{ ...create(), properties: { nested }, idempotencyKey: "deep" }],
     });
     const authorized = { kind: "authenticated", principal: "p", canMutate: true } as const;
     for (const [text, headers, auth, status, code] of [
@@ -2042,13 +2122,7 @@ describe("nonexecuting sequence refusal observation", () => {
       [valid, {}, { kind: "unauthenticated" }, 401, "unauthenticated"],
       [valid, {}, { ...authorized, canMutate: false }, 403, "forbidden"],
       [valid, { "content-type": "text/plain" }, authorized, 415, "unsupported-media-type"],
-      [
-        unsupported,
-        { accept: "text/plain" },
-        authorized,
-        500,
-        "unsupported-transaction-composition",
-      ],
+      [deep, { accept: "text/plain" }, authorized, 406, "not-acceptable"],
     ] as const) {
       const response = await handler.handle(
         new Request(`${scope}operations/sequence`, {
@@ -2060,18 +2134,25 @@ describe("nonexecuting sequence refusal observation", () => {
       );
       expect(response.status).toBe(status);
       expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
-      if (status === 500) {
-        expect(response.headers.get("x-bdp-development-limit")).toBe(code);
+      if (status === 406) {
+        expect(response.headers.has("x-bdp-development-limit")).toBe(false);
         expect(response.body).toBeUndefined();
         expect(response.headers.get("content-length")).toBe("0");
         expect(response.headers.has("content-type")).toBe(false);
-      } else expect(response.body).toMatchObject({ code, status });
-      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-        expect(
-          response.headers.has(name),
-          `excluded sequence refusal ${code} context: ${name}`,
-        ).toBe(false);
-      expect(observed).not.toHaveBeenCalled();
+        expect(response.headers.get("bdp-scope-epoch")).toBe(f.owner.scopeEpoch);
+        expect(response.headers.get("bdp-authorization-view")).toBe("development-all-visible");
+        expect(response.headers.get("bdp-scope-position")).toBe("pos-0");
+        expect(observed).toHaveBeenCalledTimes(1);
+      } else {
+        expect(response.body).toMatchObject({ code, status });
+        for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+          expect(
+            response.headers.has(name),
+            `excluded sequence refusal ${code} context: ${name}`,
+          ).toBe(false);
+        expect(observed).not.toHaveBeenCalled();
+      }
+      expect(execute).not.toHaveBeenCalled();
     }
     expect(f.owner.inspect().position).toBe("0");
   });
