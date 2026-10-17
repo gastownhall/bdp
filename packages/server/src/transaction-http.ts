@@ -548,11 +548,11 @@ export function createTransactionHttpHandler(
         : { ...response, kind: "event-stream", packet: observed, context: observed.context };
     }
     if (receiptRoute) {
-      const minimum = hasMinimumControls(request)
-        ? transactionMinimumHeaders(request.headers)
-        : undefined;
       const access = { kind: "authenticated" as const, principal: authorization.principal };
       if (url.pathname.slice(`${scopeUrl.pathname}receipts/`.length).includes("/pages/")) {
+        const minimum = hasMinimumControls(request)
+          ? transactionMinimumHeaders(request.headers)
+          : undefined;
         const page = await service.receiptPage(
           access,
           url.href,
@@ -571,6 +571,9 @@ export function createTransactionHttpHandler(
           page.context,
         );
       }
+      const minimum = hasMinimumControls(request)
+        ? currentReadMinimumHeaders(request.headers)
+        : undefined;
       const result = hasMinimumControls(request)
         ? await service.receiptAtMinimum(access, url.href, minimum ?? "unsupported")
         : service.receipt(access, url.href);

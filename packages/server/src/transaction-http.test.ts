@@ -2172,7 +2172,11 @@ it("checks a stored failed receipt minimum before read-triggered retention dispo
 });
 
 it("refuses unsupported root controls after nondisclosure but before read-triggered retention", async () => {
-  const f = await fixture({ maintenanceIntervalMs: 60000 });
+  let tick = 0;
+  const f = await fixture({
+    maintenanceIntervalMs: 60000,
+    minimumReads: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+  });
   const completed = await body(await f.post());
   const failed = await body(
     await f.post(batch([{ operation: "deleteBead", bead: "beads/missing" }]), "failed"),
@@ -2184,7 +2188,7 @@ it("refuses unsupported root controls after nondisclosure but before read-trigge
   for (const receipt of [completed, failed]) {
     for (const method of ["GET", "HEAD"]) {
       for (const [credential, status] of [
-        [token, 500],
+        [token, 503],
         [otherToken, 404],
       ] as const) {
         const response = await f.get(id(receipt), {
@@ -2197,11 +2201,25 @@ it("refuses unsupported root controls after nondisclosure but before read-trigge
           },
         });
         expect(response.status).toBe(status);
-        if (status === 500)
-          expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
-        for (const header of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-          expect(response.headers.has(header)).toBe(status === 404);
-        if (status === 500 || method === "HEAD") expect(await response.text()).toBe("");
+        expect(response.headers.get("x-bdp-development-limit")).toBeNull();
+        expect(context(response)).toStrictEqual({
+          "bdp-scope-epoch": String(receipt.scopeEpoch),
+          "bdp-authorization-view": String(receipt.authorizationView),
+          "bdp-scope-position": "pos-1",
+        });
+        if (status === 503) {
+          // Owned lexical roots now wait; the historical title remains an evidence identifier.
+          expect(response.headers.get("retry-after")).toBe("1");
+          expect(response.headers.get("cache-control")).toBe("private, no-store");
+        }
+        if (method === "HEAD") expect(await response.text()).toBe("");
+        else if (status === 503)
+          expect(checkedProblem(await body(response))).toMatchObject({
+            code: "catch-up-timeout",
+            status: 503,
+            retry: "after-delay",
+          });
+        else expect(checkedProblem(await body(response)).code).toBe("resource-not-found");
       }
     }
   }
@@ -5746,6 +5764,136 @@ it("serves fresh Snapshot opaque minima with terminal preflight and retained fen
         requests: responses.length,
         responses,
         statusCounts,
+        waits,
+      }),
+    );
+  } finally {
+    await f.runtime.close();
+  }
+});
+
+it("serves opaque receipt root minima before HTTP shortcuts with private fences", async () => {
+  let tick = 0,
+    waits = 0;
+  const f = await fixture({
+    minimumReads: {
+      budgetMs: 2,
+      now: () => tick++,
+      wait: async () => {
+        waits++;
+      },
+    },
+  });
+  const responses: { method: string; route: string; status: number; bodyOctets: number }[] = [];
+  async function observed(method: string, route: string, response: Response) {
+    const text = await response.text();
+    const bytes = Buffer.byteLength(text);
+    responses.push({ method, route, status: response.status, bodyOctets: bytes });
+    expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
+    return { response, text, bytes };
+  }
+  try {
+    const seed = await observed("POST", "batch", await f.post());
+    expect(seed.response.status).toBe(200);
+    const receipt = record(JSON.parse(seed.text));
+    expect(validateSelectorReceipt(receipt), JSON.stringify(validateSelectorReceipt.errors)).toBe(
+      true,
+    );
+    expect(receipt).toMatchObject({
+      status: "completed",
+      requiredPosition: "pos-1",
+      effectPosition: "pos-1",
+    });
+    const root = id(receipt);
+    const minimum = minimumHeaders(seed.response, "unknown");
+    const current = context(seed.response);
+    expect(
+      Object.values(current).every((value) => typeof value === "string" && value.length > 0),
+    ).toBe(true);
+    const get = async (
+      method: "GET" | "HEAD",
+      route: string,
+      target: string,
+      headers: Record<string, string>,
+    ) => observed(method, route, await f.get(target, { method, headers }));
+    const timedOut = (result: Awaited<ReturnType<typeof observed>>, head = false) => {
+      expect(result.response.status).toBe(503);
+      expect(context(result.response)).toStrictEqual(current);
+      expect(result.response.headers.get("cache-control")).toBe("private, no-store");
+      expect(result.response.headers.get("retry-after")).toBe("1");
+      expect(result.response.headers.get("x-bdp-development-limit")).toBeNull();
+      expect(result.response.headers.get("content-type")).toBe("application/problem+json");
+      for (const name of ["etag", "last-modified"])
+        expect(result.response.headers.get(name)).toBeNull();
+      if (head) expect(result.bytes).toBe(0);
+      else
+        expect(checkedProblem(record(JSON.parse(result.text)))).toMatchObject({
+          code: "catch-up-timeout",
+          status: 503,
+          retry: "after-delay",
+        });
+    };
+    const own = await get("GET", "owned-root", root, { ...minimum, "if-none-match": "*" });
+    timedOut(own);
+    const head = await get("HEAD", "owned-root", root, { ...minimum, "if-match": '"absent"' });
+    timedOut(head, true);
+    expect(own.bytes).toBeGreaterThan(0);
+    expect(Number(own.response.headers.get("content-length"))).toBe(own.bytes);
+    expect(head.response.headers.get("content-length")).toBe(
+      own.response.headers.get("content-length"),
+    );
+    timedOut(
+      await get("GET", "owned-root", root, {
+        ...minimum,
+        "bdp-minimum-scope-position": "pos-01",
+        accept: "image/png",
+      }),
+    );
+    // These two private refusals preserve the excluded foreign-opaque gap, not 409/410 conformance.
+    for (const [method, field] of [
+      ["GET", "bdp-scope-epoch"],
+      ["HEAD", "bdp-authorization-view"],
+    ] as const) {
+      const result = await get(method, "owned-root", root, { ...minimum, [field]: "foreign" });
+      expect(result.response.status).toBe(500);
+      expect(result.text).toBe("");
+      expect(result.response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+      expect(Object.values(context(result.response))).toStrictEqual([null, null, null]);
+    }
+    // Shared receiving/auth fences; these rows do not observe the receipt owner.
+    const malformed = await get("GET", "owned-root", root, {
+      "bdp-minimum-scope-position": "unknown",
+    });
+    expect(malformed.response.status).toBe(400);
+    expect(checkedProblem(record(JSON.parse(malformed.text))).code).toBe("malformed-request");
+    expect(Object.values(context(malformed.response))).toStrictEqual([null, null, null]);
+    const foreign = await get("HEAD", "other-principal-root", root, {
+      ...minimum,
+      authorization: `Bearer ${otherToken}`,
+    });
+    expect(foreign.response.status).toBe(404);
+    expect(foreign.bytes).toBe(0);
+    expect(context(foreign.response)).toStrictEqual(current);
+    expect(foreign.response.headers.get("x-bdp-development-limit")).toBeNull();
+    const missing = await get("GET", "missing-root", `${f.runtime.scope}receipts/missing`, minimum);
+    expect(missing.response.status).toBe(404);
+    expect(checkedProblem(record(JSON.parse(missing.text))).code).toBe("resource-not-found");
+    expect(context(missing.response)).toStrictEqual(current);
+    expect(missing.response.headers.get("x-bdp-development-limit")).toBeNull();
+    const anonymous = await get("GET", "owned-root", root, { ...minimum, authorization: "" });
+    expect(anonymous.response.status).toBe(401);
+    expect(checkedProblem(record(JSON.parse(anonymous.text))).code).toBe("unauthenticated");
+    expect(Object.values(context(anonymous.response))).toStrictEqual([null, null, null]);
+    expect(responses.map(({ status }) => status)).toStrictEqual([
+      200, 503, 503, 503, 500, 500, 400, 404, 404, 401,
+    ]);
+    expect(waits).toBe(3);
+    await f.runtime.close();
+    console.log(
+      JSON.stringify({
+        observation: "receipt-root-minimum-http",
+        requests: responses.length,
+        responses,
         waits,
       }),
     );

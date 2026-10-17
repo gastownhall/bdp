@@ -1,6 +1,10 @@
 import * as discoveryAssembly from "./transaction-discovery.js";
 import { TransactionEventParameterError } from "./transaction-events.js";
-import { TransactionMinimumFailure, type TransactionMinimum } from "./transaction-consistency.js";
+import {
+  TransactionMinimumFailure,
+  TransactionMinimumUnproved,
+  type TransactionMinimum,
+} from "./transaction-consistency.js";
 import { ScopeServerOperationAbortedError, requestFromUrl } from "./read-request.js";
 import { DatabaseSync } from "node:sqlite";
 import { spawnSync } from "node:child_process";
@@ -891,9 +895,14 @@ describe("private minimum-read owner/lifecycle", () => {
     });
     expect(waits).toBe(1);
   });
-  it.each([false, true])(
+  it.each([
+    ["false", false, "pos-1"],
+    ["true", true, "pos-1"],
+    ["opaque false", false, "unknown"],
+    ["opaque true", true, "unknown"],
+  ] as const)(
     "checks minimum before read-triggered expiry but honors independently forgotten receipts (%s)",
-    async (forget) => {
+    async (_label, forget, minimumPosition) => {
       const f = fixture();
       let waits = 0,
         tick = 0;
@@ -914,7 +923,7 @@ describe("private minimum-read owner/lifecycle", () => {
       const minimum = {
         scopeEpoch: failed.context.scopeEpoch,
         authorizationView: failed.context.authorizationView,
-        minimumPosition: "pos-1",
+        minimumPosition,
       };
       expect(
         await service.receiptAtMinimum(
@@ -3487,4 +3496,269 @@ it.each([
       waits,
     }),
   );
+});
+
+it("captures opaque receipt root minima through real owner retries", async () => {
+  const f = fixture();
+  const owner = f.owner;
+  type RootResult = ReturnType<typeof owner.readReceipt>;
+  type OrdinaryRootResult = Exclude<RootResult, { readonly kind: "unsupported" }>;
+  const observations: {
+    kind: "unproved" | "unsupported" | "receipt" | "missing";
+    context: OrdinaryRootResult["context"] | null;
+  }[] = [];
+  let roots = 0,
+    waits = 0,
+    tick = 0,
+    submits = 0;
+  function countedReceipt(
+    principal: string,
+    id: string,
+    minimum?: TransactionMinimum,
+  ): OrdinaryRootResult;
+  function countedReceipt(principal: string, id: string, minimum: "unsupported"): RootResult;
+  function countedReceipt(
+    principal: string,
+    id: string,
+    minimum?: TransactionMinimum | "unsupported",
+  ): RootResult {
+    roots++;
+    try {
+      const observed =
+        minimum === "unsupported"
+          ? owner.readReceipt(principal, id, minimum)
+          : owner.readReceipt(principal, id, minimum);
+      observations.push(
+        "kind" in observed
+          ? { kind: "unsupported", context: null }
+          : { kind: observed.receipt ? "receipt" : "missing", context: observed.context },
+      );
+      return observed;
+    } catch (error) {
+      if (error instanceof TransactionMinimumUnproved)
+        observations.push({ kind: "unproved", context: error.context });
+      throw error;
+    }
+  }
+  let supplied: { scopeEpoch: string; authorizationView: string; minimumPosition: string };
+  const service = createTransactionService(
+    { ...owner, readReceipt: countedReceipt },
+    {
+      ownerLifetime: "service",
+      read: f.read,
+      minimumReads: {
+        budgetMs: 3,
+        now: () => tick++,
+        wait: async () => {
+          waits++;
+          if (waits === 1) {
+            supplied.minimumPosition = "pos-2";
+            submits++;
+            const later = requireReceipt(await service.submit(batch([create("later")], "later")));
+            expect(later.context.scopePosition).toBe("pos-2");
+          }
+        },
+      },
+    },
+  );
+  cleanup.push(() => service.close());
+  submits++;
+  const first = requireReceipt(await service.submit(batch()));
+  supplied = {
+    scopeEpoch: first.context.scopeEpoch,
+    authorizationView: first.context.authorizationView,
+    minimumPosition: "unknown",
+  };
+  const current = { ...first.context, scopePosition: "pos-2" };
+  await expect(service.receiptAtMinimum(access, first.receipt.id, supplied)).rejects.toMatchObject({
+    reason: "catch-up-timeout",
+    context: current,
+  });
+  expect(supplied.minimumPosition).toBe("pos-2");
+  expect(observations).toStrictEqual([
+    { kind: "unproved", context: first.context },
+    { kind: "unproved", context: current },
+    { kind: "unproved", context: current },
+  ]);
+  await expect(
+    service.receiptAtMinimum(access, first.receipt.id, {
+      ...supplied,
+      minimumPosition: "pos-01",
+    }),
+  ).rejects.toMatchObject({ reason: "catch-up-timeout", context: current });
+  expect(await service.receiptAtMinimum(access, first.receipt.id, supplied)).toMatchObject({
+    kind: "receipt",
+    receipt: first.receipt,
+    context: current,
+  });
+  expect(await service.receiptAtMinimum(access, first.receipt.id, "unsupported")).toStrictEqual({
+    kind: "unsupported",
+  });
+  for (const [principal, id] of [
+    ["other", first.receipt.id],
+    ["p", `${scope}receipts/missing`],
+  ] as const) {
+    expect(
+      await service.receiptAtMinimum({ kind: "authenticated", principal }, id, {
+        ...supplied,
+        minimumPosition: "unknown",
+      }),
+    ).toStrictEqual({ kind: "refused", status: 404, code: "resource-not-found", context: current });
+  }
+  const before = { roots, waits, tick };
+  expect(
+    await service.receiptAtMinimum({ kind: "unauthenticated" }, first.receipt.id, supplied),
+  ).toStrictEqual({ kind: "refused", status: 401, code: "unauthenticated" });
+  const malformed = service.receiptAtMinimum(access, first.receipt.id, {
+    ...supplied,
+    minimumPosition: "bad,tuple",
+  });
+  await expect(malformed).rejects.toThrow("unsupported minimum tuple");
+  expect({ roots, waits, tick }).toStrictEqual(before);
+  expect({ roots, waits, tick, submits }).toStrictEqual({
+    roots: 10,
+    waits: 4,
+    tick: 11,
+    submits: 2,
+  });
+  expect(observations.map((value) => value.kind)).toStrictEqual([
+    "unproved",
+    "unproved",
+    "unproved",
+    "unproved",
+    "unproved",
+    "unproved",
+    "receipt",
+    "unsupported",
+    "missing",
+    "missing",
+  ]);
+  expect(observations.slice(3, 6).map((value) => value.context)).toStrictEqual([
+    current,
+    current,
+    current,
+  ]);
+  await service.close();
+  console.log(
+    JSON.stringify({
+      observation: "receipt-root-minimum-capture",
+      roots,
+      waits,
+      clockCalls: tick,
+      submits,
+      ownerObservations: observations,
+    }),
+  );
+});
+
+it("drains an opaque receipt root wait before closing its owner", async () => {
+  const f = fixture();
+  const owner = f.owner;
+  type RootResult = ReturnType<typeof owner.readReceipt>;
+  type OrdinaryRootResult = Exclude<RootResult, { readonly kind: "unsupported" }>;
+  let roots = 0,
+    waits = 0,
+    tick = 0,
+    closed = false,
+    postCloseProbes = 0;
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  function countedReceipt(
+    principal: string,
+    id: string,
+    minimum?: TransactionMinimum,
+  ): OrdinaryRootResult;
+  function countedReceipt(principal: string, id: string, minimum: "unsupported"): RootResult;
+  function countedReceipt(
+    principal: string,
+    id: string,
+    minimum?: TransactionMinimum | "unsupported",
+  ): RootResult {
+    roots++;
+    return minimum === "unsupported"
+      ? owner.readReceipt(principal, id, minimum)
+      : owner.readReceipt(principal, id, minimum);
+  }
+  const service = createTransactionService(
+    { ...owner, readReceipt: countedReceipt },
+    {
+      ownerLifetime: "service",
+      read: f.read,
+      minimumReads: {
+        budgetMs: 2,
+        now: () => tick++,
+        wait: async () => {
+          waits++;
+          entered.resolve();
+          await release.promise;
+        },
+      },
+    },
+  );
+  cleanup.push(() => service.close());
+  const pending: Promise<unknown>[] = [];
+  try {
+    const first = requireReceipt(await service.submit(batch()));
+    const minimum = {
+      scopeEpoch: first.context.scopeEpoch,
+      authorizationView: first.context.authorizationView,
+      minimumPosition: "unknown",
+    };
+    const read = service.receiptAtMinimum(access, first.receipt.id, minimum);
+    // Observe rejection immediately, while retaining it for the exact assertion below.
+    pending.push(read);
+    void read.catch(() => {});
+    await Promise.race([
+      entered.promise,
+      read.then(() => {
+        throw new Error("opaque receipt returned before its controlled wait");
+      }),
+    ]);
+    const closing = service.close();
+    pending.push(closing);
+    void closing.then(
+      () => {
+        closed = true;
+      },
+      () => {},
+    );
+    await Promise.resolve();
+    expect(closed).toBe(false);
+    const before = { roots, tick };
+    expect(() => service.receiptAtMinimum(access, first.receipt.id, minimum)).toThrow(
+      "closing or closed",
+    );
+    expect({ roots, tick }).toStrictEqual(before);
+    release.resolve();
+    await expect(read).rejects.toMatchObject({
+      reason: "catch-up-timeout",
+      context: first.context,
+    });
+    await closing;
+    expect(closed).toBe(true);
+    postCloseProbes++;
+    expect(() => f.owner.readReceipt("p", first.receipt.id)).toThrow(
+      "transaction store closed or reentrant",
+    );
+    expect({ roots, waits, tick, postCloseProbes }).toStrictEqual({
+      roots: 2,
+      waits: 1,
+      tick: 3,
+      postCloseProbes: 1,
+    });
+    console.log(
+      JSON.stringify({
+        observation: "receipt-root-minimum-drain",
+        roots,
+        waits,
+        clockCalls: tick,
+        postCloseProbes,
+        closed,
+      }),
+    );
+  } finally {
+    release.resolve();
+    await Promise.allSettled(pending);
+    await service.close();
+  }
 });

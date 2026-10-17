@@ -498,10 +498,18 @@ it("rejects malformed read minimum tuples before observation while preserving re
         url,
         unknown,
       );
-      expect(response.status).toBe(500);
-      expect(response.text).toBe("");
-      expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
-      expect(context(response)).toStrictEqual([null, null, null]);
+      if (url === receiptRoot) {
+        expect(problem(response, 503, "catch-up-timeout")).toMatchObject({ retry: "after-delay" });
+        expect(response.headers.get("retry-after")).toBe("1");
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        expect(response.headers.get("x-bdp-development-limit")).toBeNull();
+        expect(context(response)).toStrictEqual(expectedContext);
+      } else {
+        expect(response.status).toBe(500);
+        expect(response.text).toBe("");
+        expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+        expect(context(response)).toStrictEqual([null, null, null]);
+      }
     }
     const missing = await exchange("compatible-missing", "GET", `${scope}beads/missing`, tuple);
     problem(missing, 404, "resource-not-found");
@@ -621,4 +629,416 @@ it("rejects malformed read minimum tuples before observation while preserving re
   if (failures.length === 1) throw failures[0];
   if (failures.length > 1)
     throw new AggregateError(failures, "installed minimum receiving and cleanup failed");
+}, 60000);
+
+it("observes installed opaque receipt root timeout with principal nondisclosure", async () => {
+  const controller = new AbortController();
+  const deadlineReason = new Error("installed receipt root receiving deadline");
+  let deadlineExceeded = false,
+    cleanupExceeded = false,
+    launchAttempted = false,
+    closed = false;
+  const deadline = setTimeout(() => {
+    deadlineExceeded = true;
+    controller.abort(deadlineReason);
+  }, 45000);
+  const failures: unknown[] = [];
+  const categories: string[] = [];
+  const fail = (error: unknown, category: string) => {
+    if (!failures.includes(error)) {
+      failures.push(error);
+      categories.push(category);
+    }
+  };
+  let phase = "setup";
+  let directory: string | undefined;
+  let child: Awaited<ReturnType<typeof launchInstalledTransaction>> | undefined;
+  let binding: ReturnType<typeof installedTransactionBinding> | undefined;
+  let attempted = 0;
+  const active = new Set<ClientRequest>();
+  const pending = new Set<Promise<unknown>>();
+  const responses: {
+    ordinal: number;
+    label: string;
+    method: string;
+    url: string;
+    credential: string;
+    requestBodyBytes: number;
+    requestBodySha256: string | null;
+    minimumFieldOccurrences: number[];
+    status: number;
+    bodyOctets: number;
+    bodySha256: string;
+    headers: Record<string, string | null>;
+  }[] = [];
+  const writer = randomBytes(32).toString("base64url"),
+    other = randomBytes(32).toString("base64url");
+  try {
+    directory = mkdtempSync(path.join(tmpdir(), "bdp-receipt-root-minimum-installed-"));
+    controller.signal.throwIfAborted();
+    launchAttempted = true;
+    child = await launchInstalledTransaction(
+      entry,
+      {
+        scope,
+        directory,
+        create: true,
+        artifacts,
+        credentials: [
+          { token: writer, principal: "writer", canMutate: true },
+          { token: other, principal: "other", canMutate: false },
+        ],
+      },
+      controller.signal,
+    );
+    binding = installedTransactionBinding(child.ready, sourceCommit, fixture);
+    expect(child.ready.scope).toBe(scope);
+    expect(binding.operationTargets.batch).toBe(`${scope}operations/batch`);
+    const address = new URL(child.ready.listenUrl as string);
+    const granted = new Set([`${scope}operations/batch`, `${scope}receipts/missing`]);
+    const exchange = async (
+      label: string,
+      method: "GET" | "HEAD" | "POST",
+      url: string,
+      fields: string[] = [],
+      credential: "writer" | "other" | "anonymous" = "writer",
+      requestBody?: string,
+      key?: string,
+    ) => {
+      phase = label;
+      controller.signal.throwIfAborted();
+      expect(++attempted, "installed receipt root dispatch bound").toBeLessThanOrEqual(5);
+      expect(granted.has(url), "fixed or actually issued URL grant").toBe(true);
+      const target = new URL(url);
+      expect(target.origin).toBe(new URL(scope).origin);
+      expect([target.hash, target.username, target.password]).toStrictEqual(["", "", ""]);
+      expect(Buffer.byteLength(url)).toBeLessThanOrEqual(8192);
+      const headers = [
+        "Host",
+        new URL(scope).host,
+        "Connection",
+        "close",
+        "Accept",
+        "application/json",
+        ...(credential === "anonymous"
+          ? []
+          : ["Authorization", `Bearer ${credential === "writer" ? writer : other}`]),
+        ...(requestBody === undefined
+          ? []
+          : [
+              "Content-Type",
+              "application/json",
+              "Content-Length",
+              String(Buffer.byteLength(requestBody)),
+              "Idempotency-Key",
+              key ?? "missing-key",
+            ]),
+        ...fields,
+      ];
+      const operation = new Promise<{
+        status: number;
+        headers: Headers;
+        text: string;
+        bytes: number;
+      }>((resolve, reject) => {
+        const request = httpRequest(
+          {
+            hostname: address.hostname,
+            port: Number(address.port),
+            path: target.pathname + target.search,
+            method,
+            agent: false,
+            headers,
+            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
+          },
+          (response) => {
+            const chunks: Buffer[] = [];
+            let bytes = 0;
+            response.on("data", (chunk: Buffer) => {
+              bytes += chunk.length;
+              if (bytes > 32768) {
+                const error = new Error("installed receipt root response overflow");
+                response.destroy(error);
+                request.destroy(error);
+                return;
+              }
+              chunks.push(chunk);
+            });
+            response.once("aborted", () =>
+              reject(new Error("installed receipt root response aborted")),
+            );
+            response.once("error", reject);
+            response.once("end", () => {
+              const received = new Headers();
+              for (let i = 0; i < response.rawHeaders.length; i += 2)
+                received.append(response.rawHeaders[i]!, response.rawHeaders[i + 1]!);
+              resolve({
+                status: response.statusCode ?? 0,
+                headers: received,
+                text: Buffer.concat(chunks).toString("utf8"),
+                bytes,
+              });
+            });
+          },
+        );
+        active.add(request);
+        request.once("close", () => active.delete(request));
+        request.once("error", reject);
+        request.end(requestBody);
+      });
+      pending.add(operation);
+      void operation.then(
+        () => pending.delete(operation),
+        () => pending.delete(operation),
+      );
+      const response = await operation;
+      const minimumNames = [
+        "bdp-minimum-scope-position",
+        "bdp-scope-epoch",
+        "bdp-authorization-view",
+      ];
+      responses.push({
+        ordinal: attempted,
+        label,
+        method,
+        url,
+        credential,
+        requestBodyBytes: requestBody === undefined ? 0 : Buffer.byteLength(requestBody),
+        requestBodySha256: requestBody === undefined ? null : digest(requestBody),
+        minimumFieldOccurrences: minimumNames.map(
+          (name) => fields.filter((field, i) => i % 2 === 0 && field.toLowerCase() === name).length,
+        ),
+        status: response.status,
+        bodyOctets: response.bytes,
+        bodySha256: digest(response.text),
+        headers: Object.fromEntries(
+          retainedHeaders.map((name) => [name, response.headers.get(name)]),
+        ),
+      });
+      expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
+      return response;
+    };
+    type Response = Awaited<ReturnType<typeof exchange>>;
+    const context = (response: Response) => contextNames.map((name) => response.headers.get(name));
+    const problem = (response: Response, status: number, code: string) => {
+      expect(response.status).toBe(status);
+      expect(response.headers.get("content-type")).toBe("application/problem+json");
+      const value = record(JSON.parse(response.text));
+      expect(validProblem(value), JSON.stringify(validProblem.errors)).toBe(true);
+      expect(value).toMatchObject({ status, code });
+      return value;
+    };
+    const receipt = (response: Response, key: string, position: string) => {
+      expect(response.status).toBe(200);
+      const value = record(JSON.parse(response.text));
+      expect(validReceipt(value), JSON.stringify(validReceipt.errors)).toBe(true);
+      expect(value).toMatchObject({
+        status: "completed",
+        idempotencyKey: key,
+        requiredPosition: position,
+        effectPosition: position,
+      });
+      expect(context(response)[2]).toBe(position);
+      expect([value.scopeEpoch, value.authorizationView]).toStrictEqual(
+        context(response).slice(0, 2),
+      );
+      expect(
+        context(response)
+          .slice(0, 2)
+          .every((v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,256}$/.test(v)),
+      ).toBe(true);
+      return value;
+    };
+    const key = `receipt-root-${randomBytes(12).toString("hex")}`;
+    const payload = JSON.stringify({
+      operations: [
+        {
+          operation: "createBead",
+          id: "beads/receipt-root",
+          type: beadType,
+          properties: { n: 0 },
+        },
+      ],
+    });
+    const seed = await exchange(
+      "seed",
+      "POST",
+      `${scope}operations/batch`,
+      [],
+      "writer",
+      payload,
+      key,
+    );
+    const seeded = receipt(seed, key, "pos-1");
+    expect(receiptResults(seeded)).toHaveLength(1);
+    expect(seeded.next).toBeNull();
+    const receiptRoot = seeded.id;
+    if (typeof receiptRoot !== "string") throw new Error("actual issued receipt root required");
+    const parsed = new URL(receiptRoot);
+    expect(parsed.href).toBe(receiptRoot);
+    expect(parsed.origin).toBe(new URL(scope).origin);
+    expect([parsed.search, parsed.hash, parsed.username, parsed.password]).toStrictEqual([
+      "",
+      "",
+      "",
+      "",
+    ]);
+    expect(receiptRoot.startsWith(`${scope}receipts/`)).toBe(true);
+    expect(receiptRoot.slice(`${scope}receipts/`.length)).toMatch(/^[A-Za-z0-9_-]+$/);
+    granted.add(receiptRoot);
+    const expectedContext = context(seed);
+    const tuple = [
+      "BDP-Minimum-Scope-Position",
+      "unknown",
+      "BDP-Scope-Epoch",
+      expectedContext[0]!,
+      "BDP-Authorization-View",
+      expectedContext[1]!,
+    ];
+    const own = await exchange("owned-root", "GET", receiptRoot, [...tuple, "If-None-Match", "*"]);
+    expect(problem(own, 503, "catch-up-timeout")).toMatchObject({ retry: "after-delay" });
+    const head = await exchange("owned-root-head", "HEAD", receiptRoot, [
+      ...tuple,
+      "If-Match",
+      '"absent"',
+    ]);
+    expect(head.status).toBe(503);
+    expect(head.text).toBe("");
+    expect(head.bytes).toBe(0);
+    expect(own.bytes).toBeGreaterThan(0);
+    expect(Number(own.headers.get("content-length"))).toBe(own.bytes);
+    expect(head.headers.get("content-length")).toBe(own.headers.get("content-length"));
+    for (const response of [own, head]) {
+      expect(context(response)).toStrictEqual(expectedContext);
+      expect(response.headers.get("content-type")).toBe("application/problem+json");
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      expect(response.headers.get("retry-after")).toBe("1");
+      for (const name of ["etag", "last-modified", "x-bdp-development-limit"])
+        expect(response.headers.has(name)).toBe(false);
+    }
+    const foreign = await exchange("other-principal", "GET", receiptRoot, tuple, "other");
+    const missing = await exchange("missing-root", "GET", `${scope}receipts/missing`, tuple);
+    for (const response of [foreign, missing]) {
+      problem(response, 404, "resource-not-found");
+      expect(context(response)).toStrictEqual(expectedContext);
+      expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+    }
+    expect(attempted).toBe(5);
+    expect(responses).toHaveLength(5);
+    expect(responses.map(({ method, status }) => ({ method, status }))).toStrictEqual([
+      { method: "POST", status: 200 },
+      { method: "GET", status: 503 },
+      { method: "HEAD", status: 503 },
+      { method: "GET", status: 404 },
+      { method: "GET", status: 404 },
+    ]);
+    controller.signal.throwIfAborted();
+  } catch (error) {
+    fail(error, phase);
+  } finally {
+    clearTimeout(deadline);
+    controller.abort();
+    const cleanupReason = new Error("installed receipt root cleanup deadline");
+    let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
+    // Await both operation settlement and transport close; one deadline also covers child close.
+    const transportDrain = Promise.all(
+      [...active].map(
+        (request) =>
+          new Promise<void>((resolve) => {
+            request.once("close", resolve);
+            request.destroy();
+          }),
+      ),
+    );
+    const cleaning = (async () => {
+      for (const result of await Promise.allSettled([...pending]))
+        if (result.status === "rejected") fail(result.reason, "transport-drain");
+      await transportDrain;
+      if (child) await child.close();
+    })();
+    // Retain late failures after the race without letting a late close mark ownership clean.
+    void cleaning.catch((error) => fail(error, "late-cleanup"));
+    try {
+      await Promise.race([
+        cleaning,
+        new Promise<never>((_, reject) => {
+          cleanupTimer = setTimeout(() => {
+            cleanupExceeded = true;
+            child?.child.kill("SIGKILL");
+            reject(cleanupReason);
+          }, 10000);
+        }),
+      ]);
+      if (
+        child &&
+        !cleanupExceeded &&
+        child.child.exitCode === 0 &&
+        child.child.signalCode === null
+      )
+        closed = true;
+      else if (launchAttempted)
+        fail(new Error("installed receipt root clean close unproved"), "unclean-close");
+    } catch (error) {
+      fail(error, "cleanup");
+    } finally {
+      clearTimeout(cleanupTimer);
+    }
+    if (deadlineExceeded) fail(deadlineReason, "deadline");
+    const stopped =
+      !launchAttempted ||
+      (child !== undefined && (child.child.exitCode !== null || child.child.signalCode !== null));
+    if (!stopped) fail(new Error("installed receipt root child stop unknown"), "unknown-stop");
+    try {
+      if (directory && (!launchAttempted || (closed && failures.length === 0)))
+        rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      fail(error, "directory-cleanup");
+    }
+    const directoryAbsent = directory === undefined || !existsSync(directory);
+    if (!directoryAbsent)
+      fail(new Error("installed receipt root directory preserved"), "directory-retained");
+    try {
+      console.log(
+        JSON.stringify({
+          observation: "private-installed-receipt-root-minimum",
+          outcome: failures.length ? "failed" : "passed",
+          declaredSourceCommit: sourceCommit,
+          workspaceDirty,
+          entry: resolvedEntry,
+          entrySha256,
+          binding: binding ?? null,
+          artifactBytes:
+            artifacts.descriptors.reduce((n, d) => n + Buffer.byteLength(d.utf8), 0) +
+            artifacts.schemas.reduce((n, s) => n + Buffer.byteLength(s.utf8), 0),
+          attempted,
+          exchanges: responses.length,
+          completedResponses: responses,
+          deadlineExceeded,
+          cleanupExceeded,
+          launchAttempted,
+          startupCompleted: child !== undefined,
+          closed,
+          childPid: child?.child.pid ?? null,
+          childExitCode: child?.child.exitCode ?? null,
+          childSignalCode: child?.child.signalCode ?? null,
+          directory: directory ?? null,
+          directoryAbsent,
+          activeRequests: active.size,
+          pendingOperations: pending.size,
+          failureCount: failures.length,
+          failureCategories: categories,
+          claimEligible: false,
+          retention:
+            "safe response metadata/fingerprints; bodies asserted in memory; no credentials logged",
+          startupLimitation:
+            "pre-ready or unclean ownership preserves directory for supervisor evidence",
+        }),
+      );
+    } catch (error) {
+      fail(error, "report");
+    }
+  }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, "installed receipt root and cleanup failed");
 }, 60000);
