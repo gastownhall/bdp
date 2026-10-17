@@ -238,9 +238,13 @@ including required local fields, in one atomic write validated against the whole
 inherited contract. Creating a Procedure does not require first publishing a plain
 note and then retyping it. Type/property selection is an R4/R31 product extension;
 this document defines the outcome without adopting exact grammar or an envelope.
-A top-level `bd memory` command is a permitted proposal for tailored operations over
-the same canonical records and shared writers. `bd query` is being redesigned;
-this draft does not freeze its filters or force every Memory operation through it.
+**Canonical command group:** `bd memory` is the selected primary Memory surface.
+The existing `remember`, `recall`, `memories` and `forget` commands remain compatibility
+aliases over the same canonical records and shared mutation/read paths. Plain capture
+through either surface defaults to ordinary Memory. Aliases do not create a separate
+key/value store, bypass validation or change revision/attribution semantics. Exact
+subcommand names, flags, output and refusal contracts remain part of the CLI design.
+`bd query` is being redesigned; this decision does not freeze its filters.
 On legacy conversion, an empty value keeps its empty body and gets a title derived
 from the legacy key. The key remains an alias, never canonical identity. This is a
 conversion rule, not permission for ordinary capture to invent keys or content.
@@ -764,7 +768,7 @@ of requirements, not evidence of complete current implementation or a release pl
 | R28 | Provider-independent current/history/Link/provenance state with accurate bounds |
 | R29 | Shared authorization/deployment/governance; no Memory-specific role or topology semantics |
 | R30 | Preserve claims/evidence, leave truth/quality/applicability judgments with humans and consumers |
-| R31 | Product must extend the original table for specialized creation, guarded retyping, Type-aware search and the new `association` selection, with explicit rationale; no new CLI grammar here |
+| R31 | Canonical `bd memory` group with remember/recall/memories/forget aliases selected; specialized creation, guarded retyping, Type-aware search and association selection need explicit CLI contracts and rationale; exact verbs/flags remain design work |
 
 | Scenario | Observable realization and dependency |
 | --- | --- |

@@ -19,7 +19,7 @@ of full contract/runtime adoption.
 | Which Types can use applicability? | Optional on all six via the Memory base: circumstances, scope, equipment, jurisdiction or relevant conditions. Absence is unspecified; dates do not change lifecycle automatically. |
 | Do not prohibit every subtype's kind | Corrected prose, base/Link schemas and embedded copies. Supplied Types do not dispatch on kind; open extensions can use the name without changing affiliation. Two cases show it neither selects a subtype nor satisfies required subtype fields. |
 | Derive title from body: CLI affordance? | Authoring affordance shared by selected writers. Reuse existing first-nonblank-line display helper: collapse whitespace, at most 80 code points including truncation ellipsis, preserve body. Storage final state still requires a title; readers do not synthesize one. |
-| bd memory tailored surface | Permitted proposal over canonical records/shared mutations. Exact command grammar is still to design with Janet; bd query redesign is respected. |
+| bd memory tailored surface | Donna selected canonical bd memory with remember/recall/memories/forget compatibility aliases over the same records and writers. Exact subcommands/flags/output remain design work; bd query redesign is respected. |
 | Knowledge form / remember default | Removed jargon. Plain bd remember creates ordinary Memory; a specialization is explicit, not inferred from content. |
 | Creation causes / open enum | Polly proposes semantic create/import causes rather than literal CLI names, with origin versus destination entry; identity continuity/copy and legacy-conversion transformation are distinct. Restore preserves identity origin. This is a recommendation, not an adopted wire enum. |
 
@@ -93,9 +93,9 @@ Memory Types, plain capture defaults to Memory, and title derivation is an autho
 affordance. The catalog is a proposal grounded in scenarios and selected prior art,
 not a taxonomy mandated by Chris. The `related` compatibility audit is complete.
 
-The command-layout question is brought back to Donna in chat: recommend `bd memory`
-as the primary group, keeping existing remember/recall/memories/forget as aliases.
-This is a proposal until Donna rules. Polly's origin/entry and correction semantics
+Donna answered the command-layout question in chat: `bd memory` is canonical,
+with existing remember/recall/memories/forget compatibility aliases. This selects
+the group/alias direction, not exact new verbs, flags or output contracts. Polly's origin/entry and correction semantics
 remain her separately reviewed shared-design questions; no answer is inferred here.
 
 Iris's [interchange and dependency draft PR165](https://github.com/gastownhall/bdp/pull/165)

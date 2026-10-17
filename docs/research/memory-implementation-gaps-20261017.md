@@ -12,8 +12,9 @@ G1–G3 remains. Janet correlates these as M-D1–M-D5 in #7656 and uses M-D6 fo
 specialized payload/catalog activation, whose exact allocation she records. The
 priority recommendations below predate this direction and are not a competing cutline.
 
-`bd query` is in active redesign; `bd memory` is a permitted proposal for tailored
-operations. Iris's batch assessment finds that the current update format cannot
+`bd query` is in active redesign. Donna selected `bd memory` as the canonical
+Memory group, with remember/recall/memories/forget as compatibility aliases over the
+same canonical operations; exact subcommands and flags remain design work. Iris's batch assessment finds that the current update format cannot
 change Type in the frozen Core wire format; a batch wrapper cannot supply that
 missing member. Donna and Trish confirm mutable affiliation is already accepted in
 Types §2 and product #7590. Use an ordinary guarded native update, preserving
