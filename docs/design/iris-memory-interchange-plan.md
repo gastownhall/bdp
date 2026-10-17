@@ -52,6 +52,8 @@ Iris owns transfer framing, selection/closure planning, legacy mapping, admissio
 
 Jim/Polly own shared History/provenance integration. Trish/Melinda own Type/domain meaning. Vickie reviews public BDP DTO implications. Coordinate contract questions on bus #1 under tracker #6; do not silently redefine the frozen BDP contract or wait for unrelated amendments #152/#153. No generalized participation-minimum, pair-uniqueness or acyclicity engine is needed for the selected Memory relationships.
 
+The [settled Bead Type-update rule](../../specs/proposals/interchange/interchange.md#settled-bead-type-update-behavior) permits normal updates to change Type. Validate resulting properties and affected Links against the new Type; invalid results fail atomically. Type mutability is not an open design decision or an import-specific mechanism.
+
 ## Decisions to settle before dependent runtime work
 
 These are bounded contract tasks, not permission to add more product features:

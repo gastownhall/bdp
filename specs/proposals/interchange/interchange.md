@@ -38,6 +38,12 @@ The intended CLI relation remains `export = selected coherent Resources + transf
 
 Use an explicit new-format selection during transition; existing legacy JSONL and dependent consumers keep their established format. Working spellings might be `bd export --format bdp-transfer-v1 --include-memories` and `bd import --format bdp-transfer-v1 --mode identity-preserving`. Exact flags are a separate CLI decision. Do not prepend a manifest to existing legacy output and silently call it compatible.
 
+## Settled Bead Type-update behavior
+
+Donna confirmed on October 17: BDP permits changing a Bead’s Type through the normal update operation. Validate the resulting properties and affected Links against the new Type’s applicable constraints. If that validation fails, the update fails atomically. This applies to Beads generally; it is not an import-only or Memory-only operation. A dedicated retype operation is unnecessary.
+
+This is settled semantic direction. Propagating it into Core/Write, singleton/batch request schemas and implementations remains owner work; the existing frozen schema is not evidence that the selected behavior is implemented. Omitted property edits retain their ordinary update meaning, and existing transaction validation timing remains governed by the shared Types contract. This ruling does not broaden the selected Go V2 implementation cutline or release the implementation hold.
+
 ## JSONL record contract
 
 One package is UTF-8 JSONL: a manifest, zero or more complete version records, then one completion record. Each physical line contains one JSON object. Values obey the selected Resource contract; invalid Unicode, duplicate members and unsupported numeric values refuse rather than being replaced or rounded. Writers use LF terminators. The final completion record must be followed only by its line ending and EOF.
