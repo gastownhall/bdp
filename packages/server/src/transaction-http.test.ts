@@ -4896,19 +4896,30 @@ it("waits for current Resources and initial collections with unknown minima and 
     expect(response.headers.has("x-bdp-development-limit")).toBe(false);
   }
   expect(waits).toBe(8);
-  // Excluded residuals: strict/parser-rejected routes stop at the early unknown-token gap;
-  // the incident-Link route is refused after classification. Both retain the private label.
-  for (const suffix of [
-    "types/",
-    "beads/a?view=links",
-    "beads/?limit=0",
-    "beads/?limit=1&limit=2",
-  ]) {
+  // Type routes stop at the strict unknown-token guard; incident-Link refusal
+  // follows owner classification. Both retain the private label.
+  for (const suffix of ["types/", "beads/a?view=links"]) {
     const response = await f.get(f.runtime.scope + suffix, { headers: tuple });
     expect(response.status).toBe(500);
     expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
     expect(response.headers.has("bdp-scope-position")).toBe(false);
     expect(await response.text()).toBe("");
+  }
+  // Repeated parameters are normative 400; limit=0 preserves existing parser parity.
+  // Both parser refusals precede semantic minimum support classification.
+  for (const suffix of ["beads/?limit=0", "beads/?limit=1&limit=2"]) {
+    const response = await f.get(f.runtime.scope + suffix, { headers: tuple });
+    expect(response.status).toBe(400);
+    // Exact reference response parity; protocol extension members remain permitted.
+    expect(checkedProblem(await body(response))).toEqual({
+      type: "https://github.com/gastownhall/bdp/problems/request",
+      code: "invalid-parameter",
+      status: 400,
+      retry: "never",
+    });
+    expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(response.headers.has(name)).toBe(false);
   }
   for (const [query, status, code] of [
     ["limit=33", 413, "limit-exceeded"],
@@ -5345,3 +5356,255 @@ it("compares retained sequence members and accepts deep input while preserving r
   if (failures.length > 1)
     throw new AggregateError(failures, "sequence HTTP witness and cleanup failed");
 }, 30000);
+
+/** Local source-handler fixture: counters delegate to the real owner, never fake responses. */
+async function withParserRefusalOwner(
+  expectedCalls: number,
+  run: (fixture: {
+    current: Record<string, string>;
+    opaque: Record<string, string>;
+    problemPair(
+      suffix: string,
+      headers: Record<string, string>,
+      code?: "invalid-parameter" | "malformed-request" | "unauthenticated",
+    ): Promise<void>;
+    gapPair(suffix: string): Promise<void>;
+  }) => Promise<void>,
+): Promise<void> {
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-parser-refusal-"));
+  const failures: unknown[] = [];
+  let owner: ReturnType<typeof openTransactionStore> | undefined;
+  let service: ReturnType<typeof createTransactionService> | undefined;
+  const entries: string[] = [];
+  let calls = 0,
+    waits = 0,
+    tokens = 0,
+    tick = 0;
+  try {
+    const scope = "https://example.test/parser-refusal/";
+    owner = openTransactionStore({
+      file: path.join(directory, "owner.sqlite"),
+      scope,
+      create: true,
+      types,
+    });
+    const facade = { ...owner };
+    for (const [name, value] of Object.entries(facade)) {
+      if (typeof value === "function")
+        Object.defineProperty(facade, name, {
+          value: (...args: unknown[]) => {
+            entries.push(name);
+            return Reflect.apply(value, owner, args);
+          },
+        });
+    }
+    service = createTransactionService(facade, {
+      ownerLifetime: "service",
+      minimumReads: {
+        budgetMs: 2,
+        now: () => tick,
+        wait: async (milliseconds) => {
+          tick += milliseconds;
+          waits++;
+        },
+      },
+      read: {
+        selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
+        advertisedLimits: {
+          page: { defaultItems: 2, maximumItems: 32 },
+          selector: { bytes: 4096, depth: 32, nodes: 256 },
+          cursorTtlMilliseconds: 1000,
+        },
+        pagination: {
+          scope,
+          defaultPageItems: 2,
+          maxPageItems: 32,
+          cursorTtlMs: 1000,
+          retainedStateCapacity: 100,
+          maxRetainedCursorPositionsPerSnapshot: 20,
+          retainedSnapshotByteCapacity: 100000,
+          retainedSnapshotNodeCapacity: 10000,
+          maxOpaqueTokenLength: 64,
+          tokenGenerationAttempts: 3,
+          idleCleanup: "on-demand",
+          clock: Date.now,
+          generateOpaqueToken: () => `parser_${++tokens}`,
+        },
+      },
+    });
+    const handler = createTransactionHttpHandler(service, scope);
+    const authorization = { kind: "authenticated", principal: "p", canMutate: true } as const;
+    const beforeSetupEntries = entries.length;
+    const setup = await handler.handle(new Request(`${scope}beads/`), authorization);
+    calls++;
+    expect(setup.kind).toBe("finite");
+    expect(setup.status).toBe(200);
+    expect(setup.body).toEqual({ items: [], next: null });
+    expect(entries.length, "setup GET must actually observe the owner").toBeGreaterThan(
+      beforeSetupEntries,
+    );
+    const field = (name: string): string => {
+      const value = setup.headers.get(name);
+      if (!value) throw new Error(`setup GET omitted ${name}`);
+      return value;
+    };
+    const current = {
+      "bdp-scope-epoch": field("bdp-scope-epoch"),
+      "bdp-authorization-view": field("bdp-authorization-view"),
+      "bdp-minimum-scope-position": field("bdp-scope-position"),
+    };
+    // Literal opaque is lexically valid but not a recognized pos-N/genesis token.
+    const opaque = { ...current, "bdp-minimum-scope-position": "opaque" };
+    const setupEntries = [...entries];
+    const setupWaits = waits,
+      setupTokens = tokens;
+    entries.length = 0;
+    function unobserved() {
+      expect(entries, "refusal must not enter the owner").toStrictEqual([]);
+      expect(waits, "refusal must not wait").toBe(setupWaits);
+      expect(tokens, "refusal must not allocate a continuation").toBe(setupTokens);
+    }
+    await run({
+      current,
+      opaque,
+      async problemPair(suffix, headers, code = "invalid-parameter") {
+        const status = code === "unauthenticated" ? 401 : 400;
+        const family = status === 401 ? "authentication" : "request";
+        let getBytes = 0;
+        for (const method of ["GET", "HEAD"]) {
+          const response = await handler.handle(
+            new Request(new URL(suffix, scope), { method, headers }),
+            code === "unauthenticated" ? { kind: "unauthenticated" } : authorization,
+          );
+          calls++;
+          expect(response.kind).toBe("finite");
+          expect(response.status, `${method} ${suffix}`).toBe(status);
+          expect(response.headers.get("content-type")).toBe("application/problem+json");
+          expect(response.headers.get("cache-control")).toBe("private, no-store");
+          if (method === "GET") {
+            // Exact reference response parity; protocol extension members remain permitted.
+            expect(checkedProblem(record(response.body))).toEqual({
+              type: `https://github.com/gastownhall/bdp/problems/${family}`,
+              status,
+              code,
+              retry: status === 401 ? "after-state-change" : "never",
+            });
+            getBytes = Buffer.byteLength(JSON.stringify(response.body));
+            expect(getBytes).toBeGreaterThan(0);
+            expect(response.headers.get("content-length")).toBeNull();
+          } else {
+            expect(response.body).toBeUndefined();
+            // Reference HEAD metadata describes GET bytes, not transmitted HEAD bytes.
+            expect(response.headers.get("content-length")).toBe(String(getBytes));
+          }
+          // Reference pre-owner response parity, not a new universal query/auth rule.
+          for (const name of [
+            "etag",
+            "location",
+            "link",
+            "bdp-scope-epoch",
+            "bdp-authorization-view",
+            "bdp-scope-position",
+            "x-bdp-development-limit",
+          ])
+            expect(response.headers.has(name), name).toBe(false);
+          unobserved();
+        }
+      },
+      async gapPair(suffix) {
+        for (const method of ["GET", "HEAD"]) {
+          const response = await handler.handle(
+            new Request(new URL(suffix, scope), { method, headers: opaque }),
+            authorization,
+          );
+          calls++;
+          expect(response.kind).toBe("finite");
+          expect(response.status, `${method} ${suffix}`).toBe(500);
+          expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+          expect(response.body).toBeUndefined();
+          expect(response.headers.get("content-length")).toBe("0");
+          for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+            expect(response.headers.has(name)).toBe(false);
+          unobserved();
+        }
+      },
+    });
+    expect(calls).toBe(expectedCalls);
+    console.log(
+      JSON.stringify({
+        observation: "parser-refusal-source",
+        calls,
+        setupCalls: 1,
+        setupEntries,
+        refusedOwnerEntries: entries,
+        refusedWaits: waits - setupWaits,
+        refusedTokenAllocations: tokens - setupTokens,
+        owners: 1,
+        httpRequests: 0,
+      }),
+    );
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    try {
+      if (service) await service.close();
+      else owner?.close();
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length) throw new AggregateError(failures, "parser refusal owner and cleanup");
+}
+
+it("rejects collection parser errors before unknown minimum support checks", async () => {
+  await withParserRefusalOwner(37, async (f) => {
+    const controls: readonly Record<string, string>[] = [{}, f.current, f.opaque];
+    // Unsupported/repeated parameters are normative 400; limit=0 is parser parity.
+    for (const collection of ["beads", "links"])
+      for (const query of ["unsupported=x", "limit=1&limit=2", "limit=0"])
+        for (const headers of controls) await f.problemPair(`${collection}/?${query}`, headers);
+  });
+});
+
+it("preserves parser refusal parity on noncollection and excluded query routes", async () => {
+  await withParserRefusalOwner(13, async (f) => {
+    for (const suffix of [
+      "types/?limit=1&limit=2",
+      "types/task?view=properties",
+      "beads/a?view=links&direction=sideways",
+      "beads/a?unsupported=x",
+      "links/a?view=properties&unsupported=x",
+      "beads/missing?view=bogus",
+    ])
+      await f.problemPair(suffix, f.opaque);
+  });
+});
+
+it("preserves receiving and HTTP error precedence for parser refusals", async () => {
+  await withParserRefusalOwner(17, async (f) => {
+    const suffix = "beads/?unsupported=x";
+    await f.problemPair(suffix, f.opaque, "unauthenticated");
+    await f.problemPair(
+      suffix,
+      {
+        "bdp-scope-epoch": f.opaque["bdp-scope-epoch"]!,
+        "bdp-minimum-scope-position": "opaque",
+      },
+      "malformed-request",
+    );
+    const overlays: readonly Record<string, string>[] = [
+      { "if-none-match": "*" },
+      { "if-match": '"wrong"' },
+      { accept: "image/png" },
+    ];
+    for (const overlay of overlays) await f.problemPair(suffix, { ...f.opaque, ...overlay });
+    // Strict Type requests and parser 404 residue retain the old private refusal.
+    // beads/a?view=links is excluded: it observes the owner, so is not a pre-owner refusal.
+    for (const excluded of ["types/", "types/task", "beads/a/"]) await f.gapPair(excluded);
+  });
+});
