@@ -85,7 +85,7 @@ Record exact source/tree, build identity, engine identity, commands, pass/fail/r
 
 ## Review and release gates
 
-Before calling a concrete implementation plan or PR ready, obtain native Codex and actual Claude review, excluding Gemini as requested. Resolve findings and rerun affected checks on the final source. This draft has not yet passed that council.
+Before calling a concrete implementation plan or PR ready, obtain native Codex and actual Claude review, excluding Gemini as requested. Resolve findings and rerun affected checks on the final source. The proposal-publication council is complete with no remaining publication blocker; see the [joint review record](iris-joint-council-review-20261017.md). That disposition does not approve contract freeze, implementation readiness or runtime qualification. Concrete source changes still require their own exact-source council and validation.
 
 For each lane, hand Janet the immutable source, preservation/refusal matrix, installed evidence and open requirement ledger. Donna selects release scope; no unqualified source lands solely because the format is agreed. A new shared base or changed Memory/history contract invalidates relevant earlier evidence.
 
