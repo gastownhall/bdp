@@ -1,6 +1,6 @@
 # W1 Transactional packet: wire artifacts for the Transactional profile
 
-> Current wire naming: the common `revisionProvenance` envelope supersedes this packet’s earlier `attribution` and `changeContext` containers. Actor data is `actor: { id, basis }`, with `basis: writer-supplied | unknown`; time, agent, and message retain their existing value states inside the same envelope. The historical decisions and quoted review text below preserve their original spelling. Use [the current normative contract](../specs/bdp.md#carried-attribution) and the canonical schema for implementations. Sources, completeness, Activity records and terminal deletion versions are outside this bounded change.
+> Current wire naming: the common `revisionProvenance` envelope supersedes this packet’s earlier `attribution` and `changeContext` containers. Actor data is `actor: { id, basis }`, with `basis: writer-supplied | unknown`; time, agent, and message retain their existing value states inside the same envelope. The historical decisions and quoted review text below preserve their original spelling. Use [the current normative contract](../../specs/profiles/core/core.md#carried-attribution) and the canonical schema for implementations. Sources, completeness, Activity records and terminal deletion versions are outside this bounded change.
 
 
 Current extension: G1–G5 = A are ACKed and materialized 2026-09-09; see
@@ -101,11 +101,11 @@ The draft says: "The delta member carrying the owned-Link change is not yet
 part of this draft; until it exists, the Transactional profile cannot be
 implemented for owning Types." This section supplies it. The design follows
 from three rules the draft already fixes: every owned-Link mutation versions
-the source Bead ([Owned Links](../specs/bdp.md#owned-links)); no-op
+the source Bead ([Owned Links](../../specs/profiles/core/core.md#owned-links)); no-op
 detection is operation-local and every transition receives its own revision
-and Event ([Revisions](../specs/bdp.md#revisions)); and Event data carries
+and Event ([Revisions](../../specs/profiles/core/core.md#revisions)); and Event data carries
 deltas, never Resource snapshots
-([Event replay and live observation](../specs/bdp.md#event-replay-and-live-observation)).
+([Event replay and live observation](../../specs/profiles/write/write.md#event-replay-and-live-observation)).
 Together they imply that one `updated` Event carries exactly one owned-Link
 transition, that a source's properties change and its owned-Link change
 never share an Event, because no single operation produces both, and — the
@@ -7377,9 +7377,9 @@ specification.
 
 **Status: option 1 ACKed and materialized 2026-09-08.** The context and
 options below preserve the pre-ruling review record; the owning contract is
-[Transactional alias mutations](../specs/bdp.md#transactional-alias-mutations).
+[Transactional alias mutations](../../specs/profiles/write/write.md#transactional-alias-mutations).
 The Transactional profile inherits the
-two alias targets under [Alias targets](../specs/bdp.md#alias-targets),
+two alias targets under [Alias targets](../../specs/profiles/write/write.md#alias-targets),
 and #19's text defers their Transactional contract — receipt, Scope
 history, changefeed appearance, and whether `batch` admits alias members —
 to this profile. The apply pass did not decide it: `batchOperation` stays
@@ -7399,7 +7399,7 @@ through change groups; none of those say what an alias put or delete is.
    is a one-operation Mutation Transaction whose receipt's one entry is
    the alias result — `outcome`, `alias`, and `target` on a put — under
    `operationIndex` `0`; the key and receipt rules of
-   [Mutation Transactions](../specs/bdp.md#mutation-transactions) apply
+   [Mutation Transactions](../../specs/profiles/write/write.md#mutation-transactions) apply
    unchanged, and a sequence member's projection is the Read+Update one.
    Alias mutation occupies no Scope position, induces no Event, and
    appears in no change group or snapshot: the alias table is
@@ -7940,10 +7940,10 @@ choices by this record and the current decision table.
 
 | Decision | Ratified disposition | Owning normative homes and preserved constraints |
 | --- | --- | --- |
-| T50 = A | Receipt `deleted` remains `{ resourceKind, resource: { id, type, revision } }`; `erased` and the owned-Link `deleted` transition remain bare `{ id, type, revision }`. | [Mutation Receipt responses](../specs/bdp.md#mutation-receipt-responses), [Mutation results](../specs/bdp.md#mutation-results), and [Events and Event Sources](../specs/bdp.md#events-and-event-sources); existing `deletedIdentity`, `resourceIdentity`, receipt-result and owned-Link-transition definitions. The `source` / `sourceRevision` pair remains applicable only to an operation on an owned Link. The bare erased marker does not gain a Resource-kind discriminator; contextual validation and its existing fixture probes remain required. |
-| T51 = A | Retain `alias-path-taken` in the receipt context, with 409 as the problem's would-be direct status. | [Problem details](../specs/bdp.md#problem-details), `receiptProblemCode` and its composed problem mapping. This does not change the HTTP status of a failed receipt or T49's already ruled alias receipt contract. |
-| T52 = A | Keep a separate closed `transactionalAdvertisedLimits` using shared primitives and common-group equality checks. | [Advertised limits](../specs/bdp.md#advertised-limits), the existing limits definition and its lockstep checks. `validation` remains included; `retention.idempotency` remains rejected. The sealed Read limits definition is not widened. |
-| T53 = A | Keep all twelve Operation Directory targets, including `putAlias` and `deleteAlias`. | [Scope discovery and human documentation](../specs/bdp.md#scope-discovery-and-human-documentation), `transactionalOperationDirectory`, and the existing twelve-target check. Directory inclusion does not add alias batch membership or alter T49's locator-only effects. |
+| T50 = A | Receipt `deleted` remains `{ resourceKind, resource: { id, type, revision } }`; `erased` and the owned-Link `deleted` transition remain bare `{ id, type, revision }`. | [Mutation Receipt responses](../../specs/profiles/write/write.md#mutation-receipt-responses), [Mutation results](../../specs/profiles/write/write.md#mutation-results), and [Events and Event Sources](../../specs/profiles/write/write.md#events-and-event-sources); existing `deletedIdentity`, `resourceIdentity`, receipt-result and owned-Link-transition definitions. The `source` / `sourceRevision` pair remains applicable only to an operation on an owned Link. The bare erased marker does not gain a Resource-kind discriminator; contextual validation and its existing fixture probes remain required. |
+| T51 = A | Retain `alias-path-taken` in the receipt context, with 409 as the problem's would-be direct status. | [Problem details](../../specs/profiles/core/core.md#problem-details), `receiptProblemCode` and its composed problem mapping. This does not change the HTTP status of a failed receipt or T49's already ruled alias receipt contract. |
+| T52 = A | Keep a separate closed `transactionalAdvertisedLimits` using shared primitives and common-group equality checks. | [Advertised limits](../../specs/profiles/core/core.md#advertised-limits), the existing limits definition and its lockstep checks. `validation` remains included; `retention.idempotency` remains rejected. The sealed Read limits definition is not widened. |
+| T53 = A | Keep all twelve Operation Directory targets, including `putAlias` and `deleteAlias`. | [Scope discovery and human documentation](../../specs/profiles/core/core.md#scope-discovery-and-human-documentation), `transactionalOperationDirectory`, and the existing twelve-target check. Directory inclusion does not add alias batch membership or alter T49's locator-only effects. |
 
 **Evidence consequences and remaining holds.** This is a status/documentation
 fold only. It changes no schema definition, wire body, manifest, catalog ID,
@@ -7964,10 +7964,10 @@ holds for T54–T57; earlier apply and review descriptions remain dated history.
 
 | Decision | Exact ACK disposition | Owning homes and consequences |
 | --- | --- | --- |
-| T54 = A | A dependent whose creator permanently fails receives its own retained failed receipt carrying `binding-unavailable` / 400. | [Mutation Transactions](../specs/bdp.md#mutation-transactions), [Problem details](../specs/bdp.md#problem-details), the existing receipt-code mapping and sequence projection. The 400 is the problem's would-be direct status; failed receipt HTTP handling is unchanged. |
-| T55 = A | Retract only this attempt's newly owned transient-dependent reservation and pending receipt, releasing its key; do not release another attempt's reservation or replace an existing retained outcome. | [Mutation Transactions](../specs/bdp.md#mutation-transactions) and the ruled ownership/retraction rules. T62's waiting, comparison and retry subchoices remain open; this ACK selects neither lazy admission nor a duplicate-response policy. |
-| T56 = amended A | Ratify the restored Unicode scalar rules for strings/member names and rejection of duplicate member names after escape decoding as `malformed-request`. Inadmissible numeric values remain #23's `validation-failed`. | [BDP JSON and HTTP Protocol](../specs/bdp.md#bdp-json-and-http-protocol), [Revisions](../specs/bdp.md#revisions), and [Problem details](../specs/bdp.md#problem-details). Preserve the existing string/object law and numeric separation, with no second numeric model or schema/runtime change in this fold. |
-| T57 = B | After authorized integration, use the existing #24 RFC 8785 canonicalizer for actual canonicalization regression checks. Preserve independent expected vectors and the current recorded-serialization/digest checks until then. | The existing [#24 canonicalizer](https://github.com/gastownhall/bdp/blob/87de37f673f83ec54989fdff4891bacc05730ea6/packages/conformance/src/canonical-json.ts), the Transactional digest-vector regression checks, and [Version erasure](../specs/bdp.md#version-erasure). This dated selection replaces the earlier hand-rolled option-B description with reuse of that existing implementation. No second serializer is authorized; no source or test change is made here. |
+| T54 = A | A dependent whose creator permanently fails receives its own retained failed receipt carrying `binding-unavailable` / 400. | [Mutation Transactions](../../specs/profiles/write/write.md#mutation-transactions), [Problem details](../../specs/profiles/core/core.md#problem-details), the existing receipt-code mapping and sequence projection. The 400 is the problem's would-be direct status; failed receipt HTTP handling is unchanged. |
+| T55 = A | Retract only this attempt's newly owned transient-dependent reservation and pending receipt, releasing its key; do not release another attempt's reservation or replace an existing retained outcome. | [Mutation Transactions](../../specs/profiles/write/write.md#mutation-transactions) and the ruled ownership/retraction rules. T62's waiting, comparison and retry subchoices remain open; this ACK selects neither lazy admission nor a duplicate-response policy. |
+| T56 = amended A | Ratify the restored Unicode scalar rules for strings/member names and rejection of duplicate member names after escape decoding as `malformed-request`. Inadmissible numeric values remain #23's `validation-failed`. | [BDP JSON and HTTP Protocol](../../specs/profiles/core/core.md#bdp-json-and-http-protocol), [Revisions](../../specs/profiles/core/core.md#revisions), and [Problem details](../../specs/profiles/core/core.md#problem-details). Preserve the existing string/object law and numeric separation, with no second numeric model or schema/runtime change in this fold. |
+| T57 = B | After authorized integration, use the existing #24 RFC 8785 canonicalizer for actual canonicalization regression checks. Preserve independent expected vectors and the current recorded-serialization/digest checks until then. | The existing [#24 canonicalizer](https://github.com/gastownhall/bdp/blob/87de37f673f83ec54989fdff4891bacc05730ea6/packages/conformance/src/canonical-json.ts), the Transactional digest-vector regression checks, and [Version erasure](../../specs/profiles/write/write.md#version-erasure). This dated selection replaces the earlier hand-rolled option-B description with reuse of that existing implementation. No second serializer is authorized; no source or test change is made here. |
 
 **Implementation and evidence boundary.** T57 remains unimplemented on this
 branch: actual canonicalization recomputation must be added and reviewed after
@@ -7996,15 +7996,15 @@ apply and review records remain intact.
 
 | Decision | Exact disposition and owning normative home |
 | --- | --- |
-| T58 = A | Ratify the existing permanent `transaction.duration` failure sentence under [Mutation Receipt responses](../specs/bdp.md#mutation-receipt-responses), with its specification-backed catalog citation. |
-| T59 = A | Ratify the closed snapshot example containing `person-7` and `erasures`, under [Scope snapshots](../specs/bdp.md#scope-snapshots). No fixture is changed. |
-| T60 = A | Ratify the paragraph under [Event-ID and checkpoint character profile](../specs/bdp.md#event-id-and-checkpoint-character-profile), preserving idempotency keys in every write profile and adding no Transactional duty to Read. |
-| T61 = A | Ratify the Resource-singleton one-element `results` sentence and the separate set-result clause under [Operation Directory and singleton targets](../specs/bdp.md#operation-directory-and-singleton-targets). |
+| T58 = A | Ratify the existing permanent `transaction.duration` failure sentence under [Mutation Receipt responses](../../specs/profiles/write/write.md#mutation-receipt-responses), with its specification-backed catalog citation. |
+| T59 = A | Ratify the closed snapshot example containing `person-7` and `erasures`, under [Scope snapshots](../../specs/profiles/write/write.md#scope-snapshots). No fixture is changed. |
+| T60 = A | Ratify the paragraph under [Event-ID and checkpoint character profile](../../specs/profiles/write/write.md#event-id-and-checkpoint-character-profile), preserving idempotency keys in every write profile and adding no Transactional duty to Read. |
+| T61 = A | Ratify the Resource-singleton one-element `results` sentence and the separate set-result clause under [Operation Directory and singleton targets](../../specs/profiles/write/write.md#operation-directory-and-singleton-targets). |
 | T62a = A | Materialize a finite authority-selected direct comparison wait, outside a database transaction and separate from `transaction.duration`; reject provable mismatch with 409, return the normal receipt/conflict after resolution, and return `503 temporarily-unavailable` / `after-delay` at the deadline, with useful `Retry-After`. No unproven equality, second execution, or retraction of another owner's state. |
 | T62b = A | Materialize fresh admission by the still-waiting explicit request after retraction, only in the same epoch, with current authorization, its own newly won reservation and the same overall deadline. No ownership/receipt inheritance or budget reset. Epoch change stops with 503 and requires fresh discovery/presentation; deadline exhaustion also returns 503. |
-| T65 = A | Under [Event replay and live observation](../specs/bdp.md#event-replay-and-live-observation), a persistent Event consumer claiming protocol-backed erasure handling integrates the existing Scope changefeed and snapshot erasure ledger, including disconnect/view recovery and retained-copy cleanup. No erasure Event, new discovery/subscription API, blanket storage prohibition, or every-store-law exemption. History H12 choices stay separate. |
+| T65 = A | Under [Event replay and live observation](../../specs/profiles/write/write.md#event-replay-and-live-observation), a persistent Event consumer claiming protocol-backed erasure handling integrates the existing Scope changefeed and snapshot erasure ledger, including disconnect/view recovery and retained-copy cleanup. No erasure Event, new discovery/subscription API, blanket storage prohibition, or every-store-law exemption. History H12 choices stay separate. |
 
-**T62 completion boundary.** [Mutation Transactions](../specs/bdp.md#mutation-transactions)
+**T62 completion boundary.** [Mutation Transactions](../../specs/profiles/write/write.md#mutation-transactions)
 now represents unresolved dependencies durably at atomic all-key admission,
 pins creator attempts through failure/key reuse, and fences binding, retraction,
 and commit. T62a/b fill the two formerly open direct-carrier choices. They do

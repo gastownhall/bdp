@@ -2,8 +2,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createConformanceArtifactBundle, validateCatalogCitations } from "./index.js";
+import { readSpecificationSource } from "../test-support/spec-source.js";
 import { createDevelopmentReadUpdateArtifactBundle } from "./artifact-bundle.js";
+import { createConformanceArtifactBundle, validateCatalogCitations } from "./index.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const read = (name: string) => readFileSync(path.join(root, name));
@@ -20,11 +21,7 @@ const inventory = JSON.parse(
 
 describe("development Read+Update evidence inventory", () => {
   it("binds diagnostic-only citations and preserves the production catalog-ID guard", () => {
-    validateCatalogCitations(
-      bundle.catalog,
-      (name) => read(name).toString(),
-      "development-read-update",
-    );
+    validateCatalogCitations(bundle.catalog, readSpecificationSource, "development-read-update");
     expect(() => createConformanceArtifactBundle(sources)).toThrow("catalogId");
     expect(bundle.catalog.scenarios.every((row) => row.kind === "diagnostic")).toBe(true);
   });

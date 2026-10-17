@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json",
+  "title": "Common Type descriptor properties",
+  "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
+  "type": "object",
+  "required": ["propertiesSchema"],
+  "properties": {
+    "description": {
+      "type": "string"
+    },
+    "propertiesSchema": {
+      "allOf": [
+        {
+          "$ref": "https://json-schema.org/draft/2020-12/schema"
+        },
+        {
+          "if": {
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "$schema": {
+                "const": "https://json-schema.org/draft/2020-12/schema"
+              }
+            }
+          }
+        }
+      ],
+      "$comment": "Embedded JSON Schema, not a URL. This draft uses 2020-12; external resource resolution, supported vocabularies and admission are separate checks."
+    },
+    "id": false,
+    "revision": false,
+    "type": false,
+    "ownedLinks": false,
+    "conformsTo": false,
+    "revisionProvenance": false,
+    "describes": false,
+    "source": false,
+    "target": false,
+    "pairUnique": false,
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
+      "$comment": "Optional proposed author release label. No inferred conformance, revision matching or upgrade. Publication uniqueness remains open."
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "typeUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+"
+    },
+    "typeReference": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/typeUrl"
+        },
+        {
+          "type": "object",
+          "required": ["uri", "revision"],
+          "properties": {
+            "uri": {
+              "$ref": "#/$defs/typeUrl"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "typeSelector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["anyOf"],
+          "properties": {
+            "anyOf": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/typeReference"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["any"],
+          "properties": {
+            "any": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "$comment": "Candidate selector syntax. Pinned entries match exact affiliation/conformance; unpinned entries match any revision of the identity or conformance to such a revision, never latest lookup. any:true imposes no Type restriction."
+    },
+    "participationConstraint": {
+      "type": "object",
+      "required": ["linkTypes"],
+      "properties": {
+        "linkTypes": {
+          "$ref": "#/$defs/typeSelector"
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "anyOf": [
+        {
+          "required": ["min"]
+        },
+        {
+          "required": ["max"]
+        }
+      ],
+      "additionalProperties": false,
+      "$comment": "Candidate Bead participation rule: min omitted means zero; max omitted means unbounded. min<=max and intersection with inherited/Link bounds need semantic validation."
+    },
+    "endpointTypes": {
+      "oneOf": [
+        {
+          "type": "array",
+          "const": ["*"]
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/typeReference"
+          }
+        }
+      ]
+    },
+    "endpointConstraint": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["resourceKind", "scope", "types"],
+          "properties": {
+            "resourceKind": {
+              "const": "bead"
+            },
+            "scope": {
+              "enum": ["same", "cross", "either"]
+            },
+            "types": {
+              "$ref": "#/$defs/endpointTypes"
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "scope": {
+                    "enum": ["cross", "either"]
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "types": {
+                    "const": ["*"]
+                  }
+                }
+              }
+            }
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["resourceKind"],
+          "properties": {
+            "resourceKind": {
+              "const": "resource"
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "$comment": "Candidate endpoint syntax. Nonlocal resources are opaque: no remote Type validation. Cross/either bead forms classify reference addresses only and require wildcard. resource admits an opaque external URI; it does not enable local Link endpoints. Exact Scope-address classification remains to specify. Endpoint pin-mode constraints are deferred."
+    },
+    "endpointPair": {
+      "type": "object",
+      "required": ["source", "target"],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/endpointConstraint"
+        },
+        "target": {
+          "$ref": "#/$defs/endpointConstraint"
+        }
+      },
+      "additionalProperties": false
+    },
+    "linkConstraints": {
+      "type": "object",
+      "required": ["typeConstraints"],
+      "properties": {
+        "typeConstraints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/endpointPair"
+          }
+        },
+        "sourceMax": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "targetMax": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unique": {
+          "type": "boolean"
+        },
+        "acyclic": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. False/omission adds no local restriction; cannot disable inherited restrictions. No Link minimum or endpoint pin-mode field."
+    }
+  }
+}

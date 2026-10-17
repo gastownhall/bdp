@@ -1,8 +1,11 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
+import {
+  PROTOCOL_SPECIFICATION_PATHS,
+  readSpecificationSource,
+} from "../test-support/spec-source.js";
 
 import {
   loadExecutableScenarioManifestJson,
@@ -13,13 +16,16 @@ import {
 
 /** Companion metadata stays intact; executable bindings have explicit artifact ownership. */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const readText = (relativePath: string): string =>
-  readFileSync(path.resolve(root, relativePath), "utf8");
+const readText = (relativePath: string): string => readSpecificationSource(relativePath);
 
 const CATALOG_PATH = "packages/conformance/catalog/numeric-model-v1.json";
 const READ_CATALOG_PATH = "packages/conformance/catalog/read-v1.json";
 const MATRICES_DIRECTORY = "packages/conformance/matrices";
-const CITATION_SOURCES = new Set(["docs/specs/bdp.md", "docs/design/requirements.md"]);
+const CITATION_SOURCES = new Set([
+  "docs/specs/bdp.md",
+  "docs/design/requirements.md",
+  ...PROTOCOL_SPECIFICATION_PATHS,
+]);
 
 describe("draft numeric-model catalog", () => {
   const catalog = loadScenarioCatalogJson(readText(CATALOG_PATH), "numeric-model-v1.json");

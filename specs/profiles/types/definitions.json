@@ -1,0 +1,744 @@
+{
+  "_comment": "Review-only final graph literals, not import/transaction syntax. Eight definitions and four owned declarations. Type, BeadType and LinkType are affiliated with BeadType; ConformsTo is affiliated with LinkType. Trusted seed installation and revision allocation remain open. IDs/revisions are placeholders. No implicit affiliation edges. Conformance is acyclic over exact revisions; generic identity-based acyclic is deliberately not enabled on ConformsTo pending the same-identity revision decision.",
+  "definitions": [
+    {
+      "id": "https://example.org/types/beads/type",
+      "revision": "type-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json",
+          "title": "Common Type descriptor properties",
+          "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
+          "type": "object",
+          "required": ["propertiesSchema"],
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "propertiesSchema": {
+              "allOf": [
+                {
+                  "$ref": "https://json-schema.org/draft/2020-12/schema"
+                },
+                {
+                  "if": {
+                    "type": "object"
+                  },
+                  "then": {
+                    "properties": {
+                      "$schema": {
+                        "const": "https://json-schema.org/draft/2020-12/schema"
+                      }
+                    }
+                  }
+                }
+              ],
+              "$comment": "Embedded JSON Schema, not a URL. This draft uses 2020-12; external resource resolution, supported vocabularies and admission are separate checks."
+            },
+            "id": false,
+            "revision": false,
+            "type": false,
+            "ownedLinks": false,
+            "conformsTo": false,
+            "revisionProvenance": false,
+            "describes": false,
+            "source": false,
+            "target": false,
+            "pairUnique": false,
+            "version": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
+              "$comment": "Optional proposed author release label. No inferred conformance, revision matching or upgrade. Publication uniqueness remains open."
+            }
+          },
+          "additionalProperties": true,
+          "$defs": {
+            "typeUrl": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://.+"
+            },
+            "typeReference": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/typeUrl"
+                },
+                {
+                  "type": "object",
+                  "required": ["uri", "revision"],
+                  "properties": {
+                    "uri": {
+                      "$ref": "#/$defs/typeUrl"
+                    },
+                    "revision": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "typeSelector": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "required": ["anyOf"],
+                  "properties": {
+                    "anyOf": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "$ref": "#/$defs/typeReference"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": ["any"],
+                  "properties": {
+                    "any": {
+                      "const": true
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ],
+              "$comment": "Candidate selector syntax. Pinned entries match exact affiliation/conformance; unpinned entries match any revision of the identity or conformance to such a revision, never latest lookup. any:true imposes no Type restriction."
+            },
+            "participationConstraint": {
+              "type": "object",
+              "required": ["linkTypes"],
+              "properties": {
+                "linkTypes": {
+                  "$ref": "#/$defs/typeSelector"
+                },
+                "min": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "anyOf": [
+                {
+                  "required": ["min"]
+                },
+                {
+                  "required": ["max"]
+                }
+              ],
+              "additionalProperties": false,
+              "$comment": "Candidate Bead participation rule: min omitted means zero; max omitted means unbounded. min<=max and intersection with inherited/Link bounds need semantic validation."
+            },
+            "endpointTypes": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "const": ["*"]
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/typeReference"
+                  }
+                }
+              ]
+            },
+            "endpointConstraint": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "required": ["resourceKind", "scope", "types"],
+                  "properties": {
+                    "resourceKind": {
+                      "const": "bead"
+                    },
+                    "scope": {
+                      "enum": ["same", "cross", "either"]
+                    },
+                    "types": {
+                      "$ref": "#/$defs/endpointTypes"
+                    }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "scope": {
+                            "enum": ["cross", "either"]
+                          }
+                        }
+                      },
+                      "then": {
+                        "properties": {
+                          "types": {
+                            "const": ["*"]
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": ["resourceKind"],
+                  "properties": {
+                    "resourceKind": {
+                      "const": "resource"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ],
+              "$comment": "Candidate endpoint syntax. Nonlocal resources are opaque: no remote Type validation. Cross/either bead forms classify reference addresses only and require wildcard. resource admits an opaque external URI; it does not enable local Link endpoints. Exact Scope-address classification remains to specify. Endpoint pin-mode constraints are deferred."
+            },
+            "endpointPair": {
+              "type": "object",
+              "required": ["source", "target"],
+              "properties": {
+                "source": {
+                  "$ref": "#/$defs/endpointConstraint"
+                },
+                "target": {
+                  "$ref": "#/$defs/endpointConstraint"
+                }
+              },
+              "additionalProperties": false
+            },
+            "linkConstraints": {
+              "type": "object",
+              "required": ["typeConstraints"],
+              "properties": {
+                "typeConstraints": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/endpointPair"
+                  }
+                },
+                "sourceMax": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "targetMax": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "unique": {
+                  "type": "boolean"
+                },
+                "acyclic": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false,
+              "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. False/omission adds no local restriction; cannot disable inherited restrictions. No Link minimum or endpoint pin-mode field."
+            }
+          }
+        },
+        "ownsOutgoing": [
+          {
+            "anyOf": [
+              {
+                "uri": "https://example.org/types/beads/conforms-to",
+                "revision": "conformance-1"
+              }
+            ]
+          }
+        ]
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": []
+      }
+    },
+    {
+      "id": "https://example.org/types/beads/bead-type",
+      "revision": "bead-type-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/bdp-draft/schemas/bead-type-definition.properties.schema.json",
+          "title": "Bead Type descriptor properties",
+          "allOf": [
+            {
+              "$ref": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json"
+            }
+          ],
+          "type": "object",
+          "properties": {
+            "ownsOutgoing": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json#/$defs/typeSelector"
+              }
+            },
+            "incoming": {
+              "type": "array",
+              "items": {
+                "$ref": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json#/$defs/participationConstraint"
+              }
+            },
+            "outgoing": {
+              "type": "array",
+              "items": {
+                "$ref": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json#/$defs/participationConstraint"
+              }
+            },
+            "linkConstraints": false
+          },
+          "additionalProperties": true
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/types/links/bead-type-conforms",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/types/beads/bead-type",
+            "target": {
+              "uri": "https://example.org/types/beads/type",
+              "revision": "type-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://example.org/types/beads/link-type",
+      "revision": "link-type-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/bdp-draft/schemas/link-type-definition.properties.schema.json",
+          "title": "Link Type descriptor properties",
+          "allOf": [
+            {
+              "$ref": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json"
+            }
+          ],
+          "type": "object",
+          "properties": {
+            "linkConstraints": {
+              "$ref": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json#/$defs/linkConstraints"
+            },
+            "ownsOutgoing": false,
+            "incoming": false,
+            "outgoing": false
+          },
+          "additionalProperties": true,
+          "required": ["linkConstraints"]
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/types/links/link-type-conforms",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/types/beads/link-type",
+            "target": {
+              "uri": "https://example.org/types/beads/type",
+              "revision": "type-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://example.org/types/beads/conforms-to",
+      "revision": "conformance-1",
+      "type": {
+        "uri": "https://example.org/types/beads/link-type",
+        "revision": "link-type-1"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/bdp-draft/schemas/conforms-to.properties.schema.json",
+          "title": "Draft ConformsTo Link properties",
+          "$comment": "Base relationship requires no own properties. Extensions/specializations may add evidence or enforceable tightening-only qualifiers. This open object is not permission to ignore unknown semantic requirements. Endpoints, pins, ownership, kind equality and cycle checks are outside properties validation. Provenance is in the common revisionProvenance envelope, not required here.",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "linkConstraints": {
+          "typeConstraints": [
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/types/beads/bead-type",
+                    "revision": "bead-type-1"
+                  }
+                ]
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/types/beads/bead-type",
+                    "revision": "bead-type-1"
+                  }
+                ]
+              }
+            },
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/types/beads/link-type",
+                    "revision": "link-type-1"
+                  }
+                ]
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/types/beads/link-type",
+                    "revision": "link-type-1"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": []
+      }
+    },
+    {
+      "id": "https://example.org/types/beads/issue",
+      "revision": "issue-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/bdp-draft/schemas/issue.properties.schema.json",
+          "title": "Draft Issue core properties fragment",
+          "$comment": "Review fragment, not complete domain write validation. See https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/issue.md for native constraints, policy, writers and observations.",
+          "type": "object",
+          "required": ["id", "title", "status", "priority"],
+          "not": {
+            "required": ["issue_type"]
+          },
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string"
+            },
+            "design": {
+              "type": "string"
+            },
+            "acceptance_criteria": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "assignee": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "owner": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "estimated_minutes": {
+              "type": ["integer", "null"],
+              "minimum": 0
+            },
+            "labels": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "external_ref": {
+              "type": ["string", "null"]
+            },
+            "spec_id": {
+              "type": "string"
+            },
+            "due_at": {
+              "type": ["string", "null"],
+              "format": "date-time"
+            },
+            "defer_until": {
+              "type": ["string", "null"],
+              "format": "date-time"
+            },
+            "closed_at": {
+              "type": ["string", "null"],
+              "format": "date-time"
+            },
+            "close_reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "ownsOutgoing": [
+          {
+            "anyOf": [
+              {
+                "uri": "https://example.org/types/beads/dependency",
+                "revision": "dependency-1"
+              }
+            ]
+          }
+        ]
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": []
+      }
+    },
+    {
+      "id": "https://example.org/types/beads/task",
+      "revision": "task-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "type": "object"
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/types/links/task-conforms",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/types/beads/task",
+            "target": {
+              "uri": "https://example.org/types/beads/issue",
+              "revision": "issue-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://example.org/types/beads/dependency",
+      "revision": "dependency-1",
+      "type": {
+        "uri": "https://example.org/types/beads/link-type",
+        "revision": "link-type-1"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/bdp-draft/schemas/dependency.properties.schema.json",
+          "title": "Draft Dependency core properties fragment",
+          "$comment": "Review fragment, not complete domain write validation. See https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/issue.md for native constraints, policy, writers and observations.",
+          "type": "object",
+          "not": {
+            "required": ["dep_type"]
+          },
+          "properties": {},
+          "additionalProperties": true
+        },
+        "linkConstraints": {
+          "typeConstraints": [
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/types/beads/issue",
+                    "revision": "issue-1"
+                  }
+                ]
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/types/beads/issue",
+                    "revision": "issue-1"
+                  }
+                ]
+              }
+            }
+          ],
+          "unique": true
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": []
+      }
+    },
+    {
+      "id": "https://example.org/types/beads/blocks",
+      "revision": "blocks-1",
+      "type": {
+        "uri": "https://example.org/types/beads/link-type",
+        "revision": "link-type-1"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "type": "object"
+        },
+        "linkConstraints": {
+          "typeConstraints": [
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": ["*"]
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": ["*"]
+              }
+            }
+          ]
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/types/links/blocks-conforms",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/types/beads/blocks",
+            "target": {
+              "uri": "https://example.org/types/beads/dependency",
+              "revision": "dependency-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    }
+  ],
+  "declarations": [
+    {
+      "id": "https://example.org/types/links/task-conforms",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/types/beads/task",
+      "target": {
+        "uri": "https://example.org/types/beads/issue",
+        "revision": "issue-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/types/links/blocks-conforms",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/types/beads/blocks",
+      "target": {
+        "uri": "https://example.org/types/beads/dependency",
+        "revision": "dependency-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/types/links/bead-type-conforms",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/types/beads/bead-type",
+      "target": {
+        "uri": "https://example.org/types/beads/type",
+        "revision": "type-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/types/links/link-type-conforms",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/types/beads/link-type",
+      "target": {
+        "uri": "https://example.org/types/beads/type",
+        "revision": "type-1"
+      },
+      "properties": {}
+    }
+  ]
+}

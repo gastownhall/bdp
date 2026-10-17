@@ -21,7 +21,7 @@ import {
   createTransactionalExecutionBinding,
   installedTransactionBinding,
 } from "../test-support/transactional-execution-binding.js";
-import schema from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import schema from "../../../specs/profiles/core/bdp-v0.schema.json" with { type: "json" };
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const { launchInstalledTransaction } = (await import(
   new URL("../../../scripts/transaction-installed-observation.mjs", import.meta.url).href

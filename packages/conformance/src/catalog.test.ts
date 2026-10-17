@@ -1,7 +1,5 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { describe, expect, it } from "vitest";
+import { readSpecificationSource } from "../test-support/spec-source.js";
 
 import {
   CatalogValidationError,
@@ -193,9 +191,7 @@ describe("repository-aware requirement citations", () => {
   });
 
   it("validates the current citation against the real repository source", () => {
-    validateCatalogCitations(catalog, (source) =>
-      readFileSync(path.resolve(process.cwd(), source), "utf8"),
-    );
+    validateCatalogCitations(catalog, (source) => readSpecificationSource(source));
   });
 
   it("rejects a missing source", () => {

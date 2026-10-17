@@ -4,7 +4,7 @@ Status: draft
 
 This document records requirements for the BDP reference implementation. It is
 not a second protocol specification. Protocol behavior comes from the
-[BDP v0 draft](../specs/bdp.md); unresolved protocol behavior remains unresolved
+[BDP v0 specification](../../specs/README.md); unresolved protocol behavior remains unresolved
 here rather than being invented by an implementation.
 
 ## Product requirements
@@ -77,7 +77,7 @@ here rather than being invented by an implementation.
   the erased version; retention removals MUST NOT propagate.
   **History amendment, 2026-09-09:** the optional all-profile History surface
   additionally uses the five subject-history-gated diagnoses under
-  [Historical resolution](../specs/bdp.md#historical-resolution), required
+  [Historical resolution](../../specs/profiles/core/core.md#historical-resolution), required
   Gone-with-reason for removed cited versions, and authorized deleted-subject
   versions pages. Ordinary non-History disclosure remains discretionary.
   Historical whole-record success and missing-state refusal have their distinct

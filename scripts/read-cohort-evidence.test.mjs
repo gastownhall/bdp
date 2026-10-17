@@ -294,7 +294,7 @@ describe("Read schema projection drift over the committed cohort", () => {
   const committed = existsSync(path.join(root, READ_COHORT_ARTIFACT_PATH));
   const readText = (relative) => readFileSync(path.join(root, relative), "utf8");
   const parseJson = (relative) => JSON.parse(readText(relative));
-  const committedBundle = () => parseJson("schemas/bdp-v0.schema.json");
+  const committedBundle = () => parseJson("specs/profiles/core/bdp-v0.schema.json");
 
   function committedInput(bundle) {
     const catalogPath = "packages/conformance/catalog/read-v1.json";
