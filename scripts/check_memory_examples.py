@@ -1,6 +1,8 @@
-"""Offline review-artifact checks, not a Memory runtime or Type-profile implementation.
+"""Offline Memory Release property checks; optional BDP encoding exploration.
 
 Run: uv run --no-project --with 'jsonschema[format]' python scripts/check_memory_examples.py
+Add --with-bdp-exploration to check the separate, nonnormative definition graph.
+Neither mode implements or qualifies native Memory operations.
 """
 import argparse
 import json
@@ -15,8 +17,10 @@ ROOT = Path(__file__).resolve().parent.parent
 MEMORY_DIR = ROOT / "specs/types/memory"
 FIXTURES = ROOT / "fixtures/specs/memory"
 parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--with-bdp-exploration", action="store_true",
+                    help="Also validate the nonnormative BDP definition/closure experiment")
 parser.add_argument("--shared-schemas", type=Path, default=ROOT / "specs/profiles/types",
-                    help="Optional pinned shared-artifact snapshot for preparatory checks")
+                    help="Shared experimental schemas, used only with --with-bdp-exploration")
 args = parser.parse_args()
 K = "https://example.org/memory-types/"
 F = "https://example.org/types/beads/"
@@ -25,6 +29,8 @@ CHILDREN = ("observation", "decision", "procedure", "policy", "lesson")
 NAMES = {"memory": "memory.properties.schema.json",
          **{name: f"memory-{name}.local-properties.schema.json" for name in CHILDREN},
          "link": "memory-link.properties.schema.json"}
+LINK_NAMES = {"association", "memory-guidance", "memory-applies-to",
+              "memory-supports", "memory-challenges", "memory-supersedes"}
 SHARED_NAMES = ("type-definition.properties.schema.json",
                 "bead-type-definition.properties.schema.json",
                 "link-type-definition.properties.schema.json",
@@ -44,14 +50,20 @@ def unavailable(uri):
     raise NoSuchResource(ref=uri)
 
 
+def exact(reference):
+    require(isinstance(reference, dict) and set(reference) == {"uri", "revision"},
+            ("Not an exact illustrative reference", reference))
+    require(all(isinstance(reference[k], str) and reference[k] for k in reference),
+            "Empty illustrative Type label")
+    return reference["uri"], reference["revision"]
+
+
 schemas = {name: read(MEMORY_DIR / filename) for name, filename in NAMES.items()}
-shared = {name: read(args.shared_schemas / name) for name in SHARED_NAMES}
-all_schemas = [*schemas.values(), *shared.values()]
 registry = Registry(retrieve=unavailable).with_resources(
     list(SPECIFICATIONS.items())
-    + [(schema["$id"], Resource.from_contents(schema)) for schema in all_schemas]
+    + [(schema["$id"], Resource.from_contents(schema)) for schema in schemas.values()]
 )
-for schema in all_schemas:
+for schema in schemas.values():
     Draft202012Validator.check_schema(schema)
 
 
@@ -60,11 +72,11 @@ def validator(schema):
 
 
 validators = {name: validator(schema) for name, schema in schemas.items()}
-shared_validators = {name: validator(schema) for name, schema in shared.items()}
 cases = read(FIXTURES / "schema-cases.json")["cases"]
 require(bool(cases), "No property cases loaded")
 for case in cases:
     name = case["type"]
+    require(name in validators, ("Unknown supplied Type", name))
     selected = [validators[name]]
     if name in CHILDREN:
         selected.append(validators["memory"])
@@ -72,82 +84,112 @@ for case in cases:
               for error in selected_validator.iter_errors(case["properties"])]
     require((not errors) == case["valid"], (case["label"], errors))
 
-fixture = read(MEMORY_DIR / "definitions.json")
-definitions = fixture["definitions"]
-require(len(definitions) == 12, "Expected six Bead and six Link definitions")
-by_pin = {(d["id"], d["revision"]): d for d in definitions}
-require(len(by_pin) == len(definitions), "Duplicate exact domain definition")
-foundation = read(args.shared_schemas / "definitions.json")
-combined = {(d["id"], d["revision"]): d for d in foundation["definitions"]}
-require(not set(combined).intersection(by_pin), "Domain fixture overwrites foundation")
-combined.update(by_pin)
-
-
-def exact(reference):
-    require(isinstance(reference, dict) and set(reference) == {"uri", "revision"},
-            ("Not an exact reference", reference))
-    return reference["uri"], reference["revision"]
-
-
-owned_declarations = []
-for definition in definitions:
-    own_type = exact(definition["type"])
-    require(own_type in combined, ("Missing exact metatype", own_type))
-    category = own_type[0].removeprefix(F)
-    require(category in {"bead-type", "link-type"}, ("Wrong category", category))
-    selected = "bead-type-definition.properties.schema.json" if category == "bead-type" else "link-type-definition.properties.schema.json"
-    errors = [e.message for e in shared_validators[selected].iter_errors(definition["properties"])]
-    require(not errors, (definition["id"], errors))
-    is_bead = category == "bead-type"
-    name = definition["id"].removeprefix(K) if is_bead else "link"
-    require(definition["properties"]["propertiesSchema"] == schemas[name],
-            ("Embedded schema differs from owned artifact", definition["id"]))
-    recorded = definition["ownedLinks"][F + "conforms-to"]
-    for declaration in recorded:
-        require(declaration["source"] == definition["id"], "Wrong declaration owner")
-        require(exact(declaration["type"]) == (F + "conforms-to", "conformance-1"),
-                "Unexpected declaration affiliation")
-        require(exact(declaration["target"]) == MEMORY, "Wrong Memory ancestor pin")
-        errors = list(shared_validators["conforms-to.properties.schema.json"].iter_errors(declaration["properties"]))
-        require(not errors, "Invalid declaration properties")
-        owned_declarations.append(declaration)
-    require(len(recorded) == (1 if name in CHILDREN else 0), "Unexpected direct conformance")
-require(owned_declarations == fixture["declarations"], "Recorded declarations differ from exposed copies")
-require(len(owned_declarations) == 5, "Expected five direct domain declarations")
-
-
-def closure(pin, active=()):
-    require(pin not in active, ("Exact fixture conformance cycle", pin))
-    require(pin in combined, ("Missing exact fixture definition", pin))
-    result = {pin}
-    for declaration in combined[pin].get("ownedLinks", {}).get(F + "conforms-to", []):
-        result.update(closure(exact(declaration["target"]), (*active, pin)))
-    return result
-
-
-for name in CHILDREN:
-    require(MEMORY in closure((K + name, name + "-contract-1")),
-            ("Missing recorded Memory conformance", name))
-require(by_pin[MEMORY]["properties"]["ownsOutgoing"] == [{"any": True}],
-        "Base Memory must own every outgoing Link")
-
 records = read(FIXTURES / "records.json")
 for record in records["records"]:
-    pin = exact(record["type"])
-    require(pin in by_pin, ("Unknown record affiliation", pin))
-    for inherited in closure(pin):
-        schema = by_pin[inherited]["properties"]["propertiesSchema"]
-        errors = list(validator(schema).iter_errors(record["properties"]))
-        require(not errors, (record["id"], inherited, [e.message for e in errors]))
+    uri, _ = exact(record["type"])
+    require(uri.startswith(K), ("Unknown fixture Type namespace", uri))
+    name = uri.removeprefix(K)
+    require(name == "memory" or name in CHILDREN, ("Not a supplied Memory Type", name))
+    selected = [validators["memory"]]
+    if name in CHILDREN:
+        selected.append(validators[name])
+    errors = [error.message for v in selected for error in v.iter_errors(record["properties"])]
+    require(not errors, (record["id"], errors))
 for link in records["links"]:
-    pin = exact(link["type"])
-    require(pin in by_pin, ("Unknown Link affiliation", pin))
-    errors = list(validators["link"].iter_errors(link["properties"]))
-    require(not errors, (link["id"], [e.message for e in errors]))
+    uri, _ = exact(link["type"])
+    require(uri.startswith(K) and uri.removeprefix(K) in LINK_NAMES,
+            ("Not a supplied informational Link Type", uri))
+    errors = [error.message for error in validators["link"].iter_errors(link["properties"])]
+    require(not errors, (link["id"], errors))
 
-print(f"PASS: {len(schemas)} owned schemas; {len(cases)} positive/negative property cases; "
-      f"{len(definitions)} descriptors; {len(owned_declarations)} recorded declarations; "
-      f"{len(records['records'])} Bead and {len(records['links'])} Link property excerpts.")
-print("LIMIT: finite artifact shapes/copies and exact fixture closure only. "
-      "No interval-order, endpoint, provenance, semantic-admission, graph-operation, "
-      "History, transaction, CLI or runtime qualification.")
+print(f"PASS product properties: {len(schemas)} schemas; {len(cases)} positive/negative cases; "
+      f"{len(records['records'])} Bead and {len(records['links'])} Link excerpts. "
+      "No BDP definition/profile inputs required.")
+
+if args.with_bdp_exploration:
+    shared = {name: read(args.shared_schemas / name) for name in SHARED_NAMES}
+    for schema in shared.values():
+        Draft202012Validator.check_schema(schema)
+    registry = registry.with_resources(
+        [(schema["$id"], Resource.from_contents(schema)) for schema in shared.values()]
+    )
+    shared_validators = {name: validator(schema) for name, schema in shared.items()}
+    fixture = read(MEMORY_DIR / "definitions.json")
+    definitions = fixture["definitions"]
+    require(len(definitions) == 12, "Expected six Bead and six Link definitions")
+    by_pin = {(d["id"], d["revision"]): d for d in definitions}
+    require(len(by_pin) == len(definitions), "Duplicate exact domain definition")
+    foundation = read(args.shared_schemas / "definitions.json")
+    combined = {(d["id"], d["revision"]): d for d in foundation["definitions"]}
+    require(not set(combined).intersection(by_pin), "Domain fixture overwrites foundation")
+    combined.update(by_pin)
+
+
+    owned_declarations = []
+    for definition in definitions:
+        own_type = exact(definition["type"])
+        require(own_type in combined, ("Missing exact metatype", own_type))
+        category = own_type[0].removeprefix(F)
+        require(category in {"bead-type", "link-type"}, ("Wrong category", category))
+        selected = "bead-type-definition.properties.schema.json" if category == "bead-type" else "link-type-definition.properties.schema.json"
+        errors = [e.message for e in shared_validators[selected].iter_errors(definition["properties"])]
+        require(not errors, (definition["id"], errors))
+        is_bead = category == "bead-type"
+        name = definition["id"].removeprefix(K) if is_bead else "link"
+        require(definition["properties"]["propertiesSchema"] == schemas[name],
+                ("Embedded schema differs from owned artifact", definition["id"]))
+        recorded = definition["ownedLinks"][F + "conforms-to"]
+        for declaration in recorded:
+            require(declaration["source"] == definition["id"], "Wrong declaration owner")
+            require(exact(declaration["type"]) == (F + "conforms-to", "conformance-1"),
+                    "Unexpected declaration affiliation")
+            require(exact(declaration["target"]) == MEMORY, "Wrong Memory ancestor pin")
+            errors = list(shared_validators["conforms-to.properties.schema.json"].iter_errors(declaration["properties"]))
+            require(not errors, "Invalid declaration properties")
+            owned_declarations.append(declaration)
+        require(len(recorded) == (1 if name in CHILDREN else 0), "Unexpected direct conformance")
+    require(owned_declarations == fixture["declarations"], "Recorded declarations differ from exposed copies")
+    require(len(owned_declarations) == 5, "Expected five direct domain declarations")
+
+
+    def closure(pin, active=()):
+        require(pin not in active, ("Exact fixture conformance cycle", pin))
+        require(pin in combined, ("Missing exact fixture definition", pin))
+        result = {pin}
+        for declaration in combined[pin].get("ownedLinks", {}).get(F + "conforms-to", []):
+            result.update(closure(exact(declaration["target"]), (*active, pin)))
+        return result
+
+
+    for name in CHILDREN:
+        require(MEMORY in closure((K + name, name + "-contract-1")),
+                ("Missing recorded Memory conformance", name))
+    require(by_pin[MEMORY]["properties"]["ownsOutgoing"] == [{"any": True}],
+            "Base Memory must own every outgoing Link")
+
+
+    for record in records["records"]:
+        pin = exact(record["type"])
+        require(pin in by_pin, ("Unknown record affiliation", pin))
+        for inherited in closure(pin):
+            schema = by_pin[inherited]["properties"]["propertiesSchema"]
+            errors = list(validator(schema).iter_errors(record["properties"]))
+            require(not errors, (record["id"], inherited, [e.message for e in errors]))
+    for link in records["links"]:
+        pin = exact(link["type"])
+        require(pin in by_pin, ("Unknown Link affiliation", pin))
+        errors = list(validators["link"].iter_errors(link["properties"]))
+        require(not errors, (link["id"], [e.message for e in errors]))
+
+    external = read(FIXTURES / "bdp-exploration.json")["links"]
+    for link in external:
+        require(exact(link["type"]) in by_pin, ("Unknown exploratory Link", link["id"]))
+        errors = list(validators["link"].iter_errors(link["properties"]))
+        require(not errors, (link["id"], [e.message for e in errors]))
+    print(f"PASS optional BDP exploration: {len(definitions)} descriptors; "
+          f"{len(owned_declarations)} declarations; {len(external)} external-Link excerpts. "
+          "Nonnormative encoding/closure only.")
+
+print("LIMIT: property shapes, formats and finite examples only. "
+      "No prose meaning, endpoint admission, provenance, graph operations, History, "
+      "transactions, CLI or installed runtime qualification.")

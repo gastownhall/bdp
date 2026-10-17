@@ -12,7 +12,7 @@ G1–G3 remains. Janet correlates these as M-D1–M-D5 in #7656 and uses M-D6 fo
 specialized payload/catalog activation, whose exact allocation she records. The
 priority recommendations below predate this direction and are not a competing cutline.
 
-`bd query` is in active redesign. Donna selected `bd memory` as the canonical
+`bd query` is under review for scenario coverage. Donna selected `bd memory` as the canonical
 Memory group, with remember/recall/memories/forget as compatibility aliases over the
 same canonical operations; exact subcommands and flags remain design work. Iris's batch assessment finds that the current update format cannot
 change Type in the frozen Core wire format; a batch wrapper cannot supply that
@@ -22,6 +22,21 @@ untouched fields for targeted edits and validating the whole result; batch compo
 that operation. Wire adoption/runtime integration remain distinct pending work.
 Shared Inception DESIGN is delegated to Polly with Iris's import requirements;
 it is not a Memory property or a new Preview 3 provenance implementation gate.
+
+## Current product interpretation after the second review
+
+The accepted direction now uses body as primary content for every supplied Memory
+Type. Duplicate statement/choice/steps/rule/takeaway requirements are retired;
+optional alternatives, observedAt, authority and descriptive applicability remain.
+Thus the runtime gaps below mean preserving those distinct properties and family
+membership, not implementing duplicate structured primary content. Same-shape semantic
+Types remain explicit and a Type-only change is a revision, not a no-op.
+
+The proposal is a Memory Release product design, not its BDP definition encoding.
+Generic descriptor/adoption work is separate. Structured validity intervals are
+deferred. [Shared Inception/revert](https://github.com/gastownhall/beads/issues/7510#issuecomment-6242419971)
+is now decided as one presence-cause field; the earlier origin/entry recommendation
+is superseded. Same-ID undelete uses bd revert; bd restore retains its old meaning.
 
 ## Evidence boundary
 
@@ -64,7 +79,7 @@ These priorities are recommendations for Janet, not a newly approved preview cut
 | G1 | Link source/target are bare strings for unpinned live local Beads. Link updates explicitly exclude endpoint changes. | Persist latest versus exact endpoint References, validate retained local state, and support selected same-target-identity re-pinning while keeping Link ID. After target edit, latest follows and an old pin resolves the original state. Supports/Challenges/Supersedes can then enforce exact targets. | Trish with Polly/Jim retained-state resolution. |
 | G2 | Memory deletion refuses every live incident Link. It retains old versions but creates no terminal Memory revision. | Remove floating incident informational Links atomically; preserve valid pinned citations and retained owned snapshots; report removed Links and affected source revisions. Record the selected terminal deletion evidence without adding revisions to mere incoming targets. | Trish Links + Polly/Jim History. |
 | G3 | No shared graph-Memory same-ID restoration operation is present. The native legacy restore command has a different meaning. | Restore deleted Memory from retained state under the same ID, with a current guard and a new attributed revision. Validate current admission and do not resurrect Links cleaned up during deletion or take another live resource's key. | Polly/Jim, coordinating Trish lifecycle. |
-| G4 | Existing attribution contains actor/status/recordedAt; it does not carry the proposed sources/completeness/shared revisionProvenance or a dedicated editable Inception contract. Native writes can currently retain unknown actor attribution; the draft requires a truthful actor on each new native revision. Current stale-write error identifies the revision but not its actor/time. | Preserve existing truthful writer attribution; add the accepted source/unknown/empty distinctions and origin state across create/update/exact read/indirect writes. Structured conflict reports include accepted current attribution where required. No signing/authentication claim is needed. | Polly/Jim with Melinda's record contract. |
+| G4 | Existing attribution contains actor/status/recordedAt; it does not carry the proposed sources/completeness/shared revisionProvenance or the accepted single-field Inception producer. Native writes can currently retain unknown actor attribution; the draft requires a truthful actor on each new native revision. Current stale-write error identifies the revision but not its actor/time. | Preserve existing truthful writer attribution; add the accepted source/unknown/empty distinctions and Inception state across create/update/exact read/indirect writes. Structured conflict reports include accepted current attribution where required. No signing/authentication claim is needed. | Polly/Jim with Melinda's record contract. |
 | G5 | Issue show omits an informational Issue-to-Memory Link visible in the separate Link collection. This has narrow installed evidence in both modes. | Expose Link ID, Type, endpoint Reference and truthful target information through the selected Task structured view, without loading target bodies or affecting readiness. Do not accidentally change ownership while fixing projection. | Trish; Janet CLI acceptance. |
 
 G1 source: [types.go125–132,183–195](https://github.com/donnabox/beads/blob/b9eebc31f8e0f21b9a6154652476ed87027e9cad/internal/storage/graphstore/types.go#L125).
@@ -81,8 +96,8 @@ that existing generic graph/history mechanisms work. Trish already stages them i
 F1–F4; do not open a duplicate implementation stream.
 
 1. **Full specialized payload and historical affiliation.** Current Properties only
-   contains title/body and CLI rejects additional fields. Preserve steps, choice,
-   statement, etc. and permitted unknown fields through create/patch/replacement,
+   contains title/body and CLI rejects additional fields. Preserve alternatives, observedAt, authority, descriptive applicability
+   and permitted unknown fields through create/patch/replacement,
    reopen, exact history and compare. Retained decoding currently admits one fixed
    Memory affiliation and checks it against the allocation's Type. It must preserve
    the original contract across explicit Memory-family retyping and later catalog upgrades.

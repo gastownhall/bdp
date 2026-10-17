@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.org/memory-types/schemas/memory.properties.schema.json",
   "title": "Memory properties",
-  "$comment": "WIP domain schema; known fields refine Memory R3. Shape is not lifecycle/Type admission. Supplied Types use affiliation, not a kind discriminator; open-root extension names are not globally reserved.",
+  "$comment": "Memory Release product property contract, not a BDP Type representation or complete mutation validator. Explicit Type supplies meaning; body is primary. Open-root names are not globally reserved.",
   "type": "object",
   "required": ["title", "body"],
   "properties": {
@@ -20,18 +20,10 @@
         "description": {
           "type": "string",
           "pattern": "\\S"
-        },
-        "validFrom": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "validUntil": {
-          "type": "string",
-          "format": "date-time"
         }
       },
       "additionalProperties": false,
-      "$comment": "Interval ordering is a separate domain admission check; no truth or clock-driven lifecycle claim."
+      "$comment": "Descriptive author context only. Structured validity intervals are deferred; clock passage causes no mutation or lifecycle change."
     }
   },
   "additionalProperties": true

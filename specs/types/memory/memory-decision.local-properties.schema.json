@@ -2,14 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.org/memory-types/schemas/memory-decision.local-properties.schema.json",
   "title": "Decision local properties requirements",
-  "$comment": "Local fragment only. Complete validation also applies the exact Memory contract through owned ConformsTo; this fragment alone is insufficient.",
+  "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
   "type": "object",
-  "required": ["choice"],
   "properties": {
-    "choice": {
-      "type": "string",
-      "pattern": "\\S"
-    },
     "alternatives": {
       "type": "array",
       "items": {

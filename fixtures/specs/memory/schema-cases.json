@@ -1,5 +1,5 @@
 {
-  "_comment": "Property-shape cases. Each Bead specialization also validates the Memory schema. No interval-ordering, endpoint, provenance, graph, History, transaction or CLI qualification. Donna moved Inception design to shared provenance. Fourteen former Memory-property cases are retired, not passed; shared provenance validation is not supplied here.",
+  "_comment": "Memory Release product property cases. Each specialization also validates common Memory. Body is primary; no duplicate required primary field. Optional observedAt format is checked. Descriptive applicability has no supplied interval contract. No semantic prose, endpoint, provenance, History, transaction or CLI qualification.",
   "cases": [
     {
       "label": "plain Memory requires no classification",
@@ -78,28 +78,26 @@
       "type": "observation",
       "properties": {
         "title": "Seal inspection",
-        "body": "Housing B leaked after the old seal was fitted.",
-        "statement": "The old seal leaked on housing B.",
+        "body": "The old seal leaked on housing B.\n\nHousing B leaked after the old seal was fitted.",
         "observedAt": "2026-10-01T10:00:00Z"
       },
       "valid": true
     },
     {
-      "label": "observation mandatory field absent",
+      "label": "observation body needs no duplicate primary field",
       "type": "observation",
       "properties": {
         "title": "Seal inspection",
         "body": "Housing B leaked after the old seal was fitted.",
         "observedAt": "2026-10-01T10:00:00Z"
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "observation still inherits title",
       "type": "observation",
       "properties": {
-        "body": "Housing B leaked after the old seal was fitted.",
-        "statement": "The old seal leaked on housing B.",
+        "body": "The old seal leaked on housing B.\n\nHousing B leaked after the old seal was fitted.",
         "observedAt": "2026-10-01T10:00:00Z"
       },
       "valid": false
@@ -109,8 +107,7 @@
       "type": "observation",
       "properties": {
         "title": "Seal inspection",
-        "body": "Housing B leaked after the old seal was fitted.",
-        "statement": "The old seal leaked on housing B.",
+        "body": "The old seal leaked on housing B.\n\nHousing B leaked after the old seal was fitted.",
         "observedAt": "2026-10-01T10:00:00Z",
         "kind": "observation"
       },
@@ -121,8 +118,7 @@
       "type": "decision",
       "properties": {
         "title": "Supplier choice",
-        "body": "Acme met the delivery window; Beta did not.",
-        "choice": "Use Acme for the next quarter",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
         "alternatives": ["Beta"],
         "applicability": {
           "description": "Western-region purchasing next quarter"
@@ -131,7 +127,7 @@
       "valid": true
     },
     {
-      "label": "decision mandatory field absent",
+      "label": "decision body needs no duplicate primary field",
       "type": "decision",
       "properties": {
         "title": "Supplier choice",
@@ -141,14 +137,13 @@
           "description": "Western-region purchasing next quarter"
         }
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "decision still inherits title",
       "type": "decision",
       "properties": {
-        "body": "Acme met the delivery window; Beta did not.",
-        "choice": "Use Acme for the next quarter",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
         "alternatives": ["Beta"],
         "applicability": {
           "description": "Western-region purchasing next quarter"
@@ -161,8 +156,7 @@
       "type": "decision",
       "properties": {
         "title": "Supplier choice",
-        "body": "Acme met the delivery window; Beta did not.",
-        "choice": "Use Acme for the next quarter",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
         "alternatives": ["Beta"],
         "applicability": {
           "description": "Western-region purchasing next quarter"
@@ -176,8 +170,7 @@
       "type": "procedure",
       "properties": {
         "title": "Seal replacement",
-        "body": "Use this for housing B; consult the job's authorized work plan.",
-        "steps": ["Isolate the pump", "Replace the seal", "Inspect for leaks"],
+        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan.",
         "applicability": {
           "description": "Housing B only"
         }
@@ -185,7 +178,7 @@
       "valid": true
     },
     {
-      "label": "procedure mandatory field absent",
+      "label": "procedure body needs no duplicate primary field",
       "type": "procedure",
       "properties": {
         "title": "Seal replacement",
@@ -194,14 +187,13 @@
           "description": "Housing B only"
         }
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "procedure still inherits title",
       "type": "procedure",
       "properties": {
-        "body": "Use this for housing B; consult the job's authorized work plan.",
-        "steps": ["Isolate the pump", "Replace the seal", "Inspect for leaks"],
+        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan.",
         "applicability": {
           "description": "Housing B only"
         }
@@ -213,8 +205,7 @@
       "type": "procedure",
       "properties": {
         "title": "Seal replacement",
-        "body": "Use this for housing B; consult the job's authorized work plan.",
-        "steps": ["Isolate the pump", "Replace the seal", "Inspect for leaks"],
+        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan.",
         "applicability": {
           "description": "Housing B only"
         },
@@ -227,26 +218,24 @@
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier"
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend."
       },
       "valid": true
     },
     {
-      "label": "policy mandatory field absent",
+      "label": "policy body needs no duplicate primary field",
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
         "body": "The policy records a rule, not authority to spend."
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "policy still inherits title",
       "type": "policy",
       "properties": {
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier"
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend."
       },
       "valid": false
     },
@@ -255,8 +244,7 @@
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
         "kind": "policy"
       },
       "valid": true
@@ -266,26 +254,24 @@
       "type": "lesson",
       "properties": {
         "title": "Identify the housing",
-        "body": "Different housings needed different seals.",
-        "takeaway": "Record the housing edition before selecting the procedure"
+        "body": "Record the housing edition before selecting the procedure\n\nDifferent housings needed different seals."
       },
       "valid": true
     },
     {
-      "label": "lesson mandatory field absent",
+      "label": "lesson body needs no duplicate primary field",
       "type": "lesson",
       "properties": {
         "title": "Identify the housing",
         "body": "Different housings needed different seals."
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "lesson still inherits title",
       "type": "lesson",
       "properties": {
-        "body": "Different housings needed different seals.",
-        "takeaway": "Record the housing edition before selecting the procedure"
+        "body": "Record the housing edition before selecting the procedure\n\nDifferent housings needed different seals."
       },
       "valid": false
     },
@@ -294,103 +280,17 @@
       "type": "lesson",
       "properties": {
         "title": "Identify the housing",
-        "body": "Different housings needed different seals.",
-        "takeaway": "Record the housing edition before selecting the procedure",
+        "body": "Record the housing edition before selecting the procedure\n\nDifferent housings needed different seals.",
         "kind": "lesson"
       },
       "valid": true
-    },
-    {
-      "label": "invalid steps []",
-      "type": "procedure",
-      "properties": {
-        "title": "Seal replacement",
-        "body": "Use this for housing B; consult the job's authorized work plan.",
-        "steps": [],
-        "applicability": {
-          "description": "Housing B only"
-        }
-      },
-      "valid": false
-    },
-    {
-      "label": "invalid steps ['  ']",
-      "type": "procedure",
-      "properties": {
-        "title": "Seal replacement",
-        "body": "Use this for housing B; consult the job's authorized work plan.",
-        "steps": ["  "],
-        "applicability": {
-          "description": "Housing B only"
-        }
-      },
-      "valid": false
-    },
-    {
-      "label": "invalid steps 'one instruction'",
-      "type": "procedure",
-      "properties": {
-        "title": "Seal replacement",
-        "body": "Use this for housing B; consult the job's authorized work plan.",
-        "steps": "one instruction",
-        "applicability": {
-          "description": "Housing B only"
-        }
-      },
-      "valid": false
-    },
-    {
-      "label": "observation blank assertion",
-      "type": "observation",
-      "properties": {
-        "title": "Seal inspection",
-        "body": "Housing B leaked after the old seal was fitted.",
-        "statement": " \t",
-        "observedAt": "2026-10-01T10:00:00Z"
-      },
-      "valid": false
-    },
-    {
-      "label": "decision blank assertion",
-      "type": "decision",
-      "properties": {
-        "title": "Supplier choice",
-        "body": "Acme met the delivery window; Beta did not.",
-        "choice": " \t",
-        "alternatives": ["Beta"],
-        "applicability": {
-          "description": "Western-region purchasing next quarter"
-        }
-      },
-      "valid": false
-    },
-    {
-      "label": "policy blank assertion",
-      "type": "policy",
-      "properties": {
-        "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": " \t"
-      },
-      "valid": false
-    },
-    {
-      "label": "lesson blank assertion",
-      "type": "lesson",
-      "properties": {
-        "title": "Identify the housing",
-        "body": "Different housings needed different seals.",
-        "takeaway": " \t"
-      },
-      "valid": false
     },
     {
       "label": "observation time may be unknown",
       "type": "observation",
       "properties": {
         "title": "Seal inspection",
-        "body": "Housing B leaked after the old seal was fitted.",
-        "statement": "The old seal leaked on housing B."
+        "body": "The old seal leaked on housing B.\n\nHousing B leaked after the old seal was fitted."
       },
       "valid": true
     },
@@ -399,8 +299,7 @@
       "type": "observation",
       "properties": {
         "title": "Seal inspection",
-        "body": "Housing B leaked after the old seal was fitted.",
-        "statement": "The old seal leaked on housing B.",
+        "body": "The old seal leaked on housing B.\n\nHousing B leaked after the old seal was fitted.",
         "observedAt": "yesterday"
       },
       "valid": false
@@ -410,8 +309,7 @@
       "type": "decision",
       "properties": {
         "title": "Supplier choice",
-        "body": "Acme met the delivery window; Beta did not.",
-        "choice": "Use Acme for the next quarter",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
         "alternatives": [],
         "applicability": {
           "description": "Western-region purchasing next quarter"
@@ -424,8 +322,7 @@
       "type": "decision",
       "properties": {
         "title": "Supplier choice",
-        "body": "Acme met the delivery window; Beta did not.",
-        "choice": "Use Acme for the next quarter",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
         "alternatives": [""],
         "applicability": {
           "description": "Western-region purchasing next quarter"
@@ -438,8 +335,7 @@
       "type": "decision",
       "properties": {
         "title": "Supplier choice",
-        "body": "Acme met the delivery window; Beta did not.",
-        "choice": "Use Acme for the next quarter",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
         "alternatives": "Beta",
         "applicability": {
           "description": "Western-region purchasing next quarter"
@@ -448,20 +344,19 @@
       "valid": false
     },
     {
-      "label": "applicability shape {'description': 'Western region', 'validFrom': '2026-10-01T00:00:00Z'}",
+      "label": "descriptive applicability is available",
       "type": "memory",
       "properties": {
         "title": "Housing B uses a different seal",
         "body": "Check the housing before ordering the seal.",
         "applicability": {
-          "description": "Western region",
-          "validFrom": "2026-10-01T00:00:00Z"
+          "description": "Western region"
         }
       },
       "valid": true
     },
     {
-      "label": "applicability shape {'description': 'Western region', 'validFrom': 'not-an-instant'}",
+      "label": "structured validity field is not in the supplied applicability contract",
       "type": "memory",
       "properties": {
         "title": "Housing B uses a different seal",
@@ -474,14 +369,12 @@
       "valid": false
     },
     {
-      "label": "applicability shape {'validFrom': '2026-10-01T00:00:00Z'}",
+      "label": "applicability requires description",
       "type": "memory",
       "properties": {
         "title": "Housing B uses a different seal",
         "body": "Check the housing before ordering the seal.",
-        "applicability": {
-          "validFrom": "2026-10-01T00:00:00Z"
-        }
+        "applicability": {}
       },
       "valid": false
     },
@@ -528,8 +421,7 @@
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
         "authority": "https://example.org/project/beads/memory"
       },
       "valid": true
@@ -539,8 +431,7 @@
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
         "authority": "urn:example:document"
       },
       "valid": true
@@ -550,8 +441,7 @@
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
         "authority": {
           "uri": "https://example.org/project/beads/memory",
           "revision": "memory-r1"
@@ -564,8 +454,7 @@
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
         "authority": {
           "uri": "https://example.org/project/beads/memory"
         }
@@ -577,8 +466,7 @@
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
         "authority": {
           "uri": "https://example.org/project/beads/memory",
           "revision": ""
@@ -591,8 +479,7 @@
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
         "authority": {
           "uri": "https://example.org/project/beads/memory",
           "revision": "memory-r1",
@@ -606,8 +493,7 @@
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
         "authority": "relative/path"
       },
       "valid": false
@@ -617,8 +503,7 @@
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
         "authority": {
           "ref": "https://example.org/project/beads/memory"
         }
@@ -643,18 +528,16 @@
       "type": "observation",
       "properties": {
         "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "region": "west",
-        "statement": "The old seal leaked on housing B."
+        "body": "The old seal leaked on housing B.\n\nCheck the housing before ordering the seal.",
+        "region": "west"
       },
       "valid": true
     },
     {
-      "label": "kind cannot replace a required Procedure property",
+      "label": "kind cannot replace required inherited body",
       "type": "procedure",
       "properties": {
         "title": "Procedure",
-        "body": "",
         "kind": "procedure"
       },
       "valid": false
@@ -666,6 +549,108 @@
         "title": "Ordinary note",
         "body": "",
         "kind": "procedure"
+      },
+      "valid": true
+    },
+    {
+      "label": "observation preserves explicit empty body",
+      "type": "observation",
+      "properties": {
+        "title": "A recorded observation",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "observation rejects non-text body",
+      "type": "observation",
+      "properties": {
+        "title": "A recorded observation",
+        "body": null
+      },
+      "valid": false
+    },
+    {
+      "label": "decision preserves explicit empty body",
+      "type": "decision",
+      "properties": {
+        "title": "A recorded decision",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "decision rejects non-text body",
+      "type": "decision",
+      "properties": {
+        "title": "A recorded decision",
+        "body": null
+      },
+      "valid": false
+    },
+    {
+      "label": "procedure preserves explicit empty body",
+      "type": "procedure",
+      "properties": {
+        "title": "A recorded procedure",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "procedure rejects non-text body",
+      "type": "procedure",
+      "properties": {
+        "title": "A recorded procedure",
+        "body": null
+      },
+      "valid": false
+    },
+    {
+      "label": "policy preserves explicit empty body",
+      "type": "policy",
+      "properties": {
+        "title": "A recorded policy",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "policy rejects non-text body",
+      "type": "policy",
+      "properties": {
+        "title": "A recorded policy",
+        "body": null
+      },
+      "valid": false
+    },
+    {
+      "label": "lesson preserves explicit empty body",
+      "type": "lesson",
+      "properties": {
+        "title": "A recorded lesson",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "lesson rejects non-text body",
+      "type": "lesson",
+      "properties": {
+        "title": "A recorded lesson",
+        "body": null
+      },
+      "valid": false
+    },
+    {
+      "label": "old choice may survive as uninterpreted extension data",
+      "type": "decision",
+      "properties": {
+        "title": "Supplier",
+        "body": "Use Acme; delivery fits.",
+        "choice": {
+          "legacy": "preserved"
+        }
       },
       "valid": true
     }

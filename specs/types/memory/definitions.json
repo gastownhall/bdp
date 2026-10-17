@@ -1,5 +1,5 @@
 {
-  "_comment": "Illustrative final-state domain literals, not a package/import API or installation transaction. Twelve definitions, five owned exact ConformsTo declarations. Foundation identities refer to the shared example; registry/Scope admission and revision allocation remain open. No runtime or wire acceptance claim.",
+  "_comment": "Nonnormative BDP Type-definition experiment only. The Memory Release product proposal does not require this representation. Property copies track current authoring schemas; graph arms also explore external endpoints OUTSIDE release scope. All namespaces and revision tokens are illustrative.",
   "definitions": [
     {
       "id": "https://example.org/memory-types/memory",
@@ -14,7 +14,7 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory.properties.schema.json",
           "title": "Memory properties",
-          "$comment": "WIP domain schema; known fields refine Memory R3. Shape is not lifecycle/Type admission. Supplied Types use affiliation, not a kind discriminator; open-root extension names are not globally reserved.",
+          "$comment": "Memory Release product property contract, not a BDP Type representation or complete mutation validator. Explicit Type supplies meaning; body is primary. Open-root names are not globally reserved.",
           "type": "object",
           "required": ["title", "body"],
           "properties": {
@@ -32,18 +32,10 @@
                 "description": {
                   "type": "string",
                   "pattern": "\\S"
-                },
-                "validFrom": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "validUntil": {
-                  "type": "string",
-                  "format": "date-time"
                 }
               },
               "additionalProperties": false,
-              "$comment": "Interval ordering is a separate domain admission check; no truth or clock-driven lifecycle claim."
+              "$comment": "Descriptive author context only. Structured validity intervals are deferred; clock passage causes no mutation or lifecycle change."
             }
           },
           "additionalProperties": true
@@ -66,19 +58,14 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "description": "Observation domain contract; see Memory specification.",
+        "description": "Exploratory BDP mapping for product Observation: body is primary; see Memory Release proposal.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-observation.local-properties.schema.json",
           "title": "Observation local properties requirements",
-          "$comment": "Local fragment only. Complete validation also applies the exact Memory contract through owned ConformsTo; this fragment alone is insufficient.",
+          "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
           "type": "object",
-          "required": ["statement"],
           "properties": {
-            "statement": {
-              "type": "string",
-              "pattern": "\\S"
-            },
             "observedAt": {
               "type": "string",
               "format": "date-time"
@@ -114,19 +101,14 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "description": "Decision domain contract; see Memory specification.",
+        "description": "Exploratory BDP mapping for product Decision: body is primary; see Memory Release proposal.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-decision.local-properties.schema.json",
           "title": "Decision local properties requirements",
-          "$comment": "Local fragment only. Complete validation also applies the exact Memory contract through owned ConformsTo; this fragment alone is insufficient.",
+          "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
           "type": "object",
-          "required": ["choice"],
           "properties": {
-            "choice": {
-              "type": "string",
-              "pattern": "\\S"
-            },
             "alternatives": {
               "type": "array",
               "items": {
@@ -165,24 +147,14 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "description": "Procedure domain contract; see Memory specification.",
+        "description": "Exploratory BDP mapping for product Procedure: body is primary; see Memory Release proposal.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-procedure.local-properties.schema.json",
           "title": "Procedure local properties requirements",
-          "$comment": "Local fragment only. Complete validation also applies the exact Memory contract through owned ConformsTo; this fragment alone is insufficient.",
+          "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
           "type": "object",
-          "required": ["steps"],
-          "properties": {
-            "steps": {
-              "type": "array",
-              "minItems": 1,
-              "items": {
-                "type": "string",
-                "pattern": "\\S"
-              }
-            }
-          },
+          "properties": {},
           "additionalProperties": true
         }
       },
@@ -213,19 +185,14 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "description": "Policy domain contract; see Memory specification.",
+        "description": "Exploratory BDP mapping for product Policy: body is primary; see Memory Release proposal.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-policy.local-properties.schema.json",
           "title": "Policy local properties requirements",
-          "$comment": "Local fragment only. Complete validation also applies the exact Memory contract through owned ConformsTo; this fragment alone is insufficient.",
+          "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
           "type": "object",
-          "required": ["rule"],
           "properties": {
-            "rule": {
-              "type": "string",
-              "pattern": "\\S"
-            },
             "authority": {
               "oneOf": [
                 {
@@ -281,20 +248,14 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "description": "Lesson domain contract; see Memory specification.",
+        "description": "Exploratory BDP mapping for product Lesson: body is primary; see Memory Release proposal.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-lesson.local-properties.schema.json",
           "title": "Lesson local properties requirements",
-          "$comment": "Local fragment only. Complete validation also applies the exact Memory contract through owned ConformsTo; this fragment alone is insufficient.",
+          "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
           "type": "object",
-          "required": ["takeaway"],
-          "properties": {
-            "takeaway": {
-              "type": "string",
-              "pattern": "\\S"
-            }
-          },
+          "properties": {},
           "additionalProperties": true
         }
       },

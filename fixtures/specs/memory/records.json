@@ -1,5 +1,5 @@
 {
-  "_comment": "Illustrative final-state excerpts, not complete wire envelopes or creation/import syntax. Common lifecycle/owned-state details omitted. revisionProvenance source members require the proposed V2 Core-envelope amendment and are not current-Core-valid. Work/inspection Issue endpoints are fixtures of the existing Issue contract. Remote Bead and external URI/URN endpoints stay opaque; neither expected role nor a pin proves existence, Type or immutability, and no remote owner revision is claimed. No new Activity or observation-envelope shape is defined.",
+  "_comment": "Memory Release product property examples in an illustrative test carrier, not a public wire format. Type tokens and exact revision strings are fixture labels. Body carries primary content. Common provenance/owned/history details are incomplete. Existing Issue endpoints are references used by the scenarios. No Project entity, automatic external graph resolution or new provenance representation is defined.",
   "records": [
     {
       "id": "https://example.org/project/beads/memory",
@@ -24,7 +24,6 @@
       "properties": {
         "title": "Seal inspection",
         "body": "Housing B leaked after the old seal was fitted.",
-        "statement": "The old seal leaked on housing B.",
         "observedAt": "2026-10-01T10:00:00Z"
       },
       "metadata": {},
@@ -56,8 +55,7 @@
       },
       "properties": {
         "title": "Supplier choice",
-        "body": "Acme met the delivery window; Beta did not.",
-        "choice": "Use Acme for the next quarter",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
         "alternatives": ["Beta"],
         "applicability": {
           "description": "Western-region purchasing next quarter"
@@ -95,8 +93,7 @@
       },
       "properties": {
         "title": "Seal replacement",
-        "body": "Use this for housing B; consult the job's authorized work plan.",
-        "steps": ["Isolate the pump", "Replace the seal", "Inspect for leaks"],
+        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan.",
         "applicability": {
           "description": "Housing B only"
         }
@@ -112,8 +109,7 @@
       },
       "properties": {
         "title": "Supplier assessment policy",
-        "body": "The policy records a rule, not authority to spend.",
-        "rule": "Record delivery capability before selecting a supplier",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
         "authority": "https://example.org/documents/purchasing-charter"
       },
       "metadata": {}
@@ -127,8 +123,7 @@
       },
       "properties": {
         "title": "Identify the housing",
-        "body": "Different housings needed different seals.",
-        "takeaway": "Record the housing edition before selecting the procedure"
+        "body": "Record the housing edition before selecting the procedure\n\nDifferent housings needed different seals."
       },
       "metadata": {}
     },
@@ -141,8 +136,7 @@
       },
       "properties": {
         "title": "Delivery assessment",
-        "body": "Acme met the requested delivery window; Beta did not.",
-        "statement": "Acme can deliver in the requested window."
+        "body": "Acme met the requested delivery window; Beta did not."
       },
       "metadata": {},
       "revisionProvenance": {
@@ -167,8 +161,7 @@
       },
       "properties": {
         "title": "Different housing needs different seal",
-        "body": "A later inspection found the recorded procedure unsuitable for housing C.",
-        "statement": "The housing B seal leaked when used on housing C."
+        "body": "A later inspection found that the housing B seal leaked when used on housing C. The procedure is unsuitable for that housing."
       },
       "metadata": {},
       "revisionProvenance": {
@@ -199,8 +192,7 @@
       },
       "properties": {
         "title": "Revised supplier choice",
-        "body": "Acme capacity no longer meets the new order window. This choice applies to new orders only.",
-        "choice": "Use Delta for new orders",
+        "body": "Use Delta for new orders\n\nAcme capacity no longer meets the new order window. This choice applies to new orders only.",
         "alternatives": ["Acme", "Beta"],
         "applicability": {
           "description": "New western-region orders after the capacity review"
@@ -271,30 +263,6 @@
       "metadata": {}
     },
     {
-      "id": "https://example.org/project/links/procedure-applies-to-external-asset",
-      "revision": "link-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/memory-applies-to",
-        "revision": "applies-to-contract-1"
-      },
-      "source": "https://example.org/project/beads/procedure",
-      "target": "urn:example:assets:pump-7",
-      "properties": {},
-      "metadata": {}
-    },
-    {
-      "id": "https://example.org/project/links/procedure-applies-to-remote-asset",
-      "revision": "link-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/memory-applies-to",
-        "revision": "applies-to-contract-1"
-      },
-      "source": "https://example.org/project/beads/procedure",
-      "target": "https://assets.example/site/beads/pump-7",
-      "properties": {},
-      "metadata": {}
-    },
-    {
       "id": "https://example.org/project/links/association-work",
       "revision": "link-r1",
       "type": {
@@ -322,33 +290,17 @@
       "metadata": {}
     },
     {
-      "id": "https://example.org/project/links/supports-remote-decision",
+      "id": "https://example.org/project/links/procedure-applies-to-work",
       "revision": "link-r1",
       "type": {
-        "uri": "https://example.org/memory-types/memory-supports",
-        "revision": "supports-contract-1"
+        "uri": "https://example.org/memory-types/memory-applies-to",
+        "revision": "applies-to-contract-1"
       },
-      "source": "https://example.org/project/beads/supplier-assessment",
-      "target": {
-        "uri": "https://partner.example/project/beads/decision",
-        "revision": "remote-decision-r7"
+      "source": "https://example.org/project/beads/procedure",
+      "target": "https://example.org/project/beads/work-issue",
+      "properties": {
+        "note": "This procedure applies to the housing B work."
       },
-      "properties": {},
-      "metadata": {}
-    },
-    {
-      "id": "https://example.org/project/links/remote-observation-supports-decision",
-      "revision": "link-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/memory-supports",
-        "revision": "supports-contract-1"
-      },
-      "source": "https://partner.example/project/beads/observation",
-      "target": {
-        "uri": "https://example.org/project/beads/decision",
-        "revision": "decision-r1"
-      },
-      "properties": {},
       "metadata": {}
     }
   ]

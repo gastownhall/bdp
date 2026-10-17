@@ -1,0 +1,59 @@
+{
+  "_comment": "Nonnormative external-endpoint BDP experiment retained from the earlier draft. These Links are NOT the local Memory Release endpoint contract and are not default product-check inputs. They do not prove existence, membership, source ownership or immutability.",
+  "links": [
+    {
+      "id": "https://example.org/project/links/procedure-applies-to-external-asset",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-applies-to",
+        "revision": "applies-to-contract-1"
+      },
+      "source": "https://example.org/project/beads/procedure",
+      "target": "urn:example:assets:pump-7",
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/procedure-applies-to-remote-asset",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-applies-to",
+        "revision": "applies-to-contract-1"
+      },
+      "source": "https://example.org/project/beads/procedure",
+      "target": "https://assets.example/site/beads/pump-7",
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/supports-remote-decision",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-supports",
+        "revision": "supports-contract-1"
+      },
+      "source": "https://example.org/project/beads/supplier-assessment",
+      "target": {
+        "uri": "https://partner.example/project/beads/decision",
+        "revision": "remote-decision-r7"
+      },
+      "properties": {},
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/remote-observation-supports-decision",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-supports",
+        "revision": "supports-contract-1"
+      },
+      "source": "https://partner.example/project/beads/observation",
+      "target": {
+        "uri": "https://example.org/project/beads/decision",
+        "revision": "decision-r1"
+      },
+      "properties": {},
+      "metadata": {}
+    }
+  ]
+}
