@@ -504,6 +504,7 @@ export function createTransactionHttpHandler(
       const media = selectChangefeedMedia(request.headers.get("accept"));
       const initialFiniteMinimumSource =
         (eventRequest.source.kind === "bead" ||
+          eventRequest.source.kind === "link" ||
           (eventRequest.source.kind === "scope" &&
             eventRequest.source.url === new URL("events/", scope).href)) &&
         eventRequest.after === undefined &&
