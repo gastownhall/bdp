@@ -1,5 +1,6 @@
 import { replica as createReplica } from "../test-support/transaction-replica.js";
 import { constants } from "node:buffer";
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -16,7 +17,12 @@ import type { ResourceRecord } from "./resource-evaluator.js";
 import { openTransactionStore, type TransactionReadContext } from "./transaction-store.js";
 import { prepareTransactionSetCore, prepareTransactionSingleton } from "./transaction-batch.js";
 import { createTransactionService } from "./transaction-service.js";
-import { TransactionMinimumFailure } from "./transaction-consistency.js";
+import {
+  TransactionMinimumFailure,
+  TransactionMinimumUnproved,
+  TransactionMinimumUnsupported,
+} from "./transaction-consistency.js";
+import { ScopeServerOperationAbortedError } from "./read-request.js";
 import {
   TRANSACTION_CHANGEFEED_BYTES,
   transactionCheckpoint,
@@ -1020,4 +1026,871 @@ it("preserves current context on owner-observed changefeed parameter refusals ov
   if (failures.length === 1) throw failures[0];
   if (failures.length > 1)
     throw new AggregateError(failures, "changefeed context observation and cleanup failed");
+}, 60000);
+
+it.each(["unknown", "pos-01"])(
+  "waits for fresh finite changefeed opaque minimum without recapturing admission: %s",
+  async (opaque) => {
+    const f = fixture();
+    const owner = f.owner;
+    const failures: unknown[] = [];
+    const controller = new AbortController();
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    let tick = 0,
+      waits = 0,
+      clocks = 0,
+      closes = 0,
+      commits = 0,
+      outcomeChecked = false;
+    const anchors: string[] = [];
+    const reads: {
+      after: string;
+      minimum: unknown;
+      minimumFrozen: boolean | null;
+      admission: string | null;
+      outcome: string;
+      context: TransactionReadContext | null;
+    }[] = [];
+    const delegatedOwner = {
+      ...owner,
+      captureChangesStart() {
+        const after = owner.captureChangesStart();
+        anchors.push(after);
+        return after;
+      },
+      readChanges(...args: Parameters<typeof owner.readChanges>) {
+        const record = {
+          after: args[0],
+          minimum:
+            args[1] !== undefined && args[1] !== "unsupported" ? { ...args[1] } : (args[1] ?? null),
+          minimumFrozen:
+            args[1] !== undefined && args[1] !== "unsupported" ? Object.isFrozen(args[1]) : null,
+          admission: args[2] ?? null,
+          outcome: "pending",
+          context: null as TransactionReadContext | null,
+        };
+        reads.push(record);
+        try {
+          const result = owner.readChanges(...args);
+          record.outcome = result.kind;
+          if (result.kind === "page") record.context = result.context;
+          return result;
+        } catch (error) {
+          record.outcome = error instanceof Error ? error.name : "non-Error";
+          if (error instanceof TransactionMinimumUnproved) {
+            record.outcome = "unproved";
+            record.context = error.context;
+          }
+          throw error;
+        }
+      },
+      close() {
+        closes++;
+        return owner.close();
+      },
+    };
+    let instance: ReturnType<typeof service> | undefined;
+    let observed:
+      | Promise<
+          | { ok: true; value: Awaited<ReturnType<ReturnType<typeof service>["changes"]>> }
+          | { ok: false; error: unknown }
+        >
+      | undefined;
+    let positiveAfter: string | null = null;
+    try {
+      expect(f.run([create("a")]).status).toBe("completed");
+      commits++;
+      const config = owner.readConfiguration();
+      const minimum = {
+        scopeEpoch: config.scopeEpoch,
+        authorizationView: config.authorizationView,
+        minimumPosition: opaque,
+      };
+      const expectedMinimum = { ...minimum };
+      const anchor = delegatedOwner.captureChangesStart();
+      expect(() => delegatedOwner.readChanges(anchor, minimum, "finite-start-now")).toThrow(
+        TransactionMinimumUnproved,
+      );
+      const firstContext = reads[0]?.context;
+      expect(firstContext).toStrictEqual({
+        scopeEpoch: config.scopeEpoch,
+        authorizationView: config.authorizationView,
+        scopePosition: "pos-1",
+      });
+      expect(Object.isFrozen(firstContext)).toBe(true);
+      instance = service(
+        { ...f, owner: delegatedOwner },
+        {
+          budgetMs: 2,
+          now: () => {
+            clocks++;
+            return tick;
+          },
+          wait: async (ms) => {
+            waits++;
+            expect(ms).toBe(2);
+            entered.resolve();
+            await release.promise;
+          },
+        },
+      );
+      const intent: { start: "now"; after?: string } = { start: "now" };
+      const operation = instance.changes(intent, minimum, controller.signal, "finite-start-now");
+      observed = operation.then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error }),
+      );
+      expect(
+        await Promise.race([
+          entered.promise.then(() => "entered"),
+          observed.then(() => "settled-before-wait"),
+        ]),
+      ).toBe("entered");
+      intent.after = "genesis";
+      minimum.scopeEpoch = "foreign";
+      minimum.authorizationView = "other";
+      minimum.minimumPosition = "genesis";
+      expect(f.run([create("b")]).status).toBe("completed");
+      commits++;
+      tick = 2;
+      release.resolve();
+      const outcome = await observed;
+      if (outcome.ok) throw new Error("opaque minimum unexpectedly became eligible");
+      expect(outcome.error).toBeInstanceOf(TransactionMinimumFailure);
+      if (!(outcome.error instanceof TransactionMinimumFailure)) throw outcome.error;
+      expect(outcome.error.reason).toBe("catch-up-timeout");
+      expect(outcome.error.context).toStrictEqual({ ...firstContext, scopePosition: "pos-2" });
+      outcomeChecked = true;
+      expect(anchors).toEqual([anchor, anchor]);
+      expect(reads.slice(1).map((read) => read.after)).toEqual([anchor, anchor]);
+      expect(reads.slice(1).map((read) => read.minimum)).toEqual([
+        expectedMinimum,
+        expectedMinimum,
+      ]);
+      expect(reads[1]?.minimumFrozen).toBe(true);
+      expect(reads[2]?.minimumFrozen).toBe(true);
+      expect(reads[1]?.context?.scopePosition).toBe("pos-1");
+      expect(reads[2]?.context?.scopePosition).toBe("pos-2");
+      expect(firstContext?.scopePosition).toBe("pos-1");
+      const positive = await instance.changes(
+        { after: anchor },
+        { ...expectedMinimum, minimumPosition: "pos-2" },
+      );
+      if (positive.kind !== "page") throw new Error("missing known eligible page");
+      expect(validPage(positive.page), JSON.stringify(validPage.errors)).toBe(true);
+      positiveAfter = positive.page.after;
+      expect(positive.page.after).toBe(anchor);
+      expect(positive.page.groups).toHaveLength(1);
+      expect(positive.page.groups[0]?.changes[0]?.resource.id).toBe(`${scope}beads/b`);
+      expect(positive.context.scopePosition).toBe("pos-2");
+      expect(reads).toHaveLength(4);
+      expect(waits).toBe(1);
+      expect(clocks).toBe(4);
+      expect(commits).toBe(2);
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      controller.abort();
+      release.resolve();
+      if (observed) {
+        const outcome = await observed;
+        if (!outcomeChecked && !outcome.ok && !failures.includes(outcome.error))
+          failures.push(outcome.error);
+      }
+      try {
+        if (instance) {
+          await instance.close();
+          expect(closes).toBe(1);
+        }
+      } catch (error) {
+        failures.push(error);
+      }
+      console.log(
+        JSON.stringify({
+          observation: "changefeed-opaque-capture",
+          row: opaque,
+          outcome: failures.length ? "failed" : "passed",
+          commits,
+          captures: anchors.length,
+          anchors,
+          reads,
+          waits,
+          clocks,
+          closes,
+          positiveAfter,
+          failureCount: failures.length,
+        }),
+      );
+    }
+    if (failures.length) throw new AggregateError(failures, "opaque changefeed capture failed");
+  },
+);
+
+it("aborts fresh finite changefeed opaque waiting before close drains", async () => {
+  const f = fixture();
+  const owner = f.owner;
+  const controller = new AbortController();
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const failures: unknown[] = [];
+  let captures = 0,
+    reads = 0,
+    waits = 0,
+    clocks = 0,
+    closes = 0,
+    postCloseProbes = 0,
+    closed = false,
+    outcomeChecked = false;
+  const order: string[] = [];
+  const delegatedOwner = {
+    ...owner,
+    captureChangesStart() {
+      captures++;
+      return owner.captureChangesStart();
+    },
+    readChanges(...args: Parameters<typeof owner.readChanges>) {
+      reads++;
+      return owner.readChanges(...args);
+    },
+    close() {
+      closes++;
+      order.push("owner-close");
+      return owner.close();
+    },
+  };
+  let instance: ReturnType<typeof service> | undefined;
+  let observed: Promise<{ ok: true } | { ok: false; error: unknown }> | undefined;
+  let closing: Promise<{ ok: true } | { ok: false; error: unknown }> | undefined;
+  try {
+    expect(f.run([create("a")]).status).toBe("completed");
+    const config = owner.readConfiguration();
+    const minimum = {
+      scopeEpoch: config.scopeEpoch,
+      authorizationView: config.authorizationView,
+      minimumPosition: "unknown",
+    };
+    instance = service(
+      { ...f, owner: delegatedOwner },
+      {
+        budgetMs: 2,
+        now: () => {
+          clocks++;
+          return 0;
+        },
+        wait: async () => {
+          waits++;
+          order.push("wait-entered");
+          entered.resolve();
+          await release.promise;
+          order.push("wait-released");
+        },
+      },
+    );
+    observed = instance
+      .changes({ start: "now" }, minimum, controller.signal, "finite-start-now")
+      .then(
+        () => ({ ok: true as const }),
+        (error: unknown) => ({ ok: false as const, error }),
+      );
+    expect(
+      await Promise.race([
+        entered.promise.then(() => "entered"),
+        observed.then(() => "settled-before-wait"),
+      ]),
+    ).toBe("entered");
+    closing = instance.close().then(
+      () => {
+        closed = true;
+        order.push("close-resolved");
+        return { ok: true as const };
+      },
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    // This synchronous flag alone is not proof that close deferred.
+    expect(closed).toBe(false);
+    controller.abort();
+    order.push("abort");
+    release.resolve();
+    const outcome = await observed;
+    if (outcome.ok) throw new Error("aborted opaque operation unexpectedly succeeded");
+    expect(outcome.error).toBeInstanceOf(ScopeServerOperationAbortedError);
+    outcomeChecked = true;
+    const closeOutcome = await closing;
+    if (!closeOutcome.ok) throw closeOutcome.error;
+    expect(closed).toBe(true);
+    expect(order).toEqual([
+      "wait-entered",
+      "abort",
+      "wait-released",
+      "owner-close",
+      "close-resolved",
+    ]);
+    expect(() =>
+      instance?.changes({ start: "now" }, minimum, undefined, "finite-start-now"),
+    ).toThrow("closed");
+    postCloseProbes++;
+    expect(() => owner.readChanges("genesis")).toThrow("closed");
+    expect({ captures, reads, waits, clocks, closes, postCloseProbes }).toEqual({
+      captures: 1,
+      reads: 1,
+      waits: 1,
+      clocks: 2,
+      closes: 1,
+      postCloseProbes: 1,
+    });
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    controller.abort();
+    release.resolve();
+    if (observed) {
+      const outcome = await observed;
+      if (!outcomeChecked && !outcome.ok && !failures.includes(outcome.error))
+        failures.push(outcome.error);
+    }
+    if (closing) {
+      const outcome = await closing;
+      if (!outcome.ok && !failures.includes(outcome.error)) failures.push(outcome.error);
+    } else {
+      try {
+        if (instance) await instance.close();
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    console.log(
+      JSON.stringify({
+        observation: "changefeed-opaque-abort",
+        outcome: failures.length ? "failed" : "passed",
+        captures,
+        reads,
+        waits,
+        clocks,
+        closes,
+        postCloseProbes,
+        order,
+        failureCount: failures.length,
+      }),
+    );
+  }
+  if (failures.length) throw new AggregateError(failures, "opaque changefeed abort failed");
+});
+
+it.each(["already-aborted", "invalid-policy", "throwing-clock", "nonfinite-clock"] as const)(
+  "preserves fresh finite changefeed admission before wait preflight: %s",
+  async (label) => {
+    const f = fixture();
+    const owner = f.owner;
+    const controller = new AbortController();
+    const failures: unknown[] = [];
+    const clockError = new Error("controlled changefeed clock failure");
+    let captures = 0,
+      reads = 0,
+      waits = 0,
+      clocks = 0;
+    const delegatedOwner = {
+      ...owner,
+      captureChangesStart() {
+        captures++;
+        return owner.captureChangesStart();
+      },
+      readChanges(...args: Parameters<typeof owner.readChanges>) {
+        reads++;
+        return owner.readChanges(...args);
+      },
+    };
+    expect(f.run([create("a")]).status).toBe("completed");
+    const config = owner.readConfiguration();
+    const instance = service(
+      { ...f, owner: delegatedOwner },
+      {
+        budgetMs: label === "invalid-policy" ? 0 : 2,
+        now: () => {
+          clocks++;
+          if (label === "throwing-clock") throw clockError;
+          return label === "nonfinite-clock" ? Number.NaN : 0;
+        },
+        wait: async () => {
+          waits++;
+          throw new Error("unexpected preflight wait");
+        },
+      },
+    );
+    if (label === "already-aborted") controller.abort();
+    let errorName: string | null = null;
+    try {
+      const outcome = await instance
+        .changes(
+          { start: "now" },
+          {
+            scopeEpoch: config.scopeEpoch,
+            authorizationView: config.authorizationView,
+            minimumPosition: "unknown",
+          },
+          controller.signal,
+          "finite-start-now",
+        )
+        .then(
+          () => ({ ok: true as const }),
+          (error: unknown) => ({ ok: false as const, error }),
+        );
+      if (outcome.ok) throw new Error("preflight unexpectedly succeeded");
+      errorName = outcome.error instanceof Error ? outcome.error.name : "non-Error";
+      if (label === "already-aborted")
+        expect(outcome.error).toBeInstanceOf(ScopeServerOperationAbortedError);
+      else if (label === "throwing-clock") expect(outcome.error).toBe(clockError);
+      else {
+        expect(outcome.error).toBeInstanceOf(TypeError);
+        expect((outcome.error as TypeError).message).toBe(
+          label === "invalid-policy"
+            ? "finite minimum-read wait policy required"
+            : "invalid minimum-read clock",
+        );
+      }
+      expect({ captures, reads, waits, clocks }).toEqual({
+        captures: 1,
+        reads: 0,
+        waits: 0,
+        clocks: label === "invalid-policy" ? 0 : 1,
+      });
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      controller.abort();
+      try {
+        await instance.close();
+      } catch (error) {
+        failures.push(error);
+      }
+      console.log(
+        JSON.stringify({
+          observation: "changefeed-opaque-preflight",
+          row: label,
+          outcome: failures.length ? "failed" : "passed",
+          captures,
+          reads,
+          waits,
+          clocks,
+          errorName,
+          failureCount: failures.length,
+        }),
+      );
+    }
+    if (failures.length) throw new AggregateError(failures, "changefeed preflight failed");
+  },
+);
+
+it("keeps direct and excluded changefeed minimum paths strict", async () => {
+  const f = fixture();
+  const owner = f.owner;
+  const failures: unknown[] = [];
+  let captures = 0,
+    reads = 0,
+    waits = 0,
+    clocks = 0;
+  const outcomes: string[] = [];
+  const delegatedOwner = {
+    ...owner,
+    captureChangesStart() {
+      captures++;
+      return owner.captureChangesStart();
+    },
+    readChanges(...args: Parameters<typeof owner.readChanges>) {
+      reads++;
+      return owner.readChanges(...args);
+    },
+  };
+  expect(f.run([create("a")]).status).toBe("completed");
+  const config = owner.readConfiguration();
+  const minimum = {
+    scopeEpoch: config.scopeEpoch,
+    authorizationView: config.authorizationView,
+    minimumPosition: "unknown",
+  };
+  const malformed = { ...minimum, minimumPosition: "contains a space" };
+  const instance = service(
+    { ...f, owner: delegatedOwner },
+    {
+      budgetMs: 2,
+      now: () => {
+        clocks++;
+        return 0;
+      },
+      wait: async () => {
+        waits++;
+        throw new Error("unexpected strict-boundary wait");
+      },
+    },
+  );
+  try {
+    expect(() => delegatedOwner.readChanges("genesis", minimum)).toThrow(TypeError);
+    outcomes.push("default-owner-TypeError");
+    expect(() => instance.changes({ start: "now" }, minimum)).toThrow(TypeError);
+    outcomes.push("default-service-TypeError");
+    expect(() =>
+      instance.changes({ after: "genesis" }, minimum, undefined, "finite-start-now"),
+    ).toThrow(TypeError);
+    outcomes.push("after-TypeError");
+    expect(() =>
+      instance.changes({ start: "now" }, malformed, undefined, "finite-start-now"),
+    ).toThrow(TypeError);
+    outcomes.push("malformed-TypeError");
+    expect({ captures, reads, waits, clocks }).toEqual({
+      captures: 0,
+      reads: 1,
+      waits: 0,
+      clocks: 0,
+    });
+    expect(
+      await instance.changes({ start: "now" }, "unsupported", undefined, "finite-start-now"),
+    ).toEqual({ kind: "unsupported" });
+    outcomes.push("unsupported-sentinel");
+    await expect(
+      instance.changes(
+        { start: "now" },
+        { ...minimum, scopeEpoch: "foreign" },
+        undefined,
+        "finite-start-now",
+      ),
+    ).rejects.toBeInstanceOf(TransactionMinimumUnsupported);
+    outcomes.push("foreign-unsupported");
+    await instance.close();
+    expect(() =>
+      instance.changes({ start: "now" }, minimum, undefined, "finite-start-now"),
+    ).toThrow("closed");
+    outcomes.push("valid-closed");
+    expect(() =>
+      instance.changes({ start: "now" }, malformed, undefined, "finite-start-now"),
+    ).toThrow("unsupported minimum tuple");
+    outcomes.push("malformed-before-closed");
+    expect(() => delegatedOwner.readChanges("genesis")).toThrow("closed");
+    outcomes.push("owner-closed");
+    expect({ captures, reads, waits, clocks }).toEqual({
+      captures: 2,
+      reads: 4,
+      waits: 0,
+      clocks: 2,
+    });
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    try {
+      await instance.close();
+    } catch (error) {
+      failures.push(error);
+    }
+    console.log(
+      JSON.stringify({
+        observation: "changefeed-opaque-boundaries",
+        outcome: failures.length ? "failed" : "passed",
+        captures,
+        reads,
+        waits,
+        clocks,
+        outcomes,
+        failureCount: failures.length,
+      }),
+    );
+  }
+  if (failures.length) throw new AggregateError(failures, "changefeed boundaries failed");
+});
+
+it("serves finite start-now opaque minima before HTTP shortcuts", async () => {
+  const controller = new AbortController();
+  const failures: unknown[] = [];
+  let deadlineExceeded = false,
+    cleanupDeadlineExceeded = false,
+    closed = false,
+    attempted = 0,
+    tick = 0;
+  const timer = setTimeout(() => {
+    deadlineExceeded = true;
+    const error = new Error("opaque changefeed HTTP work deadline");
+    failures.push(error);
+    controller.abort(error);
+  }, 45000);
+  let directory: string | undefined;
+  let runtime: Awaited<ReturnType<typeof startTransactionRuntime>> | undefined;
+  const names = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
+  const safeHeaders = [
+    ...names,
+    "content-type",
+    "content-length",
+    "cache-control",
+    "retry-after",
+    "etag",
+    "x-bdp-development-limit",
+  ];
+  const records: {
+    ordinal: number;
+    method: string;
+    url: string;
+    status: number;
+    bodyOctets: number;
+    bodySha256: string;
+    headers: Record<string, string | null>;
+  }[] = [];
+  const token = "d".repeat(32);
+  try {
+    directory = mkdtempSync(path.join(tmpdir(), "bdp-feed-opaque-http-"));
+    runtime = await startTransactionRuntime(
+      {
+        scope,
+        directory,
+        create: true,
+        port: 0,
+        types,
+        credentials: [{ token, principal: "p", canMutate: true }],
+      },
+      {
+        minimumReads: {
+          budgetMs: 2,
+          now: () => tick,
+          wait: async (ms) => {
+            tick += ms;
+          },
+        },
+      },
+    );
+    const listenUrl = runtime.listenUrl;
+    async function exchange(
+      target: string,
+      method: "GET" | "HEAD" | "POST" = "GET",
+      extra: Record<string, string> = {},
+      body?: string,
+    ) {
+      controller.signal.throwIfAborted();
+      if (attempted >= 10) throw new Error("opaque changefeed dispatch bound");
+      const url = new URL(target, scope);
+      expect(url.origin).toBe(new URL(scope).origin);
+      expect(Buffer.byteLength(url.href)).toBeLessThanOrEqual(8192);
+      const headers = new Headers({
+        authorization: `Bearer ${token}`,
+        accept: "application/json",
+        ...extra,
+      });
+      expect(
+        [...headers].reduce((n, [k, v]) => n + Buffer.byteLength(k + v) + 4, 0),
+      ).toBeLessThanOrEqual(16384);
+      expect(Buffer.byteLength(body ?? "")).toBeLessThanOrEqual(65536);
+      const requestController = new AbortController();
+      const requestTimer = setTimeout(
+        () => requestController.abort(new Error("opaque changefeed exchange deadline")),
+        5000,
+      );
+      attempted++;
+      try {
+        const response = await fetch(new URL(url.pathname + url.search, listenUrl), {
+          method,
+          headers,
+          redirect: "error",
+          signal: AbortSignal.any([controller.signal, requestController.signal]),
+          ...(body === undefined ? {} : { body }),
+        });
+        const chunks: Uint8Array[] = [];
+        let bytes = 0;
+        const reader = response.body?.getReader();
+        if (reader) {
+          try {
+            for (;;) {
+              const chunk = await reader.read();
+              if (chunk.done) break;
+              bytes += chunk.value.byteLength;
+              if (bytes > 32768) throw new Error("opaque changefeed response body bound");
+              chunks.push(chunk.value);
+            }
+          } catch (error) {
+            requestController.abort(error);
+            try {
+              await reader.cancel(error);
+            } catch (cleanupError) {
+              throw new AggregateError([error, cleanupError], "opaque changefeed reader cleanup");
+            }
+            throw error;
+          } finally {
+            reader.releaseLock();
+          }
+        }
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
+        records.push({
+          ordinal: attempted,
+          method,
+          url: url.href,
+          status: response.status,
+          bodyOctets: bytes,
+          bodySha256: createHash("sha256").update(text).digest("hex"),
+          headers: Object.fromEntries(
+            safeHeaders.map((name) => [name, response.headers.get(name)]),
+          ),
+        });
+        return { status: response.status, headers: response.headers, text, bytes };
+      } finally {
+        clearTimeout(requestTimer);
+      }
+    }
+    const seed = await exchange(
+      "operations/batch",
+      "POST",
+      { "content-type": "application/json", "idempotency-key": "opaque-feed-a" },
+      JSON.stringify({ operations: [create("a")] }),
+    );
+    expect(seed.status).toBe(200);
+    const receipt = JSON.parse(seed.text);
+    const receiptValidator = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceipt` });
+    expect(receiptValidator(receipt), JSON.stringify(receiptValidator.errors)).toBe(true);
+    expect(receipt).toMatchObject({
+      status: "completed",
+      requiredPosition: "pos-1",
+      effectPosition: "pos-1",
+    });
+    const current = [receipt.scopeEpoch, receipt.authorizationView, receipt.requiredPosition];
+    expect(current.every((value) => typeof value === "string" && value.length > 0)).toBe(true);
+    const minimum = {
+      "bdp-scope-epoch": receipt.scopeEpoch as string,
+      "bdp-authorization-view": receipt.authorizationView as string,
+      "bdp-minimum-scope-position": receipt.requiredPosition as string,
+    };
+    const target = "changes/?start=now";
+    const eligibleHeaders = { ...minimum, "last-event-id": "malformed reconnect ignored" };
+    const get = await exchange(target, "GET", eligibleHeaders);
+    expect(get.status).toBe(200);
+    const page = JSON.parse(get.text) as TransactionChangefeedPage;
+    expect(validPage(page), JSON.stringify(validPage.errors)).toBe(true);
+    expect(page).toMatchObject({
+      scope,
+      scopeEpoch: receipt.scopeEpoch,
+      authorizationView: receipt.authorizationView,
+      observedHeadPosition: "pos-1",
+      groups: [],
+      next: null,
+    });
+    expect(page.after).not.toBe("genesis");
+    expect(
+      checkpointPosition(
+        scope,
+        {
+          scopeEpoch: page.scopeEpoch,
+          authorizationView: page.authorizationView,
+          scopePosition: "pos-1",
+        },
+        page.after,
+      ),
+    ).toBe(1);
+    expect(names.map((name) => get.headers.get(name))).toEqual(current);
+    const head = await exchange(target, "HEAD", eligibleHeaders);
+    expect(head.status).toBe(200);
+    expect(head.bytes).toBe(0);
+    expect(head.text).toBe("");
+    expect(head.headers.get("content-length")).toBe(get.headers.get("content-length"));
+    expect(get.headers.get("content-length")).toBe(String(get.bytes));
+    expect(names.map((name) => head.headers.get(name))).toEqual(current);
+    for (const position of ["unknown", "pos-01"]) {
+      const headers = {
+        ...minimum,
+        "bdp-minimum-scope-position": position,
+        "last-event-id": "malformed reconnect ignored",
+        ...(position === "unknown"
+          ? { "if-none-match": "*" }
+          : { accept: "text/plain", "if-match": '"missing"' }),
+      };
+      const refusal = await exchange(target, "GET", headers);
+      expect(refusal.status).toBe(503);
+      const problem = JSON.parse(refusal.text);
+      expect(validProblem(problem), JSON.stringify(validProblem.errors)).toBe(true);
+      expect(problem).toMatchObject({
+        code: "catch-up-timeout",
+        status: 503,
+        retry: "after-delay",
+      });
+      const refusalHead = await exchange(target, "HEAD", headers);
+      expect(refusalHead.status).toBe(503);
+      expect(refusalHead.text).toBe("");
+      expect(refusalHead.bytes).toBe(0);
+      for (const response of [refusal, refusalHead]) {
+        expect(names.map((name) => response.headers.get(name))).toEqual(current);
+        expect(response.headers.get("content-type")).toBe("application/problem+json");
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        expect(response.headers.get("retry-after")).toBe("1");
+        expect(response.headers.get("etag")).toBeNull();
+        expect(response.headers.get("x-bdp-development-limit")).toBeNull();
+      }
+      expect(refusal.headers.get("content-length")).toBe(String(refusal.bytes));
+      expect(refusalHead.headers.get("content-length")).toBe(refusal.headers.get("content-length"));
+    }
+    const unknown = { ...minimum, "bdp-minimum-scope-position": "unknown" };
+    const after = await exchange("changes/?after=genesis", "GET", unknown);
+    expect(after.status).toBe(500);
+    expect(after.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+    const sse = await exchange(target, "GET", {
+      ...unknown,
+      accept: "text/event-stream",
+      "last-event-id": "genesis",
+    });
+    expect(sse.status).toBe(500);
+    expect(sse.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+    expect(sse.headers.get("content-type")).not.toBe("text/event-stream");
+    const malformed = await exchange(target, "GET", {
+      "bdp-minimum-scope-position": "unknown",
+      accept: "text/plain",
+      "if-none-match": "*",
+    });
+    expect(malformed.status).toBe(400);
+    expect(JSON.parse(malformed.text)).toMatchObject({ code: "malformed-request", status: 400 });
+    expect(names.map((name) => malformed.headers.get(name))).toEqual([null, null, null]);
+    expect(malformed.headers.get("x-bdp-development-limit")).toBeNull();
+    expect(attempted).toBe(10);
+    expect(records.map((record) => record.status)).toEqual([
+      200, 200, 200, 503, 503, 503, 503, 500, 500, 400,
+    ]);
+    controller.signal.throwIfAborted();
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    clearTimeout(timer);
+    controller.abort();
+    let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
+    const cleaning = (async () => {
+      if (runtime) {
+        await runtime.close();
+        closed = true;
+      }
+    })();
+    void cleaning.catch((error: unknown) => {
+      if (!failures.includes(error)) failures.push(error);
+    });
+    try {
+      await Promise.race([
+        cleaning,
+        new Promise<never>((_, reject) => {
+          cleanupTimer = setTimeout(() => {
+            cleanupDeadlineExceeded = true;
+            reject(new Error("opaque changefeed HTTP cleanup deadline"));
+          }, 10000);
+        }),
+      ]);
+      if (closed && !cleanupDeadlineExceeded && directory)
+        rmSync(directory, { recursive: true, force: false });
+    } catch (error) {
+      if (!failures.includes(error)) failures.push(error);
+    } finally {
+      if (cleanupTimer !== undefined) clearTimeout(cleanupTimer);
+    }
+    console.log(
+      JSON.stringify({
+        observation: "changefeed-opaque-http",
+        outcome: failures.length ? "failed" : "passed",
+        attempted,
+        exchanges: records.length,
+        records,
+        deadlineExceeded,
+        cleanupDeadlineExceeded,
+        closed,
+        directory: directory ?? null,
+        directoryAbsent: directory !== undefined && !existsSync(directory),
+        failureCount: failures.length,
+      }),
+    );
+  }
+  if (failures.length) throw new AggregateError(failures, "opaque changefeed HTTP failed");
 }, 60000);

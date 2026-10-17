@@ -1831,6 +1831,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     readChanges(
       after: string,
       supplied?: TransactionMinimum | "unsupported",
+      admission?: "finite-start-now",
     ):
       | {
           readonly kind: "page";
@@ -1839,10 +1840,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         }
       | { readonly kind: "unsupported" } {
       if (typeof after !== "string") throw new TypeError("changefeed checkpoint must be a string");
+      // A captured admission checkpoint is textually indistinguishable from an
+      // after cursor. Only the private caller carries its fresh finite intent.
+      const finiteStartNow = admission === "finite-start-now";
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
-          : snapshotTransactionMinimum(supplied);
+          : finiteStartNow
+            ? snapshotCurrentReadMinimum(supplied)
+            : snapshotTransactionMinimum(supplied);
       return enter(() => {
         if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
         const context = readContext(),
@@ -1853,7 +1859,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         // committed. Its absent row is corruption, not a never-issued cursor.
         if (start > 0 && !db.prepare("SELECT position FROM groups WHERE position=?").get(start))
           throw new Error("missing retained change group");
-        if (minimum !== undefined) checkTransactionMinimum(minimum, context);
+        if (minimum !== undefined) {
+          if (finiteStartNow) checkCurrentReadMinimum(minimum, context, true);
+          else checkTransactionMinimum(minimum, context);
+        }
         const row = retainedGroupReader()(start + 1, head);
         if ((!row && start < head) || (row && row.position !== start + 1))
           throw new Error("missing retained change group");
