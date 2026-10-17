@@ -152,14 +152,41 @@ it("captures lexical current minimums without widening strict consumers or invok
     expect(() => checkCurrentReadMinimum(supplied, context, true)).toThrow(
       TransactionMinimumUnproved,
     );
-    for (const foreign of [{ scopeEpoch: "other" }, { authorizationView: "other" }])
-      expect(() => checkCurrentReadMinimum({ ...supplied, ...foreign }, context, true)).toThrow(
-        TransactionMinimumUnsupported,
-      );
+    for (const [foreign, reason] of [
+      [{ scopeEpoch: "other" }, "cursor-expired"],
+      [{ authorizationView: "other" }, "foreign-view"],
+    ] as const) {
+      let failure: unknown;
+      try {
+        checkCurrentReadMinimum({ ...supplied, ...foreign }, context, true);
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(TransactionMinimumFailure);
+      if (!(failure instanceof TransactionMinimumFailure))
+        throw new Error("expected minimum failure");
+      expect(failure.reason).toBe(reason);
+      expect(failure.context).toBe(context);
+    }
     expect(() => checkCurrentReadMinimum(supplied, context, false)).toThrow(
       TransactionMinimumUnsupported,
     );
   }
+  let bothMismatch: unknown;
+  try {
+    checkCurrentReadMinimum(
+      { scopeEpoch: "other", authorizationView: "other", minimumPosition: "opaque" },
+      context,
+      true,
+    );
+  } catch (error) {
+    bothMismatch = error;
+  }
+  expect(bothMismatch).toBeInstanceOf(TransactionMinimumFailure);
+  if (!(bothMismatch instanceof TransactionMinimumFailure))
+    throw new Error("expected contextual failure");
+  expect(bothMismatch.reason).toBe("cursor-expired");
+  expect(bothMismatch.context).toBe(context);
   const getter = vi.fn(() => "opaque");
   for (const value of [
     new Proxy(tuple(), { get: getter }),

@@ -570,7 +570,7 @@ export function createTransactionHttpHandler(
       const access = { kind: "authenticated" as const, principal: authorization.principal };
       if (url.pathname.slice(`${scopeUrl.pathname}receipts/`.length).includes("/pages/")) {
         const minimum = hasMinimumControls(request)
-          ? transactionMinimumHeaders(request.headers)
+          ? currentReadMinimumHeaders(request.headers)
           : undefined;
         const page = await service.receiptPage(
           access,

@@ -505,10 +505,11 @@ it("rejects malformed read minimum tuples before observation while preserving re
         expect(response.headers.get("x-bdp-development-limit")).toBeNull();
         expect(context(response)).toStrictEqual(expectedContext);
       } else {
-        expect(response.status).toBe(500);
-        expect(response.text).toBe("");
-        expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
-        expect(context(response)).toStrictEqual([null, null, null]);
+        expect(problem(response, 503, "catch-up-timeout")).toMatchObject({ retry: "after-delay" });
+        expect(response.headers.get("retry-after")).toBe("1");
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+        expect(context(response)).toStrictEqual(expectedContext);
       }
     }
     const missing = await exchange("compatible-missing", "GET", `${scope}beads/missing`, tuple);
@@ -1041,4 +1042,597 @@ it("observes installed opaque receipt root timeout with principal nondisclosure"
   if (failures.length === 1) throw failures[0];
   if (failures.length > 1)
     throw new AggregateError(failures, "installed receipt root and cleanup failed");
+}, 60000);
+
+it("observes installed current observation minima within37requests", async () => {
+  const started = performance.now();
+  const controller = new AbortController();
+  const deadlineReason = new Error("installed current observation receiving deadline");
+  let deadlineExceeded = false,
+    cleanupExceeded = false,
+    launchAttempted = false,
+    closed = false;
+  const deadline = setTimeout(() => {
+    deadlineExceeded = true;
+    controller.abort(deadlineReason);
+  }, 45000);
+  const failures: unknown[] = [];
+  const categories: string[] = [];
+  const fail = (error: unknown, category: string) => {
+    if (!failures.includes(error)) {
+      failures.push(error);
+      categories.push(category);
+    }
+  };
+  let phase = "setup";
+  let directory: string | undefined;
+  let child: Awaited<ReturnType<typeof launchInstalledTransaction>> | undefined;
+  let binding: ReturnType<typeof installedTransactionBinding> | undefined;
+  let attempted = 0;
+  const childLifetime: {
+    close: { code: number | null; signal: NodeJS.Signals | null } | undefined;
+  } = { close: undefined };
+  let childDrain: Promise<void> | undefined;
+  const active = new Set<ClientRequest>();
+  const pending = new Set<Promise<unknown>>();
+  const responses: {
+    ordinal: number;
+    label: string;
+    method: string;
+    url: string;
+    credential: string;
+    requestBodyBytes: number;
+    requestBodySha256: string | null;
+    minimumFieldOccurrences: number[];
+    status: number;
+    bodyOctets: number;
+    bodySha256: string;
+    headers: Record<string, string | null>;
+  }[] = [];
+  const writer = randomBytes(32).toString("base64url"),
+    other = randomBytes(32).toString("base64url");
+  const linkType = `${scope}types/relation`;
+  const localArtifacts = {
+    ...artifacts,
+    descriptors: [
+      ...artifacts.descriptors,
+      {
+        retrievalUri: linkType,
+        utf8: JSON.stringify({
+          id: linkType,
+          name: "Relation",
+          describes: "link",
+          conformsTo: [],
+          source: { conformsTo: [beadType], external: "opaque" },
+          target: { conformsTo: [beadType], external: "opaque" },
+        }),
+      },
+    ],
+  };
+  try {
+    directory = mkdtempSync(path.join(tmpdir(), "bdp-current-observation-minimum-installed-"));
+    controller.signal.throwIfAborted();
+    launchAttempted = true;
+    child = await launchInstalledTransaction(
+      entry,
+      {
+        scope,
+        directory,
+        create: true,
+        artifacts: localArtifacts,
+        credentials: [
+          { token: writer, principal: "writer", canMutate: true },
+          { token: other, principal: "other", canMutate: false },
+        ],
+      },
+      controller.signal,
+    );
+    childDrain = new Promise<void>((resolve) => {
+      child!.child.once("close", (code, signal) => {
+        childLifetime.close = { code, signal };
+        resolve();
+      });
+    });
+    binding = installedTransactionBinding(child.ready, sourceCommit, fixture);
+    expect(child.ready.scope).toBe(scope);
+    expect(binding.operationTargets.batch).toBe(`${scope}operations/batch`);
+    const address = new URL(child.ready.listenUrl as string);
+    const granted = new Set([
+      `${scope}operations/batch`,
+      `${scope}operations/update-where`,
+      `${scope}types/task`,
+      `${scope}types/`,
+      `${scope}types/missing`,
+      `${scope}beads/r00?view=links`,
+      `${scope}beads/missing?view=links`,
+    ]);
+    const exchange = async (
+      label: string,
+      method: "GET" | "HEAD" | "POST",
+      url: string,
+      fields: string[] = [],
+      credential: "writer" | "other" | "anonymous" = "writer",
+      requestBody?: string,
+      key?: string,
+    ) => {
+      phase = label;
+      controller.signal.throwIfAborted();
+      expect(++attempted, "installed current observation dispatch bound").toBeLessThanOrEqual(37);
+      expect(granted.has(url), "fixed or actually issued URL grant").toBe(true);
+      const target = new URL(url);
+      expect(target.origin).toBe(new URL(scope).origin);
+      expect([target.hash, target.username, target.password]).toStrictEqual(["", "", ""]);
+      expect(Buffer.byteLength(url)).toBeLessThanOrEqual(8192);
+      const headers = [
+        "Host",
+        new URL(scope).host,
+        "Connection",
+        "close",
+        ...(fields.some((field, i) => i % 2 === 0 && field.toLowerCase() === "accept")
+          ? []
+          : ["Accept", "application/json"]),
+        ...(credential === "anonymous"
+          ? []
+          : ["Authorization", `Bearer ${credential === "writer" ? writer : other}`]),
+        ...(requestBody === undefined
+          ? []
+          : [
+              "Content-Type",
+              "application/json",
+              "Content-Length",
+              String(Buffer.byteLength(requestBody)),
+              "Idempotency-Key",
+              key ?? "missing-key",
+            ]),
+        ...fields,
+      ];
+      const operation = new Promise<{
+        status: number;
+        headers: Headers;
+        text: string;
+        bytes: number;
+      }>((resolve, reject) => {
+        const request = httpRequest(
+          {
+            hostname: address.hostname,
+            port: Number(address.port),
+            path: target.pathname + target.search,
+            method,
+            agent: false,
+            headers,
+            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
+          },
+          (response) => {
+            const chunks: Buffer[] = [];
+            let bytes = 0;
+            response.on("data", (chunk: Buffer) => {
+              bytes += chunk.length;
+              if (bytes > 32768) {
+                const error = new Error("installed current observation response overflow");
+                response.destroy(error);
+                request.destroy(error);
+                return;
+              }
+              chunks.push(chunk);
+            });
+            response.once("aborted", () =>
+              reject(new Error("installed current observation response aborted")),
+            );
+            response.once("error", reject);
+            response.once("end", () => {
+              const received = new Headers();
+              for (let i = 0; i < response.rawHeaders.length; i += 2)
+                received.append(response.rawHeaders[i]!, response.rawHeaders[i + 1]!);
+              resolve({
+                status: response.statusCode ?? 0,
+                headers: received,
+                text: Buffer.concat(chunks).toString("utf8"),
+                bytes,
+              });
+            });
+          },
+        );
+        active.add(request);
+        request.once("close", () => active.delete(request));
+        request.once("error", reject);
+        request.end(requestBody);
+      });
+      pending.add(operation);
+      void operation.then(
+        () => pending.delete(operation),
+        () => pending.delete(operation),
+      );
+      const response = await operation;
+      const minimumNames = [
+        "bdp-minimum-scope-position",
+        "bdp-scope-epoch",
+        "bdp-authorization-view",
+      ];
+      responses.push({
+        ordinal: attempted,
+        label,
+        method,
+        url,
+        credential,
+        requestBodyBytes: requestBody === undefined ? 0 : Buffer.byteLength(requestBody),
+        requestBodySha256: requestBody === undefined ? null : digest(requestBody),
+        minimumFieldOccurrences: minimumNames.map(
+          (name) => fields.filter((field, i) => i % 2 === 0 && field.toLowerCase() === name).length,
+        ),
+        status: response.status,
+        bodyOctets: response.bytes,
+        bodySha256: digest(response.text),
+        headers: Object.fromEntries(
+          retainedHeaders.map((name) => [name, response.headers.get(name)]),
+        ),
+      });
+      expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
+      return response;
+    };
+    type Response = Awaited<ReturnType<typeof exchange>>;
+    const context = (response: Response) => contextNames.map((name) => response.headers.get(name));
+    const problem = (response: Response, status: number, code: string) => {
+      expect(response.status).toBe(status);
+      expect(response.headers.get("content-type")).toBe("application/problem+json");
+      const value = record(JSON.parse(response.text));
+      expect(validProblem(value), JSON.stringify(validProblem.errors)).toBe(true);
+      expect(value).toMatchObject({ status, code });
+      return value;
+    };
+    const receipt = (response: Response, key: string, position: string) => {
+      expect(response.status).toBe(200);
+      const value = record(JSON.parse(response.text));
+      expect(validReceipt(value), JSON.stringify(validReceipt.errors)).toBe(true);
+      expect(value).toMatchObject({
+        status: "completed",
+        idempotencyKey: key,
+        requiredPosition: position,
+        effectPosition: position,
+      });
+      expect(context(response)[2]).toBe(position);
+      expect([value.scopeEpoch, value.authorizationView]).toStrictEqual(
+        context(response).slice(0, 2),
+      );
+      expect(
+        context(response)
+          .slice(0, 2)
+          .every((v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,256}$/.test(v)),
+      ).toBe(true);
+      return value;
+    };
+    const seed = await exchange(
+      "seed",
+      "POST",
+      `${scope}operations/batch`,
+      [],
+      "writer",
+      seedBody,
+      "current-observation-seed",
+    );
+    const seeded = receipt(seed, "current-observation-seed", "pos-1");
+    expect(receiptResults(seeded)).toHaveLength(32);
+    const updated = await exchange(
+      "issue-page",
+      "POST",
+      `${scope}operations/update-where`,
+      [],
+      "writer",
+      setBody,
+      "current-observation-update",
+    );
+    const paged = receipt(updated, "current-observation-update", "pos-2");
+    const pageUrl = paged.next;
+    if (typeof pageUrl !== "string" || typeof paged.id !== "string")
+      throw new Error("actual second mutation page required");
+    const parsedPage = new URL(pageUrl);
+    expect(parsedPage.origin).toBe(new URL(scope).origin);
+    expect([parsedPage.search, parsedPage.hash, parsedPage.username, parsedPage.password]).toEqual([
+      "",
+      "",
+      "",
+      "",
+    ]);
+    expect(pageUrl.startsWith(`${paged.id}/pages/`)).toBe(true);
+    expect(pageUrl.slice(`${paged.id}/pages/`.length)).toMatch(/^[A-Za-z0-9_-]+$/);
+    granted.add(pageUrl);
+    const linked = await exchange(
+      "link",
+      "POST",
+      `${scope}operations/batch`,
+      [],
+      "writer",
+      JSON.stringify({
+        operations: [
+          {
+            operation: "createLink",
+            id: "links/l",
+            type: linkType,
+            source: "beads/r00",
+            target: "beads/r01",
+            properties: { n: 0 },
+          },
+        ],
+      }),
+      "current-observation-link",
+    );
+    receipt(linked, "current-observation-link", "pos-3");
+    const expectedContext = context(linked);
+    expect(expectedContext.slice(0, 2)).toEqual(context(seed).slice(0, 2));
+    const minimum = (position: string, epoch = expectedContext[0]!, view = expectedContext[1]!) => [
+      "BDP-Minimum-Scope-Position",
+      position,
+      "BDP-Scope-Epoch",
+      epoch,
+      "BDP-Authorization-View",
+      view,
+    ];
+    const validType = ajv.compile({ $ref: `${bundle.$id}#/$defs/typeDescriptor` });
+    const validTypes = ajv.compile({ $ref: `${bundle.$id}#/$defs/typesInventory` });
+    const validLinks = ajv.compile({ $ref: `${bundle.$id}#/$defs/currentLinkCollection` });
+    const validPage = ajv.compile({ $ref: `${bundle.$id}#/$defs/mutationReceiptPage` });
+    const pair = async (
+      label: string,
+      url: string,
+      fields: string[],
+      status: number,
+      code: string,
+    ) => {
+      const get = await exchange(`${label}-get`, "GET", url, [
+        ...fields,
+        ...(status === 503 ? ["If-None-Match", "*"] : []),
+      ]);
+      const head = await exchange(`${label}-head`, "HEAD", url, [
+        ...fields,
+        ...(status === 503 ? ["If-Match", '"mismatch"', "Accept", "image/png"] : []),
+      ]);
+      problem(get, status, code);
+      expect(head.status).toBe(status);
+      expect(head.text).toBe("");
+      expect(head.bytes).toBe(0);
+      expect(get.bytes).toBeGreaterThan(0);
+      expect(get.headers.get("content-length")).toBe(String(get.bytes));
+      for (const name of [
+        "content-length",
+        "content-type",
+        "cache-control",
+        "retry-after",
+        ...contextNames,
+      ])
+        expect(head.headers.get(name), name).toBe(get.headers.get(name));
+      for (const response of [get, head]) {
+        expect(context(response)).toEqual(expectedContext);
+        expect(response.headers.get("content-type")).toBe("application/problem+json");
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+        if (status === 503) expect(response.headers.get("retry-after")).toBe("1");
+      }
+    };
+    for (const [label, target] of [
+      ["type", `${scope}types/task`],
+      ["types", `${scope}types/`],
+      ["incident", `${scope}beads/r00?view=links`],
+      ["page", pageUrl],
+    ] as const) {
+      const known = await exchange(`${label}-known`, "GET", target, minimum("pos-3"));
+      expect(known.status).toBe(200);
+      expect(context(known)).toEqual(expectedContext);
+      const value = record(JSON.parse(known.text));
+      const validate =
+        label === "type"
+          ? validType
+          : label === "types"
+            ? validTypes
+            : label === "incident"
+              ? validLinks
+              : validPage;
+      expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
+      if (label === "type") expect(value).toMatchObject({ id: beadType, describes: "bead" });
+      else if (label === "types") {
+        expect(value.items).toEqual([
+          { id: linkType, name: "Relation", describes: "link" },
+          { id: beadType, name: "Task", describes: "bead" },
+        ]);
+        expect(value.next).toBeNull();
+      } else if (label === "incident") {
+        expect(value).toMatchObject({
+          items: [
+            {
+              id: `${scope}links/l`,
+              type: linkType,
+              source: `${scope}beads/r00`,
+              target: `${scope}beads/r01`,
+            },
+          ],
+          next: null,
+        });
+      } else {
+        expect(value.receipt).toBe(paged.id);
+        if (!Array.isArray(value.results) || value.results.length === 0)
+          throw new Error("nonempty real page required");
+        for (const result of value.results)
+          expect(record(result)).toMatchObject({
+            outcome: "updated",
+            resource: { type: beadType, properties: { n: 1 } },
+          });
+        expect(paged.requiredPosition).toBe("pos-2");
+      }
+      await pair(`${label}-opaque`, target, minimum("opaque"), 503, "catch-up-timeout");
+      await pair(
+        `${label}-epoch`,
+        target,
+        minimum("opaque", "foreign", expectedContext[1]!),
+        410,
+        "cursor-expired",
+      );
+      await pair(
+        `${label}-view`,
+        target,
+        minimum("opaque", expectedContext[0]!, "foreign"),
+        409,
+        "foreign-view",
+      );
+    }
+    await pair("missing-type", `${scope}types/missing`, minimum("opaque"), 503, "catch-up-timeout");
+    const missingIncident = await exchange(
+      "missing-incident",
+      "GET",
+      `${scope}beads/missing?view=links`,
+      minimum("opaque"),
+    );
+    const otherPage = await exchange("other-page", "GET", pageUrl, minimum("opaque"), "other");
+    for (const response of [missingIncident, otherPage]) {
+      problem(response, 404, "resource-not-found");
+      expect(context(response)).toEqual(expectedContext);
+      expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+    }
+    const malformed = await exchange("malformed-page", "GET", pageUrl, [
+      "BDP-Minimum-Scope-Position",
+      "opaque",
+    ]);
+    problem(malformed, 400, "malformed-request");
+    expect(context(malformed)).toEqual([null, null, null]);
+    const anonymous = await exchange(
+      "anonymous-page",
+      "GET",
+      pageUrl,
+      minimum("opaque"),
+      "anonymous",
+    );
+    problem(anonymous, 401, "unauthenticated");
+    expect(context(anonymous)).toEqual([null, null, null]);
+    expect(attempted).toBe(37);
+    expect(responses).toHaveLength(37);
+    expect(
+      Object.fromEntries(
+        [200, 503, 410, 409, 404, 400, 401].map((status) => [
+          status,
+          responses.filter((r) => r.status === status).length,
+        ]),
+      ),
+    ).toEqual({ 200: 7, 503: 10, 410: 8, 409: 8, 404: 2, 400: 1, 401: 1 });
+    expect(
+      Object.fromEntries(
+        ["POST", "GET", "HEAD"].map((method) => [
+          method,
+          responses.filter((r) => r.method === method).length,
+        ]),
+      ),
+    ).toEqual({ POST: 3, GET: 21, HEAD: 13 });
+    controller.signal.throwIfAborted();
+  } catch (error) {
+    fail(error, phase);
+  } finally {
+    clearTimeout(deadline);
+    controller.abort();
+    const cleanupReason = new Error("installed current observation cleanup deadline");
+    let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
+    // Await both operation settlement and transport close; one deadline also covers child close.
+    const transportDrain = Promise.all(
+      [...active].map(
+        (request) =>
+          new Promise<void>((resolve) => {
+            request.once("close", resolve);
+            request.destroy();
+          }),
+      ),
+    );
+    const cleaning = (async () => {
+      for (const result of await Promise.allSettled([...pending]))
+        if (result.status === "rejected") fail(result.reason, "transport-drain");
+      await transportDrain;
+      if (child) {
+        await child.close();
+        await childDrain;
+      }
+    })();
+    // Retain late failures after the race without letting a late close mark ownership clean.
+    void cleaning.catch((error) => fail(error, "late-cleanup"));
+    try {
+      await Promise.race([
+        cleaning,
+        new Promise<never>((_, reject) => {
+          cleanupTimer = setTimeout(() => {
+            cleanupExceeded = true;
+            child?.child.kill("SIGKILL");
+            reject(cleanupReason);
+          }, 10000);
+        }),
+      ]);
+      if (
+        child &&
+        !cleanupExceeded &&
+        child.child.exitCode === 0 &&
+        child.child.signalCode === null &&
+        childLifetime.close?.code === 0 &&
+        childLifetime.close.signal === null
+      )
+        closed = true;
+      else if (launchAttempted)
+        fail(new Error("installed current observation clean close unproved"), "unclean-close");
+    } catch (error) {
+      fail(error, "cleanup");
+    } finally {
+      clearTimeout(cleanupTimer);
+    }
+    if (deadlineExceeded) fail(deadlineReason, "deadline");
+    const stopped =
+      !launchAttempted ||
+      (child !== undefined && (child.child.exitCode !== null || child.child.signalCode !== null));
+    if (!stopped)
+      fail(new Error("installed current observation child stop unknown"), "unknown-stop");
+    try {
+      if (directory && (!launchAttempted || (closed && failures.length === 0)))
+        rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      fail(error, "directory-cleanup");
+    }
+    const directoryAbsent = directory === undefined || !existsSync(directory);
+    if (!directoryAbsent)
+      fail(new Error("installed current observation directory preserved"), "directory-retained");
+    try {
+      console.log(
+        JSON.stringify({
+          observation: "private-installed-current-observation-minimum",
+          outcome: failures.length ? "failed" : "passed",
+          declaredSourceCommit: sourceCommit,
+          workspaceDirty,
+          entry: resolvedEntry,
+          entrySha256,
+          binding: binding ?? null,
+          artifactBytes:
+            localArtifacts.descriptors.reduce((n, d) => n + Buffer.byteLength(d.utf8), 0) +
+            localArtifacts.schemas.reduce((n, s) => n + Buffer.byteLength(s.utf8), 0),
+          elapsedMs: performance.now() - started,
+          attempted,
+          exchanges: responses.length,
+          completedResponses: responses,
+          deadlineExceeded,
+          cleanupExceeded,
+          launchAttempted,
+          startupCompleted: child !== undefined,
+          closed,
+          childClose: childLifetime.close ?? null,
+          childPid: child?.child.pid ?? null,
+          childExitCode: child?.child.exitCode ?? null,
+          childSignalCode: child?.child.signalCode ?? null,
+          directory: directory ?? null,
+          directoryAbsent,
+          activeRequests: active.size,
+          pendingOperations: pending.size,
+          failureCount: failures.length,
+          failureCategories: categories,
+          claimEligible: false,
+          retention:
+            "safe response metadata/fingerprints; bodies asserted in memory; no credentials logged",
+          startupLimitation:
+            "pre-ready or unclean ownership preserves directory for supervisor evidence",
+        }),
+      );
+    } catch (error) {
+      fail(error, "report");
+    }
+  }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, "installed current observation and cleanup failed");
 }, 60000);

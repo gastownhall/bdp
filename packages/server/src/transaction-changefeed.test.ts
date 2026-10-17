@@ -20,7 +20,6 @@ import { createTransactionService } from "./transaction-service.js";
 import {
   TransactionMinimumFailure,
   TransactionMinimumUnproved,
-  TransactionMinimumUnsupported,
 } from "./transaction-consistency.js";
 import { ScopeServerOperationAbortedError } from "./read-request.js";
 import {
@@ -1553,8 +1552,8 @@ it("keeps direct and excluded changefeed minimum paths strict", async () => {
         undefined,
         "finite-start-now",
       ),
-    ).rejects.toBeInstanceOf(TransactionMinimumUnsupported);
-    outcomes.push("foreign-unsupported");
+    ).rejects.toMatchObject({ reason: "cursor-expired" });
+    outcomes.push("foreign-cursor-expired");
     await instance.close();
     expect(() =>
       instance.changes({ start: "now" }, minimum, undefined, "finite-start-now"),

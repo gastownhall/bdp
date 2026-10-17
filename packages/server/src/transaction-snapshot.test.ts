@@ -14,10 +14,7 @@ import {
   stringifyJsonValue,
 } from "@bdp/protocol";
 import { openTransactionStore, type TransactionStoreOptions } from "./transaction-store.js";
-import {
-  TransactionMinimumUnproved,
-  TransactionMinimumUnsupported,
-} from "./transaction-consistency.js";
+import { TransactionMinimumUnproved } from "./transaction-consistency.js";
 import { prepareTransactionSetCore } from "./transaction-batch.js";
 import {
   TRANSACTION_SNAPSHOT_LIMITS as limits,
@@ -1477,10 +1474,10 @@ it("gates fresh Snapshot opaque minima before allocation and expiry", () => {
   for (const kind of ["create", "preflight"] as const) {
     unproved(kind);
     expect(() => observe({ kind }, { ...minimum, scopeEpoch: "foreign" })).toThrow(
-      TransactionMinimumUnsupported,
+      expect.objectContaining({ reason: "cursor-expired", context: first.context }),
     );
     expect(() => observe({ kind }, { ...minimum, authorizationView: "foreign" })).toThrow(
-      TransactionMinimumUnsupported,
+      expect.objectContaining({ reason: "foreign-view", context: first.context }),
     );
     expect(() => observe({ kind }, { ...minimum, minimumPosition: "pos-2" })).toThrow("behind");
   }

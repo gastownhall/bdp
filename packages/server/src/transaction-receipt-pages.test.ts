@@ -1,6 +1,12 @@
+import {
+  TransactionMinimumFailure,
+  TransactionMinimumUnproved,
+  type TransactionMinimum,
+} from "./transaction-consistency.js";
 import { DatabaseSync } from "node:sqlite";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterEach, expect, it, vi } from "vitest";
@@ -335,4 +341,155 @@ it("captures immutable current context for nondisclosable receipt pages before m
       minimumPosition: "pos-2",
     }),
   ).toThrow("foreign-view");
+});
+
+it("preserves receipt page detail when lexical eligibility is unproved", () => {
+  const cleanupBoundary = cleanup.length;
+  const failures: unknown[] = [];
+  let f: ReturnType<typeof fixture> | undefined;
+  let calls = 0,
+    offlineInspections = 0,
+    ownerOpens = 0,
+    postCloseProbes = 0,
+    payloadUnchanged = false,
+    closed = false,
+    directoryAbsent = false;
+  const rows: { label: string; outcome: string; context: unknown }[] = [];
+  const inventory = (db: DatabaseSync) => ({
+    receipts: db.prepare("SELECT * FROM receipts ORDER BY principal,key").all(),
+    plans: db.prepare("SELECT * FROM receipt_pages ORDER BY receipt,principal").all(),
+    ranges: db.prepare("SELECT * FROM receipt_page_ranges ORDER BY receipt,start").all(),
+  });
+  const inventories: {
+    baseline?: ReturnType<typeof inventory>;
+    after?: ReturnType<typeof inventory>;
+  } = {};
+  try {
+    const owned = fixture();
+    f = owned;
+    ownerOpens++;
+    // Transfer only this successfully constructed fixture's cleanup ownership.
+    cleanup.splice(cleanupBoundary);
+    const seed = owned.owner.executeObserved(owned.claim()),
+      page = pageUrl(seed.receipt.next);
+    const minimum = {
+      scopeEpoch: seed.context.scopeEpoch,
+      authorizationView: seed.context.authorizationView,
+      minimumPosition: "opaque",
+    };
+    const read = (label: string, principal: string, target: string, tuple: TransactionMinimum) => {
+      calls++;
+      try {
+        const result = owned.owner.readReceiptPage(principal, target, tuple);
+        rows.push({
+          label,
+          outcome: result.kind,
+          context: "context" in result ? result.context : null,
+        });
+        return result;
+      } catch (error) {
+        rows.push({
+          label,
+          outcome:
+            error instanceof TransactionMinimumFailure
+              ? error.reason
+              : error instanceof TransactionMinimumUnproved
+                ? "unproved"
+                : "unexpected",
+          context:
+            error instanceof TransactionMinimumFailure ||
+            error instanceof TransactionMinimumUnproved
+              ? error.context
+              : null,
+        });
+        throw error;
+      }
+    };
+    expect(read("known", "p", page, { ...minimum, minimumPosition: "pos-1" })).toMatchObject({
+      kind: "page",
+      context: seed.context,
+    });
+    for (const token of ["opaque", "pos-01"])
+      expect(() => read(token, "p", page, { ...minimum, minimumPosition: token })).toThrow(
+        TransactionMinimumUnproved,
+      );
+    for (const [patch, reason] of [
+      [{ scopeEpoch: "foreign" }, "cursor-expired"],
+      [{ authorizationView: "foreign" }, "foreign-view"],
+    ] as const)
+      expect(() => read(reason, "p", page, { ...minimum, ...patch })).toThrow(
+        expect.objectContaining({ reason, context: seed.context }),
+      );
+    expect(read("other-principal", "other", page, minimum)).toMatchObject({
+      kind: "missing",
+      context: seed.context,
+    });
+    expect(read("unknown-page", "p", `${seed.receipt.id}/pages/unknown`, minimum)).toMatchObject({
+      kind: "missing",
+      context: seed.context,
+    });
+    owned.raw((db) => {
+      offlineInspections++;
+      inventories.baseline = inventory(db);
+    });
+    owned.reopen();
+    ownerOpens++;
+    // No asynchronous yield until the second offline comparison: maintenance uses this clock.
+    owned.time(86401001);
+    expect(() => read("past-expiry", "p", page, minimum)).toThrow(TransactionMinimumUnproved);
+    owned.raw((db) => {
+      offlineInspections++;
+      inventories.after = inventory(db);
+    });
+    const { baseline, after } = inventories;
+    if (!baseline || !after) throw new Error("offline receipt inventory missing");
+    payloadUnchanged = isDeepStrictEqual(after, baseline);
+    expect(payloadUnchanged).toBe(true);
+    expect(after).toEqual(baseline);
+    expect(after.receipts).toHaveLength(1);
+    expect(after.plans).toHaveLength(1);
+    expect(after.ranges.length).toBeGreaterThan(0);
+    expect(JSON.parse(String(after.receipts[0]!.receipt)).detail).not.toBe("expired");
+    expect([calls, ownerOpens, offlineInspections]).toEqual([8, 2, 2]);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    if (f) {
+      try {
+        f.owner.close();
+        postCloseProbes++;
+        expect(f.owner.withRead(() => true)).toMatchObject({
+          kind: "entry-refused",
+          reason: "not-accepting",
+        });
+        closed = true;
+      } catch (error) {
+        failures.push(error);
+      }
+      if (closed) {
+        try {
+          rmSync(path.dirname(f.options.file), { recursive: true, force: true });
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      directoryAbsent = !existsSync(path.dirname(f.options.file));
+    }
+    console.log(
+      JSON.stringify({
+        observation: "current-observation-page-retention",
+        calls,
+        ownerOpens,
+        offlineInspections,
+        rows,
+        payloadUnchanged,
+        closed,
+        postCloseProbes,
+        directoryAbsent,
+        failureCount: failures.length,
+      }),
+    );
+  }
+  if (failures.length)
+    throw new AggregateError(failures, "receipt page retention and cleanup failed");
 });

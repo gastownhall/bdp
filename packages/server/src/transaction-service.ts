@@ -4,7 +4,7 @@ import { transactionEventRequest, TransactionEventParameterError } from "./trans
 import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
 import {
-  checkTransactionMinimum,
+  checkCurrentReadMinimum,
   snapshotTransactionMinimum,
   snapshotCurrentReadMinimum,
   waitForTransactionMinimum,
@@ -265,10 +265,10 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     /** Internal candidate only: no wire exposure or readiness assertion. Without
      * a minimum the synchronous observation does not inspect signal. */
     discoveryObserved(supplied?: TransactionMinimum, signal?: AbortSignal) {
-      const minimum = supplied === undefined ? undefined : snapshotTransactionMinimum(supplied);
+      const minimum = supplied === undefined ? undefined : snapshotCurrentReadMinimum(supplied);
       const observe = () => {
         const observed = owner.withRead((_reader, context) => {
-          if (minimum !== undefined) checkTransactionMinimum(minimum, context);
+          if (minimum !== undefined) checkCurrentReadMinimum(minimum, context, true);
           return Object.freeze({
             scopeEpoch: context.scopeEpoch,
             authorizationView: context.authorizationView,
@@ -603,7 +603,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           minimum =
             supplied === undefined || supplied === "unsupported"
               ? supplied
-              : snapshotTransactionMinimum(supplied);
+              : snapshotCurrentReadMinimum(supplied);
         return waitForTransactionMinimum(() => {
           const result = owner.readReceiptPage(principal, id, minimum);
           // Prefix checking is defense in depth, not an independent plan witness.

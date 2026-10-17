@@ -15,12 +15,10 @@ import {
   createTransactionReadPlane,
   currentReadMinimumKind,
   transactionReadContexts,
-  TransactionMinimumVisibilityGap,
 } from "./transaction-read.js";
 import {
   TransactionMinimumFailure,
   TransactionMinimumUnproved,
-  TransactionMinimumUnsupported,
 } from "./transaction-consistency.js";
 import { createTransactionService } from "./transaction-service.js";
 import { createTransactionHttpHandler } from "./transaction-http.js";
@@ -1684,7 +1682,14 @@ describe("current Type and incident-Link minimums", () => {
         if (request.kind === "resource") {
           await expect(
             plane.minimumFor(principal, { ...f.minimum(), ...patch }).perform(request),
-          ).rejects.toBeInstanceOf(TransactionMinimumVisibilityGap);
+          ).rejects.toMatchObject({
+            reason:
+              "minimumPosition" in patch
+                ? "behind"
+                : "scopeEpoch" in patch
+                  ? "cursor-expired"
+                  : "foreign-view",
+          });
         } else {
           const missing = await plane
             .minimumFor(principal, { ...f.minimum(), ...patch })
@@ -2523,7 +2528,7 @@ describe("current alias minimum subset", () => {
     f.reset();
     let performCalls = 0;
     performCalls++;
-    await expect(facet.perform(request)).rejects.toBeInstanceOf(TransactionMinimumUnsupported);
+    await expect(facet.perform(request)).rejects.toMatchObject({ reason: "catch-up-timeout" });
     performCalls++;
     const missing = await facet.perform({ kind: "bead-links", bead: url("beads/missing") });
     expect(missing).toMatchObject({
@@ -2532,11 +2537,11 @@ describe("current alias minimum subset", () => {
     });
     expect(contexts(missing).current.scopePosition).toBe("pos-1");
     expect([f.entries.length, f.mappings.length, waits, clockCalls, f.writes]).toEqual([
-      2, 0, 0, 2, 2,
+      3, 0, 1, 4, 2,
     ]);
     console.log(
       JSON.stringify({
-        observation: "alias-minimum-incident-fence",
+        observation: "current-minimum-incident-wait",
         performCalls,
         entries: f.entries,
         aliasLookups: f.mappings.length,
