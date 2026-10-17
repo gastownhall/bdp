@@ -33,19 +33,12 @@ The native mutation boundary must, inside one transaction:
 
 The same validator and mutation path should serve native singleton and native batch. Embedded/shared-server parity is required. A native within-Memory update can ship before broader BDP/bd batch alignment if Janet selects that cutline; Memory must not wait for a BDP runtime or full Transactional-profile conformance. Current BDP also has incompatible fixed endpoint/pin and deletion rules; batch equality cannot conceal those pending shared contract changes.
 
-## Shared Inception: requirements to Polly
+## Shared Inception: accepted decision
 
-Donna’s direction replaces the editable Memory-only Inception proposal with shared provenance design owned by Polly. Creation cause (at least create/import, vocabulary unresolved) must be distinguished from writer identity, input sources and reported Activity. No wire field, enum or new Activity concept is selected here. The shared design must distinguish original identity creation from destination admission and the operation creating a particular revision.
+Donna adopted the [single-field Inception/revert decision](https://github.com/gastownhall/beads/issues/7510#issuecomment-6242419971). It supersedes the unadopted origin/entry design and original-origin correction proposal. Inception is shared revision provenance for Beads and Links, not a Memory property. See the [owning interchange note](../../specs/proposals/interchange/interchange.md#shared-inception-design-update--october-17-2026) for the open enum and update/revert behavior.
 
-For the selected identity-preserving import profile:
+The minimum importer preserves exact originals and pins, adds a current-operation import head with `import-insert`, and retains atomic admission and retry/result handling. Unknown historical cause stays unknown; no backfill into retained originals. A repeated retained invocation returns the same result; populated-store import/upsert still refuses. No origin/entry objects, correction operation, admission descriptor, signature or Activity is a prerequisite.
 
-- Preserve every admitted original version and its recorded provenance unchanged. A local import operation does not retroactively become the Resource’s original creator or authenticate carried source claims.
-- Add a new import head with truthful local admission facts and a reference to its source version. Preserve known original origin separately; absence remains absence/unknown according to the accepted shared contract.
-- Legacy conversion can know that conversion happened while knowing nothing about original creation actor/time. Do not turn missing provenance into invented native creation or equate absent with explicit unknown without a ruling.
-- Same retained invocation/package/policy returns its prior receipt without another head/Event. A deliberate new invocation into an occupied destination refuses in the initial fresh-store profile. Do not force a fake content update to record an import.
-- Same-ID restore is distinct from creating a new identity. Cross-Scope remint/copy is deferred; a later copy would need explicit source linkage and identity/reference mapping.
-- Ordinary semantic no-op updates do not gain versions merely to change creation cause. An import head is an explicit admitted transition, not a provenance-only edit to an old version.
+`bd revert` is the selected new SAME-ID revision operation over retained properties/metadata, with current provenance and a selected-revision reference. Deleted-to-live sets Inception to `revert`; live-to-live preserves it. It does not implicitly roll back Type/endpoints or revive other Links. Shipping `bd restore` retains pre-compaction Issue-content recovery. Required shared History and undelete outcomes remain independent of broader provenance expansion.
 
-Polly must resolve the minimum readable/writable representation, historical applicability, original-origin/import linkage and truthful unknown handling before interchange schema freeze. An Activity Bead may complement those records but is not assumed mandatory for every import. Broader provenance implementation may follow Preview 3; any narrower import claim still needs an approved, representable meaning and an explicit qualification/exception disposition. No private Memory field or import-only competing envelope will fill the gap.
-
-Current Memory PR143 commit `9048dc7` remains a candidate. Shared Inception changes supersede the earlier candidate’s Memory-property placement; production identities and the full catalog are not implicitly adopted. Janet owns dependency-ledger correlation and release/base decisions.
+Schema/CLI propagation, actual catalog identities and runtime qualification remain owner work. This documentation reconciliation does not restart implementation or release main-landing holds.

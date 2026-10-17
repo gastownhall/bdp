@@ -49,3 +49,7 @@ explicit gap section. A later fixture-only identity-rewrite helper keeps negativ
 graphs coherent. Both final targeted reviewers report no blocker; guard-sensitivity
 experiments detected disabling the root, numeric and Memory-consent checks. The
 complete disposition and actual final review are in the joint record.
+
+## Subsequent owner decision: single-field Inception
+
+Donna’s October17 decision supersedes the unadopted origin/entry model; the owning proposal and design notes now follow one shared Inception field and `bd revert`. See the linked decision receipt in the proposal. This is documentation-only owner-decision reconciliation, after the councils above; their findings remain historical exact-source evidence. No new schema/runtime qualification or implementation/main-landing authorization is claimed.

@@ -60,7 +60,7 @@ These are bounded contract tasks, not permission to add more product features:
 
 1. **Complete retained representation.** Pin accepted Resource/Memory/Type contracts, including key/name, Inception/sources and auxiliary state. Specify how the applicable historical contract is identified. No silent dropping of fields that do not fit the current DTO.
 2. **Import transition and provenance.** Specify the narrow imported lifecycle fact, original-version reference, local actor/time/source claims, and exact source/Link ownership effects. Define consistent new heads without rewriting original owned snapshots or pins. Ordinary no-op update rules must not be bypassed with fake property edits.
-   Polly’s candidate origin/entry design fits this split; [format review](iris-inception-format-review.md) records receipt-lifetime, correlation/hash-cycle, historical-entry and absent-origin decisions. Add their positive/refusal vectors to I0; do not treat the recommendation as approved schema.
+   Donna adopted single-field shared Inception; see the [decision and format reconciliation](iris-inception-format-review.md). Fresh insert import records `import-insert`; original versions remain untouched. Origin/entry facets, original-origin correction and special admission descriptors are not prerequisites. Ordinary receipt/retry and source-version correlation remain required. Shared encoding and import transition details still need owner propagation.
 
 3. **Authority admission.** Specify how a fresh destination is authorized to preserve the source Scope and how unauthorized or conflicting claims refuse. A source URI in a manifest is insufficient authorization.
 4. **Limits and recovery.** Fix byte/Resource/version/owned-Link bounds, receipt retention and invocation-key scope, commit-outcome recovery and behavior after receipt expiry. No unbounded exactly-once claim.
@@ -97,4 +97,4 @@ Go contract/corpus qualification is an intermediate milestone. Actual independen
 
 Start I0 and inspect the legacy PR against Janet’s selected base. Produce the exact preservation table, shared fixtures, file ownership/dependency list and smallest source PRs. Resolve the four contract tasks with the owners before dependent runtime admission. Keep all implementation work paused until Donna has reviewed this plan; no background worker or engine qualification is started by writing it.
 
-Shared Inception candidate status is recorded in the [owning WIP contract](../../specs/proposals/interchange/interchange.md#shared-inception-design-update--october-17-2026); follow that disposition before schema freeze.
+Accepted single-field Inception and the remaining schema/runtime holds are recorded in the [owning WIP contract](../../specs/proposals/interchange/interchange.md#shared-inception-design-update--october-17-2026); follow that disposition before schema freeze.

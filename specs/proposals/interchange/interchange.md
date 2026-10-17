@@ -85,7 +85,7 @@ Memory bodies require explicit caller consent. Ordinary export excludes Memories
 
 ## Import admission and identity
 
-The first path is an identity-preserving handoff into an empty, explicitly initialized destination for the same logical Scope. Preserve canonical IDs and source versions under the selected history-admission rules; authorize the destination authority explicitly. A package naming a source Scope does not by itself permit an unrelated store to impersonate that authority. This is a handoff/restore contract, not a live federation or concurrent multi-authority synchronization protocol.
+The first path is an identity-preserving handoff into an empty, explicitly initialized destination for the same logical Scope. Preserve canonical IDs and source versions under the selected history-admission rules; authorize the destination authority explicitly. A package naming a source Scope does not by itself permit an unrelated store to impersonate that authority. This is an identity-preserving handoff contract, not a live federation or concurrent multi-authority synchronization protocol.
 
 Copying into a different logical Scope is deferred. That path requires a complete
 identity/version/reference mapping and cannot silently retain old identity claims
@@ -102,7 +102,7 @@ Import proceeds through five stages:
 
 A new import head records the local import and references its source version; the original version’s state/provenance remains unchanged. Original pins stay pins to original retained versions, not to the new heads. Imported content/recorded claims do not acquire authenticated historical attribution because the importer authenticated today. An operation that versions owning sources and Links must publish mutually consistent heads and account for each transition once.
 
-Candidate provenance mapping: Polly’s origin/entry recommendation separates original identity creation from admission to the current recording context and the operation minting a revision. See [Iris’s format review](../../../docs/design/iris-inception-format-review.md). A stable admission correlation may link import heads to receipts, but must remain meaningful after operational receipt expiry, avoid exposing caller retry keys and avoid circular receipt/head hashes. Original historical entry accounts stay unchanged; older-package origin absence versus explicit unknown remains a shared decision. This recommendation is not adopted wire format.
+Accepted Inception direction: one shared `revisionProvenance.inception` open enum records how this identity’s current period of presence in this Scope began. The fresh-destination import head records `import-insert`; retained original versions and pins remain unchanged. Missing historical cause stays unknown and is never backfilled into originals. There are no separate origin/entry objects or original-origin correction prerequisites. Ordinary receipt/result correlation remains part of import/retry handling; it does not require an Inception admission descriptor, mandatory Activity or signature. See the [decision receipt](https://github.com/gastownhall/beads/issues/7510#issuecomment-6242419971) and [reconciled format note](../../../docs/design/iris-inception-format-review.md). Shared encoding/schema propagation remains owner work.
 
 The import-head transition must create the agreed imported lifecycle fact. Go can implement that narrow native history/event meaning without waiting for wholesale BDP Event-wire refactoring, but it cannot fake a property change or claim that ordinary create/update already preserves source history. Pin the minimum approved import provenance/event semantics before qualifying this capability. [BDP #153](https://github.com/gastownhall/bdp/issues/153) tracks the broader shared amendment; it is not permission to change the frozen main contract.
 
@@ -190,7 +190,7 @@ of every nontrivial graph.
 | Requirement | Profile obligation |
 | --- | --- |
 | S13 / R27 | Successfully transfer an admitted connected unit; preserve exact identities and Link meanings; reject unsupported units atomically; never match by key/lookalike ID |
-| R3 / R7 / R22 | Preserve exact Memory state, metadata, derivation absence/empty/populated distinctions, recorded origin/provenance and whole owned/outgoing Link state under the selected V2 mapping |
+| R3 / R7 / R22 | Preserve exact Memory state, metadata, derivation absence/empty/populated distinctions, recorded Inception/provenance and whole owned/outgoing Link state under the selected V2 mapping |
 | R18 / R19 | Preserve exact pins; admit required local retained states or refuse; opaque external References do not require acquiring their targets |
 | R27a | Exclude Memories from ordinary export by default; require explicit body-carrying inclusion; automatic export generates no Memory records |
 | R24 / TC7 | Legacy conversion preserves valid empty bodies and keys, invents no historical author and fails on ambiguity/collision/loss; account for supported legacy surfaces beyond files |
@@ -221,7 +221,11 @@ No broader query or naming decision is a prerequisite. This PR publishes a revie
 
 ## Shared Inception design update — October 17, 2026
 
-Donna delegates shared Inception design to Polly, replacing the candidate’s editable Memory-only property. Preserve original identity-creation claims separately from destination import/revision facts; exact fields and unknown handling remain undecided. Coordinate the minimum preservation/import-head contract before schema freeze. Full provenance expansion may follow Preview 3; that does not waive truthful history or permit a competing envelope. See the [batch/retyping and provenance dependency note](../../../docs/design/iris-batch-memory-retyping-note.md). Source implementation remains paused.
+Donna adopted the [single-field decision](https://github.com/gastownhall/beads/issues/7510#issuecomment-6242419971), superseding the unadopted origin/entry model. Inception moves out of Memory properties into shared `revisionProvenance.inception` for Beads and Links. Its open-enum values include `create`, `import-insert`, `import-upsert` (INSERT branch only, if supported), `revert`, and `unknown`. Ordinary edits and upsert updates of an already-live identity preserve it. This profile still refuses populated-destination imports; naming `import-upsert` does not authorize implementing upsert.
+
+`bd revert` creates a new SAME-ID revision with the named retained revision’s properties and metadata, current-operation provenance and a reference to that revision. Live-to-live revert preserves Inception; deleted-to-live revert sets `revert`. Intervening History and terminal deletion remain; other deleted Links do not reappear implicitly. This is not implicit Type/endpoint rollback. Shipping `bd restore` retains its pre-compaction Issue-content recovery meaning.
+
+No original-origin correction, two-facet admission descriptor, mandatory signature/Activity or preview migration is required. Exact schema/operation details and runtime/main-landing remain held; source implementation remains paused. See the [reconciled format note](../../../docs/design/iris-inception-format-review.md) and [dependency note](../../../docs/design/iris-batch-memory-retyping-note.md).
 
 ## Colocated review artifacts and limits
 
@@ -261,12 +265,7 @@ The scaffold checker currently requires LF on every physical line, including the
 completion record. Reader acceptance of other line endings is not selected by
 this artifact; pin that policy explicitly before freeze.
 
-Polly’s subsequent reviewed recommendation incorporates the format feedback:
-new heads preserve unrecorded origin as unrecorded; explicit unknown stays
-explicit; identity continuity/copy is separate from legacy-conversion as a
-transformation. Admission correlation is portable beyond retry-page expiry and
-avoids a receipt/head hash cycle. These remain recommendations pending Donna,
-not adopted fields or an origin-account-correction implementation dependency.
+The earlier origin/entry review is historical and superseded by the single-field decision above. Prior council findings describe the source they reviewed; they do not adopt the old facets or qualify the new shared encoding/runtime. Original retained representations remain unchanged. Ordinary retry/receipt handling remains independently required without a new Inception descriptor.
 
 [Review and check status](REVIEW.md) records the per-draft council disposition.
 
