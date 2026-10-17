@@ -10,12 +10,18 @@ import {
   type ReadRequest,
 } from "@bdp/protocol";
 import { prepareTransaction, prepareTransactionSingleton } from "./transaction-batch.js";
-import { openTransactionStore } from "./transaction-store.js";
+import { openTransactionStore, type TransactionReadContext } from "./transaction-store.js";
 import {
   createTransactionReadPlane,
+  currentReadMinimumKind,
   transactionReadContexts,
   TransactionMinimumVisibilityGap,
 } from "./transaction-read.js";
+import {
+  TransactionMinimumFailure,
+  TransactionMinimumUnproved,
+  TransactionMinimumUnsupported,
+} from "./transaction-consistency.js";
 import { createTransactionService } from "./transaction-service.js";
 import { createTransactionHttpHandler } from "./transaction-http.js";
 import {
@@ -1708,7 +1714,7 @@ describe("current Type and incident-Link minimums", () => {
 
 describe("current alias minimum subset", () => {
   const principal = { kind: "anonymous" as const };
-  function prepared() {
+  function prepared(onCompletedWrite?: () => void) {
     const f = fixture();
     expect(
       f.write(
@@ -1720,9 +1726,11 @@ describe("current alias minimum subset", () => {
         })),
       ).status,
     ).toBe("completed");
+    onCompletedWrite?.();
     expect(f.alias("putAlias", { alias: "alias/work", target: "beads/a" }).status).toBe(
       "completed",
     );
+    onCompletedWrite?.();
     const minimum = (minimumPosition = "pos-1") => ({
       scopeEpoch: f.store.scopeEpoch,
       authorizationView: "development-all-visible",
@@ -2106,6 +2114,439 @@ describe("current alias minimum subset", () => {
       kind: "target",
       target: url("beads/a"),
     });
+  });
+  function observedAliases() {
+    let writes = 0;
+    const f = prepared(() => {
+      writes++;
+    });
+    const write = (operations: unknown[]) => {
+      const receipt = f.write(operations);
+      expect(receipt.status).toBe("completed");
+      writes++;
+      return receipt;
+    };
+    const alias = (operation: "putAlias" | "deleteAlias", input: unknown) => {
+      const receipt = f.alias(operation, input);
+      expect(receipt.status).toBe("completed");
+      writes++;
+      return receipt;
+    };
+    type Reader = Parameters<typeof f.store.captureReadAuthorization>[0];
+    const originalReaders = new WeakMap<Reader, Reader>();
+    const entries: TransactionReadContext[] = [];
+    const mappings: { target: ReturnType<Reader["alias"]>; context: TransactionReadContext }[] = [];
+    const unproved: TransactionReadContext[] = [];
+    const owner: typeof f.store = {
+      ...f.store,
+      captureReadAuthorization: (reader, admitted) =>
+        f.store.captureReadAuthorization(originalReaders.get(reader) ?? reader, admitted),
+      withRead: (callback) =>
+        f.store.withRead((reader, captured) => {
+          entries.push(captured);
+          const exposed: Reader = {
+            ...reader,
+            alias: (...args) => {
+              const target = reader.alias(...args);
+              mappings.push({ target, context: captured });
+              return target;
+            },
+          };
+          originalReaders.set(exposed, reader);
+          try {
+            return callback(exposed, captured);
+          } catch (error) {
+            if (error instanceof TransactionMinimumUnproved) unproved.push(error.context);
+            throw error;
+          } finally {
+            originalReaders.delete(exposed);
+          }
+        }),
+    };
+    return {
+      ...f,
+      store: owner,
+      rawStore: f.store,
+      write,
+      alias,
+      entries,
+      mappings,
+      unproved,
+      reset: () => {
+        entries.length = 0;
+        mappings.length = 0;
+        unproved.length = 0;
+      },
+      get writes() {
+        return writes;
+      },
+    };
+  }
+  it.each(["unknown", "pos-01"] as const)(
+    "captures %s alias minima while resolving each retry against the live owner",
+    async (row) => {
+      const f = observedAliases();
+      const plane = createTransactionReadPlane(f.store, f.readOptions);
+      cleanup.push(() => plane.close());
+      let waits = 0,
+        clockCalls = 0;
+      const mutable = f.minimum(row);
+      const service = serviceFor(f, {
+        budgetMs: 3,
+        now: () => clockCalls++,
+        wait: async () => {
+          waits++;
+          if (waits === 1) {
+            Object.assign(mutable, {
+              scopeEpoch: "foreign",
+              authorizationView: "foreign",
+              minimumPosition: "pos-0",
+            });
+            expect(f.alias("putAlias", { alias: "alias/work", target: "beads/b" })).toMatchObject({
+              requiredPosition: "pos-1",
+            });
+          } else {
+            expect(waits).toBe(2);
+            expect(
+              f.write([
+                {
+                  operation: "updateBead",
+                  bead: "beads/b",
+                  propertiesChange: [{ op: "replace", path: "/title", value: "updated" }],
+                },
+              ]),
+            ).toMatchObject({ effectPosition: "pos-2" });
+          }
+        },
+      });
+      const captured = service.readAtMinimum(principal, mutable);
+      const direct = plane.minimumFor(principal, f.minimum(row));
+      f.reset();
+      let apiCalls = 0;
+      apiCalls++;
+      const directError = await direct
+        .resolveAlias(url("alias/work"))
+        .catch((error: unknown) => error);
+      expect(directError).toBeInstanceOf(TransactionMinimumUnproved);
+      if (!(directError instanceof TransactionMinimumUnproved))
+        throw new Error("expected Unproved");
+      expect(directError.context.scopePosition).toBe("pos-1");
+      apiCalls++;
+      const timeout = await captured
+        .resolveAlias(url("alias/work"))
+        .catch((error: unknown) => error);
+      expect(timeout).toBeInstanceOf(TransactionMinimumFailure);
+      if (!(timeout instanceof TransactionMinimumFailure)) throw new Error("expected timeout");
+      expect(timeout).toMatchObject({
+        reason: "catch-up-timeout",
+        context: { scopePosition: "pos-2" },
+      });
+      apiCalls++;
+      const positive = await service
+        .readAtMinimum(principal, f.minimum("pos-2"))
+        .resolveAlias(url("alias/work"));
+      expect(positive).toMatchObject({ kind: "target", target: url("beads/b") });
+      expect(contexts(positive).current.scopePosition).toBe("pos-2");
+      expect(f.mappings.map((attempt) => attempt.target)).toEqual([
+        "beads/a",
+        "beads/a",
+        "beads/b",
+        "beads/b",
+        "beads/b",
+      ]);
+      expect(f.entries.map((entry) => entry.scopePosition)).toEqual([
+        "pos-1",
+        "pos-1",
+        "pos-1",
+        "pos-2",
+        "pos-2",
+      ]);
+      expect(f.unproved).toHaveLength(4);
+      expect([apiCalls, f.entries.length, f.mappings.length, waits, clockCalls, f.writes]).toEqual([
+        3, 5, 5, 2, 5, 4,
+      ]);
+      console.log(
+        JSON.stringify({
+          observation: "alias-minimum-capture",
+          row,
+          apiCalls,
+          attempts: f.mappings,
+          contexts: f.entries,
+          unproved: f.unproved,
+          directContext: directError.context,
+          timeoutContext: timeout.context,
+          positiveContext: contexts(positive).current,
+          waits,
+          clockCalls,
+          writes: f.writes,
+          outcome: "passed",
+        }),
+      );
+    },
+  );
+  it.each(["absent", "deleted", "dangling", "hidden"] as const)(
+    "preserves %s alias nondisclosure before opaque minimum waiting",
+    async (row) => {
+      const f = observedAliases();
+      if (row === "deleted") f.alias("deleteAlias", { alias: "alias/work" });
+      if (row === "dangling") f.write([{ operation: "deleteBead", bead: "beads/a" }]);
+      let waits = 0,
+        clockCalls = 0,
+        policyReplacements = 0;
+      const service = serviceFor(f, {
+        budgetMs: 2,
+        now: () => clockCalls++,
+        wait: async () => {
+          waits++;
+        },
+      });
+      if (row === "hidden") {
+        await service.replaceAuthorizationPolicy({ timeoutMs: 1000 });
+        policyReplacements++;
+      }
+      f.reset();
+      const target = url(row === "absent" ? "alias/never" : "alias/work");
+      let apiCalls = 0,
+        probeCalls = 0;
+      apiCalls++;
+      probeCalls++;
+      const ordinary = await service.readFor(principal).resolveAlias(target);
+      expect(ordinary).toMatchObject({
+        kind: "problem",
+        problem: { status: 404, code: "resource-not-found" },
+      });
+      const actual = contexts(ordinary).current;
+      const results = [];
+      for (const authorizationView of [actual.authorizationView, "foreign"]) {
+        apiCalls++;
+        const result = await service
+          .readAtMinimum(principal, {
+            scopeEpoch: actual.scopeEpoch,
+            authorizationView,
+            minimumPosition: "unknown",
+          })
+          .resolveAlias(target);
+        expect(result).toEqual(ordinary);
+        results.push(contexts(result).current);
+      }
+      expect([apiCalls, f.entries.length, f.mappings.length, waits, clockCalls]).toEqual([
+        3, 3, 3, 0, 2,
+      ]);
+      expect(f.writes).toBe(row === "deleted" || row === "dangling" ? 3 : 2);
+      console.log(
+        JSON.stringify({
+          observation: "alias-minimum-missing",
+          row,
+          apiCalls,
+          probeCalls,
+          conditionedCalls: results.length,
+          entries: f.entries,
+          mappings: f.mappings,
+          ordinaryContext: actual,
+          conditionedContexts: results,
+          waits,
+          clockCalls,
+          writes: f.writes,
+          policyReplacements,
+          outcome: "passed",
+        }),
+      );
+    },
+  );
+  it("returns current alias absence when an admitted opaque wait loses its mapping", async () => {
+    const f = observedAliases();
+    let waits = 0,
+      clockCalls = 0;
+    const service = serviceFor(f, {
+      budgetMs: 2,
+      now: () => clockCalls++,
+      wait: async () => {
+        waits++;
+        f.alias("deleteAlias", { alias: "alias/work" });
+      },
+    });
+    const facet = service.readAtMinimum(principal, f.minimum("unknown"));
+    f.reset();
+    let apiCalls = 0;
+    apiCalls++;
+    const result = await facet.resolveAlias(url("alias/work"));
+    expect(result).toMatchObject({
+      kind: "problem",
+      problem: { status: 404, code: "resource-not-found" },
+    });
+    expect(contexts(result).current.scopePosition).toBe("pos-1");
+    expect(f.mappings.map((attempt) => attempt.target)).toEqual(["beads/a", undefined]);
+    expect(f.unproved).toHaveLength(1);
+    expect([f.entries.length, f.mappings.length, waits, clockCalls, f.writes]).toEqual([
+      2, 2, 1, 2, 3,
+    ]);
+    console.log(
+      JSON.stringify({
+        observation: "alias-minimum-transition",
+        apiCalls,
+        attempts: f.mappings,
+        contexts: f.entries,
+        unproved: f.unproved,
+        resultContext: contexts(result).current,
+        terminalStatus: result.kind === "problem" ? result.problem.status : null,
+        waits,
+        clockCalls,
+        writes: f.writes,
+        outcome: "passed",
+      }),
+    );
+  });
+  it("drains an aborted opaque alias wait before releasing its owner", async () => {
+    const f = observedAliases(),
+      entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>();
+    let waits = 0,
+      clockCalls = 0,
+      apiCalls = 0,
+      handlerRequests = 0,
+      postCloseProbes = 0,
+      closed = false;
+    const service = serviceFor(f, {
+      budgetMs: 2,
+      now: () => {
+        clockCalls++;
+        return 0;
+      },
+      wait: async () => {
+        waits++;
+        entered.resolve();
+        await release.promise;
+      },
+    });
+    cleanup.push(() => release.resolve());
+    const handler = createTransactionHttpHandler(service, scope);
+    f.reset();
+    const spy = vi.spyOn(DatabaseSync.prototype, "prepare");
+    apiCalls++;
+    handlerRequests++;
+    await expect(
+      handler.handle(
+        new Request(url("alias/work"), {
+          signal: AbortSignal.abort(),
+          headers: {
+            "bdp-scope-epoch": f.store.scopeEpoch,
+            "bdp-authorization-view": "development-all-visible",
+            "bdp-minimum-scope-position": "unknown",
+          },
+        }),
+        { kind: "authenticated", principal: "reader", canMutate: false },
+      ),
+    ).rejects.toThrow("abort");
+    expect(spy).not.toHaveBeenCalled();
+    expect(f.entries).toHaveLength(0);
+    spy.mockRestore();
+    const controller = new AbortController();
+    apiCalls++;
+    const pending = service
+      .readAtMinimum(principal, f.minimum("unknown"))
+      .resolveAlias(url("alias/work"), { signal: controller.signal });
+    const observed = pending.then(
+      (value) => ({ kind: "resolved" as const, value }),
+      (error: unknown) => ({ kind: "rejected" as const, error }),
+    );
+    let closing: Promise<void> | undefined;
+    const failures: unknown[] = [];
+    try {
+      await Promise.race([
+        entered.promise,
+        observed.then(() => {
+          throw new Error("alias wait was not entered");
+        }),
+      ]);
+      expect(f.entries).toHaveLength(1);
+      closing = service.close().then(() => {
+        closed = true;
+      });
+      // Observe cleanup rejection even if an earlier assertion fails.
+      void closing.catch(() => {});
+      expect(closed).toBe(false);
+      expect(() => service.readAtMinimum(principal, f.minimum())).toThrow("closing");
+      controller.abort();
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      controller.abort();
+      release.resolve();
+      const drained = await observed;
+      if (drained.kind === "rejected") {
+        try {
+          expect(drained.error).toMatchObject({ code: "operation-aborted" });
+        } catch (error) {
+          failures.push(error);
+        }
+      } else failures.push(new Error("aborted alias unexpectedly resolved"));
+      for (const result of await Promise.allSettled([closing ?? service.close()]))
+        if (result.status === "rejected") failures.push(result.reason);
+    }
+    if (failures.length) throw new AggregateError(failures, "opaque alias abort/drain failed");
+    expect(closed).toBe(true);
+    postCloseProbes++;
+    expect(() => f.rawStore.inspect()).toThrow("closed");
+    expect([apiCalls, f.entries.length, f.mappings.length, waits, clockCalls, f.writes]).toEqual([
+      2, 1, 1, 1, 3, 2,
+    ]);
+    console.log(
+      JSON.stringify({
+        observation: "alias-minimum-drain",
+        apiCalls,
+        handlerRequests,
+        entries: f.entries,
+        mappings: f.mappings,
+        waits,
+        clockCalls,
+        writes: f.writes,
+        closed,
+        postCloseProbes,
+        outcome: "passed",
+      }),
+    );
+  });
+  it("preserves incident-Link opaque exclusions beside alias minima", async () => {
+    const f = observedAliases();
+    let waits = 0,
+      clockCalls = 0;
+    const service = serviceFor(f, {
+      budgetMs: 2,
+      now: () => clockCalls++,
+      wait: async () => {
+        waits++;
+      },
+    });
+    const request: ReadRequest = { kind: "bead-links", bead: url("beads/a") };
+    expect(currentReadMinimumKind(request)).toBe("missing");
+    const facet = service.readAtMinimum(principal, f.minimum("unknown"));
+    f.reset();
+    let performCalls = 0;
+    performCalls++;
+    await expect(facet.perform(request)).rejects.toBeInstanceOf(TransactionMinimumUnsupported);
+    performCalls++;
+    const missing = await facet.perform({ kind: "bead-links", bead: url("beads/missing") });
+    expect(missing).toMatchObject({
+      kind: "problem",
+      problem: { status: 404, code: "resource-not-found" },
+    });
+    expect(contexts(missing).current.scopePosition).toBe("pos-1");
+    expect([f.entries.length, f.mappings.length, waits, clockCalls, f.writes]).toEqual([
+      2, 0, 0, 2, 2,
+    ]);
+    console.log(
+      JSON.stringify({
+        observation: "alias-minimum-incident-fence",
+        performCalls,
+        entries: f.entries,
+        aliasLookups: f.mappings.length,
+        waits,
+        clockCalls,
+        writes: f.writes,
+        missingContext: contexts(missing).current,
+        outcome: "passed",
+      }),
+    );
   });
 });
 

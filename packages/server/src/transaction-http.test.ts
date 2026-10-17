@@ -3074,18 +3074,71 @@ it("serves canonical current Type and incident minimums with truthful context an
 });
 
 it("serves conditioned live aliases and preserves bodyless redirects, refusal context and receiving boundaries", async () => {
-  let tick = 0;
+  let tick = 0,
+    waits = 0,
+    attempted = 0;
   const f = await fixture({
-    minimumReads: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+    minimumReads: {
+      budgetMs: 2,
+      now: () => tick++,
+      wait: async () => {
+        waits++;
+      },
+    },
   });
-  const created = await f.post(batch([create("a"), create("b")]), "alias-min-seed");
+  const allowed = new Set([
+    "POST operations/batch",
+    "POST operations/put-alias",
+    "GET alias/work",
+    "HEAD alias/work",
+    "GET alias/missing",
+    "GET alias/work?invalid=1",
+    "DELETE alias/work",
+  ]);
+  const responses: {
+    method: string;
+    route: string;
+    status: number;
+    bodyOctets: number;
+    context: ReturnType<typeof context>;
+    headers: Record<string, string | null>;
+  }[] = [];
+  async function observe(method: string, target: string, send: () => Promise<Response>) {
+    if (!target.startsWith(f.runtime.scope)) throw new Error("unbound alias HTTP scope");
+    const route = target.slice(f.runtime.scope.length);
+    if (!allowed.has(`${method} ${route}`) || attempted >= 28)
+      throw new Error("unbound or excess alias HTTP request");
+    attempted++;
+    const response = await send();
+    responses.push({
+      method,
+      route,
+      status: response.status,
+      bodyOctets: Buffer.byteLength(await response.clone().text()),
+      context: context(response),
+      headers: Object.fromEntries(
+        [
+          "location",
+          "etag",
+          "content-length",
+          "cache-control",
+          "retry-after",
+          "x-bdp-development-limit",
+        ].map((name) => [name, response.headers.get(name)]),
+      ),
+    });
+    return response;
+  }
+  const get = (target: string, init: RequestInit = {}) =>
+    observe(init.method ?? "GET", target, () => f.get(target, init));
+  const created = await observe("POST", f.runtime.targets.batch, () =>
+    f.post(batch([create("a"), create("b")]), "alias-min-seed"),
+  );
   expect(created.status).toBe(200);
   const headers = minimumHeaders(created, "pos-1"),
     target = `${f.runtime.scope}alias/work`;
-  const put = await f.post(
-    JSON.stringify({ alias: "alias/work", target: "beads/a" }),
-    "alias-min-put",
-    "putAlias",
+  const put = await observe("POST", f.runtime.targets.putAlias, () =>
+    f.post(JSON.stringify({ alias: "alias/work", target: "beads/a" }), "alias-min-put", "putAlias"),
   );
   expect(put.status).toBe(200);
   expect(await body(put)).toMatchObject({ status: "completed", requiredPosition: "pos-1" });
@@ -3094,7 +3147,7 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
       {},
       { "if-none-match": "*", "if-match": '"different"', accept: "text/plain" },
     ]) {
-      const response = await f.get(target, {
+      const response = await get(target, {
         method,
         headers: { ...headers, ...extra, authorization: `Bearer ${readToken}` },
       });
@@ -3111,48 +3164,60 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
     [{ "bdp-minimum-scope-position": "pos-2" }, 503, "catch-up-timeout"],
     [{ "bdp-authorization-view": "foreign" }, 409, "foreign-view"],
     [{ "bdp-scope-epoch": "foreign" }, 410, "cursor-expired"],
+    [{ "bdp-minimum-scope-position": "unknown" }, 503, "catch-up-timeout"],
+    [{ "bdp-minimum-scope-position": "pos-01" }, 503, "catch-up-timeout"],
   ] as const) {
-    let getLength: string | null = null;
+    let getLength: string | null = null,
+      getType: string | null = null;
     for (const method of ["GET", "HEAD"] as const) {
-      const response = await f.get(target, {
+      const response = await get(target, {
         method,
-        headers: { ...headers, ...patch, "if-none-match": "*" },
+        headers: {
+          ...headers,
+          ...patch,
+          "if-none-match": "*",
+          "if-match": '"different"',
+          accept: "text/plain",
+        },
       });
       expect(response.status).toBe(status);
       expect(response.headers.has("location")).toBe(false);
+      expect(response.headers.has("etag")).toBe(false);
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
       expect(context(response)).toEqual(context(created));
       if (status === 503) expect(response.headers.get("retry-after")).toBe("1");
       if (method === "GET") {
-        expect(checkedProblem(await body(response))).toMatchObject({
+        const text = await response.text();
+        expect(Buffer.byteLength(text)).toBeGreaterThan(0);
+        getLength = response.headers.get("content-length");
+        getType = response.headers.get("content-type");
+        expect(getLength).toBe(String(Buffer.byteLength(text)));
+        expect(checkedProblem(record(JSON.parse(text)))).toMatchObject({
           status,
           code,
           retry: status === 503 ? "after-delay" : "after-state-change",
         });
-        getLength = response.headers.get("content-length");
       } else {
         expect(await response.text()).toBe("");
         expect(response.headers.get("content-length")).toBe(getLength);
+        expect(response.headers.get("content-type")).toBe(getType);
       }
     }
   }
-  const missing = await f.get(`${f.runtime.scope}alias/missing`, { headers });
+  const missing = await get(`${f.runtime.scope}alias/missing`, { headers });
   expect(missing.status).toBe(404);
   expect(context(missing)).toEqual(context(created));
   expect(checkedProblem(await body(missing))).toMatchObject({ code: "resource-not-found" });
-  for (const [suffix, supplied, status, marker] of [
-    ["alias/missing", { ...headers, "bdp-minimum-scope-position": "pos-2" }, 404, null],
-    ["alias/work?invalid=1", { ...headers, "bdp-minimum-scope-position": "pos-2" }, 404, null],
-    ["alias/work", { "bdp-minimum-scope-position": "pos-1" }, 400, null],
-    [
-      "alias/work",
-      { ...headers, "bdp-minimum-scope-position": "unknown" },
-      500,
-      "minimum-position",
-    ],
+  for (const [suffix, supplied, status] of [
+    ["alias/missing", { ...headers, "bdp-minimum-scope-position": "pos-2" }, 404],
+    ["alias/work?invalid=1", { ...headers, "bdp-minimum-scope-position": "pos-2" }, 404],
+    ["alias/work", { "bdp-minimum-scope-position": "pos-1" }, 400],
+    ["alias/missing", { ...headers, "bdp-minimum-scope-position": "unknown" }, 404],
+    ["alias/work?invalid=1", { ...headers, "bdp-minimum-scope-position": "unknown" }, 404],
   ] as const) {
-    const response = await f.get(`${f.runtime.scope}${suffix}`, { headers: supplied });
+    const response = await get(`${f.runtime.scope}${suffix}`, { headers: supplied });
     expect(response.status).toBe(status);
-    expect(response.headers.get("x-bdp-development-limit")).toBe(marker);
+    expect(response.headers.has("x-bdp-development-limit")).toBe(false);
     if (status === 400)
       expect(checkedProblem(await body(response))).toMatchObject({
         code: "malformed-request",
@@ -3168,13 +3233,43 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
         expect(response.headers.has(name)).toBe(false);
     }
   }
-  const anonymous = await fetch(target, { headers, redirect: "manual" });
+  // Unsupported private foreign-opaque gaps, not qualified foreign-view/expiry results.
+  for (const patch of [{ "bdp-scope-epoch": "foreign" }, { "bdp-authorization-view": "foreign" }]) {
+    for (const method of ["GET", "HEAD"] as const) {
+      const response = await get(target, {
+        method,
+        headers: { ...headers, ...patch, "bdp-minimum-scope-position": "unknown" },
+      });
+      expect(response.status).toBe(500);
+      expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+      expect(response.headers.has("location")).toBe(false);
+      expect(response.headers.has("etag")).toBe(false);
+      expect(await response.text()).toBe("");
+      for (const name of Object.keys(context(created)))
+        expect(response.headers.has(name)).toBe(false);
+    }
+  }
+  const anonymous = await observe("GET", target, () =>
+    fetch(target, { headers, redirect: "manual" }),
+  );
   expect(anonymous.status).toBe(401);
   expect(anonymous.headers.has("location")).toBe(false);
   for (const name of Object.keys(context(created))) expect(anonymous.headers.has(name)).toBe(false);
-  const method = await f.get(target, { method: "DELETE", headers });
+  const method = await get(target, { method: "DELETE", headers });
   expect(method.status).toBe(405);
   expect(method.headers.get("allow")).toBe("GET, HEAD");
+  expect(attempted).toBe(28);
+  expect(responses).toHaveLength(28);
+  expect(waits).toBe(6);
+  console.log(
+    JSON.stringify({
+      observation: "alias-minimum-http",
+      attempted,
+      responses,
+      waits,
+      outcome: "passed",
+    }),
+  );
 });
 
 it("carries current owner context on direct conflict, operation-limit and both negotiation refusals", async () => {
