@@ -14,6 +14,10 @@ import {
   stringifyJsonValue,
 } from "@bdp/protocol";
 import { openTransactionStore, type TransactionStoreOptions } from "./transaction-store.js";
+import {
+  TransactionMinimumUnproved,
+  TransactionMinimumUnsupported,
+} from "./transaction-consistency.js";
 import { prepareTransactionSetCore } from "./transaction-batch.js";
 import {
   TRANSACTION_SNAPSHOT_LIMITS as limits,
@@ -1234,9 +1238,14 @@ it("checks each fresh Snapshot minimum before any handle, record, page or expiry
     expect(() =>
       f.owner.observeSnapshot({ kind }, { ...tuple, authorizationView: "foreign" }),
     ).toThrow("foreign-view");
-    expect(() =>
-      f.owner.observeSnapshot({ kind }, { ...tuple, minimumPosition: "unknown" }),
-    ).toThrow("unsupported minimum tuple");
+    let unknown: unknown;
+    try {
+      f.owner.observeSnapshot({ kind }, { ...tuple, minimumPosition: "unknown" });
+    } catch (error) {
+      unknown = error;
+    }
+    expect(unknown).toBeInstanceOf(TransactionMinimumUnproved);
+    expect(unknown).toMatchObject({ context });
   }
   f.offline((db) => {
     for (const table of ["snapshots", "snapshot_records", "snapshot_pages"])
@@ -1423,3 +1432,90 @@ it("captures and reopens deep owned Links without losing JSON value equality", a
 it("rejects deep owned-Link divergence before Snapshot issuance", async () => {
   await deepSnapshotWitness(false, true);
 }, 30000);
+
+it("gates fresh Snapshot opaque minima before allocation and expiry", () => {
+  const f = fixture();
+  f.run([create("a")]);
+  let snapshotCalls = 0;
+  const observe = (...args: Parameters<typeof f.owner.observeSnapshot>) => {
+    snapshotCalls++;
+    return f.owner.observeSnapshot(...args);
+  };
+  const first = observe({ kind: "create" });
+  if (first.kind !== "manifest") throw new Error("expected manifest");
+  const inventory = (db: DatabaseSync) => ({
+    snapshots: Number(db.prepare("SELECT count(*) AS n FROM snapshots").get()?.n),
+    records: Number(db.prepare("SELECT count(*) AS n FROM snapshot_records").get()?.n),
+    pages: Number(db.prepare("SELECT count(*) AS n FROM snapshot_pages").get()?.n),
+    disposition: String(db.prepare("SELECT disposition FROM snapshots").get()?.disposition),
+  });
+  let baseline: ReturnType<typeof inventory> | undefined;
+  let after: ReturnType<typeof inventory> | undefined;
+  let offlineInspections = 0;
+  f.offline((db) => {
+    offlineInspections++;
+    baseline = inventory(db);
+    expect(baseline).toMatchObject({ snapshots: 1, records: 1, pages: 2 });
+    expect(JSON.parse(baseline.disposition).expired).toBe(false);
+  });
+  f.setTime(1000000 + limits.lifetimeMs + 1);
+  const minimum = {
+    scopeEpoch: first.context.scopeEpoch,
+    authorizationView: first.context.authorizationView,
+    minimumPosition: "opaque",
+  };
+  const unproved = (kind: "create" | "preflight", minimumPosition = "opaque") => {
+    let failure: unknown;
+    try {
+      observe({ kind }, { ...minimum, minimumPosition });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(TransactionMinimumUnproved);
+    expect(failure).toMatchObject({ context: first.context });
+  };
+  for (const kind of ["create", "preflight"] as const) {
+    unproved(kind);
+    expect(() => observe({ kind }, { ...minimum, scopeEpoch: "foreign" })).toThrow(
+      TransactionMinimumUnsupported,
+    );
+    expect(() => observe({ kind }, { ...minimum, authorizationView: "foreign" })).toThrow(
+      TransactionMinimumUnsupported,
+    );
+    expect(() => observe({ kind }, { ...minimum, minimumPosition: "pos-2" })).toThrow("behind");
+  }
+  unproved("create", "pos-01");
+  let preEntryExcludedCalls = 0;
+  for (const request of [
+    { kind: "manifest", id: handle(first.body) },
+    { kind: "page", id: handle(first.body), stream: "bead", token: "unused" },
+  ] as const) {
+    preEntryExcludedCalls++;
+    expect(() => observe(request, minimum)).toThrow("unsupported minimum tuple");
+    preEntryExcludedCalls++;
+    expect(() => observe(request, { ...minimum, minimumPosition: "pos-1" })).toThrow(
+      "requires fresh creation",
+    );
+  }
+  // No await: normal background maintenance must not race the advanced clock.
+  f.offline((db) => {
+    offlineInspections++;
+    after = inventory(db);
+    expect(after).toEqual(baseline);
+    expect(JSON.parse(after.disposition).expired).toBe(false);
+  });
+  // The final helper reopen may maintain the store after this measured comparison.
+  expect(snapshotCalls).toBe(14);
+  expect(preEntryExcludedCalls).toBe(4);
+  expect(offlineInspections).toBe(2);
+  console.log(
+    JSON.stringify({
+      observation: "fresh-snapshot-opaque-owner",
+      snapshotCalls,
+      preEntryExcludedCalls,
+      offlineInspections,
+      baseline,
+      after,
+    }),
+  );
+});

@@ -5608,3 +5608,148 @@ it("preserves receiving and HTTP error precedence for parser refusals", async ()
     for (const excluded of ["types/", "types/task", "beads/a/"]) await f.gapPair(excluded);
   });
 });
+
+it("serves fresh Snapshot opaque minima with terminal preflight and retained fences", async () => {
+  let tick = 0;
+  let waits = 0;
+  const f = await fixture({
+    minimumReads: {
+      budgetMs: 2,
+      now: () => tick++,
+      wait: async () => {
+        waits++;
+      },
+    },
+  });
+  const url = `${f.runtime.scope}snapshot`;
+  const responses: { method: string; path: string; status: number }[] = [];
+  async function observed(method: string, target: string, response: Response) {
+    const text = await response.text();
+    responses.push({
+      method,
+      path: new URL(target).pathname + new URL(target).search,
+      status: response.status,
+    });
+    return { response, text };
+  }
+  async function get(target: string, method: "GET" | "HEAD", headers: Record<string, string>) {
+    return observed(method, target, await f.get(target, { method, headers }));
+  }
+  try {
+    const seed = await observed("POST", f.runtime.targets.batch, await f.post());
+    expect(seed.response.status).toBe(200);
+    expect(record(JSON.parse(seed.text))).toMatchObject({ status: "completed" });
+    const minimum = minimumHeaders(seed.response, "opaque");
+    const known = minimumHeaders(seed.response, "pos-1");
+    const current = {
+      "bdp-scope-epoch": seed.response.headers.get("bdp-scope-epoch"),
+      "bdp-authorization-view": seed.response.headers.get("bdp-authorization-view"),
+      "bdp-scope-position": "pos-1",
+    };
+    for (const value of Object.values(current)) expect(value).toBeTruthy();
+    const first = await get(url, "GET", known);
+    expect(first.response.status).toBe(200);
+    const manifest = record(JSON.parse(first.text));
+    expect(manifest).toMatchObject({
+      scopePosition: "pos-1",
+      beads: { items: [{ properties: { title: "a" } }] },
+    });
+    const head = await get(url, "HEAD", known);
+    expect(head.response.status).toBe(200);
+    expect(head.text).toBe("");
+    for (const [name, value] of Object.entries(current))
+      expect(head.response.headers.get(name)).toBe(value);
+    expect(head.response.headers.get("cache-control")).toBe("private, no-store");
+    for (const method of ["GET", "HEAD"] as const) {
+      for (const conditions of [
+        {},
+        { "if-none-match": "*" },
+        { "if-match": '"absent"' },
+        { accept: "text/plain" },
+      ] as Record<string, string>[]) {
+        const result = await get(url, method, { ...minimum, ...conditions });
+        expect(result.response.status).toBe(503);
+        for (const [name, value] of Object.entries(current))
+          expect(result.response.headers.get(name)).toBe(value);
+        expect(result.response.headers.get("retry-after")).toBe("1");
+        expect(result.response.headers.get("cache-control")).toBe("private, no-store");
+        expect(result.response.headers.get("x-bdp-development-limit")).toBeNull();
+        expect(result.response.headers.get("x-bdp-development")).toBe("non-attesting");
+        if (method === "HEAD") expect(result.text).toBe("");
+        else
+          expect(checkedProblem(record(JSON.parse(result.text)))).toMatchObject({
+            code: "catch-up-timeout",
+            type: "https://github.com/gastownhall/bdp/problems/unavailable",
+            status: 503,
+            retry: "after-delay",
+          });
+      }
+    }
+    for (const field of ["bdp-scope-epoch", "bdp-authorization-view"]) {
+      for (const method of ["GET", "HEAD"] as const) {
+        const result = await get(url, method, { ...minimum, [field]: "foreign" });
+        expect(result.response.status).toBe(500);
+        expect(result.response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+        if (method === "HEAD") expect(result.text).toBe("");
+      }
+    }
+    for (const method of ["GET", "HEAD"] as const) {
+      const result = await get(url, method, { "bdp-minimum-scope-position": "opaque" });
+      expect(result.response.status).toBe(400);
+      for (const name of Object.keys(current)) expect(result.response.headers.get(name)).toBeNull();
+      if (method === "HEAD") expect(result.text).toBe("");
+      else expect(checkedProblem(record(JSON.parse(result.text))).code).toBe("malformed-request");
+    }
+    const retainedUrl = id(manifest);
+    const page = new URL(retainedUrl);
+    page.searchParams.set("stream", "beads");
+    page.searchParams.set("page", "unused");
+    for (const target of [retainedUrl, page.href]) {
+      for (const method of ["GET", "HEAD"] as const) {
+        const result = await get(target, method, minimum);
+        expect(result.response.status).toBe(500);
+        expect(result.response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+        if (method === "HEAD") expect(result.text).toBe("");
+      }
+    }
+    for (const method of ["GET", "HEAD"] as const) {
+      const result = await get(retainedUrl, method, {});
+      expect(result.response.status).toBe(200);
+      expect(result.text).toBe(method === "HEAD" ? "" : first.text);
+    }
+    for (const method of ["GET", "HEAD"] as const) {
+      const result = await get(`${url}?unsupported=x`, method, minimum);
+      expect(result.response.status).toBe(400);
+      if (method === "HEAD") expect(result.text).toBe("");
+      else expect(checkedProblem(record(JSON.parse(result.text))).code).toBe("invalid-parameter");
+    }
+    for (const method of ["GET", "HEAD"] as const) {
+      // The ordinary fixture helper injects credentials; these two calls do not.
+      const result = await observed(method, url, await fetch(url, { method, headers: minimum }));
+      expect(result.response.status).toBe(401);
+      for (const name of Object.keys(current)) expect(result.response.headers.get(name)).toBeNull();
+      if (method === "HEAD") expect(result.text).toBe("");
+    }
+    expect(responses).toHaveLength(27);
+    expect(waits).toBe(8);
+    const statusCounts = Object.fromEntries(
+      [200, 503, 500, 400, 401].map((status) => [
+        status,
+        responses.filter((response) => response.status === status).length,
+      ]),
+    );
+    expect(statusCounts).toEqual({ 200: 5, 503: 8, 500: 8, 400: 4, 401: 2 });
+    await f.runtime.close();
+    console.log(
+      JSON.stringify({
+        observation: "fresh-snapshot-opaque-http",
+        requests: responses.length,
+        responses,
+        statusCounts,
+        waits,
+      }),
+    );
+  } finally {
+    await f.runtime.close();
+  }
+});

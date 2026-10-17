@@ -427,8 +427,29 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       // Without a minimum, preserve the synchronous owner path: it does not
       // observe signal or claim interruption of retained reads or copying.
       if (supplied === undefined) return run(async () => owner.observeSnapshot(request));
-      const minimum = snapshotTransactionMinimum(supplied),
+      let captured: { minimum: TransactionMinimum } | { error: TypeError };
+      try {
+        captured = { minimum: snapshotTransactionMinimum(supplied) };
+      } catch (error) {
+        if (!(error instanceof TypeError)) throw error;
+        captured = { error };
+      }
+      let minimum: TransactionMinimum;
+      let kind: TransactionSnapshotRequest["kind"];
+      if ("error" in captured) {
+        // Revalidate only data fields synchronously; kind/lifecycle errors are
+        // outside both catches. Excluded requests retain the original refusal.
+        try {
+          minimum = snapshotCurrentReadMinimum(supplied);
+        } catch {
+          throw captured.error;
+        }
         kind = request.kind;
+        if (kind !== "create" && kind !== "preflight") throw captured.error;
+      } else {
+        minimum = captured.minimum;
+        kind = request.kind;
+      }
       if (kind !== "create" && kind !== "preflight")
         throw new TypeError("minimum Snapshot observation requires fresh creation or preflight");
       // Freeze both controls before the first asynchronous attempt. Each owner

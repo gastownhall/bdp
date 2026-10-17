@@ -1556,20 +1556,45 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     /** Expected failures are paired inside the same entry, after any atomic
      * rollback. Unexpected integrity/SQLite/uncertain-commit errors propagate. */
     observeSnapshot(request: TransactionSnapshotRequest, supplied?: TransactionMinimum) {
-      const minimum = supplied === undefined ? undefined : snapshotTransactionMinimum(supplied);
-      if (minimum && request.kind !== "create" && request.kind !== "preflight")
+      let minimum: TransactionMinimum | undefined;
+      let observedRequest = request;
+      let unrecognizedMinimum = false;
+      if (supplied !== undefined) {
+        let captured: { minimum: TransactionMinimum } | { error: TypeError };
+        try {
+          captured = { minimum: snapshotTransactionMinimum(supplied) };
+        } catch (error) {
+          if (!(error instanceof TypeError)) throw error;
+          captured = { error };
+        }
+        if ("error" in captured) {
+          try {
+            minimum = snapshotCurrentReadMinimum(supplied);
+          } catch {
+            throw captured.error;
+          }
+          const kind = request.kind;
+          if (kind !== "create" && kind !== "preflight") throw captured.error;
+          observedRequest = Object.freeze({ kind });
+          unrecognizedMinimum = true;
+        } else minimum = captured.minimum;
+      }
+      if (minimum && observedRequest.kind !== "create" && observedRequest.kind !== "preflight")
         throw new TypeError("minimum Snapshot observation requires fresh creation or preflight");
       return enter(() => {
         const context = readContext(),
           now = instant();
-        if (minimum) checkTransactionMinimum(minimum, context);
+        if (minimum) {
+          if (unrecognizedMinimum) checkCurrentReadMinimum(minimum, context, true);
+          else checkTransactionMinimum(minimum, context);
+        }
         try {
           atomic(() => snapshots.expire(now, context));
-          if (request.kind === "preflight") {
+          if (observedRequest.kind === "preflight") {
             atomic(() => snapshots.preflight(now, context));
             return Object.freeze({ kind: "eligible" as const, context });
           }
-          if (request.kind === "create") {
+          if (observedRequest.kind === "create") {
             const manifest = atomic(() => {
               const value = snapshots.capture(now, context);
               options.fault?.("after-snapshot-copy");
@@ -1578,15 +1603,21 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             options.fault?.("after-snapshot-commit");
             return Object.freeze({ kind: "manifest" as const, body: manifest, context });
           }
-          if (request.kind === "manifest")
+          if (observedRequest.kind === "manifest")
             return Object.freeze({
               kind: "manifest" as const,
-              body: snapshots.manifest(request.id, now, context),
+              body: snapshots.manifest(observedRequest.id, now, context),
               context,
             });
           return Object.freeze({
             kind: "page" as const,
-            body: snapshots.page(request.id, request.stream, request.token, now, context),
+            body: snapshots.page(
+              observedRequest.id,
+              observedRequest.stream,
+              observedRequest.token,
+              now,
+              context,
+            ),
             context,
           });
         } catch (error) {
