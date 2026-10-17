@@ -991,3 +991,870 @@ it("publication cancels a queued Event frame before its drain permits another wr
   if (failures.length)
     throw new AggregateError(failures, "queued Event publication witness cleanup");
 }, 5000);
+
+it("gates initial Scope Event SSE opaque minima before scan packets", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { TransactionMinimumUnproved, TransactionMinimumFailure, TransactionMinimumUnsupported } =
+    await import("./transaction-consistency.js");
+  const f = ownerFixture();
+  let seedCommits = 0;
+  f.run([
+    create("a"),
+    create("b"),
+    {
+      operation: "createLink",
+      id: "links/l",
+      type: linkType,
+      source: "beads/a",
+      target: "beads/b",
+      properties: { n: 0 },
+    },
+  ]);
+  seedCommits++;
+  type Minimum = import("./transaction-consistency.js").TransactionMinimum;
+  const cases: {
+    label: string;
+    outcome: string;
+    groupObserverActive: boolean;
+    groupPrepareCalls: number | null;
+    context?: import("./transaction-store.js").TransactionReadContext;
+  }[] = [];
+  let reads = 0,
+    preparations = 0,
+    observing = false;
+  const scan = (
+    label: string,
+    sourceUrl: string,
+    minimum?: Minimum | "unsupported",
+    after?: string,
+    invalidReconnect = false,
+    admission?: "initial-scope-sse",
+  ) => {
+    reads++;
+    preparations = 0;
+    try {
+      const result = f.owner.beginEventScan(sourceUrl, after, minimum, invalidReconnect, admission);
+      cases.push({
+        label,
+        outcome: result.kind,
+        groupObserverActive: observing,
+        groupPrepareCalls: observing ? preparations : null,
+        ...("context" in result ? { context: result.context } : {}),
+      });
+      return result;
+    } catch (error) {
+      cases.push({
+        label,
+        outcome: error instanceof Error ? error.constructor.name : "non-Error",
+        groupObserverActive: observing,
+        groupPrepareCalls: observing ? preparations : null,
+        ...(error instanceof TransactionMinimumUnproved ||
+        error instanceof TransactionMinimumFailure
+          ? { context: error.context }
+          : {}),
+      });
+      return error;
+    }
+  };
+  const setup = scan("setup", `${scope}events/`, undefined, undefined, false, "initial-scope-sse");
+  if (!setup || typeof setup !== "object" || !("kind" in setup) || setup.kind !== "packet")
+    throw new Error("expected setup packet");
+  const packet = setup as import("./transaction-store.js").TransactionEventPacket;
+  expect(packet.events).toHaveLength(1);
+  const minimum = {
+    scopeEpoch: packet.context.scopeEpoch,
+    authorizationView: packet.context.authorizationView,
+    minimumPosition: "unknown",
+  };
+  const original = DatabaseSync.prototype.prepare;
+  const observer = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: InstanceType<typeof DatabaseSync>,
+    sql,
+  ) {
+    if (/FROM groups/.test(sql)) preparations++;
+    return original.call(this, sql);
+  });
+  observing = true;
+  try {
+    for (const position of ["unknown", "pos-01"]) {
+      const result = scan(
+        position,
+        `${scope}events/`,
+        { ...minimum, minimumPosition: position },
+        undefined,
+        false,
+        "initial-scope-sse",
+      );
+      expect(result).toBeInstanceOf(TransactionMinimumUnproved);
+      expect(result).toMatchObject({ context: packet.context });
+    }
+    const future = scan(
+      "future",
+      `${scope}events/`,
+      { ...minimum, minimumPosition: "pos-2" },
+      undefined,
+      false,
+      "initial-scope-sse",
+    );
+    expect(future).toBeInstanceOf(TransactionMinimumFailure);
+    expect(future).toMatchObject({ reason: "behind", context: packet.context });
+    for (const tuple of [
+      { ...minimum, scopeEpoch: "foreign-epoch" },
+      { ...minimum, authorizationView: "foreign-view" },
+    ]) {
+      expect(
+        scan("foreign", `${scope}events/`, tuple, undefined, false, "initial-scope-sse"),
+      ).toBeInstanceOf(TransactionMinimumUnsupported);
+    }
+    const strict = [
+      scan("default", `${scope}events/`, minimum),
+      scan("after", `${scope}events/`, minimum, packet.events[0]!.id, false, "initial-scope-sse"),
+      scan("invalid-reconnect", `${scope}events/`, minimum, undefined, true, "initial-scope-sse"),
+      scan("bead", `${scope}beads/a?view=events`, minimum, undefined, false, "initial-scope-sse"),
+      scan("link", `${scope}links/l?view=events`, minimum, undefined, false, "initial-scope-sse"),
+    ];
+    for (const result of strict) {
+      expect(result).toBeInstanceOf(TypeError);
+      expect(result).toMatchObject({ message: "unsupported minimum tuple" });
+    }
+    expect(
+      scan(
+        "missing",
+        `${scope}beads/missing?view=events`,
+        "unsupported",
+        undefined,
+        false,
+        "initial-scope-sse",
+      ),
+    ).toEqual({ kind: "missing", context: packet.context });
+    expect(
+      scan(
+        "malformed",
+        `${scope}events/`,
+        { ...minimum, minimumPosition: "" },
+        undefined,
+        false,
+        "initial-scope-sse",
+      ),
+    ).toBeInstanceOf(TypeError);
+    const positive = scan(
+      "known",
+      `${scope}events/`,
+      { ...minimum, minimumPosition: packet.context.scopePosition },
+      undefined,
+      false,
+      "initial-scope-sse",
+    );
+    expect(positive).toMatchObject({
+      kind: "packet",
+      context: packet.context,
+      events: packet.events,
+    });
+    expect(reads).toBe(14);
+    expect(cases[0]).toMatchObject({ groupObserverActive: false, groupPrepareCalls: null });
+    for (const row of cases.slice(1, 13)) expect(row.groupPrepareCalls).toBe(0);
+    expect(cases[13]!.groupPrepareCalls).toBeGreaterThan(0);
+  } finally {
+    observer.mockRestore();
+  }
+  console.log(
+    JSON.stringify({ observation: "scope-event-sse-minimum-owner", reads, seedCommits, cases }),
+  );
+});
+
+// Appended src-graph fixture; the historical owner/runtime helpers above are unchanged.
+async function scopeSseMinimumService() {
+  const { createTransactionService } = await import("./transaction-service.js");
+  const { TransactionMinimumUnproved, TransactionMinimumFailure } = await import(
+    "./transaction-consistency.js"
+  );
+  const f = ownerFixture();
+  let seedCommits = 0;
+  const receipt = f.run([create("a")]);
+  seedCommits++;
+  let interveningCommits = 0,
+    ownerCloseCalls = 0,
+    serviceCalls = 0,
+    waits = 0,
+    clockCalls = 0,
+    now = 0,
+    cursor = 0;
+  const entered = Promise.withResolvers<void>(),
+    latch = Promise.withResolvers<void>(),
+    controller = new AbortController();
+  const attempts: {
+    minimum: unknown;
+    outcome: string;
+    context?: import("./transaction-store.js").TransactionReadContext;
+  }[] = [];
+  const owner = {
+    ...f.owner,
+    beginEventScan(...args: Parameters<typeof f.owner.beginEventScan>) {
+      const minimum = args[2] === undefined ? null : structuredClone(args[2]);
+      try {
+        const result = f.owner.beginEventScan(...args);
+        attempts.push({
+          minimum,
+          outcome: result.kind,
+          ...("context" in result ? { context: result.context } : {}),
+        });
+        return result;
+      } catch (error) {
+        attempts.push({
+          minimum,
+          outcome: error instanceof Error ? error.constructor.name : "non-Error",
+          ...(error instanceof TransactionMinimumUnproved ||
+          error instanceof TransactionMinimumFailure
+            ? { context: error.context }
+            : {}),
+        });
+        throw error;
+      }
+    },
+    close() {
+      ownerCloseCalls++;
+      f.owner.close();
+    },
+  };
+  const service = createTransactionService(owner, {
+    ownerLifetime: "service",
+    minimumReads: {
+      budgetMs: 2,
+      now: () => {
+        clockCalls++;
+        return now;
+      },
+      wait: async () => {
+        waits++;
+        entered.resolve();
+        await latch.promise;
+      },
+    },
+    read: {
+      selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
+      advertisedLimits: {
+        page: { defaultItems: 1, maximumItems: 1 },
+        selector: { bytes: 4096, depth: 32, nodes: 256 },
+        cursorTtlMilliseconds: 1000,
+      },
+      pagination: {
+        scope,
+        defaultPageItems: 1,
+        maxPageItems: 1,
+        cursorTtlMs: 1000,
+        retainedStateCapacity: 100,
+        maxRetainedCursorPositionsPerSnapshot: 20,
+        retainedSnapshotByteCapacity: 100000,
+        retainedSnapshotNodeCapacity: 10000,
+        maxOpaqueTokenLength: 64,
+        tokenGenerationAttempts: 3,
+        idleCleanup: "on-demand",
+        clock: () => 1000,
+        generateOpaqueToken: () => `scope_sse_${++cursor}`,
+      },
+    },
+  });
+  let closedSettled = false;
+  const closed = service.closed.then(
+    () => {
+      closedSettled = true;
+      return { ok: true as const };
+    },
+    (error: unknown) => {
+      closedSettled = true;
+      return { ok: false as const, error };
+    },
+  );
+  const minimum = {
+    scopeEpoch: receipt.scopeEpoch,
+    authorizationView: receipt.authorizationView,
+    minimumPosition: "unknown",
+  };
+  let closing: ReturnType<typeof service.close> | undefined;
+  const close = () => {
+    closing ??= service.close();
+    void closing.catch(() => {});
+    return closing;
+  };
+  const probes: { call: number; outcome: string }[] = [];
+  const call = (tuple: typeof minimum) => {
+    serviceCalls++;
+    try {
+      const operation = service.beginEvents(
+        `${scope}events/`,
+        undefined,
+        tuple,
+        controller.signal,
+        false,
+        "initial-scope-sse",
+      );
+      probes.push({ call: serviceCalls, outcome: "promise-returned" });
+      return operation;
+    } catch (error) {
+      probes.push({
+        call: serviceCalls,
+        outcome: error instanceof Error ? error.constructor.name : "non-Error",
+      });
+      throw error;
+    }
+  };
+  type Outcome =
+    | { ok: true; value: Awaited<ReturnType<typeof call>> }
+    | { ok: false; error: unknown };
+  let operation: Promise<Outcome> | undefined;
+  const start = () => {
+    operation = call(minimum).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    return operation;
+  };
+  const waitEntered = async () => {
+    if (!operation) throw new Error("operation not started");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        entered.promise,
+        operation.then(() => {
+          throw new Error("minimum settled before held wait");
+        }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("held wait entry guard")), 1000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  const cleanup = async (failures: unknown[]) => {
+    controller.abort();
+    latch.resolve();
+    if (operation) await operation;
+    try {
+      await close();
+    } catch (error) {
+      failures.push(error);
+    }
+    const outcome = await closed;
+    if (!outcome.ok) failures.push(outcome.error);
+  };
+  return {
+    service,
+    owner: f.owner,
+    minimum,
+    controller,
+    call,
+    start,
+    waitEntered,
+    close,
+    closed,
+    cleanup,
+    release: () => latch.resolve(),
+    setNow: (value: number) => {
+      now = value;
+    },
+    closedSettled: () => closedSettled,
+    async advance() {
+      const result = await service.submit({
+        carrier: { kind: "batch" },
+        body: JSON.stringify({ operations: [create("b")] }),
+        key: "scope-sse-advance",
+        authorization: { kind: "authorized", principal: "p" },
+        receiving: { acceptsJson: true, maximumOperations: 1 },
+      });
+      expect(result).toMatchObject({
+        kind: "receipt",
+        receipt: { status: "completed", requiredPosition: "pos-2" },
+      });
+      interveningCommits++;
+    },
+    counts: () => ({
+      seedCommits,
+      interveningCommits,
+      serviceCalls,
+      ownerAttempts: attempts.length,
+      waits,
+      clockCalls,
+      ownerCloseCalls,
+    }),
+    attempts,
+    probes,
+  };
+}
+
+it("captures initial Scope Event SSE minima once and recaptures context on retry", async () => {
+  const { TransactionMinimumFailure } = await import("./transaction-consistency.js");
+  const f = await scopeSseMinimumService();
+  const failures: unknown[] = [];
+  let finalContext: unknown;
+  try {
+    expect(() => f.call({ ...f.minimum, minimumPosition: "" })).toThrow(TypeError);
+    expect(f.counts()).toMatchObject({ ownerAttempts: 0, clockCalls: 0 });
+    const captured = { ...f.minimum };
+    const observed = f.start();
+    await f.waitEntered();
+    f.minimum.scopeEpoch = "mutated-epoch";
+    f.minimum.authorizationView = "mutated-view";
+    f.minimum.minimumPosition = "pos-99";
+    await f.advance();
+    f.setNow(2);
+    f.release();
+    const outcome = await observed;
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) throw new Error("unknown minimum unexpectedly admitted");
+    expect(outcome.error).toBeInstanceOf(TransactionMinimumFailure);
+    expect(outcome.error).toMatchObject({ reason: "catch-up-timeout" });
+    if (!(outcome.error instanceof TransactionMinimumFailure)) throw outcome.error;
+    finalContext = outcome.error.context;
+    expect(outcome.error.context).toEqual({
+      scopeEpoch: captured.scopeEpoch,
+      authorizationView: captured.authorizationView,
+      scopePosition: "pos-2",
+    });
+    const known = { ...captured, minimumPosition: "pos-2" };
+    const positive = await f.call(known);
+    expect(positive.kind).toBe("packet");
+    expect(f.attempts.map((attempt) => attempt.minimum)).toEqual([captured, captured, known]);
+    expect(f.attempts.slice(0, 2).map((attempt) => attempt.outcome)).toEqual([
+      "TransactionMinimumUnproved",
+      "TransactionMinimumUnproved",
+    ]);
+    expect(f.attempts.map((attempt) => attempt.context?.scopePosition)).toEqual([
+      "pos-1",
+      "pos-2",
+      "pos-2",
+    ]);
+    await f.close();
+    expect(() => f.call({ ...known, minimumPosition: "" })).toThrow(TypeError);
+    expect(() => f.call(known)).toThrow("closing or closed");
+    expect(f.probes.map((probe) => probe.outcome)).toEqual([
+      "TypeError",
+      "promise-returned",
+      "promise-returned",
+      "TypeError",
+      "Error",
+    ]);
+    expect(f.counts()).toMatchObject({
+      serviceCalls: 5,
+      ownerAttempts: 3,
+      waits: 1,
+      clockCalls: 4,
+      seedCommits: 1,
+      interveningCommits: 1,
+    });
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    await f.cleanup(failures);
+  }
+  console.log(
+    JSON.stringify({
+      observation: "scope-event-sse-minimum-capture",
+      ...f.counts(),
+      attempts: f.attempts,
+      probes: f.probes,
+      finalContext,
+      closed: f.closedSettled(),
+      failureCount: failures.length,
+    }),
+  );
+  if (failures.length) throw new AggregateError(failures, "Scope SSE minimum capture failed");
+});
+
+it("drains an aborted initial Scope Event SSE minimum wait before owner close", async () => {
+  const { ScopeServerOperationAbortedError } = await import("./read-request.js");
+  const f = await scopeSseMinimumService();
+  const failures: unknown[] = [];
+  let rawPostCloseProbes = 0,
+    operationOutcome = "not-observed",
+    synchronouslyUnsettled = false;
+  try {
+    const observed = f.start();
+    await f.waitEntered();
+    const closing = f.close();
+    synchronouslyUnsettled = !f.closedSettled();
+    expect(synchronouslyUnsettled).toBe(true);
+    f.controller.abort();
+    f.release();
+    const outcome = await observed;
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) throw new Error("aborted minimum unexpectedly admitted");
+    expect(outcome.error).toBeInstanceOf(ScopeServerOperationAbortedError);
+    operationOutcome = "aborted";
+    await closing;
+    expect(await f.closed).toEqual({ ok: true });
+    expect(() => f.call({ ...f.minimum, minimumPosition: "pos-1" })).toThrow("closing or closed");
+    rawPostCloseProbes++;
+    expect(() => f.owner.beginEventScan(`${scope}events/`)).toThrow();
+    expect(f.counts()).toMatchObject({
+      serviceCalls: 2,
+      ownerAttempts: 1,
+      waits: 1,
+      clockCalls: 2,
+      seedCommits: 1,
+      ownerCloseCalls: 1,
+    });
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    await f.cleanup(failures);
+  }
+  console.log(
+    JSON.stringify({
+      observation: "scope-event-sse-minimum-abort",
+      ...f.counts(),
+      rawPostCloseProbes,
+      probes: f.probes,
+      operationOutcome,
+      synchronouslyUnsettled,
+      closed: f.closedSettled(),
+      failureCount: failures.length,
+    }),
+  );
+  if (failures.length) throw new AggregateError(failures, "Scope SSE minimum abort failed");
+});
+
+it("serves initial Scope Event SSE opaque minima before conditional admission", async () => {
+  const f = await runtimeFixture();
+  const started = performance.now();
+  const records: {
+    ordinal: number;
+    method: string;
+    target: string;
+    status: number;
+    bodyBytes: number;
+    context: Record<string, string | undefined>;
+  }[] = [];
+  const baselinePages: {
+    target: string;
+    eventCount: number;
+    next: string | null;
+    context: Record<string, string | undefined>;
+  }[] = [];
+  const baseline: import("./transaction-batch.js").TransactionEvent[] = [];
+  const failures: unknown[] = [];
+  let requests = 0,
+    seedCommits = 0;
+  let expectedContext: Record<string, string> = {};
+  let positive: ReturnType<typeof recordRawSse> | undefined;
+  const positiveController = new AbortController();
+  let positiveEvidence: unknown;
+  const names = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
+  const safeContext = (headers: Record<string, string>) =>
+    Object.fromEntries(names.map((name) => [name, headers[name]]));
+  function begin() {
+    expect(++requests).toBeLessThanOrEqual(31);
+  }
+  function record(
+    method: string,
+    target: string,
+    status: number,
+    body: string,
+    headers: Record<string, string>,
+  ) {
+    records.push({
+      ordinal: requests,
+      method,
+      target,
+      status,
+      bodyBytes: Buffer.byteLength(body),
+      context: safeContext(headers),
+    });
+  }
+  const finite = async (target: string, init: RequestInit = {}) => {
+    begin();
+    const response = await f.request(target, init);
+    const text = await response.text();
+    const headers = Object.fromEntries(response.headers);
+    record(init.method ?? "GET", target, response.status, text, headers);
+    expect(response.status).toBe(200);
+    return { body: JSON.parse(text), headers };
+  };
+  const raw = async (
+    target: string,
+    headers: [string, string][],
+    status: number,
+    method: "GET" | "HEAD" = "GET",
+    authenticated = true,
+  ) => {
+    begin();
+    const stream = f.stream(target, headers, method, authenticated);
+    const ready = stream.ready.then(
+      () => ({ ok: true as const }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    const closed = stream.closed.then(() => undefined);
+    try {
+      const outcome = await ready;
+      if (!outcome.ok) throw outcome.error;
+      if (method === "HEAD" || status !== 200) await closed;
+      expect(stream.status).toBe(status);
+      record(method, target, stream.status, stream.body, stream.headers);
+      expect(eventFrames(stream)).toHaveLength(0);
+      if (method === "HEAD") expect(stream.body).toBe("");
+      for (const name of ["etag", "last-modified"]) expect(stream.headers[name]).toBeUndefined();
+      if (status === 503) {
+        expect(stream.headers).toMatchObject({
+          ...expectedContext,
+          "content-type": "application/problem+json",
+          "retry-after": "1",
+          "cache-control": "private, no-store",
+        });
+        if (method === "GET")
+          expect(JSON.parse(stream.body)).toEqual({
+            type: "https://github.com/gastownhall/bdp/problems/unavailable",
+            status: 503,
+            code: "catch-up-timeout",
+            retry: "after-delay",
+          });
+      } else if (status === 500) {
+        expect(stream.headers["x-bdp-development-limit"]).toBe("minimum-position");
+        expect(stream.body).toBe("");
+        for (const name of names) expect(stream.headers[name]).toBeUndefined();
+      } else if (status === 400 || status === 401) {
+        for (const name of names) expect(stream.headers[name]).toBeUndefined();
+        if (method === "GET")
+          expect(JSON.parse(stream.body)).toMatchObject({
+            status,
+            code:
+              status === 401
+                ? "unauthenticated"
+                : target === "events/?after="
+                  ? "invalid-parameter"
+                  : "malformed-request",
+          });
+      } else {
+        expect(safeContext(stream.headers)).toEqual(expectedContext);
+        if (status === 404)
+          expect(JSON.parse(stream.body)).toMatchObject({
+            status: 404,
+            code: "resource-not-found",
+          });
+      }
+      return { headers: { ...stream.headers }, body: stream.body };
+    } finally {
+      await stream.close();
+      await closed;
+    }
+  };
+  const pair = async (headers: [string, string][], status: number) => {
+    const get = await raw("events/", headers, status);
+    const head = await raw("events/", headers, status, "HEAD");
+    expect(head.headers["content-length"]).toBe(String(Buffer.byteLength(get.body)));
+    expect(head.headers["content-type"]).toBe(get.headers["content-type"]);
+    expect(safeContext(head.headers)).toEqual(safeContext(get.headers));
+  };
+  try {
+    const seed = await finite("operations/batch", {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "scope-sse-minimum-seed" },
+      body: JSON.stringify({
+        operations: [
+          create("a"),
+          create("b"),
+          {
+            operation: "createLink",
+            id: "links/l",
+            type: linkType,
+            source: "beads/a",
+            target: "beads/b",
+            properties: { n: 0 },
+          },
+        ],
+      }),
+    });
+    expect(seed.body).toMatchObject({
+      status: "completed",
+      effectPosition: "pos-1",
+      requiredPosition: "pos-1",
+    });
+    seedCommits++;
+    let target = "events/";
+    for (const [index, count] of [2, 2, 1].entries()) {
+      const page = await finite(target, { headers: { accept: "application/json" } });
+      contextFields(page.headers);
+      if (index === 0)
+        expectedContext = Object.fromEntries(names.map((name) => [name, page.headers[name]!]));
+      expect(safeContext(page.headers)).toEqual(expectedContext);
+      expect(page.body.source).toBe(`${scope}events/`);
+      expect(page.body.events).toHaveLength(count);
+      baseline.push(...page.body.events);
+      baselinePages.push({
+        target,
+        eventCount: page.body.events.length,
+        next: page.body.next,
+        context: safeContext(page.headers),
+      });
+      if (index < 2) {
+        expect(typeof page.body.next).toBe("string");
+        const next = new URL(page.body.next);
+        const last = page.body.events.at(-1);
+        expect(next.origin).toBe(new URL(scope).origin);
+        expect(next.pathname).toBe("/acme/events/");
+        expect([...next.searchParams.keys()]).toEqual(["after"]);
+        expect(next.searchParams.get("after")).toBe(last.id);
+        expect(next.hash).toBe("");
+        target = next.href.slice(scope.length);
+      } else expect(page.body.next).toBeNull();
+    }
+    expect(baseline).toHaveLength(5);
+    expect(baseline.map((event) => event.ordinal)).toEqual([0, 1, 2, 3, 4]);
+    expect(baseline.map((event) => event.type)).toEqual([
+      "created",
+      "created",
+      "created",
+      "linked",
+      "linked",
+    ]);
+    expect(baseline.map((event) => event.subject)).toEqual([
+      `${scope}beads/a`,
+      `${scope}beads/b`,
+      `${scope}links/l`,
+      `${scope}links/l`,
+      `${scope}links/l`,
+    ]);
+    for (const event of baseline)
+      expect(event).toMatchObject({
+        source: `${scope}events/`,
+        transaction: seed.body.transaction,
+      });
+    expect(baseline[3]!.data).toMatchObject({
+      endpoint: "source",
+      link: { id: `${scope}links/l`, type: linkType },
+    });
+    expect(baseline[4]!.data).toMatchObject({
+      endpoint: "target",
+      link: { id: `${scope}links/l`, type: linkType },
+    });
+    const minimum = (position: string): [string, string][] => [
+      ["BDP-Scope-Epoch", expectedContext["bdp-scope-epoch"]!],
+      ["BDP-Authorization-View", expectedContext["bdp-authorization-view"]!],
+      ["BDP-Minimum-Scope-Position", position],
+    ];
+    const known = minimum("pos-1"),
+      opaque = minimum("unknown"),
+      after = baseline[0]!.id;
+    const knownHead = await raw("events/", known, 200, "HEAD");
+    expect(knownHead.headers["content-type"]).toBe("text/event-stream");
+    expect(knownHead.headers["content-length"]).toBeUndefined();
+    await pair(opaque, 503);
+    await pair(minimum("pos-01"), 503);
+    await pair([...opaque, ["If-None-Match", "*"]], 503);
+    await pair([...opaque, ["If-Match", '"wrong"']], 503);
+    await pair([["BDP-Minimum-Scope-Position", "unknown"]], 400);
+    await pair(minimum("pos-2"), 503);
+    await raw("events/", [["BDP-Scope-Epoch", "foreign-epoch"], ...opaque.slice(1)], 500);
+    await raw("events/", [opaque[0]!, ["BDP-Authorization-View", "foreign-view"], opaque[2]!], 500);
+    await raw(`events/?after=${encodeURIComponent(after)}`, opaque, 500);
+    await raw("events/?after=", opaque, 400);
+    await raw("events/", [...opaque, ["Last-Event-ID", after]], 500);
+    await raw("events/", [...opaque, ["Last-Event-ID", ""]], 500);
+    await raw("events/", [...opaque, ["Last-Event-ID", after], ["Last-Event-ID", after]], 500);
+    await raw("beads/a?view=events", opaque, 500);
+    await raw("links/l?view=events", opaque, 500);
+    await raw("beads/missing?view=events", opaque, 404);
+    await raw("events/", opaque, 401, "GET", false);
+    await raw("events/", [...known, ["If-None-Match", "*"]], 304, "HEAD");
+    await raw("events/", [...known, ["If-Match", '"wrong"']], 412, "HEAD");
+    begin();
+    const stream = recordRawSse({
+      dial: f.runtime.listenUrl,
+      host: new URL(f.runtime.listenUrl).host,
+      target: "/acme/events/",
+      headers: [["Authorization", `Bearer ${f.token}`], ["Accept", "text/event-stream"], ...known],
+      signal: positiveController.signal,
+      timeoutMs: 5000,
+    });
+    positive = stream;
+    const ready = stream.ready.then(
+      () => ({ ok: true as const }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    const closed = stream.closed.then(() => undefined);
+    const readyResult = await ready;
+    if (!readyResult.ok) throw readyResult.error;
+    expect(stream.status).toBe(200);
+    expect(stream.headers).toMatchObject({
+      ...expectedContext,
+      "content-type": "text/event-stream",
+      "cache-control": "no-store, no-transform",
+    });
+    expect(stream.headers["etag"]).toBeUndefined();
+    expect(stream.headers["content-length"]).toBeUndefined();
+    await stream.until(() => eventFrames(stream).length >= 5);
+    const before = [...eventFrames(stream)];
+    const sameFrames = (frames: string[]) => {
+      expect(frames).toHaveLength(5);
+      expect(frames.map(decoded)).toEqual(baseline);
+      frames.forEach((frame, index) => {
+        expect(frame.split("\n").filter((line) => line.startsWith("id: "))).toEqual([
+          `id: ${baseline[index]!.id}`,
+        ]);
+        expect(frame.split("\n").filter((line) => line.startsWith("event: "))).toEqual([
+          `event: ${baseline[index]!.type}`,
+        ]);
+      });
+    };
+    sameFrames(before);
+    expect(() =>
+      sameFrames([before[0]!.replace("id: ", "id: wrong_"), ...before.slice(1)]),
+    ).toThrow();
+    expect(positiveController.signal.aborted).toBe(false);
+    expect(stream.destroyed).toBe(false);
+    expect(stream.elapsedMs).toBeLessThan(5000);
+    const liveBeforeClose = {
+      aborted: positiveController.signal.aborted,
+      destroyed: stream.destroyed,
+      elapsedMs: stream.elapsedMs,
+    };
+    await stream.close();
+    await closed;
+    const afterDrain = [...eventFrames(stream)];
+    sameFrames(afterDrain);
+    record("GET", "events/", stream.status, stream.body, stream.headers);
+    positiveEvidence = {
+      ready: true,
+      status: stream.status,
+      headers: { ...stream.headers },
+      framesBeforeClose: before,
+      framesAfterDrain: afterDrain,
+      liveBeforeClose,
+      drained: true,
+    };
+    expect(requests).toBe(31);
+    expect(records).toHaveLength(31);
+    expect(
+      records.reduce<Record<string, number>>((counts, row) => {
+        counts[row.status] = (counts[row.status] ?? 0) + 1;
+        return counts;
+      }, {}),
+    ).toEqual({ 200: 6, 503: 10, 500: 8, 400: 3, 404: 1, 401: 1, 304: 1, 412: 1 });
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    positiveController.abort();
+    try {
+      await positive?.close();
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      await f.runtime.close();
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  console.log(
+    JSON.stringify({
+      observation: "scope-event-sse-minimum-http",
+      requests,
+      records,
+      seedCommits,
+      elapsedMs: performance.now() - started,
+      baselinePages,
+      positive: positiveEvidence,
+      failureCount: failures.length,
+    }),
+  );
+  if (failures.length) throw new AggregateError(failures, "Scope SSE HTTP minimum failed");
+});

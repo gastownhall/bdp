@@ -522,8 +522,19 @@ export function createTransactionHttpHandler(
         media === "json" &&
         !request.headers.has("last-event-id") &&
         (lastEventIds?.length ?? 0) === 0;
+      const fields =
+        lastEventIds ??
+        (request.headers.has("last-event-id") ? [request.headers.get("last-event-id")!] : []);
+      const initialScopeSseMinimum =
+        media === "sse" &&
+        eventRequest.source.kind === "scope" &&
+        eventRequest.source.url === new URL("events/", scope).href &&
+        eventRequest.after === undefined &&
+        !url.searchParams.has("after") &&
+        !request.headers.has("last-event-id") &&
+        fields.length === 0;
       const minimum = hasMinimumControls(request)
-        ? ((initialFiniteMinimumSource
+        ? ((initialFiniteMinimumSource || initialScopeSseMinimum
             ? currentReadMinimumHeaders(request.headers)
             : transactionMinimumHeaders(request.headers)) ?? "unsupported")
         : undefined;
@@ -539,15 +550,13 @@ export function createTransactionHttpHandler(
         if (observed.kind === "unsupported") return developmentGap("minimum-position");
         return context(jsonResponse(observed.page), observed.context);
       }
-      const fields =
-        lastEventIds ??
-        (request.headers.has("last-event-id") ? [request.headers.get("last-event-id")!] : []);
       const observed = await service.beginEvents(
         eventRequest.source.url,
         fields.length === 1 ? fields[0] : eventRequest.after,
         minimum,
         request.signal,
         fields.length > 1,
+        initialScopeSseMinimum ? "initial-scope-sse" : undefined,
       );
       if (observed.kind === "missing")
         return transactionHttpProblem("resource-not-found", observed.context);
