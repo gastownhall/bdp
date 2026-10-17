@@ -61,13 +61,16 @@
           "format": "uri"
         },
         "previousRevision": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "newRevision": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "recordedRevision": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "initialState": {
           "type": "object"
@@ -142,7 +145,8 @@
               "format": "uri"
             },
             "revision": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             }
           },
           "additionalProperties": false
@@ -174,7 +178,17 @@
             }
           },
           "then": {
-            "required": ["newRevision", "initialState"]
+            "required": ["newRevision", "initialState"],
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["previousRevision"]
+                },
+                {
+                  "required": ["delta"]
+                }
+              ]
+            }
           }
         },
         {
@@ -186,7 +200,17 @@
             }
           },
           "then": {
-            "required": ["recordedRevision"]
+            "required": ["recordedRevision"],
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["initialState"]
+                },
+                {
+                  "required": ["delta"]
+                }
+              ]
+            }
           }
         },
         {
@@ -198,7 +222,10 @@
             }
           },
           "then": {
-            "required": ["newRevision", "sourceVersion"]
+            "required": ["newRevision", "sourceVersion"],
+            "not": {
+              "required": ["delta"]
+            }
           }
         },
         {
@@ -209,6 +236,31 @@
               },
               "transition": {
                 "const": "deleted"
+              }
+            }
+          },
+          "then": {
+            "required": ["linkContext"],
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["initialState"]
+                },
+                {
+                  "required": ["delta"]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "resourceKind": {
+                "const": "link"
+              },
+              "transition": {
+                "const": "created"
               }
             }
           },

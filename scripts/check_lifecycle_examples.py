@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent.parent
 HERE = ROOT / "specs/proposals/lifecycle-events"
 schema = json.loads((HERE / "fact-cases.schema.json").read_text())
 Draft202012Validator.check_schema(schema)
-cases = json.loads((HERE / "examples/fact-cases.json").read_text())
+cases = json.loads((ROOT / "fixtures/specs/lifecycle-events/fact-cases.json").read_text())
 Draft202012Validator(schema).validate(cases)
 fact = Draft202012Validator(schema["$defs"]["fact"], format_checker=FormatChecker())
 for case in cases:
@@ -16,4 +16,4 @@ for case in cases:
     counts = {"facts": len(case["facts"]), "bead": sum(f.get("resourceKind") == "bead" for f in case["facts"]), "link": sum(f.get("resourceKind") == "link" for f in case["facts"])}
     valid = valid and counts == case["expectedCounts"]
     assert valid == case["expectedValid"], case["name"]
-print(f"PASS: {len(cases)} lifecycle semantic review vectors; no Event-wire/runtime claim")
+print(f"PASS: {len(cases)} lifecycle fixture shape/count-consistency vectors; no Event-wire/runtime claim")

@@ -457,5 +457,236 @@
       "bead": 0,
       "link": 0
     }
+  },
+  {
+    "name": "link-created-with-context",
+    "facts": [
+      {
+        "resourceKind": "link",
+        "transition": "created",
+        "resourceId": "https://example.invalid/s/links/l",
+        "newRevision": "l-r1",
+        "initialState": {
+          "title": "A"
+        },
+        "linkContext": {
+          "type": "https://example.invalid/types/association",
+          "source": "https://example.invalid/s/beads/a",
+          "target": {
+            "uri": "https://example.invalid/s/beads/b",
+            "revision": "b-r1"
+          }
+        }
+      }
+    ],
+    "visibleFactIndexes": [0],
+    "expectedValid": true,
+    "expectedCounts": {
+      "facts": 1,
+      "bead": 0,
+      "link": 1
+    }
+  },
+  {
+    "name": "link-created-missing-context",
+    "facts": [
+      {
+        "resourceKind": "link",
+        "transition": "created",
+        "resourceId": "https://example.invalid/s/links/l",
+        "newRevision": "l-r1",
+        "initialState": {
+          "title": "A"
+        }
+      }
+    ],
+    "visibleFactIndexes": [0],
+    "expectedValid": false,
+    "expectedCounts": {
+      "facts": 1,
+      "bead": 0,
+      "link": 1
+    }
+  },
+  {
+    "name": "created-with-delta",
+    "facts": [
+      {
+        "resourceKind": "bead",
+        "transition": "created",
+        "resourceId": "https://example.invalid/s/beads/a",
+        "newRevision": "a-r1",
+        "initialState": {
+          "title": "A"
+        },
+        "delta": {
+          "properties": {
+            "title": "fake"
+          }
+        }
+      }
+    ],
+    "visibleFactIndexes": [0],
+    "expectedValid": false,
+    "expectedCounts": {
+      "facts": 1,
+      "bead": 1,
+      "link": 0
+    }
+  },
+  {
+    "name": "created-with-previous-revision",
+    "facts": [
+      {
+        "resourceKind": "bead",
+        "transition": "created",
+        "resourceId": "https://example.invalid/s/beads/a",
+        "newRevision": "a-r1",
+        "initialState": {
+          "title": "A"
+        },
+        "previousRevision": "before"
+      }
+    ],
+    "visibleFactIndexes": [0],
+    "expectedValid": false,
+    "expectedCounts": {
+      "facts": 1,
+      "bead": 1,
+      "link": 0
+    }
+  },
+  {
+    "name": "deleted-with-postimage",
+    "facts": [
+      {
+        "resourceKind": "link",
+        "transition": "deleted",
+        "resourceId": "https://example.invalid/s/links/l",
+        "recordedRevision": "l-r1",
+        "linkContext": {
+          "type": "https://example.invalid/types/association",
+          "source": "https://example.invalid/s/beads/a",
+          "target": {
+            "uri": "https://example.invalid/s/beads/b",
+            "revision": "b-r1"
+          }
+        },
+        "initialState": {
+          "body": "deleted content"
+        }
+      }
+    ],
+    "visibleFactIndexes": [0],
+    "expectedValid": false,
+    "expectedCounts": {
+      "facts": 1,
+      "bead": 0,
+      "link": 1
+    }
+  },
+  {
+    "name": "deleted-with-delta",
+    "facts": [
+      {
+        "resourceKind": "link",
+        "transition": "deleted",
+        "resourceId": "https://example.invalid/s/links/l",
+        "recordedRevision": "l-r1",
+        "linkContext": {
+          "type": "https://example.invalid/types/association",
+          "source": "https://example.invalid/s/beads/a",
+          "target": {
+            "uri": "https://example.invalid/s/beads/b",
+            "revision": "b-r1"
+          }
+        },
+        "delta": {
+          "properties": {
+            "body": "fake"
+          }
+        }
+      }
+    ],
+    "visibleFactIndexes": [0],
+    "expectedValid": false,
+    "expectedCounts": {
+      "facts": 1,
+      "bead": 0,
+      "link": 1
+    }
+  },
+  {
+    "name": "imported-with-fake-update-delta",
+    "facts": [
+      {
+        "resourceKind": "bead",
+        "transition": "imported",
+        "resourceId": "https://example.invalid/s/beads/a",
+        "newRevision": "a-import",
+        "sourceVersion": {
+          "id": "https://example.invalid/s/beads/a",
+          "revision": "a-r7"
+        },
+        "delta": {
+          "properties": {
+            "body": "fake"
+          }
+        }
+      }
+    ],
+    "visibleFactIndexes": [0],
+    "expectedValid": false,
+    "expectedCounts": {
+      "facts": 1,
+      "bead": 1,
+      "link": 0
+    }
+  },
+  {
+    "name": "imported-empty-revision",
+    "facts": [
+      {
+        "resourceKind": "bead",
+        "transition": "imported",
+        "resourceId": "https://example.invalid/s/beads/a",
+        "newRevision": "",
+        "sourceVersion": {
+          "id": "https://example.invalid/s/beads/a",
+          "revision": "a-r7"
+        }
+      }
+    ],
+    "visibleFactIndexes": [0],
+    "expectedValid": false,
+    "expectedCounts": {
+      "facts": 1,
+      "bead": 1,
+      "link": 0
+    }
+  },
+  {
+    "name": "updated-empty-revision",
+    "facts": [
+      {
+        "resourceKind": "bead",
+        "transition": "updated",
+        "resourceId": "https://example.invalid/s/beads/a",
+        "previousRevision": "",
+        "newRevision": "a-r2",
+        "delta": {
+          "properties": {
+            "title": "B"
+          }
+        }
+      }
+    ],
+    "visibleFactIndexes": [0],
+    "expectedValid": false,
+    "expectedCounts": {
+      "facts": 1,
+      "bead": 1,
+      "link": 0
+    }
   }
 ]

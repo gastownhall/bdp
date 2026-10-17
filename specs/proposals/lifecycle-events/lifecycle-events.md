@@ -78,11 +78,12 @@ Donna/Janet select release scope; native Memory must not wait for a BDP runtime.
 
 ## Review fixtures and qualification
 
-`fact-cases.schema.json` and `examples/fact-cases.json` use a **fixture-only semantic
+`fact-cases.schema.json` and `../../../fixtures/specs/lifecycle-events/fact-cases.json` use a **fixture-only semantic
 carrier** to make missing Link deletion context, update-postimage drift, ownership,
-self-Link deduplication and rollback/no-op expectations inspectable. Explicit
-per-scenario Resource-kind counts reject missing source or spurious endpoint/no-op
-facts in this finite carrier; they do not infer arbitrary ownership constraints. They are not
+self-Link deduplication and rollback/no-op expectations inspectable. Counts check fixture annotation consistency only: they are not derived from
+operation inputs. These vectors do not exercise ownership causality, rollback,
+no-op execution or two endpoint Event Sources/self-Link projection. Those remain
+inspectable expectations and unexercised runtime acceptance obligations. They are not
 candidate production Event JSON. Validating this carrier cannot qualify transport,
 source projections, recovery, security, History, atomicity or Event publication.
 
@@ -91,3 +92,15 @@ Before adoption, amend owning prose/schema/parsers/conformance together. Runtime
 controls must exercise mixed Bead/Link batches; ordinary/owned Link create-update-
 delete; pinned References; each visible/hidden endpoint; self-Link deduplication;
 rollback/no-op; retained retry; Event limits; snapshot catch-up; and old-log policy.
+
+[Review and check status](REVIEW.md) records the per-draft council disposition.
+
+The proposed one-fact self-Link projection deliberately replaces current Write's
+two incidence facts (source before target). Preserve endpoint-role meaning while
+reconciling whether it is explicit projection context or derived from disclosed
+Link endpoints; exact encoding/disclosure remains held. Current Link creation
+already requires endpoint context; this fixture carrier retains it. Context on
+updated/imported Link facts needs shared payload reconciliation. Imported payload
+postimage policy remains OPEN: the fixture excludes fake ordinary-update deltas,
+but does not prohibit a future agreed reconstructible postimage by fiat. A deleted
+fact carries no retained body/delta. This carrier is not Event-wire adoption.
