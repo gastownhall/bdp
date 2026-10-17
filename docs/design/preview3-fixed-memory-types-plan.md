@@ -17,7 +17,7 @@ from the complete user-visible Memory capability; catalog rows alone are not don
 No user-defined/installable Types, type-management CLI, registry, public definition
 representation, federation/BDP prerequisite, cryptographic signatures, or Rust
 work. Existing Issue/Dependency semantics and unrelated CLI work stay intact.
-BDP amendments #152/#153 remain held and are not implementation prerequisites.
+BDP amendments [#152](https://github.com/gastownhall/bdp/issues/152) and [#153](https://github.com/gastownhall/bdp/issues/153) remain held and are not implementation prerequisites.
 
 Design input is Memory PR143 at `38791e4cc6e16cf661fa839303d4ff315d49ab3d`.
 It is a candidate, not a landed/adopted contract. Before product promotion, bind to
@@ -64,8 +64,9 @@ user-defined Types are excluded. Operation capacity limits are a separate concer
 | Retyping cutline | Donna selected: support within-Memory-family type+property updates; preserve existing Issue-family behavior; defer Issue↔Memory conversion. This is the Preview 3 product cutline, not a restriction in the general Type design. Reject unsupported cross-family conversion before any mutation. | Retyping commands and acceptance. |
 | Citation inputs | Candidate requires exact targets for Supports/Challenges/Supersedes and permits floating or exact for other three. Explicit caller selection, no silent current-state pin. Confirm domain acceptance with Melinda/Donna. | Citation admission and CLI tests. |
 | Query surface | Family discovery must include Memory specializations. Specify how general --type filters expose family versus nominal matching without silently changing existing commands. | Filter/CLI acceptance. |
-| Catalog identity/history | Choose production IDs and an internal immutable contract binding sufficient to preserve historical meaning across binaries. Representation may remain private. No silent reinterpretation of stored records. | Persistent affiliation and upgrade tests. |
-| Owned state capacity | Candidate declares no finite domain bound; existing Core requires a bound. Local product must define truthful capacity/refusal and complete reads without adopting unbounded claims. | Complete owned-state qualification; not a generic arity engine. |
+| Catalog identity/history | Reuse existing catalog names/descriptors/fingerprints where sufficient; choose final production names and preserve the contract applicable to each retained revision. Current-installed-descriptor fingerprint verification alone does not solve historical interpretation. No new public version scheme or definition representation is prescribed. | F1 historical decoder design and persisted affiliation/upgrade tests. |
+| Existing workspaces | Recommendation: retain the existing preview-generation change/refusal policy unless Janet and Donna select an in-place upgrade. No silent invalid-store surprise, destructive reset, or unapproved migration. | Catalog activation only; pure F0 work can proceed. |
+| Owned state capacity | Preserve/report existing PreviewOwnedLinkLimit=1000 as an implementation capacity bound; refuse rather than truncate. No new Memory domain maximum is selected. | Complete owned-state qualification; not a new product decision unless a change is proposed. |
 | Provenance mapping | Unsigned writer claims allowed; shared actor/time/sources mapping and indirect mutation attribution must be agreed with History/Provenance owners. Deep Activity/provenance disputes stay separate. | Claims for attributable mutation workflows. |
 
 ## Source findings and consequences
@@ -79,8 +80,8 @@ History work. Prior source audits are evidence about these commits, not fresh
 installed behavior qualification.
 
 The existing isolated `internal/typegraph` evaluator has no runtime callers and
-uncommitted files pending parent review. Audit/reuse only what the fixed catalog
-needs. Do not make dynamic definition loading or Type-as-Bead storage a dependency.
+uncommitted files pending parent review. Leave it untouched for F0; use a compiled membership table. Any later reuse requires
+a reviewed immutable source. Do not make dynamic definition loading or Type-as-Bead storage a dependency.
 Existing catalog fingerprints and strict admission must remain meaningful; don't
 turn off checks to admit new rows. Any persisted-catalog change needs an explicit
 upgrade/backfill policy and tests before runtime activation.
@@ -112,10 +113,10 @@ precedence over audit suggestions to finish the unused general evaluator.
 | Slice | Deliverable and acceptance | Dependencies / owner boundaries |
 | --- | --- | --- |
 | F0: fixed contract tests and validators | Pure compiled family membership and per-Type complete-property validation against shared approved fixtures. Positive and negative cases cover inherited fields, unknown fields, replacement and category separation. Pure local endpoint pair/pin/self-link predicates consume caller-supplied resolved facts; they do not fetch or claim retained-state validation. No catalog mutation, provider, public capability advertisement or generated runtime Type definitions. | Can start against pinned candidate with injection of unresolved IDs/names. Trish's coding worker; review before treating as settled. |
-| F1: complete Memory payload path | Preserve specialized and unknown properties through create, targeted update, full replacement, current read, reopen and exact history. Central family dispatch replaces single-Memory assumptions. No dropped data or relaxed strict decoding for legacy/native records. Omitted type preserves affiliation; semantic no-op creates no revision; invalid/stale/failed writes leave allocation, current state and history unchanged. | Accepted contract identity/upgrade policy; coordinate with Jim/Polly History and Janet storage/CLI ownership. One writer for these shared files. |
+| F1: complete Memory payload path | Preserve specialized and unknown properties through create, targeted update, full replacement, current read, reopen and exact history. Central family dispatch replaces single-Memory assumptions. Replace the Memory exactly-title/body check with per-Type validation: preserve permitted open-root fields, reject malformed/non-object data, and retain legacy/native validation outside the changed Memory contract. Historical reads use the applicable historical contract rather than current affiliation. Omitted type preserves affiliation; semantic no-op creates no revision; invalid/stale/failed writes leave allocation, current state and history unchanged. | Accepted contract identity/upgrade policy; coordinate with Jim/Polly History and Janet storage/CLI ownership. One writer for these shared files. |
 | F2: catalog and CLI activation | Add accepted fixed catalog, --type creation/selection, honest inventory/details, family discovery and specialized-property search. Implement selected explicit retyping atomically. Protect all existing Issue/Dependency selectors and workflow behavior. Filter before pagination; compact summaries/default discovery do not expose full specialized content, while explicit complete reads do. Preserve automatic-export exclusion; coordinate projection/export changes with Iris. | F1, landed Memory contract, resolved names/filter/retyping decisions. Existing catalog upgrade and backwards-reader behavior tested. |
 | F3: informational Link admission | Enforce correlated source/target alternatives, self-link exclusions, citation pin requirements and fixed family matching. Preserve valid parallel/cyclic informational claims. Ordinary Dependency behavior stays unchanged. | Accepted domain rules, shared exact endpoint carrier/resolver. Carrying opaque external references is separate from fetching/federation; don't silently remove that distinction. |
-| F4: references, ownership and lifecycle | Same-target-identity re-pinning and metadata changes preserve Link ID; owned Link changes version source atomically. Floating deletion cleanup, retained pinned citations and old owned snapshots remain correct. Test exact source-revision counts for owned changes, no-op and rollback behavior, and unchanged targets. No target revision solely from incoming links. | Trish Link lane plus Jim/Polly History; valid retained-state admission and shared writer attribution. No substitute Memory-only history system. |
+| F4: references, ownership and lifecycle | Same-target-identity re-pinning and metadata changes preserve Link ID; owned Link changes version source atomically. Replace the current incident-Link deletion refusal only for the selected informational Memory lifecycle: clean floating informational incident Links, preserve valid pinned citations and old owned snapshots. Preserve workflow Dependency restrictions and do not turn --force into arbitrary cascading deletion. Test exact source-revision counts for owned changes, no-op and rollback behavior, and unchanged targets. No target revision solely from incoming links. | Trish Link lane plus Jim/Polly History; valid retained-state admission and shared writer attribution. No substitute Memory-only history system. |
 | F5: full workflow qualification | Exact installed build in embedded and ordinary shared-server modes passes selected complete Memory scenarios, including errors, reopen, history and indirect effects. Janet owns release/build qualification. | F1–F4 and required provenance. Fixture success alone is not Memory support. |
 
 F0 is deliberately bounded groundwork; it cannot be reported as implemented Memory.
@@ -140,9 +141,73 @@ exact source head, meaningful validation results and explicit no-runtime-caller 
 Tests should demonstrate inherited required fields, correct typed values, preservation
 of open-root fields, closed nested records where declared, exact category separation,
 and no inferred conformance from matching shape. Validate date/time semantics rather
-than silently skipping format checks. Cross-check with Python schema fixtures and
-reject divergence. Run repository-required targeted checks for changed files; don't
-claim full product qualification from unit tests.
+than silently skipping format checks. Cross-check against the exact source fixtures and an offline JSON Schema oracle;
+reject divergence. See the concrete fixture acquisition contract below. Use the repository scripts/test.sh wrapper for the focused internal/memorytypes
+suite, maintain BUILD.bazel, and run required source/build checks. Do not treat
+Dolt-skipped tests as storage qualification or unit tests as product qualification.
+
+### Concrete F0 inputs and acceptance
+
+Copy **test inputs only** from public `gastownhall/bdp` commit
+`38791e4cc6e16cf661fa839303d4ff315d49ab3d` into package testdata. Record source
+repository, commit, path and SHA256 for every copied file; label them candidate,
+nonnormative test fixtures. This is allowed despite the prohibition on changing
+runtime schemas. It does not install Type-definition Beads or change vendored BDP.
+
+Inputs: `fixtures/specs/memory/schema-cases.json` and the seven schemas in
+`specs/types/memory/`: `memory.properties.schema.json`,
+`memory-{observation,decision,procedure,policy,lesson}.local-properties.schema.json`,
+and `memory-link.properties.schema.json`. `definitions.json` supplies fixture
+membership/endpoint expectations, not a runtime representation. Verify both base
+Memory and child schema apply to each specialized case. No network $ref lookup.
+
+The source also has `scripts/check_memory_examples.py`; its full artifact run needs
+shared Types schemas and other fixtures from the same commit. It is a cross-check,
+not a runtime validator. A Go test oracle may use the existing JSON Schema dependency
+if explicit draft/format configuration matches the source checker. Neither oracle
+proves semantic endpoint/history behavior. Melinda reviews copied fixture fidelity
+before runtime promotion; candidate-only coding need not await her spec landing.
+
+The F0 acceptance floor is all 72 source property cases plus explicit tests for:
+empty body; absent versus unknown Inception; null versus empty; no kind discriminator;
+base and specialized required fields; permitted unknown-root preservation; closed
+nested fields; category separation/no membership inferred from shape; date/time
+formats and the candidate's interval-order rule; whole-pair matching counterexample;
+self-Link identity with different pins; explicit citation-target pin; and non-workflow
+classification. Semantic extras are named separately from schema-shape checks.
+
+### Catalog activation and runtime evidence
+
+Use compiled predicates for correlated pair constraints; no generic descriptor or
+wire extension is required for F0. F2/F3 must reconcile any existing descriptor's
+independent-endpoint approximation with actual admission. Inventory/details must
+identify additional compiled checks and must not describe that approximation as the
+complete contract. Test descriptor/membership consistency and predicate narrowing.
+Keep private storage design separate from public BDP adoption.
+
+Build and validate the complete chosen catalog generation atomically. Never leave
+row count, descriptors and fingerprints out of agreement. Catalog initialization
+and public activation are one coordinated landing after the advertised rules are
+implemented; F2 CLI code and F3/F4 behavior can be prepared separately behind that
+activation boundary. Do not expose all twelve names while their promised operations
+are unsupported. Any deliberately smaller shipped catalog is an explicit Janet/Donna
+cutline, not an accidental half-installation. Exact-row-count checks alone do not
+prove that all future types must exist in every intermediate development commit.
+
+Runtime regression anchors include TestReadInstalledTypes, preview generation guards,
+TestExampleInformationalTypeLifecycle, TestMemoryUpdateLifecycle,
+TestMemoryPropertiesPatchLifecycle, TestReadVersionRetainedLifecycle,
+TestReadVersionOwnedMembershipByOwnerKind and TestVersionComparisonMemoryDirectionAndContext.
+The four existing deletion refusal suites (graphstore memory_delete_test.go,
+memory_delete_race_test.go, memory_delete_workflow_test.go and graphread/memory_delete_test.go)
+need explicit expected-behavior updates for the selected informational cleanup, not
+blanket removal. Validate concurrency, rollback and failures at the affected writes.
+
+Iris reviews export/import closure/projection effects; Vickie reviews any public
+BDP DTO/capability consequences. No vendored protocol-schema edit or new public BDP
+claim is included. Jim/Polly own shared History/provenance integration. Existing
+Attribution is reusable but does not itself implement sources or Activity provenance;
+no reviewer suggestion freezes its old shape or waives required provenance behavior.
 
 Before the F1 worker starts, confirm file ownership with Janet and History owners.
 Produce a file-level change list and current source head; use the same validator in
@@ -152,12 +217,15 @@ dependent slice, not pure work already authorized.
 ## Completion record and review
 
 Record each slice's source commit, accepted spec commit, selected behavior, commands,
-results and exclusions in #59 and link Janet's release tracker. Keep semantic adoption,
+results and exclusions in gastownhall/bdp#59 and link Janet's release tracker. Keep semantic adoption,
 implementation, and installed qualification separate. New owner overlap or a changed
 base requires reconciliation; it does not authorize rebasing someone else's work.
 
 Plan council: native review completed; three findings addressed and follow-up found
-no unresolved issues. Claude review has returned; findings are awaiting disposition. Gemini excluded per earlier direction.
+no unresolved issues. Claude review returned 17 findings: accepted fixes and qualified/rejected inferences
+are recorded in [review dispositions](preview3-fixed-memory-plan-review.md).
+Gemini excluded per earlier direction. Updated plan is ready for Donna/Trish review;
+that is not approval to activate runtime behavior. Final native follow-up found no remaining internal contradictions or F0 dispatch blockers.
 No implementation worker has been dispatched by this document. Open decisions are not
 approval by timeout. The two read-only audits inform this plan; they are not reviews
-of its final text. Main-spec and PR159 landing holds remain unaffected.
+of its final text. Main-spec and gastownhall/bdp PR159 landing holds remain unaffected.
