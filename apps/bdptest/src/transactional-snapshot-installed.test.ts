@@ -1,7 +1,7 @@
 /** Private installed Snapshot observations, not profile admission or matrix credit. */
 import { execFileSync, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -902,8 +902,8 @@ it("observes fresh Snapshot minima with exact current context and retained gaps 
     ]) {
       const wire = await f.exchange(undefined, "GET", headers);
       if (headers["bdp-minimum-scope-position"] === "unknown") {
-        expect(wire.status).toBe(500);
-        expect(wire.headers["x-bdp-development-limit"]).toBe("minimum-position");
+        snapshotTimeout(wire, empty, "pos-1");
+        expect(wire.headers["x-bdp-development-limit"]).toBeUndefined();
       } else {
         expect(json<{ code: string }>(wire, 400).code).toBe("malformed-request");
         expect(wire.headers["x-bdp-development-limit"]).toBeUndefined();
@@ -967,4 +967,226 @@ it("requires a real fixed-head Snapshot wait over packed bytes", async () => {
     );
     expect(f.exchangeCount).toBe(2);
   });
+}, 60000);
+
+it("observes installed fresh Snapshot opaque minimum timeout", async () => {
+  const started = performance.now();
+  let directory: string | undefined;
+  let child: Awaited<ReturnType<typeof launchInstalledTransaction>> | undefined;
+  let binding: ReturnType<typeof installedTransactionBinding> | undefined;
+  let launchStarted = false,
+    closeAttempted = false,
+    closed = false,
+    attempted = 0;
+  const responses: {
+    method: string;
+    url: string;
+    status: number;
+    responseBytes: number;
+    wireSha256: string;
+    elapsedSeconds: number;
+  }[] = [];
+  await withDeadline((signal) =>
+    finishObservation(
+      async () => {
+        signal.throwIfAborted();
+        directory = mkdtempSync(path.join(tmpdir(), "bdp-snapshot-opaque-installed-"));
+        const operator = randomBytes(32).toString("base64url");
+        const configuration = {
+          scope,
+          directory,
+          create: true,
+          artifacts: artifacts(),
+          credentials: [{ token: operator, principal: "writer", canMutate: true }],
+        };
+        const validReceipt = snapshotAjv.compile({
+          $ref: `${snapshotSchemaBundle.$id}#/$defs/mutationReceipt`,
+        });
+        launchStarted = true;
+        child = await launchInstalledTransaction(entry, configuration, signal);
+        binding = installedTransactionBinding(child.ready, sourceCommit, fixture);
+        expect(child.ready.claimEligible).toBe(false);
+        expect(child.ready.history).toBe(false);
+        const address = new URL(child.ready.listenUrl as string);
+        const batchUrl = `${scope}operations/batch`,
+          snapshotUrl = `${scope}snapshot`;
+        const execute = createRawHttpExchangeExecutor(
+          { transport: "plain", host: address.hostname, port: Number(address.port) },
+          {
+            requestTimeoutMs: 5000,
+            maximumBodyBytes: 1024 * 1024,
+            exactMode: {
+              scope,
+              profile: "transactional",
+              routes: [
+                { method: "POST", url: batchUrl },
+                { method: "GET", url: snapshotUrl },
+                { method: "HEAD", url: snapshotUrl },
+              ],
+              maximumRequestHeaderBytes: 16384,
+              maximumRequestBodyBytes: 65536,
+              defaultCredentialRef: "operator",
+              credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
+              resolveCredentials: () => ({ authorization: `Bearer ${operator}` }),
+            },
+          },
+        );
+        async function exchange(
+          method: HttpMethod,
+          minimum: Record<string, string> = {},
+          body?: string,
+        ) {
+          signal.throwIfAborted();
+          expect(++attempted, "installed Snapshot dispatch bound").toBeLessThanOrEqual(3);
+          const url = method === "POST" ? batchUrl : snapshotUrl;
+          const requestStarted = performance.now();
+          const response = await execute({
+            method,
+            url,
+            signal,
+            credentialRef: "operator",
+            raw: {
+              headerLines: [
+                { name: "accept", value: "application/json" },
+                ...Object.entries(minimum).map(([name, value]) => ({ name, value })),
+                ...(body === undefined
+                  ? []
+                  : [
+                      { name: "content-type", value: "application/json" },
+                      { name: "idempotency-key", value: "snapshot-opaque-seed" },
+                    ]),
+              ],
+              ...(body === undefined ? {} : { bodyBytes: Buffer.from(body) }),
+            },
+          });
+          expect(response.url).toBe(url);
+          expect(response.exactRequest?.source).toBe("raw-http1-serializer");
+          expect(response.exactRequest?.writeState).toBe("complete");
+          expect(response.exactRequest?.bodyPresent).toBe(body !== undefined);
+          expect(response.exactRequest?.bodyOctets).toBe(
+            body === undefined ? 0 : Buffer.byteLength(body),
+          );
+          expect(response.exactRequest?.bodyDigest).toBe(
+            body === undefined ? undefined : createHash("sha256").update(body).digest("hex"),
+          );
+          const headers = response.exactRequest?.headerLines ?? [];
+          expect(headers.find((header) => header.name.toLowerCase() === "host")?.value).toBe(
+            "reference.invalid",
+          );
+          expect(headers.find((header) => header.name.toLowerCase() === "accept")?.value).toBe(
+            "application/json",
+          );
+          if (body !== undefined) {
+            expect(
+              headers.find((header) => header.name.toLowerCase() === "content-type")?.value,
+            ).toBe("application/json");
+            expect(
+              headers.find((header) => header.name.toLowerCase() === "idempotency-key")?.value,
+            ).toBe("snapshot-opaque-seed");
+          }
+          for (const [name, value] of Object.entries(minimum))
+            expect(headers.find((header) => header.name.toLowerCase() === name)?.value).toBe(value);
+          expect(response.wireResponseBytes?.length).toBeGreaterThan(0);
+          if (
+            response.bodyOctets === undefined ||
+            !Number.isSafeInteger(response.bodyOctets) ||
+            response.bodyOctets < 0
+          )
+            throw new Error("completed response body octets unavailable");
+          responses.push({
+            method,
+            url,
+            status: response.status,
+            responseBytes: response.bodyOctets,
+            wireSha256: createHash("sha256").update(response.wireResponseBytes!).digest("hex"),
+            elapsedSeconds: (performance.now() - requestStarted) / 1000,
+          });
+          expect(response.headers["x-bdp-development"]).toBe("non-attesting");
+          return response;
+        }
+        const seed = await exchange(
+          "POST",
+          {},
+          JSON.stringify({ operations: [createBead("opaque-snapshot")] }),
+        );
+        const receipt = json<unknown>(seed);
+        expect(validReceipt(receipt), JSON.stringify(validReceipt.errors)).toBe(true);
+        expect(receipt).toMatchObject({
+          status: "completed",
+          idempotencyKey: "snapshot-opaque-seed",
+          requiredPosition: "pos-1",
+          effectPosition: "pos-1",
+          results: [
+            {
+              outcome: "created",
+              resource: {
+                id: `${scope}beads/opaque-snapshot`,
+                type: beadType,
+                properties: { title: "café 🦉 opaque-snapshot" },
+              },
+            },
+          ],
+        });
+        expect(seed.headers["bdp-scope-position"]).toBe("pos-1");
+        const minimum = snapshotMinimum(seed, "opaque");
+        for (const method of ["GET", "HEAD"] as const) {
+          const response = await exchange(method, minimum);
+          snapshotTimeout(response, seed, "pos-1", method === "HEAD");
+          expect(response.headers["retry-after"]).toBe("1");
+          expect(response.headers["cache-control"]).toBe("private, no-store");
+          expect(response.headers["x-bdp-development-limit"]).toBeUndefined();
+        }
+        expect(attempted).toBe(3);
+        expect(responses.map(({ method, status }) => [method, status])).toEqual([
+          ["POST", 200],
+          ["GET", 503],
+          ["HEAD", 503],
+        ]);
+      },
+      async () => {
+        if (!child) {
+          if (launchStarted) throw new Error("Snapshot child ownership was not returned");
+          if (directory) rmSync(directory, { recursive: true, force: true });
+          return;
+        }
+        closeAttempted = true;
+        await child.close();
+        if (child.child.exitCode !== 0 || child.child.signalCode !== null)
+          throw new Error("Snapshot child did not close cleanly");
+        signal.throwIfAborted();
+        closed = true;
+        if (directory) rmSync(directory, { recursive: true, force: true });
+      },
+      signal,
+      (ok) => {
+        console.log(
+          JSON.stringify({
+            observation: "private-installed-snapshot-opaque-minimum",
+            ok,
+            declaredSourceCommit: sourceCommit,
+            workspaceDirty,
+            entry: resolvedEntry,
+            entrySha256,
+            binding,
+            attempted,
+            exchanges: responses.length,
+            responses,
+            launchStarted,
+            startupCompleted: child !== undefined,
+            closeAttempted,
+            closed,
+            childPid: child?.child.pid ?? null,
+            childExitCode: child?.child.exitCode ?? null,
+            childSignalCode: child?.child.signalCode ?? null,
+            ownership: child ? "returned" : launchStarted ? "unknown" : "not-started",
+            directory: directory ?? null,
+            directoryAbsent: directory === undefined || !existsSync(directory),
+            aborted: signal.aborted,
+            elapsedSeconds: (performance.now() - started) / 1000,
+            claimEligible: false,
+          }),
+        );
+      },
+    ),
+  );
 }, 60000);

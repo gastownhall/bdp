@@ -1205,7 +1205,7 @@ describe("fresh Snapshot minimum service", () => {
       ["GET", { "if-match": '"absent"' }, 412, "preflight"],
       ["GET", { accept: "text/plain" }, 406, "preflight"],
     ] as const) {
-      for (const minimumPosition of ["genesis", "pos-1"]) {
+      for (const minimumPosition of ["genesis", "pos-1", "unknown"]) {
         snapshot.mockClear();
         const response = await http.handle(
           new Request(`${scope}snapshot`, {
@@ -3199,6 +3199,292 @@ it.each([
       clockCalls: now.mock.calls.length,
       ownerReads: reads,
       waits: wait.mock.calls.length,
+    }),
+  );
+});
+
+function freshSnapshotOpaqueFixture(
+  minimumReads: NonNullable<TransactionServiceOptions["minimumReads"]>,
+) {
+  const f = fixture();
+  const observeSnapshot = vi.fn(f.owner.observeSnapshot);
+  const service = createTransactionService(
+    { ...f.owner, observeSnapshot },
+    { ownerLifetime: "service", read: f.read, minimumReads },
+  );
+  cleanup.push(() => service.close());
+  return { owner: f.owner, service, snapshot: vi.fn(service.snapshot), observeSnapshot };
+}
+
+it.each(["create", "preflight"] as const)(
+  "captures fresh Snapshot %s opaque controls across independent commits",
+  async (kind) => {
+    let now = 0;
+    let waits = 0;
+    let probes = 0;
+    let transactions = 0;
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const f = freshSnapshotOpaqueFixture({
+      budgetMs: 2,
+      now: () => now,
+      wait: async () => {
+        waits++;
+        expect(f.owner.withRead(() => true)).toMatchObject({ kind: "read" });
+        probes++;
+        if (waits === 1) {
+          entered.resolve();
+          await release.promise;
+          now = 1;
+        } else if (waits === 2) now = 2;
+        else throw new Error("unexpected Snapshot wait");
+      },
+    });
+    const initial = await f.snapshot({ kind: "preflight" });
+    const minimum = {
+      scopeEpoch: initial.context.scopeEpoch,
+      authorizationView: initial.context.authorizationView,
+      minimumPosition: "opaque",
+    };
+    const request: TransactionSnapshotRequest = { kind };
+    const pending = f.snapshot(request, minimum);
+    const outcome = pending.then(
+      () => {
+        throw new Error("opaque Snapshot unexpectedly became eligible");
+      },
+      (error: unknown) => error,
+    );
+    try {
+      await Promise.race([
+        entered.promise,
+        outcome.then(() => {
+          throw new Error("Snapshot completed before its first wait");
+        }),
+      ]);
+      Object.assign(request, { kind: "manifest", id: "unused" });
+      Object.assign(minimum, {
+        scopeEpoch: "changed",
+        authorizationView: "changed",
+        minimumPosition: "genesis",
+      });
+      requireReceipt(await f.service.submit(batch([create("after-wait")])));
+      transactions++;
+      release.resolve();
+      const error = await outcome;
+      expect(error).toBeInstanceOf(TransactionMinimumFailure);
+      expect(error).toMatchObject({
+        reason: "catch-up-timeout",
+        context: { ...initial.context, scopePosition: "pos-1" },
+      });
+      expect(f.snapshot).toHaveBeenCalledTimes(2);
+      expect(f.observeSnapshot).toHaveBeenCalledTimes(4);
+      expect(waits).toBe(2);
+      expect(probes).toBe(2);
+      expect(transactions).toBe(1);
+      console.log(
+        JSON.stringify({
+          observation: "fresh-snapshot-opaque-capture",
+          kind,
+          serviceSnapshotCalls: f.snapshot.mock.calls.length,
+          ownerSnapshotCalls: f.observeSnapshot.mock.calls.length,
+          waits,
+          probes,
+          transactions,
+          finalPosition: (error as TransactionMinimumFailure).context.scopePosition,
+        }),
+      );
+    } finally {
+      release.resolve();
+      await Promise.allSettled([outcome]);
+      await f.service.close();
+    }
+  },
+);
+
+it.each(["create", "preflight"] as const)(
+  "cancels and drains fresh Snapshot %s opaque waits",
+  async (kind) => {
+    let now = 0;
+    let waits = 0;
+    let probes = 0;
+    const entered = Array.from({ length: 3 }, () => Promise.withResolvers<void>());
+    const release = Array.from({ length: 3 }, () => Promise.withResolvers<void>());
+    const f = freshSnapshotOpaqueFixture({
+      budgetMs: 2,
+      now: () => now,
+      wait: async () => {
+        const index = waits++;
+        if (index >= 3) throw new Error("unexpected Snapshot wait");
+        expect(f.owner.withRead(() => true)).toMatchObject({ kind: "read" });
+        probes++;
+        entered[index]!.resolve();
+        await release[index]!.promise;
+        if (index > 0) now = index;
+      },
+    });
+    const initial = await f.snapshot({ kind: "preflight" });
+    const minimum = {
+      scopeEpoch: initial.context.scopeEpoch,
+      authorizationView: initial.context.authorizationView,
+      minimumPosition: "opaque",
+    };
+    const controller = new AbortController();
+    const cancelled = f.snapshot({ kind }, minimum, controller.signal).then(
+      () => {
+        throw new Error("cancelled Snapshot unexpectedly became eligible");
+      },
+      (error: unknown) => error,
+    );
+    let drained: Promise<unknown> | undefined;
+    let closing: Promise<void> | undefined;
+    try {
+      await Promise.race([
+        entered[0]!.promise,
+        cancelled.then(() => {
+          throw new Error("Snapshot completed before its cancellation wait");
+        }),
+      ]);
+      controller.abort();
+      release[0]!.resolve();
+      expect(await cancelled).toBeInstanceOf(ScopeServerOperationAbortedError);
+      now = 0;
+      drained = f.snapshot({ kind }, minimum).then(
+        () => {
+          throw new Error("opaque Snapshot unexpectedly became eligible");
+        },
+        (error: unknown) => error,
+      );
+      await Promise.race([
+        entered[1]!.promise,
+        drained.then(() => {
+          throw new Error("Snapshot completed before its drain wait");
+        }),
+      ]);
+      let closed = false;
+      closing = f.service.close().then(() => {
+        closed = true;
+      });
+      await Promise.resolve();
+      expect(closed).toBe(false);
+      expect(() => f.snapshot({ kind }, minimum)).toThrow("closing or closed");
+      release[1]!.resolve();
+      await Promise.race([
+        entered[2]!.promise,
+        drained.then(() => {
+          throw new Error("Snapshot completed before its final wait");
+        }),
+      ]);
+      expect(closed).toBe(false);
+      release[2]!.resolve();
+      const error = await drained;
+      expect(error).toBeInstanceOf(TransactionMinimumFailure);
+      expect(error).toMatchObject({ reason: "catch-up-timeout", context: initial.context });
+      await closing;
+      expect(closed).toBe(true);
+      expect(f.snapshot).toHaveBeenCalledTimes(4);
+      expect(f.observeSnapshot).toHaveBeenCalledTimes(5);
+      expect(waits).toBe(3);
+      expect(probes).toBe(3);
+      let postCloseOwnerRefusals = 0;
+      expect(() => {
+        postCloseOwnerRefusals++;
+        f.owner.observeSnapshot({ kind }, minimum);
+      }).toThrow("closed");
+      expect(f.observeSnapshot).toHaveBeenCalledTimes(5);
+      console.log(
+        JSON.stringify({
+          observation: "fresh-snapshot-opaque-lifecycle",
+          kind,
+          serviceSnapshotCalls: f.snapshot.mock.calls.length,
+          delegatedOwnerCalls: f.observeSnapshot.mock.calls.length,
+          waits,
+          probes,
+          postCloseOwnerRefusals,
+        }),
+      );
+    } finally {
+      for (const gate of release) gate.resolve();
+      await Promise.allSettled([cancelled, ...(drained ? [drained] : [])]);
+      await (closing ?? f.service.close());
+    }
+  },
+);
+
+it.each([
+  "malformed-aborted",
+  "malformed-invalid-kind",
+  "retained-unknown",
+  "retained-known",
+  "closed-malformed",
+  "closed-unknown-fresh",
+  "unknown-preaborted",
+] as const)("preserves fresh Snapshot capture and refusal order: %s", async (label) => {
+  let clockCalls = 0;
+  let waits = 0;
+  const f = freshSnapshotOpaqueFixture({
+    budgetMs: 2,
+    now: () => {
+      clockCalls++;
+      return 0;
+    },
+    wait: async () => {
+      waits++;
+      throw new Error("unexpected Snapshot wait");
+    },
+  });
+  const initial = await f.snapshot({ kind: "preflight" });
+  expect(f.observeSnapshot).toHaveBeenCalledTimes(1);
+  const setupOwnerCalls = f.observeSnapshot.mock.calls.length;
+  f.observeSnapshot.mockClear();
+  const malformed = label.startsWith("malformed") || label === "closed-malformed";
+  const retained = label.startsWith("retained") || label === "malformed-invalid-kind";
+  const minimum = {
+    scopeEpoch: initial.context.scopeEpoch,
+    authorizationView: initial.context.authorizationView,
+    minimumPosition: malformed ? "not a token" : label === "retained-known" ? "genesis" : "opaque",
+  };
+  const request: TransactionSnapshotRequest = retained
+    ? { kind: "manifest", id: "unused" }
+    : { kind: "create" };
+  if (label.startsWith("closed")) await f.service.close();
+  if (label === "unknown-preaborted") {
+    await expect(f.snapshot(request, minimum, AbortSignal.abort())).rejects.toBeInstanceOf(
+      ScopeServerOperationAbortedError,
+    );
+  } else if (label === "closed-unknown-fresh") {
+    expect(() => f.snapshot(request, minimum)).toThrow("closing or closed");
+  } else {
+    let error: unknown;
+    try {
+      const unexpected = f.snapshot(
+        request,
+        minimum,
+        label === "malformed-aborted" ? AbortSignal.abort() : undefined,
+      );
+      void unexpected.catch(() => {});
+    } catch (failure) {
+      error = failure;
+    }
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).message).toBe(
+      label === "retained-known"
+        ? "minimum Snapshot observation requires fresh creation or preflight"
+        : "unsupported minimum tuple",
+    );
+  }
+  expect(f.snapshot).toHaveBeenCalledTimes(2);
+  expect(f.observeSnapshot).not.toHaveBeenCalled();
+  expect(waits).toBe(0);
+  expect(clockCalls).toBe(label === "unknown-preaborted" ? 1 : 0);
+  console.log(
+    JSON.stringify({
+      observation: "fresh-snapshot-opaque-order",
+      label,
+      serviceSnapshotCalls: f.snapshot.mock.calls.length,
+      setupOwnerCalls,
+      checkedOwnerCalls: f.observeSnapshot.mock.calls.length,
+      clockCalls,
+      waits,
     }),
   );
 });

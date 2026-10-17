@@ -421,7 +421,7 @@ export function createTransactionHttpHandler(
       // Only fresh creation has an unambiguous current observation. Retained
       // anchors and unsupported tuple shapes keep their explicit private gap.
       const minimum = hasMinimumControls(request)
-        ? transactionMinimumHeaders(request.headers)
+        ? currentReadMinimumHeaders(request.headers)
         : undefined;
       if (hasMinimumControls(request) && (target.kind !== "create" || minimum === undefined))
         return developmentGap("minimum-position");
