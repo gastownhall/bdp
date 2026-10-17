@@ -502,16 +502,17 @@ export function createTransactionHttpHandler(
     const eventRequest = receiptRoute ? undefined : transactionEventRequest(url, scope);
     if (eventRequest) {
       const media = selectChangefeedMedia(request.headers.get("accept"));
-      const initialFiniteScope =
-        eventRequest.source.kind === "scope" &&
-        eventRequest.source.url === new URL("events/", scope).href &&
+      const initialFiniteMinimumSource =
+        (eventRequest.source.kind === "bead" ||
+          (eventRequest.source.kind === "scope" &&
+            eventRequest.source.url === new URL("events/", scope).href)) &&
         eventRequest.after === undefined &&
         !url.searchParams.has("after") &&
         media === "json" &&
         !request.headers.has("last-event-id") &&
         (lastEventIds?.length ?? 0) === 0;
       const minimum = hasMinimumControls(request)
-        ? ((initialFiniteScope
+        ? ((initialFiniteMinimumSource
             ? currentReadMinimumHeaders(request.headers)
             : transactionMinimumHeaders(request.headers)) ?? "unsupported")
         : undefined;

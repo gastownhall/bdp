@@ -1,4 +1,5 @@
 import * as discoveryAssembly from "./transaction-discovery.js";
+import { TransactionEventParameterError } from "./transaction-events.js";
 import { TransactionMinimumFailure, type TransactionMinimum } from "./transaction-consistency.js";
 import { ScopeServerOperationAbortedError, requestFromUrl } from "./read-request.js";
 import { DatabaseSync } from "node:sqlite";
@@ -2763,3 +2764,207 @@ it.each([
     );
   },
 );
+
+it("captures an initial Bead Event opaque tuple across one bounded wait", async () => {
+  const f = finiteEventMinimumFixture(2);
+  try {
+    expect(await f.service.submit(batch())).toMatchObject({
+      kind: "receipt",
+      receipt: { status: "completed", requiredPosition: "pos-1" },
+    });
+    const setup = await f.events(`${scope}beads/a?view=events`);
+    if (setup.kind !== "page") throw new Error("expected initial Event page");
+    const minimum = {
+      scopeEpoch: setup.context.scopeEpoch,
+      authorizationView: setup.context.authorizationView,
+      minimumPosition: "opaque",
+    };
+    f.watchScans();
+    const observed = f.observe(f.events(`${scope}beads/a?view=events`, undefined, minimum));
+    await f.entered(0, observed);
+    expect(f.counts().reads).toBe(2);
+    minimum.minimumPosition = setup.context.scopePosition;
+    f.release(0);
+    await f.entered(1, observed);
+    expect(f.counts().reads).toBe(3);
+    f.release(1);
+    expect(await observed).toEqual({
+      error: expect.objectContaining({ reason: "catch-up-timeout", context: setup.context }),
+    });
+    expect(f.counts()).toEqual({
+      reads: 4,
+      serviceCalls: 2,
+      waits: 2,
+      probes: 2,
+      groupReads: 0,
+      attemptTimes: [0, 0, 5, 10],
+    });
+    console.log(
+      JSON.stringify({
+        observation: "bead-event-minimum-capture",
+        ...f.counts(),
+        seedMutations: 1,
+      }),
+    );
+  } finally {
+    await f.finish();
+  }
+});
+
+it("cancels and drains initial Bead Event opaque waits", async () => {
+  const f = finiteEventMinimumFixture(3);
+  try {
+    expect(await f.service.submit(batch())).toMatchObject({
+      kind: "receipt",
+      receipt: { status: "completed", requiredPosition: "pos-1" },
+    });
+    const setup = await f.events(`${scope}beads/a?view=events`);
+    if (setup.kind !== "page") throw new Error("expected initial Event page");
+    const minimum = {
+      scopeEpoch: setup.context.scopeEpoch,
+      authorizationView: setup.context.authorizationView,
+      minimumPosition: "opaque",
+    };
+    f.watchScans();
+    const controller = new AbortController();
+    const cancelled = f.observe(
+      f.events(`${scope}beads/a?view=events`, undefined, minimum, controller.signal),
+    );
+    await f.entered(0, cancelled);
+    controller.abort();
+    // Abort is observed only after our deferred wait is released.
+    f.release(0);
+    expect(await cancelled).toEqual({ error: expect.any(ScopeServerOperationAbortedError) });
+    expect(f.counts().reads).toBe(2);
+    const drained = f.observe(f.events(`${scope}beads/a?view=events`, undefined, minimum));
+    await f.entered(1, drained);
+    let closed = false;
+    const closing = f.service.close().then(() => {
+      closed = true;
+    });
+    const observedClosing = f.observe(closing);
+    await Promise.resolve();
+    expect(closed).toBe(false);
+    expect(f.counts().reads).toBe(3);
+    expect(() => f.events(`${scope}beads/a?view=events`)).toThrow(
+      "transaction service is closing or closed",
+    );
+    expect(f.counts().reads).toBe(3);
+    f.release(1);
+    await f.entered(2, drained);
+    expect(closed).toBe(false);
+    f.release(2);
+    expect(await drained).toEqual({
+      error: expect.objectContaining({ reason: "catch-up-timeout", context: setup.context }),
+    });
+    expect(await observedClosing).toEqual({ value: undefined });
+    expect(closed).toBe(true);
+    expect(f.counts()).toEqual({
+      reads: 5,
+      serviceCalls: 4,
+      waits: 3,
+      probes: 3,
+      groupReads: 0,
+      attemptTimes: [0, 0, 5, 10, 15],
+    });
+    expect(() => f.realOwner.readEvents(`${scope}beads/a?view=events`)).toThrow(
+      "transaction store closed or reentrant",
+    );
+    console.log(
+      JSON.stringify({
+        observation: "bead-event-minimum-cancel-drain",
+        ...f.counts(),
+        postCloseDirectRefusals: 1,
+        seedMutations: 1,
+      }),
+    );
+  } finally {
+    await f.finish();
+  }
+});
+
+it.each([
+  "already-aborted",
+  "invalid-policy",
+  "throwing-clock",
+  "nonfinite-clock",
+  "malformed-after-valid-preflight",
+  "noncanonical-query",
+  "relative-source",
+] as const)("preserves initial Bead Event classification and preflight: %s", async (label) => {
+  const f = fixture();
+  let reads = 0;
+  const clockError = new Error("finite Event initial clock sentinel");
+  const now = vi.fn(() => {
+    if (label === "throwing-clock") throw clockError;
+    return label === "nonfinite-clock" ? Number.NaN : 0;
+  });
+  const wait = vi.fn(async () => {});
+  const service = createTransactionService(
+    {
+      ...f.owner,
+      readEvents: (...args: Parameters<typeof f.owner.readEvents>) => {
+        reads++;
+        return f.owner.readEvents(...args);
+      },
+    },
+    {
+      ownerLifetime: "service",
+      read: f.read,
+      minimumReads: { budgetMs: label === "invalid-policy" ? 0 : 10, now, wait },
+    },
+  );
+  cleanup.push(() => service.close());
+  const source =
+    label === "noncanonical-query"
+      ? `${scope}beads/a?view=events&extra=x`
+      : label === "relative-source"
+        ? "beads/a?view=events"
+        : `${scope}beads/a?view=events`;
+  const pending = service.events(
+    source,
+    undefined,
+    {
+      scopeEpoch: "bad space",
+      authorizationView: "development-all-visible",
+      minimumPosition: "opaque",
+    },
+    label === "already-aborted" ? AbortSignal.abort() : undefined,
+  );
+  expect(pending).toBeInstanceOf(Promise);
+  const error = await pending.then(
+    () => undefined,
+    (cause: unknown) => cause,
+  );
+  if (label === "already-aborted") expect(error).toBeInstanceOf(ScopeServerOperationAbortedError);
+  else if (label === "throwing-clock") expect(error).toBe(clockError);
+  else if (label === "noncanonical-query")
+    expect(error).toBeInstanceOf(TransactionEventParameterError);
+  else if (label === "relative-source") {
+    expect(error).toBeInstanceOf(TypeError);
+    expect(error).toMatchObject({ code: "ERR_INVALID_URL" });
+  } else {
+    expect(error).toBeInstanceOf(TypeError);
+    expect(error).toMatchObject({
+      message:
+        label === "invalid-policy"
+          ? "finite minimum-read wait policy required"
+          : label === "nonfinite-clock"
+            ? "invalid minimum-read clock"
+            : "unsupported minimum tuple",
+    });
+  }
+  expect(now).toHaveBeenCalledTimes(label === "invalid-policy" ? 0 : 1);
+  expect(reads).toBe(label === "noncanonical-query" || label === "relative-source" ? 1 : 0);
+  expect(wait).not.toHaveBeenCalled();
+  console.log(
+    JSON.stringify({
+      observation: "bead-event-minimum-preflight",
+      label,
+      serviceCalls: 1,
+      clockCalls: now.mock.calls.length,
+      ownerReads: reads,
+      waits: wait.mock.calls.length,
+    }),
+  );
+});
