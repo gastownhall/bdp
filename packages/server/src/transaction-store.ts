@@ -41,7 +41,9 @@ import {
   type TransactionEventSource,
 } from "./transaction-events.js";
 import {
+  checkCurrentReadMinimum,
   checkTransactionMinimum,
+  snapshotCurrentReadMinimum,
   snapshotTransactionMinimum,
   type TransactionMinimum,
 } from "./transaction-consistency.js";
@@ -1649,10 +1651,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       if (typeof sourceUrl !== "string" || (after !== undefined && typeof after !== "string"))
         throw new TypeError("Event source and cursor must be strings");
       const source = eventSource(sourceUrl);
+      const initialScope = source.kind === "scope" && after === undefined;
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
-          : snapshotTransactionMinimum(supplied);
+          : initialScope
+            ? snapshotCurrentReadMinimum(supplied)
+            : snapshotTransactionMinimum(supplied);
       return enter(() => {
         // Reference convention: unknown sources are nondisclosing before minimum
         // checks. A retained identity remains a source after Resource deletion.
@@ -1663,7 +1668,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           head = Number(context.scopePosition.slice(4));
         // This owner entry cannot advance while scanning. Refuse/wait before any
         // group read rather than repeating projection work on every wait attempt.
-        if (minimum !== undefined) checkTransactionMinimum(minimum, context);
+        if (minimum !== undefined) {
+          if (initialScope) checkCurrentReadMinimum(minimum, context, true);
+          else checkTransactionMinimum(minimum, context);
+        }
         const start = after === undefined ? undefined : parseTransactionEventCursor(after, context);
         if (start) checkTransactionEventCursor(start, context, source.url);
         let cursorMatched = start === undefined;

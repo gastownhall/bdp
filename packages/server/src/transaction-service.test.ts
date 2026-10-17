@@ -2492,3 +2492,274 @@ it("rejects an old selected Event packet before stream registration and accepts 
   }
   if (failures.length) throw new AggregateError(failures, "stale Event lease witness cleanup");
 }, 5000);
+
+function finiteEventMinimumFixture(waitCount: number) {
+  const f = fixture();
+  let tick = 0,
+    reads = 0,
+    serviceCalls = 0,
+    waits = 0,
+    probes = 0,
+    groupReads = 0;
+  const attemptTimes: number[] = [];
+  const gates = Array.from({ length: waitCount }, () => ({
+    entered: Promise.withResolvers<void>(),
+    release: Promise.withResolvers<void>(),
+  }));
+  const owner = {
+    ...f.owner,
+    readEvents: (...args: Parameters<typeof f.owner.readEvents>) => {
+      reads++;
+      attemptTimes.push(tick);
+      return f.owner.readEvents(...args);
+    },
+  };
+  const service = createTransactionService(owner, {
+    ownerLifetime: "service",
+    read: f.read,
+    minimumReads: {
+      budgetMs: 10,
+      now: () => tick,
+      wait: async (milliseconds) => {
+        const gate = gates[waits++];
+        if (!gate) throw new Error("unexpected finite Event wait");
+        expect(milliseconds).toBe(5);
+        expect(f.owner.withRead(() => true)).toEqual({ kind: "read", value: true });
+        probes++;
+        gate.entered.resolve();
+        await gate.release.promise;
+        tick += milliseconds;
+      },
+    },
+  });
+  cleanup.push(() => service.close());
+  const pending: Promise<unknown>[] = [];
+  let restoreScans: (() => void) | undefined;
+  return {
+    realOwner: f.owner,
+    service,
+    events(...args: Parameters<typeof service.events>) {
+      serviceCalls++;
+      return service.events(...args);
+    },
+    observe<T>(promise: Promise<T>) {
+      const observed = promise.then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      );
+      pending.push(observed);
+      return observed;
+    },
+    async entered(index: number, observed: Promise<unknown>) {
+      const gate = gates[index];
+      if (!gate) throw new Error("missing finite Event gate");
+      await Promise.race([
+        gate.entered.promise,
+        observed.then(() => {
+          throw new Error("finite Event request settled before expected wait");
+        }),
+      ]);
+    },
+    release(index: number) {
+      const gate = gates[index];
+      if (!gate) throw new Error("missing finite Event gate");
+      gate.release.resolve();
+    },
+    watchScans() {
+      const prepare = DatabaseSync.prototype.prepare;
+      const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+        this: DatabaseSync,
+        sql,
+      ) {
+        if (/FROM groups/.test(sql)) groupReads++;
+        return prepare.call(this, sql);
+      });
+      restoreScans = () => spy.mockRestore();
+    },
+    counts: () => ({ reads, serviceCalls, waits, probes, groupReads, attemptTimes }),
+    async finish() {
+      for (const gate of gates) gate.release.resolve();
+      try {
+        await Promise.allSettled(pending);
+        await service.close();
+      } finally {
+        restoreScans?.();
+      }
+    },
+  };
+}
+
+it("captures an initial Scope Event opaque tuple across one bounded wait", async () => {
+  const f = finiteEventMinimumFixture(2);
+  try {
+    const setup = await f.events(`${scope}events/`);
+    if (setup.kind !== "page") throw new Error("expected initial Event page");
+    const minimum = {
+      scopeEpoch: setup.context.scopeEpoch,
+      authorizationView: setup.context.authorizationView,
+      minimumPosition: "opaque",
+    };
+    f.watchScans();
+    const observed = f.observe(f.events(`${scope}events/`, undefined, minimum));
+    await f.entered(0, observed);
+    expect(f.counts().reads).toBe(2);
+    minimum.minimumPosition = setup.context.scopePosition;
+    f.release(0);
+    await f.entered(1, observed);
+    expect(f.counts().reads).toBe(3);
+    f.release(1);
+    expect(await observed).toEqual({
+      error: expect.objectContaining({ reason: "catch-up-timeout", context: setup.context }),
+    });
+    expect(f.counts()).toEqual({
+      reads: 4,
+      serviceCalls: 2,
+      waits: 2,
+      probes: 2,
+      groupReads: 0,
+      attemptTimes: [0, 0, 5, 10],
+    });
+    console.log(JSON.stringify({ observation: "finite-event-minimum-capture", ...f.counts() }));
+  } finally {
+    await f.finish();
+  }
+});
+
+it("cancels and drains initial Scope Event opaque waits", async () => {
+  const f = finiteEventMinimumFixture(3);
+  try {
+    const setup = await f.events(`${scope}events/`);
+    if (setup.kind !== "page") throw new Error("expected initial Event page");
+    const minimum = {
+      scopeEpoch: setup.context.scopeEpoch,
+      authorizationView: setup.context.authorizationView,
+      minimumPosition: "opaque",
+    };
+    f.watchScans();
+    const controller = new AbortController();
+    const cancelled = f.observe(f.events(`${scope}events/`, undefined, minimum, controller.signal));
+    await f.entered(0, cancelled);
+    controller.abort();
+    // Abort is observed only after our deferred wait is released.
+    f.release(0);
+    expect(await cancelled).toEqual({ error: expect.any(ScopeServerOperationAbortedError) });
+    expect(f.counts().reads).toBe(2);
+    const drained = f.observe(f.events(`${scope}events/`, undefined, minimum));
+    await f.entered(1, drained);
+    let closed = false;
+    const closing = f.service.close().then(() => {
+      closed = true;
+    });
+    const observedClosing = f.observe(closing);
+    await Promise.resolve();
+    expect(closed).toBe(false);
+    expect(f.counts().reads).toBe(3);
+    expect(() => f.events(`${scope}events/`)).toThrow("transaction service is closing or closed");
+    expect(f.counts().reads).toBe(3);
+    f.release(1);
+    await f.entered(2, drained);
+    expect(closed).toBe(false);
+    f.release(2);
+    expect(await drained).toEqual({
+      error: expect.objectContaining({ reason: "catch-up-timeout", context: setup.context }),
+    });
+    expect(await observedClosing).toEqual({ value: undefined });
+    expect(closed).toBe(true);
+    expect(f.counts()).toEqual({
+      reads: 5,
+      serviceCalls: 4,
+      waits: 3,
+      probes: 3,
+      groupReads: 0,
+      attemptTimes: [0, 0, 5, 10, 15],
+    });
+    expect(() => f.realOwner.readEvents(`${scope}events/`)).toThrow(
+      "transaction store closed or reentrant",
+    );
+    console.log(
+      JSON.stringify({
+        observation: "finite-event-minimum-cancel-drain",
+        ...f.counts(),
+        postCloseDirectRefusals: 1,
+      }),
+    );
+  } finally {
+    await f.finish();
+  }
+});
+
+it.each([
+  "already-aborted",
+  "invalid-policy",
+  "throwing-clock",
+  "nonfinite-clock",
+  "malformed-after-valid-preflight",
+] as const)(
+  "preserves initial Scope Event preflight before malformed capture: %s",
+  async (label) => {
+    const f = fixture();
+    let reads = 0;
+    const clockError = new Error("finite Event initial clock sentinel");
+    const now = vi.fn(() => {
+      if (label === "throwing-clock") throw clockError;
+      return label === "nonfinite-clock" ? Number.NaN : 0;
+    });
+    const wait = vi.fn(async () => {});
+    const service = createTransactionService(
+      {
+        ...f.owner,
+        readEvents: (...args: Parameters<typeof f.owner.readEvents>) => {
+          reads++;
+          return f.owner.readEvents(...args);
+        },
+      },
+      {
+        ownerLifetime: "service",
+        read: f.read,
+        minimumReads: { budgetMs: label === "invalid-policy" ? 0 : 10, now, wait },
+      },
+    );
+    cleanup.push(() => service.close());
+    const pending = service.events(
+      `${scope}events/`,
+      undefined,
+      {
+        scopeEpoch: "bad space",
+        authorizationView: "development-all-visible",
+        minimumPosition: "opaque",
+      },
+      label === "already-aborted" ? AbortSignal.abort() : undefined,
+    );
+    expect(pending).toBeInstanceOf(Promise);
+    const error = await pending.then(
+      () => undefined,
+      (cause: unknown) => cause,
+    );
+    if (label === "already-aborted") expect(error).toBeInstanceOf(ScopeServerOperationAbortedError);
+    else if (label === "throwing-clock") expect(error).toBe(clockError);
+    else {
+      expect(error).toBeInstanceOf(TypeError);
+      expect(error).toMatchObject({
+        message:
+          label === "invalid-policy"
+            ? "finite minimum-read wait policy required"
+            : label === "nonfinite-clock"
+              ? "invalid minimum-read clock"
+              : "unsupported minimum tuple",
+      });
+    }
+    expect(now).toHaveBeenCalledTimes(label === "invalid-policy" ? 0 : 1);
+    expect(reads).toBe(0);
+    expect(wait).not.toHaveBeenCalled();
+    console.log(
+      JSON.stringify({
+        observation: "finite-event-minimum-preflight",
+        label,
+        serviceCalls: 1,
+        clockCalls: now.mock.calls.length,
+        ownerReads: reads,
+        waits: wait.mock.calls.length,
+      }),
+    );
+  },
+);

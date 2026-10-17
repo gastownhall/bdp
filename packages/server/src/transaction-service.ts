@@ -471,13 +471,28 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       supplied?: TransactionMinimum | "unsupported",
       signal?: AbortSignal,
     ) {
-      return run(() =>
-        waitForTransactionMinimum(
-          () => owner.readEvents(source, after, supplied),
+      return run(() => {
+        let minimum = supplied;
+        let captured = false;
+        return waitForTransactionMinimum(
+          () => {
+            // Preserve waiter preflight, then capture once before any deferred wait.
+            if (!captured) {
+              if (
+                source === new URL("events/", scope).href &&
+                after === undefined &&
+                supplied !== undefined &&
+                supplied !== "unsupported"
+              )
+                minimum = snapshotCurrentReadMinimum(supplied);
+              captured = true;
+            }
+            return owner.readEvents(source, after, minimum);
+          },
           minimumReads,
           signal,
-        ),
-      );
+        );
+      });
     },
     beginEvents(
       source: string,
