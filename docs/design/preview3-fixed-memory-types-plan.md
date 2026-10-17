@@ -59,7 +59,7 @@ user-defined Types are excluded. Operation capacity limits are a separate concer
 
 | Decision | Proposed disposition / owner | Blocks |
 | --- | --- | --- |
-| Existing related compatibility | Donna decided to coin a new Memory name. Preserve existing related's Dependency identity, membership and behavior. Melinda proposes Association (`association`); Donna's selection is pending. | Final selector/identity publication, not pure validation work. |
+| Existing related compatibility | Donna decided to coin a new Memory name. Preserve existing related's Dependency identity, membership and behavior. Donna accepts Association (`association`) as the proposal's starting name. Melinda's full catalog remains a proposal pending Donna's review. | Final selector/identity publication, not pure validation work. |
 | Other naming collisions | Dependency also has relates-to and supersedes; do not accidentally dispatch Memory Supersedes through bd supersede's Issue-closing behavior. Review all supplied names. | Final catalog/CLI wiring. |
 | Retyping cutline | Donna selected: support within-Memory-family type+property updates; preserve existing Issue-family behavior; defer Issue↔Memory conversion. This is the Preview 3 product cutline, not a restriction in the general Type design. Reject unsupported cross-family conversion before any mutation. | Retyping commands and acceptance. |
 | Citation inputs | Candidate requires exact targets for Supports/Challenges/Supersedes and permits floating or exact for other three. Explicit caller selection, no silent current-state pin. Confirm domain acceptance with Melinda/Donna. | Citation admission and CLI tests. |
@@ -157,7 +157,7 @@ implementation, and installed qualification separate. New owner overlap or a cha
 base requires reconciliation; it does not authorize rebasing someone else's work.
 
 Plan council: native review completed; three findings addressed and follow-up found
-no unresolved issues. Claude review is running; Gemini excluded per earlier direction.
+no unresolved issues. Claude review has returned; findings are awaiting disposition. Gemini excluded per earlier direction.
 No implementation worker has been dispatched by this document. Open decisions are not
 approval by timeout. The two read-only audits inform this plan; they are not reviews
 of its final text. Main-spec and PR159 landing holds remain unaffected.
