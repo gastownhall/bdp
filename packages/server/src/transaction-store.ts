@@ -2275,7 +2275,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       const condition =
         minimum === undefined || minimum === "unsupported"
           ? minimum
-          : snapshotTransactionMinimum(minimum);
+          : snapshotCurrentReadMinimum(minimum);
       return enter(() =>
         atomic(() => {
           const marker = id.lastIndexOf("/pages/");
@@ -2306,7 +2306,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           if (condition === "unsupported") return { kind: "unsupported" as const };
           const context = readContext();
           // Identity/nondisclosure precedes minimum; expiry is checked only afterwards.
-          if (condition) checkTransactionMinimum(condition, context);
+          if (condition) checkCurrentReadMinimum(condition, context, true);
           const remaining = expireRow(stored, instant()).row;
           if (!remaining) throw new Error("completed page parent was forgotten");
           const receipt = parseReceipt(remaining.receipt);

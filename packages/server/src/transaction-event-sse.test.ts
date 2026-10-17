@@ -994,8 +994,9 @@ it("publication cancels a queued Event frame before its drain permits another wr
 
 it("gates initial Scope Event SSE opaque minima before scan packets", async () => {
   const { DatabaseSync } = await import("node:sqlite");
-  const { TransactionMinimumUnproved, TransactionMinimumFailure, TransactionMinimumUnsupported } =
-    await import("./transaction-consistency.js");
+  const { TransactionMinimumUnproved, TransactionMinimumFailure } = await import(
+    "./transaction-consistency.js"
+  );
   const f = ownerFixture();
   let seedCommits = 0;
   f.run([
@@ -1104,7 +1105,10 @@ it("gates initial Scope Event SSE opaque minima before scan packets", async () =
     ]) {
       expect(
         scan("foreign", `${scope}events/`, tuple, undefined, false, "initial-scope-sse"),
-      ).toBeInstanceOf(TransactionMinimumUnsupported);
+      ).toMatchObject({
+        reason: tuple.scopeEpoch !== packet.context.scopeEpoch ? "cursor-expired" : "foreign-view",
+        context: packet.context,
+      });
     }
     const strict = [
       scan("default", `${scope}events/`, minimum),
@@ -1607,6 +1611,15 @@ it("serves initial Scope Event SSE opaque minima before conditional admission", 
             code: "catch-up-timeout",
             retry: "after-delay",
           });
+      } else if (status === 409 || status === 410) {
+        expect(safeContext(stream.headers)).toEqual(expectedContext);
+        expect(stream.headers["x-bdp-development-limit"]).toBeUndefined();
+        expect(stream.headers["content-type"]).toBe("application/problem+json");
+        if (method === "GET")
+          expect(JSON.parse(stream.body)).toMatchObject({
+            status,
+            code: status === 410 ? "cursor-expired" : "foreign-view",
+          });
       } else if (status === 500) {
         expect(stream.headers["x-bdp-development-limit"]).toBe("minimum-position");
         expect(stream.body).toBe("");
@@ -1743,8 +1756,8 @@ it("serves initial Scope Event SSE opaque minima before conditional admission", 
     await pair([...opaque, ["If-Match", '"wrong"']], 503);
     await pair([["BDP-Minimum-Scope-Position", "unknown"]], 400);
     await pair(minimum("pos-2"), 503);
-    await raw("events/", [["BDP-Scope-Epoch", "foreign-epoch"], ...opaque.slice(1)], 500);
-    await raw("events/", [opaque[0]!, ["BDP-Authorization-View", "foreign-view"], opaque[2]!], 500);
+    await raw("events/", [["BDP-Scope-Epoch", "foreign-epoch"], ...opaque.slice(1)], 410);
+    await raw("events/", [opaque[0]!, ["BDP-Authorization-View", "foreign-view"], opaque[2]!], 409);
     await raw(`events/?after=${encodeURIComponent(after)}`, opaque, 500);
     await raw("events/?after=", opaque, 400);
     await raw("events/", [...opaque, ["Last-Event-ID", after]], 500);
@@ -1828,7 +1841,7 @@ it("serves initial Scope Event SSE opaque minima before conditional admission", 
         counts[row.status] = (counts[row.status] ?? 0) + 1;
         return counts;
       }, {}),
-    ).toEqual({ 200: 6, 503: 10, 500: 8, 400: 3, 404: 1, 401: 1, 304: 1, 412: 1 });
+    ).toEqual({ 200: 6, 503: 10, 500: 6, 400: 3, 404: 1, 401: 1, 304: 1, 412: 1, 409: 1, 410: 1 });
   } catch (error) {
     failures.push(error);
   } finally {

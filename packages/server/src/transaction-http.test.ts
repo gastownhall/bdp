@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { connect } from "node:net";
@@ -3061,9 +3061,20 @@ it("serves canonical current Type and incident minimums with truthful context an
     ]) {
       const refused = await send(suffix, { ...headers, ...patch });
       if (suffix === "types/absent") {
-        expect(refused.status).toBe(500);
-        expect(refused.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
-        expect(refused.headers.has("bdp-scope-position")).toBe(false);
+        const status =
+          "bdp-minimum-scope-position" in patch ? 503 : "bdp-scope-epoch" in patch ? 410 : 409;
+        expect(refused.status).toBe(status);
+        expect(refused.headers.has("x-bdp-development-limit")).toBe(false);
+        assertContext(refused);
+        expect(checkedProblem(await body(refused))).toMatchObject({
+          status,
+          code:
+            status === 503
+              ? "catch-up-timeout"
+              : status === 410
+                ? "cursor-expired"
+                : "foreign-view",
+        });
       } else {
         expect(refused.status).toBe(404);
         assertContext(refused);
@@ -3233,20 +3244,31 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
         expect(response.headers.has(name)).toBe(false);
     }
   }
-  // Unsupported private foreign-opaque gaps, not qualified foreign-view/expiry results.
+  // Opaque identities preserve actual epoch/view refusal before redirect construction.
   for (const patch of [{ "bdp-scope-epoch": "foreign" }, { "bdp-authorization-view": "foreign" }]) {
+    let bytes = 0;
     for (const method of ["GET", "HEAD"] as const) {
       const response = await get(target, {
         method,
         headers: { ...headers, ...patch, "bdp-minimum-scope-position": "unknown" },
       });
-      expect(response.status).toBe(500);
-      expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+      const status = "bdp-scope-epoch" in patch ? 410 : 409;
+      expect(response.status).toBe(status);
+      expect(response.headers.has("x-bdp-development-limit")).toBe(false);
       expect(response.headers.has("location")).toBe(false);
       expect(response.headers.has("etag")).toBe(false);
-      expect(await response.text()).toBe("");
-      for (const name of Object.keys(context(created)))
-        expect(response.headers.has(name)).toBe(false);
+      expect(context(response)).toEqual(context(created));
+      const text = await response.text();
+      if (method === "GET") {
+        bytes = Buffer.byteLength(text);
+        expect(checkedProblem(record(JSON.parse(text)))).toMatchObject({
+          status,
+          code: status === 410 ? "cursor-expired" : "foreign-view",
+        });
+      } else {
+        expect(text).toBe("");
+        expect(response.headers.get("content-length")).toBe(String(bytes));
+      }
     }
   }
   const anonymous = await observe("GET", target, () =>
@@ -5009,14 +5031,14 @@ it("waits for current Resources and initial collections with unknown minima and 
     expect(response.headers.has("x-bdp-development-limit")).toBe(false);
   }
   expect(waits).toBe(8);
-  // Type routes stop at the strict unknown-token guard; incident-Link refusal
-  // follows owner classification. Both retain the private label.
+  // Current Type inventory and successful incident lists share bounded eligibility waiting.
   for (const suffix of ["types/", "beads/a?view=links"]) {
     const response = await f.get(f.runtime.scope + suffix, { headers: tuple });
-    expect(response.status).toBe(500);
-    expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
-    expect(response.headers.has("bdp-scope-position")).toBe(false);
-    expect(await response.text()).toBe("");
+    expect(response.status).toBe(503);
+    expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+    expect(response.headers.get("retry-after")).toBe("1");
+    expect(checkedProblem(await body(response))).toEqual(timeoutProblem);
   }
   // Repeated parameters are normative 400; limit=0 preserves existing parser parity.
   // Both parser refusals precede semantic minimum support classification.
@@ -5046,7 +5068,7 @@ it("waits for current Resources and initial collections with unknown minima and 
     expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
     expect(response.headers.has("x-bdp-development-limit")).toBe(false);
   }
-  expect(waits).toBe(8);
+  expect(waits).toBe(10);
   const published = await f.runtime.replaceAuthorizationPolicy({ timeoutMs: 1000 });
   let expectedBody: unknown;
   for (const suffix of ["beads/a", "beads/missing", "beads/a?view=links"]) {
@@ -5063,7 +5085,7 @@ it("waits for current Resources and initial collections with unknown minima and 
     expect(response.headers.get("bdp-authorization-view")).toBe(published.authorizationView);
     expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
   }
-  expect(waits).toBe(8);
+  expect(waits).toBe(10);
 });
 
 it("compares retained sequence members and accepts deep input while preserving receiving failures", async () => {
@@ -5716,9 +5738,10 @@ it("preserves receiving and HTTP error precedence for parser refusals", async ()
       { accept: "image/png" },
     ];
     for (const overlay of overlays) await f.problemPair(suffix, { ...f.opaque, ...overlay });
-    // Strict Type requests and parser 404 residue retain the old private refusal.
-    // beads/a?view=links is excluded: it observes the owner, so is not a pre-owner refusal.
-    for (const excluded of ["types/", "types/task", "beads/a/"]) await f.gapPair(excluded);
+    // Strict continuation and retained Snapshot gates stay pre-owner private refusals.
+    // The parser404 residue preserves its existing route fence.
+    for (const excluded of ["beads/?cursor=missing", "snapshot?snapshot=unissued", "beads/a/"])
+      await f.gapPair(excluded);
   });
 });
 
@@ -5801,9 +5824,17 @@ it("serves fresh Snapshot opaque minima with terminal preflight and retained fen
     for (const field of ["bdp-scope-epoch", "bdp-authorization-view"]) {
       for (const method of ["GET", "HEAD"] as const) {
         const result = await get(url, method, { ...minimum, [field]: "foreign" });
-        expect(result.response.status).toBe(500);
-        expect(result.response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+        const status = field === "bdp-scope-epoch" ? 410 : 409;
+        expect(result.response.status).toBe(status);
+        expect(result.response.headers.has("x-bdp-development-limit")).toBe(false);
+        for (const [name, value] of Object.entries(current))
+          expect(result.response.headers.get(name)).toBe(value);
         if (method === "HEAD") expect(result.text).toBe("");
+        else
+          expect(checkedProblem(record(JSON.parse(result.text)))).toMatchObject({
+            status,
+            code: status === 410 ? "cursor-expired" : "foreign-view",
+          });
       }
     }
     for (const method of ["GET", "HEAD"] as const) {
@@ -5846,12 +5877,12 @@ it("serves fresh Snapshot opaque minima with terminal preflight and retained fen
     expect(responses).toHaveLength(27);
     expect(waits).toBe(8);
     const statusCounts = Object.fromEntries(
-      [200, 503, 500, 400, 401].map((status) => [
+      [200, 503, 500, 400, 401, 409, 410].map((status) => [
         status,
         responses.filter((response) => response.status === status).length,
       ]),
     );
-    expect(statusCounts).toEqual({ 200: 5, 503: 8, 500: 8, 400: 4, 401: 2 });
+    expect(statusCounts).toEqual({ 200: 5, 503: 8, 500: 4, 400: 4, 401: 2, 409: 2, 410: 2 });
     await f.runtime.close();
     console.log(
       JSON.stringify({
@@ -5944,16 +5975,22 @@ it("serves opaque receipt root minima before HTTP shortcuts with private fences"
         accept: "image/png",
       }),
     );
-    // These two private refusals preserve the excluded foreign-opaque gap, not 409/410 conformance.
+    // Incompatible actual context wins before unknown-position eligibility waiting.
     for (const [method, field] of [
       ["GET", "bdp-scope-epoch"],
       ["HEAD", "bdp-authorization-view"],
     ] as const) {
       const result = await get(method, "owned-root", root, { ...minimum, [field]: "foreign" });
-      expect(result.response.status).toBe(500);
-      expect(result.text).toBe("");
-      expect(result.response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
-      expect(Object.values(context(result.response))).toStrictEqual([null, null, null]);
+      const status = field === "bdp-scope-epoch" ? 410 : 409;
+      expect(result.response.status).toBe(status);
+      expect(result.response.headers.has("x-bdp-development-limit")).toBe(false);
+      expect(context(result.response)).toStrictEqual(current);
+      if (method === "HEAD") expect(result.text).toBe("");
+      else
+        expect(checkedProblem(record(JSON.parse(result.text)))).toMatchObject({
+          status,
+          code: "cursor-expired",
+        });
     }
     // Shared receiving/auth fences; these rows do not observe the receipt owner.
     const malformed = await get("GET", "owned-root", root, {
@@ -5980,7 +6017,7 @@ it("serves opaque receipt root minima before HTTP shortcuts with private fences"
     expect(checkedProblem(record(JSON.parse(anonymous.text))).code).toBe("unauthenticated");
     expect(Object.values(context(anonymous.response))).toStrictEqual([null, null, null]);
     expect(responses.map(({ status }) => status)).toStrictEqual([
-      200, 503, 503, 503, 500, 500, 400, 404, 404, 401,
+      200, 503, 503, 503, 410, 409, 400, 404, 404, 401,
     ]);
     expect(waits).toBe(3);
     await f.runtime.close();
@@ -5995,4 +6032,449 @@ it("serves opaque receipt root minima before HTTP shortcuts with private fences"
   } finally {
     await f.runtime.close();
   }
+});
+
+it("serves current observation minimums with actual issued pages and HTTP parity", async () => {
+  const started = performance.now();
+  const scope = "https://current-observation.invalid/acme/";
+  const beadType = `${scope}types/task`,
+    linkType = `${scope}types/relation`;
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-current-observation-http-"));
+  let tick = 0,
+    waits = 0,
+    attempted = 0,
+    closed = false;
+  let runtime: Awaited<ReturnType<typeof startTransactionRuntime>> | undefined;
+  const failures: unknown[] = [];
+  const recordedFailures = new Set<unknown>();
+  const recordFailure = (error: unknown) => {
+    if (!recordedFailures.has(error)) {
+      recordedFailures.add(error);
+      failures.push(error);
+    }
+  };
+  const responses: {
+    label: string;
+    method: string;
+    url: string;
+    status: number;
+    bytes: number;
+    headers: Record<string, string | null>;
+  }[] = [];
+  const contextNames = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
+  const granted = new Set([
+    `${scope}operations/batch`,
+    `${scope}operations/update-where`,
+    `${scope}types/task`,
+    `${scope}types/`,
+    `${scope}types/missing`,
+    `${scope}beads/r00?view=links`,
+    `${scope}beads/missing?view=links`,
+  ]);
+  const seedBody = JSON.stringify({
+    operations: Array.from({ length: 32 }, (_, n) => ({
+      operation: "createBead",
+      id: `beads/r${String(n).padStart(2, "0")}`,
+      type: beadType,
+      properties: { n: 0 },
+    })),
+  });
+  const setBody = JSON.stringify({
+    collection: "beads",
+    selector: `$[?@.type == "${beadType}"]`,
+    cardinality: { min: 32, max: 32 },
+    change: [{ op: "replace", path: "/n", value: 1 }],
+  });
+  try {
+    runtime = await startTransactionRuntime(
+      {
+        directory,
+        scope,
+        port: 0,
+        create: true,
+        types: [
+          parseTypeDescriptor({ id: beadType, name: "Task", describes: "bead", conformsTo: [] }),
+          parseTypeDescriptor({
+            id: linkType,
+            name: "Relation",
+            describes: "link",
+            conformsTo: [],
+            source: { conformsTo: [beadType], external: "opaque" },
+            target: { conformsTo: [beadType], external: "opaque" },
+          }),
+        ],
+        credentials: [
+          { token, principal: "p", canMutate: true },
+          { token: otherToken, principal: "other", canMutate: false },
+        ],
+      },
+      {
+        receiptMaximumItems: 2,
+        minimumReads: {
+          budgetMs: 2,
+          now: () => tick++,
+          wait: async () => {
+            waits++;
+          },
+        },
+      },
+    );
+    const listenUrl = runtime.listenUrl;
+    const exchange = async (
+      label: string,
+      method: "GET" | "HEAD" | "POST",
+      url: string,
+      fields: string[] = [],
+      credential: "writer" | "other" | "anonymous" = "writer",
+      requestBody?: string,
+      key?: string,
+    ) => {
+      if (attempted >= 37 || !granted.has(url))
+        throw new Error("unbound or excess current observation request");
+      attempted++;
+      const target = new URL(url);
+      expect(target.origin).toBe(new URL(scope).origin);
+      const headers = new Headers({ accept: "application/json", host: new URL(scope).host });
+      if (credential !== "anonymous")
+        headers.set("authorization", `Bearer ${credential === "writer" ? token : otherToken}`);
+      if (requestBody !== undefined) {
+        headers.set("content-type", "application/json");
+        headers.set("idempotency-key", key ?? "missing-key");
+      }
+      for (let i = 0; i < fields.length; i += 2) headers.set(fields[i]!, fields[i + 1]!);
+      const response = await fetch(new URL(target.pathname + target.search, listenUrl), {
+        method,
+        headers,
+        ...(requestBody === undefined ? {} : { body: requestBody }),
+        signal: AbortSignal.timeout(5000),
+        redirect: "manual",
+      });
+      const text = await response.text(),
+        bytes = Buffer.byteLength(text);
+      expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
+      responses.push({
+        label,
+        method,
+        url,
+        status: response.status,
+        bytes,
+        headers: Object.fromEntries(
+          [
+            ...contextNames,
+            "content-type",
+            "content-length",
+            "retry-after",
+            "cache-control",
+            "x-bdp-development-limit",
+          ].map((name) => [name, response.headers.get(name)]),
+        ),
+      });
+      return { status: response.status, headers: response.headers, text, bytes };
+    };
+    type WireResponse = Awaited<ReturnType<typeof exchange>>;
+    const context = (response: WireResponse) =>
+      contextNames.map((name) => response.headers.get(name));
+    const problem = (response: WireResponse, status: number, code: string) => {
+      expect(response.status).toBe(status);
+      expect(response.headers.get("content-type")).toBe("application/problem+json");
+      const value = checkedProblem(record(JSON.parse(response.text)));
+      expect(value).toMatchObject({ status, code });
+      return value;
+    };
+    const receiptResults = (value: Record<string, unknown>) => {
+      if (!Array.isArray(value.results)) throw new Error("receipt results required");
+      return value.results;
+    };
+    const receipt = (response: WireResponse, key: string, position: string) => {
+      expect(response.status).toBe(200);
+      const value = record(JSON.parse(response.text));
+      expect(validateSelectorReceipt(value), JSON.stringify(validateSelectorReceipt.errors)).toBe(
+        true,
+      );
+      expect(value).toMatchObject({
+        status: "completed",
+        idempotencyKey: key,
+        requiredPosition: position,
+        effectPosition: position,
+      });
+      expect(context(response)[2]).toBe(position);
+      expect([value.scopeEpoch, value.authorizationView]).toStrictEqual(
+        context(response).slice(0, 2),
+      );
+      expect(
+        context(response)
+          .slice(0, 2)
+          .every((v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,256}$/.test(v)),
+      ).toBe(true);
+      return value;
+    };
+    const seed = await exchange(
+      "seed",
+      "POST",
+      `${scope}operations/batch`,
+      [],
+      "writer",
+      seedBody,
+      "current-observation-seed",
+    );
+    const seeded = receipt(seed, "current-observation-seed", "pos-1");
+    expect(receiptResults(seeded)).toHaveLength(2);
+    const updated = await exchange(
+      "issue-page",
+      "POST",
+      `${scope}operations/update-where`,
+      [],
+      "writer",
+      setBody,
+      "current-observation-update",
+    );
+    const paged = receipt(updated, "current-observation-update", "pos-2");
+    const pageUrl = paged.next;
+    if (typeof pageUrl !== "string" || typeof paged.id !== "string")
+      throw new Error("actual second mutation page required");
+    const parsedPage = new URL(pageUrl);
+    expect(parsedPage.origin).toBe(new URL(scope).origin);
+    expect([parsedPage.search, parsedPage.hash, parsedPage.username, parsedPage.password]).toEqual([
+      "",
+      "",
+      "",
+      "",
+    ]);
+    expect(pageUrl.startsWith(`${paged.id}/pages/`)).toBe(true);
+    expect(pageUrl.slice(`${paged.id}/pages/`.length)).toMatch(/^[A-Za-z0-9_-]+$/);
+    granted.add(pageUrl);
+    const linked = await exchange(
+      "link",
+      "POST",
+      `${scope}operations/batch`,
+      [],
+      "writer",
+      JSON.stringify({
+        operations: [
+          {
+            operation: "createLink",
+            id: "links/l",
+            type: linkType,
+            source: "beads/r00",
+            target: "beads/r01",
+            properties: { n: 0 },
+          },
+        ],
+      }),
+      "current-observation-link",
+    );
+    receipt(linked, "current-observation-link", "pos-3");
+    const expectedContext = context(linked);
+    expect(expectedContext.slice(0, 2)).toEqual(context(seed).slice(0, 2));
+    const minimum = (position: string, epoch = expectedContext[0]!, view = expectedContext[1]!) => [
+      "BDP-Minimum-Scope-Position",
+      position,
+      "BDP-Scope-Epoch",
+      epoch,
+      "BDP-Authorization-View",
+      view,
+    ];
+    const validType = ajv.compile({ $ref: `${schema.$id}#/$defs/typeDescriptor` });
+    const validTypes = ajv.compile({ $ref: `${schema.$id}#/$defs/typesInventory` });
+    const validLinks = ajv.compile({ $ref: `${schema.$id}#/$defs/currentLinkCollection` });
+    const validPage = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceiptPage` });
+    const pair = async (
+      label: string,
+      url: string,
+      fields: string[],
+      status: number,
+      code: string,
+    ) => {
+      const get = await exchange(`${label}-get`, "GET", url, [
+        ...fields,
+        ...(status === 503 ? ["If-None-Match", "*"] : []),
+      ]);
+      const head = await exchange(`${label}-head`, "HEAD", url, [
+        ...fields,
+        ...(status === 503 ? ["If-Match", '"mismatch"', "Accept", "image/png"] : []),
+      ]);
+      problem(get, status, code);
+      expect(head.status).toBe(status);
+      expect(head.text).toBe("");
+      expect(head.bytes).toBe(0);
+      expect(get.bytes).toBeGreaterThan(0);
+      expect(get.headers.get("content-length")).toBe(String(get.bytes));
+      for (const name of [
+        "content-length",
+        "content-type",
+        "cache-control",
+        "retry-after",
+        ...contextNames,
+      ])
+        expect(head.headers.get(name), name).toBe(get.headers.get(name));
+      for (const response of [get, head]) {
+        expect(context(response)).toEqual(expectedContext);
+        expect(response.headers.get("content-type")).toBe("application/problem+json");
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+        if (status === 503) expect(response.headers.get("retry-after")).toBe("1");
+      }
+    };
+    for (const [label, target] of [
+      ["type", `${scope}types/task`],
+      ["types", `${scope}types/`],
+      ["incident", `${scope}beads/r00?view=links`],
+      ["page", pageUrl],
+    ] as const) {
+      const known = await exchange(`${label}-known`, "GET", target, minimum("pos-3"));
+      expect(known.status).toBe(200);
+      expect(context(known)).toEqual(expectedContext);
+      const value = record(JSON.parse(known.text));
+      const validate =
+        label === "type"
+          ? validType
+          : label === "types"
+            ? validTypes
+            : label === "incident"
+              ? validLinks
+              : validPage;
+      expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
+      if (label === "type") expect(value).toMatchObject({ id: beadType, describes: "bead" });
+      else if (label === "types") {
+        expect(value.items).toEqual([
+          { id: linkType, name: "Relation", describes: "link" },
+          { id: beadType, name: "Task", describes: "bead" },
+        ]);
+        expect(value.next).toBeNull();
+      } else if (label === "incident") {
+        expect(value).toMatchObject({
+          items: [
+            {
+              id: `${scope}links/l`,
+              type: linkType,
+              source: `${scope}beads/r00`,
+              target: `${scope}beads/r01`,
+            },
+          ],
+          next: null,
+        });
+      } else {
+        expect(value.receipt).toBe(paged.id);
+        if (!Array.isArray(value.results) || value.results.length === 0)
+          throw new Error("nonempty real page required");
+        for (const result of value.results)
+          expect(record(result)).toMatchObject({
+            outcome: "updated",
+            resource: { type: beadType, properties: { n: 1 } },
+          });
+        expect(paged.requiredPosition).toBe("pos-2");
+      }
+      await pair(`${label}-opaque`, target, minimum("opaque"), 503, "catch-up-timeout");
+      await pair(
+        `${label}-epoch`,
+        target,
+        minimum("opaque", "foreign", expectedContext[1]!),
+        410,
+        "cursor-expired",
+      );
+      await pair(
+        `${label}-view`,
+        target,
+        minimum("opaque", expectedContext[0]!, "foreign"),
+        409,
+        "foreign-view",
+      );
+    }
+    await pair("missing-type", `${scope}types/missing`, minimum("opaque"), 503, "catch-up-timeout");
+    const missingIncident = await exchange(
+      "missing-incident",
+      "GET",
+      `${scope}beads/missing?view=links`,
+      minimum("opaque"),
+    );
+    const otherPage = await exchange("other-page", "GET", pageUrl, minimum("opaque"), "other");
+    for (const response of [missingIncident, otherPage]) {
+      problem(response, 404, "resource-not-found");
+      expect(context(response)).toEqual(expectedContext);
+      expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+    }
+    const malformed = await exchange("malformed-page", "GET", pageUrl, [
+      "BDP-Minimum-Scope-Position",
+      "opaque",
+    ]);
+    problem(malformed, 400, "malformed-request");
+    expect(context(malformed)).toEqual([null, null, null]);
+    const anonymous = await exchange(
+      "anonymous-page",
+      "GET",
+      pageUrl,
+      minimum("opaque"),
+      "anonymous",
+    );
+    problem(anonymous, 401, "unauthenticated");
+    expect(context(anonymous)).toEqual([null, null, null]);
+    expect(attempted).toBe(37);
+    expect(responses).toHaveLength(37);
+    expect(
+      Object.fromEntries(
+        [200, 503, 410, 409, 404, 400, 401].map((status) => [
+          status,
+          responses.filter((r) => r.status === status).length,
+        ]),
+      ),
+    ).toEqual({ 200: 7, 503: 10, 410: 8, 409: 8, 404: 2, 400: 1, 401: 1 });
+    expect(
+      Object.fromEntries(
+        ["POST", "GET", "HEAD"].map((method) => [
+          method,
+          responses.filter((r) => r.method === method).length,
+        ]),
+      ),
+    ).toEqual({ POST: 3, GET: 21, HEAD: 13 });
+    expect(waits).toBe(10);
+  } catch (error) {
+    recordFailure(error);
+  } finally {
+    let closeTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      if (runtime) {
+        const closing = runtime.close();
+        void closing.catch((error: unknown) => {
+          recordFailure(error);
+        });
+        await Promise.race([
+          closing,
+          new Promise<never>((_, reject) => {
+            closeTimer = setTimeout(
+              () => reject(new Error("current observation HTTP close timeout")),
+              1000,
+            );
+          }),
+        ]);
+        closed = true;
+      }
+    } catch (error) {
+      recordFailure(error);
+    } finally {
+      clearTimeout(closeTimer);
+    }
+    if (closed) {
+      try {
+        rmSync(directory, { recursive: true, force: true });
+      } catch (error) {
+        recordFailure(error);
+      }
+    }
+    console.log(
+      JSON.stringify({
+        observation: "current-observation-http",
+        elapsedMs: performance.now() - started,
+        attempted,
+        responses,
+        waits,
+        clockCalls: tick,
+        closed,
+        directory,
+        directoryAbsent: !existsSync(directory),
+        failureCount: failures.length,
+      }),
+    );
+  }
+  if (failures.length)
+    throw new AggregateError(failures, "current observation HTTP and cleanup failed");
 });

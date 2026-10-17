@@ -28,7 +28,6 @@ import {
 import {
   TransactionMinimumFailure,
   TransactionMinimumUnproved,
-  TransactionMinimumUnsupported,
 } from "./transaction-consistency.js";
 
 const cleanups: (() => void)[] = [];
@@ -1373,7 +1372,10 @@ it("gates initial Scope Event unknown minima before retained scans", () => {
     ]) {
       groupReads = 0;
       expect(() => read(source, undefined, { ...minimum, ...foreign })).toThrow(
-        TransactionMinimumUnsupported,
+        expect.objectContaining({
+          reason: "scopeEpoch" in foreign ? "cursor-expired" : "foreign-view",
+          context: setup.context,
+        }),
       );
       expect(groupReads).toBe(0);
     }
@@ -1525,8 +1527,20 @@ it("serves initial finite Scope Event opaque minima through bounded waiting", as
       true,
     );
     await pair("events/", {}, 200, undefined, true);
-    await pair("events/", { ...opaque, "bdp-scope-epoch": "foreign-epoch" }, 500);
-    await pair("events/", { ...opaque, "bdp-authorization-view": "foreign-view" }, 500);
+    await pair(
+      "events/",
+      { ...opaque, "bdp-scope-epoch": "foreign-epoch" },
+      410,
+      "cursor-expired",
+      true,
+    );
+    await pair(
+      "events/",
+      { ...opaque, "bdp-authorization-view": "foreign-view" },
+      409,
+      "foreign-view",
+      true,
+    );
     await pair(
       "events/",
       { ...opaque, accept: "text/event-stream" },
@@ -1614,7 +1628,10 @@ it("gates initial Bead Event unknown minima before retained scans", () => {
     ]) {
       groupReads = 0;
       expect(() => read(source, undefined, { ...minimum, ...foreign })).toThrow(
-        TransactionMinimumUnsupported,
+        expect.objectContaining({
+          reason: "scopeEpoch" in foreign ? "cursor-expired" : "foreign-view",
+          context: setup.context,
+        }),
       );
       expect(groupReads).toBe(0);
     }
@@ -1819,8 +1836,20 @@ it("serves initial finite Bead Event opaque minima with retained identity and ro
       true,
     );
     await pair("beads/a?view=events", {}, 200, undefined, true);
-    await pair("beads/a?view=events", { ...opaque, "bdp-scope-epoch": "foreign-epoch" }, 500);
-    await pair("beads/a?view=events", { ...opaque, "bdp-authorization-view": "foreign-view" }, 500);
+    await pair(
+      "beads/a?view=events",
+      { ...opaque, "bdp-scope-epoch": "foreign-epoch" },
+      410,
+      "cursor-expired",
+      true,
+    );
+    await pair(
+      "beads/a?view=events",
+      { ...opaque, "bdp-authorization-view": "foreign-view" },
+      409,
+      "foreign-view",
+      true,
+    );
     // Initial Link Events now wait; stream, continuation and media exclusions remain gaps.
     await pair("links/l?view=events", opaque, 503, "catch-up-timeout", true);
     await pair("beads/a?view=events", { ...opaque, accept: "text/event-stream" }, 500);
@@ -1955,7 +1984,10 @@ it("gates initial Link Event unknown minima before retained scans", () => {
     ]) {
       groupReads = 0;
       expect(() => read(source, undefined, { ...minimum, ...foreign })).toThrow(
-        TransactionMinimumUnsupported,
+        expect.objectContaining({
+          reason: "scopeEpoch" in foreign ? "cursor-expired" : "foreign-view",
+          context: setup.context,
+        }),
       );
       expect(groupReads).toBe(0);
     }
@@ -2155,8 +2187,20 @@ it("serves initial finite Link Event opaque minima with retained identity and ro
       true,
     );
     await pair("links/l?view=events", {}, 200, undefined, true);
-    await pair("links/l?view=events", { ...opaque, "bdp-scope-epoch": "foreign-epoch" }, 500);
-    await pair("links/l?view=events", { ...opaque, "bdp-authorization-view": "foreign-view" }, 500);
+    await pair(
+      "links/l?view=events",
+      { ...opaque, "bdp-scope-epoch": "foreign-epoch" },
+      410,
+      "cursor-expired",
+      true,
+    );
+    await pair(
+      "links/l?view=events",
+      { ...opaque, "bdp-authorization-view": "foreign-view" },
+      409,
+      "foreign-view",
+      true,
+    );
     // Stream, continuation, reconnect and media exclusions remain private gaps.
     await pair("links/l?view=events", { ...opaque, accept: "text/event-stream" }, 500);
     await pair(`links/l?view=events&after=${encodeURIComponent(after)}`, opaque, 500);
@@ -2215,7 +2259,7 @@ it("serves initial finite Link Event opaque minima with retained identity and ro
       true,
     );
     expect(responses.filter((response) => response.status === 503)).toHaveLength(8);
-    expect(responses.filter((response) => response.status === 500)).toHaveLength(12);
+    expect(responses.filter((response) => response.status === 500)).toHaveLength(8);
     expect(calls).toBe(35);
   } catch (error) {
     failures.push(error);

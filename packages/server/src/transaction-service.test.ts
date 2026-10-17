@@ -8,7 +8,7 @@ import {
 import { ScopeServerOperationAbortedError, requestFromUrl } from "./read-request.js";
 import { DatabaseSync } from "node:sqlite";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -1724,7 +1724,7 @@ describe("internal discovery minimum observation", () => {
     const f = tracked({ now: () => 0, wait });
     const assemble = vi.spyOn(discoveryAssembly, "assembleTransactionDiscovery");
     expect(() =>
-      f.service.discoveryObserved({ ...f.minimum(), minimumPosition: "pos-02" }),
+      f.service.discoveryObserved({ ...f.minimum(), minimumPosition: "two tokens" }),
     ).toThrow("unsupported minimum tuple");
     expect(f.entries()).toBe(0);
     let nested: Promise<unknown> | undefined;
@@ -3762,3 +3762,551 @@ it("drains an opaque receipt root wait before closing its owner", async () => {
     await service.close();
   }
 });
+
+// Callback-local observer counters; construction, mutation and explicit probes are separate.
+const currentObservationSurfaces = ["type", "types", "incident", "page", "discovery"] as const;
+type CurrentObservationSurface = (typeof currentObservationSurfaces)[number];
+function currentObservationFixture(policy: NonNullable<TransactionServiceOptions["minimumReads"]>) {
+  const localBead = `${scope}types/task`,
+    localLink = `${scope}types/relation`;
+  const boundary = cleanup.length;
+  const f = fixture({
+    receiptMaximumItems: 2,
+    types: [
+      parseTypeDescriptor({ id: localBead, name: "Task", describes: "bead", conformsTo: [] }),
+      parseTypeDescriptor({
+        id: localLink,
+        name: "Relation",
+        describes: "link",
+        conformsTo: [],
+        source: { conformsTo: [localBead], external: "opaque" },
+        target: { conformsTo: [localBead], external: "opaque" },
+      }),
+    ],
+  });
+  const owner = f.owner;
+  let recording = false,
+    attempts = 0,
+    mutations = 0,
+    closeCalls = 0,
+    closed = false;
+  const entries: { method: string; context: unknown; minimum: unknown }[] = [];
+  const delegate = {
+    ...owner,
+    withRead: ((callback: Parameters<typeof owner.withRead>[0]) => {
+      if (recording) attempts++;
+      return owner.withRead((reader, context) => {
+        if (recording) entries.push({ method: "withRead", context, minimum: null });
+        return callback(reader, context);
+      });
+    }) as typeof owner.withRead,
+    readReceiptPage(...args: Parameters<typeof owner.readReceiptPage>) {
+      if (recording) attempts++;
+      try {
+        const result = owner.readReceiptPage(...args);
+        if (recording)
+          entries.push({
+            method: "readReceiptPage",
+            context: "context" in result ? result.context : null,
+            minimum: args[2] ?? null,
+          });
+        return result;
+      } catch (error) {
+        if (recording)
+          entries.push({
+            method: "readReceiptPage",
+            context:
+              error instanceof TransactionMinimumFailure ||
+              error instanceof TransactionMinimumUnproved
+                ? error.context
+                : null,
+            minimum: args[2] ?? null,
+          });
+        throw error;
+      }
+    },
+    close() {
+      closeCalls++;
+      owner.close();
+      closed = true;
+    },
+  };
+  const service = createTransactionService(delegate, {
+    ownerLifetime: "service",
+    read: {
+      ...f.read,
+      advertisedLimits: { ...f.read.advertisedLimits, page: { defaultItems: 2, maximumItems: 2 } },
+      pagination: { ...f.read.pagination, maxPageItems: 2 },
+    },
+    minimumReads: policy,
+  });
+  // Transfer cleanup only after successful construction. Unknown close retains the directory.
+  cleanup.splice(boundary);
+  const localCreate = (id: string) => ({ ...create(id), type: localBead });
+  const submit = async (operations: unknown[], key: string) => {
+    mutations++;
+    return requireReceipt(await service.submit(batch(operations, key)));
+  };
+  const invoke = (
+    surface: CurrentObservationSurface,
+    minimum: TransactionMinimum,
+    page: string,
+    target?: string,
+    principal = "p",
+  ) => {
+    if (surface === "page")
+      return service.receiptPage({ kind: "authenticated", principal }, target ?? page, minimum);
+    if (surface === "discovery") return service.discoveryObserved(minimum);
+    const request = requestFromUrl(
+      new URL(
+        target ??
+          (surface === "type"
+            ? "types/task"
+            : surface === "types"
+              ? "types/"
+              : "beads/a?view=links"),
+        scope,
+      ),
+      scope,
+    );
+    if (isReadProblem(request)) throw new Error("invalid current observation fixture route");
+    return service
+      .readAtMinimum({ kind: "authenticated", principal: { id: principal } }, minimum)
+      .perform(request);
+  };
+  return {
+    owner,
+    service,
+    invoke,
+    submit,
+    localCreate,
+    entries,
+    async seed() {
+      return submit(
+        [
+          localCreate("a"),
+          localCreate("b"),
+          {
+            operation: "createLink",
+            id: "links/l",
+            type: localLink,
+            source: "beads/a",
+            target: "beads/b",
+            properties: {},
+          },
+        ],
+        "current-observation-seed",
+      );
+    },
+    record(value: boolean) {
+      recording = value;
+    },
+    counts: () => ({ attempts, mutations, closeCalls, closed }),
+    remove() {
+      if (!closed) throw new Error("current observation owner close unproved");
+      rmSync(path.dirname(f.options.file), { recursive: true, force: true });
+      return !existsSync(path.dirname(f.options.file));
+    },
+  };
+}
+function currentObservationPage(value: ReturnType<typeof requireReceipt>) {
+  if (typeof value.receipt.next !== "string") throw new Error("actual issued page required");
+  return value.receipt.next;
+}
+async function currentObservationBound<T>(promise: Promise<T>, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(label)), 1000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+it("waits for lexical current observations and preserves captured tuples across real progress", async () => {
+  let tick = 0,
+    waits = 0,
+    operations = 0;
+  let changing:
+    | { scopeEpoch: string; authorizationView: string; minimumPosition: string }
+    | undefined;
+  let current: ReturnType<typeof requireReceipt>["context"];
+  const f = currentObservationFixture({
+    budgetMs: 2,
+    now: () => tick++,
+    wait: async () => {
+      waits++;
+      if (waits === 1) {
+        const advanced = await f.submit([f.localCreate("c")], "current-observation-advance");
+        current = advanced.context;
+        if (!changing) throw new Error("missing mutable tuple");
+        changing.minimumPosition = current.scopePosition;
+        changing.scopeEpoch = "caller-mutated";
+      }
+    },
+  });
+  const rows: { surface: string; minimum: string; outcome: string; context: unknown }[] = [];
+  const failures: unknown[] = [];
+  let directoryAbsent = false;
+  try {
+    const seed = await f.seed(),
+      page = currentObservationPage(seed);
+    current = seed.context;
+    const assemble = vi.spyOn(discoveryAssembly, "assembleTransactionDiscovery");
+    f.record(true);
+    for (const surface of currentObservationSurfaces) {
+      for (const label of ["opaque", "pos-01", "known", "epoch", "view"] as const) {
+        const minimum = {
+          scopeEpoch: label === "epoch" ? "foreign" : current.scopeEpoch,
+          authorizationView: label === "view" ? "foreign" : current.authorizationView,
+          minimumPosition:
+            label === "known" ? current.scopePosition : label === "pos-01" ? "pos-01" : "opaque",
+        };
+        if (operations === 0) changing = minimum;
+        operations++;
+        if (label === "known") {
+          const result = await f.invoke(surface, minimum, page);
+          expect(result).toBeDefined();
+          if (surface === "page") expect(result).toMatchObject({ kind: "page", context: current });
+          else if (surface === "discovery") expect(result).toMatchObject({ context: current });
+          else expect(result).not.toMatchObject({ kind: "problem" });
+          const observedContext = f.entries.at(-1)?.context;
+          expect(observedContext).toEqual(current);
+          rows.push({ surface, minimum: label, outcome: "success", context: observedContext });
+        } else {
+          const failure: unknown = await f
+            .invoke(surface, minimum, page)
+            .catch((error: unknown) => error);
+          expect(failure).toBeInstanceOf(TransactionMinimumFailure);
+          const reason =
+            label === "epoch"
+              ? "cursor-expired"
+              : label === "view"
+                ? "foreign-view"
+                : "catch-up-timeout";
+          expect(failure).toMatchObject({ reason, context: current });
+          rows.push({
+            surface,
+            minimum: label,
+            outcome: reason,
+            context: failure instanceof TransactionMinimumFailure ? failure.context : null,
+          });
+        }
+      }
+    }
+    expect(changing).toEqual({
+      scopeEpoch: "caller-mutated",
+      authorizationView: current.authorizationView,
+      minimumPosition: current.scopePosition,
+    });
+    expect(assemble).toHaveBeenCalledTimes(1);
+    expect([operations, f.counts().attempts, waits, tick, f.counts().mutations]).toEqual([
+      25, 35, 10, 45, 2,
+    ]);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    f.record(false);
+    try {
+      await currentObservationBound(f.service.close(), "current observation close timeout");
+      directoryAbsent = f.remove();
+    } catch (error) {
+      failures.push(error);
+    }
+    console.log(
+      JSON.stringify({
+        observation: "current-observation-service",
+        operations,
+        entries: f.entries,
+        waits,
+        clockCalls: tick,
+        rows,
+        ...f.counts(),
+        directoryAbsent,
+        failureCount: failures.length,
+      }),
+    );
+  }
+  if (failures.length) throw new AggregateError(failures, "current observation and cleanup failed");
+});
+it("orders Type refusal and receipt page nondisclosure before projection", async () => {
+  let tick = 0,
+    waits = 0,
+    operations = 0,
+    liveProbes = 0,
+    policyReplacements = 0;
+  const f = currentObservationFixture({
+    budgetMs: 2,
+    now: () => tick++,
+    wait: async () => {
+      waits++;
+    },
+  });
+  const rows: { label: string; outcome: string }[] = [];
+  const failures: unknown[] = [];
+  let directoryAbsent = false;
+  try {
+    const seed = await f.seed(),
+      page = currentObservationPage(seed);
+    const minimum = {
+      scopeEpoch: seed.context.scopeEpoch,
+      authorizationView: seed.context.authorizationView,
+      minimumPosition: "opaque",
+    };
+    f.record(true);
+    const run = async (label: string, invoke: () => Promise<unknown>, expected: string) => {
+      operations++;
+      const value = await invoke().then(
+        (result) => result,
+        (error: unknown) => error,
+      );
+      if (["catch-up-timeout", "cursor-expired", "foreign-view"].includes(expected)) {
+        expect(value).toBeInstanceOf(TransactionMinimumFailure);
+        expect(value).toMatchObject({ reason: expected });
+      } else if (expected === "malformed") expect(value).toBeInstanceOf(TypeError);
+      else if (expected === "unauthenticated")
+        expect(value).toMatchObject({ kind: "refused", code: expected });
+      else if (label.includes("page"))
+        expect(value).toMatchObject({ kind: "refused", code: "resource-not-found" });
+      else
+        expect(value).toMatchObject({
+          kind: "problem",
+          problem: { status: 404, code: "resource-not-found" },
+        });
+      rows.push({ label, outcome: expected });
+    };
+    for (const [label, patch, result] of [
+      ["known", { minimumPosition: "pos-1" }, "missing"],
+      ["opaque", {}, "catch-up-timeout"],
+      ["epoch", { scopeEpoch: "foreign" }, "cursor-expired"],
+      ["view", { authorizationView: "foreign" }, "foreign-view"],
+    ] as const)
+      await run(
+        `missing-type-${label}`,
+        () => f.invoke("type", { ...minimum, ...patch }, page, "types/absent"),
+        result,
+      );
+    await run(
+      "missing-incident",
+      () => f.invoke("incident", minimum, page, "beads/missing?view=links"),
+      "missing",
+    );
+    await run("foreign-page", () => f.invoke("page", minimum, page, page, "other"), "missing");
+    await run(
+      "unknown-page",
+      () => f.invoke("page", minimum, page, `${seed.receipt.id}/pages/unknown`),
+      "missing",
+    );
+    await run(
+      "anonymous-page",
+      () => f.service.receiptPage({ kind: "unauthenticated" }, page, minimum),
+      "unauthenticated",
+    );
+    await run(
+      "malformed-page",
+      () => f.service.receiptPage(access, page, { ...minimum, minimumPosition: "two tokens" }),
+      "malformed",
+    );
+    f.record(false);
+    policyReplacements++;
+    await f.service.replaceAuthorizationPolicy({ timeoutMs: 1000 });
+    liveProbes++;
+    const observed = f.owner.withRead((_reader, context) => context);
+    if (observed.kind !== "read") throw new Error("actual hidden context required");
+    const hidden = { ...minimum, authorizationView: observed.value.authorizationView };
+    f.record(true);
+    for (const [label, patch, result] of [
+      ["known", { minimumPosition: observed.value.scopePosition }, "missing"],
+      ["opaque", {}, "catch-up-timeout"],
+      ["view", { authorizationView: "foreign" }, "foreign-view"],
+    ] as const)
+      await run(
+        `hidden-type-${label}`,
+        () => f.invoke("type", { ...hidden, ...patch }, page),
+        result,
+      );
+    expect([
+      operations,
+      f.counts().attempts,
+      waits,
+      tick,
+      liveProbes,
+      policyReplacements,
+      f.counts().mutations,
+    ]).toEqual([12, 12, 2, 14, 1, 1, 1]);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    f.record(false);
+    try {
+      await currentObservationBound(f.service.close(), "current nondisclosure close timeout");
+      directoryAbsent = f.remove();
+    } catch (error) {
+      failures.push(error);
+    }
+    console.log(
+      JSON.stringify({
+        observation: "current-observation-nondisclosure",
+        operations,
+        entries: f.entries,
+        waits,
+        clockCalls: tick,
+        liveProbes,
+        policyReplacements,
+        rows,
+        ...f.counts(),
+        directoryAbsent,
+        failureCount: failures.length,
+      }),
+    );
+  }
+  if (failures.length)
+    throw new AggregateError(failures, "current nondisclosure and cleanup failed");
+});
+it.each(currentObservationSurfaces)(
+  "drains lexical current observation %s before close",
+  async (surface) => {
+    let now = 0,
+      clockCalls = 0,
+      waits = 0,
+      operations = 0,
+      liveProbes = 0,
+      postCloseProbes = 0;
+    let settled = false,
+      closeSettled = false;
+    const entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>();
+    const f = currentObservationFixture({
+      budgetMs: 2,
+      now: () => {
+        clockCalls++;
+        return now;
+      },
+      wait: async () => {
+        waits++;
+        entered.resolve();
+        await release.promise;
+      },
+    });
+    type Outcome = { ok: true; value: unknown } | { ok: false; error: unknown };
+    let observed: Promise<Outcome> | undefined, closing: Promise<Outcome> | undefined;
+    const failures: unknown[] = [];
+    let directoryAbsent = false;
+    const close = () => {
+      if (!closing)
+        closing = f.service.close().then(
+          (value) => {
+            closeSettled = true;
+            return { ok: true as const, value };
+          },
+          (error: unknown) => {
+            closeSettled = true;
+            return { ok: false as const, error };
+          },
+        );
+      return closing;
+    };
+    try {
+      const seed = await f.seed(),
+        page = currentObservationPage(seed);
+      const minimum = {
+        scopeEpoch: seed.context.scopeEpoch,
+        authorizationView: seed.context.authorizationView,
+        minimumPosition: "opaque",
+      };
+      f.record(true);
+      operations++;
+      observed = f.invoke(surface, minimum, page).then(
+        (value) => {
+          settled = true;
+          return { ok: true as const, value };
+        },
+        (error: unknown) => {
+          settled = true;
+          return { ok: false as const, error };
+        },
+      );
+      const entry = await currentObservationBound(
+        Promise.race([
+          entered.promise.then(() => "entered" as const),
+          observed.then(() => "settled" as const),
+        ]),
+        "current observation wait entry timeout",
+      );
+      expect(entry).toBe("entered");
+      expect(settled).toBe(false);
+      liveProbes++;
+      expect(f.owner.withRead(() => true)).toEqual({ kind: "read", value: true });
+      close();
+      await Promise.resolve();
+      expect(closeSettled).toBe(false);
+      operations++;
+      // All selected methods check service admission synchronously at invocation.
+      expect(() => f.invoke(surface, minimum, page)).toThrow("closing or closed");
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      now = 2;
+      release.resolve();
+      if (observed) {
+        try {
+          const outcome = await currentObservationBound(
+            observed,
+            "current observation settlement timeout",
+          );
+          expect(outcome).toMatchObject({ ok: false, error: { reason: "catch-up-timeout" } });
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      try {
+        const outcome = await currentObservationBound(close(), "current observation drain timeout");
+        if (!outcome.ok) {
+          failures.push(outcome.error);
+        } else {
+          postCloseProbes++;
+          expect(f.owner.withRead(() => true)).toMatchObject({
+            kind: "entry-refused",
+            reason: "not-accepting",
+          });
+          directoryAbsent = f.remove();
+        }
+      } catch (error) {
+        failures.push(error);
+      }
+      try {
+        expect([
+          operations,
+          f.counts().attempts,
+          waits,
+          clockCalls,
+          liveProbes,
+          postCloseProbes,
+        ]).toEqual([2, 2, 1, 3, 1, 1]);
+      } catch (error) {
+        failures.push(error);
+      }
+      console.log(
+        JSON.stringify({
+          observation: "current-observation-drain",
+          surface,
+          operations,
+          entries: f.entries,
+          waits,
+          clockCalls,
+          liveProbes,
+          postCloseProbes,
+          settled,
+          closeSettled,
+          ...f.counts(),
+          directoryAbsent,
+          failureCount: failures.length,
+        }),
+      );
+    }
+    if (failures.length) throw new AggregateError(failures, "current observation drain failed");
+  },
+);

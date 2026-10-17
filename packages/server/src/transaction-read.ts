@@ -85,7 +85,7 @@ function dataOnlyReadRequest(request: ReadRequest): boolean {
 /** Classify only own data fields. Authority receiving still validates the full request. */
 export function currentReadMinimumKind(
   request: ReadRequest,
-): "resource" | "missing" | "initial-collection" | "strict" {
+): "resource" | "missing" | "initial-collection" | "type" | "initial-types" | "strict" {
   if (isProxy(request) || !request || typeof request !== "object") return "strict";
   const fields = Object.getOwnPropertyDescriptors(request);
   const data = (key: string): unknown => {
@@ -98,6 +98,13 @@ export function currentReadMinimumKind(
   )
     return "resource";
   if (data("kind") === "bead-links" && data("continuation") === undefined) return "missing";
+  if (data("kind") === "resource" && data("resource") === "type") return "type";
+  if (
+    data("kind") === "collection" &&
+    data("collection") === "types" &&
+    data("continuation") === undefined
+  )
+    return "initial-types";
   if (
     data("kind") === "collection" &&
     (data("collection") === "beads" || data("collection") === "links") &&
@@ -213,7 +220,13 @@ export function createTransactionReadPlane(
       const { minimum, kind } = capturedCondition(condition);
       const current = transactionReadContexts(observation).current;
       if (refusal?.code === "resource-not-found") {
+        // Initial Types reads return an inventory, possibly empty, not this refusal.
+        // Keep the defensive strict fallback for other refusal kinds below.
         if (kind === "resource" || kind === "missing" || kind === "alias") return;
+        if (kind === "type") {
+          checkCurrentReadMinimum(minimum, current, true);
+          return;
+        }
         try {
           checkCurrentReadMinimum(minimum, current, false);
           return;
@@ -231,11 +244,7 @@ export function createTransactionReadPlane(
           throw error;
         }
       }
-      checkCurrentReadMinimum(
-        minimum,
-        current,
-        kind === "resource" || kind === "initial-collection" || kind === "alias",
-      );
+      checkCurrentReadMinimum(minimum, current, kind !== "strict");
     },
     captureReadAuthorization: (reader, principal) => {
       const policy = owner.captureReadAuthorization(reader, principal);

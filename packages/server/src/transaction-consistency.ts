@@ -120,12 +120,11 @@ export function checkCurrentReadMinimum(
   if (position(context.scopePosition) === undefined)
     throw new Error("invalid owner minimum position");
   if (position(minimum.minimumPosition) === undefined) {
-    if (
-      !waitable ||
-      minimum.scopeEpoch !== context.scopeEpoch ||
-      minimum.authorizationView !== context.authorizationView
-    )
-      throw new TransactionMinimumUnsupported("minimum-position");
+    if (!waitable) throw new TransactionMinimumUnsupported("minimum-position");
+    if (minimum.scopeEpoch !== context.scopeEpoch)
+      throw new TransactionMinimumFailure("cursor-expired", context);
+    if (minimum.authorizationView !== context.authorizationView)
+      throw new TransactionMinimumFailure("foreign-view", context);
     throw new TransactionMinimumUnproved(context);
   }
   checkTransactionMinimum(minimum, context);
