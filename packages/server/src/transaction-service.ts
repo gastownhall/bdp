@@ -542,14 +542,29 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       supplied?: TransactionMinimum | "unsupported",
       signal?: AbortSignal,
       invalidReconnect = false,
+      admission?: "initial-scope-sse",
     ) {
+      const initialScopeSseMinimum =
+        admission === "initial-scope-sse" &&
+        source === new URL("events/", scope).href &&
+        after === undefined &&
+        !invalidReconnect;
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
-          : snapshotTransactionMinimum(supplied);
+          : initialScopeSseMinimum
+            ? snapshotCurrentReadMinimum(supplied)
+            : snapshotTransactionMinimum(supplied);
       return run(() =>
         waitForTransactionMinimum(
-          () => owner.beginEventScan(source, after, minimum, invalidReconnect),
+          () =>
+            owner.beginEventScan(
+              source,
+              after,
+              minimum,
+              invalidReconnect,
+              initialScopeSseMinimum ? "initial-scope-sse" : undefined,
+            ),
           minimumReads,
           signal,
         ),

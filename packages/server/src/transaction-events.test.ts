@@ -1527,7 +1527,13 @@ it("serves initial finite Scope Event opaque minima through bounded waiting", as
     await pair("events/", {}, 200, undefined, true);
     await pair("events/", { ...opaque, "bdp-scope-epoch": "foreign-epoch" }, 500);
     await pair("events/", { ...opaque, "bdp-authorization-view": "foreign-view" }, 500);
-    await pair("events/", { ...opaque, accept: "text/event-stream" }, 500);
+    await pair(
+      "events/",
+      { ...opaque, accept: "text/event-stream" },
+      503,
+      "catch-up-timeout",
+      true,
+    );
     await pair(`events/?after=${encodeURIComponent(after)}`, opaque, 500);
     await pair("beads/a?view=events", opaque, 503, "catch-up-timeout", true);
     await pair("events/", { ...opaque, "last-event-id": after }, 500);

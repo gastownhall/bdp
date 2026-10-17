@@ -1768,6 +1768,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       after?: string,
       supplied?: TransactionMinimum | "unsupported",
       invalidReconnect = false,
+      admission?: "initial-scope-sse",
     ):
       | TransactionEventPacket
       | { readonly kind: "missing"; readonly context: TransactionReadContext }
@@ -1779,16 +1780,27 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       )
         throw new TypeError("invalid Event scan controls");
       const source = eventSource(sourceUrl);
+      const initialScopeSseMinimum =
+        admission === "initial-scope-sse" &&
+        source.kind === "scope" &&
+        source.url === new URL("events/", scope).href &&
+        after === undefined &&
+        !invalidReconnect;
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
-          : snapshotTransactionMinimum(supplied);
+          : initialScopeSseMinimum
+            ? snapshotCurrentReadMinimum(supplied)
+            : snapshotTransactionMinimum(supplied);
       return enter(() => {
         if (!eventSourceKnown(source))
           return Object.freeze({ kind: "missing" as const, context: readContext() });
         if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
         const context = readContext();
-        if (minimum !== undefined) checkTransactionMinimum(minimum, context);
+        if (minimum !== undefined) {
+          if (initialScopeSseMinimum) checkCurrentReadMinimum(minimum, context, true);
+          else checkTransactionMinimum(minimum, context);
+        }
         if (invalidReconnect) throw new TransactionEventParameterError(undefined, context);
         const cursor =
           after === undefined ? undefined : parseTransactionEventCursor(after, context);
