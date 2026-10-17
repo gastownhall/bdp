@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bdp:wip:lifecycle-fact-cases:1",
+  "$comment": "WIP/proposed review artifact. Not adopted BDP wire format or runtime capability. Fixture-only semantic carrier; NOT a candidate production Event schema.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["name", "facts", "visibleFactIndexes", "expectedValid", "expectedCounts"],
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "facts": {
+        "type": "array"
+      },
+      "visibleFactIndexes": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "expectedValid": {
+        "type": "boolean"
+      },
+      "expectedCounts": {
+        "type": "object",
+        "required": ["facts", "bead", "link"],
+        "properties": {
+          "facts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "bead": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "link": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "$defs": {
+    "fact": {
+      "type": "object",
+      "required": ["resourceKind", "transition", "resourceId"],
+      "properties": {
+        "resourceKind": {
+          "enum": ["bead", "link"]
+        },
+        "transition": {
+          "enum": ["created", "updated", "deleted", "imported"]
+        },
+        "resourceId": {
+          "type": "string",
+          "format": "uri"
+        },
+        "previousRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "newRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recordedRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "initialState": {
+          "type": "object"
+        },
+        "delta": {
+          "type": "object",
+          "minProperties": 1
+        },
+        "linkContext": {
+          "type": "object",
+          "required": ["type", "source", "target"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "format": "uri"
+            },
+            "source": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "object",
+                  "required": ["uri", "revision"],
+                  "properties": {
+                    "uri": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "revision": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "target": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "object",
+                  "required": ["uri", "revision"],
+                  "properties": {
+                    "uri": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "revision": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "sourceVersion": {
+          "type": "object",
+          "required": ["id", "revision"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uri"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "transition": {
+                "const": "updated"
+              }
+            }
+          },
+          "then": {
+            "required": ["previousRevision", "newRevision", "delta"],
+            "not": {
+              "required": ["initialState"]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transition": {
+                "const": "created"
+              }
+            }
+          },
+          "then": {
+            "required": ["newRevision", "initialState"],
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["previousRevision"]
+                },
+                {
+                  "required": ["delta"]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transition": {
+                "const": "deleted"
+              }
+            }
+          },
+          "then": {
+            "required": ["recordedRevision"],
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["initialState"]
+                },
+                {
+                  "required": ["delta"]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transition": {
+                "const": "imported"
+              }
+            }
+          },
+          "then": {
+            "required": ["newRevision", "sourceVersion"],
+            "not": {
+              "required": ["delta"]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "resourceKind": {
+                "const": "link"
+              },
+              "transition": {
+                "const": "deleted"
+              }
+            }
+          },
+          "then": {
+            "required": ["linkContext"],
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["initialState"]
+                },
+                {
+                  "required": ["delta"]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "resourceKind": {
+                "const": "link"
+              },
+              "transition": {
+                "const": "created"
+              }
+            }
+          },
+          "then": {
+            "required": ["linkContext"]
+          }
+        }
+      ]
+    }
+  }
+}
