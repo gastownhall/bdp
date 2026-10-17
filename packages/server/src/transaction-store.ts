@@ -1651,25 +1651,26 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       if (typeof sourceUrl !== "string" || (after !== undefined && typeof after !== "string"))
         throw new TypeError("Event source and cursor must be strings");
       const source = eventSource(sourceUrl);
-      const initialScope = source.kind === "scope" && after === undefined;
+      const initialMinimumSource =
+        after === undefined && (source.kind === "scope" || source.kind === "bead");
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
-          : initialScope
+          : initialMinimumSource
             ? snapshotCurrentReadMinimum(supplied)
             : snapshotTransactionMinimum(supplied);
       return enter(() => {
-        // Reference convention: unknown sources are nondisclosing before minimum
+        // Unknown/hidden sources are nondisclosing before initial Scope/Bead minimum
         // checks. A retained identity remains a source after Resource deletion.
         if (!eventSourceKnown(source))
           return Object.freeze({ kind: "missing" as const, context: readContext() });
         if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
         const context = readContext(),
           head = Number(context.scopePosition.slice(4));
-        // This owner entry cannot advance while scanning. Refuse/wait before any
-        // group read rather than repeating projection work on every wait attempt.
+        // Initial Scope/Bead minima refuse/wait before any group read. This entry
+        // cannot advance while scanning; other sources retain the strict check.
         if (minimum !== undefined) {
-          if (initialScope) checkCurrentReadMinimum(minimum, context, true);
+          if (initialMinimumSource) checkCurrentReadMinimum(minimum, context, true);
           else checkTransactionMinimum(minimum, context);
         }
         const start = after === undefined ? undefined : parseTransactionEventCursor(after, context);

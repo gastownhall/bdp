@@ -1,5 +1,6 @@
 import { projectTransactionEntry } from "./transaction-authorization.js";
 import { assembleTransactionDiscovery } from "./transaction-discovery.js";
+import { transactionEventRequest, TransactionEventParameterError } from "./transaction-events.js";
 import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
 import {
@@ -478,13 +479,27 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           () => {
             // Preserve waiter preflight, then capture once before any deferred wait.
             if (!captured) {
-              if (
-                source === new URL("events/", scope).href &&
-                after === undefined &&
-                supplied !== undefined &&
-                supplied !== "unsupported"
-              )
-                minimum = snapshotCurrentReadMinimum(supplied);
+              if (after === undefined && supplied !== undefined && supplied !== "unsupported") {
+                let initialMinimumSource = source === new URL("events/", scope).href;
+                if (!initialMinimumSource && typeof source === "string") {
+                  try {
+                    const parsed = transactionEventRequest(new URL(source), scope);
+                    initialMinimumSource =
+                      parsed?.source.kind === "bead" &&
+                      parsed.after === undefined &&
+                      parsed.source.url === source;
+                  } catch (error) {
+                    // Classification failures retain the owner's source-error ordering.
+                    if (
+                      !(error instanceof TypeError) &&
+                      !(error instanceof TransactionEventParameterError)
+                    )
+                      throw error;
+                  }
+                }
+                // Malformed selected tuples must not be swallowed as classification errors.
+                if (initialMinimumSource) minimum = snapshotCurrentReadMinimum(supplied);
+              }
               captured = true;
             }
             return owner.readEvents(source, after, minimum);
