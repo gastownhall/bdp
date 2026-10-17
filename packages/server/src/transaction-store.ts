@@ -959,7 +959,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     const condition =
       minimum === undefined || minimum === "unsupported"
         ? minimum
-        : snapshotTransactionMinimum(minimum);
+        : snapshotCurrentReadMinimum(minimum);
     return enter(() =>
       atomic(() => {
         const stored = disclosedReceipt(principal, id);
@@ -968,7 +968,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         const context = readContext();
         if (!stored) return Object.freeze({ receipt: undefined, context });
         if (condition !== undefined && condition !== "unsupported")
-          checkTransactionMinimum(condition, context);
+          checkCurrentReadMinimum(condition, context, true);
         const remaining = expireRow(stored, instant()).row;
         if (!remaining) return Object.freeze({ receipt: undefined, context });
         return observeReceipt(parseReceipt(remaining.receipt), context);

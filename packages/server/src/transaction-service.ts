@@ -627,7 +627,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
             context: observed.context,
           });
         }
-        const minimum = snapshotTransactionMinimum(supplied);
+        const minimum = snapshotCurrentReadMinimum(supplied);
         return waitForTransactionMinimum(() => receipt(principal, id, minimum), minimumReads);
       });
     },
