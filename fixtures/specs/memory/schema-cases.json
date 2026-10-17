@@ -1,5 +1,5 @@
 {
-  "_comment": "Property-shape cases. Each Bead specialization also validates the Memory schema. No interval-ordering, endpoint, provenance, graph, History, transaction or CLI qualification.",
+  "_comment": "Property-shape cases. Each Bead specialization also validates the Memory schema. No interval-ordering, endpoint, provenance, graph, History, transaction or CLI qualification. Donna moved Inception design to shared provenance. Fourteen former Memory-property cases are retired, not passed; shared provenance validation is not supplied here.",
   "cases": [
     {
       "label": "plain Memory requires no classification",
@@ -45,14 +45,14 @@
       "valid": false
     },
     {
-      "label": "legacy kind is refused",
+      "label": "memory permits uninterpreted root kind extension; affiliation still selects the Type",
       "type": "memory",
       "properties": {
         "title": "Note",
         "body": "",
         "kind": "note"
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "future properties remain open",
@@ -105,7 +105,7 @@
       "valid": false
     },
     {
-      "label": "observation inherits no-kind rule",
+      "label": "observation permits uninterpreted root kind extension; affiliation still selects the Type",
       "type": "observation",
       "properties": {
         "title": "Seal inspection",
@@ -114,7 +114,7 @@
         "observedAt": "2026-10-01T10:00:00Z",
         "kind": "observation"
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "valid decision",
@@ -157,7 +157,7 @@
       "valid": false
     },
     {
-      "label": "decision inherits no-kind rule",
+      "label": "decision permits uninterpreted root kind extension; affiliation still selects the Type",
       "type": "decision",
       "properties": {
         "title": "Supplier choice",
@@ -169,7 +169,7 @@
         },
         "kind": "decision"
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "valid procedure",
@@ -209,7 +209,7 @@
       "valid": false
     },
     {
-      "label": "procedure inherits no-kind rule",
+      "label": "procedure permits uninterpreted root kind extension; affiliation still selects the Type",
       "type": "procedure",
       "properties": {
         "title": "Seal replacement",
@@ -220,7 +220,7 @@
         },
         "kind": "procedure"
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "valid policy",
@@ -251,7 +251,7 @@
       "valid": false
     },
     {
-      "label": "policy inherits no-kind rule",
+      "label": "policy permits uninterpreted root kind extension; affiliation still selects the Type",
       "type": "policy",
       "properties": {
         "title": "Supplier assessment policy",
@@ -259,7 +259,7 @@
         "rule": "Record delivery capability before selecting a supplier",
         "kind": "policy"
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "valid lesson",
@@ -290,7 +290,7 @@
       "valid": false
     },
     {
-      "label": "lesson inherits no-kind rule",
+      "label": "lesson permits uninterpreted root kind extension; affiliation still selects the Type",
       "type": "lesson",
       "properties": {
         "title": "Identify the housing",
@@ -298,7 +298,7 @@
         "takeaway": "Record the housing edition before selecting the procedure",
         "kind": "lesson"
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "invalid steps []",
@@ -486,43 +486,6 @@
       "valid": false
     },
     {
-      "label": "inception {'method': 'converted'}",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "converted"
-        }
-      },
-      "valid": true
-    },
-    {
-      "label": "inception {'method': 'guessed'}",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "guessed"
-        }
-      },
-      "valid": false
-    },
-    {
-      "label": "inception {'method': 'imported', 'origin': 'urn:example:source'}",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "imported",
-          "origin": "urn:example:source"
-        }
-      },
-      "valid": true
-    },
-    {
       "label": "Link properties {}",
       "type": "link",
       "properties": {},
@@ -545,31 +508,18 @@
       "valid": false
     },
     {
-      "label": "Link properties {'kind': 'supports'}",
+      "label": "link permits uninterpreted root kind extension; affiliation still selects the Type",
       "type": "link",
       "properties": {
         "kind": "supports"
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "Link properties {'applicationNote': 'unknown extension'}",
       "type": "link",
       "properties": {
         "applicationNote": "unknown extension"
-      },
-      "valid": true
-    },
-    {
-      "label": "origin canonical URI",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "imported",
-          "origin": "https://example.org/project/beads/memory"
-        }
       },
       "valid": true
     },
@@ -585,19 +535,6 @@
       "valid": true
     },
     {
-      "label": "origin opaque URN",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "imported",
-          "origin": "urn:example:document"
-        }
-      },
-      "valid": true
-    },
-    {
       "label": "authority opaque URN",
       "type": "policy",
       "properties": {
@@ -605,22 +542,6 @@
         "body": "The policy records a rule, not authority to spend.",
         "rule": "Record delivery capability before selecting a supplier",
         "authority": "urn:example:document"
-      },
-      "valid": true
-    },
-    {
-      "label": "origin exact Reference",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "imported",
-          "origin": {
-            "uri": "https://example.org/project/beads/memory",
-            "revision": "memory-r1"
-          }
-        }
       },
       "valid": true
     },
@@ -639,21 +560,6 @@
       "valid": true
     },
     {
-      "label": "origin missing revision",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "imported",
-          "origin": {
-            "uri": "https://example.org/project/beads/memory"
-          }
-        }
-      },
-      "valid": false
-    },
-    {
       "label": "authority missing revision",
       "type": "policy",
       "properties": {
@@ -662,22 +568,6 @@
         "rule": "Record delivery capability before selecting a supplier",
         "authority": {
           "uri": "https://example.org/project/beads/memory"
-        }
-      },
-      "valid": false
-    },
-    {
-      "label": "origin empty revision",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "imported",
-          "origin": {
-            "uri": "https://example.org/project/beads/memory",
-            "revision": ""
-          }
         }
       },
       "valid": false
@@ -692,23 +582,6 @@
         "authority": {
           "uri": "https://example.org/project/beads/memory",
           "revision": ""
-        }
-      },
-      "valid": false
-    },
-    {
-      "label": "origin extra Reference member",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "imported",
-          "origin": {
-            "uri": "https://example.org/project/beads/memory",
-            "revision": "memory-r1",
-            "unrecognized": 1
-          }
         }
       },
       "valid": false
@@ -729,19 +602,6 @@
       "valid": false
     },
     {
-      "label": "origin relative URI",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "imported",
-          "origin": "relative/path"
-        }
-      },
-      "valid": false
-    },
-    {
       "label": "authority relative URI",
       "type": "policy",
       "properties": {
@@ -749,21 +609,6 @@
         "body": "The policy records a rule, not authority to spend.",
         "rule": "Record delivery capability before selecting a supplier",
         "authority": "relative/path"
-      },
-      "valid": false
-    },
-    {
-      "label": "origin source-entry wrapper",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "imported",
-          "origin": {
-            "ref": "https://example.org/project/beads/memory"
-          }
-        }
       },
       "valid": false
     },
@@ -794,19 +639,6 @@
       "valid": false
     },
     {
-      "label": "closed Inception rejects nested extension",
-      "type": "memory",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal.",
-        "inception": {
-          "method": "native",
-          "publisher": "team"
-        }
-      },
-      "valid": false
-    },
-    {
       "label": "conformer may add an allowed root property",
       "type": "observation",
       "properties": {
@@ -818,26 +650,24 @@
       "valid": true
     },
     {
-      "label": "explicit unknown Inception method is recorded",
-      "type": "memory",
+      "label": "kind cannot replace a required Procedure property",
+      "type": "procedure",
       "properties": {
-        "title": "Imported field note",
+        "title": "Procedure",
         "body": "",
-        "inception": {
-          "method": "unknown"
-        }
-      },
-      "valid": true
-    },
-    {
-      "label": "present Inception requires a method",
-      "type": "memory",
-      "properties": {
-        "title": "Imported field note",
-        "body": "",
-        "inception": {}
+        "kind": "procedure"
       },
       "valid": false
+    },
+    {
+      "label": "kind does not turn plain Memory into Procedure",
+      "type": "memory",
+      "properties": {
+        "title": "Ordinary note",
+        "body": "",
+        "kind": "procedure"
+      },
+      "valid": true
     }
   ]
 }

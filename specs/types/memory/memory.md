@@ -6,7 +6,10 @@ can save a useful note immediately, and an office team can record a decision wit
 its reasons and sources. Neither must complete a taxonomy interview first.
 
 **Donna's ruling: use distinct Bead and Link Types, with no domain `kind`
-discriminators.** This replaces the earlier one-Memory-plus-kind recommendation.
+discriminators in the supplied catalog.** This follows the agreed Issue-Type design:
+affiliation selects a contract, and named properties carry its data. It replaces
+the earlier one-Memory-plus-kind recommendation; it does not forbid a future
+specialization from using a property named `kind` for a separate application meaning.
 Memory itself is usable for an ordinary note. Observation, Decision, Procedure,
 Policy and Lesson specialize its contract through conformance. Their additional
 data is directly named properties, not a `details` dispatcher. The six proposed
@@ -28,7 +31,24 @@ but is deferred for the fixed supplied catalog, which declares no such minimums.
 The ruling selects Type granularity. The exact field contracts, supplied catalog,
 illustrative identities and remaining operation dependencies are draft proposals.
 MUST/SHOULD/MAY below describe this proposed domain contract, not adopted wire
-syntax, runtime delivery, release acceptance or a Preview 3 cutline.
+syntax, runtime delivery or release acceptance.
+
+> **First supported Memory release — name pending.** A fixed supplied Type catalog
+> with inventory/details is the supported-release target, not merely a preview
+> shortcut. User-defined/installable Types and public definition editing are outside
+> that release. The broader definition graph below illustrates future profile design.
+>
+> **Preview 3 requirements.** Janet tracks pinned/latest References and re-pinning
+> (M-D1), deletion with floating-Link cleanup, pinned survivors and terminal evidence
+> (M-D2), and guarded same-ID restore (M-D3). Complete provenance expansion (M-D4)
+> and Task structured informational-Link projection (M-D5) may follow Preview 3.
+> Existing truthful attribution required by M-D1–M-D3 remains. Specialized properties
+> and fixed-catalog activation are M-D6; Janet records their exact release allocation.
+> These scope notes do not claim implementation or qualification.
+>
+> **Dependency record.** Consumer/provider owners, source and acceptance bindings
+> live in [Memory implementation status #7656](https://github.com/gastownhall/beads/issues/7656).
+> Preview 3 allocation and first supported-release scope are distinct decisions.
 
 ## 1. Sources, authority and reconciliation
 
@@ -73,7 +93,8 @@ Sources reviewed October 15, 2026:
 
 Issue's task/bug/etc and Dependency's blocks/parent-child/etc conform to their
 respective bases. This specification neither restores `issue_type`/`dep_type`
-properties nor treats every Dependency as blocking. Activity is defined by V2;
+properties nor treats every Dependency as blocking. Activity means the independent
+Activity-typed work report in [Provenance V2 #7510](https://github.com/gastownhall/beads/issues/7510);
 this domain ruling does not edit Activity's fields or invent another Activity,
 provenance envelope, run identity or causality system.
 
@@ -92,7 +113,7 @@ Other reconciliation points must not disappear behind the requirement mapping:
 | R3, absent derivation | V2 permits unknown sources on native creation too, preserving body-only capture. This broadens Chris's pre-schema/converted description; omission never fabricates a deliberate empty list. |
 | R6/R27a, knowledge in direct properties | Discovery must search the declared knowledge fields, and compact outputs must not expose them in full merely because they are outside Markdown. |
 | R4/R31, authoring and Type operations | Specialized creation explicitly supplies the Type and complete properties in one write. Product contracts must account for this, guarded retyping and Type-aware discovery beyond the old command table; their grammar remains with the product/shared owners. |
-| R12, responsible actor | New native Memory revisions require an actor even though the general shared envelope permits absence. This is a domain operation requirement, not a new provenance representation. |
+| R12, responsible actor | New native Memory revisions require an actor even though the general shared envelope permits absence. This requires responsibility recorded through the accepted shared provenance; it adds no Memory-specific actor fields, attestation or authentication mechanism. Polly owns that shared representation. |
 | R17/R23/R31, existing `related` | Donna selects a separately named Association (`association`) proposal. Existing Dependency `related` and its selectors/behavior stay intact; this explicitly refines the original baseline-sharing requirement. Preview compatibility and the full new contract remain review items. |
 | R5/R20 versus Type participation minimums | Unconditional cleanup can invalidate a surviving custom Bead's minimum. This remains unresolved for extensible Types and is deferred for fixed-catalog V2, which supplies no such minimums. |
 
@@ -121,7 +142,25 @@ opaque revisions, not version labels or client-assignable revision tokens.
 These twelve definitions are a bounded review candidate, not twelve new core
 Resource kinds. A separate Note Type is unnecessary: use Memory directly. Further
 labels need not become Types unless a shared contract justifies them. There is no
-generic discriminator escape hatch or per-kind validator dispatch.
+discriminator dispatch for the supplied catalog. Extension data does not select
+another Type or waive its required fields.
+
+The catalog is a design synthesis, not a taxonomy mandated by Chris. S1/S2 motivate
+plain capture and reuse; S5 motivates policy citation. Decision draws on
+[architecture decision records](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions);
+Procedure draws on the reusable-job-plan/work-order distinction documented in the
+[prior-art study](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/memory-type-prior-art-20261013.md).
+Observation and Lesson are proposed contracts for recorded observations and reusable
+takeaways, not evidence of an external six-Type standard. The Link catalog separates
+navigation, intended guidance, applicability, support, objection and replacement.
+Those exact names and fields are our proposal under R17/R30, still subject to review.
+
+**Conformance:** Memory is the common Bead contract for its five specializations.
+Association is one independent Link Type, not their common Link parent. The supplied
+Link Types declare no domain conformance to one another or Dependency. Shared
+informational behavior does not imply an undeclared conformance relationship.
+Custom-conformer material below describes the broader future profile, not an
+installable capability of the first supported release.
 
 Definitions are ordinary Beads affiliated with exact foundational BeadType or
 LinkType definitions. That affiliation does not mean their described instances
@@ -135,7 +174,7 @@ The [illustrative definition graph](./definitions.json) shows
 these domain declarations without defining new bootstrap or package mechanics.
 
 Conformance holds because every valid specialization preserves title/body,
-Inception, applicability, open metadata, history and non-workflow meaning, and adds
+applicability, open metadata, shared provenance/history and non-workflow meaning, and adds
 its own fields without weakening inherited promises. All applicable schemas and
 constraints are conjunctive. A specialized Type cannot reinterpret shared units
 or withdraw an explicitly promised base operation under its stated preconditions.
@@ -160,17 +199,17 @@ properties schema is not an envelope schema or complete domain-operation validat
 | --- | --- |
 | title | Required nonblank UTF-8 string; caller supplied or derived before creation |
 | body | Required UTF-8 Markdown string, possibly empty; preserved verbatim |
-| inception | Optional origin/transfer object; method native, converted, imported or unknown; optional origin reference, not a source list |
 | applicability | Optional claimed conditions: nonblank description and optional validFrom/validUntil RFC3339 instants |
 
 The [Memory properties schema](./memory.properties.schema.json) has an
-open root for future/conforming properties. The `inception` and `applicability`
-objects are deliberately closed in this candidate; conformers cannot add nested
-members without adopting a revised base contract. A specialization may introduce
-well-named root properties where the inherited schemas permit them. The inherited
-prohibition on `kind` also applies to every conformer, including unrelated uses
-of that property name; this makes Donna's no-discriminator boundary explicit.
-These are reviewable closure choices, not an ability to override a parent schema.
+open root for future/conforming properties. A declared closed nested contract
+cannot be extended without a revised base contract. A specialization may introduce
+root properties where inherited schemas permit them, including its own `kind`
+property for a separate application meaning. The supplied Types do not declare
+or dispatch on `kind`. An uninterpreted root value with that name preserves
+affiliation and must satisfy the same required fields as any other extension. The word is not
+globally reserved. These are reviewable closure choices, not an ability to override
+a parent schema.
 Open roots do not confer semantics on unknown fields. Preserve
 unfamiliar values on safe targeted edits, or refuse edits that cannot preserve them.
 Application-specific annotations may use common open metadata; this proposal
@@ -180,32 +219,50 @@ persist belongs in neither; editing or deleting current state does not erase
 retained history. Required removal uses the shared erasure contract.
 
 Creation receives a nonblank title or body. With body but no title, authoring
-derives a title before storage. The earlier first-nonblank-line/80-code-point rule
-remains a reviewable authoring candidate, not an established implementation fact.
+derives a title before storage. Selected CLI/API writers share this authoring
+affordance; reads return the stored title. The proposed deterministic default takes the first
+nonblank body line, collapses display whitespace, and caps at 80 Unicode code points
+including an ellipsis when truncated. The body is unchanged. The
+[Preview 2 helper](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/cmd/bd/graph_preview_creation.go#L36)
+already implements that display-summary rule; it does not infer a semantic title.
+An explicit title wins. Whitespace-only body cannot supply a nonblank derived title.
+Final acceptance of the authoring contract remains reviewable.
 An explicit title permits empty body; omitted body on create becomes empty. Empty
 content is a found Memory, not absence. Updates preserve omitted values. Body
 headings/frontmatter never create properties or Links or synthesize a classification.
 
-Plain capture selects Memory without asking for a knowledge form. A specialized
-creation deliberately supplies its exact Type affiliation and complete properties,
+Plain `bd remember` capture selects ordinary Memory without asking the writer to
+choose a specialization. Specialized creation deliberately supplies its exact Type
+affiliation and complete properties,
 including required local fields, in one atomic write validated against the whole
 inherited contract. Creating a Procedure does not require first publishing a plain
 note and then retyping it. Type/property selection is an R4/R31 product extension;
-this document defines the outcome without inventing CLI arguments or an envelope.
+this document defines the outcome without adopting exact grammar or an envelope.
+A top-level `bd memory` command is a permitted proposal for tailored operations over
+the same canonical records and shared writers. `bd query` is being redesigned;
+this draft does not freeze its filters or force every Memory operation through it.
 On legacy conversion, an empty value keeps its empty body and gets a title derived
 from the legacy key. The key remains an alias, never canonical identity. This is a
 conversion rule, not permission for ordinary capture to invent keys or content.
 
-Native creation may default Inception to native; conversion/import records only
-known origin. Absent legacy Inception is unknown, not inferred native. Inception
-changes are durable state changes, distinct from revision attribution.
-Absence means Inception was not recorded; an explicit `{method: "unknown"}` records
-that the origin method is deliberately unknown and may carry other known fields.
-Both leave origin knowledge unknown, but their presence differs. Complete reads
-preserve that distinction rather than synthesizing or normalizing either state.
+**Inception is shared provenance design, not a Memory property.** Donna delegates
+its representation to Polly in Provenance V2, coordinating Iris's import/export
+requirements. Creation and import are known causes to cover; legacy conversion,
+source origin versus destination entry, update and same-ID restore need explicit
+shared meanings. Missing history remains unknown. This draft does not finalize
+an enum, wire field or default before that design is reconciled. This explicitly
+refines Chris's R3/R12
+editable-Inception placement; no Memory-specific origin or attestation mechanism
+is substituted. Ordinary open-root extension preservation does not grant an old
+field the new shared meaning.
 
-For applicability, validFrom is inclusive and validUntil exclusive. Both supplied
-requires from < until after normalization; malformed timestamps fail. Omitted
+Applicability is optional on ordinary Memory and all five supplied specializations
+through their common Memory contract. It describes when/where that knowledge claims
+to apply: an observation's circumstances, a decision's scope, a procedure's equipment,
+a policy's jurisdiction or a lesson's relevant conditions. It is not meaningful for
+every record, so absence stays unspecified. For applicability, validFrom is inclusive
+and validUntil exclusive. When both are supplied,
+validFrom must precede validUntil after normalization; malformed timestamps fail. Omitted
 bounds state no boundary, not universal validity. An absent applicability object
 means unspecified. Clock crossings never version, delete or certify a Memory.
 JSON Schema format handling and interval ordering require explicit admission checks;
@@ -225,28 +282,29 @@ recorded ConformsTo graph; a local fragment passing alone is not complete accept
 | [Policy](./memory-policy.local-properties.schema.json) | rule required/nonblank; authority optional URI or `{uri, revision}` authored value | A recorded rule and claimed authority reference, never an access grant or compliance certification |
 | [Lesson](./memory-lesson.local-properties.schema.json) | takeaway required/nonblank | A reusable lesson, not proof of general applicability |
 
-All inherit the common contract. Fields are directly named: no `kind`, `details`
-wrapper or inference from prose. Missing alternatives means unrecorded; an empty
+All inherit the common contract. Supplied fields use their names directly;
+a `kind`/`details` dispatcher or prose inference does not select their contract. Missing alternatives means unrecorded; an empty
 array means none listed, not exhaustive consideration. Order of procedure steps
 is significant; numbers are positions, not persistent step identities.
 
-`inception.origin` and `authority` reuse only the existing Core Reference **value
+The Policy `authority` property reuses only the existing Core Reference **value
 shape**: a URI or `{uri, revision}`. Under [Core's Reference rule](../../profiles/core/core.md#references),
 values inside properties are authored data, not protocol References or graph edges.
-These fields confer no Core canonicalization, resolution, traversal, incident-Link
-behavior or target validation. Their shape restrictions are this Type's own
+This authored value confers no Core canonicalization, resolution, traversal,
+incident-Link behavior or target validation. Their shape restrictions are this Type's own
 properties contract, not Core Reference admission. They may contain resource URIs
 or opaque external URIs/URNs, without authenticating a target or its content. For
 graph semantics, use a declared owned Link under the applicable shared contract;
-do not silently promote a property value into an edge. The inline schemas mirror
+do not silently promote a property value into an edge. The schema mirrors
 the value shape only. V2's `{ref, rel?, note?}` is a source entry containing a
 Reference; sources remain in V2, not these authored fields.
 
 Structured fields carry their defined assertions; body supplies narrative,
 reasoning, limitations and tradeoffs. Repeated prose is not synchronized or
 semantically checked. Full structured reads keep canonical Project/Scope and Bead
-identity, the selected exact state Reference, all properties, metadata, Inception,
-exact affiliation, owned Links, revision provenance and keys/aliases together.
+identity, the selected exact state Reference, all properties, metadata, exact
+affiliation, owned Links, keys/aliases and the accepted shared revision provenance
+(including origin where supported) together.
 Historical key visibility and restoration follow the eventual shared alias
 contract and Memory Open question 1; missing historical names are not invented.
 A full human record must render the specialized knowledge alongside body. An explicitly
@@ -425,15 +483,34 @@ No such new constraint is imposed on these six definitions by default.
 ## 5. Updates, discovery and lifecycle
 
 The Preview 3 scope includes explicit retyping within the fixed Memory family while
-preserving Resource identity. A Memory note may become a
-Procedure only with valid complete resulting properties and all affected graph
+preserving Resource identity. A Memory note may become a Procedure only with valid
+complete resulting properties and all affected graph
 requirements satisfied. No fields are automatically dropped, renamed or interpreted
 as another Type. The old revision remains a Memory note. Conversely a downgrade
 does not silently remove unfamiliar properties; the writer supplies any intended
 data transformation. Issue↔Memory conversion is deferred and must refuse before
 mutation; this does not change existing Issue-family retyping behavior. Type/category
-change is not Bead-to-Link conversion. The concrete guard and atomic-effect contract
-remains part of the native implementation plan, not an inferred wire amendment.
+change is not Bead-to-Link conversion. **Type mutability is a settled design
+direction**, specified in [Types §2](../../profiles/types/types.md#2-definitions-identity-and-affiliation):
+an explicit Type reference replaces the affiliation as a whole and validates with
+the resulting properties and applicable constraints atomically. Omission preserves
+the existing affiliation. The concrete native guard and effect implementation must
+follow that contract. Retyping is an ordinary guarded update for Beads or Links,
+composable in batch. A targeted update may change Type and the necessary properties
+while preserving untouched fields; validate the complete resulting state. Only an
+explicit full-properties replacement must supply the whole mandatory object.
+
+Iris's immutable-Type finding describes the frozen Core wire contract at `8d6671ed`,
+whose shared singleton/batch update members do not yet carry the replacement. It
+does not reopen the accepted mutability decision. Trish confirms the accepted shared direction in Types §2 and the product
+[instance-update proposal #7590](https://github.com/gastownhall/beads/issues/7590).
+The [fixed-Memory implementation plan](https://github.com/gastownhall/bdp/blob/99ab2594202c7de436dc1b215770dcf0820e5790/docs/design/preview3-fixed-memory-types-plan.md)
+records the Preview 3 Memory-family scope. Current BDP wire adoption and native
+runtime implementation remain pending; F0 supplies pure validators only. Detailed
+ownership-transition and affected-Link repair rules still need explicit specification;
+no automatic cascade or repair is inferred. Validate affected floating Links and
+owned effects in the same transaction; historical pins keep their old affiliation.
+Native Memory retyping does not require a BDP deployment or invalid intermediate steps.
 
 Omitted affiliation preserves its exact identity/pin. Explicit Type updates need
 the shared revision precondition and atomically validate transformed properties,
@@ -472,7 +549,7 @@ automatic compatibility claim or SemVer upgrade.
 
 Memory requires these shared outcomes, which registration alone does not implement:
 
-- Every durable content/metadata/Inception/owned-state change creates a version;
+- Every durable content/metadata/owned-state change creates a version;
   semantic no-ops do not. Memory rejects unversioned storage. Guarded stale writes
   fail; accepted unguarded writes disclose their actual predecessor and attribution.
 - Deletion removes current state, releases keys, and preserves retained history.
@@ -559,10 +636,14 @@ In particular, current Core excludes an authentication-asserting basis while V2
 proposes `authenticated`. That difference requires an explicit shared decision;
 recording a required actor here does not resolve it or supply attestation.
 
-Inception is editable origin/transfer state, separate from who wrote this revision
-or what information informed it. Import cannot fabricate original authorship or
-backdate a native write. No authenticated basis, attestation or truth is inferred
-from stored actor/time/source values.
+Inception/origin is being designed in the same shared provenance contract by Polly.
+It must distinguish original resource creation from a destination import or a later
+revision, without making every restore a new identity birth. The previous editable
+Memory-property placement is superseded. Iris coordinates preservation of original
+history and destination import facts. Import cannot fabricate original authorship
+or backdate a native write. No authentication, attestation or truth is inferred from
+stored identities, times or source values. Full provenance expansion is M-D4 and
+may follow Preview 3; truthful attribution required by M-D1–M-D3 remains.
 
 | Mechanism | Question it answers | Effect on the referenced subject |
 | --- | --- | --- |
@@ -654,7 +735,7 @@ of requirements, not evidence of complete current implementation or a release pl
 | --- | --- |
 | R1 | First-class product knowledge via exact Memory affiliation/conformance, replacing the literal `type: memory` test; closure-aware workflow refusal and peer graph operations need product/shared query enforcement |
 | R2 | Canonical identity, title and optional aliases; key placement/version/restore unresolved |
-| R3 | Body/metadata/Inception and V2 sources; known properties are an explicit proposed refinement, not unchanged conformance |
+| R3 | Body/metadata, named knowledge properties and shared provenance; Inception moves from editable Memory properties to Polly-owned shared design, an explicit refinement |
 | R4 | Minimal title/body contract; deliberate write-only authoring, defaults and visible identity result are product work |
 | R5 | Shared disappearance/restore/erasure, alias release and incident-Link cleanup; explicit lifecycle amendment |
 | R6 | Contract matching and known direct-content field search; compact deterministic discovery, property-path match information, exact addresses and bound cursors are query/product obligations |
@@ -663,7 +744,7 @@ of requirements, not evidence of complete current implementation or a release pl
 | R9 | Link ID/Type/target and separate expected/observed target information; shared observation encoding dependency |
 | R10 | Exact attributable building blocks and truthful bounds; context budgets/receipts remain consumer-owned |
 | R11 | Versioned durable/metadata/owned state, no-op detection and refusal of unversioned Memory |
-| R12 | Common revisionProvenance encoding; new native Memory revisions require responsible actor/time, including indirect writes, beyond the general optional-actor envelope; Inception remains distinct writable state |
+| R12 | Common revisionProvenance encoding; new native Memory revisions require responsible actor/time, including indirect writes, beyond the general optional-actor envelope; origin placement is delegated to shared provenance rather than a Memory property |
 | R13 | Shared history/compare/exact reads/restore/change queries and removal reasons; not supplied by schemas |
 | R14 | Shared guards/retries/conflicts/finite limits and actual-predecessor disclosure |
 | R15 | Claiming Memory support requires the consumed History capability; registration is insufficient |
@@ -711,7 +792,7 @@ projection surfaces. Janet/Donna's exact-source gap audit remains the release
 evidence; this traceability table does not duplicate its as-built verdicts.
 
 Moving knowledge into direct properties does not create a summary-output escape.
-Statements, choices, alternatives, steps, rules, takeaways, Inception and
+Statements, choices, alternatives, steps, rules, takeaways, shared origin/provenance and
 applicability values are omitted from summary views except for an explicitly
 bounded excerpt governed by the same discovery budget. Summaries carry only the
 declared compact identity, title, keys, exact address, attribution, match and
@@ -742,7 +823,7 @@ this Memory section documents the additional domain artifacts and invocation.
 | Ordinary body-only authoring | Derive title before final-state validation; never infer a subtype or key | Written requirement |
 | Specialized creation supplies exact Procedure Type and complete steps | Create one valid inherited instance atomically; no intermediate plain-note revision is required | Written requirement |
 | Legacy key has an empty value | Preserve key and empty body, derive the nonblank title from that key, and never use the key as identity | Written requirement |
-| Former kind/details authoring route | No discriminator dispatch; reject kind input under the new domain schema and require an explicit compatibility/migration path | Kind rejection checked; migration written |
+| Former kind/details authoring route | Supplied Types require explicit affiliation, never infer it from kind/details; an extension does not select a specialization or satisfy its required fields | Extension and missing-required-field distinction checked; compatibility written |
 | Observation without statement; Decision without choice; Procedure without steps; Policy without rule; Lesson without takeaway | Reject the complete specialized instance | Property shape checked |
 | Procedure steps empty or containing blank text | Reject; order of valid steps is preserved | Property shape checked; ordering written |
 | Observation time omitted | Unknown; do not substitute revision commit time | Property shape checked; semantics written |
@@ -796,8 +877,8 @@ this Memory section documents the additional domain artifacts and invocation.
 | Procedure summary omits body but includes its complete steps, or Decision summary includes complete choice/alternatives | Reject the summary claim; complete structured knowledge requires an explicitly selected body-carrying contract | Written requirement |
 | Consolidation joins conflicting bodies | No automatic equivalence/truth claim or demonstrated retrieval benefit follows | Written requirement |
 | Core Reference in origin/authority: URI, opaque URN or exact URI/revision object | Accept valid Type property shapes; reject incomplete objects, extra members, relative URI and a V2 source-entry wrapper; no Core reference admission or graph semantics | Property shape checked |
-| Unknown inception/applicability member versus an unknown root property | Reject the closed nested member; allow the root extension subject to applicable schemas | Property shape checked |
-| Inception is absent versus explicitly unknown | Preserve recorded presence; both leave origin knowledge unknown, but reads do not synthesize or normalize one into the other | Unknown-object shape checked; read/write semantics written |
+| Unknown applicability member versus an unknown root property | Reject the closed nested applicability member; allow the root extension subject to applicable schemas | Property shape checked |
+| Shared origin is absent versus explicitly unknown | Preserve the accepted shared distinction without inventing native origin or historical writer; Memory does not define a competing field | Delegated shared design; no provenance qualification here |
 | Issue or Memory definition advances without exact required conformance | Reject the old Link contract match; use justified conformance or a revised Link definition | Written requirement |
 | Outgoing Link cites a historical source revision | Preserve that historical owner set; new mutation uses the source identity under the applicable current contract and shared ownership rules | Written requirement |
 
@@ -820,7 +901,7 @@ Implementation evidence inspected October 16 is bounded static source evidence:
 
 | Plane | Status | Exact evidence and limits |
 | --- | --- | --- |
-| This proposed Memory library | Reviewed WIP design; local definition/property artifacts checked; semantic decisions open | Six Bead and six Link definitions, 72 property cases and written operation cases in this directory and its linked fixtures. Passing artifacts do not implement capture, search, graph admission, History or CLI behavior. |
+| This proposed Memory library | Reviewed WIP design; local definition/property artifacts checked; semantic decisions open | Six Bead and six Link definitions, 60 active property cases and written operation cases in this directory and its linked fixtures. Passing artifacts do not implement capture, search, graph admission, History or CLI behavior. |
 | BDP reference stack | Current-Core mechanisms exist; proposed Memory-catalog integration is NYI in the inspected shipped path; custom configurations/runtime conformance unverified | At frozen main `8d6671ed19b0c0406428ccc2d2161768d01e8b9b`, the [reference catalog](https://github.com/gastownhall/bdp/blob/8d6671ed19b0c0406428ccc2d2161768d01e8b9b/packages/protocol/src/reference-domain.ts#L3) has generic work/reference Types, including a Decision ownership witness, not this Memory/conformer graph. [Installed reference configuration](https://github.com/gastownhall/bdp/blob/8d6671ed19b0c0406428ccc2d2161768d01e8b9b/packages/server/src/installed-reference-configuration.ts#L23) and [URL-conformance indexing](https://github.com/gastownhall/bdp/blob/8d6671ed19b0c0406428ccc2d2161768d01e8b9b/packages/protocol/src/type-conformance.ts#L34) are reusable mechanisms, not evidence of this exact-revision Type model or full Memory support. Custom Memory installation/qualification was not exercised. |
 | bd graph preview | Partial precursor exists; the proposed six-Bead/six-Link library is NYI in this closed catalog; no fresh runtime qualification | Final `graph-preview2`, peeled commit `703bb13e91aa2cab2092443319139006d74242c8`, defines a Scope-local [preview-memory](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/schema.go#L57) with title/body and bounded wildcard ownership; its descriptor explicitly disclaims the complete Memory/History contract. The [installation catalog builder](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/informational_types.go#L30) includes the informational related/example-follows/example-cites precursors and can append native relationship descriptors; [catalog reads](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/informational_types.go#L82) verify the resulting expected set. No total catalog count is used as evidence of Memory support. These are not the proposed Observation/Decision/Procedure/Policy/Lesson contracts or six informational Types. No new binary/store qualification was run. |
 | bd legacy memory plane | Keyed memory API exists; it is not canonical Memory-Type conformance | At the same `703bb13e` source, [memoryops](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/memoryops/memories.go#L6) accepts key/content, can derive a key, returns keyed maps and conflates an empty stored value with absence on recall. Its presence is compatibility evidence, not proof of canonical identity, this Type catalog or the required Memory semantics. |
@@ -836,7 +917,7 @@ hold; this contribution records its existing conflicts without extending it.
 
 | Area | Design status | Implementation/evidence status |
 | --- | --- | --- |
-| Distinct Types; no kind fields | Donna ruling applied; plain Memory plus five candidate specializations | New catalog/runtime adoption NYI here |
+| Supplied distinct Types; no discriminator dispatch | Donna ruling applied; root extension names remain open; plain Memory plus five candidate specializations | New catalog/runtime adoption NYI here |
 | Property schemas and literal records | Review artifacts with exact illustrative pins and inherited validation | Offline artifact checks only; not runtime admission |
 | Ownership descriptors, endpoint pairs and compact views | Consumes candidate Types syntax; current Core mandatory bounds, ownership syntax and view contracts differ | Shared semantic adoption required; not current-Core-installable artifacts |
 | Conformance-aware matching/paired endpoints | Uses shared Types; no new Type system | Shared runtime/closure/query support not qualified here |
@@ -847,7 +928,7 @@ hold; this contribution records its existing conflicts without extending it.
 | Responsible actor and indirect writes | R12 tightens optional shared attribution for new native Memory revisions; no-op and legacy distinctions explicit | Admission and cross-operation attribution not qualified here |
 | Deletion and surviving participation minimums | Concrete R5/R20 versus Types §5.5 conflict identified for extensible Types | Deferred for the fixed supplied catalog without such minimums; not resolved for arbitrary custom Types |
 | Pre-installation, aliases, retention and transfer | Uses shared identity/authority boundary | Bootstrap, registration granularity, installed-scope handling and packaging remain shared work |
-| Preview 3 | No cutline or protocol stability claim | Exact release integration/qualification remains Janet/Donna's work |
+| Preview 3 | M-D1–M-D3 selected; M-D4/M-D5 may follow; M-D6 and broader release allocation tracked by Janet | Exact implementation/integration qualification remains Janet/Donna's work |
 
 No Beads runtime behavior is newly verified by this pass. The source evidence in
 §10.1 does not replace Janet/Donna's exact-build requirement/scenario qualification.

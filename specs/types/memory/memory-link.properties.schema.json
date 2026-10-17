@@ -8,8 +8,7 @@
     "note": {
       "type": "string",
       "pattern": "\\S"
-    },
-    "kind": false
+    }
   },
   "additionalProperties": true
 }

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.org/memory-types/schemas/memory.properties.schema.json",
   "title": "Memory properties",
-  "$comment": "WIP domain schema; known fields refine Memory R3. Shape is not lifecycle/Type admission. No domain kind discriminator.",
+  "$comment": "WIP domain schema; known fields refine Memory R3. Shape is not lifecycle/Type admission. Supplied Types use affiliation, not a kind discriminator; open-root extension names are not globally reserved.",
   "type": "object",
   "required": ["title", "body"],
   "properties": {
@@ -12,41 +12,6 @@
     },
     "body": {
       "type": "string"
-    },
-    "kind": false,
-    "inception": {
-      "type": "object",
-      "required": ["method"],
-      "properties": {
-        "method": {
-          "enum": ["native", "converted", "imported", "unknown"]
-        },
-        "origin": {
-          "oneOf": [
-            {
-              "type": "string",
-              "format": "uri"
-            },
-            {
-              "type": "object",
-              "required": ["uri", "revision"],
-              "properties": {
-                "uri": {
-                  "type": "string",
-                  "format": "uri"
-                },
-                "revision": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "additionalProperties": false
-            }
-          ],
-          "$comment": "Reuses only the Core Reference value shape. This property is authored data, not a protocol Reference or graph edge; no Core canonicalization, resolution, traversal or target validation. Opaque external URIs are allowed."
-        }
-      },
-      "additionalProperties": false
     },
     "applicability": {
       "type": "object",
