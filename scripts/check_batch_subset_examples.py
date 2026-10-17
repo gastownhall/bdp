@@ -18,7 +18,7 @@ registry = Registry(retrieve=unavailable).with_resources(list(SPECIFICATIONS.ite
 Draft202012Validator.check_schema(schema)
 Draft202012Validator.check_schema(bundle)
 request = Draft202012Validator({"$ref": bundle["$id"] + "#/$defs/batchRequest"}, registry=registry, format_checker=FormatChecker())
-cases = json.loads((HERE / "examples/support-cases.json").read_text())
+cases = json.loads((ROOT / "fixtures/specs/batch-subsets/support-cases.json").read_text())
 Draft202012Validator(schema).validate(cases)
 supported = {"createBead", "updateBead", "deleteBead", "createLink", "updateLink", "deleteLink"}
 for case in cases:

@@ -1,34 +1,44 @@
-# Draft review and validation status
+# Per-draft review and check status
 
-October 17, 2026. Draft publication only; semantic and main-landing holds remain.
-Base: PR159 `d7197e97a29bff8f075028419afad05388e2e655`.
+October 17, 2026. WIP/draft publication only; owner decisions and main landing held.
+All three independent sibling drafts start at PR159
+`d7197e97a29bff8f075028419afad05388e2e655`.
 
-## Council
+## Council scope and this draft's findings
 
-Native Codex review completed and confirmed its four findings repaired:
-commit-time graph constraints preserved; reverse current owned-state agreement
-under fixture facts; duplicate-member case independently discriminating; lifecycle
-scenario count assertions. Type-change wording now records settled Types direction
-and pending wire propagation, with complete-result versus replacement distinction.
-No remaining native draft-publication blocker. Actual Claude review is running;
-**the full council is pending**, not passed. Gemini excluded as Donna requested.
+One native Codex + actual Claude council reviewed the THREE-DRAFT SET, not four
+repairs in every draft. Gemini was excluded. Original reviewed heads were
+batch959c34a, lifecycle6bdc621 and interchange8447dd2. Findings below are scoped
+to this draft. The [joint review record](https://github.com/gastownhall/bdp/pull/165)
+is retained as `docs/design/iris-joint-council-review-20261017.md` in PR165.
 
-## Local checks
+Native findings relevant here: Type-affiliation wording now reflects settled Types §§2/3.6 and pending Core/Write propagation, without requiring complete replacement input. Native found no remaining draft blocker.
 
-Passed: 10 canonical-shape/support vectors; Biome 2.5.7 checks for the new JSON;
-local Markdown links; unchanged pending Memory row; byte-unchanged current Core
-and distribution schema bundles; git diff whitespace checks. Python 3.14.5,
-jsonschema 4.26.0, referencing 0.37.0. The documented uv commands run offline once
-those dependencies are cached.
+Claude H1: per-draft council claims corrected. M6: shape-first classification is explicitly the current Write carrier baseline, not a new admission ruling. M9: scenario data moved to fixtures/specs. L3/L4/L5/L7: source citations, review links, expected index conflicts and existing diagnostic context clarified.
 
-These are review-artifact checks, not runtime/conformance tests. No engines,
-installed Go workflows, History server or independent implementation were run.
-Full workspace CI/build/typecheck/smoke/evidence suites were not run for these
-proposal-only additions. Host Node v26.0.0/pnpm11.25.0 differ from the CI pins
-v24.16.0/11.20.0; JSON formatting used the repository's exact Biome 2.5.7.
+Initial actual Claude review completed with one publication blocker (H1) and
+additional pre-freeze gaps. Focused native and actual Claude repair reviews now
+report no remaining draft-publication blocker. This is a draft-publication
+disposition, not format-freeze approval, contract adoption or runtime qualification.
+Held discovery/wire/import/provenance/authority/limits decisions remain open.
 
-The current workflow selects PRs to main and pushes to main/codex-vickie branches.
-This draft initially targets the PR159 branch, so hosted CI may be absent; check
-and report the actual exact-head status after publication. Focused checks above
-are not a substitute for all CI at adoption/landing. Exact final heads/check
-results and council disposition will be reported on the PR/bus/tracker.
+## Artifact checks and limits
+
+Current checks: 10 support/shape scenarios; new JSON checked with repository Biome2.5.7;
+local links, preserved Memory row, unchanged current/distribution schema bytes
+and diff whitespace. Source checks are rerun and recorded at each final published
+head. Python3.14.5, jsonschema4.26.0, referencing0.37.0. Transfer numeric checks use
+Node's specified ECMAScript numeric conversion, not a Python formatting substitute.
+No engine/build/installed workflow/History server/runtime or independent interop
+qualification is claimed. Full workspace CI/build/typecheck/smoke/evidence suites
+were not run for these proposal-only additions. Host Node26.0.0/pnpm11.25.0 differ
+from CI pins24.16.0/11.20.0; Biome is exactly2.5.7.
+
+Published staged PRs currently have no hosted checks. The workflow selects PRs to
+main and pushes to main or `codex/vickie-*`, excluding our current target/branches.
+Focused artifact checks are not equivalent to all CI at adoption/landing.
+
+Independent sibling index edits can textually conflict during ordinary merges.
+Resolve deliberately, retaining current rows (especially Melinda's Memory status),
+then order new rows batch subsets, lifecycle Events, interchange before Memory.
+Append each distinct STATUS section once; do not overwrite another owner row.

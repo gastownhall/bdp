@@ -42,7 +42,11 @@ normative authority.
 The Types [schema notes](profiles/types/README.md) explain the candidate artifacts.
 `profiles/types/definitions.json` is an illustrative foundation graph, including
 Issue examples, not production bootstrap IDs or an installable package. Test
-checkers live in `scripts/` and test datasets in `fixtures/specs/`.
+checkers live in `scripts/` and supporting test datasets in `fixtures/specs/`.
+The `proposals/` tree holds explicitly WIP proposed amendments: owning prose,
+review schemas and illustrative examples stay together, while scenario vectors
+and synthetic classification facts live under `fixtures/specs/`. Placement does
+not adopt a proposal or change the current profiles.
 
 Legacy document links lead to a navigation-only page. Sealed catalogs retain
 historical source names and hashes; citation tests assemble the current files in

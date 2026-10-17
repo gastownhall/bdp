@@ -48,7 +48,7 @@ body/per-member fields. Local/server semantics and unsuccessful CLI diagnosis ag
 | Refusal wire | Problem family/code/status/retry fields; diagnostic pointer/member names and bounded/disclosure-safe diagnostics |
 | Admission | Precise retained replay/conflict/support-check order, including expired outcomes and authorization changes |
 | Compatibility | Old CLI grammar entry/transition, pending receipt/result paging and exit behavior; no heuristic invalid-JSON fallback |
-| Type-change propagation | Types §2 already selects whole Type-reference replacement validated atomically with resulting properties/constraints; omission preserves affiliation. Targeted edits preserve untouched fields; explicit replacement supplies mandatory fields. Frozen Core/updateBead wire has not propagated this direction. Reconcile singleton/batch wire together, without reopening product permission or blocking native Memory. This subset amendment alone does not implement it. |
+| Type-change propagation | Types §2 already selects whole Type-reference replacement validated atomically with resulting properties/constraints; omission preserves affiliation. Types §3.6 distinguishes targeted edits (untouched fields preserved) from explicit replacement (mandatory fields supplied). Frozen Core immutability and the Write/bundle updateBead wire have not propagated this direction. Reconcile singleton/batch wire together, without reopening product permission or blocking native Memory. This subset amendment alone does not implement it. |
 
 These choices are not resolved by illustrative test-field spelling. Six-versus-eight
 is closed for Go V2; implementing set mutation is not an alternative resolution.
@@ -56,7 +56,7 @@ is closed for Go V2; implementing set mutation is not an alternative resolution.
 ## Review artifacts and acceptance
 
 `support-cases.schema.json` describes **test scenarios**, not BDP requests,
-capability discovery or a new Problem wire shape. `examples/support-cases.json`
+capability discovery or a new Problem wire shape. `../../../fixtures/specs/batch-subsets/support-cases.json`
 contains canonical batch request bodies plus conceptual expected classifications.
 The offline checker uses the actual current bundle to distinguish well-formed
 unsupported requests from malformed requests, then checks the first member pointer
@@ -70,3 +70,16 @@ ordinary shared-server tests must place an unsupported member first/middle/last,
 prove zero prefix effects, distinguish malformed/forbidden/transient refusals,
 and exercise retained outcomes across capability changes. Native Go Memory does
 not depend on a BDP runtime or completing this amendment.
+
+[Review and check status](REVIEW.md) records the per-draft council disposition.
+
+The checker preserves current Write's carrier-syntax-before-key/support baseline:
+a schema-malformed body anywhere is classified malformed before this support
+model runs. Unknown operation names are malformed under the closed vocabulary;
+recognized, well-shaped but omitted members are unsupported. This is a current
+carrier/shape comparison, not validation of complete Selector grammar, principal
+checks or the new amendment's final admission sequence. The combined
+unsupported-then-malformed vector illustrates that baseline; final new-control
+placement remains in the held admission decision. Current Problem envelopes
+already have a pointer diagnostic; extending the closed code inventory and
+settling its family/status/disclosure rules still require owner reconciliation.
