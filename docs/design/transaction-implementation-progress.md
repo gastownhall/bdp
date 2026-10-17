@@ -2055,3 +2055,6 @@ Snapshot and reopen witnesses check deep sequence properties persistence.
 Earlier evidence keeps its original source attribution. This draft does not
 qualify or advertise a write profile and does not settle retained-Snapshot
 minimum semantics or incident-Link metadata Event membership.
+
+
+Fresh finite changefeed start-now opaque-minimum draft (unexecuted): this subset now uses the existing bounded wait for lexically valid unrecognized minima with the actual current epoch/view, preserving the one-time admission checkpoint while recapturing current context per attempt. This supersedes the earlier unsupported-minimum gap statement only for finite non-SSE start=now (including minimum refusal before unsupported-Accept negotiation). Direct after/genesis, retained continuations, SSE and foreign-context opaque minima remain outside this extension; S1/G2 and public discovery/profile admission stay unresolved or closed as previously recorded. Earlier evidence retains its original source attribution; this draft adds no validation or qualification claim.

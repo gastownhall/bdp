@@ -467,9 +467,6 @@ export function createTransactionHttpHandler(
     }
     const changefeed = transactionChangefeedRequest(url, scope);
     if (changefeed) {
-      const minimum = hasMinimumControls(request)
-        ? (transactionMinimumHeaders(request.headers) ?? "unsupported")
-        : undefined;
       const media = selectChangefeedMedia(request.headers.get("accept"));
       // URL grammar is always required. Only selected SSE consults the raw
       // reconnect field; JSON ignores it, including repeated/malformed values.
@@ -479,7 +476,20 @@ export function createTransactionHttpHandler(
       if (media === "sse" && fields.length > 1)
         throw new TransactionChangefeedParameterError("repeated Last-Event-ID");
       const effective = media === "sse" && fields.length === 1 ? { after: fields[0]! } : changefeed;
-      const observed = await service.changes(effective, minimum, request.signal);
+      // Only the finite fresh request supplies this private admission provenance.
+      // Undefined media still checks the minimum before ordinary negotiation.
+      const finiteStartNow = media !== "sse" && "start" in effective && effective.start === "now";
+      const minimum = hasMinimumControls(request)
+        ? ((finiteStartNow
+            ? currentReadMinimumHeaders(request.headers)
+            : transactionMinimumHeaders(request.headers)) ?? "unsupported")
+        : undefined;
+      const observed = await service.changes(
+        effective,
+        minimum,
+        request.signal,
+        finiteStartNow ? "finite-start-now" : undefined,
+      );
       if (observed.kind === "unsupported") return developmentGap("minimum-position");
       if (media !== "sse") return context(jsonResponse(observed.page), observed.context);
       const response = streamResponse(request, observed.context);

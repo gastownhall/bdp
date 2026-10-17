@@ -437,3 +437,418 @@ it("observes genuine installed current context on changefeed parameter refusals"
   if (failures.length > 1)
     throw new AggregateError(failures, "installed changefeed observation and cleanup failed");
 }, 60000);
+
+it("observes genuine installed finite start-now opaque minimum refusal", async () => {
+  const controller = new AbortController();
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-changefeed-opaque-installed-"));
+  const ownedDirectory = realpathSync(directory);
+  const token = randomBytes(32).toString("base64url");
+  const failures: unknown[] = [];
+  const failureCategories: string[] = [];
+  function fail(category: string, error: unknown) {
+    if (!failures.includes(error)) {
+      failures.push(error);
+      failureCategories.push(category);
+    }
+  }
+  let deadlineFired = false;
+  const workTimer = setTimeout(() => {
+    deadlineFired = true;
+    const error = new Error("installed opaque changefeed work deadline");
+    fail("work-deadline", error);
+    controller.abort(error);
+  }, 45000);
+  let child: Awaited<ReturnType<typeof launchInstalledTransaction>> | undefined;
+  let binding: ReturnType<typeof installedTransactionBinding> | undefined;
+  let launchAttempted = false,
+    attempted = 0,
+    settledExchanges = 0,
+    cleanClose = false,
+    cleanupDeadlineExceeded = false,
+    pendingDrained = false,
+    directoryRemoved = false,
+    assertionsCompleted = false;
+  const processEvents: {
+    exit: { code: number | null; signal: NodeJS.Signals | null } | undefined;
+    close: { code: number | null; signal: NodeJS.Signals | null } | undefined;
+  } = { exit: undefined, close: undefined };
+  let childDrain: Promise<void> | undefined;
+  let lateCleanupRejectionObserved = false;
+  const pending = new Set<Promise<unknown>>();
+  const responses: {
+    method: string;
+    url: string;
+    status: number;
+    bodyOctets: number;
+    bodySha256: string;
+    wireSha256: string;
+    headers: Record<string, string | null>;
+  }[] = [];
+  const safeHeaders = [
+    "bdp-scope-epoch",
+    "bdp-authorization-view",
+    "bdp-scope-position",
+    "content-length",
+    "content-type",
+    "cache-control",
+    "retry-after",
+    "location",
+    "etag",
+    "x-bdp-development",
+    "x-bdp-development-limit",
+  ];
+  const routes = [
+    { method: "POST" as const, url: `${scope}operations/batch` },
+    { method: "GET" as const, url: `${scope}changes/?start=now` },
+    { method: "HEAD" as const, url: `${scope}changes/?start=now` },
+  ];
+  try {
+    launchAttempted = true;
+    const launching = launchInstalledTransaction(
+      entry,
+      {
+        scope,
+        directory,
+        create: true,
+        artifacts,
+        credentials: [{ token, principal: "writer", canMutate: true }],
+      },
+      controller.signal,
+    );
+    void launching.catch((error: unknown) => fail("launch", error));
+    child = await launching;
+    child.child.once("exit", (code, signal) => {
+      processEvents.exit = { code, signal };
+    });
+    const ownedProcess = child.child;
+    childDrain = new Promise<void>((resolve) => {
+      ownedProcess.once("close", (code, signal) => {
+        processEvents.close = { code, signal };
+        resolve();
+      });
+    });
+    expect(child.ready.scope).toBe(scope);
+    expect(child.ready.claimEligible).toBe(false);
+    expect(child.ready.profile).toBe("transactional");
+    expect(child.ready.history).toBe(false);
+    binding = installedTransactionBinding(child.ready, sourceCommit, fixture);
+    const address = new URL(child.ready.listenUrl as string);
+    // Exactly one executor owns this callback's closed route set. It never follows redirects.
+    const execute = createRawHttpExchangeExecutor(
+      { transport: "plain", host: address.hostname, port: Number(address.port) },
+      {
+        requestTimeoutMs: 5000,
+        maximumBodyBytes: 32768,
+        exactMode: {
+          scope,
+          profile: "transactional",
+          routes,
+          maximumRequestHeaderBytes: 16384,
+          maximumRequestBodyBytes: 65536,
+          defaultCredentialRef: "writer",
+          credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
+          resolveCredentials: () => ({ authorization: `Bearer ${token}` }),
+        },
+      },
+    );
+    async function exchange(
+      method: "GET" | "HEAD" | "POST",
+      suffix: string,
+      status: number,
+      headers: Record<string, string> = {},
+      input?: unknown,
+      schemaName?: string,
+    ) {
+      const url = `${scope}${suffix}`;
+      if (!routes.some((route) => route.method === method && route.url === url) || attempted >= 4)
+        throw new Error("unbound or excess installed opaque changefeed request");
+      controller.signal.throwIfAborted();
+      expect(Buffer.byteLength(url)).toBeLessThanOrEqual(8192);
+      attempted++;
+      const operation = execute({
+        method,
+        url,
+        signal: controller.signal,
+        credentialRef: "writer",
+        raw: {
+          headerLines: Object.entries(headers).map(([name, value]) => ({ name, value })),
+          ...(input === undefined ? {} : { bodyBytes: Buffer.from(JSON.stringify(input)) }),
+        },
+      });
+      pending.add(operation);
+      void operation.then(
+        () => {
+          pending.delete(operation);
+          settledExchanges++;
+        },
+        () => {
+          pending.delete(operation);
+          settledExchanges++;
+        },
+      );
+      const response = await operation;
+      expect(response.exactRequest?.writeState).toBe("complete");
+      expect(
+        response.exactRequest?.headerLines.find((h) => h.name.toLowerCase() === "host")?.value,
+      ).toBe("reference.invalid");
+      if (!response.wireResponseBytes?.length) throw new Error("missing actual wire response");
+      if (
+        response.bodyOctets === undefined ||
+        !Number.isSafeInteger(response.bodyOctets) ||
+        response.bodyOctets < 0
+      )
+        throw new Error("completed body octets unavailable");
+      responses.push({
+        method,
+        url,
+        status: response.status,
+        bodyOctets: response.bodyOctets,
+        bodySha256: digest(response.bodyText),
+        wireSha256: digest(response.wireResponseBytes),
+        headers: Object.fromEntries(
+          safeHeaders.map((name) => [name, response.headers[name] ?? null]),
+        ),
+      });
+      expect(response.url).toBe(url);
+      expect(response.status, response.bodyText).toBe(status);
+      expect(response.headers["x-bdp-development"]).toBe("non-attesting");
+      const value: unknown = response.bodyText === "" ? undefined : JSON.parse(response.bodyText);
+      if (schemaName) {
+        const validate =
+          schemaName === "mutationReceipt"
+            ? validReceipt
+            : schemaName === "changefeedPage"
+              ? validPage
+              : schemaName === "transactionalProblem"
+                ? validProblem
+                : undefined;
+        if (!validate) throw new Error("missing schema");
+        expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
+      }
+      return { response, value };
+    }
+    const seeded = await exchange(
+      "POST",
+      "operations/batch",
+      200,
+      { "content-type": "application/json", "idempotency-key": "opaque-feed-installed-a" },
+      {
+        operations: [
+          {
+            operation: "createBead",
+            id: "beads/a",
+            type: beadType,
+            properties: { title: "opaque-changefeed" },
+          },
+        ],
+      },
+      "mutationReceipt",
+    );
+    expect(seeded.value).toMatchObject({
+      status: "completed",
+      requiredPosition: "pos-1",
+      effectPosition: "pos-1",
+    });
+    if (!seeded.value || typeof seeded.value !== "object" || Array.isArray(seeded.value))
+      throw new Error("missing actual seed receipt");
+    const receipt = seeded.value as Record<string, unknown>;
+    if (
+      typeof receipt.scopeEpoch !== "string" ||
+      typeof receipt.authorizationView !== "string" ||
+      typeof receipt.requiredPosition !== "string"
+    )
+      throw new Error("missing actual seed context");
+    const current = {
+      "bdp-scope-epoch": receipt.scopeEpoch,
+      "bdp-authorization-view": receipt.authorizationView,
+      "bdp-scope-position": receipt.requiredPosition,
+    };
+    for (const value of Object.values(current)) expect(value.length).toBeGreaterThan(0);
+    const minimum = {
+      "bdp-scope-epoch": receipt.scopeEpoch,
+      "bdp-authorization-view": receipt.authorizationView,
+      "bdp-minimum-scope-position": receipt.requiredPosition,
+      "last-event-id": "malformed reconnect ignored",
+    };
+    function assertContext(response: typeof seeded.response) {
+      for (const [name, value] of Object.entries(current))
+        expect(response.headers[name]).toBe(value);
+    }
+    const eligible = await exchange(
+      "GET",
+      "changes/?start=now",
+      200,
+      minimum,
+      undefined,
+      "changefeedPage",
+    );
+    assertContext(eligible.response);
+    expect(eligible.value).toMatchObject({
+      scope,
+      scopeEpoch: receipt.scopeEpoch,
+      authorizationView: receipt.authorizationView,
+      observedHeadPosition: "pos-1",
+      groups: [],
+      next: null,
+    });
+    if (!eligible.value || typeof eligible.value !== "object" || Array.isArray(eligible.value))
+      throw new Error("missing actual finite page");
+    const page = eligible.value as Record<string, unknown>;
+    expect(page.after).not.toBe("genesis");
+    expect(page.after).toMatch(/^cg_[A-Za-z0-9_-]{43}_[A-Za-z0-9_-]{43}_1$/);
+    expect(eligible.response.headers["content-length"]).toBe(String(eligible.response.bodyOctets));
+    const opaque = {
+      ...minimum,
+      "bdp-minimum-scope-position": "unknown",
+      "if-none-match": "*",
+    };
+    const get = await exchange(
+      "GET",
+      "changes/?start=now",
+      503,
+      opaque,
+      undefined,
+      "transactionalProblem",
+    );
+    expect(get.value).toMatchObject({
+      code: "catch-up-timeout",
+      status: 503,
+      retry: "after-delay",
+    });
+    assertContext(get.response);
+    expect(get.response.bodyOctets).toBeGreaterThan(0);
+    expect(get.response.headers["content-length"]).toBe(String(get.response.bodyOctets));
+    const head = await exchange("HEAD", "changes/?start=now", 503, opaque);
+    assertContext(head.response);
+    expect(head.response.bodyOctets).toBe(0);
+    expect(head.response.bodyText).toBe("");
+    for (const response of [get.response, head.response]) {
+      expect(response.headers["content-type"]).toBe("application/problem+json");
+      expect(response.headers["retry-after"]).toBe("1");
+      expect(response.headers["cache-control"]).toBe("private, no-store");
+      expect(response.headers.etag).toBeUndefined();
+      expect(response.headers["x-bdp-development-limit"]).toBeUndefined();
+    }
+    for (const name of ["content-type", "content-length", "cache-control", "retry-after"])
+      expect(head.response.headers[name]).toBe(get.response.headers[name]);
+    expect(attempted).toBe(4);
+    expect(responses.map((response) => response.status)).toEqual([200, 200, 503, 503]);
+    expect(settledExchanges).toBe(4);
+    controller.signal.throwIfAborted();
+    assertionsCompleted = true;
+  } catch (error) {
+    fail("work", error);
+  } finally {
+    clearTimeout(workTimer);
+    controller.abort();
+    let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
+    const cleaning = (async () => {
+      await Promise.allSettled([...pending]);
+      pendingDrained = pending.size === 0;
+      if (!pendingDrained) throw new Error("raw exchanges remain pending");
+      // Executor settlement destroys the socket; it does not expose a socket-close census.
+      if (child) {
+        await child.close();
+        if (!childDrain) throw new Error("child close observer unavailable");
+        await childDrain;
+      } else if (launchAttempted) throw new Error("pre-ready child ownership remains unknown");
+    })();
+    void cleaning.catch((error: unknown) => {
+      lateCleanupRejectionObserved = cleanupDeadlineExceeded;
+      fail(cleanupDeadlineExceeded ? "late-cleanup" : "cleanup", error);
+    });
+    try {
+      await Promise.race([
+        cleaning,
+        new Promise<never>((_, reject) => {
+          cleanupTimer = setTimeout(() => {
+            cleanupDeadlineExceeded = true;
+            child?.child.kill("SIGKILL");
+            reject(new Error("installed opaque changefeed total cleanup deadline"));
+          }, 10000);
+        }),
+      ]);
+      if (
+        cleanupDeadlineExceeded ||
+        !child ||
+        child.child.exitCode !== 0 ||
+        child.child.signalCode !== null ||
+        processEvents.exit?.code !== 0 ||
+        processEvents.exit.signal !== null ||
+        processEvents.close?.code !== 0 ||
+        processEvents.close.signal !== null
+      )
+        fail(
+          "unclean-close",
+          new Error("installed opaque changefeed clean exit was not established"),
+        );
+      else cleanClose = true;
+    } catch (error) {
+      fail("cleanup", error);
+    } finally {
+      if (cleanupTimer !== undefined) clearTimeout(cleanupTimer);
+    }
+    try {
+      if (cleanClose && pendingDrained && assertionsCompleted && failures.length === 0) {
+        if (!existsSync(directory) || realpathSync(directory) !== ownedDirectory) {
+          fail(
+            "directory-ownership",
+            new Error("installed opaque changefeed directory ownership changed"),
+          );
+        } else {
+          rmSync(directory, { recursive: true, force: false });
+          directoryRemoved = !existsSync(directory);
+          if (!directoryRemoved)
+            fail("directory-cleanup", new Error("installed opaque changefeed directory remains"));
+        }
+      }
+    } catch (error) {
+      fail("directory-cleanup", error);
+    }
+    const lifecycleAtReport = {
+      launchAttempted,
+      returnedChild: child !== undefined,
+      pid: child?.child.pid ?? null,
+      exitCode: child?.child.exitCode ?? null,
+      signalCode: child?.child.signalCode ?? null,
+      observedExit: processEvents.exit ?? null,
+      observedClose: processEvents.close ?? null,
+      childStdioDrainObserved: processEvents.close !== undefined,
+      closure: cleanupDeadlineExceeded || !cleanClose ? "unknown-or-failed" : "clean",
+      cleanClose,
+      cleanupDeadlineExceeded,
+      pendingExchanges: pending.size,
+      pendingDrained,
+      settledExchanges,
+      socketCloseCensusAvailable: false,
+      transportSettlementContract: "executor destroys socket before exchange settles",
+      lateCleanupRejectionObserved,
+      directory,
+      directoryRemoved,
+      directoryPresent: existsSync(directory),
+    };
+    console.log(
+      JSON.stringify({
+        observation: "private-installed-changefeed-opaque-minimum",
+        declaredSourceCommit: sourceCommit,
+        workspaceDirty,
+        entry: resolvedEntry,
+        entrySha256,
+        artifactSha256: digest(JSON.stringify(artifacts)),
+        binding,
+        attempted,
+        exchanges: responses.length,
+        completedResponses: responses,
+        assertionsCompleted,
+        deadlineFired,
+        lifecycleAtReport,
+        failureCategories,
+        outcome: failures.length ? "failed" : "passed",
+        claimEligible: false,
+      }),
+    );
+  }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length)
+    throw new AggregateError(failures, "installed opaque changefeed observation or cleanup failed");
+}, 60000);
