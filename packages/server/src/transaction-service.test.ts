@@ -2494,8 +2494,11 @@ it("rejects an old selected Event packet before stream registration and accepts 
   if (failures.length) throw new AggregateError(failures, "stale Event lease witness cleanup");
 }, 5000);
 
-function finiteEventMinimumFixture(waitCount: number) {
-  const f = fixture();
+function finiteEventMinimumFixture(
+  waitCount: number,
+  eventTypes: Parameters<typeof openTransactionStore>[0]["types"] = types,
+) {
+  const f = fixture({ types: eventTypes });
   let tick = 0,
     reads = 0,
     serviceCalls = 0,
@@ -2960,6 +2963,237 @@ it.each([
   console.log(
     JSON.stringify({
       observation: "bead-event-minimum-preflight",
+      label,
+      serviceCalls: 1,
+      clockCalls: now.mock.calls.length,
+      ownerReads: reads,
+      waits: wait.mock.calls.length,
+    }),
+  );
+});
+
+const linkEventTypes = [
+  ...types,
+  parseTypeDescriptor({
+    id: "https://example.test/link",
+    name: "Link",
+    describes: "link",
+    conformsTo: [],
+    source: { conformsTo: [], external: "opaque" },
+    target: { conformsTo: [], external: "opaque" },
+  }),
+];
+
+it("captures an initial Link Event opaque tuple across one bounded wait", async () => {
+  const f = finiteEventMinimumFixture(2, linkEventTypes);
+  try {
+    expect(
+      await f.service.submit(
+        batch([
+          create("a"),
+          create("b"),
+          {
+            operation: "createLink",
+            id: "links/l",
+            type: "https://example.test/link",
+            source: "beads/a",
+            target: "beads/b",
+            properties: {},
+          },
+        ]),
+      ),
+    ).toMatchObject({
+      kind: "receipt",
+      receipt: { status: "completed", requiredPosition: "pos-1" },
+    });
+    const setup = await f.events(`${scope}links/l?view=events`);
+    if (setup.kind !== "page") throw new Error("expected initial Event page");
+    const minimum = {
+      scopeEpoch: setup.context.scopeEpoch,
+      authorizationView: setup.context.authorizationView,
+      minimumPosition: "opaque",
+    };
+    f.watchScans();
+    const observed = f.observe(f.events(`${scope}links/l?view=events`, undefined, minimum));
+    await f.entered(0, observed);
+    expect(f.counts().reads).toBe(2);
+    minimum.minimumPosition = setup.context.scopePosition;
+    f.release(0);
+    await f.entered(1, observed);
+    expect(f.counts().reads).toBe(3);
+    f.release(1);
+    expect(await observed).toEqual({
+      error: expect.objectContaining({ reason: "catch-up-timeout", context: setup.context }),
+    });
+    expect(f.counts()).toEqual({
+      reads: 4,
+      serviceCalls: 2,
+      waits: 2,
+      probes: 2,
+      groupReads: 0,
+      attemptTimes: [0, 0, 5, 10],
+    });
+    console.log(
+      JSON.stringify({
+        observation: "link-event-minimum-capture",
+        ...f.counts(),
+        seedMutations: 1,
+      }),
+    );
+  } finally {
+    await f.finish();
+  }
+});
+
+it("cancels and drains initial Link Event opaque waits", async () => {
+  const f = finiteEventMinimumFixture(3, linkEventTypes);
+  try {
+    expect(
+      await f.service.submit(
+        batch([
+          create("a"),
+          create("b"),
+          {
+            operation: "createLink",
+            id: "links/l",
+            type: "https://example.test/link",
+            source: "beads/a",
+            target: "beads/b",
+            properties: {},
+          },
+        ]),
+      ),
+    ).toMatchObject({
+      kind: "receipt",
+      receipt: { status: "completed", requiredPosition: "pos-1" },
+    });
+    const setup = await f.events(`${scope}links/l?view=events`);
+    if (setup.kind !== "page") throw new Error("expected initial Event page");
+    const minimum = {
+      scopeEpoch: setup.context.scopeEpoch,
+      authorizationView: setup.context.authorizationView,
+      minimumPosition: "opaque",
+    };
+    f.watchScans();
+    const controller = new AbortController();
+    const cancelled = f.observe(
+      f.events(`${scope}links/l?view=events`, undefined, minimum, controller.signal),
+    );
+    await f.entered(0, cancelled);
+    controller.abort();
+    // Abort is observed only after our deferred wait is released.
+    f.release(0);
+    expect(await cancelled).toEqual({ error: expect.any(ScopeServerOperationAbortedError) });
+    expect(f.counts().reads).toBe(2);
+    const drained = f.observe(f.events(`${scope}links/l?view=events`, undefined, minimum));
+    await f.entered(1, drained);
+    let closed = false;
+    const closing = f.service.close().then(() => {
+      closed = true;
+    });
+    const observedClosing = f.observe(closing);
+    await Promise.resolve();
+    expect(closed).toBe(false);
+    expect(f.counts().reads).toBe(3);
+    expect(() => f.events(`${scope}links/l?view=events`)).toThrow(
+      "transaction service is closing or closed",
+    );
+    expect(f.counts().reads).toBe(3);
+    f.release(1);
+    await f.entered(2, drained);
+    expect(closed).toBe(false);
+    f.release(2);
+    expect(await drained).toEqual({
+      error: expect.objectContaining({ reason: "catch-up-timeout", context: setup.context }),
+    });
+    expect(await observedClosing).toEqual({ value: undefined });
+    expect(closed).toBe(true);
+    expect(f.counts()).toEqual({
+      reads: 5,
+      serviceCalls: 4,
+      waits: 3,
+      probes: 3,
+      groupReads: 0,
+      attemptTimes: [0, 0, 5, 10, 15],
+    });
+    expect(() => f.realOwner.readEvents(`${scope}links/l?view=events`)).toThrow(
+      "transaction store closed or reentrant",
+    );
+    console.log(
+      JSON.stringify({
+        observation: "link-event-minimum-cancel-drain",
+        ...f.counts(),
+        postCloseDirectRefusals: 1,
+        seedMutations: 1,
+      }),
+    );
+  } finally {
+    await f.finish();
+  }
+});
+
+it.each([
+  "already-aborted",
+  "malformed-after-valid-preflight",
+  "noncanonical-query",
+  "relative-source",
+] as const)("preserves initial Link Event classification and preflight: %s", async (label) => {
+  const f = fixture();
+  let reads = 0;
+  const now = vi.fn(() => 0);
+  const wait = vi.fn(async () => {});
+  const service = createTransactionService(
+    {
+      ...f.owner,
+      readEvents: (...args: Parameters<typeof f.owner.readEvents>) => {
+        reads++;
+        return f.owner.readEvents(...args);
+      },
+    },
+    {
+      ownerLifetime: "service",
+      read: f.read,
+      minimumReads: { budgetMs: 10, now, wait },
+    },
+  );
+  cleanup.push(() => service.close());
+  const source =
+    label === "noncanonical-query"
+      ? `${scope}links/l?view=events&extra=x`
+      : label === "relative-source"
+        ? "links/l?view=events"
+        : `${scope}links/l?view=events`;
+  const pending = service.events(
+    source,
+    undefined,
+    {
+      scopeEpoch: "bad space",
+      authorizationView: "development-all-visible",
+      minimumPosition: "opaque",
+    },
+    label === "already-aborted" ? AbortSignal.abort() : undefined,
+  );
+  expect(pending).toBeInstanceOf(Promise);
+  const error = await pending.then(
+    () => undefined,
+    (cause: unknown) => cause,
+  );
+  if (label === "already-aborted") expect(error).toBeInstanceOf(ScopeServerOperationAbortedError);
+  else if (label === "noncanonical-query")
+    expect(error).toBeInstanceOf(TransactionEventParameterError);
+  else if (label === "relative-source") {
+    expect(error).toBeInstanceOf(TypeError);
+    expect(error).toMatchObject({ code: "ERR_INVALID_URL" });
+  } else {
+    expect(error).toBeInstanceOf(TypeError);
+    expect(error).toMatchObject({ message: "unsupported minimum tuple" });
+  }
+  expect(now).toHaveBeenCalledTimes(1);
+  expect(reads).toBe(label === "noncanonical-query" || label === "relative-source" ? 1 : 0);
+  expect(wait).not.toHaveBeenCalled();
+  console.log(
+    JSON.stringify({
+      observation: "link-event-minimum-preflight",
       label,
       serviceCalls: 1,
       clockCalls: now.mock.calls.length,

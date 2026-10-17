@@ -1652,7 +1652,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         throw new TypeError("Event source and cursor must be strings");
       const source = eventSource(sourceUrl);
       const initialMinimumSource =
-        after === undefined && (source.kind === "scope" || source.kind === "bead");
+        after === undefined &&
+        (source.kind === "scope" || source.kind === "bead" || source.kind === "link");
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
@@ -1660,15 +1661,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             ? snapshotCurrentReadMinimum(supplied)
             : snapshotTransactionMinimum(supplied);
       return enter(() => {
-        // Unknown/hidden sources are nondisclosing before initial Scope/Bead minimum
+        // Unknown/hidden sources are nondisclosing before initial Event minimum
         // checks. A retained identity remains a source after Resource deletion.
         if (!eventSourceKnown(source))
           return Object.freeze({ kind: "missing" as const, context: readContext() });
         if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
         const context = readContext(),
           head = Number(context.scopePosition.slice(4));
-        // Initial Scope/Bead minima refuse/wait before any group read. This entry
-        // cannot advance while scanning; other sources retain the strict check.
+        // Initial Event minima refuse/wait before any group read. This entry
+        // cannot advance while scanning; after-bearing reads retain the strict check.
         if (minimum !== undefined) {
           if (initialMinimumSource) checkCurrentReadMinimum(minimum, context, true);
           else checkTransactionMinimum(minimum, context);

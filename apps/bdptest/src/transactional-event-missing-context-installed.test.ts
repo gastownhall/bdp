@@ -938,3 +938,337 @@ it("observes installed initial finite Bead Event opaque minimum timeout", async 
   if (failures.length > 1)
     throw new AggregateError(failures, "installed finite Event minimum and cleanup failed");
 }, 60000);
+
+it("observes installed initial finite Link Event opaque minimum timeout", async () => {
+  const controller = new AbortController();
+  const deadlineReason = new Error("installed finite Event minimum deadline");
+  const expiresAt = Date.now() + 45000;
+  let deadlineExceeded = false;
+  const deadline = setTimeout(() => {
+    deadlineExceeded = true;
+    controller.abort(deadlineReason);
+  }, 45000);
+  const failures: unknown[] = [];
+  let directory: string | undefined;
+  let child: Awaited<ReturnType<typeof launchInstalledTransaction>> | undefined;
+  let binding: ReturnType<typeof installedTransactionBinding> | undefined;
+  let launchStarted = false,
+    closeAttempted = false,
+    closed = false,
+    attempted = 0;
+  const responses: {
+    method: HttpMethod;
+    url: string;
+    status: number;
+    bodyOctets: number | undefined;
+    bodySha256: string;
+    wireSha256: string | null;
+    headers: Record<string, string | null>;
+  }[] = [];
+  const operator = randomBytes(32).toString("base64url");
+  const linkType = `${scope}types/link`;
+  const linkArtifacts = {
+    descriptors: [
+      ...artifacts.descriptors,
+      {
+        retrievalUri: linkType,
+        utf8: JSON.stringify({
+          id: linkType,
+          name: "Link",
+          describes: "link",
+          conformsTo: [],
+          source: { conformsTo: [], external: "opaque" },
+          target: { conformsTo: [], external: "opaque" },
+          propertiesSchema: schemaUri,
+        }),
+      },
+    ],
+    schemas: artifacts.schemas,
+  };
+  const seedBody = JSON.stringify({
+    operations: [
+      {
+        operation: "createBead",
+        id: "beads/known",
+        type: beadType,
+        properties: { title: "link-event-minimum" },
+      },
+      {
+        operation: "createBead",
+        id: "beads/other",
+        type: beadType,
+        properties: { title: "link-event-minimum-other" },
+      },
+      {
+        operation: "createLink",
+        id: "links/known",
+        type: linkType,
+        source: "beads/known",
+        target: "beads/other",
+        properties: { title: "link-event-minimum" },
+      },
+    ],
+  });
+  try {
+    directory = mkdtempSync(path.join(tmpdir(), "bdp-link-event-minimum-installed-"));
+    controller.signal.throwIfAborted();
+    launchStarted = true;
+    child = await launchInstalledTransaction(
+      entry,
+      {
+        scope,
+        directory,
+        create: true,
+        artifacts: linkArtifacts,
+        credentials: [{ token: operator, principal: "writer", canMutate: true }],
+      },
+      controller.signal,
+    );
+    binding = installedTransactionBinding(child.ready, sourceCommit, fixture);
+    expect(child.ready.scope).toBe(scope);
+    expect(child.ready.claimEligible).toBe(false);
+    expect(child.ready.history).toBe(false);
+    const address = new URL(child.ready.listenUrl as string);
+    const url = `${scope}links/known?view=events`;
+    const batchUrl = `${scope}operations/batch`;
+    expect(binding.operationTargets.batch).toBe(batchUrl);
+    const execute = createRawHttpExchangeExecutor(
+      { transport: "plain", host: address.hostname, port: Number(address.port) },
+      {
+        requestTimeoutMs: 5000,
+        maximumBodyBytes: 32768,
+        exactMode: {
+          scope,
+          profile: "transactional",
+          routes: [
+            { method: "POST", url: batchUrl },
+            { method: "GET", url },
+            { method: "HEAD", url },
+          ],
+          maximumRequestHeaderBytes: 16384,
+          maximumRequestBodyBytes: 65536,
+          defaultCredentialRef: "operator",
+          credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
+          resolveCredentials: () => ({ authorization: `Bearer ${operator}` }),
+        },
+      },
+    );
+    const exchange = async (
+      method: HttpMethod,
+      minimum: Record<string, string> = {},
+      requestBody?: string,
+    ) => {
+      controller.signal.throwIfAborted();
+      expect(++attempted, "installed Link Event dispatch bound").toBeLessThanOrEqual(4);
+      const requestUrl = requestBody === undefined ? url : batchUrl;
+      const response = await execute({
+        method,
+        url: requestUrl,
+        signal: controller.signal,
+        credentialRef: "operator",
+        raw: {
+          headerLines: [
+            { name: "accept", value: "application/json" },
+            ...Object.entries(minimum).map(([name, value]) => ({ name, value })),
+            ...(requestBody === undefined
+              ? []
+              : [
+                  { name: "content-type", value: "application/json" },
+                  { name: "idempotency-key", value: "link-event-minimum-seed" },
+                ]),
+          ],
+          ...(requestBody === undefined ? {} : { bodyBytes: Buffer.from(requestBody) }),
+        },
+      });
+      responses.push({
+        method,
+        url: requestUrl,
+        status: response.status,
+        bodyOctets: response.bodyOctets,
+        bodySha256: digest(response.bodyText),
+        wireSha256: response.wireResponseBytes ? digest(response.wireResponseBytes) : null,
+        headers: Object.fromEntries(
+          retainedHeaders.map((name) => [name, response.headers[name] ?? null]),
+        ),
+      });
+      expect(response.url).toBe(requestUrl);
+      expect(response.exactRequest?.source).toBe("raw-http1-serializer");
+      expect(response.exactRequest?.writeState).toBe("complete");
+      expect(response.exactRequest?.bodyPresent).toBe(requestBody !== undefined);
+      expect(response.exactRequest?.bodyOctets).toBe(
+        requestBody === undefined ? 0 : Buffer.byteLength(requestBody),
+      );
+      expect(response.exactRequest?.bodyDigest).toBe(
+        requestBody === undefined ? undefined : digest(requestBody),
+      );
+      const headers = response.exactRequest?.headerLines ?? [];
+      expect(headers.find((header) => header.name.toLowerCase() === "host")?.value).toBe(
+        "reference.invalid",
+      );
+      expect(headers.find((header) => header.name.toLowerCase() === "accept")?.value).toBe(
+        "application/json",
+      );
+      if (requestBody !== undefined) {
+        expect(
+          headers.find((header) => header.name.toLowerCase() === "idempotency-key")?.value,
+        ).toBe("link-event-minimum-seed");
+        expect(headers.find((header) => header.name.toLowerCase() === "content-type")?.value).toBe(
+          "application/json",
+        );
+      }
+      expect(response.wireResponseBytes?.length).toBeGreaterThan(0);
+      expect(response.headers["x-bdp-development"]).toBe("non-attesting");
+      for (const [name, value] of Object.entries(minimum))
+        expect(
+          response.exactRequest?.headerLines.find((field) => field.name.toLowerCase() === name)
+            ?.value,
+        ).toBe(value);
+      return response;
+    };
+    const seed = await exchange("POST", {}, seedBody);
+    expect(seed.status).toBe(200);
+    const receipt: unknown = JSON.parse(seed.bodyText);
+    expect(validReceipt(receipt), JSON.stringify(validReceipt.errors)).toBe(true);
+    expect(receipt).toMatchObject({
+      status: "completed",
+      idempotencyKey: "link-event-minimum-seed",
+      requiredPosition: "pos-1",
+      effectPosition: "pos-1",
+    });
+    const setup = await exchange("GET");
+    expect(setup.status).toBe(200);
+    const page: unknown = JSON.parse(setup.bodyText);
+    expect(validPage(page), JSON.stringify(validPage.errors)).toBe(true);
+    expect(page).toMatchObject({
+      source: url,
+      events: [{ type: "created", subject: `${scope}links/known` }],
+      next: null,
+    });
+    const context = Object.fromEntries(
+      contextNames.map((name) => {
+        const value = setup.headers[name];
+        if (!value) throw new Error(`missing ${name}`);
+        return [name, value];
+      }),
+    );
+    expect(context["bdp-scope-position"]).toBe("pos-1");
+    const minimum = {
+      "bdp-scope-epoch": context["bdp-scope-epoch"]!,
+      "bdp-authorization-view": context["bdp-authorization-view"]!,
+      "bdp-minimum-scope-position": "opaque",
+    };
+    let getBytes = 0;
+    let getMedia: string | undefined;
+    for (const method of ["GET", "HEAD"] as const) {
+      const response = await exchange(method, minimum);
+      expect(response.status).toBe(503);
+      expect(response.headers["x-bdp-development-limit"]).toBeUndefined();
+      expect(response.headers["cache-control"]).toBe("private, no-store");
+      expect(response.headers["retry-after"]).toBe("1");
+      expect(response.headers.etag).toBeUndefined();
+      expect(response.headers["last-modified"]).toBeUndefined();
+      for (const name of contextNames) expect(response.headers[name], name).toBe(context[name]);
+      if (method === "GET") {
+        const problem: unknown = JSON.parse(response.bodyText);
+        expect(validProblem(problem), JSON.stringify(validProblem.errors)).toBe(true);
+        // Exact reference Problem shape, not a ban on protocol extension members.
+        expect(problem).toEqual({
+          type: "https://github.com/gastownhall/bdp/problems/unavailable",
+          status: 503,
+          code: "catch-up-timeout",
+          retry: "after-delay",
+        });
+        getBytes = Buffer.byteLength(response.bodyText);
+        expect(getBytes).toBeGreaterThan(0);
+        expect(response.bodyOctets).toBe(getBytes);
+        getMedia = response.headers["content-type"];
+        expect(getMedia?.split(";", 1)[0]).toBe("application/problem+json");
+      } else {
+        expect(response.bodyOctets).toBe(0);
+        expect(response.bodyText).toBe("");
+        // Reference HEAD metadata describes GET bytes, not transmitted HEAD bytes.
+        expect(response.headers["content-length"]).toBe(String(getBytes));
+        expect(response.headers["content-type"]).toBe(getMedia);
+      }
+    }
+    expect(attempted).toBe(4);
+    expect(responses.map(({ method, url, status }) => ({ method, url, status }))).toEqual([
+      { method: "POST", url: batchUrl, status: 200 },
+      { method: "GET", url, status: 200 },
+      { method: "GET", url, status: 503 },
+      { method: "HEAD", url, status: 503 },
+    ]);
+    controller.signal.throwIfAborted();
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    controller.abort();
+    let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      if (child) {
+        closeAttempted = true;
+        const closing = child.close();
+        // Observe late rejection even if the shared remaining deadline wins.
+        void closing.catch(() => {});
+        await Promise.race([
+          closing,
+          new Promise<never>((_, reject) => {
+            cleanupTimer = setTimeout(
+              () => {
+                deadlineExceeded = true;
+                reject(deadlineReason);
+              },
+              Math.max(0, expiresAt - Date.now()),
+            );
+          }),
+        ]);
+        if (Date.now() >= expiresAt) deadlineExceeded = true;
+        if (deadlineExceeded || child.child.exitCode !== 0 || child.child.signalCode !== null) {
+          failures.push(new Error("installed finite Event child close was not clean and timely"));
+        } else {
+          closed = true;
+          if (directory) rmSync(directory, { recursive: true, force: true });
+        }
+      }
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      clearTimeout(cleanupTimer);
+      clearTimeout(deadline);
+    }
+    if (deadlineExceeded && !failures.includes(deadlineReason)) failures.push(deadlineReason);
+    if (launchStarted && !closed && failures.length === 0)
+      failures.push(new Error("installed finite Event child ownership unverified"));
+    console.log(
+      JSON.stringify({
+        observation: "private-installed-link-event-minimum",
+        outcome: failures.length === 0 ? "passed" : "failed",
+        declaredSourceCommit: sourceCommit,
+        workspaceDirty,
+        entry: resolvedEntry,
+        entrySha256,
+        binding: binding ?? null,
+        deadlineExceeded,
+        attempted,
+        exchanges: responses.length,
+        completedResponses: responses,
+        closeAttempted,
+        closed,
+        launchStarted,
+        startupCompleted: child !== undefined,
+        childPid: child?.child.pid ?? null,
+        childExitCode: child?.child.exitCode ?? null,
+        childSignalCode: child?.child.signalCode ?? null,
+        ownership: !launchStarted ? "not-started" : closed ? "closed" : "unverified",
+        directory: directory ?? null,
+        directoryAbsent: directory === undefined || !existsSync(directory),
+        failureCount: failures.length,
+        claimEligible: false,
+        retention: "response fingerprints and selected headers; no conformance credit",
+      }),
+    );
+  }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, "installed finite Event minimum and cleanup failed");
+}, 60000);

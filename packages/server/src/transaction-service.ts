@@ -485,7 +485,8 @@ export function createTransactionService(owner: Owner, options: TransactionServi
                   try {
                     const parsed = transactionEventRequest(new URL(source), scope);
                     initialMinimumSource =
-                      parsed?.source.kind === "bead" &&
+                      parsed !== undefined &&
+                      (parsed.source.kind === "bead" || parsed.source.kind === "link") &&
                       parsed.after === undefined &&
                       parsed.source.url === source;
                   } catch (error) {
