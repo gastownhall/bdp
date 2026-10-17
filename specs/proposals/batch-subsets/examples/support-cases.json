@@ -1,0 +1,259 @@
+[
+  {
+    "name": "six-supported-records",
+    "request": {
+      "operations": [
+        {
+          "operation": "createBead",
+          "type": "https://example.invalid/types/task",
+          "properties": {
+            "title": "Example"
+          }
+        },
+        {
+          "operation": "updateBead",
+          "bead": "https://example.invalid/s/beads/a",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/title",
+              "value": "Changed"
+            }
+          ]
+        },
+        {
+          "operation": "deleteBead",
+          "bead": "https://example.invalid/s/beads/a"
+        },
+        {
+          "operation": "createLink",
+          "type": "https://example.invalid/types/association",
+          "source": "https://example.invalid/s/beads/a",
+          "target": "https://example.invalid/s/beads/b"
+        },
+        {
+          "operation": "updateLink",
+          "link": "https://example.invalid/s/links/l",
+          "propertiesChange": [
+            {
+              "op": "add",
+              "path": "/note",
+              "value": "Changed"
+            }
+          ]
+        },
+        {
+          "operation": "deleteLink",
+          "link": "https://example.invalid/s/links/l"
+        }
+      ]
+    },
+    "expected": {
+      "classification": "supported-shape"
+    }
+  },
+  {
+    "name": "unsupported-index-0",
+    "request": {
+      "operations": [
+        {
+          "operation": "deleteWhere",
+          "collection": "beads",
+          "selector": "$[*]"
+        },
+        {
+          "operation": "createBead",
+          "type": "https://example.invalid/types/task",
+          "properties": {
+            "title": "Example"
+          }
+        },
+        {
+          "operation": "updateBead",
+          "bead": "https://example.invalid/s/beads/a",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/title",
+              "value": "Changed"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "classification": "unsupported",
+      "pointer": "/operations/0/operation",
+      "operation": "deleteWhere"
+    }
+  },
+  {
+    "name": "unsupported-index-1",
+    "request": {
+      "operations": [
+        {
+          "operation": "createBead",
+          "type": "https://example.invalid/types/task",
+          "properties": {
+            "title": "Example"
+          }
+        },
+        {
+          "operation": "deleteWhere",
+          "collection": "beads",
+          "selector": "$[*]"
+        },
+        {
+          "operation": "updateBead",
+          "bead": "https://example.invalid/s/beads/a",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/title",
+              "value": "Changed"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "classification": "unsupported",
+      "pointer": "/operations/1/operation",
+      "operation": "deleteWhere"
+    }
+  },
+  {
+    "name": "unsupported-index-2",
+    "request": {
+      "operations": [
+        {
+          "operation": "createBead",
+          "type": "https://example.invalid/types/task",
+          "properties": {
+            "title": "Example"
+          }
+        },
+        {
+          "operation": "updateBead",
+          "bead": "https://example.invalid/s/beads/a",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/title",
+              "value": "Changed"
+            }
+          ]
+        },
+        {
+          "operation": "deleteWhere",
+          "collection": "beads",
+          "selector": "$[*]"
+        }
+      ]
+    },
+    "expected": {
+      "classification": "unsupported",
+      "pointer": "/operations/2/operation",
+      "operation": "deleteWhere"
+    }
+  },
+  {
+    "name": "unsupported-updateWhere",
+    "request": {
+      "operations": [
+        {
+          "operation": "updateWhere",
+          "collection": "beads",
+          "selector": "$[*]",
+          "change": [
+            {
+              "op": "add",
+              "path": "/x",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "classification": "unsupported",
+      "pointer": "/operations/0/operation",
+      "operation": "updateWhere"
+    }
+  },
+  {
+    "name": "unknown-operation",
+    "request": {
+      "operations": [
+        {
+          "operation": "close"
+        }
+      ]
+    },
+    "expected": {
+      "classification": "malformed"
+    }
+  },
+  {
+    "name": "recognized-but-malformed",
+    "request": {
+      "operations": [
+        {
+          "operation": "deleteWhere"
+        }
+      ]
+    },
+    "expected": {
+      "classification": "malformed"
+    }
+  },
+  {
+    "name": "empty-batch",
+    "request": {
+      "operations": []
+    },
+    "expected": {
+      "classification": "malformed"
+    }
+  },
+  {
+    "name": "unsupported-then-malformed",
+    "request": {
+      "operations": [
+        {
+          "operation": "deleteWhere",
+          "collection": "beads",
+          "selector": "$[*]"
+        },
+        {
+          "operation": "createBead"
+        }
+      ]
+    },
+    "expected": {
+      "classification": "malformed"
+    }
+  },
+  {
+    "name": "frozen-wire-rejects-type-member",
+    "request": {
+      "operations": [
+        {
+          "operation": "updateBead",
+          "bead": "https://example.invalid/s/beads/a",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/title",
+              "value": "Changed"
+            }
+          ],
+          "type": "https://example.invalid/types/lesson"
+        }
+      ]
+    },
+    "expected": {
+      "classification": "malformed"
+    }
+  }
+]
