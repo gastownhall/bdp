@@ -108,7 +108,7 @@ export function currentReadMinimumKind(
 }
 type MinimumCondition = Readonly<{
   minimum: TransactionMinimum;
-  kind: ReturnType<typeof currentReadMinimumKind>;
+  kind: ReturnType<typeof currentReadMinimumKind> | "alias";
 }>;
 const minimumConditions = new WeakSet<object>();
 function minimumCondition(
@@ -213,7 +213,7 @@ export function createTransactionReadPlane(
       const { minimum, kind } = capturedCondition(condition);
       const current = transactionReadContexts(observation).current;
       if (refusal?.code === "resource-not-found") {
-        if (kind === "resource" || kind === "missing") return;
+        if (kind === "resource" || kind === "missing" || kind === "alias") return;
         try {
           checkCurrentReadMinimum(minimum, current, false);
           return;
@@ -234,7 +234,7 @@ export function createTransactionReadPlane(
       checkCurrentReadMinimum(
         minimum,
         current,
-        kind === "resource" || kind === "initial-collection",
+        kind === "resource" || kind === "initial-collection" || kind === "alias",
       );
     },
     captureReadAuthorization: (reader, principal) => {
@@ -328,7 +328,7 @@ export function createTransactionReadPlane(
           );
         },
         resolveAlias: (url, options) => {
-          const condition = minimumCondition(minimum, "missing");
+          const condition = minimumCondition(minimum, "alias");
           let captured: AuthorityReadDeliveryOptions | undefined;
           try {
             captured = captureTransactionReadDeliveryOptions(options);
