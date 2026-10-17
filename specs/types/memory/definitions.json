@@ -353,14 +353,14 @@
       }
     },
     {
-      "id": "https://example.org/memory-types/memory-related",
-      "revision": "related-contract-1",
+      "id": "https://example.org/memory-types/association",
+      "revision": "association-contract-1",
       "type": {
         "uri": "https://example.org/types/beads/link-type",
         "revision": "link-type-1"
       },
       "properties": {
-        "description": "Related informational relationship with at least one known or expected Memory role; not the existing Issue-related identity. See memory.md for compatibility, endpoint and pin semantics.",
+        "description": "Association informational relationship with at least one known or expected Memory role; existing Dependency related remains unchanged. See memory.md for compatibility, endpoint and pin semantics.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",

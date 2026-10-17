@@ -295,11 +295,11 @@
       "metadata": {}
     },
     {
-      "id": "https://example.org/project/links/memory-related-work",
+      "id": "https://example.org/project/links/association-work",
       "revision": "link-r1",
       "type": {
-        "uri": "https://example.org/memory-types/memory-related",
-        "revision": "related-contract-1"
+        "uri": "https://example.org/memory-types/association",
+        "revision": "association-contract-1"
       },
       "source": "https://example.org/project/beads/decision",
       "target": "https://example.org/project/beads/work-issue",

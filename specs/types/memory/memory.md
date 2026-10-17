@@ -1,6 +1,6 @@
 # Memory Bead and Link Types
 
-Work-in-progress domain specification, October 16, 2026. Memory preserves reusable
+Work-in-progress domain specification, October 17, 2026. Memory preserves reusable
 knowledge; Issues represent work; Activities report what happened. A technician
 can save a useful note immediately, and an office team can record a decision with
 its reasons and sources. Neither must complete a taxonomy interview first.
@@ -11,6 +11,19 @@ Memory itself is usable for an ordinary note. Observation, Decision, Procedure,
 Policy and Lesson specialize its contract through conformance. Their additional
 data is directly named properties, not a `details` dispatcher. The six proposed
 informational relationships remain distinct Link Types.
+
+**October 17 proposal direction.** Donna accepts Association / `association` as the
+starting name for the new Memory navigation relationship, preserving existing
+Dependency `related`, `relates-to` and `supersedes` identity, conformance, selectors
+and behavior. This name selection is not approval of the complete catalog, fields
+or constraints. The Preview 3 scope includes explicit retyping within the Memory family;
+existing Issue-family behavior is preserved and Issue↔Memory conversion is deferred.
+A baked-in fixed-catalog Go implementation need not wait for public Type-definition
+representation, user-defined/installable Types, federation, BDP deployment, signing
+or Rust. The definition graph here remains illustrative future-profile review
+material; it is not a prerequisite public encoding for that native implementation.
+The custom-Type deletion/minimum conflict remains relevant to the extensible design
+but is deferred for the fixed supplied catalog, which declares no such minimums.
 
 The ruling selects Type granularity. The exact field contracts, supplied catalog,
 illustrative identities and remaining operation dependencies are draft proposals.
@@ -80,8 +93,8 @@ Other reconciliation points must not disappear behind the requirement mapping:
 | R6/R27a, knowledge in direct properties | Discovery must search the declared knowledge fields, and compact outputs must not expose them in full merely because they are outside Markdown. |
 | R4/R31, authoring and Type operations | Specialized creation explicitly supplies the Type and complete properties in one write. Product contracts must account for this, guarded retyping and Type-aware discovery beyond the old command table; their grammar remains with the product/shared owners. |
 | R12, responsible actor | New native Memory revisions require an actor even though the general shared envelope permits absence. This is a domain operation requirement, not a new provenance representation. |
-| R17/R23/R31, existing `related` | The candidate Memory Related identity does not itself extend the existing product selector or Dependency-related contract. Compatibility needs an explicit shared/product decision. |
-| R5/R20 versus Type participation minimums | Unconditional cleanup can invalidate a surviving Bead's minimum. This is an unresolved cross-contract conflict, not a completed requirement. |
+| R17/R23/R31, existing `related` | Donna selects a separately named Association (`association`) proposal. Existing Dependency `related` and its selectors/behavior stay intact; this explicitly refines the original baseline-sharing requirement. Preview compatibility and the full new contract remain review items. |
+| R5/R20 versus Type participation minimums | Unconditional cleanup can invalidate a surviving custom Bead's minimum. This remains unresolved for extensible Types and is deferred for fixed-catalog V2, which supplies no such minimums. |
 
 ## 2. Catalog, identity and conformance
 
@@ -98,7 +111,7 @@ opaque revisions, not version labels or client-assignable revision tokens.
 | K/procedure | Bead | Memory at an exact definition revision | Reusable ordered instructions |
 | K/policy | Bead | Memory at an exact definition revision | A recorded rule and optional claimed authority |
 | K/lesson | Bead | Memory at an exact definition revision | A reusable takeaway |
-| K/memory-related | Link | None | Informational navigation |
+| K/association | Link | None | Informational navigation |
 | K/memory-guidance | Link | None | Intended guidance for an Issue |
 | K/memory-applies-to | Link | None | Claimed applicability to a subject |
 | K/memory-supports | Link | None | Offered support for particular content |
@@ -284,7 +297,7 @@ not a typed external constraint or a claim of verified membership.
 
 | Link | Source → target alternatives | Target reference and meaning |
 | --- | --- | --- |
-| Related | M→L; L→M; M→E; L→E(Memory); E→M; E(Memory)→L; M→X; X→M | Floating or exact; navigation with at least one known/expected Memory role |
+| Association | M→L; L→M; M→E; L→E(Memory); E→M; E(Memory)→L; M→X; X→M | Floating or exact; navigation with at least one known/expected Memory role |
 | Guidance | I→M; I→E(Memory); E(Issue)→M | Floating or exact; intended guidance, not proof it was read or used |
 | AppliesTo | M→L; M→E; M→X; E(Memory)→L | Floating or exact; source claims relevance under its stated conditions |
 | Supports | M→M; M→E(Memory); E(Memory)→M | Exact target required by this proposed domain contract; source offers support for that content |
@@ -296,17 +309,19 @@ source/target lists cannot be flattened independently. Every inherited pair set
 also applies. The illustrative descriptors use current candidate pair syntax;
 external-capable arms use wildcard Types and never request a remote Memory/Issue
 Type check. At least one endpoint is local. Links-as-graph-endpoints are not enabled.
-Related in this catalog requires at least one known or expected Memory role.
+Association in this catalog requires at least one known or expected Memory role.
 An entirely local Issue→Issue pair uses the existing Issue/Dependency contract,
 not this new Type. Existing related or supersedes records are not reinterpreted.
 
-In particular, `K/memory-related` is a distinct illustrative identity. It does not
-silently rebind the existing `--type related` selector or change historical Links.
-R17/R23/R31's baseline requires an explicit choice by the shared Type/product owners:
-evolve the baseline contract, define a compatible selector mapping, or acknowledge
-a change to Chris's requirement. Conformance cannot widen an inherited Issue-only
-endpoint restriction. No option is selected here, and this candidate catalog alone
-does not establish the promised existing-command compatibility.
+`K/association` is the illustrative definition identity for the Association
+proposal; `association` is its selected starting name, not a production namespace
+assignment. It does not rebind `--type related` or change historical Links. Existing
+Dependency `related`, `relates-to` and `supersedes` retain their contracts and Issue
+behavior. Chris's R17/R23/R31/TC3 expectation of a shared `related` baseline is
+therefore explicitly refined: use a new named relationship for Memory association,
+not a widened Dependency contract or a selector alias. Any existing preview-related
+migration must be specified separately; the name choice does not authorize rewriting
+its stored identities or accepting the rest of this proposed endpoint/pin contract.
 
 The local M/I arms deliberately pin `memory-contract-1` and the shared foundation's
 `issue-1` in this conservative candidate. They rely on those exact semantic contracts,
@@ -409,12 +424,16 @@ No such new constraint is imposed on these six definitions by default.
 
 ## 5. Updates, discovery and lifecycle
 
-Explicit retyping can preserve Resource identity. A Memory note may become a
+The Preview 3 scope includes explicit retyping within the fixed Memory family while
+preserving Resource identity. A Memory note may become a
 Procedure only with valid complete resulting properties and all affected graph
 requirements satisfied. No fields are automatically dropped, renamed or interpreted
 as another Type. The old revision remains a Memory note. Conversely a downgrade
 does not silently remove unfamiliar properties; the writer supplies any intended
-data transformation. Type/category change is not Bead-to-Link conversion.
+data transformation. Issue↔Memory conversion is deferred and must refuse before
+mutation; this does not change existing Issue-family retyping behavior. Type/category
+change is not Bead-to-Link conversion. The concrete guard and atomic-effect contract
+remains part of the native implementation plan, not an inferred wire amendment.
 
 Omitted affiliation preserves its exact identity/pin. Explicit Type updates need
 the shared revision precondition and atomically validate transformed properties,
@@ -486,7 +505,9 @@ silently drop the minimum, cascade-delete/retype the survivor, invent a replacem
 Link, or present a rollback as satisfying R5/R20. Until resolved, implementations
 cannot claim these requirements are jointly qualified for such a graph. Required
 actor context for any cleanup-created Memory revisions is another shared-operation
-integration gate; accepted indirect changes must remain attributable.
+integration gate; accepted indirect changes must remain attributable. This custom-Type
+conflict is deferred for fixed-catalog V2, whose supplied contracts declare no such
+minimums; that deferral does not resolve the extensible contract.
 
 Aliases are generic names, potentially pinned under the shared draft, not identity
 or registration. Key placement, namespace collisions, historical visibility and
@@ -546,7 +567,7 @@ from stored actor/time/source values.
 | Mechanism | Question it answers | Effect on the referenced subject |
 | --- | --- | --- |
 | Revision sources | What does the writer say this revision was based on? | No implicit graph Link or target revision |
-| Guidance/Related | Where should someone look? | No proof of use and no body loading |
+| Guidance/Association | Where should someone look? | No proof of use and no body loading |
 | Supports/Challenges/Supersedes | What material now offers support, objection or replacement? | Later incoming assertions do not rewrite the target or its original sources |
 | Activity | What reportedly happened, involving which work/artifacts? | Independent record; no subject revision merely to report work |
 
@@ -647,7 +668,7 @@ of requirements, not evidence of complete current implementation or a release pl
 | R14 | Shared guards/retries/conflicts/finite limits and actual-predecessor disclosure |
 | R15 | Claiming Memory support requires the consumed History capability; registration is insufficient |
 | R16 | Accurate retention/erasure/gone outcomes and immutable addresses; no current fallback |
-| R17 | Registered informational vocabulary/custom conformers, preserved unknown IDs and non-workflow endpoints; existing `related` identity/selector compatibility remains an explicit shared/product gate |
+| R17 | Distinct Association proposal preserves existing Dependency `related`; open vocabulary/custom conformers remain future design beyond fixed-catalog V2; non-workflow meaning is preserved |
 | R18 | Shared latest/exact references; exact local graph endpoint admission requires retained state |
 | R19 | Local expected-contract and self-Link admission checks, opaque external references and accurate observations; revalidation/encoding dependencies |
 | R20 | Floating cleanup, exact survivors and affected-source disclosure; shared amendment must resolve surviving participation minimums and attributable indirect revisions |
@@ -662,7 +683,7 @@ of requirements, not evidence of complete current implementation or a release pl
 | R28 | Provider-independent current/history/Link/provenance state with accurate bounds |
 | R29 | Shared authorization/deployment/governance; no Memory-specific role or topology semantics |
 | R30 | Preserve claims/evidence, leave truth/quality/applicability judgments with humans and consumers |
-| R31 | Product must extend the original table for specialized creation, guarded retyping, Type-aware search and `related` compatibility, with explicit rationale; no new CLI grammar here |
+| R31 | Product must extend the original table for specialized creation, guarded retyping, Type-aware search and the new `association` selection, with explicit rationale; no new CLI grammar here |
 
 | Scenario | Observable realization and dependency |
 | --- | --- |
@@ -739,8 +760,9 @@ this Memory section documents the additional domain artifacts and invocation.
 | Endpoint pinned before target Type/content changes | Evaluate retained historical state; never new current Type | Written requirement |
 | Task/custom Issue conformer uses Guidance to a Memory conformer | Accept if exact required contracts and all domain checks hold | Written requirement |
 | Endpoints match different arms but no one permitted pair | Reject; independent OR flattening is incorrect | Written requirement |
-| Memory Related joins two local Issues without a Memory endpoint | Reject its endpoint mismatch; existing Issue-related meaning and ownership remain with that separate contract | Written requirement |
-| Existing `--type related` selector is used with a Memory | Use only an explicitly selected shared/product compatibility contract; this new identity alone does not establish that mapping | Written requirement; compatibility gate open |
+| Association joins two local Issues without a Memory endpoint | Reject its endpoint mismatch; existing Issue-related meaning and ownership remain with that separate contract | Written requirement |
+| Existing `related`, `relates-to` or Dependency `supersedes` selector is used | Preserve its existing identity, conformance and behavior; do not redirect to Association or infer new Memory endpoint support | Written requirement; name direction selected |
+| Explicit retyping crosses from an Issue into Memory, or Memory into Issue | Refuse before mutation; Issue↔Memory conversion is deferred, existing Issue-family behavior unchanged | Written requirement; V2 scope ruling |
 | A custom workflow-dependent Link passes its shape/endpoint checks at a local Memory | Reject before mutation; wildcard ownership/eligibility does not waive the Memory non-workflow contract | Written requirement |
 | Supports source is a local Issue rather than Memory/conformer | Reject endpoint mismatch | Written requirement |
 | Required citation target is floating | Reject; do not silently pin current state | Written requirement |
@@ -767,7 +789,7 @@ this Memory section documents the additional domain artifacts and invocation.
 | Delete subject with floating Links, exact Links and Activity reports | Apply the three separate selected contracts; enumerate affected sources/Links accurately | Written requirement |
 | Deletion would expose hidden source/Link identities in its result | Apply shared authorization and truthful view bounds; never leak hidden identities or claim a partial enumeration is Scope-complete | Written requirement; shared contract |
 | A Memory owns a Link whose local endpoint is hidden from the reader's view | Apply current Core view closure; hide the Memory rather than return an incomplete owned snapshot as complete | Written requirement |
-| Deleting Memory M would remove a surviving Issue's sole required Guidance Link | Current Type minimum and R5/R20 cleanup guarantees conflict; require a shared decision before claiming this graph is qualified, with no silent invariant waiver or survivor cascade | Written conflict case; unresolved |
+| Deleting Memory M would remove a surviving custom Issue's sole required Guidance Link | Current Type minimum and R5/R20 cleanup guarantees conflict; require a shared decision before claiming this graph is qualified, with no silent invariant waiver or survivor cascade | Written conflict case; deferred for fixed-catalog V2 |
 | Restore knowledge under a retained identity | New operation provenance; no revived cleaned-up Links or stolen alias | Written requirement |
 | Full human record omits Procedure steps but calls itself complete | Invalid completeness claim even when body is rendered whole | Written requirement |
 | Summary/automatic export includes full body or metadata values | Violates the specified projection posture | Written requirement |
@@ -821,9 +843,9 @@ hold; this contribution records its existing conflicts without extending it.
 | Required citation pins, self-Link exclusion and expected remote roles | Domain semantics explicit; generic pin/irreflexivity syntax not invented | Domain admission and observation dependencies beyond generic descriptors |
 | Owned state, lifecycle and re-pinning | Required observable outcomes stated | Core/History/Write amendments and product qualification required |
 | Revision sources and Activity | Uses V2, with actor-basis and body/comment Activity-admission conflicts named | Core envelope amendment and owner reconciliation required; V2-shaped excerpts are not current-Core-valid |
-| Capture/recall/search/consolidation/exposure | Includes direct-property search and bounded exposure; `related` compatibility decision open | No Memory runtime or CLI implementation in this change |
+| Capture/recall/search/consolidation/exposure | Includes direct-property search and bounded exposure; Association starting name selected, full contract review open | No Memory runtime or CLI implementation in this change |
 | Responsible actor and indirect writes | R12 tightens optional shared attribution for new native Memory revisions; no-op and legacy distinctions explicit | Admission and cross-operation attribution not qualified here |
-| Deletion and surviving participation minimums | Concrete R5/R20 versus Types §5.5 conflict identified | Unresolved shared decision; escalation is not conformance evidence |
+| Deletion and surviving participation minimums | Concrete R5/R20 versus Types §5.5 conflict identified for extensible Types | Deferred for the fixed supplied catalog without such minimums; not resolved for arbitrary custom Types |
 | Pre-installation, aliases, retention and transfer | Uses shared identity/authority boundary | Bootstrap, registration granularity, installed-scope handling and packaging remain shared work |
 | Preview 3 | No cutline or protocol stability claim | Exact release integration/qualification remains Janet/Donna's work |
 
@@ -839,8 +861,8 @@ shared decisions and coordination with the Provenance owner.
 
 | Concrete scenario | Conflicting requirements | Alternatives | Specific decision needed |
 | --- | --- | --- | --- |
-| Delete Memory M, the floating target of a surviving Issue's sole required Guidance Link | R5/R20 remove the Link without a Link blocking deletion; Types §5.5 requires the survivor's minimum at commit | Restrict admissible minimums; require explicitly authorized atomic repair; or amend the deletion guarantee | Choose the admission/precedence rule and repair authority. No implicit survivor deletion, retyping, invariant waiver or invented replacement Link. |
-| Existing `--type related` is used for Issue→Memory | R17/R23/R31 retain the existing baseline; its Issue-family restrictions do not become Memory-capable through child conformance; this catalog has a distinct identity | Evolve the shared baseline; select an explicit compatible selector mapping; or acknowledge a product-contract change | Select canonical identity and selector behavior while preserving historical IDs, ownership and constraints. |
+| Delete Memory M, the floating target of a custom Issue's sole required Guidance Link | R5/R20 cleanup conflicts with Types §5.5 survivor minimums | Defer this hypothetical custom-Type case for fixed-catalog V2; future options include admission restrictions, authorized repair or a changed guarantee | Not a fixed-catalog V2 blocker; choose the general rule before enabling such custom contracts. |
+| A Memory navigation relationship needs a name distinct from Dependency `related` | Original R17/R23/R31 baseline-sharing conflicts with preserving existing Dependency semantics | Donna selects new Association / `association` as the starting proposal; widening/rebinding existing selectors is excluded | Name direction selected; full fields/endpoints/pins and any preview migration still need review. |
 | Activity reports a proven nonexistent or pruned local subject | V2's body allows no-lookup reports; owner comment 6149528423 requires an import path or retained evidence | Retain the body's base admission; or select the proof/import rule | The V2 owner must reconcile the authoritative rule. Keep graph endpoint and revision-source admission separate; Memory does not choose or redesign them. |
 | A native Memory revision records its responsible actor | R12 requires recorded responsibility; current Core excludes an authentication-asserting basis while V2 proposes one | Retain current Core vocabulary; or separately adopt a shared basis amendment | Resolve the shared attribution/attestation boundary and vocabulary. Memory's actor/time floor does not decide authentication or grant authority. |
 
