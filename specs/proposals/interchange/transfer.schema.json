@@ -41,7 +41,7 @@
         "sourceScope": {
           "type": "string",
           "format": "uri",
-          "pattern": "^https?://.+"
+          "pattern": "^https?://[^?#]*/$"
         },
         "idEncoding": {
           "const": "absolute"
@@ -81,7 +81,18 @@
               "type": "boolean"
             },
             "resource": {
-              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json#/$defs/beadRecord"
+              "allOf": [
+                {
+                  "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json#/$defs/beadRecord"
+                },
+                {
+                  "type": "object",
+                  "required": ["metadata"],
+                  "properties": {
+                    "links": false
+                  }
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -100,7 +111,18 @@
               "type": "boolean"
             },
             "resource": {
-              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json#/$defs/linkRecord"
+              "allOf": [
+                {
+                  "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json#/$defs/linkRecord"
+                },
+                {
+                  "type": "object",
+                  "required": ["metadata"],
+                  "properties": {
+                    "links": false
+                  }
+                }
+              ]
             }
           },
           "additionalProperties": false

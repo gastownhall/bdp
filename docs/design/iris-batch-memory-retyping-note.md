@@ -6,8 +6,7 @@ Design coordination, October 17, 2026. Source implementation remains paused.
 
 ## Exact design artifacts
 
-- Current batch decision record: [batch subset change request](https://github.com/gastownhall/bdp/issues/152), sections “Batch equality — proposed closure rules” and “Batch request coverage sanity check — October 16, 2026”. This is local design, not an implemented batch replacement.
-- Public bounded request: [BDP #152](https://github.com/gastownhall/bdp/issues/152). It covers operation subsets and deterministic unsupported-operation refusal, not Type mutability or an adopted new batch schema.
+- Public bounded [BDP #152](https://github.com/gastownhall/bdp/issues/152) covers operation subsets/errors, not the complete local batch decision record or adopted Type-change wire. The original broad local discussion is not published by this citation.
 - Current [interchange contract](../../specs/proposals/interchange/interchange.md) and [implementation plan awaiting review](iris-memory-interchange-plan.md).
 
 BDP batch == bd batch is the target: one JSON operations envelope, six individual Bead/Link create/update/delete operations for Go V2, existing name/@name identity bindings, one Scope and all-or-nothing publication. No set operations, parameterized procedures or per-member subprocesses. Native storage may implement these semantics without a BDP client/server dependency.

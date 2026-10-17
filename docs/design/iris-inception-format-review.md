@@ -4,7 +4,7 @@
 
 October 17, 2026. Design feedback only; Donna has not adopted the recommendation. No schema/runtime changes or implementation restart.
 
-Reviewed `/Users/dbox/.local/state/polly/inception-20261017/RECOMMENDATION.md`, SHA256 b09e15e686ee16b588be0bc49088ef36245c7f016342a41d15de9083d30cf389. This identifies the exact reviewed text while Polly’s native/Claude review proceeds.
+Reviewed `/Users/dbox/.local/state/polly/inception-20261017/RECOMMENDATION.md`, SHA256 b09e15e686ee16b588be0bc49088ef36245c7f016342a41d15de9083d30cf389. This was a historical local working revision. Its full bytes were not retained here, it is superseded and is unavailable as public source evidence; the digest is not a resolvable citation or proof of the current recommendation. Do not use it to freeze a schema. The following are Iris’s review recommendations, not an adopted source specification.
 
 ## Fit
 
@@ -41,9 +41,4 @@ Agree that copy/conversion of a genuinely new identity has its own origin, and c
 
 This is format feedback, not approval of origin-account correction or a new general provenance-only mutation. Those need explicit shared guard/no-op/version semantics and a Memory R3/R12 reconciliation before claiming conformance. Preserve required P3 G1/G2/G3 independently of broader provenance expansion; the minimum import contract still needs its own approved semantics and qualification.
 
-Polly’s subsequent reviewed recommendation incorporates the format feedback:
-new heads preserve unrecorded origin as unrecorded; explicit unknown stays
-explicit; identity continuity/copy is separate from legacy-conversion as a
-transformation. Admission correlation is portable beyond retry-page expiry and
-avoids a receipt/head hash cycle. These remain recommendations pending Donna,
-not adopted fields or an origin-account-correction implementation dependency.
+Current candidate follow-up is summarized only in the [owning WIP contract](../../specs/proposals/interchange/interchange.md#shared-inception-design-update--october-17-2026). Polly must supply a durable public recommendation before schema freeze; local coordination is not adoption.

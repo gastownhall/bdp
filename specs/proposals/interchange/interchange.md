@@ -20,7 +20,7 @@ The initial transfer profile is deliberately bounded:
 | --- | --- |
 | Required Task and Memory state and Memory-related Links | Directory packages and full database backups |
 | Exact IDs, properties, metadata, endpoint References and pins | General URI namespace redesign and relocation |
-| Current heads plus retained versions required by included pins | Arbitrary historical archive, synchronization and Event-log replay |
+| Current heads plus retained versions required by pins and owned state | Arbitrary historical archive, synchronization and Event-log replay |
 | Original per-version provenance and new import heads | Broad provenance redesign or fabricated original attribution |
 | Existing required Memory/Link contracts | Arbitrary Type installation or unsupported contracts |
 | One complete package published atomically into a fresh destination | Merge/upsert into a populated destination and resumable partial commits |
@@ -50,7 +50,7 @@ One package is UTF-8 JSONL: a manifest, zero or more complete version records, t
 
 These are proposed field names. The Resource-contract identifier identifies immutable schemas and semantics; it is separate from producer version/build. Additional required capabilities must be declared before version records. Unknown required capabilities, record kinds or unsupported contract versions fail explicitly. Only extensions expressly permitted by the selected format may be ignored; closed BDP Resource bodies do not become open by being placed in a transfer.
 
-`head` identifies the source current version. It is not inferred from record order, timestamps or opaque revision spellings. The initial profile carries one source head for each included live Resource and any additional retained versions required by its included pins. It does not claim a complete ancestry archive. The initial profile refuses deleted endpoints/terminal-state combinations it cannot represent faithfully; they are separate declared capabilities rather than silently revived Resources.
+`head` identifies the source current version. It is not inferred from record order, timestamps or opaque revision spellings. The initial profile carries one source head for each included live Resource and any additional retained versions required by its included pins and their owned state. It does not claim a complete ancestry archive. The initial profile refuses deleted endpoints/terminal-state combinations it cannot represent faithfully; they are separate declared capabilities rather than silently revived Resources.
 
 `resourceKind` belongs to transfer framing while the selected Resource contract lacks a kind discriminator. If the adopted Resource contract contains one, it must agree with the wrapper. Bead and Link records retain the same envelopes and Reference forms as canonical reads. Preserve inline owned-Link state and its first-class Link records consistently; neither copy is an independent authority.
 
@@ -59,12 +59,12 @@ The completion digest covers the exact original UTF-8 bytes of every preceding l
 The following framing example has a computed valid byte digest. Its illustrative Types/Resource contract are not the pending V2 catalog. It demonstrates a current Memory plus an earlier version needed by a pinned Task-to-Memory Link; no revision ordering is inferred.
 
 ```jsonl
-{"record":"manifest","format":"bdp-transfer","formatVersion":1,"resourceContract":"urn:example:memory-v2-contract","sourceScope":"https://example.invalid/project/","idEncoding":"absolute","selection":{"state":"current","history":"required-pins","memoryBodies":true}}
-{"record":"version","resourceKind":"bead","head":true,"resource":{"id":"https://example.invalid/project/beads/task","type":"https://example.invalid/types/task","revision":"task-r1","properties":{"title":"Use the policy"},"metadata":{}}}
-{"record":"version","resourceKind":"bead","head":true,"resource":{"id":"https://example.invalid/project/beads/policy","type":"https://example.invalid/types/memory","revision":"policy-r2","properties":{"title":"Policy","body":"Current policy."},"metadata":{}}}
-{"record":"version","resourceKind":"bead","head":false,"resource":{"id":"https://example.invalid/project/beads/policy","type":"https://example.invalid/types/memory","revision":"policy-r1","properties":{"title":"Policy","body":"Earlier policy."},"metadata":{}}}
-{"record":"version","resourceKind":"link","head":true,"resource":{"id":"https://example.invalid/project/links/citation","type":"https://example.invalid/types/memory-association","revision":"link-r1","source":"https://example.invalid/project/beads/task","target":{"uri":"https://example.invalid/project/beads/policy","revision":"policy-r1"},"properties":{},"metadata":{}}}
-{"record":"complete","resources":3,"versions":4,"sha256":"daad2eb6c8ac815063390444cb38187d092ca0f4c5613361986c3e71670758d9"}
+{"record":"manifest","format":"bdp-transfer","formatVersion":1,"resourceContract":"urn:bdp:wip:core-carrier:d7197e97a29bff8f075028419afad05388e2e655","sourceScope":"https://example.invalid/project/","idEncoding":"absolute","selection":{"state":"current","history":"required-pins","memoryBodies":true}}
+{"record":"version","resourceKind":"bead","head":true,"resource":{"id":"https://example.invalid/project/beads/task","type":"https://example.invalid/types/task","revision":"task-r1","properties":{"title":"Use the procedure"},"metadata":{"source":"synthetic"},"ownedLinks":{"https://example.invalid/types/association":[{"id":"https://example.invalid/project/links/citation","type":"https://example.invalid/types/association","revision":"link-r1","source":"https://example.invalid/project/beads/task","target":{"uri":"https://example.invalid/project/beads/procedure","revision":"memory-r1"},"properties":{"note":"Pinned source"},"metadata":{}}]},"revisionProvenance":{"actor":{"id":"user:source-author","basis":"writer-supplied"}}}}
+{"record":"version","resourceKind":"bead","head":true,"resource":{"id":"https://example.invalid/project/beads/procedure","type":"https://example.invalid/types/procedure","revision":"memory-r2","properties":{"title":"Procedure","body":"Current café procedure.","steps":["Check the state"],"x-source":{"tag":"retained open field"}},"metadata":{},"revisionProvenance":{"actor":{"id":"user:source-author","basis":"writer-supplied"}}}}
+{"record":"version","resourceKind":"bead","head":false,"resource":{"id":"https://example.invalid/project/beads/procedure","type":"https://example.invalid/types/procedure","revision":"memory-r1","properties":{"title":"Procedure","body":"","steps":["Check the older state"]},"metadata":{}}}
+{"record":"version","resourceKind":"link","head":true,"resource":{"id":"https://example.invalid/project/links/citation","type":"https://example.invalid/types/association","revision":"link-r1","source":"https://example.invalid/project/beads/task","target":{"uri":"https://example.invalid/project/beads/procedure","revision":"memory-r1"},"properties":{"note":"Pinned source"},"metadata":{}}}
+{"record":"complete","resources":3,"versions":4,"sha256":"5b76ec80e0fd3a48b57668179d0f5acb80e6976bb194f22f4844f2dfeef3a586"}
 ```
 
 If required Memory key/name state is not part of the selected Resource representation, its shared transfer representation must be settled before freezing v1. Add an explicitly specified record family if necessary; never invent a Go-only field or silently lose key semantics. Likewise, classify Task labels/comments and other auxiliary state against the selected contract before claiming preservation. A generic Resource export is not automatically a complete legacy Issue export.
@@ -166,7 +166,7 @@ Use the same corpus for Go and Rust. A self-round-trip is useful but cannot cert
 
 Reuse Iris’s existing legacy importer, snapshot-acquisition and detached-publication work where compatible with the selected V2 base. Earlier source checks do not qualify changed code or new Resource contracts. Keep PRs bounded and reviewable; Janet selects the integration base and coordinates engine qualification. Donna decides release scope and curated exceptions.
 
-Initial positive fixtures must cover Unicode/empty-body Memory state; metadata; a Task-to-Memory association; required historical pins; and owned-Link consistency. Negative fixtures must cover identity collision, key-lookalike retargeting, unknown/unsupported Type or contract, missing pin version, missing endpoint, inconsistent owned copies, invalid JSON values, truncated/tampered package, output failure and an injected import failure after staged work. Preserve current `related` behavior and use the separately chosen Memory association identity. Include retry after lost response and crash/reopen checks; success requires exact state and cleanup evidence, not merely a process exit code.
+Initial positive fixtures must cover Unicode/empty-body Memory state; metadata; a Task-to-Memory association; required historical pins; and owned-Link consistency. Negative fixtures must cover Memory-body selection without consent, identity collision, key-lookalike retargeting, unknown/unsupported Type or contract, missing pin version, missing endpoint, inconsistent owned copies, invalid JSON values, truncated/tampered package, output failure and an injected import failure after staged work. Preserve current `related` behavior and use the separately chosen Memory association identity. Include retry after lost response and crash/reopen checks; success requires exact state and cleanup evidence, not merely a process exit code.
 
 Exclude from this tactical path: `updateWhere`/`deleteWhere`, new query predicates or traversal engine, identity-root changes, native HTTP JSONL, directory packages, parameterized batches, stored procedures and Rust project startup. Go V2 remains at the six individual Resource operations. A BDP Resource-compatible file bridge does not imply full BDP profile conformance.
 
@@ -221,8 +221,8 @@ Donna delegates shared Inception design to Polly, replacing the candidate’s ed
 
 `transfer.schema.json` is a WIP **framing scaffold**. Its `resourceContract` names
 only an illustrative current-Core carrier anchored to the starting commit; it is
-not the pending V2 Memory/Types/Provenance contract. It reuses Core beadRecord and
-linkRecord rather than inventing alternate Resource members. Closed Core shapes
+not the pending V2 Memory/Types/Provenance contract. It reuses Core beadRecord/linkRecord with complete metadata required and the
+derived incident-Link aggregate excluded, rather than inventing alternate members. Closed Core shapes
 still refuse proposed Inception fields and exact Type affiliations they do not
 admit. Before format freeze, select the actual accepted contract (including how
 original versions under earlier contracts remain interpretable) and revise this
@@ -235,12 +235,12 @@ inline/first-class Link state and an older target version required by an exact p
 It proves neither actual Type installation nor the complete Memory catalog. Do
 not copy its IDs/revisions into production fixtures as accepted domain identities.
 
-`examples/refusal-cases.json` describes finite mutations of that package. Run
+`../../../fixtures/specs/interchange/refusal-cases.json` describes finite mutations of that package. Run
 `uv run --no-project --with 'jsonschema[format]' python scripts/check_transfer_examples.py`.
 The offline checker validates framing/current carrier, strict JSON/UTF-8,
 digest/counts, heads, required local endpoint/pin closure and owned-copy agreement
-for these vectors. Reverse current owned-state agreement uses only the explicit
-synthetic `examples/ownership-facts.json`; it does not infer or install a domain
+for these vectors. Current owned-state agreement and Memory-family consent checks use explicit
+synthetic `../../../fixtures/specs/interchange/resource-facts.json`; it does not infer or install a domain
 Type catalog. It is a review-artifact checker, NOT a shipping importer,
 canonical URI normalizer, domain validator, signer, History implementation or
 proof of bounded runtime admission/atomicity. It opens no stores or servers.
@@ -261,3 +261,40 @@ explicit; identity continuity/copy is separate from legacy-conversion as a
 transformation. Admission correlation is portable beyond retry-page expiry and
 avoids a receipt/head hash cycle. These remain recommendations pending Donna,
 not adopted fields or an origin-account-correction implementation dependency.
+
+[Review and check status](REVIEW.md) records the per-draft council disposition.
+
+Required closure includes the retained first-class owned-Link versions embedded
+in each selected retained owning version, recursively with their required local
+endpoint/pin state. `examples/historical-owned.jsonl` demonstrates this case;
+missing the historical owned version refuses. If a required Resource is now
+terminal/deleted and the initial live-head profile cannot represent it, refuse
+the unit rather than revive it or drop its owned state. This is required history
+closure, not a promise to export every historical version.
+
+The fixture facts in `fixtures/specs/interchange/resource-facts.json` classify the
+illustrative Procedure as Memory-family and Association as source-owned; they are
+not a production catalog. A no-consent Memory vector now refuses. Current-Core
+numeric admission compares exact decimal values with ECMAScript's finite binary64
+shortest form using the repository's Node runtime; large admissible values and
+negative zero have a positive package, while excess-precision integer/decimal
+vectors refuse. Scope/path-boundary and fixed Resource-root checks cover the
+current-Core scaffold; they are not a complete canonical-URI normalizer or an
+authority-admission implementation. Initial head/history records require explicit
+metadata and exclude derived/cursored incident views.
+
+This scaffold refuses original historical records lacking complete metadata; it
+never invents `{}` to make them pass. The accepted historical contract must
+settle any supported unrecorded metadata representation before freeze.
+
+## Explicit pre-freeze gaps in the scaffold
+
+The review checker is not a complete current-Core validator. Noncanonical local
+endpoint spellings (host case/default ports) can currently be classified external
+and skip closure; local-ID segment grammar (empty/dot/backslash/encoded separator)
+is not fully checked. Those gaps must be fixed before format freeze or any real
+admission use. They are recorded review limitations, not permitted transfer or
+federation semantics. The Node runtime is required in addition to the documented
+uv/Python dependencies for numeric checks. Event fixture carriers similarly do
+not execute ownership, rollback/no-op or endpoint-source projection behavior.
+The completed draft-publication council does not qualify those runtime behaviors.

@@ -3,6 +3,8 @@ from copy import deepcopy
 from decimal import Decimal
 import hashlib
 import json
+import subprocess
+from urllib.parse import urlsplit
 from pathlib import Path
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import ValidationError
@@ -14,7 +16,9 @@ ROOT = Path(__file__).resolve().parent.parent
 HERE = ROOT / "specs/proposals/interchange"
 core = json.loads((ROOT / "specs/profiles/core/bdp-v0.schema.json").read_text())
 schema = json.loads((HERE / "transfer.schema.json").read_text())
-owned_types = set(json.loads((HERE / "examples/ownership-facts.json").read_text())["sourceOwnedLinkTypes"])
+review_facts = json.loads((ROOT / "fixtures/specs/interchange/resource-facts.json").read_text())
+owned_types = set(review_facts["sourceOwnedLinkTypes"])
+memory_types = set(review_facts["memoryBeadTypes"])
 
 def unavailable(uri):
     raise NoSuchResource(ref=uri)
@@ -52,6 +56,25 @@ def scalar_strings(value):
         for child in value:
             scalar_strings(child)
 
+def local(uri, scope):
+    u, s = urlsplit(uri), urlsplit(scope)
+    return u.scheme == s.scheme and u.netloc == s.netloc and u.path.startswith(s.path)
+
+def numeric_admission(records):
+    # Exact decimal values compared with the specified ECMAScript shortest form.
+    numbers = []
+    def visit(value):
+        if type(value) is int or isinstance(value, Decimal): numbers.append(str(value))
+        elif isinstance(value, dict):
+            for child in value.values(): visit(child)
+        elif isinstance(value, list):
+            for child in value: visit(child)
+    visit(records)
+    code = "import fs from 'node:fs'; const a=JSON.parse(fs.readFileSync(0,'utf8')); console.log(JSON.stringify(a.map(s=>{const n=Number(s);return Number.isFinite(n)?String(n):null;})));"
+    output = subprocess.run(["node", "--input-type=module", "-e", code], input=json.dumps(numbers), text=True, capture_output=True, check=True)
+    rounded = json.loads(output.stdout)
+    require(len(numbers) == len(rounded) and all(b is not None and Decimal(a) == Decimal(b) for a, b in zip(numbers, rounded)))
+
 def check(raw):
     require(raw.endswith(b"\n"))
     lines = raw.splitlines(keepends=True)
@@ -59,6 +82,7 @@ def check(raw):
     records = [json.loads(line.decode("utf-8", errors="strict"), object_pairs_hook=pairs, parse_float=Decimal, parse_constant=invalid_constant) for line in lines]
     for record in records:
         scalar_strings(record)
+    numeric_admission(records)
     validators["manifest"].validate(records[0])
     validators["complete"].validate(records[-1])
     versions = records[1:-1]
@@ -71,7 +95,13 @@ def check(raw):
     heads = {}
     for version in versions:
         resource = version["resource"]
-        require(resource["id"].startswith(records[0]["sourceScope"]))
+        scope = records[0]["sourceScope"]
+        require(local(resource["id"], scope))
+        address = urlsplit(resource["id"])
+        root = urlsplit(scope).path + ("beads/" if version["resourceKind"] == "bead" else "links/")
+        require(not address.query and not address.fragment and address.path.startswith(root) and len(address.path) > len(root))
+        if version["resourceKind"] == "bead" and resource["type"] in memory_types:
+            require(records[0]["selection"]["memoryBodies"])
         key = resource["id"], resource["revision"]
         require(key not in by_version)
         by_version[key] = version
@@ -88,7 +118,7 @@ def check(raw):
             for name in ["source", "target"]:
                 reference = resource[name]
                 uri = reference if isinstance(reference, str) else reference["uri"]
-                if uri.startswith(scope):
+                if local(uri, scope):
                     require(uri in heads and heads[uri]["resourceKind"] == "bead")
                     if isinstance(reference, dict):
                         require((uri, reference["revision"]) in by_version and by_version[(uri, reference["revision"])]["resourceKind"] == "bead")
@@ -115,12 +145,24 @@ def encode(records):
     footer = {"record": "complete", "resources": len({x["resource"]["id"] for x in vs}), "versions": len(vs), "sha256": hashlib.sha256(raw).hexdigest()}
     return raw + (json.dumps(footer, separators=(",", ":")) + "\n").encode()
 
+def replace_fixture_identity(records, old, new):
+    # Keep the synthetic graph coherent so wrong-root/scope negatives do not
+    # fail merely because an old head or inline copy was left behind.
+    def replace(value):
+        if isinstance(value, str): return new if value == old else value
+        if isinstance(value, list): return [replace(child) for child in value]
+        if isinstance(value, dict): return {key: replace(child) for key, child in value.items()}
+        return value
+    records[:] = replace(records)
+
 raw = (HERE / "examples/connected.jsonl").read_bytes()
 base = check(raw)[:-1]
-check((HERE / "examples/empty.jsonl").read_bytes())
-cases = json.loads((HERE / "examples/refusal-cases.json").read_text())
+positive = {p.stem: check(p.read_bytes())[:-1] for p in (HERE / "examples").glob("*.jsonl")}
+prose = (HERE / "interchange.md").read_text()
+require(prose.split("```jsonl\n", 1)[1].split("```", 1)[0].encode() == raw)
+cases = json.loads((ROOT / "fixtures/specs/interchange/refusal-cases.json").read_text())
 for case in cases:
-    records = deepcopy(base)
+    records = deepcopy(positive[case.get("package", "connected")])
     action = case["mutation"]
     if action == "remove-task": del records[1]
     elif action == "remove-old-memory": del records[3]
@@ -133,11 +175,21 @@ for case in cases:
     elif action == "format": records[0]["formatVersion"] = 999
     elif action == "contract": records[0]["resourceContract"] = "urn:unsupported"
     elif action == "record": records[4]["record"] = "future-record"
-    elif action == "foreign-id": records[2]["resource"]["id"] = "https://other.invalid/bead"
+    elif action == "foreign-id": replace_fixture_identity(records, records[2]["resource"]["id"], "https://other.invalid/bead")
+    elif action == "scope-prefix": replace_fixture_identity(records, records[2]["resource"]["id"], records[0]["sourceScope"].rstrip("/") + "-foreign/beads/x")
+    elif action == "scope-no-slash": records[0]["sourceScope"] = records[0]["sourceScope"].rstrip("/")
+    elif action == "wrong-bead-root": replace_fixture_identity(records, records[2]["resource"]["id"], records[0]["sourceScope"] + "alias/x")
+    elif action == "wrong-link-root": replace_fixture_identity(records, records[4]["resource"]["id"], records[0]["sourceScope"] + "notlinks/x")
+    elif action == "derived-links": records[2]["resource"]["links"] = {"items": [], "next": records[0]["sourceScope"] + "?cursor=opaque"}
+    elif action == "missing-metadata": del records[2]["resource"]["metadata"]
+    elif action == "inadmissible-integer": records[2]["resource"]["properties"]["n"] = 9007199254740993
+    elif action == "inadmissible-decimal": pass  # Insert exact decimal bytes below, avoiding float coercion.
+    elif action == "no-memory-consent": records[0]["selection"]["memoryBodies"] = False
+    elif action == "missing-historical-owned": records = [v for v in records if not (v.get("resourceKind") == "link" and v["resource"]["revision"] == "link-r0")]
     elif action == "wrapper-member": records[2]["undeclared"] = True
-    elif action == "surrogate": records[2]["resource"]["properties"]["body"] = "\ud800"
+    elif action == "surrogate": pass  # Construct escaped invalid scalar in raw JSON below.
     elif action == "nan": records[2]["resource"]["properties"]["bad"] = float("nan")
-    elif action == "provenance": records[2]["resource"]["revisionProvenance"] = {"committedAt": "2026-10-17T00:00:00Z"}
+    elif action == "provenance": records[2]["resource"]["revisionProvenance"] = {"committedAt": {"state": "present", "value": "2026-10-17T00:00:00Z"}}
     elif action not in {"count", "tamper", "truncate", "trailing", "duplicate-json", "final-lf"}: raise AssertionError(action)
     # Surrogate input is syntactically JSON bytes but not a valid Unicode scalar.
     if action == "surrogate":
@@ -159,10 +211,15 @@ for case in cases:
         footer["sha256"] = hashlib.sha256(b"".join(ls[:-1])).hexdigest()
         candidate = b"".join(ls[:-1]) + (json.dumps(footer) + "\n").encode()
     elif action == "final-lf": candidate = candidate[:-1]
+    elif action == "inadmissible-decimal":
+        candidate = candidate.replace(b'"steps":["Check the state"]', b'"steps":["Check the state"],"n":0.12345678901234567890')
+        ls = candidate.splitlines(keepends=True); footer = json.loads(ls[-1])
+        footer["sha256"] = hashlib.sha256(b"".join(ls[:-1])).hexdigest()
+        candidate = b"".join(ls[:-1]) + (json.dumps(footer) + "\n").encode()
     try:
         check(candidate)
     except (Refusal, ValidationError, json.JSONDecodeError, UnicodeError):
         pass
     else:
         raise AssertionError((case["name"], "expected refusal"))
-print(f"PASS: 2 positive packages and {len(cases)} refusal vectors; no runtime/Memory-domain/atomicity claim")
+print(f"PASS: {len(positive)} positive packages and {len(cases)} refusal vectors; no runtime/Memory-domain/atomicity claim")

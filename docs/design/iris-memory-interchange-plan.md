@@ -95,6 +95,4 @@ Go contract/corpus qualification is an intermediate milestone. Actual independen
 
 Start I0 and inspect the legacy PR against Janet’s selected base. Produce the exact preservation table, shared fixtures, file ownership/dependency list and smallest source PRs. Resolve the four contract tasks with the owners before dependent runtime admission. Keep all implementation work paused until Donna has reviewed this plan; no background worker or engine qualification is started by writing it.
 
-## Shared Inception design update — October 17, 2026
-
-Donna delegates shared Inception design to Polly, replacing the candidate’s editable Memory-only property. Preserve original identity-creation claims separately from destination import/revision facts; exact fields and unknown handling remain undecided. Coordinate the minimum preservation/import-head contract before schema freeze. Full provenance expansion may follow Preview 3; that does not waive truthful history or permit a competing envelope. See the [batch/retyping and provenance dependency note](iris-batch-memory-retyping-note.md). Source implementation remains paused.
+Shared Inception candidate status is recorded in the [owning WIP contract](../../specs/proposals/interchange/interchange.md#shared-inception-design-update--october-17-2026); follow that disposition before schema freeze.
