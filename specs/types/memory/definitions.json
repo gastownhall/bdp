@@ -286,17 +286,18 @@
         "revision": "link-type-1"
       },
       "properties": {
-        "description": "Association informational relationship with at least one known or expected Memory role; existing Dependency related remains unchanged. See memory.md for compatibility, endpoint and pin semantics.",
+        "description": "Association is the directly authorable common informational Link Type; its five specializations inherit the optional note. Existing Dependency related remains unchanged. Broader endpoint arms are exploratory only.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
-          "title": "Informational Memory Link properties",
-          "$comment": "Shared shape for six distinct Link Types. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "title": "Association properties",
+          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
-              "pattern": "\\S"
+              "pattern": "\\S",
+              "description": "Optional explanation of this relationship, distinct from the Memory body."
             }
           },
           "additionalProperties": true
@@ -440,17 +441,18 @@
         "revision": "link-type-1"
       },
       "properties": {
-        "description": "Guidance informational relationship; endpoint roles, pins and non-workflow semantics are specified in memory.md.",
+        "description": "Guidance is a specialized Association; it inherits note and the informational contract. Endpoint/pin rules are specified in memory.md.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
-          "title": "Informational Memory Link properties",
-          "$comment": "Shared shape for six distinct Link Types. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "title": "Association properties",
+          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
-              "pattern": "\\S"
+              "pattern": "\\S",
+              "description": "Optional explanation of this relationship, distinct from the Memory body."
             }
           },
           "additionalProperties": true
@@ -517,7 +519,22 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/guidance-conforms-association",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/memory-guidance",
+            "target": {
+              "uri": "https://example.org/memory-types/association",
+              "revision": "association-contract-1"
+            },
+            "properties": {}
+          }
+        ]
       }
     },
     {
@@ -528,17 +545,18 @@
         "revision": "link-type-1"
       },
       "properties": {
-        "description": "Applies-To informational relationship; endpoint roles, pins and non-workflow semantics are specified in memory.md.",
+        "description": "Applies-To is a specialized Association; it inherits note and the informational contract. Endpoint/pin rules are specified in memory.md.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
-          "title": "Informational Memory Link properties",
-          "$comment": "Shared shape for six distinct Link Types. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "title": "Association properties",
+          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
-              "pattern": "\\S"
+              "pattern": "\\S",
+              "description": "Optional explanation of this relationship, distinct from the Memory body."
             }
           },
           "additionalProperties": true
@@ -610,7 +628,22 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/applies-to-conforms-association",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/memory-applies-to",
+            "target": {
+              "uri": "https://example.org/memory-types/association",
+              "revision": "association-contract-1"
+            },
+            "properties": {}
+          }
+        ]
       }
     },
     {
@@ -621,17 +654,18 @@
         "revision": "link-type-1"
       },
       "properties": {
-        "description": "Supports informational relationship; endpoint roles, pins and non-workflow semantics are specified in memory.md.",
+        "description": "Supports is a specialized Association; it inherits note and the informational contract. Endpoint/pin rules are specified in memory.md.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
-          "title": "Informational Memory Link properties",
-          "$comment": "Shared shape for six distinct Link Types. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "title": "Association properties",
+          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
-              "pattern": "\\S"
+              "pattern": "\\S",
+              "description": "Optional explanation of this relationship, distinct from the Memory body."
             }
           },
           "additionalProperties": true
@@ -698,7 +732,22 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/supports-conforms-association",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/memory-supports",
+            "target": {
+              "uri": "https://example.org/memory-types/association",
+              "revision": "association-contract-1"
+            },
+            "properties": {}
+          }
+        ]
       }
     },
     {
@@ -709,17 +758,18 @@
         "revision": "link-type-1"
       },
       "properties": {
-        "description": "Challenges informational relationship; endpoint roles, pins and non-workflow semantics are specified in memory.md.",
+        "description": "Challenges is a specialized Association; it inherits note and the informational contract. Endpoint/pin rules are specified in memory.md.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
-          "title": "Informational Memory Link properties",
-          "$comment": "Shared shape for six distinct Link Types. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "title": "Association properties",
+          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
-              "pattern": "\\S"
+              "pattern": "\\S",
+              "description": "Optional explanation of this relationship, distinct from the Memory body."
             }
           },
           "additionalProperties": true
@@ -786,7 +836,22 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/challenges-conforms-association",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/memory-challenges",
+            "target": {
+              "uri": "https://example.org/memory-types/association",
+              "revision": "association-contract-1"
+            },
+            "properties": {}
+          }
+        ]
       }
     },
     {
@@ -797,17 +862,18 @@
         "revision": "link-type-1"
       },
       "properties": {
-        "description": "Supersedes informational relationship; endpoint roles, pins and non-workflow semantics are specified in memory.md.",
+        "description": "Supersedes is a specialized Association; it inherits note and the informational contract. Endpoint/pin rules are specified in memory.md. Current target replaces a continuing Memory identity; exact target replaces a selected edition. Neither deletes or redirects the predecessor.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
-          "title": "Informational Memory Link properties",
-          "$comment": "Shared shape for six distinct Link Types. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "title": "Association properties",
+          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
-              "pattern": "\\S"
+              "pattern": "\\S",
+              "description": "Optional explanation of this relationship, distinct from the Memory body."
             }
           },
           "additionalProperties": true
@@ -874,7 +940,22 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/supersedes-conforms-association",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/memory-supersedes",
+            "target": {
+              "uri": "https://example.org/memory-types/association",
+              "revision": "association-contract-1"
+            },
+            "properties": {}
+          }
+        ]
       }
     }
   ],
@@ -946,6 +1027,76 @@
       "target": {
         "uri": "https://example.org/memory-types/memory",
         "revision": "memory-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/guidance-conforms-association",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/memory-guidance",
+      "target": {
+        "uri": "https://example.org/memory-types/association",
+        "revision": "association-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/applies-to-conforms-association",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/memory-applies-to",
+      "target": {
+        "uri": "https://example.org/memory-types/association",
+        "revision": "association-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/supports-conforms-association",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/memory-supports",
+      "target": {
+        "uri": "https://example.org/memory-types/association",
+        "revision": "association-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/challenges-conforms-association",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/memory-challenges",
+      "target": {
+        "uri": "https://example.org/memory-types/association",
+        "revision": "association-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/supersedes-conforms-association",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/memory-supersedes",
+      "target": {
+        "uri": "https://example.org/memory-types/association",
+        "revision": "association-contract-1"
       },
       "properties": {}
     }

@@ -9,7 +9,8 @@ The accepted product contract should supply the source for a later BDP mapping.
 ## What is retained
 
 The graph contains six illustrative Bead-Type definitions and six Link-Type
-definitions, with five recorded specialization-to-Memory declarations. Namespaces
+definitions, with five specialization-to-Memory and five specialization-to-Association
+declarations. Namespaces
 and revision tokens are examples. Property schemas mirror the product authoring
 artifacts; repeated copies must stay identical. The `$id` inside a JSON Schema is
 a technical schema identifier, not a field on a Memory Bead.
@@ -24,8 +25,10 @@ registries, installation, public Type editing or a general conformance engine.
 The product now uses body for the primary content of every Memory Type. Its child
 schemas need not add different required fields. The exploratory graph's property
 copies reflect this choice; semantic Type meaning does not follow from structural
-schema differences. The product's shared informational-Link contract likewise does
-not create an extra public nominal parent in this graph.
+schema differences. Association is directly authorable and is the common Link Type;
+the five other Link Types declare conformance to it and inherit optional note.
+Family selection includes conforming Types; exact Association selection remains
+distinct. This does not add a seventh Link Type or qualify a runtime query engine.
 
 ## Broader endpoint experiment
 

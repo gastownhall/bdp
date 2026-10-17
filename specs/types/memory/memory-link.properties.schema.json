@@ -1,13 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
-  "title": "Informational Memory Link properties",
-  "$comment": "Shared shape for six distinct Link Types. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+  "title": "Association properties",
+  "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
   "type": "object",
   "properties": {
     "note": {
       "type": "string",
-      "pattern": "\\S"
+      "pattern": "\\S",
+      "description": "Optional explanation of this relationship, distinct from the Memory body."
     }
   },
   "additionalProperties": true

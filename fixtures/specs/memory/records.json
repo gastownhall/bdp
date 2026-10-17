@@ -271,7 +271,9 @@
       },
       "source": "https://example.org/project/beads/decision",
       "target": "https://example.org/project/beads/work-issue",
-      "properties": {},
+      "properties": {
+        "note": "Background knowledge for the supplier work."
+      },
       "metadata": {}
     },
     {
@@ -286,7 +288,9 @@
         "uri": "https://example.org/project/beads/decision",
         "revision": "decision-r1"
       },
-      "properties": {},
+      "properties": {
+        "note": "This new decision replaces the cited edition for the next quarter."
+      },
       "metadata": {}
     },
     {
@@ -300,6 +304,20 @@
       "target": "https://example.org/project/beads/work-issue",
       "properties": {
         "note": "This procedure applies to the housing B work."
+      },
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/replacement-of-identity",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/memory-supersedes",
+        "revision": "supersedes-contract-1"
+      },
+      "source": "https://example.org/project/beads/decision-replacement",
+      "target": "https://example.org/project/beads/decision",
+      "properties": {
+        "note": "This decision replaces the predecessor Memory as a continuing identity."
       },
       "metadata": {}
     }

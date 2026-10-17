@@ -31,6 +31,7 @@ NAMES = {"memory": "memory.properties.schema.json",
          "link": "memory-link.properties.schema.json"}
 LINK_NAMES = {"association", "memory-guidance", "memory-applies-to",
               "memory-supports", "memory-challenges", "memory-supersedes"}
+ASSOCIATION = (K + "association", "association-contract-1")
 SHARED_NAMES = ("type-definition.properties.schema.json",
                 "bead-type-definition.properties.schema.json",
                 "link-type-definition.properties.schema.json",
@@ -139,17 +140,22 @@ if args.with_bdp_exploration:
         require(definition["properties"]["propertiesSchema"] == schemas[name],
                 ("Embedded schema differs from owned artifact", definition["id"]))
         recorded = definition["ownedLinks"][F + "conforms-to"]
+        parent = None
+        if is_bead and name in CHILDREN:
+            parent = MEMORY
+        elif not is_bead and definition["id"] != ASSOCIATION[0]:
+            parent = ASSOCIATION
         for declaration in recorded:
             require(declaration["source"] == definition["id"], "Wrong declaration owner")
             require(exact(declaration["type"]) == (F + "conforms-to", "conformance-1"),
                     "Unexpected declaration affiliation")
-            require(exact(declaration["target"]) == MEMORY, "Wrong Memory ancestor pin")
+            require(exact(declaration["target"]) == parent, "Wrong family ancestor pin")
             errors = list(shared_validators["conforms-to.properties.schema.json"].iter_errors(declaration["properties"]))
             require(not errors, "Invalid declaration properties")
             owned_declarations.append(declaration)
-        require(len(recorded) == (1 if name in CHILDREN else 0), "Unexpected direct conformance")
+        require(len(recorded) == (1 if parent else 0), "Unexpected direct conformance")
     require(owned_declarations == fixture["declarations"], "Recorded declarations differ from exposed copies")
-    require(len(owned_declarations) == 5, "Expected five direct domain declarations")
+    require(len(owned_declarations) == 10, "Expected five Memory and five Association declarations")
 
 
     def closure(pin, active=()):
@@ -164,6 +170,9 @@ if args.with_bdp_exploration:
     for name in CHILDREN:
         require(MEMORY in closure((K + name, name + "-contract-1")),
                 ("Missing recorded Memory conformance", name))
+    for name in LINK_NAMES - {"association"}:
+        pin = next(pin for pin in by_pin if pin[0] == K + name)
+        require(ASSOCIATION in closure(pin), ("Missing recorded Association conformance", name))
     require(by_pin[MEMORY]["properties"]["ownsOutgoing"] == [{"any": True}],
             "Base Memory must own every outgoing Link")
 
@@ -178,8 +187,10 @@ if args.with_bdp_exploration:
     for link in records["links"]:
         pin = exact(link["type"])
         require(pin in by_pin, ("Unknown Link affiliation", pin))
-        errors = list(validators["link"].iter_errors(link["properties"]))
-        require(not errors, (link["id"], [e.message for e in errors]))
+        for inherited in closure(pin):
+            schema = by_pin[inherited]["properties"]["propertiesSchema"]
+            errors = list(validator(schema).iter_errors(link["properties"]))
+            require(not errors, (link["id"], inherited, [e.message for e in errors]))
 
     external = read(FIXTURES / "bdp-exploration.json")["links"]
     for link in external:

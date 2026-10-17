@@ -192,10 +192,16 @@ receipts belong to the consumer; the product reports its actual delivery bounds.
 
 ## 4. Memory Link Types
 
-“Informational” names the common behavior of the Memory Link family here. It does
-not introduce another Bead kind. All six concrete Link Types share the contract
-below; the release does not need a separately authorable seventh Link Type merely
-to share these rules.
+**Association is the common Link Type**, usable directly for a general informational
+connection involving Memory. Guidance, AppliesTo, Supports, Challenges and Supersedes
+are specialized Associations, just as Observation and the other Memory specializations
+are Memories. There are six authorable Link Types, including Association itself.
+
+Selecting the Association family includes its specializations. Once conformance-aware
+queries are supported, this selection includes any conforming Type without enumerating
+a closed union. Selecting exactly Association remains a separate operation. This is
+the intended selection behavior, not a requirement to ship a general conformance
+query engine in the first Memory release.
 
 A Link is directional and has its own identity, an explicit Type, source and target,
 properties and metadata. Its Type determines the meaning of the relationship.
@@ -209,18 +215,20 @@ The presence of an Issue endpoint does not make the Link a workflow dependency.
 - Each concrete Link preserves its own endpoint and pin rules. A shared contract
   does not let a caller combine the source from one permitted pair with the target
   from another.
-- All six accept an optional nonblank `note` property explaining the relationship.
-  Open properties and metadata preserve additional annotations. There are no
-  additional mandatory relationship-specific properties in this release proposal.
+- Association defines an optional nonblank `note` property explaining the relationship;
+  all five specializations inherit it. The note is about the Link, while the Memory's
+  body carries its knowledge. Open properties and metadata preserve additional
+  annotations. There are no other declared Link properties in this release proposal.
 - Changes to an outgoing Link of a Memory version that source atomically. They do
   not version the target merely because it has an incoming Link. Historical outgoing
   sets stay attached to their original source revisions.
 - Parallel claims and cycles are permitted. A Link from an identity to itself is
   refused, even if its two endpoints use different revision selections.
 
-The concrete Types remain distinct. Association is one of the six, not their common
-parent. Sharing this contract does not introduce a seventh authorable Link Type or
-change the existing Dependency contract.
+The specialized Types retain their own meanings and narrower endpoint/pin rules
+while satisfying the Association contract. The common property need not be required
+to justify the hierarchy: shared behavior is also part of the contract. This does
+not change the existing Dependency contract.
 
 ### 4.2 Allowed endpoint pairs
 
@@ -232,14 +240,18 @@ refer to Beads in the same Scope. A reversed arrow is a different relationship.
 | --- | --- | --- |
 | Association | Memory → Issue<br>Issue → Memory<br>Memory → Memory | A navigable connection involving knowledge. |
 | Guidance | Issue → Memory | Knowledge someone should consult for this work; not proof that they read or used it. |
-| AppliesTo | Memory → Issue<br>Memory → Memory | The source claims relevance to the target under its stated conditions. |
+| AppliesTo | Memory → Issue<br>Memory → Memory | The source applies to the Bead identified by the target Reference. |
 | Supports | Memory → Memory | The source offers support for the selected target content. |
 | Challenges | Memory → Memory | The source offers a reason to reconsider the selected target content. |
-| Supersedes | Memory → Memory | The source offers a replacement for the selected target content. |
+| Supersedes | Memory → Memory | The source offers a replacement for the target Memory or a selected edition of it. |
 
 For example, Issue→Procedure Guidance is allowed. Procedure→Issue Guidance is not;
 Procedure→Issue AppliesTo is allowed. Association cannot join two Issues without a
 Memory endpoint. These are endpoint rules, not rules about Issue workflow state.
+
+For AppliesTo, the target Reference identifies what the source applies to; no extra
+property repeats that target. The inherited note can explain the relationship.
+No separate structured applicability property is selected for the Link.
 
 The relationships are based on the Memory proposal and the field/office scenarios.
 Full reconciliation with existing Dependency `related`, `relates-to` and `supersedes`
@@ -261,7 +273,8 @@ The caller supplies an exact revision when pinning; an omitted revision means cu
 | Link Type | Target selection | Who chooses? |
 | --- | --- | --- |
 | Association, Guidance, AppliesTo | Current by default; exact allowed | The author chooses whether navigation should follow current knowledge or cite a particular edition. |
-| Supports, Challenges, Supersedes | Exact target required | The author selects the revision being supported, challenged or replaced. A bare target refuses; the system does not silently pin current content. |
+| Supersedes | Current by default; exact allowed | The author chooses replacement of the target Memory as a continuing identity or replacement of one particular edition. |
+| Supports, Challenges | Exact target required | The author selects the revision being supported or challenged. A bare target refuses; the system does not silently pin current content. |
 
 Local current endpoints must exist and satisfy the permitted roles. Exact endpoints
 must resolve to retained states satisfying those roles at that revision. A later
@@ -274,6 +287,24 @@ changes create new current state and preserve old snapshots. Operations that can
 honor that contract refuse explicitly. Link-ID edits, removal and same-target-identity
 re-pinning preserve identity where supported; re-targeting to a different identity
 is a separate operation contract, not implied by re-pinning.
+
+### 4.4 Revision versus replacement
+
+Correcting or extending the same Memory creates a new revision under its existing
+identity. Offering a different Memory as its replacement creates a distinct identity
+and an explicit Supersedes Link from the new Memory to the predecessor. Both paths
+are supported; neither requires a special replacement Bead Type.
+
+A current target means “this Memory replaces that Memory” as a continuing identity;
+an exact target means “this Memory replaces that particular edition.” The stored
+Reference preserves the author's selection. A current target may expose later
+content; an exact target never follows it. The normal deletion rules apply: floating
+Links are removed on deletion, while valid pinned citations survive.
+
+Supersedes records a replacement claim. It does not delete the predecessor, redirect
+its identity, rewrite its incoming Links or automatically declare either Memory true.
+The predecessor and its retained revisions remain independently addressable. Source
+creation and Link authoring use the shared operations and source-version rules.
 
 ## 5. Updates, Type changes and lifecycle
 
@@ -414,9 +445,11 @@ are covered. A Policy body records the supplier-assessment rule, optionally nami
 its claimed authority. No `choice` or `rule` field repeats either body.
 
 An assessment Observation may Support the exact Decision revision. A later Decision
-may Supersede that same revision for new orders. The older decision and the reasons
-recorded at the time remain addressable. A source list records what the writer says
-informed a particular revision; later incoming support does not rewrite that list.
+with a new identity may Supersede the earlier Decision, following its current state
+or explicitly pinning the replaced edition. Revising the existing Decision under the
+same identity is also supported. The older decision and the reasons recorded at the
+time remain addressable. A source list records what the writer says informed a
+particular revision; later incoming support does not rewrite that list.
 
 ## 8. Acceptance and remaining decisions
 
@@ -436,9 +469,13 @@ records source, decision, test and release evidence separately.
 | Repeated unchanged Type/properties | No-op after guard checks. |
 | Stale/invalid retype or injected write failure | No partial property, owned-Link, allocation or revision effects. |
 | Issue→Memory Guidance and Memory→Issue AppliesTo | Admit valid roles without changing Issue workflow or loading bodies. |
+| Association family versus exact Type | Family includes all conforming specializations when supported; exact selection returns only Association, without a closed-union requirement. |
+| Association or specialization with note | Preserve the inherited optional note; absence is valid, present whitespace-only note refuses. |
 | Association Issue→Issue | Refuse: no Memory endpoint. |
 | Same endpoint identity under different pins | Refuse self-Link. Parallel distinct claims and ordinary cycles remain allowed. |
-| Supports/Challenges/Supersedes with bare target | Refuse; require author-selected exact target. |
+| Supports/Challenges with bare target | Refuse; require author-selected exact target. |
+| New Memory Supersedes a different Memory | Accept current or exact target as selected; distinct source identity, no implicit deletion, redirect or incoming-Link rewrite. |
+| Revise the same Memory | Keep identity and create a revision; no replacement identity or Supersedes Link is implied. |
 | Exact target changes or is deleted | Pin stays on original retained state; no current fallback. |
 | Outgoing Memory-Link edit/remove/re-pin | Stable Link ID as supported, atomic source revision; target unchanged. |
 | Delete Memory with floating and pinned incident Links | Remove/report floating Links, retain valid pins/history and terminal evidence. |
@@ -556,8 +593,8 @@ and shared Inception placement need explicit upstream alignment where they diffe
 | R14 | Guards before no-op, typed conflicts, atomic failure and actual predecessor disclosure. |
 | R15 | Claim only the selected Memory workflows with their required History outcomes. |
 | R16 | Accurate unavailable/gone reasons; no current fallback; removal producer scope open. |
-| R17 | Six supplied informational Link Types; Association/open-vocabulary differences explicit. |
-| R18 | Current and exact references, author-selected citation pins. |
+| R17 | Association is the usable common Type; five specializations inherit its informational contract and note. Family selection is open to conforming Types; open-vocabulary differences remain explicit. |
+| R18 | Current and exact references, author-selected citation pins; Supersedes supports identity/current replacement and edition-specific replacement. |
 | R19 | Validate local roles/current/retained targets; external graph resolution deferred. |
 | R20 | Remove floating incident Links, preserve valid pins and historical sets; no restore re-add. |
 | R21 | Informational Links grant no authority or automatic context expansion. |
