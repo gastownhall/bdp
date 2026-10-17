@@ -501,10 +501,21 @@ export function createTransactionHttpHandler(
       url.pathname === `${scopeUrl.pathname}receipts`;
     const eventRequest = receiptRoute ? undefined : transactionEventRequest(url, scope);
     if (eventRequest) {
+      const media = selectChangefeedMedia(request.headers.get("accept"));
+      const initialFiniteScope =
+        eventRequest.source.kind === "scope" &&
+        eventRequest.source.url === new URL("events/", scope).href &&
+        eventRequest.after === undefined &&
+        !url.searchParams.has("after") &&
+        media === "json" &&
+        !request.headers.has("last-event-id") &&
+        (lastEventIds?.length ?? 0) === 0;
       const minimum = hasMinimumControls(request)
-        ? (transactionMinimumHeaders(request.headers) ?? "unsupported")
+        ? ((initialFiniteScope
+            ? currentReadMinimumHeaders(request.headers)
+            : transactionMinimumHeaders(request.headers)) ?? "unsupported")
         : undefined;
-      if (selectChangefeedMedia(request.headers.get("accept")) !== "sse") {
+      if (media !== "sse") {
         const observed = await service.events(
           eventRequest.source.url,
           eventRequest.after,
