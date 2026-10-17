@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   malformedTransactionMinimumHeaders,
+  snapshotCurrentReadMinimum,
+  currentReadMinimumHeaders,
+  checkCurrentReadMinimum,
+  TransactionMinimumUnproved,
+  TransactionMinimumUnsupported,
   snapshotTransactionMinimum,
   transactionMinimumHeaders,
   checkTransactionMinimum,
@@ -127,4 +132,108 @@ it("distinguishes closed minimum receiving syntax from supported position identi
       ["genesis", "pos-0", "pos-1", "pos-9007199254740991"].includes(value),
     );
   }
+});
+
+it("captures lexical current minimums without widening strict consumers or invoking accessors", () => {
+  for (const value of ["opaque", "pos-01", "pos-9007199254740992"]) {
+    const supplied = { ...tuple(), minimumPosition: value };
+    expect(snapshotCurrentReadMinimum(supplied)).toEqual(supplied);
+    expect(Object.isFrozen(snapshotCurrentReadMinimum(supplied))).toBe(true);
+    expect(() => snapshotTransactionMinimum(supplied)).toThrow("unsupported");
+    expect(
+      currentReadMinimumHeaders(
+        new Headers({
+          "bdp-scope-epoch": "epoch",
+          "bdp-authorization-view": "view",
+          "bdp-minimum-scope-position": value,
+        }),
+      ),
+    ).toEqual(supplied);
+    expect(() => checkCurrentReadMinimum(supplied, context, true)).toThrow(
+      TransactionMinimumUnproved,
+    );
+    for (const foreign of [{ scopeEpoch: "other" }, { authorizationView: "other" }])
+      expect(() => checkCurrentReadMinimum({ ...supplied, ...foreign }, context, true)).toThrow(
+        TransactionMinimumUnsupported,
+      );
+    expect(() => checkCurrentReadMinimum(supplied, context, false)).toThrow(
+      TransactionMinimumUnsupported,
+    );
+  }
+  const getter = vi.fn(() => "opaque");
+  for (const value of [
+    new Proxy(tuple(), { get: getter }),
+    { ...tuple(), extra: 1 },
+    Object.defineProperty({ ...tuple() }, "minimumPosition", { get: getter }),
+    { ...tuple(), minimumPosition: "two tokens" },
+    { ...tuple(), minimumPosition: undefined },
+  ])
+    expect(() => snapshotCurrentReadMinimum(value)).toThrow();
+  expect(getter).not.toHaveBeenCalled();
+  expect(() =>
+    checkCurrentReadMinimum(
+      { ...tuple(), minimumPosition: "opaque" },
+      { ...context, scopePosition: "opaque" },
+      true,
+    ),
+  ).toThrow("invalid owner");
+});
+it("waits for unproved current eligibility with one deadline and preserves terminal failures", async () => {
+  let tick = 0,
+    attempts = 0;
+  const final = { ...context, scopePosition: "pos-2" };
+  await expect(
+    waitForTransactionMinimum(
+      () => {
+        attempts++;
+        throw new TransactionMinimumUnproved(attempts === 1 ? context : final);
+      },
+      {
+        budgetMs: 7,
+        now: () => tick,
+        wait: async (ms) => {
+          tick += ms;
+        },
+      },
+    ),
+  ).rejects.toMatchObject({ reason: "catch-up-timeout", context: final });
+  expect([tick, attempts]).toEqual([7, 3]);
+  const controller = new AbortController();
+  let waits = 0;
+  await expect(
+    waitForTransactionMinimum(
+      () => {
+        throw new TransactionMinimumUnproved(context);
+      },
+      {
+        budgetMs: 7,
+        now: () => 0,
+        wait: async () => {
+          waits++;
+          controller.abort();
+        },
+      },
+      controller.signal,
+    ),
+  ).rejects.toThrow("abort");
+  expect(waits).toBe(1);
+  const fault = new Error("unproved owner fault"),
+    wait = vi.fn();
+  await expect(
+    waitForTransactionMinimum(
+      () => {
+        throw fault;
+      },
+      { wait },
+    ),
+  ).rejects.toBe(fault);
+  await expect(
+    waitForTransactionMinimum(
+      () => {
+        throw new TransactionMinimumUnsupported();
+      },
+      { wait },
+    ),
+  ).rejects.toBeInstanceOf(TransactionMinimumUnsupported);
+  expect(wait).not.toHaveBeenCalled();
 });

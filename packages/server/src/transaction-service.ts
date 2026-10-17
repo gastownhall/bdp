@@ -5,6 +5,7 @@ import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
 import {
   checkTransactionMinimum,
   snapshotTransactionMinimum,
+  snapshotCurrentReadMinimum,
   waitForTransactionMinimum,
   type TransactionMinimum,
   type TransactionMinimumWaitOptions,
@@ -22,6 +23,7 @@ import {
 import {
   createTransactionReadPlane,
   captureTransactionReadDeliveryOptions,
+  captureTransactionReadRequest,
   type TransactionReadOptions,
 } from "./transaction-read.js";
 import {
@@ -379,20 +381,21 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     },
     readAtMinimum(principal: Parameters<typeof read.readFor>[0], minimum: TransactionMinimum) {
       check();
-      const facet = read.minimumFor(principal, snapshotTransactionMinimum(minimum));
+      const facet = read.minimumFor(principal, snapshotCurrentReadMinimum(minimum));
       const guarded: ReturnType<typeof read.readFor> = {
         perform: (request, receiving) =>
           run(() => {
+            const capturedRequest = captureTransactionReadRequest(request);
             let captured: ReturnType<typeof captureTransactionReadDeliveryOptions>;
             try {
               captured = captureTransactionReadDeliveryOptions(receiving);
             } catch {
               // Preserve authority receiving errors without reading a caller
               // signal getter or allowing an unconditioned successful fallback.
-              return facet.perform(request, receiving);
+              return facet.perform(capturedRequest, receiving);
             }
             return waitForTransactionMinimum(
-              () => facet.perform(request, captured),
+              () => facet.perform(capturedRequest, captured),
               minimumReads,
               captured?.signal,
             );
@@ -638,10 +641,15 @@ export function createTransactionService(owner: Owner, options: TransactionServi
               projectTransactionEntry(entry, policy.readPolicy === "all-visible"),
             ),
           };
+          // Traverse frozen parents too: this observation guarantees every descendant is frozen.
           const freeze = (value: unknown): void => {
-            if (value !== null && typeof value === "object") {
-              for (const child of Object.values(value)) freeze(child);
-              Object.freeze(value);
+            const pending: unknown[] = [value];
+            while (pending.length) {
+              const node = pending.pop();
+              if (node !== null && typeof node === "object") {
+                for (const child of Object.values(node)) pending.push(child);
+                Object.freeze(node);
+              }
             }
           };
           freeze(body);

@@ -49,7 +49,6 @@ export type TransactionSubmissionResult =
       readonly context?: TransactionReadContext;
     }
   | { readonly kind: "not-acceptable"; readonly context?: TransactionReadContext }
-  | { readonly kind: "development-limit"; readonly message: string }
   | {
       readonly kind: "refused";
       readonly status: 400 | 401 | 403 | 409 | 413 | 503;
@@ -140,8 +139,6 @@ export async function submitTransaction(
   )
     throw new Error("admission refusal lost same-entry context");
   switch (result.kind) {
-    case "development-limit":
-      return result;
     case "conflict":
       return {
         kind: "refused",

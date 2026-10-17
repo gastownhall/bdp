@@ -61,7 +61,6 @@ import {
   TRANSACTION_RUNTIME_LIMITS,
   TRANSACTION_MAXIMUM_OPERATIONS,
   assertPreparedTransaction,
-  transactionDepthRefusal,
   assertPreparedTransactionSequence,
   normalizeTransaction,
   evaluateTransaction,
@@ -82,6 +81,18 @@ import {
   type DependencyTemplate,
   type ReferenceBindings,
 } from "./transaction-dependencies.js";
+
+/** Freeze the complete parsed receipt graph without recursive depth limits. */
+function freezeReceiptValue(value: unknown): void {
+  const pending: unknown[] = [value];
+  while (pending.length) {
+    const node = pending.pop();
+    if (node !== null && typeof node === "object") {
+      for (const child of Object.values(node)) pending.push(child);
+      Object.freeze(node);
+    }
+  }
+}
 
 // eventPacket structurally reads one group; changing the captured bound must
 // fail closed until that algorithm and its count evidence are deliberately revised.
@@ -147,7 +158,6 @@ export interface TransactionReceivingControls {
 }
 export type TransactionReceivingAdmission =
   | TransactionAdmission
-  | { readonly kind: "development-limit"; readonly message: string }
   | { readonly kind: "not-acceptable"; readonly context?: TransactionReadContext }
   | { readonly kind: "operation-limit"; readonly context?: TransactionReadContext }
   | {
@@ -547,13 +557,12 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   function sweep(now: number) {
     snapshots.expire(now, readContext());
     const counts = { completedExpired: 0, failedForgotten: 0 };
-    // This private composition has no population/workload qualification. Keep
-    // only rows whose detail can expire in the scan; compact receipts stay bound.
+    // SQLite JSON functions reject valid deep receipt text. Filter using the
+    // same JS decoder as expiry; compact receipts remain bound and unchanged.
     for (const stored of db
-      .prepare(
-        "SELECT * FROM receipts WHERE owner IS NULL AND json_extract(receipt,'$.detail')='available'",
-      )
+      .prepare("SELECT * FROM receipts WHERE owner IS NULL")
       .all() as unknown as Row[]) {
+      if (parseReceipt(stored.receipt).detail !== "available") continue;
       const result = expireRow(stored, now);
       if (result.change) counts[result.change]++;
     }
@@ -895,12 +904,6 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           cause: { id: receipt.id, key: receipt.idempotencyKey, field },
         });
     }
-    const freeze = (value: unknown): void => {
-      if (value !== null && typeof value === "object") {
-        for (const child of Object.values(value)) freeze(child);
-        Object.freeze(value);
-      }
-    };
     const prefix = receiptPrefix(receipt); // Validate retained page plan even when every entry is withheld.
     const projection = projectTransactionReceipt(
       receipt,
@@ -914,7 +917,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             next: prefix.next,
           }
         : projection;
-    freeze(projected);
+    freezeReceiptValue(projected);
     return Object.freeze({ receipt: projected, context });
   }
   // Called only inside the guarded owner's transaction. Principal binding is
@@ -1159,11 +1162,6 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         : comparison === "equal"
           ? { kind: "existing", receipt: parseReceipt(prior.receipt) }
           : { kind: "comparison-pending" };
-    }
-    const depthRefusal = transactionDepthRefusal(batch);
-    if (!prior && depthRefusal !== undefined) {
-      if (controls === undefined) throw new TransactionDevelopmentLimitError(depthRefusal);
-      return { kind: "development-limit", message: depthRefusal };
     }
     const normalized = template
       ? undefined
@@ -1502,8 +1500,6 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         throw new TransactionAuthorizationFailure("forbidden", readContext());
       const admission = atomic(() => {
         const result = admitKey(principal, key, batch, false, undefined, undefined, receiving);
-        if (result.kind === "development-limit" && controls === undefined)
-          throw new TransactionDevelopmentLimitError(result.message);
         if (result.kind === "operation-limit" && controls === undefined)
           throw new TransactionDevelopmentLimitError("development transaction operation limit");
         if (result.kind === "selector-limit" && controls === undefined)
@@ -2262,19 +2258,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               projectTransactionEntry(entry, authorization.readPolicy === "all-visible"),
             );
           // Freeze the selected page entries before they escape the owner entry.
-          const freeze = (value: unknown): void => {
-            if (value && typeof value === "object") {
-              Object.values(value).forEach(freeze);
-              Object.freeze(value);
-            }
-          };
           const next = plan.pages[index + 1];
           const page = {
             receipt: parentId,
             results,
             next: next ? pageUrl(parentId, next.token) : null,
           };
-          freeze(page);
+          freezeReceiptValue(page);
           return Object.freeze({ kind: "page" as const, page, context });
         }),
       );
