@@ -1548,10 +1548,10 @@ it("serves initial finite Scope Event opaque minima through bounded waiting", as
       "catch-up-timeout",
       true,
     );
-    await pair(`events/?after=${encodeURIComponent(after)}`, opaque, 500);
+    await pair(`events/?after=${encodeURIComponent(after)}`, opaque, 503, "catch-up-timeout", true);
     await pair("beads/a?view=events", opaque, 503, "catch-up-timeout", true);
-    await pair("events/", { ...opaque, "last-event-id": after }, 500);
-    await pair("events/", { ...opaque, accept: "image/png" }, 500);
+    await pair("events/", { ...opaque, "last-event-id": after }, 503, "catch-up-timeout", true);
+    await pair("events/", { ...opaque, accept: "image/png" }, 503, "catch-up-timeout", true);
     await pair("events/", { "bdp-minimum-scope-position": "opaque" }, 400, "malformed-request");
     await pair("events/?unsupported=x", opaque, 400, "invalid-parameter");
     await pair("beads/missing?view=events", opaque, 404, "resource-not-found", true);
@@ -1850,12 +1850,36 @@ it("serves initial finite Bead Event opaque minima with retained identity and ro
       "foreign-view",
       true,
     );
-    // Initial Link Events now wait; stream, continuation and media exclusions remain gaps.
+    // Current Event minima also wait across stream, continuation and media selection.
     await pair("links/l?view=events", opaque, 503, "catch-up-timeout", true);
-    await pair("beads/a?view=events", { ...opaque, accept: "text/event-stream" }, 500);
-    await pair(`beads/a?view=events&after=${encodeURIComponent(after)}`, opaque, 500);
-    await pair("beads/a?view=events", { ...opaque, "last-event-id": after }, 500);
-    await pair("beads/a?view=events", { ...opaque, accept: "image/png" }, 500);
+    await pair(
+      "beads/a?view=events",
+      { ...opaque, accept: "text/event-stream" },
+      503,
+      "catch-up-timeout",
+      true,
+    );
+    await pair(
+      `beads/a?view=events&after=${encodeURIComponent(after)}`,
+      opaque,
+      503,
+      "catch-up-timeout",
+      true,
+    );
+    await pair(
+      "beads/a?view=events",
+      { ...opaque, "last-event-id": after },
+      503,
+      "catch-up-timeout",
+      true,
+    );
+    await pair(
+      "beads/a?view=events",
+      { ...opaque, accept: "image/png" },
+      503,
+      "catch-up-timeout",
+      true,
+    );
     await pair(
       "beads/a?view=events",
       { "bdp-minimum-scope-position": "opaque" },
@@ -1907,7 +1931,7 @@ it("serves initial finite Bead Event opaque minima with retained identity and ro
       "catch-up-timeout",
       true,
     );
-    expect(responses.filter((response) => response.status === 503)).toHaveLength(10);
+    expect(responses.filter((response) => response.status === 503)).toHaveLength(18);
     expect(calls).toBe(37);
   } catch (error) {
     failures.push(error);
@@ -2201,11 +2225,35 @@ it("serves initial finite Link Event opaque minima with retained identity and ro
       "foreign-view",
       true,
     );
-    // Stream, continuation, reconnect and media exclusions remain private gaps.
-    await pair("links/l?view=events", { ...opaque, accept: "text/event-stream" }, 500);
-    await pair(`links/l?view=events&after=${encodeURIComponent(after)}`, opaque, 500);
-    await pair("links/l?view=events", { ...opaque, "last-event-id": after }, 500);
-    await pair("links/l?view=events", { ...opaque, accept: "image/png" }, 500);
+    // Current Event minima precede stream, continuation, reconnect and media selection.
+    await pair(
+      "links/l?view=events",
+      { ...opaque, accept: "text/event-stream" },
+      503,
+      "catch-up-timeout",
+      true,
+    );
+    await pair(
+      `links/l?view=events&after=${encodeURIComponent(after)}`,
+      opaque,
+      503,
+      "catch-up-timeout",
+      true,
+    );
+    await pair(
+      "links/l?view=events",
+      { ...opaque, "last-event-id": after },
+      503,
+      "catch-up-timeout",
+      true,
+    );
+    await pair(
+      "links/l?view=events",
+      { ...opaque, accept: "image/png" },
+      503,
+      "catch-up-timeout",
+      true,
+    );
     await pair(
       "links/l?view=events",
       { "bdp-minimum-scope-position": "opaque" },
@@ -2258,8 +2306,8 @@ it("serves initial finite Link Event opaque minima with retained identity and ro
       "catch-up-timeout",
       true,
     );
-    expect(responses.filter((response) => response.status === 503)).toHaveLength(8);
-    expect(responses.filter((response) => response.status === 500)).toHaveLength(8);
+    expect(responses.filter((response) => response.status === 503)).toHaveLength(16);
+    expect(responses.filter((response) => response.status === 500)).toHaveLength(0);
     expect(calls).toBe(35);
   } catch (error) {
     failures.push(error);

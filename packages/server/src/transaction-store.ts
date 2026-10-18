@@ -1671,6 +1671,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       sourceUrl: string,
       after?: string,
       supplied?: TransactionMinimum | "unsupported",
+      admission?: "current-event",
     ):
       | {
           readonly kind: "page";
@@ -1683,7 +1684,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         throw new TypeError("Event source and cursor must be strings");
       const source = eventSource(sourceUrl);
       const initialMinimumSource =
-        after === undefined &&
+        (after === undefined || admission === "current-event") &&
         (source.kind === "scope" || source.kind === "bead" || source.kind === "link");
       const minimum =
         supplied === undefined || supplied === "unsupported"
@@ -1699,8 +1700,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
         const context = readContext(),
           head = Number(context.scopePosition.slice(4));
-        // Initial Event minima refuse/wait before any group read. This entry
-        // cannot advance while scanning; after-bearing reads retain the strict check.
+        // Eligible current Event minima precede retained group reads. Direct after
+        // calls without current-event intent retain their strict minimum check.
         if (minimum !== undefined) {
           if (initialMinimumSource) checkCurrentReadMinimum(minimum, context, true);
           else checkTransactionMinimum(minimum, context);
@@ -1768,7 +1769,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       after?: string,
       supplied?: TransactionMinimum | "unsupported",
       invalidReconnect = false,
-      admission?: "initial-scope-sse",
+      admission?: "initial-scope-sse" | "current-event",
     ):
       | TransactionEventPacket
       | { readonly kind: "missing"; readonly context: TransactionReadContext }
@@ -1786,10 +1787,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         source.url === new URL("events/", scope).href &&
         after === undefined &&
         !invalidReconnect;
+      const currentEventMinimum =
+        admission === "current-event" &&
+        (source.kind === "scope" || source.kind === "bead" || source.kind === "link");
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
-          : initialScopeSseMinimum
+          : initialScopeSseMinimum || currentEventMinimum
             ? snapshotCurrentReadMinimum(supplied)
             : snapshotTransactionMinimum(supplied);
       return enter(() => {
@@ -1798,7 +1802,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
         const context = readContext();
         if (minimum !== undefined) {
-          if (initialScopeSseMinimum) checkCurrentReadMinimum(minimum, context, true);
+          if (initialScopeSseMinimum || currentEventMinimum)
+            checkCurrentReadMinimum(minimum, context, true);
           else checkTransactionMinimum(minimum, context);
         }
         if (invalidReconnect) throw new TransactionEventParameterError(undefined, context);
