@@ -429,7 +429,10 @@ that returns to the same exact definition revision. Check the complete conforman
 graph before accepting a Type for use. Multiple paths to a shared ancestor are
 not, by themselves, a cycle; diamond conformance remains permitted. This rule
 concerns conformance declarations, not recursive references within a JSON Schema.
-The required handling of repeated paths remains to specify.
+Declaration deduplication and qualifier/evidence identity across repeated paths
+remain to specify. This concerns which inherited declarations and requirements are
+the same; it does not reopen §5.3's rule that each instance Link counts once within
+a given arity constraint, regardless of how many conformance paths reach it.
 
 ### 3.9 Conformance qualifiers may only tighten
 
@@ -458,6 +461,18 @@ participate, under the tightening-only rule in §3.9 and transitive ownership
 matching in §5.7. The name here describes the selected relationship; production
 identity and bootstrap remain open; §2 supplies a candidate properties schema
 and seed definition.
+
+An admission dependency remains unresolved: suppose a proposed specialized Link
+Type S@1 owns a declaration targeting ConformsTo@1, but that declaration itself is
+typed S@1. Recognizing the Link as a conformance declaration then depends on the
+very conformance it is meant to establish. Mutually dependent specializations can
+produce the same problem without a cycle among their declared target edges.
+Exact target-edge acyclicity alone does not ground that recognition. The admission
+rule for these cases still needs a decision; this paragraph neither accepts the
+circular justification nor selects a blanket prohibition of definition-reference
+cycles. In particular, the trusted metatype reference loops in §2.3 are a distinct
+bootstrap case, not evidence that an ordinary declaration can justify its own
+recognition.
 
 The authoritative declarations for T@r are the Link records captured in that
 exact Type-definition Bead revision's owned-Link state. Creating, modifying or
@@ -1049,10 +1064,10 @@ The remaining decisions are narrower:
 | --- | --- | --- |
 | Retyping and affected graph | Guarded explicit whole-reference replacement; complete-result validation; Type-only changes version; history stays immutable | Precise floating-endpoint revalidation and ownership transitions; which checks defer to commit; coordinated Core/Write requests and diagnostics |
 | Schema admission | All inherited requirements apply without precedence; shared meanings survive conformance | Dialect/vocabulary floor, immutable schema-reference closure, formats, mandatory contradiction checks and unsupported semantics; no promise of complete satisfiability proof |
-| Exact conformance closure | Exact target pins, implementation-computed closure, no exact-revision cycles; diamonds allowed | Deterministic handling/identity of repeated declarations and qualifiers, including multiple revisions of one ancestor |
+| Exact conformance closure | Exact target pins, implementation-computed closure, no exact-revision cycles; diamonds allowed | Deterministic identity/deduplication of repeated declarations and qualifiers, including multiple revisions of one ancestor; distinct from the settled once-per-instance-Link count rule |
 | Constraint evolution | §§5.4, 5.6 and 5.8 select local activation with cross-revision family populations and per-Link acyclicity | Precise inherited-declaration activation and selector/diagnostic syntax; no Scope-wide minimum over installed definitions |
 | Definition resolution | Registered exact definitions and their pinned conformance closure are trusted local dependencies, including globally addressed definitions (§7.2); arbitrary external graph resources remain opaque | Registration/installation mechanics, intrinsic ConformsTo descriptor encoding and exposure through ordinary Scope reads/listing; no identity rewriting or origin-write authority |
-| Bootstrap | Type, BeadType, LinkType and ConformsTo; no ordinary client mutation of intrinsic definitions | Production identities, trusted exact revision allocation including self-affiliation, upgrade and retained-history contract |
+| Bootstrap | Type, BeadType, LinkType and ConformsTo; no ordinary client mutation of intrinsic definitions | Production identities, trusted exact revision allocation including self-affiliation, grounding specialized declaration recognition (§3.10), upgrade and retained-history contract |
 | Availability and lifecycle | Registration by valid creation/installation; no implicit upgrade; default require-registration; explicit auto-install mode | Registration granularity, permissions, unpinned-write revision selection, removal/retention and immutable schema closure |
 | Revision compatibility | No compatibility inferred from identity, age or SemVer; exact and identity-wide selectors are distinct | Compatibility-family promise, same-identity revision conformance, optional version-label publication semantics |
 | Definition representation | Descriptor fields plus owned ConformsTo Links; candidate schemas and final-state seed | Final field requiredness and selector syntax; installable graph creation/preservation format remains §7.1 work |
