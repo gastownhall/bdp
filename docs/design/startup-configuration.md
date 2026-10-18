@@ -702,3 +702,56 @@ receiptMaximumItems, snapshot limits/token policy, runtime limits, contract
 identity, Scope/Types and current policy/view/recovery **before listen**, closing
 any acquired owner on failure. Ordinary Write startup/admission remains separate;
 this loader is neither a public listener nor evidence of complete Write support.
+
+
+### Private prepared lifecycle (source increment; validation pending)
+
+The private `reference-deployment-runtime` and inherited-IPC
+`reference-deployment-process` modules consume a genuine registered loader handle
+in the same module instance. They are absent from package exports and ordinary
+`bdptest --serve` still requires the existing public Read admission. The public
+loader remains an inert data preparation API. The ready message contains only
+Scope, independently observed listen URL, profile, captured history and false
+claim eligibility; no targets, captures, credential or binding digests.
+
+Trusted startup validates the actual owner and current Read limits, composes all
+principal routes, and only then binds the configured nonzero listener. Legacy
+private port-zero startup keeps its original bind-before-preparation/503 behavior,
+result shape and successful-listen error-listener removal. Trusted completion
+observes terminal listener errors and memoizes actual close/drain results. Owner
+ownership transfers to the Transactional service only after its constructor
+returns. Stop/cancellation observes preparation settlement and closes acquired
+owners; it never fabricates cancellation, undoes a committed installation or
+certifies unknown ownership. Read/Update epoch is a process lifecycle token;
+Transactional epoch remains persisted opaque state.
+
+The private bootstrap accepts one ordinary shared configuration envelope with the
+selected top-level deployment path over inherited IPC. Configuration and control
+are capped at 65536 bytes and configuration waits at most ten seconds. The test
+owns Transactional parent-directory provisioning (0700); the loader/bootstrap do
+not provision an absent create:false store. SIGTERM, SIGINT, IPC close and
+disconnect stop the private lifecycle. Refusal prints only the fixed diagnostic
+`reference deployment startup failed` and exits 2.
+
+The new source witnesses are prospective: 51 callbacks, 21 selected persisted
+mismatches and two HTTP mutations. Installed witnesses are 21 separately bounded
+callbacks, 126 finite HTTP requests plus two CONNECT peers, with 32 original
+candidate/public generations and four separately counted entrypoint guard Node
+children (36 total). They retain five-second source/request limits and installed
+45-second work, ten-second cleanup, 60-second callback, with future per-command
+120-second outer/115-second TERM review. No retries or deadline increase is
+implicit. Their named opt-in test entry variables are
+`BDP_REFERENCE_DEPLOYMENT_INSTALLED_ENTRY`,
+`BDP_REFERENCE_DEPLOYMENT_SOURCE_COMMIT`, and
+`BDP_REFERENCE_DEPLOYMENT_PUBLIC_ENTRY`; independent root package/consumer proof
+is required for any installed label. The default public-entry control uses the
+fresh workspace bdptest build and is recorded separately.
+
+This fdd-only basis already serves generic Type records but explicitly lacks the
+Transactional Scope/service descriptor/Directory receiver. All six TX cold
+callbacks (I02/I04/I13/I15/I17/I19) therefore require accepted D3a on a future
+explicit combined source/configuration. They remain complete tests, with no
+skipped navigation, target-map shortcut or fabricated fdd-only pass. Public Write
+admission, capability/effective-policy qualification and complete cumulative
+Write evidence remain separate. Native/actual CODE review and separately released
+validation must precede any execution or completion claim for this increment.

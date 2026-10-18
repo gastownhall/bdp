@@ -378,6 +378,14 @@ async function installPackedWorkspace() {
       "reference-deployment.d.ts.map",
       "reference-deployment.js",
       "reference-deployment.js.map",
+      "reference-deployment-runtime.d.ts",
+      "reference-deployment-runtime.d.ts.map",
+      "reference-deployment-runtime.js",
+      "reference-deployment-runtime.js.map",
+      "reference-deployment-process.d.ts",
+      "reference-deployment-process.d.ts.map",
+      "reference-deployment-process.js",
+      "reference-deployment-process.js.map",
       "reference-deployment-state.d.ts",
       "reference-deployment-state.d.ts.map",
       "reference-deployment-state.js",
@@ -496,6 +504,10 @@ async function installPackedWorkspace() {
     )
       throw new Error("packed root exposes private transaction service");
     if (
+      "startPreparedReferenceDeployment" in publicServer ||
+      "startPreparedDevelopmentReferenceRuntime" in publicServer ||
+      "startPreparedTransactionRuntime" in publicServer ||
+      "assemblePreparedDevelopmentArguments" in publicServer ||
       "loadReferenceDeployment" in publicServer ||
       "referenceDeploymentState" in publicServer ||
       "registerReferenceDeployment" in publicServer
@@ -569,6 +581,10 @@ async function installPackedWorkspace() {
       "@bdp/conformance/dist/transactional-observation.js",
       "@bdp/server/reference-deployment",
       "@bdp/server/dist/reference-deployment.js",
+      "@bdp/server/reference-deployment-runtime",
+      "@bdp/server/dist/reference-deployment-runtime.js",
+      "@bdp/server/reference-deployment-process",
+      "@bdp/server/dist/reference-deployment-process.js",
       "@bdp/server/reference-deployment-state",
       "@bdp/server/dist/reference-deployment-state.js",
       "@bdp/server/development-composition",
