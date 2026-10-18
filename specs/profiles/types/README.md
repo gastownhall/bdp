@@ -84,6 +84,7 @@ negotiation or prove arbitrary schema satisfiability.
 | Endpoint multiplicity policy | Family-wide sourceMax/targetMax plus Bead participation bounds |
 | Aggregate constraints supplied as Scope policy | Selected draft direction places declared arity/uniqueness/acyclicity in the Type contract; current policy/wire behavior is not silently replaced. |
 | Write prohibits mutation-triggered Type installation | Explicit automatic-installation mode is selected for the future lifecycle (§7.2), subject to validation/admission; coordinated Write adoption remains required. |
+| Explicit ownership-selector keys with empty entries | Actual nominal Link Type identity groups; each selected Link once, empty owned set `{}`. Requires Core projection amendment. |
 | No common author release label | Proposed optional version with SemVer syntax; no runtime selection or compatibility inference |
 
 The current canonical owned-Link contract requires bounded owned sets. Separating
@@ -170,8 +171,9 @@ Type, BeadType and LinkType are all affiliated with BeadType in this candidate.
 BeadType and LinkType declare conformance to Type. ConformsTo is affiliated with
 LinkType. issue/task use BeadType; dependency/blocks use LinkType. All definitions
 are Beads. Type owns ConformsTo; the BeadType and LinkType definition Beads inherit
-that ownership through their affiliation with BeadType. The fixture's `ownedLinks`
-keys are a convention; inherited/wildcard projection remains coordinated Core work.
+that ownership through their affiliation with BeadType. Selected owned Links are
+grouped once under their actual nominal Link Type identity; an empty owned set is
+`{}` without empty buckets. This projection requires a coordinated Core amendment.
 
 ConformsTo allows BeadType→BeadType or LinkType→LinkType. Its properties are an open
 object. It requires exact target pins and a conformance DAG over exact definition
@@ -224,6 +226,20 @@ revisions from preserving exported historical pins. Forward references within an
 input, Scope binding and identity conflicts remain to design. See Types §7.1;
 these literals are not a proposed package/import API.
 
+Properties replacement covers ordinary writable properties, preserves initialization-only
+values and rejects attempts to change them. The service supplies or recomputes read-only
+values and validates the complete result. Read-only values can change across new
+revisions; initialization-only values remain fixed. Live observations stay outside
+revision-covered properties. Field designation/annotation syntax, initialization-only
+behavior under retyping, signing mechanisms and observation representation remain open.
+The illustrative Issue schemas do not qualify generic writes. Pinned owned-source
+semantics are explicitly deferred, with no pre-/post-mutation interpretation selected.
+
+Local Type inventory includes retained available registered definitions from other
+origins, preserving their IDs and publication authority. It is not ordinary local graph
+membership or unadmitted cache contents. Lifecycle operation boundaries and exact
+inventory/read responses remain to specify; retained declarations are not new local writes.
+
 ## Validation limits and reproduction
 
 JSON Schema validates shapes, not category membership/conformance, effective
@@ -245,7 +261,7 @@ uv run --no-project --with 'jsonschema[format]' python scripts/check_type_exampl
 
 The check validates six schemas and positive/negative shape cases, exact example
 references, owned-state consistency and inherited ownership-selector matches, category-preserving pair matches over
-the finite foundation graph, nine invalid ownership/endpoint/schema-map fixture mutations,
+the finite foundation graph, twelve invalid ownership/projection/endpoint/schema-map fixture mutations,
 schema-copy equality, twelve Product/ApprovedProduct composition cases, ten finite
 endpoint-fact cases, two revision-closure cases and illustrative domain property cases.
 Four finite dialect cases explicitly enumerate root/embedded/retained resource facts;

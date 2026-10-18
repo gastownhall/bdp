@@ -186,9 +186,9 @@ def check_owned_declaration_sources(candidate):
         sources = [d for d in candidate["definitions"] if d["id"] == declaration["source"]]
         # This finite seed has one definition revision per identity.
         assert len(sources) == 1, "source absent or ambiguous in finite seed"
-        assert declaration in sources[0]["ownedLinks"][conforms_id], "declaration absent from source owned state"
+        assert declaration in sources[0]["ownedLinks"].get(conforms_id, []), "declaration absent from source owned state"
     for owner in candidate["definitions"]:
-        for declaration in owner["ownedLinks"][conforms_id]:
+        for declaration in (link for group in owner["ownedLinks"].values() for link in group):
             assert declaration["source"] == owner["id"], "owned declaration source differs from owner"
             assert declaration in declarations, "owned declaration absent from declaration table"
 
@@ -207,6 +207,39 @@ def rejects_fixture_mutation(checker, candidate, expected_reason):
     fixture_refusals += 1
 
 
+def check_owned_projection(candidate):
+    for owner in candidate["definitions"]:
+        seen = set()
+        for nominal_type, links in owner["ownedLinks"].items():
+            assert links, "empty owned bucket"
+            for link in links:
+                assert link["type"]["uri"] == nominal_type, "owned bucket differs from nominal Link Type"
+                assert link["id"] not in seen, "owned Link appears more than once"
+                seen.add(link["id"])
+
+
+check_owned_projection(fixture)
+for mutation, reason in [("empty", "empty owned bucket"),
+                         ("wrong-key", "owned bucket differs from nominal Link Type"),
+                         ("duplicate", "owned Link appears more than once")]:
+    candidate = deepcopy(fixture)
+    owner = next(d for d in candidate["definitions"] if d["ownedLinks"])
+    if mutation == "empty":
+        owner["ownedLinks"][prefix + "unused"] = []
+    elif mutation == "wrong-key":
+        owner["ownedLinks"][prefix + "wrong-key"] = owner["ownedLinks"].pop(conforms_id)
+    else:
+        owner["ownedLinks"][conforms_id].append(deepcopy(owner["ownedLinks"][conforms_id][0]))
+    rejects_fixture_mutation(check_owned_projection, candidate, reason)
+# Projection alone uses actual nominal identity, independent of ancestor selectors.
+# This finite synthetic example does not establish the specialization's admission.
+projected_link = deepcopy(fixture["declarations"][0])
+projected_link["type"] = {"uri": prefix + "reviewed-conformance", "revision": "specialized-1"}
+check_owned_projection({"definitions": [{"ownedLinks": {
+    projected_link["type"]["uri"]: [projected_link]}}]})
+check_owned_projection({"definitions": [{"ownedLinks": {}}]})
+
+
 check_owned_declaration_sources(fixture)
 # A declaration copied into a second owner's snapshot must not manufacture
 # conformance, even when it remains in both the global table and correct owner.
@@ -216,7 +249,7 @@ for mutation in ("copy", "move", "remove"):
     source = next(d for d in candidate["definitions"] if d["id"] == declaration["source"])
     other = next(d for d in candidate["definitions"] if d["id"] != source["id"])
     if mutation in {"copy", "move"}:
-        other["ownedLinks"][conforms_id].append(deepcopy(declaration))
+        other["ownedLinks"].setdefault(conforms_id, []).append(deepcopy(declaration))
     if mutation in {"move", "remove"}:
         source["ownedLinks"][conforms_id].remove(declaration)
     reason = ("owned declaration source differs from owner" if mutation == "copy"
@@ -236,7 +269,7 @@ for declaration in fixture["declarations"]:
 def closure(pin, visiting=(), records=by_pin):
     assert pin not in visiting, ("example conformance cycle", pin)
     result = set()
-    for declaration in records[pin]["ownedLinks"][conforms_id]:
+    for declaration in records[pin]["ownedLinks"].get(conforms_id, []):
         target = pin_of(declaration["target"])
         result.add(target)
         result.update(closure(target, visiting + (pin,), records))
@@ -267,7 +300,7 @@ def check_effective_ownership(candidate):
         ancestors = {affiliation} | closure(affiliation, records=records)
         selectors = [selector for ancestor in ancestors
                      for selector in records[ancestor]["properties"].get("ownsOutgoing", [])]
-        for declaration in owner["ownedLinks"][conforms_id]:
+        for declaration in (link for group in owner["ownedLinks"].values() for link in group):
             assert any(selector.get("any") is True or
                        matches(selector["anyOf"], declaration["type"], records)
                        for selector in selectors), "owned declaration lacks effective ownership selector"

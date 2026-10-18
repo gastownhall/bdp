@@ -504,22 +504,51 @@ upgrade occurs merely because the caller updates properties.
 A targeted change preserves properties it does not change. Updating `title` can
 preserve an unfamiliar `approvalCode`, although the result must still validate.
 
-The proposed full-properties replacement operation supplies the whole new
-properties object. If `approvalCode` is mandatory, omitting it fails.
-The server must not silently retain it and turn replacement into a merge.
-A client knowing only Product cannot assume it can create or replace an
-ApprovedProduct. Reading and preserving unfamiliar fields can help, but does not
-establish that an arbitrary change will be valid.
+The write/read model distinguishes four categories:
 
-This is the shared design rule, not a claim that the current Beads CLI already
-implements it. The inspected Issue `--replace-properties` replaces a writable
-subset and preserves nonwritable fields. The [Issue draft](../../types/issue/issue.md#34-observed-write-surfaces)
-records this discrepancy. The treatment of generated/read-only properties on create
-and full replacement remains a contract decision: which values the authority supplies,
-which input members a caller may replace, and how the complete resulting state is
-validated. The illustrative Issue `id`/`status` projection does not prove that generic
-create or full replacement already works, or that every projected property is caller-
-writable. This gap requires a policy choice, not just implementation alignment.
+| Category | Selected rule |
+| --- | --- |
+| Ordinary writable properties | The caller may supply changes, subject to validation and authorization |
+| Service-managed read-only properties | The service supplies or recomputes values; they may change in a new Resource revision but remain fixed within each recorded revision |
+| Caller-at-create, initialization-only properties | The caller supplies the initial value; it remains unchanged across revisions. Attempts to change it are rejected |
+| Live observations | Values outside revision-covered properties that may change independently of a Resource revision |
+
+Properties replacement supplies the complete new **ordinary writable** property set.
+It preserves initialization-only values and rejects attempts to change them. The
+service supplies or recomputes its read-only fields, then validates the complete
+resulting properties object against the exact Type and all inherited requirements.
+A mandatory ordinary writable `approvalCode` still cannot be omitted: the service
+must not silently preserve an omitted writable field and turn replacement into a
+merge. Creation likewise validates the completed result after caller-at-create and
+service-supplied fields are available.
+
+A client knowing only Product cannot assume it can create or replace an
+ApprovedProduct. It must satisfy the actual caller-writable requirements and operation
+contract. Reading and preserving unfamiliar writable fields can help, but does not
+establish that an arbitrary change will be valid. Conformance does not make a generated
+field caller-writable or relax complete-result validation.
+
+This selects the replacement model, not a property-annotation syntax or a qualified
+implementation. The [Issue draft](../../types/issue/issue.md#34-observed-write-surfaces)
+records a writable-subset replacement surface; its illustrative `id`/`status` projection
+does not prove generic create/replacement correctness. The categories and replacement
+behavior are selected; property-annotation syntax, the designation of individual fields,
+and initialization-only behavior under retyping remain open. This decision does not
+assign enforcement semantics to JSON Schema `readOnly` or invent an `initOnly` keyword.
+Signing mechanisms remain with the shared provenance review. A signature of a completed
+revision would cover its stable service-supplied values; a signature of the caller's
+proposal concerns different content. Live observations are outside revision content.
+This distinction selects no signing wire shape, verification mechanism or trust policy.
+Adopting the selected replacement model requires the coordinated Write operation and
+input-schema contract; this draft does not silently amend current Write.
+
+**Live observations are separate from revision-covered properties.** Values such as
+a current heartbeat that can change independently of a Resource revision must be
+represented outside its immutable properties. A later observation cannot rewrite the
+properties of an existing pinned revision. Stable generated properties, by contrast,
+are part of the recorded state and are covered by that revision. The observation
+representation, discovery and read operations remain to specify with Core; this draft
+adds no `volatile` bag or other new envelope field.
 
 ### 3.7 Behavioral promises must survive conformance
 
@@ -1165,11 +1194,18 @@ and LinkType **definition Beads** are affiliated with BeadType, which conforms t
 their owned declarations therefore match Type's inherited selector. This does not let
 Link-Type descriptors declare `ownsOutgoing` for the Link instances they describe.
 
-The wire projection of inherited selectors and `{any:true}` into `ownedLinks` keys,
-including empty entries, remains a coordinated Core operation/projection question.
-The finite fixture uses the ConformsTo identity as a key even for empty owned sets;
-that convention is not a selected general projection rule. Ownership membership is
-selected independently of how the owned snapshot is keyed.
+After ownership selection, group `ownedLinks` by each Link's **actual nominal Link
+Type identity**, without its Type revision. Every selected Link appears once, even
+when several inherited/local selectors or conformance paths select it. A conforming
+specialization is grouped under its own nominal identity, not under each ancestor
+selector. Wildcard selectors create no wildcard key. An empty owned set is `{}`;
+there are no empty buckets for selectors that currently match no Links.
+
+These projection rules require a coordinated Core amendment: adopted Core's explicitly
+declared ownership keys and empty-entry convention are not silently changed by this
+profile. The literal fixture uses the proposed grouping and empty-set shape. Exact
+Link records retain their own Type revision pins; grouping does not erase those pins
+or reinterpret historical owned snapshots.
 
 Creating, modifying or deleting a matching owned Link has the source-revision
 effects required by Core ownership semantics. Conformance establishes membership;
@@ -1196,7 +1232,8 @@ Earlier Bead snapshots and Link revisions remain unchanged. This is a change to 
 Bead's recorded ownership, not an implicit rewrite or repair of its outgoing Links.
 
 Endpoint movement and the pre-/post-mutation meaning of a pinned source reference
-still need separate rules. These ownership decisions do not specify the exact number
+remain explicitly deferred for further design; no pre-/post-mutation interpretation
+is selected. These ownership decisions do not specify the exact number
 of revisions produced per Resource by a multi-operation batch. Ownership selector
 syntax and exact-definition evolution remain open alongside the other matching and
 lifecycle decisions. Registering a new definition alone
@@ -1263,6 +1300,15 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 
 | Case | Required interpretation |
 | --- | --- |
+| Replace ordinary writable properties while a service read-only field is required | Service supplies/recomputes that field, preserves init-only values, then validates the complete result |
+| An update or replacement attempts to change an initialization-only value | Reject; initialization-only values remain unchanged across revisions; retyping behavior remains open |
+| Service read-only value changes as part of a new revision | Record the new value in that revision; earlier revision contents remain unchanged |
+| Replacement omits mandatory caller-writable approvalCode | Reject; do not preserve omitted writable data as an implicit merge |
+| A live heartbeat changes while an exact Resource revision is read | Do not alter that revision's properties; observation data belongs outside revision-covered properties |
+| Two inherited ownership selectors match the same Link | Include the Link once under its actual nominal Link Type identity |
+| Owned Link conforms to ConformsTo but has its own specialized nominal Type | Group under the specialization's identity, preserving the Link's exact Type pin |
+| No outgoing Links are selected as owned | Project ownedLinks as an empty object, not empty buckets per selector |
+| Registered global definition is available in local Type inventory | Preserve canonical origin identity/authority; do not treat retained declarations as new local writes |
 | Bead or Link changes only its Type identity; properties/metadata are equal | New Resource revision; prior exact affiliation and owned snapshot remain unchanged |
 | Type identity stays constant but its pinned definition revision changes | New Resource revision; no semantic no-op based only on equal properties |
 | Update omits Type; a newer definition is registered | Preserve the existing exact affiliation |
@@ -1302,7 +1348,7 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Supplied Type resolves to the already stored exact reference and no other state changes | No Type change by itself; ordinary no-op rules apply after revision preconditions |
 | Stale guarded retyping would otherwise be a no-op | Reject the stale guard without mutation |
 | Retyping plus targeted property edit leaves unrelated properties present | Preserve those properties; validate the complete resulting record and affected graph atomically |
-| Full replacement omits an actual Type's required property | Reject atomically; do not retain the missing property as a hidden merge |
+| Replacement omits an actual Type's required caller-writable property | Reject atomically; do not retain the missing writable property as a hidden merge |
 | Decision and Requirement use the same property shape | Keep distinct Type identities and meanings; schema equality does not infer conformance |
 | Open instance schema receives an undeclared kind property | Treat it as extension data; do not dispatch affiliation or substitute it for required fields |
 | Association family versus nominal-only Association selection | Family includes conformers; nominal-only excludes them; revision selection remains a separate exact/identity-wide choice |
@@ -1434,16 +1480,18 @@ The remaining decisions are narrower:
 | Schema admission | JSON Schema 2020-12 validation and syntactic format enforcement; unknown/unsupported formats and required vocabularies refuse; immutable descriptor-contained schema map; inherited schemas all apply; bounded contradiction floor (§§3.12–3.13) | Map serialization/binding details, extension presentation and defined semantic annotations; no complete satisfiability proof |
 | Exact conformance closure | Exact target pins, no exact-revision cycles; ancestor requirements deduplicated by originating exact definition/location; distinct declaration restrictions retained | Concrete location/qualifier representation and diagnostics; distinct from once-per-instance-Link counting |
 | Constraint evolution | §§5.4, 5.6 and 5.8 select local activation with cross-revision family populations and per-Link acyclicity | Precise inherited-declaration activation and selector/diagnostic syntax; no Scope-wide minimum over installed definitions |
-| Definition resolution | Registered exact global definitions satisfy endpoint Type checks for any Link, with explicit endpoint pins and Scope restrictions intact; arbitrary external resources remain opaque | Installation operation mechanics, Scope classification and replica exposure; no identity rewriting or origin-write authority |
+| Definition resolution | Registered exact global definitions satisfy endpoint Type checks for any Link, with explicit endpoint pins and Scope restrictions intact; arbitrary external resources remain opaque | Installation operation mechanics, Scope classification and inventory/read projection; locally retained available inventory does not rewrite origin identity/authority |
 | Bootstrap and declaration admission | Shared published exact intrinsic graph loaded by trusted initialization; prior versions retained on upgrade; no client mutation; declaration Link Type accepted before use | Production namespace/publication artifact, upgrade activation and operation/batch/import admission ordering |
 | Availability and lifecycle | Atomic requested-graph registration; automatic installation requires Scope and caller opt-in; explicit local default; retirement preserves existing use/history and removes/replaces retired defaults | Registration/retirement granularity, operation/permission contracts and physical-removal retention |
 | Revision compatibility | Conformance only initially, including explicit same-identity revision conformance; none inferred from age/SemVer; no migration guarantee | Optional version-label publication semantics |
+| Property write/read boundary | Replacement covers ordinary writable fields, preserves init-only values, rejects changes to them, and completes service read-only fields before validation; live observations are separate | Field designation/annotation syntax, init-only retyping, observation representation and shared signing/provenance contracts |
 | Definition representation | Descriptor fields plus owned ConformsTo Links; candidate schemas and final-state seed | Final field requiredness and selector syntax; installable graph creation/preservation format remains §7.1 work |
 
 Issue/Dependency exercises workflow-sensitive properties, classification-to-Type
 translation, computed/live observations, ownership and optional graph constraints.
-The generated/read-only property boundary remains open; §3.6 does not silently
-turn a writable-subset replacement into full replacement. Memory exercises reusable
+Replacement of ordinary writable properties, preservation of initialization-only
+values and service completion before validation are selected (§3.6); field designation,
+annotation syntax and initialization-only retyping remain to specify. Live observations remain outside revision-covered properties. Memory exercises reusable
 content, same-shape semantic Types, informational Link families and pinned citations.
 Their product contracts are requirements for the shared model, not automatic
 precedent for every domain.
@@ -1603,6 +1651,17 @@ pre-existing registrations remain unchanged. Retrieved bytes may remain in a cac
 but cache presence is not registration or permission to use them. This selects the
 registration boundary, not a new shared Core transaction or transport API.
 
+The Scope's Type inventory includes locally retained available definitions, including
+registered definitions whose canonical IDs belong to another Scope. This is distinct
+from its ordinary local graph inventory: availability does not rewrite IDs, transfer
+publication authority, or make installed copies newly created local Beads/Links.
+Mere cache entries are not admitted Type inventory. Inventory can distinguish retained
+availability from eligibility for new affiliation, including retirement; no response
+fields or lifecycle commands are selected here. Exact inventory/read projection and
+the install/register/publish/create/delete/uninstall operation boundaries remain to
+specify. Authoritative retained declarations keep their original Scope identities and
+recorded owned-source context; inventory exposure is not a new receiving-Scope write.
+
 The selected acquisition modes are:
 
 | Mode | Behavior |
@@ -1726,7 +1785,8 @@ Beads behavior as implementing its proposed semantics.
 | Constraint matching and populations | Pair unions, inherited conjunction, exact/identity-wide selectors and identity-based populations selected (§§4.2, 5) | Final selector syntax, inherited activation and local transition/availability checks; arbitrary external-resource validation excluded |
 | Arity, uniqueness and acyclicity | Transaction-final checks and the mixed-revision cases selected (§5) | General graph validator, atomic mutation and exact-source qualification NYI |
 | Definition representation | Definition Beads, descriptor fields and owned ConformsTo Links; shared exact trusted bootstrap selected; candidate schemas/seed present (§2) | Production bootstrap publication, lifecycle operations and resolution qualification |
-| Conformance graph operations | Owned historical declaration authority, tightening-only specialization and already-accepted declaration Link Types selected | Inherited/wildcard ownedLinks projection, source-pin/traversal/admission-ordering operation contract, performance and historical-query qualification |
+| Property write/read boundary | Writable replacement, init-only preservation/change refusal, service read-only completion and separate live observations selected (§3.6) | Field designation/annotation syntax, init-only retyping, observation representation, shared Write adoption and provenance-owned signing mechanisms |
+| Conformance graph operations | Owned historical declaration authority, tightening-only specialization and already-accepted declaration Link Types selected | Core amendment for nominal-identity grouping/empty-set projection, source-pin/traversal/admission-ordering operation contract, performance and historical-query qualification |
 | Acceptance cases (§6) | Written review cases | Property/example checks cover only their documented shape/finite-graph subset; runtime cases remain unqualified |
 | Shared provenance and recovery | Shared owners and accepted product direction identified (§7) | Shared schema/operation adoption; no parallel Types implementation |
 | Fixed Memory product | Separate product proposal; fixed catalog/compiled validation need not expose Type definitions | Native catalog, properties/history, pins, mutation and release evidence tracked in Beads #7656 |

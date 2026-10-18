@@ -744,9 +744,7 @@
           }
         }
       },
-      "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
-      }
+      "ownedLinks": {}
     },
     {
       "id": "https://example.org/types/beads/bead-type",
@@ -2831,9 +2829,7 @@
           }
         }
       },
-      "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
-      }
+      "ownedLinks": {}
     },
     {
       "id": "https://example.org/types/beads/issue",
@@ -3414,9 +3410,7 @@
           }
         }
       },
-      "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
-      }
+      "ownedLinks": {}
     },
     {
       "id": "https://example.org/types/beads/task",
@@ -3955,9 +3949,7 @@
           }
         }
       },
-      "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
-      }
+      "ownedLinks": {}
     },
     {
       "id": "https://example.org/types/beads/blocks",
