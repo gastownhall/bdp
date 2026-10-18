@@ -56,6 +56,8 @@ four requested owners. Collection is complete; owner recommendations are not app
 | BDP-11 | Revision/activity provenance and evidence distinguish who proposed, approved and committed a change. | Mixed accepted product choices and open shared proposals. | Polly’s harvested requirements distinguish carried claims, authenticated submission and optional evidence; participation does not grant permissions. Illustrative envelopes are not valid new wire. |
 | BDP-12 | Users discover available Type revisions without changing installed/default versions. | Trish recommendation under discussion. | Prefer generic revision discovery and a CLI convenience; no automatic installation/promotion or compatibility inference from revision ordering. |
 | BDP-13 | A durable Memory key survives title changes and transfer, independently of its canonical ID. Existing aliases are unversioned and repointable. | Open naming/lifecycle decision; no carrier selected. | Donna decides with shared identity/History and Memory owners. Determine uniqueness, reassignment, deletion/reclaim, export and whether key changes mint a Resource revision. |
+| BDP-14 | An immutable retained Scope Snapshot has anchor A below a requested minimum M, while the authority has reached H with A < M <= H. | Existing pinned-contract ambiguity S1; no adopted ruling found in Trish’s records. | Decide anchor-versus-current eligibility and retained-target/minimum precedence without changing retained bytes. Ordinary query continuations are a separate token kind. |
+| BDP-15 | A Link update changes common metadata, with no actual properties change; must endpoint Bead Event Sources include it? | Existing pinned-contract ambiguity G2; no adopted ruling found in Trish’s records. | Decide membership, including equal-properties-plus-effectful-metadata. Valid Event payload and Scope/Link projection do not independently decide incident Bead membership. |
 
 ## Polly contribution
 
@@ -225,6 +227,30 @@ This ordering is a recommendation, not a new Preview 3 commitment. Iris’s lega
 conversion, internal reader and detached export publication retain their own
 qualification gates. F0 validators remain review-only. No owner contribution
 qualifies downstream runtime or changes Vickie’s current implementation target.
+
+## Vickie follow-up — existing-contract questions, not new draft adoption
+
+Vickie’s [D2 audit at f71629d4](https://github.com/donnabox/beads/blob/f71629d4e3e4ff73c0fcb5e9574d568d3d7b6124/docs/architecture/bdp-client-v2/write-profile-D2-current-contract-audit-1/report.md)
+examines source `cce884ccea1db97cbc6fd7bff876d4d6091f9081` against her pinned
+specification SHA256 `67772742d7d08f48c12196e9789f1859ad2d0e19f133ea65e197b049361f84f8`.
+Its supporting native review was pending at handoff. Trish read the report and
+checked her earlier workflow/next-wave decision records: both questions were already
+explicitly unresolved. This is a bounded record search, not proof that no ruling
+exists anywhere in another conversation. No exact adopted operator authority was
+found; neither an implementation choice nor a later draft supplies one.
+
+| Question / owner | Alternatives and unresolved consequence | Acceptance boundary |
+| --- | --- | --- |
+| S1 / Donna decision, Vickie implementation; Trish coordination | For an authorized, valid, unexpired retained Scope manifest or actual stream page at A, with same-epoch/view minimum M and current H where A < M <= H: compare M to current H while returning unchanged A, or compare to immutable A. If A governs, select the permitted disposition when the handle can never catch up. Unknown/expired/foreign retained-target and minimum collisions need their own precedence. | Never replace or reanchor the retained body or change its expiry. Ordinary missing-Resource and receipt rules do not settle retained Snapshot precedence. Ordinary query-continuation tokens remain separately governed; no blanket rule is inferred across token kinds. |
+| G2 / Donna decision, Vickie implementation; Iris/Polly Event input | Include metadata-only Link updates in each in-Scope endpoint Bead Event Source, or include only actual properties transitions. If excluding, a supplied but equal properties patch plus effectful metadata must still be classified correctly; presence of a change field is not proof of a properties transition. | Preserve already-settled mutation facts and Scope/Link projections. Removing a guard would choose inclusion; silently omitting the fact would choose exclusion. Neither is authorized merely as a repair. |
+
+Recommendation: discuss these as two narrowly scoped questions against Vickie’s
+existing contract, with explicit operator rulings. They do not adopt the Types or
+lifecycle-Event proposals, reopen completed Snapshot/metadata machinery, or block
+independent discovery/startup and settled receiving/Scope/Link evidence work.
+Private unsupported responses remain unsupported and receive no conformance credit.
+The audit’s two finite installed-regression options remain Vickie-owned planning;
+this collection does not authorize new execution, source changes or landing.
 
 ## Reference CLI companion
 
