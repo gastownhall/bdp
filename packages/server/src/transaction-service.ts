@@ -467,7 +467,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       intent: TransactionChangefeedIntent,
       supplied?: TransactionMinimum | "unsupported",
       signal?: AbortSignal,
-      admission?: "finite-start-now",
+      admission?: "finite-start-now" | "current-changefeed",
     ) {
       // Capture controls before asynchronous retries. start=now observes admission
       // head once; advancing it at every attempt would skip intervening commits.
@@ -477,16 +477,26 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           : Object.freeze({ start: intent.start });
       const finiteStartNow =
         admission === "finite-start-now" && "start" in copied && copied.start === "now";
+      const currentChangefeed = admission === "current-changefeed";
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
-          : finiteStartNow
+          : finiteStartNow || currentChangefeed
             ? snapshotCurrentReadMinimum(supplied)
             : snapshotTransactionMinimum(supplied);
       return run(() => {
         const after = "after" in copied ? copied.after : owner.captureChangesStart();
         return waitForTransactionMinimum(
-          () => owner.readChanges(after, minimum, finiteStartNow ? "finite-start-now" : undefined),
+          () =>
+            owner.readChanges(
+              after,
+              minimum,
+              currentChangefeed
+                ? "current-changefeed"
+                : finiteStartNow
+                  ? "finite-start-now"
+                  : undefined,
+            ),
           minimumReads,
           signal,
         );

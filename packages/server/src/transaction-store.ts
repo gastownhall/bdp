@@ -1848,7 +1848,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     readChanges(
       after: string,
       supplied?: TransactionMinimum | "unsupported",
-      admission?: "finite-start-now",
+      admission?: "finite-start-now" | "current-changefeed",
     ):
       | {
           readonly kind: "page";
@@ -1857,13 +1857,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         }
       | { readonly kind: "unsupported" } {
       if (typeof after !== "string") throw new TypeError("changefeed checkpoint must be a string");
-      // A captured admission checkpoint is textually indistinguishable from an
-      // after cursor. Only the private caller carries its fresh finite intent.
+      // Captured start anchors and explicit cursors share the same text shape.
+      // Only the private caller supplies current-read admission provenance.
       const finiteStartNow = admission === "finite-start-now";
+      const currentChangefeed = admission === "current-changefeed";
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
-          : finiteStartNow
+          : finiteStartNow || currentChangefeed
             ? snapshotCurrentReadMinimum(supplied)
             : snapshotTransactionMinimum(supplied);
       return enter(() => {
@@ -1877,7 +1878,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         if (start > 0 && !db.prepare("SELECT position FROM groups WHERE position=?").get(start))
           throw new Error("missing retained change group");
         if (minimum !== undefined) {
-          if (finiteStartNow) checkCurrentReadMinimum(minimum, context, true);
+          if (finiteStartNow || currentChangefeed) checkCurrentReadMinimum(minimum, context, true);
           else checkTransactionMinimum(minimum, context);
         }
         const row = retainedGroupReader()(start + 1, head);

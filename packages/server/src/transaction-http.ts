@@ -476,19 +476,16 @@ export function createTransactionHttpHandler(
       if (media === "sse" && fields.length > 1)
         throw new TransactionChangefeedParameterError("repeated Last-Event-ID");
       const effective = media === "sse" && fields.length === 1 ? { after: fields[0]! } : changefeed;
-      // Only the finite fresh request supplies this private admission provenance.
-      // Undefined media still checks the minimum before ordinary negotiation.
-      const finiteStartNow = media !== "sse" && "start" in effective && effective.start === "now";
+      // Canonical current changefeed admission preserves one lexical minimum
+      // across finite/reconnect attempts, before ordinary media negotiation.
       const minimum = hasMinimumControls(request)
-        ? ((finiteStartNow
-            ? currentReadMinimumHeaders(request.headers)
-            : transactionMinimumHeaders(request.headers)) ?? "unsupported")
+        ? (currentReadMinimumHeaders(request.headers) ?? "unsupported")
         : undefined;
       const observed = await service.changes(
         effective,
         minimum,
         request.signal,
-        finiteStartNow ? "finite-start-now" : undefined,
+        "current-changefeed",
       );
       if (observed.kind === "unsupported") return developmentGap("minimum-position");
       if (media !== "sse") return context(jsonResponse(observed.page), observed.context);
