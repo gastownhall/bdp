@@ -8,12 +8,23 @@ it("pins the root and explicit development facade and refuses missing or broad e
   const exports = {
     ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
     "./development": { types: "./dist/development.d.ts", default: "./dist/development.js" },
+    "./reference-configuration": {
+      types: "./dist/reference-deployment.d.ts",
+      default: "./dist/reference-deployment.js",
+    },
   };
   expect(() => assertServerExports({ exports })).not.toThrow();
   for (const candidate of [
     undefined,
     { ...exports, "./dist/*": "./dist/*" },
     { ...exports, "./private": "./dist/installed-schema-evaluator.js" },
+    { ...exports, "./reference-configuration": exports["./development"] },
+    ...[
+      "installed-reference",
+      "transaction-runtime",
+      "profile-admission",
+      "reference-deployment-state",
+    ].map((name) => ({ ...exports, [`./${name}`]: `./dist/${name}.js` })),
   ])
     expect(() => assertServerExports({ exports: candidate })).toThrow(
       "explicit development surface",

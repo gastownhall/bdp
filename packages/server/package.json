@@ -15,6 +15,10 @@
     "./development": {
       "types": "./dist/development.d.ts",
       "default": "./dist/development.js"
+    },
+    "./reference-configuration": {
+      "types": "./dist/reference-deployment.d.ts",
+      "default": "./dist/reference-deployment.js"
     }
   },
   "dependencies": {
