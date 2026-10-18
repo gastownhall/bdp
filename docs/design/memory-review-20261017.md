@@ -208,3 +208,15 @@ The earlier four-command CLI/flag proposals above are historical and superseded 
 this principles-first pass. Schema/case/example JSON, including accepted common
 status and the Requirement catalog entry, are byte-identical to c064cc3; do not
 report the old property passes as a runtime query or CLI qualification.
+
+## Publication copyedit
+
+Donna edited the introductions to A.1/A.2 and authorized publication after copyedit
+and fact check, with the title **[Memory] Memory Bead and Link Types**. Preserved the
+shared-command-first argument and the possibility of valuable domain wrappers.
+Qualified the claim about existing generic commands and mixed Memory/Issue queries:
+these are target design capabilities, not a statement that today's CLI implements
+the proposed Types or query scenarios. Refreshed Janet's public implementation
+ledger, which retains its not-ship-ready verdict. Fixed capitalization, prose flow
+and spacing before the numbered list. Definition/property/example artifacts remain
+unchanged. Publication does not adopt the contract or authorize a merge.

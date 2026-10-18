@@ -1,4 +1,4 @@
-# **Memory V1**: link and bead types
+# [Memory] Memory Bead and Link Types
 
 Product proposal, October 17, 2026.
 
@@ -728,10 +728,20 @@ item. Accepted decisions are recorded in #7656 rather than silently inferred her
 
 ### A.1 Principles before command spelling
 
-A Memory-specific verb should express an operation with a distinct user contract,
-not merely repeat a shared operation with a Type preselected. A sequence of generic
-operations may justify a workflow command if it adds a necessary guarantee, but the
-sequence's actual semantics must be defined first.
+This proposal defines Memory Bead and Link Types for use through shared Bead
+operations, surfaced by commands such as `bd create`, `bd update` and `bd query`.
+The Type, query and History capabilities described here are target behavior;
+[implementation status](https://github.com/gastownhall/beads/issues/7656) is tracked
+separately.
+
+Additional Memory-specific commands are not required merely to express these
+operations or the scenarios in Chris's Memory proposal. If useful scenarios emerge
+from actual use, we can consider commands that make them easier to perform.
+
+Memory-specific commands, if added, would live under a top-level `bd memory` group.
+Wrappers around shared operations may be worthwhile when they simplify frequent
+workflows or tailor show/list/query output to Memory use. Their value and behavior
+should be established before choosing their command names or arguments.
 
 The current model does **not yet require a new Memory-specific write verb**:
 
@@ -762,11 +772,20 @@ bd restore retains its pre-compaction Issue recovery meaning.
 
 ### A.2 Useful Memory queries
 
-Treat **bd query as a design surface**, rather than restricting these questions to
-its current grammar. The following scenarios specify useful inputs and results;
-they do not prescribe syntax, a separate query engine or a new Memory verb. Text
-search with shared filters is the baseline. The relationship-aware scenarios are
-proposed capabilities whose initial release allocation is recorded with Janet.
+The shared query design should operate over graphs containing both Memory and
+Issue Beads and their Links. The questions below serve two purposes:
+
+1. Check that the query capabilities and Type definitions are expressive enough
+   to answer common questions about Memory and its relationships to work.
+2. Identify valuable recurring queries that could become named commands, sparing
+   users from constructing elaborate expressions. Such commands could live under
+   a future `bd memory` surface.
+
+These scenarios guide the query design; they are not claims about today's `bd query`
+grammar or implementation. Their initial release allocation is recorded with Janet.
+
+Additional queries are welcome. Please suggest examples in the proposal discussion
+so we can add them to the query corpus.
 
 | Question | Example selection | Required information in the result |
 | --- | --- | --- |
