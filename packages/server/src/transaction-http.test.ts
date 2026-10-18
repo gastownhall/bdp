@@ -8,9 +8,18 @@ import { request as httpRequest } from "node:http";
 import { setImmediate } from "node:timers/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { isJsonSchemaDateTime, isJsonSchemaUri, parseTypeDescriptor } from "@bdp/protocol";
+import {
+  isJsonSchemaDateTime,
+  isJsonSchemaUri,
+  parseTypeDescriptor,
+  parseTransactionalDiscovery,
+  parseTransactionalOperationDirectory,
+} from "@bdp/protocol";
 import { openTransactionStore } from "./transaction-store.js";
 import { createTransactionService } from "./transaction-service.js";
+import * as discoveryAssembly from "./transaction-discovery.js";
+import { ScopeServerOperationAbortedError } from "./read-request.js";
+import type { HttpResponse } from "./index.js";
 import { createTransactionHttpHandler } from "./transaction-http.js";
 import type { TransactionRuntimeTestSeams } from "./transaction-runtime.js";
 const { startTransactionRuntime } = (await import(
@@ -188,7 +197,7 @@ function context(response: Response) {
 }
 
 describe("source-private actual Transactional HTTP", () => {
-  it("serves canonical routes without advertising missing discovery or directory", async () => {
+  it("serves canonical routes with non-attesting discovery on the same owner", async () => {
     const f = await fixture();
     expect(f.runtime.targets).toEqual(
       Object.fromEntries(
@@ -210,10 +219,20 @@ describe("source-private actual Transactional HTTP", () => {
     );
     for (const relative of ["", "bdp.json", "operations/"]) {
       const result = await f.get(new URL(relative, f.runtime.scope).href);
-      expect(result.status).toBe(500);
-      expect(result.headers.get("x-bdp-development-limit")).toBe("transactional-discovery");
-      expect(result.headers.has("link")).toBe(false);
-      expect(await result.text()).toBe("");
+      expect(result.status).toBe(relative === "" ? 204 : 200);
+      expect(result.headers.has("x-bdp-development-limit")).toBe(false);
+      if (relative === "") {
+        expect(result.headers.get("link")).toBe(
+          `<${new URL("bdp.json", f.runtime.scope).href}>; rel="service-desc"; type="application/json"`,
+        );
+        expect(await result.text()).toBe("");
+      } else if (relative === "bdp.json") {
+        expect(parseTransactionalDiscovery(await result.json()).profile).toBe("transactional");
+      } else {
+        expect(Object.keys(parseTransactionalOperationDirectory(await result.json()))).toHaveLength(
+          12,
+        );
+      }
     }
     expect((await f.get(`${f.runtime.scope}operations/update-where`)).status).toBe(405);
     const result = await f.post();
@@ -1778,13 +1797,7 @@ it("uses actual epoch/view decisions and an exhausted wait before conditional or
   });
   expect(hidden.status).toBe(404);
   expect(hidden.headers.get("bdp-scope-position")).toBe("pos-1");
-  for (const suffix of [
-    "links/?cursor=missing",
-    "",
-    "bdp.json",
-    "operations/",
-    "beads/?cursor=missing",
-  ]) {
+  for (const suffix of ["links/?cursor=missing", "beads/?cursor=missing"]) {
     const target = `${f.runtime.scope}${suffix}`;
     const unsupported = await f.get(target, { headers });
     expect(unsupported.status).toBe(500);
@@ -6478,3 +6491,893 @@ it("serves current observation minimums with actual issued pages and HTTP parity
   if (failures.length)
     throw new AggregateError(failures, "current observation HTTP and cleanup failed");
 });
+
+// D3a source witnesses. These counters delegate to the actual owner/service.
+const d3Scope = "https://reference.invalid/acme/";
+const d3Link = `<${new URL("bdp.json", d3Scope).href}>; rel="service-desc"; type="application/json"`;
+const d3Routes = ["scope", "descriptor", "directory"] as const;
+type D3Route = (typeof d3Routes)[number];
+const d3Target = (route: D3Route) =>
+  new URL(route === "scope" ? "" : route === "descriptor" ? "bdp.json" : "operations/", d3Scope)
+    .href;
+type D3Budget = {
+  signal: AbortSignal;
+  release: (() => void)[];
+  own(action: () => Promise<void> | void): void;
+  retain(directory: string): void;
+  record(value: unknown): void;
+};
+async function d3Bounded(name: string, work: (budget: D3Budget) => Promise<void>) {
+  const started = performance.now(),
+    controller = new AbortController();
+  const actions: (() => Promise<void> | void)[] = [],
+    releases: (() => void)[] = [];
+  const directories: string[] = [],
+    observations: unknown[] = [],
+    failures: unknown[] = [];
+  let workSettled = false,
+    cleanupKnown = true;
+  const timeout = setTimeout(() => controller.abort(new Error("D3 source work deadline")), 3000);
+  const task = Promise.resolve().then(() =>
+    work({
+      signal: controller.signal,
+      release: releases,
+      own: (action) => actions.push(action),
+      retain: (directory) => directories.push(directory),
+      record: (value) => observations.push(value),
+    }),
+  );
+  void task.then(
+    () => {
+      workSettled = true;
+    },
+    () => {
+      workSettled = true;
+    },
+  );
+  try {
+    const cancelled = new Promise<never>((_, reject) => {
+      controller.signal.addEventListener("abort", () => reject(controller.signal.reason), {
+        once: true,
+      });
+    });
+    await Promise.race([task, cancelled]);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    clearTimeout(timeout);
+    controller.abort(new Error("D3 source cleanup"));
+    for (const release of releases) {
+      try {
+        release();
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    const cleanupEnd = performance.now() + 1000;
+    async function remaining<T>(promise: Promise<T>): Promise<T> {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([
+          promise,
+          new Promise<never>((_, reject) => {
+            const left = cleanupEnd - performance.now();
+            if (left <= 0) {
+              reject(new Error("D3 source cleanup deadline"));
+              return;
+            }
+            timer = setTimeout(() => reject(new Error("D3 source cleanup deadline")), left);
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    try {
+      await remaining(task.catch(() => {}));
+    } catch (error) {
+      failures.push(error);
+      cleanupKnown = false;
+    }
+    for (const action of actions.reverse()) {
+      if (performance.now() >= cleanupEnd) {
+        failures.push(new Error("D3 source cleanup deadline"));
+        cleanupKnown = false;
+        break;
+      }
+      try {
+        await remaining(Promise.resolve().then(action));
+      } catch (error) {
+        failures.push(error);
+        cleanupKnown = false;
+      }
+    }
+    if (!workSettled) cleanupKnown = false;
+    if (cleanupKnown)
+      for (const directory of directories) {
+        try {
+          rmSync(directory, { recursive: true, force: true });
+        } catch (error) {
+          failures.push(error);
+          cleanupKnown = false;
+        }
+      }
+    console.log(
+      JSON.stringify({
+        observation: "D3-source",
+        callback: name,
+        elapsedMs: performance.now() - started,
+        workSettled,
+        cleanupKnown,
+        directories: directories.map((directory) => ({
+          directory,
+          absent: !existsSync(directory),
+        })),
+        observations,
+        failureCount: failures.length,
+      }),
+    );
+  }
+  if (failures.length) throw new AggregateError(failures, "D3 source witness or cleanup failed");
+}
+async function d3Source(budget: D3Budget, mode: "ordinary" | "order" | "latch" = "ordinary") {
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-d3-source-"));
+  budget.retain(directory);
+  const owner = openTransactionStore({
+    file: path.join(directory, "transaction.sqlite"),
+    scope: d3Scope,
+    create: true,
+    types,
+  });
+  let tick = 0,
+    measure = false,
+    measuringConstruction = true,
+    constructionEntries = 0,
+    inOwner = false;
+  const counters = {
+    direct: 0,
+    discovery: 0,
+    entries: 0,
+    assemblies: 0,
+    waits: 0,
+    clocks: 0,
+    commits: 0,
+  };
+  const traffic: string[] = [];
+  const facade = {
+    ...owner,
+    withRead: ((...args: Parameters<typeof owner.withRead>) => {
+      if (measure) counters.entries++;
+      else if (measuringConstruction) constructionEntries++;
+      inOwner = true;
+      try {
+        return owner.withRead(...args);
+      } finally {
+        inOwner = false;
+      }
+    }) as typeof owner.withRead,
+    readConfiguration: () => {
+      traffic.push("readConfiguration");
+      return owner.readConfiguration();
+    },
+  };
+  const entered = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>();
+  budget.release.push(() => release.resolve());
+  const assembly = discoveryAssembly.assembleTransactionDiscovery;
+  const spy = vi
+    .spyOn(discoveryAssembly, "assembleTransactionDiscovery")
+    .mockImplementation((...args) => {
+      expect(inOwner, "assembly after owner release").toBe(false);
+      counters.assemblies++;
+      return assembly(...args);
+    });
+  budget.own(() => {
+    spy.mockRestore();
+  });
+  let service: ReturnType<typeof createTransactionService>;
+  try {
+    service = createTransactionService(facade, {
+      ownerLifetime: "service",
+      minimumReads: {
+        budgetMs: 2,
+        now: () => {
+          counters.clocks++;
+          return mode === "order" ? tick++ : tick;
+        },
+        wait: async () => {
+          counters.waits++;
+          if (mode === "latch") {
+            entered.resolve();
+            await release.promise;
+          }
+        },
+      },
+      read: {
+        selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
+        advertisedLimits: {
+          page: { defaultItems: 2, maximumItems: 32 },
+          selector: { bytes: 4096, depth: 32, nodes: 256 },
+          cursorTtlMilliseconds: 1000,
+        },
+        pagination: {
+          scope: d3Scope,
+          defaultPageItems: 2,
+          maxPageItems: 32,
+          cursorTtlMs: 1000,
+          retainedStateCapacity: 100,
+          maxRetainedCursorPositionsPerSnapshot: 20,
+          retainedSnapshotByteCapacity: 100000,
+          retainedSnapshotNodeCapacity: 10000,
+          maxOpaqueTokenLength: 64,
+          tokenGenerationAttempts: 3,
+          idleCleanup: "on-demand",
+          clock: Date.now,
+          generateOpaqueToken: () => randomD3Token(),
+        },
+      },
+    });
+  } catch (error) {
+    owner.close();
+    throw error;
+  }
+  budget.own(async () => {
+    await service.close();
+    await service.closed;
+  });
+  const captured = facade.readConfiguration();
+  const baseline = {
+    calls: [...traffic],
+    entries: constructionEntries,
+    assemblies: counters.assemblies,
+  };
+  traffic.length = 0;
+  measuringConstruction = false;
+  measure = true;
+  counters.assemblies = 0;
+  const handler = createTransactionHttpHandler(
+    {
+      ...service,
+      discoveryObserved: (...args) => {
+        counters.discovery++;
+        return service.discoveryObserved(...args);
+      },
+    },
+    d3Scope,
+  );
+  const tuple = (position = "pos-0") => ({
+    "bdp-minimum-scope-position": position,
+    "bdp-scope-epoch": captured.scopeEpoch,
+    "bdp-authorization-view": captured.authorizationView,
+  });
+  const records: unknown[] = [];
+  async function call(
+    url: string,
+    method = "GET",
+    headers: Record<string, string> = {},
+    role = "writer",
+    signal = budget.signal,
+  ) {
+    counters.direct++;
+    const request = new Request(url, { method, headers, signal });
+    const authorization =
+      role === "anonymous"
+        ? { kind: "unauthenticated" as const }
+        : { kind: "authenticated" as const, principal: role, canMutate: role === "writer" };
+    const promise = handler.handle(request, authorization);
+    void promise.catch(() => {});
+    const response = await promise;
+    records.push({
+      method,
+      url,
+      credential: role,
+      status: response.status,
+      headers: Object.fromEntries(response.headers),
+      body: response.body,
+    });
+    return response;
+  }
+  async function commit(name = "a") {
+    const previous = measure;
+    measure = false;
+    try {
+      const result = await service.submit({
+        carrier: { kind: "batch" },
+        body: batch([create(name)]),
+        key: `d3_${name}`,
+        authorization: { kind: "authorized", principal: "writer" },
+        receiving: { acceptsJson: true, maximumOperations: 32 },
+      });
+      expect(result.kind).toBe("receipt");
+      counters.commits++;
+    } finally {
+      measure = previous;
+    }
+  }
+  budget.record({ baseline });
+  budget.own(() => budget.record({ counters, records }));
+  return {
+    owner,
+    service,
+    handler,
+    counters,
+    baseline,
+    records,
+    tuple,
+    call,
+    commit,
+    entered: entered.promise,
+    release: () => release.resolve(),
+    now: (value: number) => {
+      tick = value;
+    },
+    reset: () => {
+      tick = 0;
+      for (const k of ["direct", "discovery", "entries", "assemblies", "waits", "clocks"] as const)
+        counters[k] = 0;
+    },
+  };
+}
+let d3Token = 0;
+function randomD3Token() {
+  return `d3_token_${++d3Token}`;
+}
+function d3Response(response: HttpResponse, status: number, expectedPosition?: string) {
+  expect(response.status).toBe(status);
+  expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+  if (expectedPosition !== undefined) {
+    expect(response.headers.get("bdp-scope-position")).toBe(expectedPosition);
+    expect(response.headers.get("bdp-scope-epoch")).toMatch(/\S+/);
+    expect(response.headers.get("bdp-authorization-view")).toMatch(/\S+/);
+  }
+}
+function d3NoDisclosure(response: HttpResponse) {
+  for (const header of [
+    "link",
+    "etag",
+    "location",
+    "bdp-scope-epoch",
+    "bdp-authorization-view",
+    "bdp-scope-position",
+  ])
+    expect(response.headers.has(header)).toBe(false);
+}
+for (const route of d3Routes) {
+  it(`D3 source projection ${route}`, async () =>
+    d3Bounded(`D3 source projection ${route}`, async (budget) => {
+      const f = await d3Source(budget),
+        target = d3Target(route);
+      const rows: [string, Record<string, string>, number, string?][] = [
+        ["GET", {}, route === "scope" ? 204 : 200],
+        ["HEAD", {}, route === "scope" ? 204 : 200],
+        ["GET", { accept: "text/plain" }, route === "scope" ? 204 : 406],
+        ["GET", { "if-none-match": "*" }, 304],
+        ["GET", { "if-match": '"absent"' }, 412],
+        ["GET", { "if-match": "*" }, route === "scope" ? 204 : 200],
+      ];
+      if (route === "scope") rows.push(["GET", {}, 204, target + "?x=1"]);
+      let jsonLength = 0;
+      for (const [method, headers, status, url] of rows) {
+        const response = await f.call(url ?? target, method, headers);
+        d3Response(response, status, "pos-0");
+        if (route === "scope") {
+          expect(response.headers.get("link")).toBe(d3Link);
+          expect(response.headers.get("cache-control")).toBe("private, no-store");
+        }
+        if (method === "HEAD" || status !== 200) expect(response.body).toBeUndefined();
+        if (method === "GET" && status === 200) {
+          if (route === "descriptor") parseTransactionalDiscovery(response.body);
+          else parseTransactionalOperationDirectory(response.body);
+          jsonLength = Buffer.byteLength(JSON.stringify(response.body));
+        }
+        if (method === "HEAD" && route !== "scope")
+          expect(Number(response.headers.get("content-length"))).toBe(jsonLength);
+      }
+      expect(f.counters).toMatchObject({
+        direct: rows.length,
+        discovery: rows.length,
+        entries: rows.length,
+        assemblies: rows.length,
+        waits: 0,
+        clocks: 0,
+      });
+    }));
+  it(`D3 source receiving ${route}`, async () =>
+    d3Bounded(`D3 source receiving ${route}`, async (budget) => {
+      const f = await d3Source(budget),
+        target = d3Target(route),
+        tuple = f.tuple("genesis");
+      const rows: [string, Record<string, string>, string, number][] = [
+        ["GET", { "bdp-minimum-scope-position": "genesis" }, "anonymous", 401],
+        ["GET", {}, "reader", route === "scope" ? 204 : 200],
+        ["GET", { "bdp-minimum-scope-position": "genesis" }, "writer", 400],
+        ...Object.keys(tuple).map(
+          (field) =>
+            [
+              "GET",
+              {
+                ...tuple,
+                [field]: `${tuple[field as keyof typeof tuple]}, ${tuple[field as keyof typeof tuple]}`,
+              },
+              "writer",
+              400,
+            ] as [string, Record<string, string>, string, number],
+        ),
+        ["GET", { ...tuple, "bdp-minimum-scope-position": "genesis,genesis" }, "writer", 400],
+        ["HEAD", { "bdp-minimum-scope-position": "genesis" }, "writer", 400],
+      ];
+      let partialLength = 0;
+      for (const [method, headers, role, status] of rows) {
+        const response = await f.call(target, method, headers, role);
+        d3Response(response, status, status < 400 ? "pos-0" : undefined);
+        if (status >= 400) {
+          d3NoDisclosure(response);
+          if (method === "GET") {
+            checkedProblem(record(response.body));
+            partialLength = Buffer.byteLength(JSON.stringify(response.body));
+          } else {
+            expect(response.body).toBeUndefined();
+            expect(Number(response.headers.get("content-length"))).toBe(partialLength);
+          }
+        }
+      }
+      expect(f.counters).toMatchObject({
+        direct: 8,
+        discovery: 1,
+        entries: 1,
+        assemblies: 1,
+        clocks: 0,
+        waits: 0,
+      });
+    }));
+  it(`D3 source minimum order ${route}`, async () =>
+    d3Bounded(`D3 source minimum order ${route}`, async (budget) => {
+      const f = await d3Source(budget, "order");
+      await f.commit();
+      f.reset();
+      const rows: [string, Record<string, string>, number, string?][] = [
+        ["pos-1", {}, route === "scope" ? 204 : 200],
+        ["genesis", {}, route === "scope" ? 204 : 200],
+        ["opaque-unknown", {}, 503],
+        ["pos-2", {}, 503],
+        ["opaque-unknown", { "bdp-scope-epoch": "foreign" }, 410],
+        ["opaque-unknown", { "bdp-authorization-view": "foreign" }, 409],
+        ["opaque-unknown", { accept: "text/plain" }, 503],
+        ["opaque-unknown", { "if-none-match": "*" }, 503],
+        ["opaque-unknown", { "if-match": '"absent"' }, 503],
+      ];
+      if (route === "scope") rows.push(["opaque-unknown", {}, 503, d3Scope + "?x=1"]);
+      for (const [position, extra, status, url] of rows) {
+        f.now(0);
+        const response = await f.call(url ?? d3Target(route), "GET", {
+          ...f.tuple(position),
+          ...extra,
+        });
+        d3Response(response, status, "pos-1");
+        if (status >= 400) {
+          expect(record(response.body).code).toBe(
+            status === 503
+              ? "catch-up-timeout"
+              : status === 410
+                ? "cursor-expired"
+                : "foreign-view",
+          );
+          checkedProblem(record(response.body));
+          if (status === 503) expect(response.headers.get("retry-after")).toBe("1");
+        }
+      }
+      expect(f.counters).toMatchObject({
+        direct: route === "scope" ? 10 : 9,
+        discovery: route === "scope" ? 10 : 9,
+        entries: route === "scope" ? 16 : 14,
+        assemblies: 2,
+        waits: route === "scope" ? 6 : 5,
+        clocks: route === "scope" ? 22 : 19,
+      });
+    }));
+  it(`D3 source catch-up ${route}`, async () =>
+    d3Bounded(`D3 source catch-up ${route}`, async (budget) => {
+      const f = await d3Source(budget, "latch"),
+        headers = new Headers(f.tuple("pos-1"));
+      // Retain the actual Request so caller mutation occurs after its owner entry.
+      const request = new Request(d3Target(route), { headers, signal: budget.signal });
+      f.counters.direct++;
+      const pending = f.handler.handle(request, {
+        kind: "authenticated",
+        principal: "writer",
+        canMutate: true,
+      });
+      void pending.catch(() => {});
+      await f.entered;
+      request.headers.set("bdp-minimum-scope-position", "pos-999");
+      request.headers.set("bdp-scope-epoch", "foreign");
+      const independent = await f.call(d3Target(route));
+      d3Response(independent, route === "scope" ? 204 : 200, "pos-0");
+      await f.commit();
+      f.release();
+      const result = await pending;
+      d3Response(result, route === "scope" ? 204 : 200, "pos-1");
+      expect(f.counters).toMatchObject({
+        direct: 2,
+        discovery: 2,
+        entries: 3,
+        assemblies: 2,
+        waits: 1,
+        clocks: 2,
+        commits: 1,
+      });
+    }));
+  it(`D3 source abort ${route}`, async () =>
+    d3Bounded(`D3 source abort ${route}`, async (budget) => {
+      const f = await d3Source(budget, "latch"),
+        controller = new AbortController();
+      const pending = f.call(d3Target(route), "GET", f.tuple("pos-1"), "writer", controller.signal);
+      void pending.catch(() => {});
+      await f.entered;
+      controller.abort();
+      f.release();
+      await expect(pending).rejects.toBeInstanceOf(ScopeServerOperationAbortedError);
+      expect(f.counters).toMatchObject({
+        direct: 1,
+        discovery: 1,
+        entries: 1,
+        assemblies: 0,
+        waits: 1,
+        clocks: 2,
+      });
+    }));
+  it(`D3 source close-drain ${route}`, async () =>
+    d3Bounded(`D3 source close-drain ${route}`, async (budget) => {
+      const f = await d3Source(budget, "latch");
+      const pending = f.call(d3Target(route), "GET", f.tuple("pos-1"));
+      void pending.catch(() => {});
+      await f.entered;
+      let settled = false;
+      const closing = f.service.close();
+      void closing.then(
+        () => {
+          settled = true;
+        },
+        () => {
+          settled = true;
+        },
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      expect(() => f.owner.inspect()).not.toThrow();
+      f.now(2);
+      f.release();
+      d3Response(await pending, 503, "pos-0");
+      await closing;
+      await f.service.closed;
+      expect(() => f.owner.inspect()).toThrow();
+      expect(() => f.service.discoveryObserved()).toThrow();
+      await f.service.close();
+      expect(f.counters).toMatchObject({
+        direct: 1,
+        discovery: 1,
+        entries: 2,
+        assemblies: 0,
+        waits: 1,
+        clocks: 3,
+      });
+    }));
+}
+async function d3WireRuntime(budget: D3Budget) {
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-d3-wire-"));
+  budget.retain(directory);
+  const runtime = await startTransactionRuntime({
+    directory,
+    scope: d3Scope,
+    authorityMode: "canonical",
+    port: 0,
+    create: true,
+    types,
+    credentials: [{ token, principal: "writer", canMutate: true }],
+  });
+  budget.own(() => runtime.close());
+  return runtime;
+}
+async function d3Raw(
+  budget: D3Budget,
+  listenUrl: string,
+  target: string,
+  method: "GET" | "HEAD",
+  fields: readonly [string, string][],
+  host = new URL(d3Scope).host,
+  authenticated = true,
+) {
+  const dial = new URL(listenUrl),
+    url = new URL(target),
+    socket = connect({ host: dial.hostname, port: Number(dial.port) });
+  let bytes = Buffer.alloc(0),
+    ended = false,
+    closed = false;
+  const terminal = Promise.withResolvers<void>();
+  void terminal.promise.catch(() => {});
+  budget.own(async () => {
+    if (!closed) socket.destroy();
+    await terminal.promise;
+  });
+  const abort = () => socket.destroy(new Error("D3 raw request aborted"));
+  budget.signal.addEventListener("abort", abort, { once: true });
+  try {
+    const response = await new Promise<{ status: number; headers: Headers; body: string }>(
+      (resolve, reject) => {
+        let settled = false;
+        const fail = (error: unknown) => {
+          if (!settled) {
+            settled = true;
+            reject(error);
+          }
+          socket.destroy();
+        };
+        socket.setTimeout(5000, () => fail(new Error("D3 raw exchange deadline")));
+        socket.once("error", fail);
+        socket.once("close", () => {
+          closed = true;
+          terminal.resolve();
+          if (!ended) fail(new Error("D3 raw incomplete response"));
+        });
+        socket.on("data", (chunk: Buffer) => {
+          if (bytes.length + chunk.length > 163840) {
+            fail(new Error("D3 raw wire bound"));
+            return;
+          }
+          bytes = Buffer.concat([bytes, chunk]);
+          const split = bytes.indexOf("\r\n\r\n");
+          if (
+            (split < 0 && bytes.length > 16384) ||
+            (split >= 0 && split + 4 > 16384) ||
+            (split >= 0 && bytes.length - split - 4 > 131072)
+          )
+            fail(new Error("D3 raw header/body bound"));
+        });
+        socket.once("end", () => {
+          ended = true;
+          if (settled) return;
+          try {
+            const split = bytes.indexOf("\r\n\r\n");
+            if (split < 0) throw new Error("D3 raw missing headers");
+            const lines = bytes.subarray(0, split).toString("latin1").split("\r\n"),
+              statusLine = lines.shift() ?? "";
+            const match = /^HTTP\/1\.1 (\d{3}) /.exec(statusLine);
+            if (!match) throw new Error("D3 raw invalid status");
+            const headers = new Headers();
+            for (const line of lines) {
+              const colon = line.indexOf(":");
+              if (colon <= 0) throw new Error("D3 raw invalid field");
+              headers.append(line.slice(0, colon), line.slice(colon + 1).trim());
+            }
+            const body = bytes.subarray(split + 4).toString("utf8");
+            if (method === "HEAD") expect(body).toBe("");
+            else expect(Buffer.byteLength(body)).toBe(Number(headers.get("content-length")));
+            settled = true;
+            resolve({ status: Number(match[1]), headers, body });
+          } catch (error) {
+            fail(error);
+          }
+        });
+        socket.once("connect", () => {
+          const request = `${method} ${url.pathname}${url.search} HTTP/1.1\r\nHost: ${host}\r\nConnection: close\r\nContent-Length: 0\r\n${authenticated ? `Authorization: Bearer ${token}\r\n` : ""}${fields.map(([name, value]) => `${name}: ${value}\r\n`).join("")}\r\n`;
+          if (Buffer.byteLength(request) > 16384) {
+            fail(new Error("D3 raw request bound"));
+            return;
+          }
+          socket.write(request);
+        });
+        if (budget.signal.aborted) abort();
+      },
+    );
+    await terminal.promise;
+    budget.record({
+      transport: "source-local-raw",
+      method,
+      target,
+      credential: authenticated ? "writer" : "anonymous",
+      fieldOccurrences: fields,
+      status: response.status,
+      headers: Object.fromEntries(response.headers),
+      bodyOctets: Buffer.byteLength(response.body),
+      bodySha256: createHash("sha256").update(response.body).digest("hex"),
+      wireSha256: createHash("sha256").update(bytes).digest("hex"),
+    });
+    return response;
+  } finally {
+    budget.signal.removeEventListener("abort", abort);
+  }
+}
+it("D3 source raw receiving", async () =>
+  d3Bounded("D3 source raw receiving", async (budget) => {
+    const runtime = await d3WireRuntime(budget);
+    let requests = 0;
+    for (const route of d3Routes) {
+      const tuple: [string, string][] = [
+        ["bdp-minimum-scope-position", "genesis"],
+        ["bdp-scope-epoch", "epoch"],
+        ["bdp-authorization-view", "view"],
+      ];
+      for (const field of tuple) {
+        const response = await d3Raw(budget, runtime.listenUrl, d3Target(route), "GET", [
+          ...tuple,
+          field,
+        ]);
+        requests++;
+        expect(response.status).toBe(400);
+        d3NoDisclosure(response);
+        expect(JSON.parse(response.body).code).toBe("malformed-request");
+      }
+      const head = await d3Raw(budget, runtime.listenUrl, d3Target(route), "HEAD", [tuple[0]!]);
+      requests++;
+      expect(head.status).toBe(400);
+      d3NoDisclosure(head);
+      expect(head.body).toBe("");
+      expect(Number(head.headers.get("content-length"))).toBeGreaterThan(0);
+    }
+    expect(requests).toBe(12);
+  }));
+it("D3 source target transport boundary", async () =>
+  d3Bounded("D3 source target transport boundary", async (budget) => {
+    const f = await d3Source(budget);
+    for (const route of d3Routes) {
+      const response = await f.call(d3Target(route), "POST");
+      d3Response(response, 405);
+      expect(response.headers.get("allow")).toBe("GET, HEAD");
+      expect(response.body).toBeUndefined();
+    }
+    const operation = f.handler.targets.createBead;
+    for (const method of ["GET", "HEAD", "PUT"]) {
+      const response = await f.call(operation, method);
+      d3Response(response, 405);
+      expect(response.headers.get("allow")).toBe("POST");
+      expect(response.body).toBeUndefined();
+    }
+    for (const url of [
+      new URL("unknown", new URL("operations/", d3Scope)).href,
+      operation.replace("create-bead", "create%2Dbead"),
+      operation + "?x=1",
+      d3Target("descriptor") + "?x=1",
+    ])
+      d3Response(await f.call(url), 404);
+    expect(f.counters).toMatchObject({ direct: 10, discovery: 0 });
+    const runtime = await d3WireRuntime(budget);
+    const host = await d3Raw(budget, runtime.listenUrl, d3Scope, "GET", [], "wrong.invalid", false);
+    expect(host.status).toBe(400);
+    const origin = await d3Raw(budget, runtime.listenUrl, d3Scope, "GET", [
+      ["Origin", "https://browser.invalid"],
+    ]);
+    expect(origin.status).toBe(403);
+    d3NoDisclosure(host);
+    d3NoDisclosure(origin);
+  }));
+function d3Confine(value: unknown, base: string): string {
+  if (typeof value !== "string" || Buffer.byteLength(value) > 8192)
+    throw new Error("unsafe discovery target");
+  const url = new URL(value, base),
+    scope = new URL(d3Scope);
+  if (
+    url.origin !== scope.origin ||
+    !url.pathname.startsWith(scope.pathname) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  )
+    throw new Error("unsafe discovery target");
+  return url.href;
+}
+function d3SourceOracle(input: {
+  link: string;
+  discovery: unknown;
+  directory: unknown;
+  context: Record<string, string>;
+}) {
+  const link = /^<([^>]+)>; rel="service-desc"; type="application\/json"$/.exec(input.link);
+  if (!link?.[1]) throw new Error("unsafe service Link");
+  d3Confine(link[1], d3Scope);
+  const descriptor = parseTransactionalDiscovery(input.discovery),
+    directory = parseTransactionalOperationDirectory(input.directory);
+  if (
+    descriptor.scope !== d3Scope ||
+    descriptor.scopeEpoch !== input.context["bdp-scope-epoch"] ||
+    descriptor.authorizationView !== input.context["bdp-authorization-view"] ||
+    descriptor.headPosition !== input.context["bdp-scope-position"]
+  )
+    throw new Error("discovery context mismatch");
+  const operations = d3Confine(descriptor.operations, link[1]);
+  for (const value of Object.values(directory)) d3Confine(value, operations);
+  return { descriptor, directory };
+}
+it("D3 source cold oracle counterfactual", async () =>
+  d3Bounded("D3 source cold oracle counterfactual", async (budget) => {
+    const f = await d3Source(budget),
+      probe = await f.call(d3Scope),
+      descriptor = await f.call(d3Target("descriptor")),
+      directory = await f.call(d3Target("directory"));
+    const input = {
+      link: probe.headers.get("link") ?? "",
+      discovery: descriptor.body,
+      directory: directory.body,
+      context: Object.fromEntries(
+        ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"].map((name) => [
+          name,
+          descriptor.headers.get(name) ?? "",
+        ]),
+      ),
+    };
+    d3SourceOracle(input);
+    const mutations: [string, (copy: typeof input) => void][] = [
+      [
+        "missing-updateLink",
+        (copy) => {
+          delete record(copy.directory).updateLink;
+        },
+      ],
+      [
+        "wrong-version",
+        (copy) => {
+          record(copy.discovery).bdpVersion = "wrong";
+        },
+      ],
+      [
+        "wrong-profile",
+        (copy) => {
+          record(copy.discovery).profile = "read";
+        },
+      ],
+      [
+        "wrong-scope",
+        (copy) => {
+          record(copy.discovery).scope = "https://other.invalid/";
+        },
+      ],
+      [
+        "unsafe-service-link",
+        (copy) => {
+          copy.link =
+            '<https://foreign.invalid/bdp.json>; rel="service-desc"; type="application/json"';
+        },
+      ],
+      [
+        "unsafe-directory-target",
+        (copy) => {
+          record(copy.directory).createBead = "https://foreign.invalid/create";
+          expect(() => parseTransactionalOperationDirectory(copy.directory)).toThrow();
+        },
+      ],
+      [
+        "epoch-context-mismatch",
+        (copy) => {
+          record(copy.discovery).scopeEpoch = "foreign";
+        },
+      ],
+      [
+        "head-context-mismatch",
+        (copy) => {
+          record(copy.discovery).headPosition = "pos-999";
+        },
+      ],
+      [
+        "schema-valid-foreign-operations-base",
+        (copy) => {
+          record(copy.discovery).operations = "https://foreign.invalid/operations/";
+          parseTransactionalDiscovery(copy.discovery);
+        },
+      ],
+    ];
+    for (const [name, mutate] of mutations) {
+      const copy = structuredClone(input);
+      mutate(copy);
+      expect(() => d3SourceOracle(copy), name).toThrow();
+      budget.record({ counterfactual: name, rejected: true, wireRequests: 0 });
+    }
+    expect(f.counters).toMatchObject({
+      direct: 3,
+      discovery: 3,
+      entries: 3,
+      assemblies: 3,
+      clocks: 0,
+      waits: 0,
+    });
+  }));

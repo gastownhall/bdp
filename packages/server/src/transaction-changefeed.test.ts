@@ -11,6 +11,7 @@ import {
   isJsonSchemaUri,
   isJsonSchemaDateTime,
   parseTypeDescriptor,
+  parseTransactionalDiscovery,
   stringifyJsonValue,
 } from "@bdp/protocol";
 import type { ResourceRecord } from "./resource-evaluator.js";
@@ -687,7 +688,13 @@ it("serves actual HTTP finite GET/HEAD, absolute navigation, native conditions a
   const unauth = await f.request("changes/?after=genesis", { headers: { authorization: "" } });
   expect(unauth.status).toBe(401);
   expect(unauth.headers.get("bdp-scope-position")).toBeNull();
-  expect((await f.request("bdp.json")).status).toBe(500);
+  const discovery = await f.request("bdp.json");
+  expect(discovery.status).toBe(200);
+  expect(discovery.headers.has("x-bdp-development-limit")).toBe(false);
+  const descriptor = parseTransactionalDiscovery(await discovery.json());
+  expect(descriptor.scopeEpoch).toBe(discovery.headers.get("bdp-scope-epoch"));
+  expect(descriptor.authorizationView).toBe(discovery.headers.get("bdp-authorization-view"));
+  expect(descriptor.headPosition).toBe(discovery.headers.get("bdp-scope-position"));
   await f.reopen();
   expect(await (await f.request("changes/?after=genesis")).json()).toEqual(firstPage);
 });

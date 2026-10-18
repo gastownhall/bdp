@@ -18,8 +18,8 @@ import {
   TransactionMinimumUnsupported,
   TransactionMinimumFailure,
 } from "./transaction-consistency.js";
-/** Source-private partial Transactional HTTP projection. No discovery/profile
- * advertisement: discovery and complete consistency/Selector admission remain unqualified. */
+/** Private Transactional HTTP projection. Discovery is non-attesting; public
+ * profile admission and cumulative qualification remain separate. */
 import {
   isReadProblem,
   JsonSyntaxError,
@@ -209,7 +209,9 @@ export function createTransactionHttpHandler(
     scope,
     probe: async () => ({ serviceDescription: new URL("bdp.json", scope).href }),
     problem,
-    discover: async () => developmentGap("transactional-discovery"),
+    discover: async () => {
+      throw new Error("unreachable Transactional discovery route");
+    },
     async alias(suffix, request) {
       if (isReadProblem(suffix)) return problem(suffix);
       const minimum = currentReadMinimumHeaders(request.headers);
@@ -238,18 +240,17 @@ export function createTransactionHttpHandler(
         ? service.readAtMinimum(readPrincipal(request), minimum)
         : service.readFor(readPrincipal(request));
       const result = await facet.perform(parsed, { signal: request.signal });
+      if (result.kind === "discovery") throw new Error("unreachable Transactional discovery route");
       const response =
         result.kind === "problem"
           ? problem(result.problem)
-          : result.kind === "discovery"
-            ? developmentGap("transactional-discovery")
-            : scopeDataResponse(
-                parsed,
-                result.body,
-                "resourceRevision" in result.observation
-                  ? result.observation.resourceRevision
-                  : undefined,
-              );
+          : scopeDataResponse(
+              parsed,
+              result.body,
+              "resourceRevision" in result.observation
+                ? result.observation.resourceRevision
+                : undefined,
+            );
       return "observation" in result
         ? context(response, transactionReadContexts(result.observation).current)
         : response;
@@ -583,6 +584,30 @@ export function createTransactionHttpHandler(
       if (result.kind === "unsupported") return developmentGap("minimum-position");
       return receiptResponse(result, false);
     }
+    // Specialised Snapshot/changefeed/Event/receipt lifetimes above retain their
+    // own receiving and minimum rules. Discovery is one current observation.
+    const scopeProbe = url.pathname === scopeUrl.pathname;
+    const descriptor = url.href === new URL("bdp.json", scope).href;
+    const directory = url.href === new URL("operations/", scope).href;
+    if (scopeProbe || descriptor || directory) {
+      const supplied = hasMinimumControls(request);
+      const minimum = supplied ? currentReadMinimumHeaders(request.headers) : undefined;
+      if (supplied && minimum === undefined)
+        throw new Error("lexically valid discovery minimum lost its tuple");
+      const observed = await service.discoveryObserved(minimum, request.signal);
+      return context(
+        scopeProbe
+          ? {
+              status: 204,
+              headers: new Headers({
+                link: `<${new URL("bdp.json", scope).href}>; rel="service-desc"; type="application/json"`,
+                "cache-control": "private, no-store",
+              }),
+            }
+          : jsonResponse(descriptor ? observed.discovery : observed.directory),
+        observed.context,
+      );
+    }
     const minimum = hasMinimumControls(request)
       ? currentReadMinimumHeaders(request.headers)
       : undefined;
@@ -601,14 +626,6 @@ export function createTransactionHttpHandler(
       if (isReadProblem(parsed) || !isCurrentTransactionMinimumRead(parsed, scope))
         return developmentGap("minimum-position-route");
     }
-    // No fabricated discovery or incomplete Operation Directory is exposed. The
-    // source fixture gives tests actual canonical targets out of band.
-    if (
-      url.pathname === scopeUrl.pathname ||
-      url.href === new URL("bdp.json", scope).href ||
-      url.href === new URL("operations/", scope).href
-    )
-      return developmentGap("transactional-discovery");
     return readRoute(request);
   }
   return Object.freeze({
