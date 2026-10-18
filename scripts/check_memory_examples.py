@@ -25,13 +25,11 @@ args = parser.parse_args()
 K = "https://example.org/memory-types/"
 F = "https://example.org/types/beads/"
 MEMORY = (K + "memory", "memory-contract-1")
-CHILDREN = ("observation", "decision", "requirement", "procedure", "policy", "lesson")
+CHILDREN = ("policy", "decision", "procedure", "specification", "requirement", "scenario", "proposal")
 NAMES = {"memory": "memory.properties.schema.json",
          **{name: f"memory-{name}.local-properties.schema.json" for name in CHILDREN},
          "link": "memory-link.properties.schema.json"}
-LINK_NAMES = {"association", "memory-guidance", "memory-applies-to",
-              "memory-supports", "memory-challenges", "memory-supersedes"}
-ASSOCIATION = (K + "association", "association-contract-1")
+LINK_NAMES = {"references"}
 SHARED_NAMES = ("type-definition.properties.schema.json",
                 "bead-type-definition.properties.schema.json",
                 "link-type-definition.properties.schema.json",
@@ -117,7 +115,7 @@ if args.with_bdp_exploration:
     shared_validators = {name: validator(schema) for name, schema in shared.items()}
     fixture = read(MEMORY_DIR / "definitions.json")
     definitions = fixture["definitions"]
-    require(len(definitions) == 13, "Expected seven Bead and six Link definitions")
+    require(len(definitions) == 9, "Expected eight Bead and one Link definition")
     by_pin = {(d["id"], d["revision"]): d for d in definitions}
     require(len(by_pin) == len(definitions), "Duplicate exact domain definition")
     foundation = read(args.shared_schemas / "definitions.json")
@@ -143,8 +141,6 @@ if args.with_bdp_exploration:
         parent = None
         if is_bead and name in CHILDREN:
             parent = MEMORY
-        elif not is_bead and definition["id"] != ASSOCIATION[0]:
-            parent = ASSOCIATION
         for declaration in recorded:
             require(declaration["source"] == definition["id"], "Wrong declaration owner")
             require(exact(declaration["type"]) == (F + "conforms-to", "conformance-1"),
@@ -155,7 +151,7 @@ if args.with_bdp_exploration:
             owned_declarations.append(declaration)
         require(len(recorded) == (1 if parent else 0), "Unexpected direct conformance")
     require(owned_declarations == fixture["declarations"], "Recorded declarations differ from exposed copies")
-    require(len(owned_declarations) == 11, "Expected six Memory and five Association declarations")
+    require(len(owned_declarations) == 7, "Expected seven Memory family declarations")
 
 
     def closure(pin, active=()):
@@ -170,9 +166,6 @@ if args.with_bdp_exploration:
     for name in CHILDREN:
         require(MEMORY in closure((K + name, name + "-contract-1")),
                 ("Missing recorded Memory conformance", name))
-    for name in LINK_NAMES - {"association"}:
-        pin = next(pin for pin in by_pin if pin[0] == K + name)
-        require(ASSOCIATION in closure(pin), ("Missing recorded Association conformance", name))
     require(by_pin[MEMORY]["properties"]["ownsOutgoing"] == [{"any": True}],
             "Base Memory must own every outgoing Link")
 
@@ -192,14 +185,8 @@ if args.with_bdp_exploration:
             errors = list(validator(schema).iter_errors(link["properties"]))
             require(not errors, (link["id"], inherited, [e.message for e in errors]))
 
-    external = read(FIXTURES / "bdp-exploration.json")["links"]
-    for link in external:
-        require(exact(link["type"]) in by_pin, ("Unknown exploratory Link", link["id"]))
-        errors = list(validators["link"].iter_errors(link["properties"]))
-        require(not errors, (link["id"], [e.message for e in errors]))
     print(f"PASS optional BDP exploration: {len(definitions)} descriptors; "
-          f"{len(owned_declarations)} declarations; {len(external)} external-Link excerpts. "
-          "Nonnormative encoding/closure only.")
+          f"{len(owned_declarations)} declarations. Nonnormative encoding/closure only.")
 
 print("LIMIT: property shapes, formats and finite examples only. "
       "No prose meaning, endpoint admission, provenance, graph operations, History, "

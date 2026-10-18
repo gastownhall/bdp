@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
-  "title": "Association properties",
-  "$comment": "Association base properties inherited by all five specialized Links. Optional note explains the relationship; optional status is an authored claim, not an activation switch. Endpoint/pin/ownership rules are not checked here.",
+  "title": "references Link properties",
+  "$comment": "Generic informational references Link. Optional note explains the connection; optional open-string status is author-reported and has no automatic activation, authority or workflow effect. Endpoint/pin/ownership rules are not checked here.",
   "type": "object",
   "properties": {
     "note": {

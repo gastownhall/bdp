@@ -1,5 +1,5 @@
 {
-  "_comment": "Memory V1 property examples in an illustrative test carrier, not a public wire format. Type/revision tokens are labels. Body is primary; status is optional author-reported text. Applicability metadata is an application example, not a standardized shape. Common provenance/owned/history details are incomplete; no migration or new provenance representation is defined.",
+  "_comment": "Project-driven Memory property excerpts in an illustrative carrier. Public documents/table rows motivate the examples but are not native typed Beads or persisted Links. projectSource is example application metadata. Type/ID/revision labels are not production assignments. Primary content is body; common provenance/history/owned state is incomplete.",
   "records": [
     {
       "id": "https://example.org/project/beads/memory",
@@ -9,41 +9,26 @@
         "revision": "memory-contract-1"
       },
       "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "Check the housing before ordering the seal."
+        "title": "Record exact inputs before comparison",
+        "body": "Record the source revisions used by a comparison so its results can be interpreted later."
       },
       "metadata": {}
     },
     {
-      "id": "https://example.org/project/beads/observation",
-      "revision": "observation-r1",
+      "id": "https://example.org/project/beads/policy",
+      "revision": "policy-r1",
       "type": {
-        "uri": "https://example.org/memory-types/observation",
-        "revision": "observation-contract-1"
+        "uri": "https://example.org/memory-types/policy",
+        "revision": "policy-contract-1"
       },
       "properties": {
-        "title": "Seal inspection",
-        "body": "Housing B leaked after the old seal was fitted.",
-        "observedAt": "2026-10-01T10:00:00Z"
+        "title": "Keep Beads releases aligned with BDP",
+        "body": "Each release must identify its exact contract checkpoint and record known discrepancies separately from implementation evidence.",
+        "status": "draft",
+        "authority": "https://github.com/gastownhall/beads/issues/7656#issuecomment-6253701616"
       },
-      "metadata": {},
-      "revisionProvenance": {
-        "actor": {
-          "id": "human:technician",
-          "basis": "writer-supplied"
-        },
-        "sources": [
-          {
-            "ref": {
-              "uri": "https://example.org/project/beads/procedure",
-              "revision": "procedure-r1"
-            }
-          },
-          {
-            "ref": "urn:example:inspection:report-7"
-          }
-        ],
-        "sourcesCompleteness": "incomplete"
+      "metadata": {
+        "projectSource": "https://github.com/gastownhall/beads/issues/7656#issuecomment-6253701616"
       }
     },
     {
@@ -54,36 +39,45 @@
         "revision": "decision-contract-1"
       },
       "properties": {
-        "title": "Supplier choice",
-        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
-        "alternatives": ["Beta"],
-        "status": "ratified"
+        "title": "Revision shorthand is a CLI presentation feature",
+        "body": "Use compact revision selectors for CLI input and display while retaining separate structured identity and revision fields in JSON and BDP.",
+        "status": "accepted",
+        "alternatives": ["Store the compact spelling as canonical identity"]
       },
       "metadata": {
-        "applicability": {
-          "description": "Western-region purchasing next quarter"
-        }
+        "projectSource": "https://github.com/gastownhall/beads/issues/7656"
+      }
+    },
+    {
+      "id": "https://example.org/project/beads/procedure",
+      "revision": "procedure-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/procedure",
+        "revision": "procedure-contract-1"
       },
-      "revisionProvenance": {
-        "actor": {
-          "id": "human:alice",
-          "basis": "writer-supplied"
-        },
-        "sources": [
-          {
-            "ref": {
-              "uri": "https://example.org/project/beads/supplier-assessment",
-              "revision": "supplier-assessment-r1"
-            }
-          },
-          {
-            "ref": {
-              "uri": "https://example.org/project/beads/policy",
-              "revision": "policy-r1"
-            }
-          }
-        ],
-        "sourcesCompleteness": "incomplete"
+      "properties": {
+        "title": "Establish BDP and Beads release synchronization",
+        "body": "1. Record exact comparison inputs.\n2. Review contract and implementation differences.\n3. Agree dispositions before changing branches or pins.",
+        "status": "draft"
+      },
+      "metadata": {
+        "projectSource": "https://github.com/gastownhall/beads/issues/7656#issuecomment-6253701908"
+      }
+    },
+    {
+      "id": "https://example.org/project/beads/specification",
+      "revision": "specification-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/specification",
+        "revision": "specification-contract-1"
+      },
+      "properties": {
+        "title": "Graph CLI specification",
+        "body": "Define commands, reference inputs, output and refusal behavior for the shared graph CLI.",
+        "status": "draft"
+      },
+      "metadata": {
+        "projectSource": "https://github.com/donnabox/beads/blob/5779b6b846d358c40bdc7bad4a2fcffc779aadb6/docs/reference/graph-cli-specification-draft.md"
       }
     },
     {
@@ -94,266 +88,126 @@
         "revision": "requirement-contract-1"
       },
       "properties": {
-        "title": "Five-day delivery",
-        "body": "Orders must arrive within five days.",
-        "status": "accepted"
-      },
-      "metadata": {}
-    },
-    {
-      "id": "https://example.org/project/beads/procedure",
-      "revision": "procedure-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/procedure",
-        "revision": "procedure-contract-1"
-      },
-      "properties": {
-        "title": "Seal replacement",
-        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan."
+        "title": "R17: Connect work and knowledge",
+        "body": "Support explicit informational relationships involving Memory Beads without giving those relationships Issue workflow effects."
       },
       "metadata": {
-        "applicability": {
-          "description": "Housing B only"
-        }
+        "projectSource": "https://github.com/gastownhall/beads/issues/5877"
       }
     },
     {
-      "id": "https://example.org/project/beads/policy",
-      "revision": "policy-r1",
+      "id": "https://example.org/project/beads/scenario",
+      "revision": "scenario-r1",
       "type": {
-        "uri": "https://example.org/memory-types/policy",
-        "revision": "policy-contract-1"
+        "uri": "https://example.org/memory-types/scenario",
+        "revision": "scenario-contract-1"
       },
       "properties": {
-        "title": "Supplier assessment policy",
-        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
-        "authority": "https://example.org/documents/purchasing-charter",
+        "title": "S8: Connect an Issue and reusable knowledge",
+        "body": "A project participant records knowledge and connects it to work. Another participant follows the recorded connection and explicitly reads the selected knowledge."
+      },
+      "metadata": {
+        "projectSource": "https://github.com/gastownhall/beads/issues/5877"
+      }
+    },
+    {
+      "id": "https://example.org/project/beads/proposal",
+      "revision": "proposal-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/proposal",
+        "revision": "proposal-contract-1"
+      },
+      "properties": {
+        "title": "Revision-aware CLI syntax",
+        "body": "Consider compact CLI reference input and display while preserving structured identity and revision fields in storage and wire formats.",
         "status": "proposed"
       },
-      "metadata": {}
-    },
-    {
-      "id": "https://example.org/project/beads/lesson",
-      "revision": "lesson-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/lesson",
-        "revision": "lesson-contract-1"
-      },
-      "properties": {
-        "title": "Identify the housing",
-        "body": "Record the housing edition before selecting the procedure\n\nDifferent housings needed different seals."
-      },
-      "metadata": {}
-    },
-    {
-      "id": "https://example.org/project/beads/supplier-assessment",
-      "revision": "supplier-assessment-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/observation",
-        "revision": "observation-contract-1"
-      },
-      "properties": {
-        "title": "Delivery assessment",
-        "body": "Acme met the requested delivery window; Beta did not."
-      },
-      "metadata": {},
-      "revisionProvenance": {
-        "actor": {
-          "id": "human:alice",
-          "basis": "writer-supplied"
-        },
-        "sources": [
-          {
-            "ref": "urn:example:reports:supplier-assessment"
-          }
-        ],
-        "sourcesCompleteness": "incomplete"
-      }
-    },
-    {
-      "id": "https://example.org/project/beads/housing-followup",
-      "revision": "housing-followup-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/observation",
-        "revision": "observation-contract-1"
-      },
-      "properties": {
-        "title": "Different housing needs different seal",
-        "body": "A later inspection found that the housing B seal leaked when used on housing C. The procedure is unsuitable for that housing."
-      },
-      "metadata": {},
-      "revisionProvenance": {
-        "actor": {
-          "id": "human:bob",
-          "basis": "writer-supplied"
-        },
-        "sources": [
-          {
-            "ref": {
-              "uri": "https://example.org/project/beads/procedure",
-              "revision": "procedure-r1"
-            }
-          },
-          {
-            "ref": "urn:example:inspection:housing-c-report"
-          }
-        ],
-        "sourcesCompleteness": "incomplete"
-      }
-    },
-    {
-      "id": "https://example.org/project/beads/decision-replacement",
-      "revision": "decision-replacement-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/decision",
-        "revision": "decision-contract-1"
-      },
-      "properties": {
-        "title": "Revised supplier choice",
-        "body": "Use Delta for new orders\n\nAcme capacity no longer meets the new order window. This choice applies to new orders only.",
-        "alternatives": ["Acme", "Beta"],
-        "status": "ratified"
-      },
       "metadata": {
-        "applicability": {
-          "description": "New western-region orders after the capacity review"
-        }
-      },
-      "revisionProvenance": {
-        "actor": {
-          "id": "human:alice",
-          "basis": "writer-supplied"
-        },
-        "sources": [
-          {
-            "ref": {
-              "uri": "https://example.org/project/beads/decision",
-              "revision": "decision-r1"
-            }
-          },
-          {
-            "ref": "urn:example:reports:capacity-review"
-          }
-        ],
-        "sourcesCompleteness": "incomplete"
+        "projectSource": "https://github.com/gastownhall/beads/issues/7659"
       }
     }
   ],
   "links": [
     {
-      "id": "https://example.org/project/links/guidance",
+      "id": "https://example.org/project/links/work-contract",
       "revision": "link-r1",
       "type": {
-        "uri": "https://example.org/memory-types/memory-guidance",
-        "revision": "guidance-contract-1"
+        "uri": "https://example.org/memory-types/references",
+        "revision": "references-contract-1"
       },
       "source": "https://example.org/project/beads/work-issue",
-      "target": "https://example.org/project/beads/procedure",
-      "properties": {},
+      "target": "https://example.org/project/beads/specification",
+      "properties": {
+        "note": "Contract document recorded with this work.",
+        "status": "recorded"
+      },
       "metadata": {}
     },
     {
-      "id": "https://example.org/project/links/supports",
+      "id": "https://example.org/project/links/proposal-contract",
       "revision": "link-r1",
       "type": {
-        "uri": "https://example.org/memory-types/memory-supports",
-        "revision": "supports-contract-1"
+        "uri": "https://example.org/memory-types/references",
+        "revision": "references-contract-1"
       },
-      "source": "https://example.org/project/beads/supplier-assessment",
+      "source": "https://example.org/project/beads/proposal",
+      "target": "https://example.org/project/beads/specification",
+      "properties": {
+        "note": "Contract document discussed by this proposal.",
+        "status": "recorded"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/contract-requirement",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/references",
+        "revision": "references-contract-1"
+      },
+      "source": "https://example.org/project/beads/specification",
       "target": {
-        "uri": "https://example.org/project/beads/decision",
-        "revision": "decision-r1"
+        "uri": "https://example.org/project/beads/requirement",
+        "revision": "requirement-r1"
       },
       "properties": {
-        "status": "proposed"
+        "note": "The document cites this edition of the requirement.",
+        "status": "recorded"
       },
       "metadata": {}
     },
     {
-      "id": "https://example.org/project/links/challenges",
+      "id": "https://example.org/project/links/scenario-requirement",
       "revision": "link-r1",
       "type": {
-        "uri": "https://example.org/memory-types/memory-challenges",
-        "revision": "challenges-contract-1"
+        "uri": "https://example.org/memory-types/references",
+        "revision": "references-contract-1"
       },
-      "source": "https://example.org/project/beads/housing-followup",
+      "source": "https://example.org/project/beads/scenario",
       "target": {
-        "uri": "https://example.org/project/beads/procedure",
-        "revision": "procedure-r1"
+        "uri": "https://example.org/project/beads/requirement",
+        "revision": "requirement-r1"
       },
-      "properties": {},
+      "properties": {
+        "note": "This scenario refers to the requirement; the connection is not execution evidence.",
+        "status": "recorded"
+      },
       "metadata": {}
     },
     {
-      "id": "https://example.org/project/links/association-work",
+      "id": "https://example.org/project/links/decision-proposal",
       "revision": "link-r1",
       "type": {
-        "uri": "https://example.org/memory-types/association",
-        "revision": "association-contract-1"
+        "uri": "https://example.org/memory-types/references",
+        "revision": "references-contract-1"
       },
       "source": "https://example.org/project/beads/decision",
-      "target": "https://example.org/project/beads/work-issue",
-      "properties": {
-        "note": "Background knowledge for the supplier work."
-      },
-      "metadata": {}
-    },
-    {
-      "id": "https://example.org/project/links/replacement-offered",
-      "revision": "link-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/memory-supersedes",
-        "revision": "supersedes-contract-1"
-      },
-      "source": "https://example.org/project/beads/decision-replacement",
       "target": {
-        "uri": "https://example.org/project/beads/decision",
-        "revision": "decision-r1"
+        "uri": "https://example.org/project/beads/proposal",
+        "revision": "proposal-r1"
       },
       "properties": {
-        "note": "This new decision replaces the cited edition for the next quarter."
-      },
-      "metadata": {}
-    },
-    {
-      "id": "https://example.org/project/links/procedure-applies-to-work",
-      "revision": "link-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/memory-applies-to",
-        "revision": "applies-to-contract-1"
-      },
-      "source": "https://example.org/project/beads/procedure",
-      "target": "https://example.org/project/beads/work-issue",
-      "properties": {
-        "note": "This procedure applies to the housing B work."
-      },
-      "metadata": {}
-    },
-    {
-      "id": "https://example.org/project/links/replacement-of-identity",
-      "revision": "link-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/memory-supersedes",
-        "revision": "supersedes-contract-1"
-      },
-      "source": "https://example.org/project/beads/decision-replacement",
-      "target": "https://example.org/project/beads/decision",
-      "properties": {
-        "note": "This decision replaces the predecessor Memory as a continuing identity."
-      },
-      "metadata": {}
-    },
-    {
-      "id": "https://example.org/project/links/decision-requirement",
-      "revision": "link-r1",
-      "type": {
-        "uri": "https://example.org/memory-types/association",
-        "revision": "association-contract-1"
-      },
-      "source": "https://example.org/project/beads/decision",
-      "target": "https://example.org/project/beads/requirement",
-      "properties": {
-        "note": "The supplier choice addresses the five-day delivery requirement; this Link alone does not prove satisfaction.",
+        "note": "The decision records a choice concerning this proposal.",
         "status": "recorded"
       },
       "metadata": {}

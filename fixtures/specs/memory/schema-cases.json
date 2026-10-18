@@ -1,5 +1,5 @@
 {
-  "_comment": "Memory V1 product property cases. Seven Bead Types share title/body and optional nonblank open-string status; six Link Types share optional note/status. Applicability is application metadata; old root property data remains uninterpreted extension data. No semantic prose, endpoint, approval, History, transaction or CLI qualification.",
+  "_comment": "Project-driven Memory property cases: eight Bead Types share title/body and optional nonblank open-string status; references Link has optional note/status. Metadata remains application-defined; root extensions are preserved without inferred meaning. No endpoint, graph, approval, History, transaction, CLI or runtime qualification.",
   "cases": [
     {
       "label": "plain Memory requires no classification",
@@ -70,46 +70,6 @@
       "properties": {
         "title": "Housing B uses a different seal",
         "body": "Check the housing before ordering the seal."
-      },
-      "valid": true
-    },
-    {
-      "label": "valid observation",
-      "type": "observation",
-      "properties": {
-        "title": "Seal inspection",
-        "body": "The old seal leaked on housing B.\n\nHousing B leaked after the old seal was fitted.",
-        "observedAt": "2026-10-01T10:00:00Z"
-      },
-      "valid": true
-    },
-    {
-      "label": "observation body needs no duplicate primary field",
-      "type": "observation",
-      "properties": {
-        "title": "Seal inspection",
-        "body": "Housing B leaked after the old seal was fitted.",
-        "observedAt": "2026-10-01T10:00:00Z"
-      },
-      "valid": true
-    },
-    {
-      "label": "observation still inherits title",
-      "type": "observation",
-      "properties": {
-        "body": "The old seal leaked on housing B.\n\nHousing B leaked after the old seal was fitted.",
-        "observedAt": "2026-10-01T10:00:00Z"
-      },
-      "valid": false
-    },
-    {
-      "label": "observation permits uninterpreted root kind extension; affiliation still selects the Type",
-      "type": "observation",
-      "properties": {
-        "title": "Seal inspection",
-        "body": "The old seal leaked on housing B.\n\nHousing B leaked after the old seal was fitted.",
-        "observedAt": "2026-10-01T10:00:00Z",
-        "kind": "observation"
       },
       "valid": true
     },
@@ -224,61 +184,6 @@
         "kind": "policy"
       },
       "valid": true
-    },
-    {
-      "label": "valid lesson",
-      "type": "lesson",
-      "properties": {
-        "title": "Identify the housing",
-        "body": "Record the housing edition before selecting the procedure\n\nDifferent housings needed different seals."
-      },
-      "valid": true
-    },
-    {
-      "label": "lesson body needs no duplicate primary field",
-      "type": "lesson",
-      "properties": {
-        "title": "Identify the housing",
-        "body": "Different housings needed different seals."
-      },
-      "valid": true
-    },
-    {
-      "label": "lesson still inherits title",
-      "type": "lesson",
-      "properties": {
-        "body": "Record the housing edition before selecting the procedure\n\nDifferent housings needed different seals."
-      },
-      "valid": false
-    },
-    {
-      "label": "lesson permits uninterpreted root kind extension; affiliation still selects the Type",
-      "type": "lesson",
-      "properties": {
-        "title": "Identify the housing",
-        "body": "Record the housing edition before selecting the procedure\n\nDifferent housings needed different seals.",
-        "kind": "lesson"
-      },
-      "valid": true
-    },
-    {
-      "label": "observation time may be unknown",
-      "type": "observation",
-      "properties": {
-        "title": "Seal inspection",
-        "body": "The old seal leaked on housing B.\n\nHousing B leaked after the old seal was fitted."
-      },
-      "valid": true
-    },
-    {
-      "label": "malformed observation time",
-      "type": "observation",
-      "properties": {
-        "title": "Seal inspection",
-        "body": "The old seal leaked on housing B.\n\nHousing B leaked after the old seal was fitted.",
-        "observedAt": "yesterday"
-      },
-      "valid": false
     },
     {
       "label": "alternatives []",
@@ -491,16 +396,6 @@
       "valid": true
     },
     {
-      "label": "conformer may add an allowed root property",
-      "type": "observation",
-      "properties": {
-        "title": "Housing B uses a different seal",
-        "body": "The old seal leaked on housing B.\n\nCheck the housing before ordering the seal.",
-        "region": "west"
-      },
-      "valid": true
-    },
-    {
       "label": "kind cannot replace required inherited body",
       "type": "procedure",
       "properties": {
@@ -518,24 +413,6 @@
         "kind": "procedure"
       },
       "valid": true
-    },
-    {
-      "label": "observation preserves explicit empty body",
-      "type": "observation",
-      "properties": {
-        "title": "A recorded observation",
-        "body": ""
-      },
-      "valid": true
-    },
-    {
-      "label": "observation rejects non-text body",
-      "type": "observation",
-      "properties": {
-        "title": "A recorded observation",
-        "body": null
-      },
-      "valid": false
     },
     {
       "label": "decision preserves explicit empty body",
@@ -587,24 +464,6 @@
       "type": "policy",
       "properties": {
         "title": "A recorded policy",
-        "body": null
-      },
-      "valid": false
-    },
-    {
-      "label": "lesson preserves explicit empty body",
-      "type": "lesson",
-      "properties": {
-        "title": "A recorded lesson",
-        "body": ""
-      },
-      "valid": true
-    },
-    {
-      "label": "lesson rejects non-text body",
-      "type": "lesson",
-      "properties": {
-        "title": "A recorded lesson",
         "body": null
       },
       "valid": false
@@ -706,46 +565,6 @@
     {
       "label": "memory null status",
       "type": "memory",
-      "properties": {
-        "title": "Status example",
-        "body": "",
-        "status": null
-      },
-      "valid": false
-    },
-    {
-      "label": "observation open vocabulary",
-      "type": "observation",
-      "properties": {
-        "title": "Status example",
-        "body": "",
-        "status": "locally-reviewed"
-      },
-      "valid": true
-    },
-    {
-      "label": "observation blank status",
-      "type": "observation",
-      "properties": {
-        "title": "Status example",
-        "body": "",
-        "status": " \n"
-      },
-      "valid": false
-    },
-    {
-      "label": "observation non-text status",
-      "type": "observation",
-      "properties": {
-        "title": "Status example",
-        "body": "",
-        "status": 7
-      },
-      "valid": false
-    },
-    {
-      "label": "observation null status",
-      "type": "observation",
       "properties": {
         "title": "Status example",
         "body": "",
@@ -914,46 +733,6 @@
       "valid": false
     },
     {
-      "label": "lesson open vocabulary",
-      "type": "lesson",
-      "properties": {
-        "title": "Status example",
-        "body": "",
-        "status": "locally-reviewed"
-      },
-      "valid": true
-    },
-    {
-      "label": "lesson blank status",
-      "type": "lesson",
-      "properties": {
-        "title": "Status example",
-        "body": "",
-        "status": " \n"
-      },
-      "valid": false
-    },
-    {
-      "label": "lesson non-text status",
-      "type": "lesson",
-      "properties": {
-        "title": "Status example",
-        "body": "",
-        "status": 7
-      },
-      "valid": false
-    },
-    {
-      "label": "lesson null status",
-      "type": "lesson",
-      "properties": {
-        "title": "Status example",
-        "body": "",
-        "status": null
-      },
-      "valid": false
-    },
-    {
       "label": "link open vocabulary",
       "type": "link",
       "properties": {
@@ -981,6 +760,282 @@
       "label": "link null status",
       "type": "link",
       "properties": {
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "specification body carries primary content",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": "Record the relevant contract or situation."
+      },
+      "valid": true
+    },
+    {
+      "label": "specification empty body is present",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "specification missing title",
+      "type": "specification",
+      "properties": {
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "specification missing body",
+      "type": "specification",
+      "properties": {
+        "title": "Project record"
+      },
+      "valid": false
+    },
+    {
+      "label": "specification blank title",
+      "type": "specification",
+      "properties": {
+        "title": "  ",
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "specification non-text body",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": []
+      },
+      "valid": false
+    },
+    {
+      "label": "specification open status",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "specification blank status",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "specification non-text status",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": 5
+      },
+      "valid": false
+    },
+    {
+      "label": "specification null status",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario body carries primary content",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": "Record the relevant contract or situation."
+      },
+      "valid": true
+    },
+    {
+      "label": "scenario empty body is present",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "scenario missing title",
+      "type": "scenario",
+      "properties": {
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario missing body",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record"
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario blank title",
+      "type": "scenario",
+      "properties": {
+        "title": "  ",
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario non-text body",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": []
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario open status",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "scenario blank status",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario non-text status",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": 5
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario null status",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal body carries primary content",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": "Record the relevant contract or situation."
+      },
+      "valid": true
+    },
+    {
+      "label": "proposal empty body is present",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "proposal missing title",
+      "type": "proposal",
+      "properties": {
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal missing body",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record"
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal blank title",
+      "type": "proposal",
+      "properties": {
+        "title": "  ",
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal non-text body",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": []
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal open status",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "proposal blank status",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal non-text status",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": 5
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal null status",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": "",
         "status": null
       },
       "valid": false
