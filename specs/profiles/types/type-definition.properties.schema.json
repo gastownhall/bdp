@@ -162,24 +162,6 @@
               "$ref": "#/$defs/endpointTypes"
             }
           },
-          "allOf": [
-            {
-              "if": {
-                "properties": {
-                  "scope": {
-                    "enum": ["cross", "either"]
-                  }
-                }
-              },
-              "then": {
-                "properties": {
-                  "types": {
-                    "const": ["*"]
-                  }
-                }
-              }
-            }
-          ],
           "additionalProperties": false
         },
         {
@@ -193,7 +175,7 @@
           "additionalProperties": false
         }
       ],
-      "$comment": "Candidate endpoint syntax. Nonlocal resources are opaque: no remote Type validation. Cross/either bead forms classify reference addresses only and require wildcard. resource admits an opaque external URI; it does not enable local Link endpoints. Exact Scope-address classification remains to specify. Endpoint pin-mode constraints are deferred."
+      "$comment": "Candidate endpoint syntax. Scope conditions remain binding. Typed cross/either Bead arms can match registered exact Type-definition endpoints using retained accepted facts; arbitrary external resources remain opaque and cannot establish a specific Type. Registration/exact-state admission is semantic, not proved by this shape schema. resource admits an opaque external URI and does not enable local Link endpoints. Scope classification and floating external-definition resolution remain to specify."
     },
     "endpointPair": {
       "type": "object",

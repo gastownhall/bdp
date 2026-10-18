@@ -1,5 +1,5 @@
 {
-  "_comment": "Review-only final graph literals, not import/transaction syntax. Eight definitions and four owned declarations. Type, BeadType and LinkType are affiliated with BeadType; ConformsTo is affiliated with LinkType. Trusted seed installation and revision allocation remain open. IDs/revisions are placeholders. No implicit affiliation edges. Conformance is acyclic over exact revisions; generic identity-based acyclic is deliberately not enabled on ConformsTo pending the same-identity revision decision.",
+  "_comment": "Review-only final graph literals, not import/transaction syntax. Eight definitions and four owned declarations. Type, BeadType and LinkType affiliate with BeadType; ConformsTo affiliates with LinkType. Shared exact bootstrap publication/trusted initialization is selected; these IDs/revisions remain illustrative placeholders, not production values. Prior exact intrinsic versions are retained on upgrade. No implicit affiliation edges. ConformsTo allows same/cross registered exact definition endpoints using either-Scope pairs, preserves exact metatype selectors, and is acyclic over exact revisions. Explicit T@2 conformsTo T@1 is allowed; generic identity-based acyclicity is deliberately absent.",
   "definitions": [
     {
       "id": "https://example.org/types/beads/type",
@@ -173,24 +173,6 @@
                       "$ref": "#/$defs/endpointTypes"
                     }
                   },
-                  "allOf": [
-                    {
-                      "if": {
-                        "properties": {
-                          "scope": {
-                            "enum": ["cross", "either"]
-                          }
-                        }
-                      },
-                      "then": {
-                        "properties": {
-                          "types": {
-                            "const": ["*"]
-                          }
-                        }
-                      }
-                    }
-                  ],
                   "additionalProperties": false
                 },
                 {
@@ -204,7 +186,7 @@
                   "additionalProperties": false
                 }
               ],
-              "$comment": "Candidate endpoint syntax. Nonlocal resources are opaque: no remote Type validation. Cross/either bead forms classify reference addresses only and require wildcard. resource admits an opaque external URI; it does not enable local Link endpoints. Exact Scope-address classification remains to specify. Endpoint pin-mode constraints are deferred."
+              "$comment": "Candidate endpoint syntax. Scope conditions remain binding. Typed cross/either Bead arms can match registered exact Type-definition endpoints using retained accepted facts; arbitrary external resources remain opaque and cannot establish a specific Type. Registration/exact-state admission is semantic, not proved by this shape schema. resource admits an opaque external URI and does not enable local Link endpoints. Scope classification and floating external-definition resolution remain to specify."
             },
             "endpointPair": {
               "type": "object",
@@ -399,7 +381,7 @@
             {
               "source": {
                 "resourceKind": "bead",
-                "scope": "same",
+                "scope": "either",
                 "types": [
                   {
                     "uri": "https://example.org/types/beads/bead-type",
@@ -409,7 +391,7 @@
               },
               "target": {
                 "resourceKind": "bead",
-                "scope": "same",
+                "scope": "either",
                 "types": [
                   {
                     "uri": "https://example.org/types/beads/bead-type",
@@ -421,7 +403,7 @@
             {
               "source": {
                 "resourceKind": "bead",
-                "scope": "same",
+                "scope": "either",
                 "types": [
                   {
                     "uri": "https://example.org/types/beads/link-type",
@@ -431,7 +413,7 @@
               },
               "target": {
                 "resourceKind": "bead",
-                "scope": "same",
+                "scope": "either",
                 "types": [
                   {
                     "uri": "https://example.org/types/beads/link-type",

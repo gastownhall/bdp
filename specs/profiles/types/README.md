@@ -110,22 +110,20 @@ A Link must match both sides of one pair. Within either side, arrays mean OR.
 Inherited pair lists remain separate conjunctions; concatenating them would widen
 eligibility incorrectly. Local OR arrays are only a compact Cartesian expansion.
 
-Endpoint `scope` and `resourceKind` spellings are candidate syntax. `cross` and
-`either` Bead-address arms allow only wildcard Types for ordinary external graph
-endpoints: a URI's shape is not proof of its remote Type or existence. An
-opaque external `resource` arm has no `types` or Scope requirement. Core address
-classification must be specified before implementation; this does not enable
-local Link endpoints. No network verification of arbitrary remote content is promised.
+Endpoint `scope` and `resourceKind` spellings remain candidate syntax. Typed `cross`
+and `either` Bead arms are permitted: a registered exact global Type definition can
+supply accepted endpoint-Type facts for any Link. Its canonical Scope stays unchanged,
+and an explicit `same` restriction still excludes a foreign endpoint. The ConformsTo
+seed therefore uses `either` arms while preserving its exact metatype selectors.
 
-Registered exact Type definitions are different: their retained pinned conformance
-closure supplies trusted local dependencies for semantic validation, even with
-canonical IDs in another Scope. No online fetch, identity rewrite or origin-write
-permission follows. Mere cache presence is insufficient. ConformsTo's intrinsic
-semantic checks use that definition resolver. The candidate generic endpoint syntax
-does not yet encode this special resolution; the seed demonstrates same-Scope
-pairs, not an installable cross-Scope definition graph. Registration does not bypass
-its explicit same-Scope endpoint restriction; cross-origin ConformsTo admission needs
-the remaining descriptor/semantic encoding. See Types §§2.2 and 7.2.
+Arbitrary external graph resources remain opaque. Their URI shape or mere cache
+presence proves no Type or existence; they cannot satisfy a specific Type constraint.
+Wildcard Bead arms do not require a Type check. Opaque `resource` arms have no `types`
+member. No network verification, identity rewrite or origin-write permission follows
+from registered-definition validation. Foreign floating endpoint resolution remains
+open and must not be inferred from Type-write defaults; the checked examples use
+exact registered state. Core Scope classification also remains to specify. See Types
+§§2.2, 5.1 and 7.2. Property-shape checks do not prove these semantic preconditions.
 
 `sourceMax` and `targetMax` are optional nonnegative integers on linkConstraints,
 not on pair alternatives. Each counts the declaring conformance family per
@@ -160,7 +158,9 @@ are Beads. Type owns ConformsTo, and both specializations inherit that ownership
 ConformsTo allows BeadType→BeadType or LinkType→LinkType. Its properties are an open
 object. It requires exact target pins and a conformance DAG over exact definition
 revisions, but the generic identity-based acyclic flag is deliberately absent.
-That flag would also forbid T@2→T@1, an unresolved part of revision evolution.
+That flag would also forbid the permitted explicit T@2→T@1 declaration. Every earlier
+promise applies, no reverse compatibility is implied, and exact-revision cycles still
+reject; age or SemVer never supplies an implicit declaration.
 Pair uniqueness on direct declarations/evidence is likewise not selected.
 A declaration's exact Link Type must already be accepted before the declaration is
 used to admit a candidate. An unaccepted specialization cannot establish its own
@@ -170,12 +170,27 @@ serve later declarations once accepted. This is a logical admission dependency;
 transaction/batch/import ordering syntax remains open. Trusted intrinsic bootstrap
 and permitted schema recursion are separate, not a blanket ban on reference loops.
 
-Eight definitions and four declarations form the finite example. These use trusted
-seed placeholders, not client-assigned production revision tokens. Definition
-reference loops (including BeadType's self-affiliation) are not conformance cycles.
-Bootstrap authority, revision allocation, upgrades and installation remain open.
+Eight definitions and four declarations form the finite example. The selected bootstrap
+is one shared published exact graph with stable IDs, revision tokens and content,
+loaded through trusted initialization. Intrinsic upgrades retain earlier exact versions
+for existing pins; ordinary clients cannot mutate intrinsic definitions. The current
+fixture values remain placeholders, not the production namespace or publication.
+Definition reference loops (including BeadType's self-affiliation) are not conformance
+cycles. Production publication, upgrade activation and installation operations remain
+open; this does not select ordinary-write revision allocation.
 Sources are floating in the fixture; exact owner snapshots remain authoritative.
-No implicit affiliation edges appear in the graph. Bead and Link Type-only changes
+No implicit affiliation edges appear in the graph. Ancestor requirements reached by
+diamond paths apply once by originating exact definition and location; different
+exact revisions and restrictions from distinct declarations stay distinct. This is
+separate from counting each instance Link once per arity rule.
+
+Retirement blocks new affiliations but preserves existing-instance read/update and
+historical interpretation. A retired default is removed or explicitly replaced; no
+implicit promotion occurs. Physical removal waits for retention obligations. Operation
+syntax, retirement granularity and physical-removal policy remain open; no recovery or
+erasure behavior is invented.
+
+Bead and Link Type-only changes
 create Resource revisions even when properties are unchanged; this is a selected
 mutation rule, not behavior executed by these final-state fixtures. A Link Type change
 entering or leaving its source's owned set also creates a new source revision atomically
@@ -209,17 +224,21 @@ uv run --no-project --with 'jsonschema[format]' python scripts/check_type_exampl
 The check validates six schemas and positive/negative shape cases, exact example
 references and owned-state consistency, category-preserving pair matches over
 the finite foundation graph, seven invalid ownership/endpoint fixture mutations,
-schema-copy equality, twelve Product/ApprovedProduct composition cases and illustrative
-domain property cases. The composition check validates each contract unchanged and
+schema-copy equality, twelve Product/ApprovedProduct composition cases, nine finite
+endpoint-fact cases, two revision-closure cases and illustrative domain property cases.
+The endpoint cases stipulate Scope and accepted exact-definition facts; they do not
+implement registration, address classification or foreign floating-reference resolution.
+The revision cases check the target-edge walk, not complete declaration admission.
+The composition check validates each contract unchanged and
 compares its conjunction with separate `allOf` branches; it checks the inline examples
 against their fixture schemas. This does not decide arbitrary schema satisfiability or
 select cross-schema `unevaluatedProperties` rewriting. Its category helper
 recognizes the fixture's direct intrinsic BeadType/LinkType affiliations only; it is
 not a general resolver for custom metatypes that conform to those categories. That
 fixture shortcut neither prohibits conforming metatypes nor proves their admission.
-The exact metatype selectors in the fixture remain intentional; a future intrinsic
-upgrade needs a coherent bootstrap decision, not an unreviewed switch to identity-wide
-selectors. The Issue/Dependency prose is the existing WIP authoring draft, relocated with
+The exact metatype selectors in the fixture remain intentional; intrinsic upgrades
+must publish a coherent shared exact graph and retain prior versions, not silently
+switch selectors to identity-wide matching. The Issue/Dependency prose is the existing WIP authoring draft, relocated with
 its inspected Preview 2 evidence intact; it is not a fresh runtime qualification.
 It preloads resources and forbids retrieval. It does not implement a generic Type
 checker, import a graph, exercise a BDP server or qualify a release.

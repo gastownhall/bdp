@@ -121,8 +121,8 @@ for ep, valid in [(endpoint(["*"]), True), (endpoint([prefix + "issue"]), True),
                   (endpoint([]), False), (endpoint(["*", prefix + "issue"]), False),
                   (endpoint([{"uri": prefix + "issue", "revision": ""}]), False),
                   (endpoint(["*"], "cross"), True), (endpoint(["*"], "either"), True),
-                  (endpoint(selector["anyOf"], "cross"), False),
-                  (endpoint(selector["anyOf"], "either"), False),
+                  (endpoint(selector["anyOf"], "cross"), True),
+                  (endpoint(selector["anyOf"], "either"), True),
                   ({"resourceKind": "resource"}, True),
                   ({"resourceKind": "resource", "types": ["*"]}, False),
                   ({"resourceKind": "link"}, False),
@@ -198,13 +198,13 @@ for declaration in fixture["declarations"]:
     assert category(source) == category(target)
     assert by_pin[pin_of(declaration["type"])]["id"] == conforms_id
 
-def closure(pin, visiting=()):
+def closure(pin, visiting=(), records=by_pin):
     assert pin not in visiting, ("example conformance cycle", pin)
     result = set()
-    for declaration in by_pin[pin]["ownedLinks"][conforms_id]:
+    for declaration in records[pin]["ownedLinks"][conforms_id]:
         target = pin_of(declaration["target"])
         result.add(target)
-        result.update(closure(target, visiting + (pin,)))
+        result.update(closure(target, visiting + (pin,), records))
     return result
 
 for pin in by_pin:
@@ -232,14 +232,14 @@ def check_seed_endpoint_domain(candidate):
         for side in ("source", "target"):
             endpoint = pair[side]
             assert endpoint["resourceKind"] == "bead", "finite seed endpoint must be a Bead"
-            assert endpoint["scope"] == "same", "finite seed endpoint must be same-Scope"
+            assert endpoint["scope"] in {"same", "either"}, "finite seed endpoint scope excludes same-Scope definitions"
 
 
 # Type matching below is valid only after checking the finite endpoint domain;
 # it must not accidentally accept a relabelled cross-Scope or non-Bead arm.
 check_seed_endpoint_domain(fixture)
 for field, value, reason in (
-    ("scope", "cross", "finite seed endpoint must be same-Scope"),
+    ("scope", "cross", "finite seed endpoint scope excludes same-Scope definitions"),
     ("resourceKind", "resource", "finite seed endpoint must be a Bead"),
 ):
     candidate = deepcopy(fixture)
@@ -250,12 +250,42 @@ candidate = deepcopy(fixture)
 candidate["definitions"][0]["id"] = "https://other.example/types/beads/type"
 rejects_fixture_mutation(check_seed_endpoint_domain, candidate, "definition outside finite seed Bead namespace")
 
+def fixture_endpoint_matches(arm, actual_scope, exact_type, registered_exact_definition=False):
+    # Facts are stipulated for these finite examples, not obtained from a URI parser,
+    # network resolver or implemented registry. Foreign checked cases use exact state.
+    if arm["resourceKind"] != "bead" or arm["scope"] not in {"either", actual_scope}:
+        return False
+    if arm["types"] == ["*"]:
+        return True
+    if actual_scope == "cross" and not registered_exact_definition:
+        return False
+    return exact_type is not None and matches(arm["types"], exact_type)
+
+
+bead_meta = {"uri": prefix + "bead-type", "revision": "bead-type-1"}
+link_meta = {"uri": prefix + "link-type", "revision": "link-type-1"}
+endpoint_fact_cases = [
+    ("same", "same", bead_meta, False, True),
+    ("cross", "cross", bead_meta, True, True),
+    ("either", "cross", bead_meta, True, True),
+    ("same", "cross", bead_meta, True, False),
+    ("cross", "same", bead_meta, True, False),
+    ("cross", "cross", bead_meta, False, False),
+    ("either", "cross", link_meta, True, False),
+    ("either", "cross", None, True, False),
+]
+for declared_scope, actual_scope, exact_type, registered, expected in endpoint_fact_cases:
+    arm = endpoint([bead_meta], declared_scope)
+    assert fixture_endpoint_matches(arm, actual_scope, exact_type, registered) == expected
+assert fixture_endpoint_matches(endpoint(["*"], "cross"), "cross", None)
+
 conforms = next(d for d in definitions if d["id"] == conforms_id)
 pairs = conforms["properties"]["linkConstraints"]["typeConstraints"]
+assert all(p[side]["scope"] == "either" for p in pairs for side in ("source", "target"))
 for source in definitions:
     for target in definitions:
-        matched = any(matches(p["source"]["types"], source["type"]) and
-                      matches(p["target"]["types"], target["type"]) for p in pairs)
+        matched = any(fixture_endpoint_matches(p["source"], "same", source["type"]) and
+                      fixture_endpoint_matches(p["target"], "same", target["type"]) for p in pairs)
         assert matched == (category(source) == category(target))
 assert "acyclic" not in conforms["properties"]["linkConstraints"]
 # Identity-wide selectors are not aliases for the latest revision.
@@ -264,6 +294,22 @@ assert matches([prefix + "issue"], task_ref)
 assert matches([{"uri": prefix + "issue", "revision": "issue-1"}], task_ref)
 assert not matches([{"uri": prefix + "issue", "revision": "issue-2"}], task_ref)
 assert not matches([prefix + "dependency"], task_ref)
+
+# Exact-target traversal permits same-identity earlier-revision conformance, but
+# still refuses exact cycles. These minimal records test the traversal only,
+# not bootstrap, declaration-Type admission, registration or publication.
+version_records = deepcopy(by_pin)
+task_v2 = (prefix + "task", "task-2")
+version_records[task_v2] = {"ownedLinks": {conforms_id: [{"target": task_ref}]}}
+assert closure(task_v2, records=version_records) == {pin_of(task_ref), (prefix + "issue", "issue-1")}
+version_records[pin_of(task_ref)]["ownedLinks"][conforms_id].append(
+    {"target": {"uri": task_v2[0], "revision": task_v2[1]}})
+try:
+    closure(task_v2, records=version_records)
+except AssertionError as error:
+    assert error.args[0][0] == "example conformance cycle"
+else:
+    raise AssertionError("exact-revision cycle accepted")
 
 
 # Finite 2020-12 composition examples: every contract validates unchanged.
@@ -317,4 +363,5 @@ print(f"PASS: {len(SCHEMAS)} schemas; {count} positive/negative shape cases; "
       f"{len(definitions)} definition records; {len(fixture['declarations'])} owned declarations; "
       f"{fixture_refusals} invalid fixture mutations refused; "
       f"{len(composition['cases'])} schema composition cases; "
+      f"{len(endpoint_fact_cases) + 1} finite endpoint fact cases; 2 revision-closure cases; "
       "example closure, embedded copies, domain property cases and local links consistent. No runtime qualification.")
