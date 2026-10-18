@@ -53,11 +53,15 @@ No fake property delta, mutable original provenance or replayed historical Event
 Retries do not mint duplicate heads/Events. Initial fresh-destination import refuses
 occupied destinations; this amendment does not add merge/upsert or identity remint.
 
-Polly owns the shared Inception origin/entry design; exact encoding and adoption
-remain pending. Original identity creation differs from destination admission and
-revision operation. Current importer authentication does not authenticate source
-claims. Optional Activity is the existing independently reported work Bead, not a
-required second Event/provenance mechanism.
+The accepted shared Inception design uses the single open-enum field
+`revisionProvenance.inception` for how the identity’s current period of presence
+in its Scope began. Ordinary live updates preserve it; retained source versions
+are never rewritten or backfilled. The earlier origin/entry split is superseded.
+See the [accepted Inception/revert ruling](https://github.com/gastownhall/beads/issues/7510#issuecomment-6242419971).
+Exact Event encoding and protocol adoption remain pending. Current importer
+authentication does not authenticate source claims. Optional Activity is the
+existing independently reported work Bead, not a required second Event/provenance
+mechanism.
 
 ## Decisions held before promotion
 
