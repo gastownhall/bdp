@@ -27,7 +27,19 @@
           }
         }
       ],
-      "$comment": "Embedded JSON Schema, not a URL. This draft uses 2020-12; external resource resolution, supported vocabularies and admission are separate checks."
+      "$comment": "Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. Custom extension presentation remains open."
+    },
+    "schemaResources": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^[^#]+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/properties/propertiesSchema"
+      },
+      "$comment": "Candidate retrieval-URI to exact schema-resource map, immutable with Type revision. Values retain standard $id/base/anchor semantics. Complete closure, conflicting bindings and offline resolution require admission checks."
     },
     "id": false,
     "revision": false,

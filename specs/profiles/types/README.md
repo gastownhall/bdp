@@ -41,18 +41,26 @@ need not expose definition Beads or ship the general Types profile. See
 [implementation/decision ledger](https://github.com/gastownhall/beads/issues/7656).
 
 JSON Schema 2020-12 and its standard validation rules are the selected baseline.
-Embedded schemas are checked against its meta-schema; an omitted root dialect uses
-2020-12 and a conflicting explicit dialect refuses. Unsupported required vocabularies
-identified by the applicable meta-schema must refuse; `$vocabulary` in an ordinary
-schema is not extension negotiation. Unknown annotations do not acquire assertion
+Every schema resource in the retained closure uses the standard dialect; omission
+uses/inherits that baseline. Other explicit dialect URIs refuse, including on embedded
+resources. Literal/example data keys are not schema declarations. The root-only shape
+check is not a closure walker. Custom/derived meta-schema presentation remains open;
+support for an extension does not imply acceptance of its dialect URI. Unsupported
+required vocabularies identified by the applicable meta-schema must refuse;
+`$vocabulary` in an ordinary schema is not extension negotiation. Unknown annotations do not acquire assertion
 semantics by being present. See [JSON Schema Core §8.1](https://json-schema.org/draft/2020-12/json-schema-core#section-8.1)
 and Types §3.12. Descriptor field requiredness and exact names remain review syntax.
 
 Referenced schema resources and resolution bindings must be retained immutably with
 the Type revision, without fetching newer remote content during validation. Their
-closure encoding and installation remain open. The checker uses preloaded resources
-and forbids retrieval. The profile also requires syntactic enforcement of standard
-formats and refusal of Types relying on unknown/unsupported formats, without network
+descriptor representation is a root `propertiesSchema` plus a proposed `schemaResources`
+URI-to-resource map, immutable with its revision. The seed includes reachable descriptor
+and standard 2020-12 meta-schema copies at their original IDs; there is no standard-resource
+exemption. Copies are checked against the adjacent artifacts and `jsonschema-specifications`;
+see [third-party notices](THIRD_PARTY_NOTICES.md). The finite checker uses each metatype's
+retained map with retrieval disabled. Map serialization and anonymous relative-base
+handling still need review; separate Schema Beads or mutable sidecars are not required.
+The profile also requires syntactic enforcement of standard formats and refusal of Types relying on unknown/unsupported formats, without network
 or existence checks. This explicitly goes beyond annotation-only defaults; see
 [JSON Schema Validation §7.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-7.2).
 The checker enables Python `FormatChecker` for its illustrative URI/date cases;
@@ -100,11 +108,18 @@ revision alone does not change that default; an explicit default change affects
 future unpinned selections, not existing pins or updates omitting Type. Pinned input
 keeps its requested revision. Alias resolution does not promote a default, and
 identity-wide query/constraint matching never consults this write default. Unpinned
-input without a selected local exact default refuses, even with only one installed
-revision; an explicit admitted pin or explicit default selection is needed. Initial
+input without a selected local exact default refuses before acquisition, even with
+only one installed revision or automatic installation enabled; an explicit admitted pin or explicit default selection is needed. Initial
 selection and its operation/permission contract remain open; no automatic first-install
 selection or fallback is introduced. See Types §7.2. These are semantic rules, not
 new descriptor fields or executable behavior in the literal fixture.
+
+Automatic installation initially requires both Scope authorization and an explicit
+caller request; require-registration remains the default. Installation does not choose
+or promote a default. Registration of the requested dependency graph is atomic: failure
+registers none of its newly requested definitions and preserves existing registrations.
+Retrieved bytes may remain cached without becoming registered. Operation syntax and
+permissions remain shared implementation work.
 
 A Link must match both sides of one pair. Within either side, arrays mean OR.
 Inherited pair lists remain separate conjunctions; concatenating them would widen
@@ -120,9 +135,10 @@ Arbitrary external graph resources remain opaque. Their URI shape or mere cache
 presence proves no Type or existence; they cannot satisfy a specific Type constraint.
 Wildcard Bead arms do not require a Type check. Opaque `resource` arms have no `types`
 member. No network verification, identity rewrite or origin-write permission follows
-from registered-definition validation. Foreign floating endpoint resolution remains
-open and must not be inferred from Type-write defaults; the checked examples use
-exact registered state. Core Scope classification also remains to specify. See Types
+from registered-definition validation. The checked foreign-definition path requires
+an explicit endpoint revision pin; a local Type-write default cannot supply it.
+Ordinary local floating endpoints remain supported. An opaque/wildcard arm can still
+admit an external reference without proving its Type. Core Scope classification also remains to specify. See Types
 §§2.2, 5.1 and 7.2. Property-shape checks do not prove these semantic preconditions.
 
 `sourceMax` and `targetMax` are optional nonnegative integers on linkConstraints,
@@ -153,7 +169,9 @@ pair despite its own wildcard pair; a broad local constraint can warn, not widen
 Type, BeadType and LinkType are all affiliated with BeadType in this candidate.
 BeadType and LinkType declare conformance to Type. ConformsTo is affiliated with
 LinkType. issue/task use BeadType; dependency/blocks use LinkType. All definitions
-are Beads. Type owns ConformsTo, and both specializations inherit that ownership.
+are Beads. Type owns ConformsTo; the BeadType and LinkType definition Beads inherit
+that ownership through their affiliation with BeadType. The fixture's `ownedLinks`
+keys are a convention; inherited/wildcard projection remains coordinated Core work.
 
 ConformsTo allows BeadType→BeadType or LinkType→LinkType. Its properties are an open
 object. It requires exact target pins and a conformance DAG over exact definition
@@ -213,7 +231,11 @@ schemas, reference availability, counts, cycles, authorization, or migration.
 For example min3/max2 is syntax-valid but semantically inconsistent; a false
 properties schema is valid JSON Schema but admits no instances. Unknown extension
 properties do not imply supported semantics. SemVer syntax proves no compatibility
-promise; publication-label uniqueness is still open.
+promise. The initial profile has no separate compatibility relation or SemVer migration
+guarantee; publication-label uniqueness is still open. Types §3.13 specifies a sound,
+bounded mandatory contradiction floor. Outside proved cases the static result is unknown;
+full instance validation and authors' semantic responsibilities remain. This artifact
+checker does not implement that general admission floor.
 
 Run from the repository root:
 
@@ -222,15 +244,20 @@ uv run --no-project --with 'jsonschema[format]' python scripts/check_type_exampl
 ```
 
 The check validates six schemas and positive/negative shape cases, exact example
-references and owned-state consistency, category-preserving pair matches over
-the finite foundation graph, seven invalid ownership/endpoint fixture mutations,
-schema-copy equality, twelve Product/ApprovedProduct composition cases, nine finite
+references, owned-state consistency and inherited ownership-selector matches, category-preserving pair matches over
+the finite foundation graph, nine invalid ownership/endpoint/schema-map fixture mutations,
+schema-copy equality, twelve Product/ApprovedProduct composition cases, ten finite
 endpoint-fact cases, two revision-closure cases and illustrative domain property cases.
+Four finite dialect cases explicitly enumerate root/embedded/retained resource facts;
+they distinguish literal data and do not implement general closure discovery.
 The endpoint cases stipulate Scope and accepted exact-definition facts; they do not
-implement registration, address classification or foreign floating-reference resolution.
+implement registration or address classification; a negative case refuses an unpinned
+foreign definition even when registered.
 The revision cases check the target-edge walk, not complete declaration admission.
 The composition check validates each contract unchanged and
-compares its conjunction with separate `allOf` branches; it checks the inline examples
+compares its conjunction with separate `allOf` branches, removing only each branch
+root dialect declaration after independent validation so it is not misplaced in a
+non-resource-root position; no assertion is rewritten. It checks the inline examples
 against their fixture schemas. This does not decide arbitrary schema satisfiability or
 select cross-schema `unevaluatedProperties` rewriting. Its category helper
 recognizes the fixture's direct intrinsic BeadType/LinkType affiliations only; it is

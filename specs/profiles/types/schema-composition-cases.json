@@ -1,5 +1,5 @@
 {
-  "_comment": "Finite 2020-12 conjunction/closure examples for Types \u00a73.4. Every named contract validates the same complete instance unchanged; no property merge or cross-schema closure rewriting. Not Type admission/runtime qualification.",
+  "_comment": "Finite 2020-12 conjunction/closure examples for Types \u00a73.4. Every named contract validates the same complete instance unchanged; no property merge or cross-schema closure rewriting. Closed roots require the Core amendment identified in the profile README delta inventory. Not Type admission/runtime qualification.",
   "schemas": {
     "product": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

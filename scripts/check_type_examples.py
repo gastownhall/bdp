@@ -3,11 +3,13 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import re
+from urllib.parse import urljoin, urldefrag
 
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.validators import SPECIFICATIONS
 from referencing import Registry, Resource
 from referencing.exceptions import NoSuchResource
+from referencing.jsonschema import DRAFT202012
 
 ROOT = Path(__file__).resolve().parent.parent
 HERE = ROOT / "specs/profiles/types"
@@ -90,6 +92,39 @@ check(type_name, {"propertiesSchema": {"type": "object"}}, True, "identity is en
 check(type_name, altered(base, propertiesSchema=True), True, "explicit permissive schema")
 check(type_name, altered(base, propertiesSchema=False), True, "false schema is syntax-valid only")
 check(type_name, altered(base, extensionNote="example"), True, "open descriptor root")
+for resources, valid in [({}, True), ({"https://example.org/schema/value": True}, True),
+                         ({"relative": True}, False),
+                         ({"https://example.org/schema/value": 42}, False)]:
+    check(type_name, altered(base, schemaResources=resources), valid, "schemaResources map shape")
+
+
+# Explicit resource lists for finite dialect cases, not a schema-position walker.
+# Discovery of resource boundaries/reference closure is still an admission obligation.
+baseline_dialect = "https://json-schema.org/draft/2020-12/schema"
+old_dialect = "http://json-schema.org/draft-07/schema#"
+def example_resource_dialects_valid(resources):
+    return all(not isinstance(resource, dict)
+               or resource.get("$schema", baseline_dialect) == baseline_dialect
+               for resource in resources)
+
+nested_dialect_example = {
+    "$schema": baseline_dialect,
+    "$defs": {"nested": {"$id": "https://example.org/schema/nested", "$schema": old_dialect}},
+}
+# Root descriptor shape permits this: the separate closure check must refuse it.
+check(type_name, altered(base, propertiesSchema=nested_dialect_example), True,
+      "root dialect shape check does not prove closure dialects")
+literal_dialect_data = {"const": {"$schema": old_dialect},
+                        "examples": [{"$schema": old_dialect}]}
+dialect_cases = [
+    ([literal_dialect_data], True),
+    ([nested_dialect_example, nested_dialect_example["$defs"]["nested"]], False),
+    ([{"$ref": "https://example.org/schema/other"}, {"$schema": old_dialect}], False),
+    ([{"$schema": baseline_dialect}, {"$id": "https://example.org/schema/nested"}], True),
+]
+for resources, valid in dialect_cases:
+    assert example_resource_dialects_valid(resources) == valid
+
 for version, valid in [("2.1.0", True), ("0.1.0-rc.1+build.3", True), ("1.0.0-01", False),
                        ("01.2.3", False), ("v1.2.3", False), ("1.2", False), (3, False)]:
     check(type_name, altered(base, version=version), valid, "proposed version " + str(version))
@@ -215,13 +250,35 @@ for label, file_name in [("type", type_name), ("bead-type", bead_name), ("link-t
     assert definition["properties"]["propertiesSchema"] == SCHEMAS[file_name]
 
 # Check pair correlation using the finite foundation graph's exact Type closure.
-def matches(types, reference):
+def matches(types, reference, records=by_pin):
     if types == ["*"]:
         return True
     p = pin_of(reference)
-    members = {p} | closure(p)
+    members = {p} | closure(p, records=records)
     return any((any(member[0] == t for member in members) if isinstance(t, str)
                 else pin_of(t) in members) for t in types)
+
+def check_effective_ownership(candidate):
+    # Definition Beads use their own Bead-Type affiliation's inherited selectors;
+    # this says nothing about ownership by Link instances they may describe.
+    records = {(d["id"], d["revision"]): d for d in candidate["definitions"]}
+    for owner in candidate["definitions"]:
+        affiliation = pin_of(owner["type"])
+        ancestors = {affiliation} | closure(affiliation, records=records)
+        selectors = [selector for ancestor in ancestors
+                     for selector in records[ancestor]["properties"].get("ownsOutgoing", [])]
+        for declaration in owner["ownedLinks"][conforms_id]:
+            assert any(selector.get("any") is True or
+                       matches(selector["anyOf"], declaration["type"], records)
+                       for selector in selectors), "owned declaration lacks effective ownership selector"
+
+
+check_effective_ownership(fixture)
+candidate = deepcopy(fixture)
+next(d for d in candidate["definitions"] if d["id"] == prefix + "type")["properties"].pop("ownsOutgoing")
+rejects_fixture_mutation(check_effective_ownership, candidate,
+                         "owned declaration lacks effective ownership selector")
+
 
 def check_seed_endpoint_domain(candidate):
     # The fixture explicitly uses https://example.org/types/ as its sole Scope
@@ -250,14 +307,14 @@ candidate = deepcopy(fixture)
 candidate["definitions"][0]["id"] = "https://other.example/types/beads/type"
 rejects_fixture_mutation(check_seed_endpoint_domain, candidate, "definition outside finite seed Bead namespace")
 
-def fixture_endpoint_matches(arm, actual_scope, exact_type, registered_exact_definition=False):
+def fixture_endpoint_matches(arm, actual_scope, exact_type, registered_exact_definition=False, endpoint_revision=None):
     # Facts are stipulated for these finite examples, not obtained from a URI parser,
     # network resolver or implemented registry. Foreign checked cases use exact state.
     if arm["resourceKind"] != "bead" or arm["scope"] not in {"either", actual_scope}:
         return False
     if arm["types"] == ["*"]:
         return True
-    if actual_scope == "cross" and not registered_exact_definition:
+    if actual_scope == "cross" and (not registered_exact_definition or not endpoint_revision):
         return False
     return exact_type is not None and matches(arm["types"], exact_type)
 
@@ -276,8 +333,9 @@ endpoint_fact_cases = [
 ]
 for declared_scope, actual_scope, exact_type, registered, expected in endpoint_fact_cases:
     arm = endpoint([bead_meta], declared_scope)
-    assert fixture_endpoint_matches(arm, actual_scope, exact_type, registered) == expected
+    assert fixture_endpoint_matches(arm, actual_scope, exact_type, registered, "definition-1") == expected
 assert fixture_endpoint_matches(endpoint(["*"], "cross"), "cross", None)
+assert not fixture_endpoint_matches(endpoint([bead_meta], "either"), "cross", bead_meta, True)
 
 conforms = next(d for d in definitions if d["id"] == conforms_id)
 pairs = conforms["properties"]["linkConstraints"]["typeConstraints"]
@@ -318,16 +376,89 @@ composition_validators = {}
 for name, schema in composition["schemas"].items():
     Draft202012Validator.check_schema(schema)
     composition_validators[name] = Draft202012Validator(schema, registry=registry)
+assert composition["schemas"]["closedProduct"] == {
+    **composition["schemas"]["product"], "additionalProperties": False
+}, "closed Product changes more than additionalProperties"
+
 for case in composition["cases"]:
     individual = [composition_validators[name].is_valid(case["instance"])
                   for name in case["contracts"]]
-    combined = {"allOf": [composition["schemas"][name] for name in case["contracts"]]}
+    # Independently validated roots above become non-resource-root branches here.
+    # Remove only their root dialect declaration; no assertion/closure is rewritten.
+    combined = {"$schema": baseline_dialect, "allOf": [
+        {key: value for key, value in composition["schemas"][name].items() if key != "$schema"}
+        for name in case["contracts"]]}
+    Draft202012Validator.check_schema(combined)
     composed = Draft202012Validator(combined, registry=registry).is_valid(case["instance"])
     assert all(individual) == composed == case["valid"], (case["label"], individual, composed)
 composition_text = (HERE / "types.md").read_text().split("### 3.4 ", 1)[1].split("### 3.5 ", 1)[0]
 inline_composition = [json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", composition_text, re.S)]
 assert inline_composition == [composition["schemas"][name] for name in (
     "product", "approval", "closedChildMissingInherited", "closedChild")], "inline composition schema drift"
+
+
+# Self-contained fixture closure, not a generic schema admission/resolution service.
+def fixture_schema_references(schema, base_uri):
+    resource = Resource.from_contents(schema, default_specification=DRAFT202012)
+    current = urljoin(base_uri, resource.id() or "")
+    if isinstance(schema, dict):
+        for keyword in ("$schema", "$ref", "$dynamicRef"):
+            if keyword in schema:
+                uri = urldefrag(urljoin(current, schema[keyword]))[0]
+                if uri:
+                    yield uri
+    for child in resource.subresources():
+        yield from fixture_schema_references(child.contents, current)
+
+
+def check_fixture_schema_maps(candidate):
+    for definition in candidate["definitions"]:
+        root = definition["properties"]["propertiesSchema"]
+        retained = definition["properties"].get("schemaResources", {})
+        root_uri = root.get("$id", "") if isinstance(root, dict) else ""
+        pending = list(fixture_schema_references(root, root_uri))
+        visited = {root_uri}
+        while pending:
+            uri = pending.pop()
+            if uri in visited:
+                continue
+            visited.add(uri)
+            assert uri in retained, "fixture schema resource missing"
+            pending.extend(fixture_schema_references(retained[uri], uri))
+
+
+check_fixture_schema_maps(fixture)
+for definition in definitions:
+    for uri, schema in definition["properties"].get("schemaResources", {}).items():
+        # Source-copy comparison, not just a test that altered copies accept examples.
+        expected = (SPECIFICATIONS[uri].contents if uri.startswith("https://json-schema.org/")
+                    else next(s for s in SCHEMAS.values() if s["$id"] == uri))
+        assert schema == expected, ("retained schema copy drift", uri)
+    metatype = by_pin[pin_of(definition["type"])]["properties"]
+    offline = Registry(retrieve=unavailable).with_resources([
+        (uri, Resource.from_contents(schema, default_specification=DRAFT202012))
+        for uri, schema in metatype.get("schemaResources", {}).items()])
+    Draft202012Validator(metatype["propertiesSchema"], registry=offline,
+                        format_checker=FormatChecker()).validate(definition["properties"])
+candidate = deepcopy(fixture)
+next(d for d in candidate["definitions"] if d["id"] == prefix + "type")["properties"]["schemaResources"].pop(
+    "https://json-schema.org/draft/2020-12/meta/core")
+rejects_fixture_mutation(check_fixture_schema_maps, candidate, "fixture schema resource missing")
+
+
+# The documented map example resolves a relative reference offline from an explicit base.
+map_text = (HERE / "types.md").read_text().split("### 3.12 ", 1)[1].split("### 3.13 ", 1)[0]
+map_example = json.loads(re.findall(r"```json\n(.*?)\n```", map_text, re.S)[0])
+check(type_name, map_example, True, "inline retained schema map")
+map_registry = Registry(retrieve=unavailable).with_resources([
+    (uri, Resource.from_contents(schema, default_specification=DRAFT202012))
+    for uri, schema in map_example["schemaResources"].items()])
+map_validator = Draft202012Validator(map_example["propertiesSchema"], registry=map_registry)
+assert map_validator.is_valid({"price": 1})
+assert not map_validator.is_valid({"price": -1})
+# Guard the object-only caveat; no generic static admission solver is claimed.
+assert Draft202012Validator({"type": ["string", "object"], "required": ["x"],
+                            "maxProperties": 0}).is_valid("ok")
 
 
 # Illustrative domain properties keep these shape cases independent of the separate domain spec.
@@ -362,6 +493,6 @@ for path in [HERE / "types.md", HERE / "README.md", ISSUE / "issue.md"]:
 print(f"PASS: {len(SCHEMAS)} schemas; {count} positive/negative shape cases; "
       f"{len(definitions)} definition records; {len(fixture['declarations'])} owned declarations; "
       f"{fixture_refusals} invalid fixture mutations refused; "
-      f"{len(composition['cases'])} schema composition cases; "
-      f"{len(endpoint_fact_cases) + 1} finite endpoint fact cases; 2 revision-closure cases; "
+      f"{len(composition['cases'])} schema composition cases; {len(dialect_cases)} finite resource-dialect cases; "
+      f"{len(endpoint_fact_cases) + 2} finite endpoint fact cases; 2 revision-closure cases; "
       "example closure, embedded copies, domain property cases and local links consistent. No runtime qualification.")
