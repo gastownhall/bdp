@@ -24,12 +24,20 @@ This is a recorded source snapshot, not a claim that it remains the latest head.
 Preview 2 evidence stays pinned to `b6f7115adfd6b3da0055b8576c152d8d9456518a`;
 this schema work does not requalify the build or change canonical BDP/Write.
 
-Fresh heads also checked during this consolidation: BDP main
+Additional historical snapshots checked during the original consolidation: BDP main
 `453b6dab386746bb03aac2c0a293572b8a71c969` retains the same descriptor and endpoint
 schema; its intervening change concerns command minimum-field conformance rules.
 Preview 2 integration is now `97446d1f0894417457f9e9b8f16569baf73d68f4`, with revision
 guard/CLI feedback changes. The Issue field audit remains explicitly tied to the
 older inspected build; it is not represented as a fresh qualification of this head.
+
+The current design-source baseline for this reconciliation is shared branch
+`codex/trish-spec-integration` at `b12665d64c2aaf6172bd1cdab409cef31ef28f44`.
+This is a source observation, not a new runtime qualification. The Memory product
+proposal is independent of this definition encoding; its fixed supplied catalog
+need not expose definition Beads or ship the general Types profile. See
+[Memory proposal #7661](https://github.com/gastownhall/beads/issues/7661) and its
+[implementation/decision ledger](https://github.com/gastownhall/beads/issues/7656).
 
 These artifacts use [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/json-schema-core).
 Embedded schemas are checked against its meta-schema; an explicit root dialect
@@ -72,11 +80,21 @@ Inherited pair lists remain separate conjunctions; concatenating them would wide
 eligibility incorrectly. Local OR arrays are only a compact Cartesian expansion.
 
 Endpoint `scope` and `resourceKind` spellings are candidate syntax. `cross` and
-`either` Bead-address arms allow only wildcard Types: external resources are not
-validated, and a URI's shape is not proof of its remote Type or existence. An
+`either` Bead-address arms allow only wildcard Types for ordinary external graph
+endpoints: a URI's shape is not proof of its remote Type or existence. An
 opaque external `resource` arm has no `types` or Scope requirement. Core address
 classification must be specified before implementation; this does not enable
-local Link endpoints. No network verification of remote content is promised.
+local Link endpoints. No network verification of arbitrary remote content is promised.
+
+Registered exact Type definitions are different: their retained pinned conformance
+closure supplies trusted local dependencies for semantic validation, even with
+canonical IDs in another Scope. No online fetch, identity rewrite or origin-write
+permission follows. Mere cache presence is insufficient. ConformsTo's intrinsic
+semantic checks use that definition resolver. The candidate generic endpoint syntax
+does not yet encode this special resolution; the seed demonstrates same-Scope
+pairs, not an installable cross-Scope definition graph. Registration does not bypass
+its explicit same-Scope endpoint restriction; cross-origin ConformsTo admission needs
+the remaining descriptor/semantic encoding. See Types §§2.2 and 7.2.
 
 `sourceMax` and `targetMax` are optional nonnegative integers on linkConstraints,
 not on pair alternatives. Each counts the declaring conformance family per
@@ -119,7 +137,10 @@ seed placeholders, not client-assigned production revision tokens. Definition
 reference loops (including BeadType's self-affiliation) are not conformance cycles.
 Bootstrap authority, revision allocation, upgrades and installation remain open.
 Sources are floating in the fixture; exact owner snapshots remain authoritative.
-No implicit affiliation edges appear in the graph.
+No implicit affiliation edges appear in the graph. Bead and Link Type-only changes
+create Resource revisions even when properties are unchanged; this is a selected
+mutation rule, not behavior executed by these final-state fixtures. Current Core/Write
+mutation contracts still need coordinated propagation.
 
 A graph file/CLI payload must distinguish creating records with newly allocated
 revisions from preserving exported historical pins. Forward references within an

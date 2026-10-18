@@ -1,27 +1,40 @@
 # BDP Types
 
-Work-in-progress design specification, October 15, 2026. This document records agreed design rules and
-explicit open decisions for an optional, Scope-wide Types profile. It is not yet
+Work-in-progress design specification, October 17, 2026. This document records
+agreed design rules and explicit open decisions for an optional, Scope-wide Types profile. It is not yet
 an adopted protocol specification, an installable definition format, or a claim
 that Beads implements these rules. The [current BDP specifications](../../README.md)
 remain the protocol authority until coordinated amendments land. Landing this
 document on main makes the evolving design available for collaboration; it does
 not adopt its candidate wire shapes or require implementation of unfinished rules.
 
-The [Issue and Dependency draft](../../types/issue/issue.md) and [Memory draft](https://github.com/gastownhall/bdp/pull/143)
+The [Issue and Dependency draft](../../types/issue/issue.md) and
+[Memory product proposal](https://github.com/gastownhall/beads/issues/7661)
 provide requirements and acceptance scenarios. Issue/Dependency records the
 selected product hierarchy of classification Types conforming to issue/dependency.
-Memory is being reconciled and reviewed separately in PR143; this document does
-not silently settle its remaining shared-design questions. The earlier [Type lifecycle exploration](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-lifecycle-preview2.md)
+Memory defines product behavior independently of its eventual BDP representation.
+Its fixed supplied catalog and compiled validators can exercise these semantics
+without exposing Type-definition Beads or implementing this profile. Its exploratory
+BDP definition graph is not an adopted installation format. Memory's remaining
+product choices and implementation status belong to its
+[decision and dependency record](https://github.com/gastownhall/beads/issues/7656).
+The earlier [Type lifecycle exploration](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-lifecycle-preview2.md)
 is background. Where it conflicts, this document records the current design
-position: this Types profile represents definitions as Beads; Core does not
-require that representation.
+position: this Types profile represents definitions as Beads; the proposed Core
+boundary does not require that representation. The current Core/Write contracts
+remain unchanged until coordinated amendments adopt that boundary.
 
 ## 1. Scope and responsibilities
 
-Core defines the common Resource envelope, references, revisions, ownership
-behavior and recognizable constraint errors. A Type reference is required even
-when a Scope does not implement the Types profile. Core may enforce native
+This section defines the intended profile boundary. Structural extraction of
+Core and Write is complete; their current normative contracts have not thereby
+adopted optional Types or the new definition model. Existing immutable-affiliation,
+descriptor, installation and update rules require coordinated semantic amendments
+before an implementation can claim the new behavior.
+
+Under the proposed boundary, Core defines the common Resource envelope, references,
+revisions, ownership behavior and recognizable constraint errors. A Type reference
+is required even when a Scope does not implement the Types profile. Core may enforce native
 constraints without resolving a Type definition. Core defines the Type reference's
 representation and handling without requiring that its target be a Bead. It does
 not prescribe a Type-description language or the conformance semantics of this
@@ -38,9 +51,10 @@ are supported. A client need not understand Type definitions to read the graph.
 Types depends on Core, not Write. Write depends on Core, not Types. Domain Type
 specifications depend on Types and Core and describe conditional write obligations.
 The agreed Write direction is atomic individual writes and optional, always-atomic
-batch. Non-atomic sequence is excluded from that proposed direction. Changing the
-existing Write profiles, moving Events, and extracting Core/Write documents are
-separate work; this draft does not direct changes to active implementations.
+batch. Non-atomic sequence is excluded from that proposed direction. Adopting
+changes to the existing Write profiles or moving Events is separate work; this
+draft does not direct changes to active implementations. A fixed product catalog
+can implement selected domain behavior without advertising this general profile.
 
 BDP owns shared meanings and acceptance outcomes. Beads owns CLI affordances,
 storage, indexes, installation UX and operator workflows. The examples below use
@@ -67,8 +81,21 @@ An instance saved under the Types profile pins its exact Type definition revisio
 Explicit floating Type input resolves before commit; an omitted Type on update
 preserves the existing exact affiliation. Supplying a Type reference replaces
 that reference as a whole, rather than merging its identity and revision members.
-An explicit change of Type or Type revision must validate with the resulting
-properties and other applicable constraints, or the change fails atomically.
+A guarded ordinary update may explicitly replace the Type reference of a Bead or
+Link. It may accompany targeted property edits or explicit full replacement;
+complete-result validation does not require every request to replace all properties.
+The resulting properties and affected graph must satisfy all applicable constraints,
+or the change fails atomically. Mutation request syntax and the precise affected-Link
+and ownership-transition checks still require the coordinated Write contract.
+
+A successful change to either the Type identity or its pinned definition revision
+creates a new revision of the Bead or Link, even when properties and metadata are
+unchanged. Affiliation carries meaning and participates in change detection. Earlier
+Resource revisions retain their exact affiliations and recorded owned-Link state.
+Supplying the same resolved reference does not, by itself, constitute a Type change;
+ordinary no-op and revision-precondition rules still apply. Properties-only updates
+never implicitly move the Type pin. Atomic batch may compose retyping with other
+changes; retyping is not a batch-only primitive.
 
 Both Bead-Type and Link-Type definitions are represented as Beads. A Bead that
 describes a Link Type is itself a Bead; the Type it describes governs Link
@@ -101,7 +128,7 @@ The representation boundary is:
 | The definition Bead's own affiliation | Its own `type` field; Type metatype and bootstrap candidate in §§2.1–2.3 |
 | Direct conformance declarations | Owned ConformsTo Links, recorded with the source definition revision |
 | Properties schema and other constraints | Fields in the definition Bead's `properties`; candidate schema linked from §2.1 |
-| Later review of a declaration | An independent Activity under Provenance V2, referencing the declaration Link revision |
+| Later review of a declaration | An independent Activity referencing the declaration Link revision, when the shared Provenance V2 mechanism is supported |
 
 The current direction uses Type-to-Type conformance for reusable structural and
 semantic promises. A separate Capability entity is not required by the rules
@@ -181,6 +208,20 @@ alternatives are `(BeadType → BeadType) OR (LinkType → LinkType)`. The sourc
 target must match the same alternative; independently allowing both categories
 on both sides would wrongly admit cross-kind declarations.
 
+For these semantic checks, registered exact definitions and their retained pinned
+conformance closure are trusted local dependencies, including definitions whose
+canonical IDs belong to another Scope (§7.2). Resolve the recorded definitions and
+declarations locally, preserving their identities and exact revisions. This permits
+category and conformance validation without an online fetch; it does not infer
+anything about arbitrary external graph endpoints or grant publication authority.
+The candidate seed illustrates same-Scope pairs. The descriptor encoding of this
+intrinsic definition-resolution rule remains to finalize; it does not redefine
+`scope: same` to mean any locally cached URI. Registration does not bypass an
+explicit endpoint-Scope restriction. In particular, the same-Scope-only candidate
+seed does not authorize creating a cross-origin ConformsTo Link that violates its
+own descriptor. A conforming descriptor or explicitly specified special encoding
+must represent that case before it can be admitted.
+
 | Aspect | Contract |
 | --- | --- |
 | Direction | Source definition declares conformance to target definition |
@@ -204,7 +245,9 @@ are different. The example deliberately does not turn on the general constraint:
 it would prohibit T@2 → T@1 as an identity self-loop, deciding part of the deferred
 revision-evolution question. Exact-revision cycles remain prohibited. This corrects
 the earlier illustrative suggestion to set `acyclic: true` directly on ConformsTo.
-Source-pin operation details and cross-Scope definition installation remain open.
+Source-pin operation details, installation mechanics and the descriptor encoding
+of registered-definition resolution remain open; use of accepted exact local
+definitions for semantic validation is selected.
 Stored target pins are an intrinsic ConformsTo semantic requirement, not a generic
 endpoint pin-mode constraint added to the descriptor language.
 
@@ -249,6 +292,12 @@ that field as cents. Matching JSON shapes are not enough. An author asserting
 conformance is responsible for all inherited semantic promises, including those
 that no validator can mechanically prove.
 
+Distinct Types may accept the same JSON shape while assigning it different meanings.
+A Decision and a Requirement may both require title and body; that does not make
+them the same Type or establish conformance between them. Conformance preserves the
+declared shared structural and semantic contract; it need not add a required property.
+Changing between same-shape Types still changes affiliation under §2.
+
 Machine-readable units or other semantic declarations can help detect conflicts
 only when the Type system defines their interpretation. An arbitrary annotation
 is not automatically an enforced constraint. The vocabulary and required checks
@@ -287,6 +336,13 @@ A reusable Product definition that permits an optional property may be refined
 by requiring that property. A definition requiring a property cannot be refined
 by allowing it to disappear: the effective inherited requirement still applies.
 Absence and JSON null are different states and must be specified separately.
+
+An open properties object may contain application extension data, including a
+property named `kind`. Such a property does not select affiliation, infer conformance,
+or substitute for fields required by the actual Type. A particular Type may define
+that property's meaning explicitly; this profile does not reserve it as a second
+Type discriminator. Deliberate property restrictions in individual schemas, including
+the definition-descriptor schemas, still apply.
 
 ### 3.4 The parent must allow additional properties
 
@@ -360,7 +416,9 @@ The implementation resolves the transitive closure; authors declare direct
 relationships and callers need not enumerate inherited relationships. Exact
 required definitions must be available before a Type is accepted for use. This
 requirement does not select an installation mechanism or storage layout. Normal
-validation and matching should not depend on a fresh network fetch.
+validation and matching use registered exact local dependencies, even when their
+canonical IDs belong to another Scope; they do not require a fresh network fetch.
+An opportunistic cache entry alone is not an accepted definition (§7.2).
 
 A Type may reach both C@1 and C@2 through different paths. It then promises both,
 not whichever is newer. If their requirements conflict, the Type cannot fulfill
@@ -421,8 +479,12 @@ Each declaration is a first-class Link with its own identity and revisions. Unde
 Provenance V2, its revision provenance can record the declaration's author and
 sources; later Activity records can refer to the exact Link revision without
 changing it. Editing the declaration itself creates owner revision effects;
-recording an independent Activity does not. Provenance supplies evidence about a
-claim, not proof that its semantic promises hold.
+recording an independent Activity does not. These use shared provenance mechanisms
+when supported, not a parallel Type-specific envelope. Provenance supplies evidence
+about a claim, not proof that its semantic promises hold. Shared provenance schema
+and operation adoption remains separate owner work; this profile does not invent
+an inception property on Type definitions or require the full Activity workflow
+before defining conformance.
 
 Both endpoints are definition Beads, but their described instance kinds must
 agree: no Bead-Type-to-Link-Type conformance. The metatype pair constraint is specified in §2; bootstrap mechanics
@@ -509,6 +571,14 @@ before commit. Constraint selectors may intentionally remain identity-wide.
 Nominal-only query filtering is a distinct operation; it must not accidentally
 acquire conformance matching just because both accept Type references.
 
+The Memory proposal illustrates the distinction: Association is an authorable Link
+Type, and Guidance, AppliesTo, Supports, Challenges and Supersedes conform to it.
+A conformance-aware Association selector includes conformers, while a nominal-only
+Association selector does not. Either predicate may separately select an exact
+revision or match identity-wide as described above. A fixed product may
+compile its supplied membership table; a closed enumeration is not the general
+profile's definition of conformance membership.
+
 ## 5. Endpoint constraints and arity
 
 These rules apply within the separate Bead-Type and Link-Type worlds under the
@@ -551,19 +621,36 @@ array). Local Bead endpoints may impose Type requirements. Scope spellings
 external `resource` arm is opaque and carries no Type requirement. Link endpoints
 are not enabled by this Type-profile syntax; their admissibility is a Core question.
 
-**No validation of external resources is required or promised.** The Scope may
+**No validation of arbitrary external graph resources is required or promised.**
+This ordinary endpoint rule is distinct from semantic resolution of registered
+exact Type-definition dependencies (§§2.2, 7.2). Registered definitions retain their
+canonical Scope identity; accepting them locally does not make arbitrary remote
+Beads locally validated endpoints.
+
+For ordinary external endpoints, the Scope may
 inspect reference syntax and Scope addressing but does not fetch to establish a
 remote Type, existence, content or immutability. External resources may change
 without notification. An external-capable arm therefore cannot claim a specific
 Type requirement: the candidate requires wildcard Types for cross/either Bead
 references and prohibits `types` on an opaque resource arm. Unknown is not proof
-of conformance. Reference classification/canonicalization needs precise Core rules.
+of conformance. The intrinsic ConformsTo semantic resolver instead checks registered
+exact definition dependencies and their pinned closure. Its descriptor encoding
+remains separate from this generic endpoint syntax. Reference classification and
+canonicalization still need precise Core rules.
 
 Arity, uniqueness and acyclicity apply across the combined family, not separately
 per alternative. One Link matching multiple alternatives counts once per rule.
 No generic endpoint `pinned`/`floating`/`either` restriction is added now; both
 reference forms remain possible, subject to any intrinsic domain semantics.
 A pin on an external endpoint does not establish that the resource exists or is immutable.
+
+Domain semantics can narrow the generic permissions. For example, the Memory
+product proposal permits local Issue→Memory, Memory→Issue and Memory→Memory
+Association pairs; each specialization retains its narrower pairs. Supports and
+Challenges require an author-selected exact target, while Supersedes permits current
+or exact targets. Those intrinsic domain meanings do not introduce a generic
+pin-mode descriptor field. The selected Memory product admits only same-Scope graph
+endpoints; broader exploratory BDP examples do not widen that product contract.
 
 ### 5.2 Both Bead and Link Types can declare arity
 
@@ -838,6 +925,25 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 
 | Case | Required interpretation |
 | --- | --- |
+| Bead or Link changes only its Type identity; properties/metadata are equal | New Resource revision; prior exact affiliation and owned snapshot remain unchanged |
+| Type identity stays constant but its pinned definition revision changes | New Resource revision; no semantic no-op based only on equal properties |
+| Update omits Type; a newer definition is registered | Preserve the existing exact affiliation |
+| Supplied Type resolves to the already stored exact reference and no other state changes | No Type change by itself; ordinary no-op rules apply after revision preconditions |
+| Stale guarded retyping would otherwise be a no-op | Reject the stale guard without mutation |
+| Retyping plus targeted property edit leaves unrelated properties present | Preserve those properties; validate the complete resulting record and affected graph atomically |
+| Full replacement omits an actual Type's required property | Reject atomically; do not retain the missing property as a hidden merge |
+| Decision and Requirement use the same property shape | Keep distinct Type identities and meanings; schema equality does not infer conformance |
+| Open instance schema receives an undeclared kind property | Treat it as extension data; do not dispatch affiliation or substitute it for required fields |
+| Association family versus nominal-only Association selection | Family includes conformers; nominal-only excludes them; revision selection remains a separate exact/identity-wide choice |
+| Memory product uses compiled fixed Type definitions | Does not by itself claim the optional BDP Types profile or an installable definition format |
+| Registered exact definition and pinned conformance closure have IDs in another Scope | Validate and match from retained accepted local dependencies; preserve original IDs and exact pins |
+| Registry is offline while the complete accepted exact closure is retained | Type/category/conformance checks need no online fetch |
+| Publisher changes its current definition after an exact closure was registered | Keep validating the retained exact closure; do not substitute new remote state or adjacency |
+| An unregistered foreign definition happens to be in an opportunistic cache | Cache presence alone does not establish admission for use |
+| Required exact declaration/definition is unavailable locally | Do not accept the missing contract as satisfied or fall forward to a newer revision |
+| Registered global definition is used for local validation | Does not grant authority to mutate its origin or change its canonical Scope |
+| New ConformsTo Link crosses origins but its applicable descriptor permits only same-Scope endpoints | Registration alone does not bypass that restriction; cross-origin admission needs the unfinished descriptor/semantic encoding |
+| Arbitrary external Bead or web resource shares a registry's host or URI pattern | No trusted-definition inference or general endpoint-Type validation |
 | Core Scope uses a Type reference whose target is not a Bead | Not invalid merely for that reason; the applicable typing profile defines its interpretation |
 | Instance is stored under this Types profile | Its Type reference pins an exact revision of a Type-definition Bead |
 | Author a Type's JSON Schema and graph constraints | Store them as descriptor properties; separate Schema/Constraint Beads are not required |
@@ -934,38 +1040,44 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 
 ## 7. Decisions still needed
 
-Conformance questions to work through next:
+The shared design already selects exact affiliations, Type-to-Type conformance,
+conjunctive schemas, correlated endpoint alternatives and the mixed-revision cases
+in §5. Do not treat their implementation or wire propagation as a new product choice.
+The remaining decisions are narrower:
 
-- Repeated paths and deterministic closure identity; conformance cycles are forbidden.
-- Operational/query syntax for the selected exact versus identity-wide matching
-  rules; keep nominal affiliation filters distinct from conformance-aware matching.
-- Schema dialect/composition details and semantic annotations; minimum mandatory
-  checks versus author responsibility, without claiming complete satisfiability
-  or semantic proofs.
+| Area | Selected rule | Decision or contract work still needed |
+| --- | --- | --- |
+| Retyping and affected graph | Guarded explicit whole-reference replacement; complete-result validation; Type-only changes version; history stays immutable | Precise floating-endpoint revalidation and ownership transitions; which checks defer to commit; coordinated Core/Write requests and diagnostics |
+| Schema admission | All inherited requirements apply without precedence; shared meanings survive conformance | Dialect/vocabulary floor, immutable schema-reference closure, formats, mandatory contradiction checks and unsupported semantics; no promise of complete satisfiability proof |
+| Exact conformance closure | Exact target pins, implementation-computed closure, no exact-revision cycles; diamonds allowed | Deterministic handling/identity of repeated declarations and qualifiers, including multiple revisions of one ancestor |
+| Constraint evolution | §§5.4, 5.6 and 5.8 select local activation with cross-revision family populations and per-Link acyclicity | Precise inherited-declaration activation and selector/diagnostic syntax; no Scope-wide minimum over installed definitions |
+| Definition resolution | Registered exact definitions and their pinned conformance closure are trusted local dependencies, including globally addressed definitions (§7.2); arbitrary external graph resources remain opaque | Registration/installation mechanics, intrinsic ConformsTo descriptor encoding and exposure through ordinary Scope reads/listing; no identity rewriting or origin-write authority |
+| Bootstrap | Type, BeadType, LinkType and ConformsTo; no ordinary client mutation of intrinsic definitions | Production identities, trusted exact revision allocation including self-affiliation, upgrade and retained-history contract |
+| Availability and lifecycle | Registration by valid creation/installation; no implicit upgrade; default require-registration; explicit auto-install mode | Registration granularity, permissions, unpinned-write revision selection, removal/retention and immutable schema closure |
+| Revision compatibility | No compatibility inferred from identity, age or SemVer; exact and identity-wide selectors are distinct | Compatibility-family promise, same-identity revision conformance, optional version-label publication semantics |
+| Definition representation | Descriptor fields plus owned ConformsTo Links; candidate schemas and final-state seed | Final field requiredness and selector syntax; installable graph creation/preservation format remains §7.1 work |
 
-Other Type-system work:
+Issue/Dependency exercises workflow-sensitive properties, classification-to-Type
+translation, computed/live observations, ownership and optional graph constraints.
+The generated/read-only property boundary remains open; §3.6 does not silently
+turn a writable-subset replacement into full replacement. Memory exercises reusable
+content, same-shape semantic Types, informational Link families and pinned citations.
+Their product contracts are requirements for the shared model, not automatic
+precedent for every domain.
 
-- Review the candidate definition fields and Type/BeadType/LinkType/ConformsTo seed in §2;
-  finalize metatype/bootstrap, IDs and revision availability, installation,
-  removal, packaging and retention.
-- Endpoint pair-object wire syntax, inherited conjunction and warning details. Explicit
-  AND/NOT/exact-only selectors remain deferred; unresolved does not mean nonmember.
-- Arity syntax, constraint identity and changing
-  limits across definition revisions; ownership, pair-uniqueness declaration syntax
-  and which other graph constraints are checked at commit.
-- Explicit affiliation changes, migrations, floating endpoint revalidation and
-  operation behavior during transitions.
-- Compatibility families and publication claims, including semantic changes.
+Shared History/provenance owns recovery and attribution operations. The accepted
+product Inception/revert direction is recorded in the
+[decision register](https://github.com/gastownhall/beads/issues/7656) and
+[Provenance V2 proposal](https://github.com/gastownhall/beads/issues/7510); it is not
+an adopted BDP Type-profile wire shape. A recovery operation validates the state
+it actually produces. Restoring properties and metadata does not imply rollback of
+Type affiliation, endpoints or other Links, nor rewrite earlier owned snapshots.
+Exact recovery admission and field selection belong to the shared operation contract.
+A Type-definition recovery/retention policy is still needed before claiming support.
 
-Issue/Dependency exercises pair uniqueness, workflow-sensitive metadata,
-classification-to-Type translation, computed/live observations and ownership. Memory exercises reusable content, heterogeneous endpoints, pinned
-citations and reference availability. Use these as requirements, not automatic
-precedent. Keep their domain semantics and the Provenance V2 proposal intact while
-reviewing shared Type mechanisms.
-
-The [completion decision list](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/types-completion-decisions-20261014.md)
-collects unresolved questions and consistency work, including Memory updates held
-for user review. It supplies no additional normative rules.
+The [earlier completion list](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/types-completion-decisions-20261014.md)
+is historical planning material, not an additional normative source or a current
+list of undecided rules. The current open decisions are recorded in this section.
 
 ### 7.0 Local authoring and availability
 
@@ -1035,11 +1147,18 @@ four different Type systems; registry-published definitions may also be pre-inst
 | Registry-published | Discoverable Type graphs published through a public read-only BDP server and available for installation. Registry publication is a distribution/authority role, not a different definition representation. |
 | Locally authored | Ordinary Type-definition Beads created in the Scope through normal operations. |
 
-Only intrinsic Types belong in the binary. The intended distribution model for
-common pre-installed Types is locally supplied copies of graphs published by the
-registry. Pre-installation mechanics are still to be discussed. Foundation binary
-upgrade/version coordination is not permission for ordinary clients to revise
-intrinsic definitions.
+For the general extensible Types system described here, the intended distribution
+model keeps only bootstrap definitions intrinsic and supplies common ordinary
+Types through retained registry graphs. Pre-installation mechanics remain open.
+Foundation binary upgrade/version coordination does not permit ordinary clients
+to revise intrinsic definitions.
+
+That distribution direction does not require every Beads release to implement the
+general system. The selected Memory V1 product may supply a fixed catalog and compiled
+validation without user-installed Types or a public commitment to Type-definition
+representation. It must preserve accepted Type identities, meanings and historical
+interpretation. Its fixed implementation does not by itself advertise this optional
+BDP Types profile or make every supplied product Type an intrinsic bootstrap Type.
 
 By default, installing a registry Type preserves its globally recognized ID and
 exact revision, along with the identities and pins of its required definition
@@ -1076,6 +1195,23 @@ Registration means that a definition is accepted for use in this Scope, not mere
 present in an opportunistic cache. Successful valid local creation or installation
 provides that status; this does not add a separate activation step.
 
+**Registered exact definitions are trusted local dependencies.** Once accepted,
+the locally retained exact definition and its pinned conformance dependency closure
+supply the semantic input for Type validation, category checks and conformance
+matching, even when their globally addressed IDs belong to another Scope. Follow
+the exact recorded owned declarations and target pins; do not consult live remote
+adjacency or substitute a publisher's newer revision. No online fetch is needed for
+these checks when the required accepted closure is retained. Missing required exact
+dependencies cannot be treated as satisfied or replaced with current state.
+
+This trust is the Scope's admission of an exact definition for use, not a claim
+that a signature was verified or that every author-stated semantic promise was
+mechanically proved. The admission/verification mechanisms still need specification.
+It neither changes the definition's canonical ID or Scope nor grants authority to
+mutate the origin. It is a specific definition-resolution rule, not a promise to
+validate arbitrary external Beads, Links or web resources. Mere cache presence,
+alias resolution or a well-formed foreign URI does not establish this accepted status.
+
 The selected acquisition modes are:
 
 | Mode | Behavior |
@@ -1102,11 +1238,12 @@ an authorized routed origin update follows ordinary write rules; an explicit loc
 has a new identity; obtaining a newer publisher revision leaves existing pins intact.
 Installed replicas' exposure through Scope reads/listing, distribution format,
 authority verification and retention/deletion behavior remain to specify. In
-particular, local availability does not silently turn a globally addressed replica
-into an in-Scope resource. Reconcile the endpoint scope/category rules for exact
-installed Type graphs with §5's opaque-external-endpoint policy before implementing
-registry-backed conformance. This is an open integration question, not a promise to
-validate arbitrary external resources.
+particular, accepted local availability does not turn a globally addressed replica
+into an in-Scope resource. Semantic resolution of its registered exact definition
+and pinned conformance closure is selected above. The remaining integration work is
+the descriptor/operation encoding of that rule and replica exposure, not whether
+such admitted dependencies may be validated locally. Ordinary endpoint opacity in
+§5 continues to govern arbitrary external graph resources.
 
 ### 7.3 Local aliases for canonical references
 
@@ -1139,20 +1276,27 @@ this draft does not silently amend [Core](../core/core.md),
 
 ## 8. Readiness and landing
 
-| Item | Status |
-| --- | --- |
-| Optional Scope-wide Types boundary | Agreed design; canonical integration pending |
-| Conformance rules in §3 and distinctions in §4 | Agreed design foundation; detailed syntax/checks open |
-| Endpoint composition and arity in §5 | Agreed design direction; cross-revision evolution and detailed syntax open |
-| Acceptance cases in §6 | Written for review; implementation qualification NYI |
-| Definition representation | Beads with descriptor fields and owned conformance Links selected; candidate property schemas and seed example in §2; bootstrap/lifecycle decisions remain open |
-| ConformsTo editing, provenance and graph-display experiment | Evaluation cases identified; runtime behavior/performance not qualified |
-| Constraint expression syntax and matching | Candidate selector/bound syntax in the descriptor schema; exact/identity-wide predicates selected; query syntax and local revalidation open; external validation explicitly excluded |
-| Beads CLI/storage implementation of this draft | Not established by this document |
+Design selection, adopted protocol, and runtime qualification are separate states.
+The following table describes this draft; it does not mark current Core/Write or
+Beads behavior as implementing its proposed semantics.
 
-Continue this work-in-progress design through focused branches from BDP main.
-Land coordinated, bounded amendments against current BDP and Beads sources, with
-acceptance cases and explicit
-implementation status. Do not merge the accumulated design branch as an implicit
-runtime migration. Core/Write document extraction and changes to active Write work
-are not prerequisites for finishing the Types and Memory designs.
+| Item | Design state | Remaining adoption or evidence |
+| --- | --- | --- |
+| Optional Scope-wide Types boundary | Selected direction (§1) | Coordinated canonical Core/Write and discovery amendment |
+| Exact affiliations and explicit retyping | Selected for Beads and Links; whole-reference replacement and Type-only revisions (§2) | Wire/schema propagation, affected-Link/ownership details and runtime qualification |
+| Conformance, structural and semantic | Selected foundation (§3); read and write responsibilities distinguished | Mandatory schema/admission checks, repeated-path handling and supported semantic vocabulary |
+| Constraint matching and populations | Pair unions, inherited conjunction, exact/identity-wide selectors and identity-based populations selected (§§4.2, 5) | Final selector syntax, inherited activation and local transition/availability checks; external validation excluded |
+| Arity, uniqueness and acyclicity | Transaction-final checks and the mixed-revision cases selected (§5) | General graph validator, atomic mutation and exact-source qualification NYI |
+| Definition representation | Definition Beads, descriptor fields and owned ConformsTo Links selected; candidate schemas/seed present (§2) | Trusted bootstrap/lifecycle decisions and descriptor encoding of registered-definition resolution |
+| Conformance graph operations | Owned historical declaration authority and tightening-only specialization selected | Source-pin/traversal operation contract, performance and historical-query qualification |
+| Acceptance cases (§6) | Written review cases | Property/example checks cover only their documented shape/finite-graph subset; runtime cases remain unqualified |
+| Shared provenance and recovery | Shared owners and accepted product direction identified (§7) | Shared schema/operation adoption; no parallel Types implementation |
+| Fixed Memory product | Separate product proposal; fixed catalog/compiled validation need not expose Type definitions | Native catalog, properties/history, pins, mutation and release evidence tracked in Beads #7656 |
+| General Type lifecycle and packaging | Authority, no-silent-upgrade, retained meaning and trusted local resolution of registered exact global definitions selected (§7) | Defaults, registration granularity, deletion/retention, bootstrap and portable format decisions |
+
+Continue through focused branches and coordinated, bounded amendments against current
+BDP and Beads sources, with acceptance cases and explicit implementation status. Do
+not merge accumulated design work as an implicit runtime migration. The structural
+Core/Write split is complete; their semantic propagation is separate from finishing
+this draft. Pending batch, lifecycle Event and interchange proposals do not become
+adopted wire contracts through references in this document.
