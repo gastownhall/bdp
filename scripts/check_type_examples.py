@@ -266,6 +266,24 @@ assert not matches([{"uri": prefix + "issue", "revision": "issue-2"}], task_ref)
 assert not matches([prefix + "dependency"], task_ref)
 
 
+# Finite 2020-12 composition examples: every contract validates unchanged.
+composition = json.loads((HERE / "schema-composition-cases.json").read_text())
+composition_validators = {}
+for name, schema in composition["schemas"].items():
+    Draft202012Validator.check_schema(schema)
+    composition_validators[name] = Draft202012Validator(schema, registry=registry)
+for case in composition["cases"]:
+    individual = [composition_validators[name].is_valid(case["instance"])
+                  for name in case["contracts"]]
+    combined = {"allOf": [composition["schemas"][name] for name in case["contracts"]]}
+    composed = Draft202012Validator(combined, registry=registry).is_valid(case["instance"])
+    assert all(individual) == composed == case["valid"], (case["label"], individual, composed)
+composition_text = (HERE / "types.md").read_text().split("### 3.4 ", 1)[1].split("### 3.5 ", 1)[0]
+inline_composition = [json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", composition_text, re.S)]
+assert inline_composition == [composition["schemas"][name] for name in (
+    "product", "approval", "closedChildMissingInherited", "closedChild")], "inline composition schema drift"
+
+
 # Illustrative domain properties keep these shape cases independent of the separate domain spec.
 domain_cases = json.loads((ROOT / "fixtures/specs/issue/domain-property-cases.json").read_text())
 issue_instance = domain_cases["issue"]
@@ -298,4 +316,5 @@ for path in [HERE / "types.md", HERE / "README.md", ISSUE / "issue.md"]:
 print(f"PASS: {len(SCHEMAS)} schemas; {count} positive/negative shape cases; "
       f"{len(definitions)} definition records; {len(fixture['declarations'])} owned declarations; "
       f"{fixture_refusals} invalid fixture mutations refused; "
+      f"{len(composition['cases'])} schema composition cases; "
       "example closure, embedded copies, domain property cases and local links consistent. No runtime qualification.")

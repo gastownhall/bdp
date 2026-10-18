@@ -366,8 +366,112 @@ ApprovedProduct.
 Exact schema composition must preserve these meanings. JSON Schema closure
 keywords have different scopes; merely placing schemas beside one another must
 not be mistaken for overriding a parent's closed-record rule. Standard 2020-12
-composition applies (§3.12); examples and the representation of retained reference
-bindings remain specification work.
+composition applies (§3.12). The following finite examples validate every inherited
+and local schema unchanged against the same complete properties object. They do not
+merge property declarations or change the scope of any closure keyword. The retained
+reference-binding representation remains separate work.
+
+**Open Product, then an additional requirement.** Product allows extensions:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "name",
+    "price"
+  ],
+  "additionalProperties": true
+}
+```
+
+ApprovedProduct's local schema adds the required approval code:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "approvalCode": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "approvalCode"
+  ],
+  "additionalProperties": true
+}
+```
+
+`{"name":"Pump","price":25,"approvalCode":"A-17"}` passes both. Removing
+approvalCode fails the local schema; changing price to -1 fails Product. Validating
+both unchanged is equivalent here to placing the two schemas as separate `allOf`
+branches. Neither branch overrides the other.
+
+**A closed Product prevents that extension.** Change only Product's
+`additionalProperties` to false. The same complete instance now fails Product because
+it contains approvalCode. Removing that field fails ApprovedProduct instead. A child
+cannot reopen the inherited Product schema by declaring its own properties open.
+
+**An independently closed child must permit inherited names.** This local schema
+is also insufficient, even while Product stays open:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "approvalCode": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "approvalCode"
+  ],
+  "additionalProperties": false
+}
+```
+
+It rejects name and price as additional properties. `allOf` does not merge the parent's
+property declarations into the child's `properties`. The child can instead explicitly
+permit those names:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": true,
+    "price": true,
+    "approvalCode": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "approvalCode"
+  ],
+  "additionalProperties": false
+}
+```
+
+The `true` entries permit the inherited names locally; Product still checks that name
+is a string and price is a nonnegative number. The approved Pump passes, but a negative
+price or an extra supplier property fails. This is explicit independent validation,
+not a special rule for flattening schemas. It does not select any cross-schema
+`unevaluatedProperties` relocation or rewriting scheme.
+
+[Executable composition cases](schema-composition-cases.json) contain the complete
+schemas and positive/negative instances, including the closed-Product variant. They
+exercise ordinary 2020-12 behavior; they do not decide Type satisfiability in general.
 
 ### 3.5 Read compatibility does not guarantee write acceptance
 

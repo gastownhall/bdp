@@ -11,6 +11,7 @@ package, or implementation qualification. Schema IDs under
 | [bead-type-definition.properties.schema.json](bead-type-definition.properties.schema.json) | BeadType instances (definitions of Bead Types) | Includes common schema, allows participation/ownership rules, prohibits Link constraints |
 | [link-type-definition.properties.schema.json](link-type-definition.properties.schema.json) | LinkType instances (definitions of Link Types) | Includes common schema and requires endpoint-pair constraints |
 | [conforms-to.properties.schema.json](conforms-to.properties.schema.json) | ConformsTo Link properties | Open base object; semantic qualifiers still require understanding/enforcement |
+| [schema-composition-cases.json](schema-composition-cases.json) | Product/ApprovedProduct conjunction and closure examples | Finite independent-schema cases; no property merge or closure rewriting |
 | [issue.properties.schema.json](../../types/issue/issue.properties.schema.json) | Issue instance properties | Base review fragment; not full domain/write validation |
 | [dependency.properties.schema.json](../../types/issue/dependency.properties.schema.json) | Dependency instance properties | Base review fragment; child-specific workflow fields remain open |
 | [domain-property-cases.json](../../../fixtures/specs/issue/domain-property-cases.json) | Illustrative Issue/Dependency properties | Shape-test inputs, not a domain specification |
@@ -208,7 +209,11 @@ uv run --no-project --with 'jsonschema[format]' python scripts/check_type_exampl
 The check validates six schemas and positive/negative shape cases, exact example
 references and owned-state consistency, category-preserving pair matches over
 the finite foundation graph, seven invalid ownership/endpoint fixture mutations,
-schema-copy equality and illustrative domain property cases. Its category helper
+schema-copy equality, twelve Product/ApprovedProduct composition cases and illustrative
+domain property cases. The composition check validates each contract unchanged and
+compares its conjunction with separate `allOf` branches; it checks the inline examples
+against their fixture schemas. This does not decide arbitrary schema satisfiability or
+select cross-schema `unevaluatedProperties` rewriting. Its category helper
 recognizes the fixture's direct intrinsic BeadType/LinkType affiliations only; it is
 not a general resolver for custom metatypes that conform to those categories. That
 fixture shortcut neither prohibits conforming metatypes nor proves their admission.
