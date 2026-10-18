@@ -1,5 +1,5 @@
 {
-  "_comment": "Memory Release product property cases. Each specialization also validates common Memory. Body is primary; no duplicate required primary field. Optional observedAt format is checked. Descriptive applicability has no supplied interval contract. No semantic prose, endpoint, provenance, History, transaction or CLI qualification.",
+  "_comment": "Memory V1 product property cases. Seven Bead Types share title/body and optional nonblank open-string status; six Link Types share optional note/status. Applicability is application metadata; old root property data remains uninterpreted extension data. No semantic prose, endpoint, approval, History, transaction or CLI qualification.",
   "cases": [
     {
       "label": "plain Memory requires no classification",
@@ -119,10 +119,7 @@
       "properties": {
         "title": "Supplier choice",
         "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
-        "alternatives": ["Beta"],
-        "applicability": {
-          "description": "Western-region purchasing next quarter"
-        }
+        "alternatives": ["Beta"]
       },
       "valid": true
     },
@@ -132,10 +129,7 @@
       "properties": {
         "title": "Supplier choice",
         "body": "Acme met the delivery window; Beta did not.",
-        "alternatives": ["Beta"],
-        "applicability": {
-          "description": "Western-region purchasing next quarter"
-        }
+        "alternatives": ["Beta"]
       },
       "valid": true
     },
@@ -144,10 +138,7 @@
       "type": "decision",
       "properties": {
         "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
-        "alternatives": ["Beta"],
-        "applicability": {
-          "description": "Western-region purchasing next quarter"
-        }
+        "alternatives": ["Beta"]
       },
       "valid": false
     },
@@ -158,9 +149,6 @@
         "title": "Supplier choice",
         "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
         "alternatives": ["Beta"],
-        "applicability": {
-          "description": "Western-region purchasing next quarter"
-        },
         "kind": "decision"
       },
       "valid": true
@@ -170,10 +158,7 @@
       "type": "procedure",
       "properties": {
         "title": "Seal replacement",
-        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan.",
-        "applicability": {
-          "description": "Housing B only"
-        }
+        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan."
       },
       "valid": true
     },
@@ -182,10 +167,7 @@
       "type": "procedure",
       "properties": {
         "title": "Seal replacement",
-        "body": "Use this for housing B; consult the job's authorized work plan.",
-        "applicability": {
-          "description": "Housing B only"
-        }
+        "body": "Use this for housing B; consult the job's authorized work plan."
       },
       "valid": true
     },
@@ -193,10 +175,7 @@
       "label": "procedure still inherits title",
       "type": "procedure",
       "properties": {
-        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan.",
-        "applicability": {
-          "description": "Housing B only"
-        }
+        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan."
       },
       "valid": false
     },
@@ -206,9 +185,6 @@
       "properties": {
         "title": "Seal replacement",
         "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan.",
-        "applicability": {
-          "description": "Housing B only"
-        },
         "kind": "procedure"
       },
       "valid": true
@@ -310,10 +286,7 @@
       "properties": {
         "title": "Supplier choice",
         "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
-        "alternatives": [],
-        "applicability": {
-          "description": "Western-region purchasing next quarter"
-        }
+        "alternatives": []
       },
       "valid": true
     },
@@ -323,10 +296,7 @@
       "properties": {
         "title": "Supplier choice",
         "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
-        "alternatives": [""],
-        "applicability": {
-          "description": "Western-region purchasing next quarter"
-        }
+        "alternatives": [""]
       },
       "valid": false
     },
@@ -336,15 +306,12 @@
       "properties": {
         "title": "Supplier choice",
         "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
-        "alternatives": "Beta",
-        "applicability": {
-          "description": "Western-region purchasing next quarter"
-        }
+        "alternatives": "Beta"
       },
       "valid": false
     },
     {
-      "label": "descriptive applicability is available",
+      "label": "prior applicability property survives as uninterpreted extension data",
       "type": "memory",
       "properties": {
         "title": "Housing B uses a different seal",
@@ -356,7 +323,7 @@
       "valid": true
     },
     {
-      "label": "structured validity field is not in the supplied applicability contract",
+      "label": "prior applicability interval survives without a supplied interval contract",
       "type": "memory",
       "properties": {
         "title": "Housing B uses a different seal",
@@ -366,17 +333,17 @@
           "validFrom": "not-an-instant"
         }
       },
-      "valid": false
+      "valid": true
     },
     {
-      "label": "applicability requires description",
+      "label": "prior applicability shape has no standardized property requirements",
       "type": "memory",
       "properties": {
         "title": "Housing B uses a different seal",
         "body": "Check the housing before ordering the seal.",
         "applicability": {}
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "Link properties {}",
@@ -511,7 +478,7 @@
       "valid": false
     },
     {
-      "label": "closed applicability rejects nested extension",
+      "label": "prior applicability extension is preserved without semantic interpretation",
       "type": "memory",
       "properties": {
         "title": "Housing B uses a different seal",
@@ -521,7 +488,7 @@
           "region": "west"
         }
       },
-      "valid": false
+      "valid": true
     },
     {
       "label": "conformer may add an allowed root property",
@@ -653,6 +620,370 @@
         }
       },
       "valid": true
+    },
+    {
+      "label": "Requirement body carries primary content",
+      "type": "requirement",
+      "properties": {
+        "title": "Data residency",
+        "body": "Customer data stays in the EU."
+      },
+      "valid": true
+    },
+    {
+      "label": "Requirement empty body remains representable",
+      "type": "requirement",
+      "properties": {
+        "title": "Data residency",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "Requirement missing title",
+      "type": "requirement",
+      "properties": {
+        "body": "EU only"
+      },
+      "valid": false
+    },
+    {
+      "label": "Requirement missing body",
+      "type": "requirement",
+      "properties": {
+        "title": "Data residency"
+      },
+      "valid": false
+    },
+    {
+      "label": "Requirement blank title",
+      "type": "requirement",
+      "properties": {
+        "title": "  ",
+        "body": "EU only"
+      },
+      "valid": false
+    },
+    {
+      "label": "Requirement body must be text",
+      "type": "requirement",
+      "properties": {
+        "title": "Data residency",
+        "body": ["EU only"]
+      },
+      "valid": false
+    },
+    {
+      "label": "memory open vocabulary",
+      "type": "memory",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "memory blank status",
+      "type": "memory",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "memory non-text status",
+      "type": "memory",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "memory null status",
+      "type": "memory",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "observation open vocabulary",
+      "type": "observation",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "observation blank status",
+      "type": "observation",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "observation non-text status",
+      "type": "observation",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "observation null status",
+      "type": "observation",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "decision open vocabulary",
+      "type": "decision",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "decision blank status",
+      "type": "decision",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "decision non-text status",
+      "type": "decision",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "decision null status",
+      "type": "decision",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "requirement open vocabulary",
+      "type": "requirement",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "requirement blank status",
+      "type": "requirement",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "requirement non-text status",
+      "type": "requirement",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "requirement null status",
+      "type": "requirement",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "procedure open vocabulary",
+      "type": "procedure",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "procedure blank status",
+      "type": "procedure",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "procedure non-text status",
+      "type": "procedure",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "procedure null status",
+      "type": "procedure",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "policy open vocabulary",
+      "type": "policy",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "policy blank status",
+      "type": "policy",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "policy non-text status",
+      "type": "policy",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "policy null status",
+      "type": "policy",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "lesson open vocabulary",
+      "type": "lesson",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "lesson blank status",
+      "type": "lesson",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "lesson non-text status",
+      "type": "lesson",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "lesson null status",
+      "type": "lesson",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "link open vocabulary",
+      "type": "link",
+      "properties": {
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "link blank status",
+      "type": "link",
+      "properties": {
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "link non-text status",
+      "type": "link",
+      "properties": {
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "link null status",
+      "type": "link",
+      "properties": {
+        "status": null
+      },
+      "valid": false
     }
   ]
 }

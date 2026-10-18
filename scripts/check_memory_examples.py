@@ -25,7 +25,7 @@ args = parser.parse_args()
 K = "https://example.org/memory-types/"
 F = "https://example.org/types/beads/"
 MEMORY = (K + "memory", "memory-contract-1")
-CHILDREN = ("observation", "decision", "procedure", "policy", "lesson")
+CHILDREN = ("observation", "decision", "requirement", "procedure", "policy", "lesson")
 NAMES = {"memory": "memory.properties.schema.json",
          **{name: f"memory-{name}.local-properties.schema.json" for name in CHILDREN},
          "link": "memory-link.properties.schema.json"}
@@ -117,7 +117,7 @@ if args.with_bdp_exploration:
     shared_validators = {name: validator(schema) for name, schema in shared.items()}
     fixture = read(MEMORY_DIR / "definitions.json")
     definitions = fixture["definitions"]
-    require(len(definitions) == 12, "Expected six Bead and six Link definitions")
+    require(len(definitions) == 13, "Expected seven Bead and six Link definitions")
     by_pin = {(d["id"], d["revision"]): d for d in definitions}
     require(len(by_pin) == len(definitions), "Duplicate exact domain definition")
     foundation = read(args.shared_schemas / "definitions.json")
@@ -155,7 +155,7 @@ if args.with_bdp_exploration:
             owned_declarations.append(declaration)
         require(len(recorded) == (1 if parent else 0), "Unexpected direct conformance")
     require(owned_declarations == fixture["declarations"], "Recorded declarations differ from exposed copies")
-    require(len(owned_declarations) == 10, "Expected five Memory and five Association declarations")
+    require(len(owned_declarations) == 11, "Expected six Memory and five Association declarations")
 
 
     def closure(pin, active=()):

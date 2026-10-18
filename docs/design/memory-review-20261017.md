@@ -147,3 +147,43 @@ The examples retain an exact replacement citation and add a current identity-lev
 replacement Link. The optional BDP experiment records ten family declarations: five
 for Memory and five for Association. Previous 7202384 evidence above retains its
 original six-Link excerpt count; this successor has seven local Link excerpts.
+
+## Third pass: fields, status and concrete user operations
+
+All eighteen annotations (seventeen /// lines and one unprefixed action-writing
+request) are consumed from the editable proposal. Originals are archived in the
+author's third-review checkpoint. Earlier field/count conclusions above retain their
+original source identity; the following dispositions describe the current successor.
+
+| Comment / discussion | Disposition |
+| --- | --- |
+| Release name | Verified Janet's public #7656/MEM-DEC-003: **Memory V1**, selected by Donna. Naming is not a ship-readiness claim. |
+| Lead with ordinary Types and --type | Opening now states shared Bead/Link Type selection with no extra kind dispatcher. Existing Issue decision and Memory Decision have distinct identities; ambiguous short names require qualified selection. |
+| Mark differences from Chris | Added sidebars at shared Type modeling/R1/R3, proposed vocabulary/minimum, applicability/R3/S15 and concrete search/R6. They identify alignment work, not invented acceptance. |
+| Fields before meanings | Common title/body appear first; optional status is separate from the two required content properties. Meaning table is shorter. |
+| Explain Memory family | Ordinary Memory plus all six specializations; distinguish family selection from exact-Type selection. |
+| Applicability versus AppliesTo | Applicability context remains application metadata; AppliesTo names a specific target Bead. No supplied applicability property, metadata field schema or validity interval. |
+| Minimum vocabulary | Ordinary Memory Bead plus a general informational Link supports Chris's scenarios when required shared behavior exists. His baseline is related; Association naming needs reconciliation. Extra Types provide explicit meanings/selection, not minimum conformance. |
+| Duplicate primary-field/internal extension discussion | Removed from main narrative. Body is the primary text, unknown-field preservation stays a concise writer rule in validation notes. |
+| Full applicability fields | No standardized applicability fields selected; metadata examples are application conventions. Prior applicability property stays uninterpreted extension data if encountered. |
+| Type-by-Type field tables and JSON | Seven subsections repeat inherited title/body/status and list local properties, each with a concrete JSON value. |
+| Reuse Memory title synthesis | Existing graph-Memory title helper supplies the rule; implementation should reuse it. Legacy remember DeriveKey synthesizes a slug key, not a display title, so it is not substituted. |
+| Remove query-review housekeeping | Removed bd query process notes from the user proposal. Shared search/filters supply concrete user operations. |
+| Discovery/traversal too abstract | Defined discovery once, then used list/search/follow Links/read with CLI examples. Search matching/order are explicit review proposals. |
+| bd revert not shipped | Clearly marked unavailable for this Memory workflow; added proposed shared CLI in Appendix A. Meaning is accepted; exact shared selector/flags remain proposed. |
+| Use Bead and action statements | Technician/team walkthroughs now describe creating, linking, searching, reading and revising named Bead Types. |
+| Justify bd memory command group | Four tailored capture/list/search/full-read commands; ordinary update/delete/Link/History operations use shared commands. Compatibility aliases retain the accepted direction. |
+| Decision status | Optional nonblank open string, no enum/default or verified ratification. Same-revision/history rules apply. |
+| Requirement Type | Added Requirement specialization with demanded outcome/constraint in body, distinct from Issue work and Policy/Decision meaning. |
+| Which Types benefit from status? | Donna selected optional status on both Memory and Association bases, inherited by all specializations. Example conventions per Type have no implicit filtering/activation or enforced vocabulary. |
+| Existing Issue/Dependency status | Issue has required workflow status with built-ins/configured values; Dependency has no declared status field. Existing contracts are unchanged. |
+
+The source-level changes include one new Requirement schema/definition, updated
+common schema copies, metadata examples and inherited optional status cases. The
+validated inventory is eight owned schemas,102 property cases,ten Bead and
+eight local Link excerpts,thirteen exploratory definitions and eleven declarations
+(six Memory/five Association). The checks passed on this candidate;
+none of these counts qualify runtime search, status workflow or new CLI support.
+
+Donna answered the placement question explicitly: **Memory and Association bases**.
+That placement is accepted product direction; the example strings remain conventions.

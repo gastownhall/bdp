@@ -9,12 +9,12 @@
         "revision": "bead-type-1"
       },
       "properties": {
-        "description": "Memory domain contract; see Memory specification.",
+        "description": "Memory V1 common Bead contract: title, body and optional author-reported status; applicability context is application metadata.",
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory.properties.schema.json",
           "title": "Memory properties",
-          "$comment": "Memory Release product property contract, not a BDP Type representation or complete mutation validator. Explicit Type supplies meaning; body is primary. Open-root names are not globally reserved.",
+          "$comment": "Memory V1 product property contract, not a BDP Type representation or complete mutation validator. Explicit Type supplies meaning; body is primary. Applicability/validity context stays in application metadata. Status is an optional open string; existing additional properties are preserved.",
           "type": "object",
           "required": ["title", "body"],
           "properties": {
@@ -25,17 +25,10 @@
             "body": {
               "type": "string"
             },
-            "applicability": {
-              "type": "object",
-              "required": ["description"],
-              "properties": {
-                "description": {
-                  "type": "string",
-                  "pattern": "\\S"
-                }
-              },
-              "additionalProperties": false,
-              "$comment": "Descriptive author context only. Structured validity intervals are deferred; clock passage causes no mutation or lifecycle change."
+            "status": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Optional author-reported status. Open vocabulary, no default or automatic workflow, approval, truth or visibility effect."
             }
           },
           "additionalProperties": true
@@ -178,6 +171,44 @@
       }
     },
     {
+      "id": "https://example.org/memory-types/requirement",
+      "revision": "requirement-contract-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "description": "Exploratory BDP mapping for product Requirement: body states a demanded outcome or constraint. It inherits optional open-string status; Issue completion does not prove satisfaction.",
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/memory-types/schemas/memory-requirement.local-properties.schema.json",
+          "title": "Requirement local properties requirements",
+          "$comment": "Memory V1 specialization fragment. Also validate common Memory properties: title, body and optional status. Body states the demanded outcome or constraint. No additional required primary field.",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/requirement-conforms-memory",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/requirement",
+            "target": {
+              "uri": "https://example.org/memory-types/memory",
+              "revision": "memory-contract-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
       "id": "https://example.org/memory-types/policy",
       "revision": "policy-contract-1",
       "type": {
@@ -291,13 +322,18 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
           "title": "Association properties",
-          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "$comment": "Association base properties inherited by all five specialized Links. Optional note explains the relationship; optional status is an authored claim, not an activation switch. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
               "pattern": "\\S",
               "description": "Optional explanation of this relationship, distinct from the Memory body."
+            },
+            "status": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Optional author-reported status. Open vocabulary, no default or automatic workflow, approval, truth or visibility effect."
             }
           },
           "additionalProperties": true
@@ -446,13 +482,18 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
           "title": "Association properties",
-          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "$comment": "Association base properties inherited by all five specialized Links. Optional note explains the relationship; optional status is an authored claim, not an activation switch. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
               "pattern": "\\S",
               "description": "Optional explanation of this relationship, distinct from the Memory body."
+            },
+            "status": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Optional author-reported status. Open vocabulary, no default or automatic workflow, approval, truth or visibility effect."
             }
           },
           "additionalProperties": true
@@ -550,13 +591,18 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
           "title": "Association properties",
-          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "$comment": "Association base properties inherited by all five specialized Links. Optional note explains the relationship; optional status is an authored claim, not an activation switch. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
               "pattern": "\\S",
               "description": "Optional explanation of this relationship, distinct from the Memory body."
+            },
+            "status": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Optional author-reported status. Open vocabulary, no default or automatic workflow, approval, truth or visibility effect."
             }
           },
           "additionalProperties": true
@@ -659,13 +705,18 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
           "title": "Association properties",
-          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "$comment": "Association base properties inherited by all five specialized Links. Optional note explains the relationship; optional status is an authored claim, not an activation switch. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
               "pattern": "\\S",
               "description": "Optional explanation of this relationship, distinct from the Memory body."
+            },
+            "status": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Optional author-reported status. Open vocabulary, no default or automatic workflow, approval, truth or visibility effect."
             }
           },
           "additionalProperties": true
@@ -763,13 +814,18 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
           "title": "Association properties",
-          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "$comment": "Association base properties inherited by all five specialized Links. Optional note explains the relationship; optional status is an authored claim, not an activation switch. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
               "pattern": "\\S",
               "description": "Optional explanation of this relationship, distinct from the Memory body."
+            },
+            "status": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Optional author-reported status. Open vocabulary, no default or automatic workflow, approval, truth or visibility effect."
             }
           },
           "additionalProperties": true
@@ -867,13 +923,18 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
           "title": "Association properties",
-          "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+          "$comment": "Association base properties inherited by all five specialized Links. Optional note explains the relationship; optional status is an authored claim, not an activation switch. Endpoint/pin/ownership rules are not checked here.",
           "type": "object",
           "properties": {
             "note": {
               "type": "string",
               "pattern": "\\S",
               "description": "Optional explanation of this relationship, distinct from the Memory body."
+            },
+            "status": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Optional author-reported status. Open vocabulary, no default or automatic workflow, approval, truth or visibility effect."
             }
           },
           "additionalProperties": true
@@ -996,6 +1057,20 @@
         "revision": "conformance-1"
       },
       "source": "https://example.org/memory-types/procedure",
+      "target": {
+        "uri": "https://example.org/memory-types/memory",
+        "revision": "memory-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/requirement-conforms-memory",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/requirement",
       "target": {
         "uri": "https://example.org/memory-types/memory",
         "revision": "memory-contract-1"

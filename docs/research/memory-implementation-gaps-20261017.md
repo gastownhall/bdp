@@ -27,7 +27,9 @@ it is not a Memory property or a new Preview 3 provenance implementation gate.
 
 The accepted direction now uses body as primary content for every supplied Memory
 Type. Duplicate statement/choice/steps/rule/takeaway requirements are retired;
-optional alternatives, observedAt, authority and descriptive applicability remain.
+optional alternatives, observedAt and authority remain. Requirement joins the family;
+Donna selected optional author-reported status on Memory and Association.
+Applicability and validity context now stay in application metadata.
 Thus the runtime gaps below mean preserving those distinct properties and family
 membership, not implementing duplicate structured primary content. Same-shape semantic
 Types remain explicit and a Type-only change is a revision, not a no-op.
@@ -96,7 +98,7 @@ that existing generic graph/history mechanisms work. Trish already stages them i
 F1–F4; do not open a duplicate implementation stream.
 
 1. **Full specialized payload and historical affiliation.** Current Properties only
-   contains title/body and CLI rejects additional fields. Preserve alternatives, observedAt, authority, descriptive applicability
+   contains title/body and CLI rejects additional fields. Preserve alternatives, observedAt, authority and the proposed shared descriptive status
    and permitted unknown fields through create/patch/replacement,
    reopen, exact history and compare. Retained decoding currently admits one fixed
    Memory affiliation and checks it against the allocation's Type. It must preserve
@@ -161,3 +163,22 @@ CI protections. Those are evidence/release gaps, separate from missing algorithm
 The current source qualification is valuable and must not be reported as absent;
 it does not automatically qualify a later Memory feature commit. This audit executed
 no new runtime suites and made no release/main/pin changes.
+
+## Third review: status, Requirement and finding Beads
+
+The revised Memory V1 product proposal supplies seven Bead Types (Memory plus six
+specializations including Requirement) and six Link Types (Association plus five
+specializations). Decision status is an optional open string; Donna selected placement on both
+common bases, inherited by their specializations. Status is descriptive, never a hidden activation/readiness
+filter or verified approval. The existing Issue status is a required workflow field
+with configured admission; Dependency has no declared status property. Neither
+existing contract changes. Existing Issue decision and Memory Decision retain
+distinct Type identities, with unambiguous/qualified selectors rather than kind.
+
+Applicability.description is withdrawn as a standard property; examples put context
+in application metadata and preserve older extension data without interpretation.
+The draft proposes concrete shared-search behavior and tailored capture/list/search/
+recall commands; exact matching, ordering and new revert grammar are proposed user
+design, not runtime availability or upstream acceptance. Generic edits, Links and
+History remain shared operations. All source limitations and qualification claims
+above retain their original pinned evidence.

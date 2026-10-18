@@ -1,14 +1,17 @@
-# Memory Release: link and bead types
+# **Memory V1**: link and bead types
 
 Product proposal, October 17, 2026.
 
 This proposal defines the **Memory link and bead types** and user-visible operations
-for the first supported Memory release. It specifies product behavior independently
-of its eventual BDP representation.
+for **Memory V1**, the first supported Memory release. It specifies product behavior
+independently of its eventual BDP representation.
 
-Memory preserves reusable knowledge. Issues represent work. Activities report what
-happened. A technician can save a useful note, and an office team can record a decision
-and its reasons, without first completing a classification interview.
+Memory Bead and Link Types use the same Type selection as Issue and Dependency
+Types, including `--type`. A Memory Bead holds reusable knowledge; an Issue Bead
+tracks work; an Activity Bead reports what happened. Each record has an explicit
+Type, with no additional kind-based discriminator. A technician can save a useful
+note, and an office team can record a decision and its reasons, without first
+completing a classification interview.
 
 The Types and operations below are proposed product contracts. Publishing this draft
 or passing its property examples does not establish implementation support.
@@ -16,7 +19,8 @@ or passing its property examples does not establish implementation support.
 > **Release scope.** The first supported release supplies the Memory Types and
 > discoverable inventory/details. User-defined/installable Types and public Type
 > editing are outside that release. The supplied inventory is an implementation
-> boundary, not the purpose of this proposal. The release name remains open.
+> boundary, not the purpose of this proposal. Janet records the selected **Memory V1**
+> name in the decision register below.
 >
 > **Preview 3.** Pinned References and re-pinning (M-D1), deletion with floating-Link
 > cleanup and pinned survivors (M-D2), and guarded same-ID undelete via revert (M-D3) are
@@ -38,19 +42,21 @@ its recorded Type, content, metadata, outgoing Link state and available provenan
 Changing current state creates a new revision; it does not rewrite an older one.
 
 A **Scope** is the persistent data identity containing the Beads; a workspace gives
-access to it. This proposal introduces no separate Project record, Type or ID.
-Reads expose canonical Bead identity and enough Scope context to interpret it
-without silently substituting a local name. Initial graph operations act within
+access to it. Reads expose canonical Bead identity and enough Scope context to
+interpret it without silently substituting a local name. Initial graph operations act within
 one Scope and do not require cross-Scope resolution.
 
-An Issue may point to Memory, and Memory may point to an Issue. Those relationships
-help someone find knowledge or understand its relevance. They do not make the Memory
-ready, blocked, assigned, completed or closed, and do not change Issue readiness.
+An Issue Bead may point to a Memory Bead, and a Memory Bead may point to an Issue
+Bead. Those relationships help someone find knowledge or understand its relevance.
+They do not give Memory Beads Issue workflow states or change Issue readiness.
 
-A Type identifies the contract and meaning of a record. Properties carry its data.
-The supplied Memory Types do not use a `kind` or `details` dispatcher. This follows
-the agreed Issue-Type modeling direction. An extension property named `kind` is
-not globally forbidden, but it never selects a supplied Type or changes its meaning.
+A Type identifies a record's meaning and property contract. Ordinary Type filters
+can select a Memory Bead or Link just as they select an Issue Bead or Dependency Link.
+
+> **Difference from Chris's R1/R3.** This proposal expresses Memory and its
+> specializations through the shared Type mechanism and uses declared properties
+> for known fields. Application-specific context stays in metadata. Donna and Chris
+> will reconcile this refinement of the proposal's core-kind/metadata boundary.
 
 The shared History, identity, Link and provenance capabilities supply the operations
 Memory consumes. This proposal states their required outcomes rather than defining
@@ -60,135 +66,332 @@ Activity means the one independent Activity-typed work report in
 
 ## 2. Memory Bead Types
 
-All six Types have the common Memory contract. The five specializations are Memories
-with more specific meaning; conformance does not require different JSON shapes.
-Selecting the Memory family includes all six. Selecting a concrete Type can select
-only that Type; the CLI must distinguish these operations clearly.
-
-| Type | Meaning of `body` | Optional additional properties |
-| --- | --- | --- |
-| Memory | Reusable Markdown knowledge without further classification | applicability |
-| Observation | What the author observed, with relevant circumstances and qualifications | observedAt, applicability |
-| Decision | What was decided and the reasons and consequences | alternatives, applicability |
-| Procedure | How to carry out a task, usually as readable ordered instructions | applicability |
-| Policy | The recorded rule and its explanation | authority, applicability |
-| Lesson | A reusable takeaway and the experience supporting it | applicability |
-
-Memory is the common Bead contract for the five specializations. The Type is explicit;
-software does not infer it from headings, property names or the subject matter of
-`body`. An ordinary capture defaults to Memory. A writer may deliberately create a
-specialization directly, without first creating and then retyping an ordinary note.
-
-The catalog is a design synthesis, not a taxonomy mandated by Chris. S1/S2 motivate
-plain capture and reuse; S5 motivates policy citation. Decision draws on
-[architecture decision records](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions).
-Procedure draws on the reusable-job-plan/work-order distinction documented in the
-[prior-art study](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/memory-type-prior-art-20261013.md).
-Observation and Lesson are proposed contracts for observations and reusable takeaways,
-not claims of an external standard requiring these exact six Types.
-
-### 2.1 Common properties and body semantics
+Every Memory Bead has two required content properties and an optional status:
 
 | Property | Contract |
 | --- | --- |
-| title | Required nonblank UTF-8 string. Supplied or derived before storage. |
-| body | Required UTF-8 Markdown string, possibly empty. Preserved verbatim. The Type supplies its intended meaning. |
-| applicability | Optional object containing a nonblank description of the conditions in which the knowledge claims to apply. |
+| title | Required nonblank UTF-8 text, supplied or derived before storage. |
+| body | Required UTF-8 Markdown text, possibly empty. This is the main text of the Memory Bead; its Type determines its meaning in the table below. |
+| status | Optional nonblank open string, reported by the author. No default or automatic workflow effect. |
 
-**Body is the primary content for every Type.** Observation does not require a second
-`statement`; Decision does not require a second `choice`; Procedure does not require
-`steps`; Policy does not require `rule`; Lesson does not require `takeaway`. There is
-no precedence or synchronization rule between a primary field and a duplicate body.
-A Procedure's Markdown list remains content, not executable steps or tracked work.
+An explicit title permits an empty body on every Type. Body text is preserved
+verbatim. A Procedure Bead's instructions remain readable content, not executable
+steps. Each Type uses body for its primary content, with additional properties only
+for separate information.
 
-An explicit title permits an empty body, including on a specialization. Empty content
-is a present record, not absence. The Type states the writer's intended meaning;
-validation does not prove that the prose is a useful procedure or justified decision.
-A later machine-executable procedure would need its own explicit contract.
+The Memory family means ordinary Memory Beads plus every specialized Memory Bead
+Type below. Listing the family includes them all; selecting exactly one Type returns
+only that Type. The command surface must distinguish these choices.
 
-Properties are open at the root. Writers preserve unfamiliar values on targeted
-edits or refuse before mutation when they cannot do so. Fields from an older draft
-such as `choice` may survive as extension data; they do not override `body`, confer
-Type membership or acquire automatic search/interpretation. A full replacement is
-explicit about the complete resulting properties.
+| Type | Meaning | Additional properties |
+| --- | --- | --- |
+| Memory Bead | Reusable knowledge without further classification | None |
+| Observation Bead | What the author observed, with circumstances and qualifications | observedAt |
+| Decision Bead | What was decided, why, and with what consequences | alternatives |
+| Requirement Bead | A demanded outcome or constraint | None |
+| Procedure Bead | How to carry out a task | None |
+| Policy Bead | A governing rule and its explanation | authority |
+| Lesson Bead | A reusable takeaway and the experience supporting it | None |
 
-`applicability.description` is available on all six Types. It can describe an
-observation's circumstances, a decision's scope, a procedure's equipment, a policy's
-jurisdiction or a lesson's relevant conditions. Absence means unspecified.
+The additional-properties column omits common status, which every Type inherits.
 
-The proposed `validFrom`/`validUntil` interval and its ordering rules are **deferred**.
-Chris's S15 motivates recording validity context in metadata; it does not require
-this particular structured interval. Applications can record their own validity
-metadata, and author context can describe conditions. Passing a date never creates
-a revision, expires or deletes Memory, or proves that its contents are applicable.
+Capture defaults to an ordinary Memory Bead. An author can create a specialized
+Bead directly. Selecting a Type is an explicit author assertion; matching prose or
+property names does not infer or change it.
 
-### 2.2 Additional properties
+> **Minimum versus proposed Types.** Chris's capture, search, recall and linking
+> scenarios need an ordinary Memory Bead and a general informational Link, together
+> with their required shared identity, History and graph behavior. His baseline
+> Link is related; this design uses Association, whose compatibility remains to
+> reconcile. The six specialized Bead Types and five specialized Link Types add
+> explicit meanings and useful selection. They are our proposed product vocabulary,
+> not extra Types required by Chris's scenarios.
 
-| Type / property | Contract |
+Decision Beads draw on [architecture decision records](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions).
+Procedure Beads follow the reusable-job-plan/work-order distinction in the
+[prior-art study](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/memory-type-prior-art-20261013.md).
+A Requirement Bead states an obligation; an Issue Bead tracks work to fulfill it.
+Closing the Issue does not prove the Requirement satisfied. The exact supplied
+vocabulary remains a product proposal for review.
+
+### 2.1 Applicability context and AppliesTo Links
+
+A Memory Bead may record where, when, for whom or under what conditions its content
+applies in application metadata. This release selects no standard applicability
+property, metadata schema or validity interval. For example, an application may
+record equipment or jurisdiction there. Clock passage does not expire a Memory
+Bead, create a revision or prove its contents applicable.
+
+An **AppliesTo Link** instead identifies a particular Bead to which the source
+Memory Bead applies. Its target Reference answers “applies to what?” For example,
+a Procedure Bead may link to the Issue Bead for a particular repair, while its
+metadata records the equipment and operating conditions. Authors need not create
+both; use the Link when an addressable target is useful.
+
+> **Alignment with Chris's R3/S15.** Applicability and validity context stay in
+> application metadata. No universal applicability or validity fields are selected.
+> The Type-specific properties below remain an explicit refinement for Donna and
+> Chris to reconcile.
+
+### 2.2 Type-by-Type fields and examples
+
+Examples show Type, properties and occasional application metadata. Canonical
+identity, revision, provenance and Link envelopes are omitted for readability;
+these are illustrative values, not a prescribed wire format. Metadata examples
+are application conventions, not additional standardized fields.
+
+#### 2.2.1 Memory Bead
+
+| Property | Contract |
 | --- | --- |
-| Observation.observedAt | Optional RFC3339 instant reported by the author. Omission means unrecorded; do not substitute commit time. |
-| Decision.alternatives | Optional ordered array of nonblank strings naming considered alternatives. Absent means unrecorded; empty means none listed, not exhaustive consideration. |
-| Policy.authority | Optional authored reference to the claimed source of a rule. It is not an access grant or proof of compliance. |
+| title | Required nonblank text. |
+| body | Required Markdown text, possibly empty. Reusable knowledge without further classification. |
+| status | Optional nonblank open string, reported by the author. No default or automatic workflow effect. |
 
-These properties add information that is distinct from primary content. They are
-not mandatory templates. No specialization adds another required primary field.
-Known portable fields use properties; open metadata remains available for application
-annotations. The exact Type/property boundary deliberately refines Chris's R3.
+```json
+{
+  "type": "memory",
+  "properties": {
+    "title": "Housing B uses a different seal",
+    "body": "Check the housing before ordering the seal."
+  }
+}
+```
 
-An authority reference may identify a document or a recorded revision. It is authored
-information, not a graph Link or a request to fetch, authenticate or authorize its
-target. The current test artifacts permit a URI or `{uri, revision}`. A more compact
-revision-reference notation remains future reference/CLI design; this proposal does
-not invent one or change stored identities.
+#### 2.2.2 Observation Bead
 
-## 3. Authoring, reads and discovery
+| Property | Contract |
+| --- | --- |
+| title | Required nonblank text. |
+| body | Required Markdown text, possibly empty. What the author observed. |
+| status | Optional nonblank open string, reported by the author. No default or automatic workflow effect. |
+| observedAt | Optional RFC3339 instant reported by the author. Omission means unrecorded; commit time is not substituted. |
 
-Creation accepts a nonblank title or body. With body but no title, the authoring path
-uses the first nonblank body line, collapses display whitespace and caps the derived
-title at 80 Unicode code points, including an ellipsis when truncated. It leaves the
-body unchanged. This reuses the existing
-[title helper](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/cmd/bd/graph_preview_creation.go#L36).
-It is a deterministic display summary, not an inferred semantic title. Reads return
-the stored title. Whitespace-only input cannot supply a nonblank derived title.
+```json
+{
+  "type": "observation",
+  "properties": {
+    "title": "Seal inspection",
+    "body": "Housing B leaked after the old seal was fitted.",
+    "observedAt": "2026-10-01T10:00:00Z"
+  }
+}
+```
 
-An explicit title permits omitted body on create, which becomes empty. Updates
-preserve omitted fields. Markdown, frontmatter and ordinary document hyperlinks
-remain body text: they do not create properties, Types, graph Links or permissions.
+#### 2.2.3 Decision Bead
 
-**Canonical CLI:** `bd memory` is the main Memory command group. `remember`, `recall`,
-`memories` and `forget` remain compatibility aliases over the same records and shared
-operations. Plain capture through either surface creates ordinary Memory unless the
-caller deliberately selects another supplied Type. Memory commands do not create a
-second key/value store. Appendix A proposes concrete commands for review.
+The existing Issue-family decision Type continues to track work with Issue workflow.
+This Memory-family Decision Type records the choice and its reasoning. They have
+distinct Type identities. A short --type name must be unambiguous; use a qualified
+Type selector when names collide rather than adding another discriminator.
 
-**`bd query` is under review for scenario coverage.** This proposal specifies required
-Memory selection and discovery outcomes without freezing that command's grammar.
+| Property | Contract |
+| --- | --- |
+| title | Required nonblank text. |
+| body | Required Markdown text, possibly empty. What was decided, why, and with what consequences. |
+| status | Optional nonblank open string, reported by the author. No default or automatic workflow effect. |
+| alternatives | Optional ordered array of nonblank text values. Absent means unrecorded; an empty array means none listed. |
 
-Discovery searches title, body and documented human keys, plus the declared distinct
-knowledge fields where supported, such as alternatives and applicability.description.
-It does not automatically search arbitrary metadata, unknown properties, provenance
-or referenced bodies. A hit identifies the matching field and gives only a bounded
-excerpt. Several field/key matches still produce one Memory result.
+```json
+{
+  "type": "decision",
+  "properties": {
+    "title": "Supplier choice",
+    "body": "Use Acme for the next quarter. Acme met the delivery window; Beta did not.",
+    "alternatives": [
+      "Beta"
+    ],
+    "status": "ratified"
+  }
+}
+```
 
-Results have deterministic order and honest count/byte limits. Filtering happens
-before pagination. Continuations, if offered, state their validity and refusal
-conditions; an implementation may instead refuse an over-limit query. It must not
-simulate complete results by filtering one page or concatenating incomplete pages.
+#### 2.2.4 Requirement Bead
 
-Discovery and traversal are compact; complete recall is deliberate. A full read
-returns the canonical identity, selected current or exact revision, Type, title,
-complete body and properties, metadata, outgoing Links, available provenance and
-supported keys together. Human output renders distinct properties alongside body;
-it does not copy them into stored Markdown or call a body-only projection complete.
+| Property | Contract |
+| --- | --- |
+| title | Required nonblank text. |
+| body | Required Markdown text, possibly empty. The demanded outcome or constraint. |
+| status | Optional nonblank open string, reported by the author. No default or automatic workflow effect. |
 
-Empty and absent remain distinct. Historical reads return the retained Type, content
-and outgoing set, never current replacements. Stored content and diagnostics remain
-untrusted data: output is escaped appropriately and never gains execution authority.
+```json
+{
+  "type": "requirement",
+  "properties": {
+    "title": "EU data residency",
+    "body": "Customer data must remain within the EU.",
+    "status": "accepted"
+  }
+}
+```
 
-The storage-acquisition versus consumer-delivery boundary for R8/R21 remains an
-explicit acceptance question. Compact output alone is not proof that the reader
-avoids acquiring unrelated bodies internally. Context-pack budgets, ordering and
-receipts belong to the consumer; the product reports its actual delivery bounds.
+#### 2.2.5 Procedure Bead
+
+| Property | Contract |
+| --- | --- |
+| title | Required nonblank text. |
+| body | Required Markdown text, possibly empty. Readable instructions for carrying out a task. |
+| status | Optional nonblank open string, reported by the author. No default or automatic workflow effect. |
+
+```json
+{
+  "type": "procedure",
+  "properties": {
+    "title": "Replace housing B seal",
+    "body": "1. Isolate the pump.\n2. Replace the seal.\n3. Run the leak test.",
+    "status": "draft"
+  }
+}
+```
+
+#### 2.2.6 Policy Bead
+
+| Property | Contract |
+| --- | --- |
+| title | Required nonblank text. |
+| body | Required Markdown text, possibly empty. The governing rule and its explanation. |
+| status | Optional nonblank open string, reported by the author. No default or automatic workflow effect. |
+| authority | Optional URI or {uri, revision} identifying a claimed source. It is authored information, not a graph Link or an access grant. |
+
+```json
+{
+  "type": "policy",
+  "properties": {
+    "title": "Supplier assessment",
+    "body": "Record delivery capability before selecting a supplier.",
+    "authority": "https://example.org/supplier-policy",
+    "status": "proposed"
+  }
+}
+```
+
+#### 2.2.7 Lesson Bead
+
+| Property | Contract |
+| --- | --- |
+| title | Required nonblank text. |
+| body | Required Markdown text, possibly empty. A reusable takeaway with the experience supporting it. |
+| status | Optional nonblank open string, reported by the author. No default or automatic workflow effect. |
+
+```json
+{
+  "type": "lesson",
+  "properties": {
+    "title": "Check the housing variant first",
+    "body": "Identify the housing before ordering a seal; the older variant used a different part."
+  }
+}
+```
+
+### 2.3 Status conventions
+
+Optional status belongs to the common Memory Bead and Association Link contracts,
+so all supplied specializations inherit it. Donna selected this placement. These are open
+strings, not an enumeration. The following values are examples, not reserved words:
+
+| Bead or Link Type | Useful status examples |
+| --- | --- |
+| Decision Bead | draft, proposed, ratified, withdrawn |
+| Requirement Bead | draft, accepted, withdrawn |
+| Procedure or Policy Bead | draft, approved, retired |
+| Ordinary Memory or Lesson Bead | provisional, reviewed, withdrawn |
+| Observation Bead | recorded, corrected, retracted |
+| Association, Guidance or AppliesTo Link | proposed, confirmed, withdrawn |
+| Supports, Challenges or Supersedes Link | proposed, accepted, disputed, withdrawn |
+
+Status records what the author says about the Bead or relationship. Absence means
+unspecified. Values are preserved without case normalization; present blank or
+non-text values refuse. An omitted field on update preserves its value; explicit
+removal follows ordinary property editing. A status change creates an ordinary
+revision, including the source revision required for an owned Link change.
+
+No status value hides a Bead/Link, deletes it, disables a relationship, changes Issue
+readiness, proves truth or verifies approval. Authors may explicitly filter status;
+there is no implicit active-only selection. A withdrawn Link remains a recorded
+relationship until explicitly removed. A Supersedes Link identifies a predecessor
+independently of any authored superseded status on a Bead; neither is inferred from
+the other.
+
+**Comparison with existing Types.** Issue has a required workflow status, with
+built-in and configured custom values and existing scheduling rules. Dependency
+has no declared status property. This proposal adds descriptive status to the
+Memory/Association families and does not change either existing contract. See
+[Issue status behavior](../issue/issue.md#32-existing-classification-and-status-behavior)
+and [Dependency properties](../issue/issue.md#42-properties-and-metadata).
+
+## 3. Capture, find and read Memory Beads
+
+“Discovery” means finding Beads before reading their complete contents: list them,
+search for matching text, or follow Links. The command examples here and in Appendix A
+are proposed CLI design, not statements of shipped support.
+
+### 3.1 Capture
+
+`bd memory create [BODY]` offers quick capture: an ordinary Memory Bead by default, optional
+Type selection, one body source (text, file or stdin) and an optional title. With body
+but no title, reuse the existing Memory authoring title helper: take the first nonblank
+line, collapse display whitespace and cap the title at 80 Unicode code points including
+an ellipsis when truncated. Preserve the complete body. An explicit title permits
+omitted body, stored as empty. Whitespace-only input cannot derive a nonblank title.
+
+Markdown, frontmatter and ordinary document hyperlinks remain content. They do not
+implicitly create properties or graph Links. Updates preserve omitted fields.
+
+### 3.2 List, search and follow Links
+
+| Intended action | Proposed entry point | What the caller receives |
+| --- | --- | --- |
+| Browse Memory Beads | bd memory list | Compact summaries across the Memory family, with shared Type filters for narrower selection. |
+| Find matching text | bd memory search "housing B" | One summary per matching Memory Bead, showing the matched field and bounded excerpt. |
+| Find connected Beads | Shared bd link surface, selecting source/target and Link Type | Link identity, Type, endpoint References and available target summaries, without complete target content. |
+| Read the selected Bead | bd memory show MEMORY_ID | The complete selected current or exact record. |
+
+The draft proposes **literal, case-insensitive substring search** for the supplied
+text across title, body and supported human keys. A multiword input is one search
+string; matching does not introduce a Boolean, regular-expression or semantic query
+language. Listing omits search text; an explicit search requires nonblank text.
+Search defaults to current live Memory Beads, including all specializations. Deleted
+and retained historical states are accessed through explicit History operations.
+
+Shared Type and Link filters can narrow results. Property filters, including a
+declared status where available, are separate from text matching. Default text search
+does not examine arbitrary metadata, extra properties, provenance or referenced bodies.
+Any additional searchable fields must be documented explicitly. A key match identifies
+which key matched. Several matches on a Bead still produce one result.
+
+Search returns canonical identity, Scope context, Type, title, selected exact revision,
+supported keys, matched field and a bounded excerpt. The initial proposed order is
+title followed by canonical identity as a tie-breaker. All filters apply before
+pagination. Count/byte limits and continuation or completeness are explicit; a
+complete-results control either delivers all matching summaries within disclosed
+capacity or refuses. Continuations bind to the query and ordering and accurately
+refuse invalid/expired reuse or relevant state changes. Relevance ranking is consumer
+policy rather than a release prerequisite.
+
+A search implementation may examine body text to match it; that is distinct from
+returning complete bodies to the caller. Search, list and Link traversal return
+compact results. The storage-acquisition versus consumer-delivery boundary for
+Chris's R8/R21 remains an explicit alignment question; compact output alone does not
+prove that unrelated bodies were never acquired internally.
+
+> **Design choice for Chris's R6.** The compact-results and explicit-recall split
+> follows his proposal. Literal matching, the initial ordering and the exact CLI
+> spelling above make this draft concrete; they remain proposed choices for review.
+> Shared Bead search supplies the mechanism with Memory selection, not a separate
+> Memory search store or engine.
+
+### 3.3 Complete reads
+
+`bd memory show MEMORY_ID` and the recall alias deliberately return the complete
+selected record: canonical identity and Scope, current or selected exact revision,
+Type, title, body and all properties, metadata, outgoing Links, available provenance
+and supported keys. Human output renders additional properties alongside body without
+copying them into stored Markdown. A body-only projection is labelled as such.
+
+An empty body is a present value. Historical reads return the retained Type, content
+and outgoing set, without substituting current state. Stored content and diagnostics
+are untrusted data; output escapes them appropriately. Context consumers own their
+budgets, ordering and receipts and choose which full records to retrieve.
 
 ## 4. Memory Link Types
 
@@ -215,13 +418,13 @@ The presence of an Issue endpoint does not make the Link a workflow dependency.
 - Each concrete Link preserves its own endpoint and pin rules. A shared contract
   does not let a caller combine the source from one permitted pair with the target
   from another.
-- Association defines an optional nonblank `note` property explaining the relationship;
-  all five specializations inherit it. The note is about the Link, while the Memory's
-  body carries its knowledge. Open properties and metadata preserve additional
-  annotations. There are no other declared Link properties in this release proposal.
-- Changes to an outgoing Link of a Memory version that source atomically. They do
-  not version the target merely because it has an incoming Link. Historical outgoing
-  sets stay attached to their original source revisions.
+- Association defines optional nonblank `note` and `status` properties, inherited
+  by all five specializations. Note explains the relationship; status records an
+  author-reported state under §2.3. The Memory Bead's body carries its knowledge.
+  Open properties and metadata preserve additional annotations.
+- Changing an outgoing Link of a Memory Bead creates an atomic source revision.
+  It does not version the target merely because it has an incoming Link. Historical
+  outgoing sets stay attached to their original source revisions.
 - Parallel claims and cycles are permitted. A Link from an identity to itself is
   refused, even if its two endpoints use different revision selections.
 
@@ -233,7 +436,7 @@ not change the existing Dependency contract.
 ### 4.2 Allowed endpoint pairs
 
 Each line in the middle column is one complete allowed **source → target** pair.
-“Memory” includes all five specializations. For this release, “Issue” and “Memory”
+“Memory” includes all six specializations. For this release, “Issue” and “Memory”
 refer to Beads in the same Scope. A reversed arrow is a different relationship.
 
 | Link Type | Allowed source → target pairs | Meaning |
@@ -340,7 +543,8 @@ survive while their referenced states remain retained. The result reports remove
 Links and affected source revisions under the shared authorization/completeness rules.
 It neither leaks hidden identities nor calls a partial enumeration complete.
 
-The accepted shared operation is **`bd revert`**. It creates a new revision under
+The accepted shared operation design is **`bd revert`**. It is not yet implemented
+for this Memory workflow; Appendix A proposes its CLI as part of this release. It creates a new revision under
 the same identity using a named retained revision's properties and metadata, current
 operation provenance and a reference to that selected revision. A current guard and
 current Type/Link admission checks apply. Reverting a deleted Memory makes it live
@@ -425,31 +629,33 @@ quality, freshness and applicability; the product preserves inspectable evidence
 
 ### 7.1 Field service: recurring pump fault
 
-1. A technician captures ordinary Memory: “Housing B uses a different seal.” A stable
-   identity and first attributable revision are created without inventing a human key.
-2. An Observation body records the inspection and its circumstances. `observedAt`,
-   if known, records observation time rather than commit time.
-3. A Procedure body contains the readable seal-replacement instructions. Its
-   applicability description says “Housing B only.” There is no duplicate steps array.
-4. An Issue→Procedure Guidance Link helps the next technician find those instructions.
-   It can follow current guidance or pin the edition intended for that job.
-5. A later Observation challenges the exact old Procedure revision. Both records
-   remain available; the system does not automatically declare one true or change
-   the job's readiness.
+1. A technician creates an ordinary Memory Bead: “Housing B uses a different seal.”
+   The authoring operation creates its identity and first attributable revision.
+2. The technician creates an Observation Bead describing the inspection, recording
+   observedAt if known rather than substituting commit time.
+3. The technician creates a Procedure Bead with readable seal-replacement steps,
+   using application metadata to record “Housing B only” when useful.
+4. The technician creates an Issue→Procedure Guidance Link so the next technician
+   can find those instructions, following current guidance or pinning an edition.
+5. A later technician searches “housing B”, reads compact results, and explicitly
+   retrieves the Procedure Bead before doing the work.
+6. The technician creates another Observation Bead and a Challenges Link to the exact
+   old Procedure revision. Both Beads remain available; the Link does not automatically
+   declare one true or change the Issue Bead's readiness.
 
 ### 7.2 Office work: supplier decision
 
-A Decision body says “Use Acme for the next quarter” and explains the delivery and
-capacity reasons. Optional alternatives list Beta; applicability says which orders
-are covered. A Policy body records the supplier-assessment rule, optionally naming
-its claimed authority. No `choice` or `rule` field repeats either body.
-
-An assessment Observation may Support the exact Decision revision. A later Decision
-with a new identity may Supersede the earlier Decision, following its current state
-or explicitly pinning the replaced edition. Revising the existing Decision under the
-same identity is also supported. The older decision and the reasons recorded at the
-time remain addressable. A source list records what the writer says informed a
-particular revision; later incoming support does not rewrite that list.
+1. A purchasing team creates a Requirement Bead: “Orders must arrive within five days.”
+2. The team creates a Decision Bead: “Use Acme for the next quarter,” explaining its
+   delivery/capacity reasons and optionally listing Beta as an alternative.
+3. The team creates a Policy Bead recording the supplier-assessment rule, optionally
+   naming its claimed authority, and uses an Association Link to connect the Decision
+   Bead to the Requirement Bead. The Link does not prove satisfaction.
+4. An assessor creates an Observation Bead and a Supports Link to the exact Decision
+   revision. Incoming support does not rewrite that revision's recorded sources.
+5. Later, the team either revises the same Decision Bead or creates a new Decision
+   Bead with a Supersedes Link to the predecessor's current identity or selected edition.
+   The predecessor and the reasons recorded at the time remain addressable.
 
 ## 8. Acceptance and remaining decisions
 
@@ -461,16 +667,17 @@ records source, decision, test and release evidence separately.
 | Case | Required result |
 | --- | --- |
 | Ordinary unkeyed capture | Stable ID, stored title/body and truthful first-revision context; no invented key. |
-| Explicit title and empty body, including a specialization | Present readable Memory, not absence; no extra mandatory primary field. |
+| Explicit title and empty body, including a Requirement Bead | Present readable Memory Bead, not absence; no extra mandatory primary field. |
+| Authored status on a Memory Bead or Association Link | Preserve open-string values; absence is unspecified; blank/non-text refuses; no automatic workflow, filtering, approval or truth effect. |
 | Procedure body is Markdown | Preserve it verbatim; no executable steps or Type inference. |
-| Unknown root property, including kind | Preserve on targeted edit; do not change Type or override body meaning. |
+| Existing additional properties | Preserve on targeted edit or refuse before mutation. |
 | Missing title/body or malformed optional property | Typed refusal before allocation, current state or history changes. |
 | Retype Memory→Procedure with unchanged body | New revision for the affiliation change; old Type/history preserved. |
 | Repeated unchanged Type/properties | No-op after guard checks. |
 | Stale/invalid retype or injected write failure | No partial property, owned-Link, allocation or revision effects. |
 | Issue→Memory Guidance and Memory→Issue AppliesTo | Admit valid roles without changing Issue workflow or loading bodies. |
 | Association family versus exact Type | Family includes all conforming specializations when supported; exact selection returns only Association, without a closed-union requirement. |
-| Association or specialization with note | Preserve the inherited optional note; absence is valid, present whitespace-only note refuses. |
+| Association or specialization with note/status | Preserve inherited optional fields; absent is valid, present whitespace-only values refuse. |
 | Association Issue→Issue | Refuse: no Memory endpoint. |
 | Same endpoint identity under different pins | Refuse self-Link. Parallel distinct claims and ordinary cycles remain allowed. |
 | Supports/Challenges with bare target | Refuse; require author-selected exact target. |
@@ -482,7 +689,7 @@ records source, decision, test and release evidence separately.
 | Revert deleted Memory | Same ID, selected properties/metadata and current guard/provenance; Inception=revert, no Type/other-Link rollback or stolen key. |
 | Compact discovery with several matches | One bounded result per Memory, matched field/excerpt, truthful completeness. |
 | Unknown, empty and populated source records | Keep distinctions; never invent reading, authorship or authentication. |
-| Applicability dates in application metadata | Clock passage makes no revision or lifecycle change. |
+| Applicability context in application metadata | No standardized fields; clock passage makes no revision or lifecycle change. |
 | Default/automatic export | Follow declared exposure contract; automatic export emits no Memory records. |
 | Full read/output | Include complete selected content and distinct properties; escape untrusted text. |
 
@@ -496,61 +703,70 @@ item. Accepted decisions are recorded in #7656 rather than silently inferred her
 
 ## Appendix A. Proposed Memory CLI
 
-The canonical `bd memory` group and compatibility aliases are accepted direction.
-**The concrete verbs and flag spellings below are proposals for reviewing the user
-design**, not claims of implemented CLI support. All entry points use the same
-canonical records, validators and operations. Unknown/unsupported writers refuse
-rather than lose required state. `bd query` is under review for scenario coverage.
+`bd memory` is the canonical Memory command group, with remember/recall/memories/forget
+compatibility aliases. The following concrete verbs and flags are **proposed user
+design**, not claims of shipped support. The group earns its place through quick
+capture, family-aware compact results and deliberate complete recall. Ordinary edits,
+Link operations and History use their shared commands rather than duplicating every
+operation under Memory.
 
-| Proposed command | Operation and acceptance |
+| Proposed Memory command | Tailoring beyond the shared operation |
 | --- | --- |
-| `bd memory create [BODY]` | Create ordinary Memory by default; explicit Type selects a specialization. One body source: positional text, file or stdin. Optional title; otherwise derive it. Return canonical identity and accepted revision. |
-| `bd memory show MEMORY` | Complete explicit recall. A revision option selects an exact retained state. Human and structured output preserve empty content and distinct properties. |
-| `bd memory list [SEARCH]` | Compact deterministic discovery with documented bounds and Type-family versus concrete-Type selection. Complete content requires explicit selection. Search/query grammar remains under review. |
-| `bd memory update MEMORY` | Targeted property/body/metadata edits or an explicit full replacement. Retyping and necessary content edits are one guarded operation. Omitted Type/fields preserve current values. |
-| `bd memory delete MEMORY` | Recoverable disappearance with selected Link cleanup, terminal evidence and affected-source reporting. Preview/apply conventions must be reconciled with shared deletion CLI. |
-| `bd memory revert MEMORY` | Proposed Memory facade over shared `bd revert`: select retained properties/metadata with a current guard; same ID, new current-operation provenance. Deleted-to-live resumes presence. No implicit Type, endpoint or other-Link rollback. |
+| bd memory create [BODY] | Quick capture defaults to an ordinary Memory Bead; accepts text/file/stdin, derives title when omitted, and permits explicit specialized Type. Return identity and accepted revision. |
+| bd memory list | Browse compact summaries across all Memory Bead Types by default, with shared filters and explicit exact-Type selection. |
+| bd memory search TEXT | Search title/body/keys with the matching, summary and bounds contract in §3.2; apply shared filters before pagination. |
+| bd memory show MEMORY | Deliberately retrieve the complete selected Memory Bead, including its distinct properties, metadata, outgoing Links and available provenance. |
 
-Proposed shared options include `--type`, `--title`, `--body-file`, `--stdin`,
+| Shared command | Memory use |
+| --- | --- |
+| bd create --type TYPE | Create a Memory Bead through the ordinary typed Bead operation; preserve the same contract. |
+| bd update MEMORY | Targeted body/property/metadata edits, explicit replacement or guarded Type change. Omitted fields preserve state; validate the complete result. |
+| bd delete MEMORY | Recoverable disappearance with floating-Link cleanup, terminal evidence and affected-source reporting under shared preview/apply conventions. |
+| bd link | Author, inspect, edit, remove and re-pin Links by their shared identity/Reference rules. |
+| bd revert MEMORY@REVISION --if-revision CURRENT | Proposed shared CLI: create a same-ID revision from selected retained properties/metadata, checked against current state with current-operation provenance. Deleted-to-live resumes presence. No implicit Type/endpoint/other-Link rollback. |
+
+**bd revert for this Memory workflow is not shipped.** Its meaning is accepted design;
+the selector/flag spelling above is proposed here and must align with the shared
+revision-aware CLI. Shipping bd restore retains its pre-compaction Issue recovery
+meaning. No separate Memory revert implementation or History store is introduced.
+
+Proposed authoring options include `--type`, `--title`, `--body-file`, `--stdin`,
 `--properties`, `--if-revision`, explicit replacement and structured-output selection.
-The exact write grammar must reject conflicting body sources and ambiguous field
-replacement before opening input or mutating storage. Revision pins need a convenient
-CLI notation; no new serialized Reference format is adopted here.
+Reject conflicting body sources or ambiguous replacement before opening input or
+mutating storage. Exact flags, revision selectors and output need final shared-CLI
+review. Every declared writer either preserves the selected record or refuses.
 
 | Compatibility entry point | Canonical behavior to preserve |
 | --- | --- |
-| `bd remember` | Deliberate write-only capture/update. A single content token is text, never a state-dependent read. Same default Memory Type and explicit operation rules. |
-| `bd recall` | Complete selected current or exact Memory read by supported ID/key. Empty body remains present. |
-| `bd memories` | Compact list/search by default. The existing proposal's body-carrying `--json` compatibility result must be explicitly mapped and labelled; do not silently turn it into a summary or hide bodies in an unlabelled projection. |
-| `bd forget` | Recoverable Memory deletion, including empty-body records, under its documented immediate-write semantics. Generic `bd delete` retains its separately reviewed preview/apply behavior. |
+| bd remember | Deliberate write-only capture/update. A single content token is text. Same default Memory Bead Type and explicit write rules. |
+| bd recall | Complete selected current/exact Memory Bead read by supported ID/key. Empty body remains present. |
+| bd memories [SEARCH] | Compact list/search by default. Explicitly map and label the earlier body-carrying --json compatibility result; do not silently change it into a summary. |
+| bd forget | Recoverable Memory Bead deletion, including empty-body records, with documented immediate-write semantics. Generic bd delete retains its reviewed preview/apply behavior. |
 
-Aliases can normalize their explicit options onto the canonical operations. They
-must not maintain separate state, silently drop additional fields, bypass Type/Link
-checks or infer a read from store contents. All deliberate shipping changes need
-rationale and refusal/output tests. Generic `bd create`, `show`, `update`, `list`
-and Link operations must either preserve the same selected Memory contract or
-refuse before mutation.
-
-Memory Link authoring/edit/removal uses the shared `bd link` surface and Link IDs.
-This proposal adds the endpoint/pin requirements, not another Link command store.
-Issue inspection exposing informational Memory Links is M-D5 and may follow Preview 3;
-separate Link discovery still must report its actual supported completeness.
+Aliases share records, validators and operations. They preserve properties and do
+not infer reads from store contents. Generic create/show/update/list and Link commands
+preserve the same selected Memory contract or refuse before mutation. Issue inspection
+exposing informational Memory Links is M-D5 and may follow Preview 3; separate Link
+reads must still state supported completeness.
 
 ### A.1 Walkthrough to vet the surface
 
-The following names/flags illustrate the proposed grammar:
+These names and flags illustrate the proposed grammar:
 
 ```sh
 bd memory create --type procedure --title "Replace housing B seal" --body-file seal-procedure.md
-bd memory list "housing B"
+bd memory search "housing B"
 bd memory show MEMORY_ID
-bd memory update MEMORY_ID --type lesson --body-file lesson.md --if-revision REVISION
+bd update MEMORY_ID --type lesson --body-file lesson.md --if-revision CURRENT
+bd revert MEMORY_ID@RETAINED_REVISION --if-revision CURRENT
 ```
 
-The Procedure body contains the instructions; there is no steps payload to maintain.
-The update is an explicit semantic Type change with body edits, one guard and one
-atomic outcome. A stale revision or invalid Link outcome leaves state unchanged.
-The full workflow is not accepted merely because help or a property test passes.
+The technician creates a Procedure Bead whose body holds the instructions, searches
+compact summaries and explicitly reads it. A later guarded Type/body update creates
+one atomic outcome. Revert uses a retained body/properties/metadata selection under
+the current Type; it does not silently undo that Type change. Invalid resulting
+state or a stale guard leaves state unchanged. The final command is proposed, not
+available merely because the earlier commands or property artifacts pass.
 
 ### A.2 Exposure and guidance
 
@@ -579,10 +795,10 @@ and shared Inception placement need explicit upstream alignment where they diffe
 | --- | --- |
 | R1 | First-class Memory family with explicit Type; no Issue workflow state. |
 | R2 | Stable identity independent of names; shared key placement/versioning remains open. |
-| R3 | Body-first knowledge, optional distinct properties and application metadata; intentional Type/property and shared-Inception refinements. Exact validity interval deferred. |
+| R3 | Body-first knowledge, optional declared properties including descriptive status, and application metadata. Applicability/validity remain metadata; Type/property and shared-Inception refinements require alignment. |
 | R4 | Deliberate write-only capture, title derivation, canonical success identity. |
 | R5 | Deletion with retained history, same-ID undelete through shared revert, and truthful erasure where supported. |
-| R6 | Compact ordered discovery, one result per Memory, truthful bounds/continuation. |
+| R6 | Concrete list/search/Link navigation followed by complete recall. Literal text matching and title/identity order proposed; summaries have truthful bounds/continuation. |
 | R7 | Complete current/exact recall, content, Links and available provenance together. |
 | R8 | Selective recall/guidance; storage-acquisition boundary explicitly to settle. |
 | R9 | Structured Link identity/Type/reference/target information; Task projection is M-D5. |
@@ -593,7 +809,7 @@ and shared Inception placement need explicit upstream alignment where they diffe
 | R14 | Guards before no-op, typed conflicts, atomic failure and actual predecessor disclosure. |
 | R15 | Claim only the selected Memory workflows with their required History outcomes. |
 | R16 | Accurate unavailable/gone reasons; no current fallback; removal producer scope open. |
-| R17 | Association is the usable common Type; five specializations inherit its informational contract and note. Family selection is open to conforming Types; open-vocabulary differences remain explicit. |
+| R17 | Association is the usable common Type; five specializations inherit its informational contract, note and status. Family selection is open to conforming Types; open-vocabulary differences remain explicit. |
 | R18 | Current and exact references, author-selected citation pins; Supersedes supports identity/current replacement and edition-specific replacement. |
 | R19 | Validate local roles/current/retained targets; external graph resolution deferred. |
 | R20 | Remove floating incident Links, preserve valid pins and historical sets; no restore re-add. |
@@ -608,12 +824,12 @@ and shared Inception placement need explicit upstream alignment where they diffe
 | R28 | Complete structured current/historical/deleted records and truthful bounds. |
 | R29 | Shared authorization; exact embedded/shared-server qualification. |
 | R30 | Preserve claims/evidence; external tools judge quality. |
-| R31 | Canonical bd memory and aliases selected; exact command changes justified and tested. |
+| R31 | Canonical bd memory offers capture, compact list/search and complete recall; ordinary edits/Links/History use shared commands. Exact spellings remain proposed. |
 
 | Scenario | Realization / dependency |
 | --- | --- |
 | S1 | Unkeyed ordinary capture, derived title and first attributable revision. |
-| S2 | Search, explicit recall and guarded correction; no duplicate required primary content. |
+| S2 | Search title/body/keys, explicit complete recall and guarded correction; body carries primary content. |
 | S3 | Delete with Link effects, retained exact reads and same-ID undelete via revert. |
 | S4 | Compact discovery and deliberate recall; no automatic body injection. |
 | S5 | Issue Guidance and selected exact policy edition; Task projection staged separately. |
@@ -631,10 +847,12 @@ and shared Inception placement need explicit upstream alignment where they diffe
 
 ## Appendix C. Validation artifacts and future BDP mapping
 
-The [common property schema](./memory.properties.schema.json), five specialized
+The [common property schema](./memory.properties.schema.json), six specialized
 property fragments, [Link properties](./memory-link.properties.schema.json) and
 [property cases](../../../fixtures/specs/memory/schema-cases.json) are review aids for
-this product contract. Each specialization also validates the common Memory shape.
+this product contract. Each specialization also validates the common Memory shape. Writers preserve existing
+additional properties on targeted edits or refuse before mutation; an explicit full
+replacement supplies the complete resulting properties.
 The schema's technical `$id` is its identifier for tooling; it is not a Memory field,
 CLI argument or another identity the user must manage.
 

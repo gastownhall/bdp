@@ -2,13 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
   "title": "Association properties",
-  "$comment": "Association base property contract, inherited by Guidance, AppliesTo, Supports, Challenges and Supersedes. Type selects meaning; no relation discriminator. Endpoint/pin/ownership rules are not checked here.",
+  "$comment": "Association base properties inherited by all five specialized Links. Optional note explains the relationship; optional status is an authored claim, not an activation switch. Endpoint/pin/ownership rules are not checked here.",
   "type": "object",
   "properties": {
     "note": {
       "type": "string",
       "pattern": "\\S",
       "description": "Optional explanation of this relationship, distinct from the Memory body."
+    },
+    "status": {
+      "type": "string",
+      "pattern": "\\S",
+      "description": "Optional author-reported status. Open vocabulary, no default or automatic workflow, approval, truth or visibility effect."
     }
   },
   "additionalProperties": true

@@ -1,5 +1,5 @@
 {
-  "_comment": "Memory Release product property examples in an illustrative test carrier, not a public wire format. Type tokens and exact revision strings are fixture labels. Body carries primary content. Common provenance/owned/history details are incomplete. Existing Issue endpoints are references used by the scenarios. No Project entity, automatic external graph resolution or new provenance representation is defined.",
+  "_comment": "Memory V1 property examples in an illustrative test carrier, not a public wire format. Type/revision tokens are labels. Body is primary; status is optional author-reported text. Applicability metadata is an application example, not a standardized shape. Common provenance/owned/history details are incomplete; no migration or new provenance representation is defined.",
   "records": [
     {
       "id": "https://example.org/project/beads/memory",
@@ -57,11 +57,13 @@
         "title": "Supplier choice",
         "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
         "alternatives": ["Beta"],
+        "status": "ratified"
+      },
+      "metadata": {
         "applicability": {
           "description": "Western-region purchasing next quarter"
         }
       },
-      "metadata": {},
       "revisionProvenance": {
         "actor": {
           "id": "human:alice",
@@ -85,6 +87,20 @@
       }
     },
     {
+      "id": "https://example.org/project/beads/requirement",
+      "revision": "requirement-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/requirement",
+        "revision": "requirement-contract-1"
+      },
+      "properties": {
+        "title": "Five-day delivery",
+        "body": "Orders must arrive within five days.",
+        "status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
       "id": "https://example.org/project/beads/procedure",
       "revision": "procedure-r1",
       "type": {
@@ -93,12 +109,13 @@
       },
       "properties": {
         "title": "Seal replacement",
-        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan.",
+        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan."
+      },
+      "metadata": {
         "applicability": {
           "description": "Housing B only"
         }
-      },
-      "metadata": {}
+      }
     },
     {
       "id": "https://example.org/project/beads/policy",
@@ -110,7 +127,8 @@
       "properties": {
         "title": "Supplier assessment policy",
         "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
-        "authority": "https://example.org/documents/purchasing-charter"
+        "authority": "https://example.org/documents/purchasing-charter",
+        "status": "proposed"
       },
       "metadata": {}
     },
@@ -194,11 +212,13 @@
         "title": "Revised supplier choice",
         "body": "Use Delta for new orders\n\nAcme capacity no longer meets the new order window. This choice applies to new orders only.",
         "alternatives": ["Acme", "Beta"],
+        "status": "ratified"
+      },
+      "metadata": {
         "applicability": {
           "description": "New western-region orders after the capacity review"
         }
       },
-      "metadata": {},
       "revisionProvenance": {
         "actor": {
           "id": "human:alice",
@@ -244,7 +264,9 @@
         "uri": "https://example.org/project/beads/decision",
         "revision": "decision-r1"
       },
-      "properties": {},
+      "properties": {
+        "status": "proposed"
+      },
       "metadata": {}
     },
     {
@@ -318,6 +340,21 @@
       "target": "https://example.org/project/beads/decision",
       "properties": {
         "note": "This decision replaces the predecessor Memory as a continuing identity."
+      },
+      "metadata": {}
+    },
+    {
+      "id": "https://example.org/project/links/decision-requirement",
+      "revision": "link-r1",
+      "type": {
+        "uri": "https://example.org/memory-types/association",
+        "revision": "association-contract-1"
+      },
+      "source": "https://example.org/project/beads/decision",
+      "target": "https://example.org/project/beads/requirement",
+      "properties": {
+        "note": "The supplier choice addresses the five-day delivery requirement; this Link alone does not prove satisfaction.",
+        "status": "recorded"
       },
       "metadata": {}
     }
