@@ -641,3 +641,64 @@ that response. A mutation client can explicitly accept a complete Problem above
 runner's separate 2,097,152-byte evidence ceiling needs its own reviewed design
 before large complete raw responses can be claimed. No engine or HTTP/auth/profile
 installation is provided by this component.
+
+### Trusted reference deployment preparation
+
+`bdptest.deploymentFile` (environment `BDP_BDPTEST_DEPLOYMENT_FILE`) is an optional,
+nonsecret absolute local file path. Environment overrides the config file; the
+field is absent by default. Its content is validated only for `bdptest` and the
+full no-role view, while unknown field names remain errors for every role. The
+path must be a nonempty well-formed string, without control characters, bounded
+to 16384 UTF8 bytes. Config stores the path and does not open it. Like
+`bd.workspace`, the resolved path appears in `startup.config`, so it must not
+contain secrets. Rejected values, file contents, credentials and parser causes
+never appear in deployment diagnostics. `bdptest.fixture` remains an identifier.
+No-serve startup continues to parse configuration without reading a deployment.
+
+The separate `@bdp/server/reference-configuration` data entry exposes
+`loadReferenceDeployment`. This pure preparation step opens no store or listener
+and grants no profile capability. It accepts an explicit shared Scope, intended
+listener, profile and Read limits plus the deployment path. It refuses Read or
+missing profile, fixture/fault conflicts, port0 and unsupported hosts. RU supports
+loopback `127.0.0.1`/`::1`; TX currently supports `127.0.0.1`. Shared Read settings
+must match the existing capture tuple: RU page20/100, selector4096/32/256,
+cursor60000ms; TX page2/32, selector4096/32/256, cursor1000ms. These differ from the
+ordinary shared Read defaults and must be configured explicitly. The returned
+`preflightReadLimits` proves a code/capture comparison only.
+
+The internal file has exact keys `format`, `profile`, `configuration`, with format
+`bdptest-reference-deployment-1` and profile matching shared intent. RU configuration
+has exact keys `directory`, `create`, `credentials` (token/principal), `policies`
+(principal to create/write/hidden/readOnly), `contracts` (descriptors/schemas), and
+`maximumEndpointMultiplicity`. TX has `directory`, `create`, `credentials`
+(token/principal/canMutate) and `artifacts` (descriptors/schemas). Artifact entries
+are exact retrievalUri/utf8 pairs. Existing installed captures own all inner
+validation and identities: RU empty descriptors select the shipped local closure;
+TX requires descriptors. Tokens must be unique; duplicate principals are allowed.
+No Scope/listener/limits override, code plugin, grant, evidence or wire installation
+operation is accepted in the envelope.
+
+One ordinary-file handle reads at most32MiB+1 and always closes. Fatal UTF8 and the
+existing strict lossless JSON decoder reject malformed text, duplicate decoded
+keys, BOM and unpaired surrogates. The32MiB encoded bound is the sole predecode
+bound on trusted operator input: full lossless-tree allocation/work occurs before
+iterative depth16/node100000 checks. Numbers remain atomic during those checks,
+then numeric admission uses one sanitized diagnostic. This accepted allocation
+risk is not a predecode structural/memory guarantee. Existing inner1MiB/artifact
+and16MiB total bounds remain independent; escaping/overhead can exceed the outer
+ceiling, so no full-inner-budget fit is guaranteed.
+
+The frozen public handle contains only inert summary data and provenance; secret
+inputs and RU/TX captures remain in a private identity registry. Its file digest
+and RU authentication identity commit to secret-containing file and credential
+contents. These digests must not be emitted in diagnostics. Replacing the
+file or mutating caller settings after capture cannot change that state. The
+private registry and runtime factories are unavailable through package exports.
+TX intended listener is retained separately from its existing private port0
+capture; no runtime wiring or live policy/view/runtime metadata is claimed.
+
+A later lifecycle slice must validate actual store existence/format and persisted
+receiptMaximumItems, snapshot limits/token policy, runtime limits, contract
+identity, Scope/Types and current policy/view/recovery **before listen**, closing
+any acquired owner on failure. Ordinary Write startup/admission remains separate;
+this loader is neither a public listener nor evidence of complete Write support.

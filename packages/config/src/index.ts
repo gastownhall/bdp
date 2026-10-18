@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
 
 import {
   isProtocolProfile,
@@ -78,7 +79,7 @@ export interface StartupConfig {
     readonly internalFaultResource?: string;
   };
   readonly bd: { readonly executable: string; readonly workspace?: string };
-  readonly bdptest: { readonly fixture?: string };
+  readonly bdptest: { readonly fixture?: string; readonly deploymentFile?: string };
   readonly conformance: {
     readonly profile: ProtocolProfile;
     readonly scenarioFilter?: string;
@@ -192,6 +193,7 @@ const FIELDS = [
   "bd.executable",
   "bd.workspace",
   "bdptest.fixture",
+  "bdptest.deploymentFile",
   "conformance.profile",
   "conformance.scenarioFilter",
   "conformance.seed",
@@ -218,6 +220,7 @@ const ENV_VARIABLE: Record<Field, string> = {
   "bd.executable": "BDP_BD_EXECUTABLE",
   "bd.workspace": "BDP_BD_WORKSPACE",
   "bdptest.fixture": "BDP_BDPTEST_FIXTURE",
+  "bdptest.deploymentFile": "BDP_BDPTEST_DEPLOYMENT_FILE",
   "conformance.profile": "BDP_CONFORMANCE_PROFILE",
   "conformance.scenarioFilter": "BDP_CONFORMANCE_SCENARIO_FILTER",
   "conformance.seed": "BDP_CONFORMANCE_SEED",
@@ -460,6 +463,10 @@ export function loadStartupConfig(
   const bdptestOwned = activeSections.has("bdptest");
   const fixture = bdptestOwned ? readFixture(rawRead("bdptest.fixture").value, issues) : undefined;
 
+  const deploymentFile = bdptestOwned
+    ? readDeploymentFile(rawRead("bdptest.deploymentFile").value, issues)
+    : undefined;
+
   const conformanceOwned = activeSections.has("conformance");
   const conformanceProfile = conformanceOwned
     ? readEnum<ProtocolProfile>(
@@ -560,7 +567,10 @@ export function loadStartupConfig(
     ...(internalFaultResource === undefined ? {} : { internalFaultResource }),
   };
   const bdSection = workspace === undefined ? { executable } : { executable, workspace };
-  const bdptestSection = fixture === undefined ? {} : { fixture };
+  const bdptestSection = {
+    ...(fixture === undefined ? {} : { fixture }),
+    ...(deploymentFile === undefined ? {} : { deploymentFile }),
+  };
   const conformanceSection = {
     profile: conformanceProfile,
     ...(scenarioFilter === undefined ? {} : { scenarioFilter }),
@@ -1064,4 +1074,24 @@ export function formatConfigError(error: ConfigError, executable: string): strin
     executable,
     issues: error.issues,
   })}\n`;
+}
+
+/** Store the nonsecret path only. Reading deployment contents belongs to the loader. */
+function readDeploymentFile(value: unknown, issues: ConfigIssue[]): string | undefined {
+  if (value === undefined) return undefined;
+  if (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.isWellFormed() &&
+    path.isAbsolute(value) &&
+    !/\p{Cc}/u.test(value) &&
+    Buffer.byteLength(value) <= 16384
+  )
+    return value;
+  issues.push({
+    path: "bdptest.deploymentFile",
+    message:
+      "bdptest.deploymentFile must be a nonempty absolute well-formed path without control characters, at most 16384 UTF8 bytes",
+  });
+  return undefined;
 }
