@@ -1819,15 +1819,31 @@ it("serves finite start-now opaque minima before HTTP shortcuts", async () => {
     }
     const unknown = { ...minimum, "bdp-minimum-scope-position": "unknown" };
     const after = await exchange("changes/?after=genesis", "GET", unknown);
-    expect(after.status).toBe(500);
-    expect(after.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+    expect(after.status).toBe(503);
+    expect(validProblem(JSON.parse(after.text)), JSON.stringify(validProblem.errors)).toBe(true);
+    expect(JSON.parse(after.text)).toMatchObject({
+      code: "catch-up-timeout",
+      status: 503,
+      retry: "after-delay",
+    });
+    expect(names.map((name) => after.headers.get(name))).toEqual(current);
+    expect(after.headers.get("retry-after")).toBe("1");
+    expect(after.headers.get("x-bdp-development-limit")).toBeNull();
     const sse = await exchange(target, "GET", {
       ...unknown,
       accept: "text/event-stream",
       "last-event-id": "genesis",
     });
-    expect(sse.status).toBe(500);
-    expect(sse.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+    expect(sse.status).toBe(503);
+    expect(validProblem(JSON.parse(sse.text)), JSON.stringify(validProblem.errors)).toBe(true);
+    expect(JSON.parse(sse.text)).toMatchObject({
+      code: "catch-up-timeout",
+      status: 503,
+      retry: "after-delay",
+    });
+    expect(names.map((name) => sse.headers.get(name))).toEqual(current);
+    expect(sse.headers.get("retry-after")).toBe("1");
+    expect(sse.headers.get("x-bdp-development-limit")).toBeNull();
     expect(sse.headers.get("content-type")).not.toBe("text/event-stream");
     const malformed = await exchange(target, "GET", {
       "bdp-minimum-scope-position": "unknown",
@@ -1840,7 +1856,7 @@ it("serves finite start-now opaque minima before HTTP shortcuts", async () => {
     expect(malformed.headers.get("x-bdp-development-limit")).toBeNull();
     expect(attempted).toBe(10);
     expect(records.map((record) => record.status)).toEqual([
-      200, 200, 200, 503, 503, 503, 503, 500, 500, 400,
+      200, 200, 200, 503, 503, 503, 503, 503, 503, 400,
     ]);
     controller.signal.throwIfAborted();
   } catch (error) {
@@ -1893,3 +1909,723 @@ it("serves finite start-now opaque minima before HTTP shortcuts", async () => {
   }
   if (failures.length) throw new AggregateError(failures, "opaque changefeed HTTP failed");
 }, 60000);
+
+it("preserves changefeed cursor precedence under current-admission opaque minima", () => {
+  const f = fixture(),
+    records: Record<string, unknown>[] = [],
+    failures: unknown[] = [];
+  let commits = 0,
+    ownerLifetimes = 1,
+    offlineDeletes = 0;
+  function observe(
+    role: string,
+    after: string,
+    minimum?: Parameters<typeof f.owner.readChanges>[1],
+    admission?: Parameters<typeof f.owner.readChanges>[2],
+  ) {
+    const record: Record<string, unknown> = {
+      ordinal: records.length + 1,
+      role,
+      after,
+      admission: admission ?? null,
+      minimum: minimum === undefined ? null : minimum,
+      tupleFrozen: minimum && minimum !== "unsupported" ? Object.isFrozen(minimum) : null,
+      outcome: "attempted",
+      context: null,
+    };
+    records.push(record);
+    try {
+      const result = f.owner.readChanges(after, minimum, admission);
+      record.outcome = result.kind;
+      if (result.kind === "page") record.context = result.context;
+      return result;
+    } catch (error) {
+      record.outcome = error instanceof Error ? error.constructor.name : "non-Error";
+      if (
+        error instanceof TransactionMinimumUnproved ||
+        error instanceof TransactionMinimumFailure ||
+        error instanceof TransactionChangefeedParameterError
+      ) {
+        record.context = error.context ?? null;
+        if (error instanceof TransactionMinimumFailure) record.reason = error.reason;
+      }
+      throw error;
+    }
+  }
+  try {
+    expect(f.run([create("a")]).status).toBe("completed");
+    commits++;
+    expect(f.run([create("b")]).status).toBe("completed");
+    commits++;
+    const first = observe("baseline", "genesis"),
+      second =
+        first.kind === "page" ? observe("baseline", first.page.groups[0]!.checkpoint) : undefined;
+    if (first.kind !== "page" || second?.kind !== "page") throw new Error("missing baseline pages");
+    for (const result of [first, second]) {
+      expect(validPage(result.page), JSON.stringify(validPage.errors)).toBe(true);
+      expect(result.page.groups).toHaveLength(1);
+    }
+    const cp1 = first.page.groups[0]!.checkpoint,
+      cp2 = second.page.groups[0]!.checkpoint;
+    const current = second.context;
+    expect(current.scopePosition).toBe("pos-2");
+    expect(first.page.next).toBe(scope + "changes/?after=" + cp1);
+    expect(second.page.next).toBeNull();
+    expect(cp1).not.toBe(cp2);
+    const k = Object.freeze({
+      scopeEpoch: current.scopeEpoch,
+      authorizationView: current.authorizationView,
+      minimumPosition: "pos-2",
+    });
+    const u = Object.freeze({ ...k, minimumPosition: "unknown" });
+    const p = Object.freeze({ ...k, minimumPosition: "pos-01" });
+    const stale = transactionCheckpoint(scope, { ...current, scopeEpoch: "foreign" }, 1);
+    const foreign = transactionCheckpoint(scope, { ...current, authorizationView: "foreign" }, 1);
+    const future = transactionCheckpoint(scope, current, 3);
+    const rows: {
+      after: string;
+      minimum?: Parameters<typeof f.owner.readChanges>[1];
+      tag?: Parameters<typeof f.owner.readChanges>[2];
+      expected: string;
+    }[] = [
+      { after: "genesis", minimum: u, expected: "unproved" },
+      { after: cp1, minimum: p, expected: "unproved" },
+      { after: cp1, minimum: k, expected: "second" },
+      { after: "genesis", expected: "first" },
+      { after: cp1, minimum: { ...u, scopeEpoch: "foreign" }, expected: "cursor-expired" },
+      { after: cp1, minimum: { ...u, authorizationView: "foreign" }, expected: "foreign-view" },
+      {
+        after: cp1,
+        minimum: { ...u, scopeEpoch: "foreign", authorizationView: "foreign" },
+        expected: "cursor-expired",
+      },
+      { after: stale, minimum: { ...u, authorizationView: "foreign" }, expected: "cursor-expired" },
+      { after: foreign, minimum: { ...u, scopeEpoch: "foreign" }, expected: "foreign-view" },
+      { after: future, minimum: u, expected: "parameter" },
+      { after: "bad", minimum: u, expected: "parameter" },
+      { after: "bad", minimum: "unsupported", expected: "unsupported" },
+      { after: cp1, minimum: u, tag: "finite-start-now", expected: "unproved" },
+      { after: "genesis", minimum: { ...u, minimumPosition: "two tokens" }, expected: "type" },
+      { after: cp1, minimum: u, expected: "corruption" },
+      { after: "genesis", minimum: k, expected: "corruption" },
+    ];
+    for (const [index, row] of rows.entries()) {
+      if (index === 14) {
+        f.owner.close();
+        const raw = new DatabaseSync(f.options.file);
+        try {
+          raw.prepare("DELETE FROM groups WHERE position=1").run();
+          offlineDeletes++;
+        } finally {
+          raw.close();
+        }
+        f.reopen();
+        ownerLifetimes++;
+      }
+      let value: ReturnType<typeof f.owner.readChanges> | undefined, error: unknown;
+      try {
+        value = observe(
+          "table-" + (index + 1),
+          row.after,
+          row.minimum,
+          row.tag ?? "current-changefeed",
+        );
+      } catch (cause) {
+        error = cause;
+      }
+      if (row.expected === "first" || row.expected === "second") {
+        expect(error).toBeUndefined();
+        if (value?.kind !== "page") throw new Error("missing eligible group");
+        expect(value.page).toEqual(row.expected === "first" ? first.page : second.page);
+        expect(value.context).toEqual(current);
+      } else if (row.expected === "unsupported") {
+        expect(error).toBeUndefined();
+        expect(value).toEqual({ kind: "unsupported" });
+      } else if (row.expected === "type") expect(error).toBeInstanceOf(TypeError);
+      else if (row.expected === "corruption") {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toBe("missing retained change group");
+        expect(error).not.toBeInstanceOf(TransactionMinimumUnproved);
+        expect(error).not.toBeInstanceOf(TransactionMinimumFailure);
+      } else {
+        if (row.expected === "unproved") expect(error).toBeInstanceOf(TransactionMinimumUnproved);
+        else if (row.expected === "parameter")
+          expect(error).toBeInstanceOf(TransactionChangefeedParameterError);
+        else {
+          expect(error).toBeInstanceOf(TransactionMinimumFailure);
+          expect((error as TransactionMinimumFailure).reason).toBe(row.expected);
+        }
+        const observed = error as { context: TransactionReadContext };
+        expect(observed.context).toEqual(current);
+        expect(Object.isFrozen(observed.context)).toBe(true);
+      }
+    }
+    expect(records).toHaveLength(18);
+    expect(records.filter((r) => r.context === null)).toHaveLength(4);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    console.log(
+      JSON.stringify({
+        observation: "current-changefeed-minimum-owner",
+        outcome: failures.length ? "failed" : "passed",
+        records,
+        commits,
+        ownerLifetimes,
+        offlineDeletes,
+        failureCount: failures.length,
+        claimEligible: false,
+      }),
+    );
+  }
+  if (failures.length)
+    throw new AggregateError(failures, "current changefeed owner boundary failed");
+});
+
+// Appended callbacks own these stores; unknown drainage deliberately retains
+// the directory without registering a legacy afterEach cleanup backstop.
+function currentChangefeedCase() {
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-current-feed-"));
+  const owner = openTransactionStore({
+    file: path.join(directory, "store.sqlite"),
+    scope,
+    types,
+    create: true,
+    receiptMaximumItems: 2,
+  });
+  const reads: {
+    after: string;
+    minimum: unknown;
+    tupleFrozen: boolean | null;
+    admission: string | null;
+    outcome: string;
+    context: TransactionReadContext | null;
+  }[] = [];
+  const anchors: string[] = [],
+    order: string[] = [];
+  let commits = 0,
+    closes = 0;
+  const delegated = {
+    ...owner,
+    captureChangesStart() {
+      const after = owner.captureChangesStart();
+      anchors.push(after);
+      return after;
+    },
+    readChanges(...args: Parameters<typeof owner.readChanges>) {
+      const record = {
+        after: args[0],
+        minimum: args[1] && args[1] !== "unsupported" ? { ...args[1] } : (args[1] ?? null),
+        tupleFrozen: args[1] && args[1] !== "unsupported" ? Object.isFrozen(args[1]) : null,
+        admission: args[2] ?? null,
+        outcome: "attempted",
+        context: null as TransactionReadContext | null,
+      };
+      reads.push(record);
+      try {
+        const result = owner.readChanges(...args);
+        record.outcome = result.kind;
+        if (result.kind === "page") record.context = result.context;
+        return result;
+      } catch (error) {
+        record.outcome = error instanceof Error ? error.constructor.name : "non-Error";
+        if (
+          error instanceof TransactionMinimumUnproved ||
+          error instanceof TransactionMinimumFailure ||
+          error instanceof TransactionChangefeedParameterError
+        )
+          record.context = error.context ?? null;
+        throw error;
+      }
+    },
+    close() {
+      closes++;
+      order.push("owner-close");
+      owner.close();
+    },
+  };
+  return {
+    directory,
+    owner,
+    delegated,
+    reads,
+    anchors,
+    order,
+    get commits() {
+      return commits;
+    },
+    get closes() {
+      return closes;
+    },
+    run(id: string) {
+      const admitted = owner.admit(
+        "p",
+        "current_" + id,
+        prepareTransactionSetCore(scope, JSON.stringify({ operations: [create(id)] })),
+      );
+      if (admitted.kind !== "owned") throw new Error("current changefeed admission");
+      const receipt = owner.execute(admitted.claim);
+      expect(receipt.status).toBe("completed");
+      commits++;
+      return receipt;
+    },
+    service(
+      minimumReads: NonNullable<Parameters<typeof createTransactionService>[1]["minimumReads"]>,
+    ) {
+      let token = 0;
+      return createTransactionService(delegated, {
+        ownerLifetime: "service",
+        minimumReads,
+        read: {
+          selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
+          advertisedLimits: {
+            page: { defaultItems: 2, maximumItems: 2 },
+            selector: { bytes: 4096, depth: 32, nodes: 256 },
+            cursorTtlMilliseconds: 1000,
+          },
+          pagination: {
+            scope,
+            defaultPageItems: 2,
+            maxPageItems: 2,
+            cursorTtlMs: 1000,
+            retainedStateCapacity: 100,
+            maxRetainedCursorPositionsPerSnapshot: 20,
+            retainedSnapshotByteCapacity: 100000,
+            retainedSnapshotNodeCapacity: 10000,
+            maxOpaqueTokenLength: 64,
+            tokenGenerationAttempts: 3,
+            idleCleanup: "on-demand",
+            clock: () => 1000,
+            generateOpaqueToken: () => "current_" + ++token,
+          },
+        },
+      });
+    },
+  };
+}
+async function currentChangefeedBound<T>(
+  operation: Promise<T>,
+  label: string,
+  milliseconds = 1000,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(label)), Math.max(1, milliseconds));
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+async function currentChangefeedCleanup(
+  f: ReturnType<typeof currentChangefeedCase>,
+  instance: ReturnType<typeof createTransactionService> | undefined,
+  observed: Promise<unknown> | undefined,
+  closing: Promise<unknown> | undefined,
+  failures: unknown[],
+) {
+  let closed = false,
+    stopUnknown = false;
+  try {
+    const close =
+      closing ?? (instance ? instance.close() : Promise.resolve().then(() => f.delegated.close()));
+    await currentChangefeedBound(
+      Promise.all([observed, close]),
+      "current changefeed owned drain deadline",
+    );
+    closed = true;
+    rmSync(f.directory, { recursive: true, force: false });
+  } catch (error) {
+    stopUnknown = true;
+    failures.push(error);
+  }
+  return { closed, stopUnknown, directory: f.directory, directoryAbsent: !existsSync(f.directory) };
+}
+
+for (const label of [
+  "start-now-unknown",
+  "genesis-unknown",
+  "retained-unknown",
+  "retained-pos-01",
+] as const)
+  it("captures current changefeed admission once across owner entries: " + label, async () => {
+    const f = currentChangefeedCase(),
+      controller = new AbortController();
+    const entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>();
+    const failures: unknown[] = [];
+    let instance: ReturnType<typeof createTransactionService> | undefined;
+    let observed: Promise<{ ok: boolean; error?: unknown }> | undefined;
+    let waits = 0,
+      clocks = 0,
+      tick = 0,
+      originalAfter: string | null = null;
+    let positiveGroup: TransactionChangeGroup | null = null,
+      cleanupState: unknown;
+    try {
+      f.run("a");
+      const baseline = f.delegated.readChanges("genesis");
+      if (baseline.kind !== "page") throw new Error("missing current baseline");
+      const cp1 = baseline.page.groups[0]!.checkpoint;
+      originalAfter = label.startsWith("genesis") ? "genesis" : cp1;
+      const minimum = {
+        scopeEpoch: baseline.context.scopeEpoch,
+        authorizationView: baseline.context.authorizationView,
+        minimumPosition: label.endsWith("pos-01") ? "pos-01" : "unknown",
+      };
+      const expectedMinimum = { ...minimum };
+      const intent: { start: "now"; after?: string } | { after: string } = label.startsWith("start")
+        ? { start: "now" }
+        : { after: originalAfter };
+      instance = f.service({
+        budgetMs: 2,
+        now: () => {
+          clocks++;
+          return tick;
+        },
+        wait: async (ms) => {
+          waits++;
+          expect(ms).toBe(2);
+          entered.resolve();
+          await release.promise;
+        },
+      });
+      observed = instance.changes(intent, minimum, controller.signal, "current-changefeed").then(
+        () => ({ ok: true }),
+        (error: unknown) => ({ ok: false, error }),
+      );
+      expect(
+        await currentChangefeedBound(
+          Promise.race([
+            entered.promise.then(() => "entered"),
+            observed.then(() => "settled-before-wait"),
+          ]),
+          "current changefeed wait entry deadline",
+        ),
+      ).toBe("entered");
+      intent.after = "genesis" === originalAfter ? cp1 : "genesis";
+      minimum.scopeEpoch = "foreign";
+      minimum.authorizationView = "foreign";
+      minimum.minimumPosition = "genesis";
+      f.run("b");
+      tick = 2;
+      release.resolve();
+      const outcome = await currentChangefeedBound(observed, "current changefeed attempt deadline");
+      expect(outcome.ok).toBe(false);
+      expect(outcome.error).toBeInstanceOf(TransactionMinimumFailure);
+      expect((outcome.error as TransactionMinimumFailure).reason).toBe("catch-up-timeout");
+      expect((outcome.error as TransactionMinimumFailure).context).toEqual({
+        ...baseline.context,
+        scopePosition: "pos-2",
+      });
+      expect(f.reads.slice(1).map((r) => r.after)).toEqual([originalAfter, originalAfter]);
+      expect(f.reads.slice(1).map((r) => r.minimum)).toEqual([expectedMinimum, expectedMinimum]);
+      expect(f.reads.slice(1).every((r) => r.tupleFrozen)).toBe(true);
+      expect(f.reads[1]!.context!.scopePosition).toBe("pos-1");
+      expect(f.reads[2]!.context!.scopePosition).toBe("pos-2");
+      expect(Object.isFrozen(f.reads[1]!.context)).toBe(true);
+      const positive = await instance.changes(
+        { after: originalAfter },
+        { ...expectedMinimum, minimumPosition: "pos-2" },
+        controller.signal,
+        "current-changefeed",
+      );
+      if (positive.kind !== "page") throw new Error("missing current positive page");
+      expect(validPage(positive.page), JSON.stringify(validPage.errors)).toBe(true);
+      expect(positive.page.groups).toHaveLength(1);
+      positiveGroup = positive.page.groups[0]!;
+      expect(positiveGroup.changes).toHaveLength(1);
+      expect(positiveGroup.eventCount).toBe(positiveGroup.events.length);
+      expect(positiveGroup.position).toBe(originalAfter === "genesis" ? "pos-1" : "pos-2");
+      expect(positiveGroup.previousPosition).toBe(originalAfter === "genesis" ? "pos-0" : "pos-1");
+      expect(positiveGroup.changes[0]!.resource.id).toBe(
+        scope + "beads/" + (originalAfter === "genesis" ? "a" : "b"),
+      );
+      expect(positive.page.next).toBe(
+        originalAfter === "genesis" ? scope + "changes/?after=" + cp1 : null,
+      );
+      expect(positive.context.scopePosition).toBe("pos-2");
+      expect(f.reads).toHaveLength(4);
+      expect(f.commits).toBe(2);
+      expect({ waits, clocks }).toEqual({ waits: 1, clocks: 4 });
+      expect(f.anchors).toEqual(label.startsWith("start") ? [cp1] : []);
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      controller.abort();
+      release.resolve();
+      cleanupState = await currentChangefeedCleanup(f, instance, observed, undefined, failures);
+      if (f.closes !== 1) failures.push(new Error("current changefeed close count"));
+      console.log(
+        JSON.stringify({
+          observation: "current-changefeed-minimum-capture",
+          label,
+          outcome: failures.length ? "failed" : "passed",
+          reads: f.reads,
+          captures: f.anchors.length,
+          anchors: f.anchors,
+          waits,
+          clocks,
+          commits: f.commits,
+          closes: f.closes,
+          originalAfter,
+          positiveGroup,
+          cleanupState,
+          failureCount: failures.length,
+          claimEligible: false,
+        }),
+      );
+    }
+    if (failures.length) throw new AggregateError(failures, "current changefeed capture failed");
+  });
+
+for (const label of ["start-now", "retained"] as const)
+  it("drains current changefeed admission before owner close: " + label, async () => {
+    const f = currentChangefeedCase(),
+      controller = new AbortController();
+    const entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>();
+    const failures: unknown[] = [];
+    let instance: ReturnType<typeof createTransactionService> | undefined;
+    let observed: Promise<{ ok: boolean; error?: unknown }> | undefined,
+      closing: Promise<void> | undefined;
+    let waits = 0,
+      clocks = 0,
+      closeSettled = false,
+      rawClosedProbes = 0,
+      serviceClosedProbes = 0;
+    let cleanupState: unknown;
+    try {
+      f.run("a");
+      const baseline = f.delegated.readChanges("genesis");
+      if (baseline.kind !== "page") throw new Error("missing current drain baseline");
+      const cp1 = baseline.page.groups[0]!.checkpoint;
+      instance = f.service({
+        budgetMs: 2,
+        now: () => {
+          clocks++;
+          return 0;
+        },
+        wait: async () => {
+          waits++;
+          f.order.push("wait-entered");
+          entered.resolve();
+          await release.promise;
+          f.order.push("wait-released");
+        },
+      });
+      observed = instance
+        .changes(
+          label === "start-now" ? { start: "now" } : { after: cp1 },
+          {
+            scopeEpoch: baseline.context.scopeEpoch,
+            authorizationView: baseline.context.authorizationView,
+            minimumPosition: "unknown",
+          },
+          controller.signal,
+          "current-changefeed",
+        )
+        .then(
+          () => ({ ok: true }),
+          (error: unknown) => ({ ok: false, error }),
+        );
+      expect(
+        await currentChangefeedBound(
+          Promise.race([
+            entered.promise.then(() => "entered"),
+            observed.then(() => "settled-before-wait"),
+          ]),
+          "current drain wait entry deadline",
+        ),
+      ).toBe("entered");
+      closing = instance.close();
+      void closing.then(
+        () => {
+          closeSettled = true;
+          f.order.push("close-resolved");
+        },
+        () => {
+          closeSettled = true;
+        },
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(closeSettled).toBe(false);
+      expect(f.closes).toBe(0);
+      f.order.push("abort");
+      controller.abort();
+      release.resolve();
+      const outcome = await currentChangefeedBound(observed, "current abort observation deadline");
+      expect(outcome.ok).toBe(false);
+      expect(outcome.error).toBeInstanceOf(ScopeServerOperationAbortedError);
+      await currentChangefeedBound(closing, "current close observation deadline");
+      expect(f.order).toEqual([
+        "wait-entered",
+        "abort",
+        "wait-released",
+        "owner-close",
+        "close-resolved",
+      ]);
+      expect(f.reads).toHaveLength(2);
+      const beforeCapture = f.anchors.length;
+      serviceClosedProbes++;
+      expect(() =>
+        instance!.changes({ start: "now" }, undefined, controller.signal, "current-changefeed"),
+      ).toThrow("closing or closed");
+      expect(f.anchors).toHaveLength(beforeCapture);
+      expect(f.reads).toHaveLength(2);
+      rawClosedProbes++;
+      expect(() => f.owner.readChanges("genesis")).toThrow("closed");
+      expect({ waits, clocks, captures: f.anchors.length, closes: f.closes }).toEqual({
+        waits: 1,
+        clocks: 2,
+        captures: label === "start-now" ? 1 : 0,
+        closes: 1,
+      });
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      controller.abort();
+      release.resolve();
+      cleanupState = await currentChangefeedCleanup(f, instance, observed, closing, failures);
+      console.log(
+        JSON.stringify({
+          observation: "current-changefeed-minimum-drain",
+          label,
+          outcome: failures.length ? "failed" : "passed",
+          reads: f.reads,
+          readsBeforeClosedProbe: f.reads.length,
+          captures: f.anchors.length,
+          waits,
+          clocks,
+          closes: f.closes,
+          commits: f.commits,
+          serviceClosedProbes,
+          rawClosedProbes,
+          order: f.order,
+          closeSettled,
+          cleanupState,
+          failureCount: failures.length,
+          claimEligible: false,
+        }),
+      );
+    }
+    if (failures.length) throw new AggregateError(failures, "current changefeed drain failed");
+  });
+
+it("preserves current changefeed anchor capture before waiter preflight", async () => {
+  const failures: unknown[] = [],
+    rows: Record<string, unknown>[] = [];
+  for (const label of [
+    "already-aborted",
+    "invalid-policy",
+    "throwing-clock",
+    "nonfinite-clock",
+  ] as const) {
+    const row: Record<string, unknown> = {
+      label,
+      initialized: false,
+      attempted: false,
+      closed: false,
+    };
+    rows.push(row);
+    const controller = new AbortController(),
+      clockError = new Error("controlled current changefeed clock failure");
+    const rowFailures: unknown[] = [];
+    let f: ReturnType<typeof currentChangefeedCase> | undefined,
+      instance: ReturnType<typeof createTransactionService> | undefined;
+    let observed: Promise<{ ok: boolean; error?: unknown }> | undefined;
+    let waits = 0,
+      clocks = 0;
+    try {
+      f = currentChangefeedCase();
+      row.initialized = true;
+      f.run("a");
+      const config = f.owner.readConfiguration();
+      instance = f.service({
+        budgetMs: label === "invalid-policy" ? 0 : 2,
+        now: () => {
+          clocks++;
+          if (label === "throwing-clock") throw clockError;
+          return label === "nonfinite-clock" ? Number.NaN : 0;
+        },
+        wait: async () => {
+          waits++;
+          throw new Error("unexpected current preflight wait");
+        },
+      });
+      if (label === "already-aborted") controller.abort();
+      row.attempted = true;
+      observed = instance
+        .changes(
+          { start: "now" },
+          {
+            scopeEpoch: config.scopeEpoch,
+            authorizationView: config.authorizationView,
+            minimumPosition: "unknown",
+          },
+          controller.signal,
+          "current-changefeed",
+        )
+        .then(
+          () => ({ ok: true }),
+          (error: unknown) => ({ ok: false, error }),
+        );
+      const outcome = await currentChangefeedBound(observed, "current preflight outcome deadline");
+      expect(outcome.ok).toBe(false);
+      row.errorClass =
+        outcome.error instanceof Error ? outcome.error.constructor.name : "non-Error";
+      if (label === "already-aborted")
+        expect(outcome.error).toBeInstanceOf(ScopeServerOperationAbortedError);
+      else if (label === "throwing-clock") expect(outcome.error).toBe(clockError);
+      else {
+        expect(outcome.error).toBeInstanceOf(TypeError);
+        expect((outcome.error as TypeError).message).toBe(
+          label === "invalid-policy"
+            ? "finite minimum-read wait policy required"
+            : "invalid minimum-read clock",
+        );
+      }
+      expect({ captures: f.anchors.length, reads: f.reads.length, waits, clocks }).toEqual({
+        captures: 1,
+        reads: 0,
+        waits: 0,
+        clocks: label === "invalid-policy" ? 0 : 1,
+      });
+    } catch (error) {
+      rowFailures.push(error);
+    } finally {
+      controller.abort();
+      if (f) {
+        const state = await currentChangefeedCleanup(f, instance, observed, undefined, rowFailures);
+        Object.assign(row, {
+          ...state,
+          captures: f.anchors.length,
+          reads: f.reads.length,
+          waits,
+          clocks,
+          closes: f.closes,
+          commits: f.commits,
+        });
+        if (f.closes !== 1) rowFailures.push(new Error("current preflight close count"));
+      }
+      row.outcome = rowFailures.length ? "failed" : "passed";
+      row.failureCount = rowFailures.length;
+      failures.push(...rowFailures);
+    }
+  }
+  console.log(
+    JSON.stringify({
+      observation: "current-changefeed-minimum-preflight",
+      rows,
+      outcome: failures.length ? "failed" : "passed",
+      failureCount: failures.length,
+      claimEligible: false,
+    }),
+  );
+  if (failures.length)
+    throw new AggregateError(failures, "current changefeed preflight rows failed");
+});

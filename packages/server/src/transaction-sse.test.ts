@@ -907,3 +907,667 @@ it("start=now reconnect checkpoint survives a controlled minimum wait", async ()
   expect(group(groups(r)[0]!).previousPosition).toBe("pos-1");
   expect(r.headers["bdp-scope-position"]).toBe("pos-3");
 });
+
+it("serves current changefeed opaque minima across finite and SSE admission", async () => {
+  const began = performance.now();
+  const { createHash } = await import("node:crypto");
+  const { existsSync, readFileSync } = await import("node:fs");
+  const { Ajv2020 } = await import("ajv/dist/2020.js");
+  const { isJsonSchemaUri, isJsonSchemaDateTime } = await import("@bdp/protocol");
+  const validator = new Ajv2020({ strict: true, allErrors: true });
+  validator.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
+  validator.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
+  const schema = JSON.parse(
+    readFileSync(new URL("../../../schemas/bdp-v0.schema.json", import.meta.url), "utf8"),
+  );
+  validator.addSchema(schema);
+  const validReceipt = validator.compile({ $ref: schema.$id + "#/$defs/mutationReceipt" });
+  const validPage = validator.compile({ $ref: schema.$id + "#/$defs/changefeedPage" });
+  const validProblem = validator.compile({ $ref: schema.$id + "#/$defs/transactionalProblem" });
+  const hash = (value: string | Uint8Array) => createHash("sha256").update(value).digest("hex");
+  const controller = new AbortController(),
+    failures: unknown[] = [];
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-current-feed-http-"));
+  const token = randomBytes(32).toString("base64url");
+  const recorders: ReturnType<typeof recordRawSse>[] = [],
+    pending = new Set<Promise<unknown>>();
+  const records: {
+    ordinal: number;
+    method: string;
+    url: string;
+    status: number | null;
+    bodyOctets: number | null;
+    bodySha256: string | null;
+    wireSha256: string | null;
+    requestHeaders: [string, string][];
+    headers: Record<string, string | null>;
+    readyObserved: boolean;
+    drained: boolean;
+    transportClosedObserved: boolean | null;
+    drainKind: "none" | "finite-body" | "intentional-live" | "seed-body";
+    availability: { status: boolean; headers: boolean; body: boolean; wire: boolean };
+    bodyState: "unavailable" | "partial" | "drained";
+  }[] = [];
+  const rawSnapshots: (() => void)[] = [];
+  const contextNames = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"];
+  const safeHeaders = [
+    ...contextNames,
+    "content-type",
+    "content-length",
+    "cache-control",
+    "retry-after",
+    "etag",
+    "x-bdp-development-limit",
+    "x-bdp-development",
+  ];
+  let runtime: Awaited<ReturnType<typeof startTransactionRuntime>> | undefined;
+  let attempted = 0,
+    tick = 0,
+    runtimeClosed = false,
+    stopUnknown = false,
+    workDeadlineFired = false;
+  let stream: Record<string, unknown> | null = null;
+  const workTimer = setTimeout(
+    () => {
+      workDeadlineFired = true;
+      controller.abort(new Error("current feed HTTP work deadline"));
+    },
+    Math.max(1, began + 3000 - performance.now()),
+  );
+  function track<T>(operation: Promise<T>) {
+    const settled = operation.then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    pending.add(settled);
+    void settled.then(() => pending.delete(settled));
+    return settled.then((result) => {
+      if (!result.ok) throw result.error;
+      return result.value;
+    });
+  }
+  async function bounded<T>(operation: Promise<T>, stop: number, label: string) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        operation,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(label)), Math.max(1, stop - performance.now()));
+        }),
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
+  function dispatch() {
+    controller.signal.throwIfAborted();
+    if (attempted >= 32) throw new Error("current feed HTTP dispatch bound");
+    return ++attempted;
+  }
+  function record(
+    ordinal: number,
+    method: string,
+    suffix: string,
+    status: number | null,
+    body: string | Uint8Array | null,
+    headers: Record<string, string>,
+    requestHeaders: [string, string][],
+    wire: Uint8Array | undefined,
+    readyObserved: boolean,
+    drained: boolean,
+    transportClosedObserved: boolean | null,
+    drainKind: "none" | "finite-body" | "intentional-live" | "seed-body",
+  ) {
+    const snapshot = {
+      ordinal,
+      method,
+      url: new URL(suffix, scope).href,
+      status,
+      bodyOctets:
+        body === null ? null : typeof body === "string" ? Buffer.byteLength(body) : body.byteLength,
+      bodySha256: body === null ? null : hash(body),
+      wireSha256: wire?.length ? hash(wire) : null,
+      requestHeaders: requestHeaders.filter(([name]) => name.toLowerCase() !== "authorization"),
+      headers: Object.fromEntries(safeHeaders.map((name) => [name, headers[name] ?? null])),
+      readyObserved,
+      drained,
+      transportClosedObserved,
+      drainKind,
+      availability: {
+        status: status !== null,
+        headers: readyObserved,
+        body: body !== null,
+        wire: wire !== undefined && wire.length > 0,
+      },
+      bodyState:
+        body === null
+          ? ("unavailable" as const)
+          : drained
+            ? ("drained" as const)
+            : ("partial" as const),
+    };
+    const previous = records.findIndex((entry) => entry.ordinal === ordinal);
+    if (previous < 0) records.push(snapshot);
+    else records[previous] = snapshot;
+  }
+  async function raw(
+    suffix: string,
+    method: "GET" | "HEAD",
+    headers: [string, string][],
+    expected: number,
+    live = false,
+    authenticated = true,
+  ) {
+    if (!runtime) throw new Error("missing current HTTP runtime");
+    const ordinal = dispatch(),
+      target = new URL(suffix, scope);
+    expect(target.origin + target.pathname).toBe(scope + "changes/");
+    const requestHeaders: [string, string][] = [
+      ...(authenticated ? [["Authorization", "Bearer " + token] as [string, string]] : []),
+      ...headers,
+    ];
+    const rec = recordRawSse({
+      dial: runtime.listenUrl,
+      host: new URL(runtime.listenUrl).host,
+      target: target.pathname + target.search,
+      method,
+      headers: requestHeaders,
+      signal: controller.signal,
+      timeoutMs: 5000,
+    });
+    recorders.push(rec);
+    const observed = {
+      ready: false,
+      closed: false,
+      drained: false,
+      kind: "none" as "none" | "finite-body" | "intentional-live",
+    };
+    const refresh = () => {
+      const finiteDrained =
+        observed.ready &&
+        observed.closed &&
+        (method === "HEAD"
+          ? rec.body === ""
+          : rec.headers["content-length"] !== undefined
+            ? Buffer.byteLength(rec.body) === Number(rec.headers["content-length"])
+            : [204, 304].includes(rec.status) && rec.body === "");
+      record(
+        ordinal,
+        method,
+        suffix,
+        observed.ready ? rec.status : null,
+        observed.ready ? rec.body : null,
+        rec.headers,
+        requestHeaders,
+        rec.wireBytes,
+        observed.ready,
+        observed.drained || finiteDrained,
+        observed.closed,
+        observed.kind === "none" && finiteDrained ? "finite-body" : observed.kind,
+      );
+    };
+    rawSnapshots.push(refresh);
+    void rec.ready.then(
+      () => {
+        observed.ready = true;
+        refresh();
+      },
+      () => refresh(),
+    );
+    void rec.closed.then(() => {
+      observed.closed = true;
+      refresh();
+    });
+    try {
+      await track(rec.ready);
+      observed.ready = true;
+      refresh();
+      expect(rec.status).toBe(expected);
+      if (!live) {
+        await track(rec.closed);
+        observed.closed = true;
+        const completeBody =
+          method === "HEAD"
+            ? rec.body === ""
+            : rec.headers["content-length"] !== undefined
+              ? Buffer.byteLength(rec.body) === Number(rec.headers["content-length"])
+              : rec.status === 304 && rec.body === "";
+        observed.drained = completeBody;
+        observed.kind = completeBody ? "finite-body" : "none";
+        refresh();
+        if (method === "HEAD") expect(rec.body).toBe("");
+        else if (rec.headers["content-length"] !== undefined)
+          expect(Buffer.byteLength(rec.body)).toBe(Number(rec.headers["content-length"]));
+        expect(rec.frames).toHaveLength(0);
+      }
+      return {
+        rec,
+        ordinal,
+        suffix,
+        method,
+        requestHeaders,
+        refresh,
+        drained() {
+          observed.closed = true;
+          observed.drained = true;
+          observed.kind = "intentional-live";
+          refresh();
+        },
+      };
+    } catch (error) {
+      refresh();
+      throw error;
+    }
+  }
+  try {
+    runtime = await startTransactionRuntime(
+      {
+        scope,
+        directory,
+        port: 0,
+        create: true,
+        types: [
+          parseTypeDescriptor({
+            id: type,
+            name: "Task",
+            describes: "bead",
+            conformsTo: [],
+            ownsOutgoing: { [linkType]: { max: 4 } },
+          }),
+          parseTypeDescriptor({
+            id: linkType,
+            name: "Link",
+            describes: "link",
+            conformsTo: [],
+            source: { conformsTo: [], external: "none" },
+            target: { conformsTo: [], external: "none" },
+          }),
+        ],
+        credentials: [{ token, principal: "p", canMutate: true }],
+      },
+      {
+        minimumReads: {
+          budgetMs: 2,
+          now: () => tick,
+          wait: async (ms) => {
+            tick += ms;
+          },
+        },
+      },
+    );
+    const receipts: Record<string, unknown>[] = [];
+    for (const id of ["a", "b"]) {
+      const ordinal = dispatch(),
+        suffix = "operations/batch";
+      const headers: [string, string][] = [
+        ["authorization", "Bearer " + token],
+        ["accept", "application/json"],
+        ["content-type", "application/json"],
+        ["idempotency-key", "current-feed-" + id],
+      ];
+      const seed = await track(
+        (async () => {
+          const response = await fetch(new URL("/acme/" + suffix, runtime!.listenUrl), {
+            method: "POST",
+            headers: Object.fromEntries(headers),
+            signal: controller.signal,
+            body: JSON.stringify({
+              operations: [
+                {
+                  operation: "createBead",
+                  id: "beads/" + id,
+                  type,
+                  properties: { title: "current-feed-" + id },
+                },
+              ],
+            }),
+          });
+          const reader = response.body?.getReader(),
+            chunks: Uint8Array[] = [];
+          let bytes = 0,
+            bodyDrained = false;
+          const refresh = () =>
+            record(
+              ordinal,
+              "POST",
+              suffix,
+              response.status,
+              Buffer.concat(chunks),
+              Object.fromEntries(response.headers),
+              headers,
+              undefined,
+              true,
+              bodyDrained,
+              null,
+              bodyDrained ? "seed-body" : "none",
+            );
+          refresh();
+          try {
+            if (reader) {
+              try {
+                for (;;) {
+                  const chunk = await reader.read();
+                  if (chunk.done) {
+                    bodyDrained = true;
+                    break;
+                  }
+                  bytes += chunk.value.byteLength;
+                  chunks.push(chunk.value);
+                  refresh();
+                  if (bytes > 131072) throw new Error("current seed body bound");
+                }
+              } catch (error) {
+                controller.abort(error);
+                await reader.cancel(error);
+                throw error;
+              } finally {
+                reader.releaseLock();
+              }
+            } else bodyDrained = true;
+            return {
+              response,
+              text: new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)),
+            };
+          } finally {
+            refresh();
+          }
+        })(),
+      );
+      expect(seed.response.status).toBe(200);
+      const receipt = JSON.parse(seed.text);
+      expect(validReceipt(receipt), JSON.stringify(validReceipt.errors)).toBe(true);
+      expect(receipt).toMatchObject({
+        status: "completed",
+        requiredPosition: id === "a" ? "pos-1" : "pos-2",
+      });
+      receipts.push(receipt);
+    }
+    const second = receipts[1]!;
+    const k: [string, string][] = [
+      ["bdp-scope-epoch", String(second.scopeEpoch)],
+      ["bdp-authorization-view", String(second.authorizationView)],
+      ["bdp-minimum-scope-position", "pos-2"],
+    ];
+    const u = k.map(([name, value]): [string, string] => [
+      name,
+      name === "bdp-minimum-scope-position" ? "unknown" : value,
+    ]);
+    const p = u.map(([name, value]): [string, string] => [
+      name,
+      name === "bdp-minimum-scope-position" ? "pos-01" : value,
+    ]);
+    const json: [string, string] = ["Accept", "application/json"],
+      sse: [string, string] = ["Accept", "text/event-stream"];
+    const firstRead = await raw("changes/?after=genesis", "GET", [json, ...k], 200);
+    const first = JSON.parse(firstRead.rec.body) as TransactionChangefeedPage;
+    expect(validPage(first), JSON.stringify(validPage.errors)).toBe(true);
+    expect(first.groups).toHaveLength(1);
+    expect(first.observedHeadPosition).toBe("pos-2");
+    expect(contextNames.map((name) => firstRead.rec.headers[name])).toEqual([
+      second.scopeEpoch,
+      second.authorizationView,
+      "pos-2",
+    ]);
+    const cp1 = first.groups[0]!.checkpoint;
+    expect(first.next).toBe(scope + "changes/?after=" + cp1);
+    const after = "changes/?after=" + cp1;
+    const secondRead = await raw(after, "GET", [json, ...k], 200);
+    const page2 = JSON.parse(secondRead.rec.body) as TransactionChangefeedPage;
+    expect(validPage(page2), JSON.stringify(validPage.errors)).toBe(true);
+    expect(page2.groups).toHaveLength(1);
+    expect(page2.after).toBe(cp1);
+    expect(page2.next).toBeNull();
+    expect(page2.observedHeadPosition).toBe("pos-2");
+    expect(page2.groups[0]!.changes[0]!.resource.id).toBe(scope + "beads/b");
+    const cp2 = page2.groups[0]!.checkpoint;
+    expect(cp2).not.toBe(cp1);
+    await raw(after, "HEAD", [json, ...k], 200);
+    const stale = cp1.slice(0, 3) + (cp1[3] === "A" ? "B" : "A") + cp1.slice(4);
+    const foreign = cp1.slice(0, 47) + (cp1[47] === "A" ? "B" : "A") + cp1.slice(48);
+    const future = cp1.slice(0, 91) + "3";
+    const foreignMinimum = (values: [string, string][], field: string) =>
+      values.map(([name, value]): [string, string] => [name, name === field ? "foreign" : value]);
+    const rows: {
+      method?: "GET" | "HEAD";
+      suffix: string;
+      headers: [string, string][];
+      expected: number;
+      auth?: boolean;
+      live?: boolean;
+    }[] = [
+      {
+        suffix: "changes/?after=genesis",
+        headers: [json, ...u, ["If-None-Match", "*"]],
+        expected: 503,
+      },
+      {
+        method: "HEAD",
+        suffix: "changes/?after=genesis",
+        headers: [json, ...u, ["If-None-Match", "*"]],
+        expected: 503,
+      },
+      { suffix: after, headers: [json, ...p, ["If-Match", '"missing"']], expected: 503 },
+      {
+        method: "HEAD",
+        suffix: after,
+        headers: [json, ...p, ["If-Match", '"missing"']],
+        expected: 503,
+      },
+      { suffix: "changes/?start=now", headers: [sse, ...u], expected: 503 },
+      { suffix: after, headers: [sse, ...u], expected: 503 },
+      { suffix: "changes/?start=now", headers: [sse, ...u, ["Last-Event-ID", cp1]], expected: 503 },
+      {
+        suffix: "changes/?after=" + stale,
+        headers: [sse, ...u, ["Last-Event-ID", cp1]],
+        expected: 503,
+      },
+      {
+        suffix: "changes/?after=genesis",
+        headers: [json, ...u, ["Last-Event-ID", "bad"], ["Last-Event-ID", "also-bad"]],
+        expected: 503,
+      },
+      { suffix: after, headers: [json, ...u, ["Last-Event-ID", foreign]], expected: 503 },
+      {
+        suffix: "changes/?after=genesis",
+        headers: [["Accept", "text/plain"], ...u],
+        expected: 503,
+      },
+      {
+        suffix: "changes/?after=genesis",
+        headers: [["Accept", "text/plain"], ...k],
+        expected: 406,
+      },
+      { suffix: after, headers: [json, ...k, ["If-None-Match", "*"]], expected: 304 },
+      { suffix: after, headers: [json, ...k, ["If-Match", '"missing"']], expected: 412 },
+      { suffix: after, headers: [json, ["bdp-minimum-scope-position", "unknown"]], expected: 400 },
+      { suffix: "changes/?after=bad", headers: [sse, ...u, ["Last-Event-ID", cp1]], expected: 400 },
+      {
+        suffix: "changes/?after=genesis",
+        headers: [sse, ...u, ["Last-Event-ID", cp1], ["Last-Event-ID", cp1]],
+        expected: 400,
+      },
+      {
+        suffix: "changes/?after=genesis",
+        headers: [sse, ...u, ["Last-Event-ID", "bad"]],
+        expected: 400,
+      },
+      {
+        suffix: "changes/?after=genesis",
+        headers: [sse, ...foreignMinimum(u, "bdp-authorization-view"), ["Last-Event-ID", stale]],
+        expected: 410,
+      },
+      {
+        suffix: "changes/?after=genesis",
+        headers: [sse, ...foreignMinimum(u, "bdp-scope-epoch"), ["Last-Event-ID", foreign]],
+        expected: 409,
+      },
+      {
+        suffix: "changes/?after=genesis",
+        headers: [sse, ...u, ["Last-Event-ID", future]],
+        expected: 400,
+      },
+      { suffix: after, headers: [json, ...foreignMinimum(u, "bdp-scope-epoch")], expected: 410 },
+      {
+        suffix: after,
+        headers: [json, ...foreignMinimum(u, "bdp-authorization-view")],
+        expected: 409,
+      },
+      {
+        suffix: after,
+        headers: [
+          json,
+          ...foreignMinimum(foreignMinimum(u, "bdp-scope-epoch"), "bdp-authorization-view"),
+        ],
+        expected: 410,
+      },
+      {
+        suffix: "changes/?after=genesis",
+        headers: [sse, ...k, ["Last-Event-ID", cp1]],
+        expected: 200,
+        live: true,
+      },
+      { method: "HEAD", suffix: "changes/?start=now", headers: [sse, ...u], expected: 503 },
+      { suffix: "changes/?after=genesis", headers: [sse, ...u], expected: 401, auth: false },
+    ];
+    for (const row of rows) {
+      const result = await raw(
+        row.suffix,
+        row.method ?? "GET",
+        row.headers,
+        row.expected,
+        row.live,
+        row.auth,
+      );
+      const rec = result.rec;
+      if (row.live) {
+        await track(rec.until(() => groups(rec).length >= 1));
+        const expectedFrame =
+          "id: " +
+          cp2 +
+          "\nevent: change-group\ndata: " +
+          stringifyJsonValue(page2.groups[0]) +
+          "\n";
+        expect(groups(rec)).toEqual([expectedFrame.trimEnd()]);
+        expect(rec.headers["content-type"]).toBe("text/event-stream");
+        expect(controller.signal.aborted).toBe(false);
+        expect(rec.destroyed).toBe(false);
+        const liveBeforeClose = !controller.signal.aborted && !rec.destroyed;
+        await track(rec.close());
+        result.drained();
+        expect(groups(rec)).toEqual([expectedFrame.trimEnd()]);
+        expect(group(groups(rec)[0]!)).toEqual(page2.groups[0]);
+        stream = {
+          request: result.ordinal,
+          status: rec.status,
+          readyObserved: true,
+          liveBeforeClose,
+          afterDrain: true,
+          destroyed: rec.destroyed,
+          frames: groups(rec),
+          checkpoint: cp2,
+          group: group(groups(rec)[0]!),
+          headers: Object.fromEntries(safeHeaders.map((name) => [name, rec.headers[name] ?? null])),
+        };
+      }
+      const current = contextNames.map((name) => rec.headers[name] ?? null);
+      if (row.expected === 401 || (result.ordinal >= 20 && result.ordinal <= 22))
+        expect(current).toEqual([null, null, null]);
+      else expect(current).toEqual([second.scopeEpoch, second.authorizationView, "pos-2"]);
+      expect(rec.headers["x-bdp-development"]).toBe("non-attesting");
+      if (row.expected === 503) {
+        expect(rec.headers["content-type"]).toBe("application/problem+json");
+        expect(rec.headers["cache-control"]).toBe("private, no-store");
+        expect(rec.headers["retry-after"]).toBe("1");
+        expect(rec.headers.etag).toBeUndefined();
+        expect(rec.headers["x-bdp-development-limit"]).toBeUndefined();
+        if (row.method !== "HEAD") {
+          const problem = JSON.parse(rec.body);
+          expect(validProblem(problem), JSON.stringify(validProblem.errors)).toBe(true);
+          expect(problem).toMatchObject({
+            code: "catch-up-timeout",
+            status: 503,
+            retry: "after-delay",
+          });
+        }
+      } else if ([400, 409, 410].includes(row.expected)) {
+        const problem = JSON.parse(rec.body);
+        expect(validProblem(problem), JSON.stringify(validProblem.errors)).toBe(true);
+        expect(problem.code).toBe(
+          row.expected === 409
+            ? "foreign-view"
+            : row.expected === 410
+              ? "cursor-expired"
+              : result.ordinal === 20
+                ? "malformed-request"
+                : "invalid-parameter",
+        );
+      } else if ([406, 304, 412].includes(row.expected)) expect(rec.body).toBe("");
+    }
+    for (const [get, head] of [
+      [6, 7],
+      [8, 9],
+      [4, 5],
+    ] as const) {
+      expect(records[head - 1]!.bodyOctets).toBe(0);
+      expect(records[head - 1]!.headers["content-length"]).toBe(
+        records[get - 1]!.headers["content-length"],
+      );
+      expect(records[get - 1]!.headers["content-length"]).toBe(
+        String(records[get - 1]!.bodyOctets),
+      );
+    }
+    expect(attempted).toBe(32);
+    expect(records).toHaveLength(32);
+    expect(records.filter((entry) => entry.drained)).toHaveLength(32);
+    expect(records.map((r) => r.status)).toEqual([
+      200, 200, 200, 200, 200, 503, 503, 503, 503, 503, 503, 503, 503, 503, 503, 503, 406, 304, 412,
+      400, 400, 400, 400, 410, 409, 400, 410, 409, 410, 200, 503, 401,
+    ]);
+    controller.signal.throwIfAborted();
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    controller.abort();
+    clearTimeout(workTimer);
+    const cleaning = (async () => {
+      await Promise.all(recorders.map((rec) => rec.close()));
+      await Promise.all([...pending]);
+      if (runtime) {
+        await runtime.close();
+        runtimeClosed = true;
+      }
+    })();
+    void cleaning.catch(() => {});
+    try {
+      await bounded(cleaning, began + 4000, "current feed HTTP cleanup-inclusive deadline");
+      if (runtimeClosed) rmSync(directory, { recursive: true, force: false });
+    } catch (error) {
+      stopUnknown = true;
+      failures.push(error);
+    }
+    for (const refresh of rawSnapshots) refresh();
+    const elapsedMs = performance.now() - began;
+    if (elapsedMs >= 4000) failures.push(new Error("current feed HTTP total deadline exceeded"));
+    console.log(
+      JSON.stringify({
+        observation: "current-changefeed-minimum-http",
+        outcome: failures.length ? "failed" : "passed",
+        attempted,
+        observedResponses: records.filter((entry) => entry.readyObserved).length,
+        completed: records.filter((entry) => entry.drained).length,
+        records,
+        stream,
+        elapsedMs,
+        runtimeClosed,
+        stopUnknown,
+        workDeadlineFired,
+        pendingOperationsAtReport: pending.size,
+        directory,
+        directoryAbsent: !existsSync(directory),
+        failureCount: failures.length,
+        claimEligible: false,
+      }),
+    );
+  }
+  if (failures.length) throw new AggregateError(failures, "current feed HTTP witness failed");
+});
