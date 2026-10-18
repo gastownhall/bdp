@@ -4,7 +4,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, expect, it } from "vitest";
-import { stringifyJsonValue, isJsonSchemaUri, isJsonSchemaDateTime } from "@bdp/protocol";
+import {
+  stringifyJsonValue,
+  isJsonSchemaUri,
+  isJsonSchemaDateTime,
+  parseTransactionalDiscovery,
+  parseTransactionalOperationDirectory,
+} from "@bdp/protocol";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { compileDevelopmentContracts, type DevelopmentContracts } from "./development-contracts.js";
 import {
@@ -402,18 +408,48 @@ it("compiles plain runtime artifacts in emitted module and serves same-owner Typ
     return { status: response.status, value: await response.json() };
   };
   async function discoveryBoundary() {
-    for (const relative of ["", "bdp.json", "operations/"])
+    let phaseContext: (string | null)[] | undefined;
+    for (const relative of ["", "bdp.json", "operations/"]) {
+      let representationBytes = 0;
       for (const method of ["GET", "HEAD"]) {
         const target = new URL(new URL(relative, scope).pathname, runtime.listenUrl);
         const response = await fetch(target, {
           method,
           headers: { authorization: `Bearer ${"a".repeat(32)}` },
         });
-        expect(response.status).toBe(500);
-        expect(response.headers.get("x-bdp-development-limit")).toBe("transactional-discovery");
-        expect(response.headers.has("link")).toBe(false);
-        expect(await response.text()).toBe("");
+        expect(response.status).toBe(relative === "" ? 204 : 200);
+        expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+        const currentContext = [
+          "bdp-scope-epoch",
+          "bdp-authorization-view",
+          "bdp-scope-position",
+        ].map((name) => response.headers.get(name));
+        for (const value of currentContext) expect(value).toMatch(/\S+/);
+        phaseContext ??= currentContext;
+        expect(currentContext).toEqual(phaseContext);
+        const body = await response.text();
+        if (relative === "") {
+          expect(response.headers.get("link")).toBe(
+            `<${new URL("bdp.json", scope).href}>; rel="service-desc"; type="application/json"`,
+          );
+          expect(response.headers.get("cache-control")).toBe("private, no-store");
+          expect(body).toBe("");
+        } else if (method === "GET") {
+          representationBytes = Buffer.byteLength(body);
+          if (relative === "bdp.json") {
+            const descriptor = parseTransactionalDiscovery(JSON.parse(body));
+            expect([
+              descriptor.scopeEpoch,
+              descriptor.authorizationView,
+              descriptor.headPosition,
+            ]).toEqual(currentContext);
+          } else parseTransactionalOperationDirectory(JSON.parse(body));
+        } else {
+          expect(body).toBe("");
+          expect(response.headers.get("content-length")).toBe(String(representationBytes));
+        }
       }
+    }
   }
   await discoveryBoundary();
   const installedDescriptors = options.artifacts.descriptors

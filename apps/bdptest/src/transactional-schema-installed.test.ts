@@ -338,9 +338,14 @@ it("traverses installed local schema bytes with current context within14requests
     expect(method.headers.allow).toBe("GET, HEAD");
     expect(method.bodyText).toBe("");
     const discovery = await exchange("discovery", "GET", scope);
-    expect(discovery.status).toBe(500);
+    expect(discovery.status).toBe(204);
     expect(discovery.bodyText).toBe("");
-    expect(discovery.headers["x-bdp-development-limit"]).toBe("transactional-discovery");
+    expect(discovery.headers.link).toBe(
+      `<${new URL("bdp.json", scope).href}>; rel="service-desc"; type="application/json"`,
+    );
+    expect(discovery.headers["cache-control"]).toBe("private, no-store");
+    expect(discovery.headers["x-bdp-development-limit"]).toBeUndefined();
+    context(discovery, "pos-0");
     const mutation = await exchange(
       "create",
       "POST",
