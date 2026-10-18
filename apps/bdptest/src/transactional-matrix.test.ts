@@ -90,6 +90,11 @@ function errorCauses(error: unknown): Set<unknown> {
   visit(error);
   return seen;
 }
+type ObservationSession = Readonly<{
+  scenario: string;
+  reopen: boolean;
+  sessionOrdinal: number;
+}>;
 type InstalledObservation = {
   result: Awaited<ReturnType<typeof runCumulativeTransactionalMatrix>>;
   sessions: Record<string, unknown>[];
@@ -101,7 +106,7 @@ async function observe(control?: {
   readonly afterFirstExchangeBudgetMs?: number;
   readonly scenarioSelection?: readonly string[];
   readonly collapsePrincipalB?: boolean;
-  readonly onDispatch?: (request: PrincipalDispatchInput) => void;
+  readonly onDispatch?: (request: PrincipalDispatchInput, session: ObservationSession) => void;
   /** Retain genuine returned evidence before cleanup can fail; never replace it. */
   readonly onObserved?: (observed: InstalledObservation) => void;
   readonly invalidReceiptCredentials?: boolean | "set-update" | "set-delete";
@@ -113,7 +118,11 @@ async function observe(control?: {
   readonly signal?: AbortSignal;
   readonly children?: ChildProcess[];
   /** Negative-test gate after actual ordinary wire, never a response replacement. */
-  readonly afterExchange?: (response: HttpExchangeResponse, signal: AbortSignal) => Promise<void>;
+  readonly afterExchange?: (
+    response: HttpExchangeResponse,
+    signal: AbortSignal,
+    session: ObservationSession,
+  ) => Promise<void>;
   readonly ready?: (ready: Record<string, unknown>) => Record<string, unknown>;
   readonly manifest?: (value: {
     scenarios: { id: string; actions: Record<string, unknown>[] }[];
@@ -163,6 +172,7 @@ async function observe(control?: {
   };
   let target: ReturnType<typeof createTransactionalExecutionBinding> | undefined;
   const sessions: Record<string, unknown>[] = [];
+  let observationSession: ObservationSession | undefined;
   const deniedReceiptUrls = new Set<string>();
   const expireCohort = () => controller.abort(new Error("installed cohort deadline"));
   const timer = setTimeout(expireCohort, budgetMs);
@@ -213,6 +223,9 @@ async function observe(control?: {
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
       { method: "POST", url: `${scope}operations/delete-where` },
+      { method: "HEAD", url: `${scope}beads/a` },
+      { method: "GET", url: `${scope}beads/missing` },
+      { method: "HEAD", url: `${scope}beads/missing` },
     ]);
     const omitted = control?.omitRoute;
     if (omitted) {
@@ -262,7 +275,8 @@ async function observe(control?: {
           signal,
         );
         control?.children?.push(child.child);
-        sessions.push({ ...child.ready, scenario, reopen });
+        observationSession = Object.freeze({ scenario, reopen, sessionOrdinal: sessions.length });
+        sessions.push({ ...child.ready, ...observationSession });
         return control?.ready ? { ...child, ready: control.ready(child.ready) } : child;
       },
     });
@@ -281,14 +295,20 @@ async function observe(control?: {
         },
         exactExecution: {
           execute: async (request) => {
+            const session = observationSession;
+            if (!session)
+              throw new Error("ordinary exchange requires a launched observation session");
             control?.onDispatch?.(
               Object.freeze({
                 method: request.method,
                 url: request.url,
                 credentialRef: request.credentialRef,
               }),
+              session,
             );
             const response = await target!.target.execute(request);
+            if (observationSession !== session)
+              throw new Error("observation session changed during ordinary exchange");
             if (afterFirstExchangeBudgetMs !== undefined && firstExchangeTimer === undefined) {
               firstExchangeTimer = setTimeout(expireCohort, afterFirstExchangeBudgetMs);
             }
@@ -310,7 +330,7 @@ async function observe(control?: {
               )
                 deniedReceiptUrls.add(receipt.id);
             }
-            await control?.afterExchange?.(response, signal);
+            await control?.afterExchange?.(response, signal, session);
             signal.throwIfAborted();
             return response;
           },
@@ -362,20 +382,22 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes sixteen partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+it("observes seventeen partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
   const crossWire = crossCarrierWire(),
     minimumWire = commandMinimumWire(),
     memberWire = sequenceMemberWire(),
-    principalWire = principalNamespaceWire();
+    principalWire = principalNamespaceWire(),
+    conditionalWire = conditionalReadWire();
+  const conditionalRouting = conditionalScenarioWire(
+    conditionalWire,
+    principalWire.onDispatch,
+    withPrincipalWire(principalWire, composedMemberWire(crossWire, minimumWire, memberWire)),
+  );
   const observed = await observe({
     children,
-    onDispatch: principalWire.onDispatch,
-    afterExchange: withPrincipalWire(
-      principalWire,
-      composedMemberWire(crossWire, minimumWire, memberWire),
-    ),
+    ...conditionalRouting,
     onObserved(observed) {
       if (process.env.BDP_TRANSACTIONAL_OBSERVATION_OUTPUT)
         writeFileSync(
@@ -388,6 +410,7 @@ it("observes sixteen partial Transactional contracts through packed-capable actu
               supplemental: minimumWire.summary(),
               sequenceMemberSupplemental: memberWire.summary(),
               principalSupplemental: principalWire.summary(observed),
+              conditionalSupplemental: conditionalWire.summary(),
             },
             null,
             2,
@@ -400,15 +423,15 @@ it("observes sixteen partial Transactional contracts through packed-capable actu
   expect(observed.result.scenarios).toHaveLength(256); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(16);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(17);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(23);
-  expect(children).toHaveLength(24); // Twenty-three scenario/reopen sessions plus separate bootstrap.
+  expect(observed.sessions).toHaveLength(24);
+  expect(children).toHaveLength(25); // Twenty-four scenario/reopen sessions plus separate bootstrap.
   expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
     true,
   );
   expect(observed.result.declarations).toMatchObject({
-    exactConfigurationDigest: "9a9404e74dd41fcb39b9c3bb5fc86917ff972dfdbc95faa5f53d13b35bb60bec",
+    exactConfigurationDigest: "5a32a664575b83fe55ea3b73b617fc738aefffd56d83affdf66a61d7fd8100e5",
   });
   const dynamic = observed.result.scenarios
     .flatMap((s) => s.exchanges)
@@ -600,12 +623,13 @@ it("observes sixteen partial Transactional contracts through packed-capable actu
   assertCommandMinimumPositive(observed, minimumWire);
   assertMemberPositive(observed, memberWire);
   assertPrincipalPositive(observed, principalWire);
-  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(220);
+  conditionalWire.finish(observed, true);
+  expect(observed.result.scenarios.reduce((n, row) => n + row.exchanges.length, 0)).toBe(234);
   expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
     JSON.stringify({
-      // Predecessor logs retain installed-tx-twelve/thirteen/fourteen-partial-summary.
-      kind: "installed-tx-sixteen-partial-summary",
+      // Predecessor logs retain installed-tx-twelve/thirteen/fourteen/sixteen-partial-summary.
+      kind: "installed-tx-seventeen-partial-summary",
       sourceCommit,
       elapsedMs: performance.now() - started,
       actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
@@ -1374,6 +1398,7 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
   const redirected = minimumReplayLedger.map((pair) => [...pair]);
   redirected[0]![1] = "m-create-b";
   expect(() => assertMinimumReplayLedger(redirected)).toThrow("minimum-replay-comparison-ledger");
+  // Previous principal route digest: 9a9404e74dd41fcb39b9c3bb5fc86917ff972dfdbc95faa5f53d13b35bb60bec.
   // Previous command-minimum route order: 02dd7d9f35e7482c07ce1550a6572232cc48ba6858cd66f8dfc8f5384f3628be.
   // Previous fifteen-route order: a9a17908b6fa87674d5f573b584f4a1ce1d41d7909fadf48b65e9b05397ddfd4.
   // Previous twelve-route digest: 1ba7cbbffc4fb40df2c3f12640bc636e70076cfa25bdd6952b83ec1bb1fe0035.
@@ -1399,14 +1424,17 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
       { method: "POST", url: `${scope}operations/delete-where` },
+      { method: "HEAD", url: `${scope}beads/a` },
+      { method: "GET", url: `${scope}beads/missing` },
+      { method: "HEAD", url: `${scope}beads/missing` },
     ],
     scope,
   });
   expect(createHash("sha256").update(preimage).digest("hex")).toBe(
-    "9a9404e74dd41fcb39b9c3bb5fc86917ff972dfdbc95faa5f53d13b35bb60bec",
+    "5a32a664575b83fe55ea3b73b617fc738aefffd56d83affdf66a61d7fd8100e5",
   );
-  expect(Buffer.byteLength(preimage)).toBe(1228);
-  // The reordered first use must not grant or remove any old route authority.
+  expect(Buffer.byteLength(preimage)).toBe(1434);
+  // Preserve every old route and grant only the three explicitly authored new pairs.
   const oldRoutes = [
     { method: "GET", url: `${scope}beads/a` },
     { method: "POST", url: `${scope}operations/batch` },
@@ -1427,7 +1455,16 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
   const routeKey = (route: { method: string; url: string }) => `${route.method} ${route.url}`;
   expect(
     (JSON.parse(preimage).routes as { method: string; url: string }[]).map(routeKey).sort(),
-  ).toEqual(oldRoutes.map(routeKey).sort());
+  ).toEqual(
+    [
+      ...oldRoutes,
+      { method: "HEAD", url: `${scope}beads/a` },
+      { method: "GET", url: `${scope}beads/missing` },
+      { method: "HEAD", url: `${scope}beads/missing` },
+    ]
+      .map(routeKey)
+      .sort(),
+  );
   const row = bundle.manifest.scenarios.find((r) => r.id === "transactional.batch.no-op-entries")!;
   expect(row.actions!.map((a) => a.id)).toEqual([
     "n-seed",
@@ -1502,9 +1539,9 @@ it.each(["bead-property", "link-metadata", "group-inventory-and-head"] as const)
       expect([...failed].sort()).toEqual([...intended].sort());
     expect(row.exchanges.at(-1)!.request.id).toBe(actionId);
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(24);
+    expect(children.length).toBeLessThanOrEqual(25);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBeLessThanOrEqual(control === "group-inventory-and-head" ? 214 : 209);
+    expect(exchanges).toBeLessThanOrEqual(control === "group-inventory-and-head" ? 228 : 223);
     for (const later of observed.result.scenarios.filter(
       (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
     ))
@@ -1755,8 +1792,8 @@ it("pins deletion-safety derivative carriers, complete positives, and measured s
     }
     // Historical root-accepted maximum701716B/18263nodes plus4096B/64nodes.
     // Command-minimum measured maximum756707B/19731nodes plus4096B/64nodes.
-    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(847979);
-    expect(nodes).toBeLessThanOrEqual(22128);
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(891310);
+    expect(nodes).toBeLessThanOrEqual(23346);
     const loaded = createCumulativeTransactionalArtifactBundle(
       loadProfileContractSelection("transactional"),
       { fixture: fixtureSource, manifest: { bytes: Buffer.from(wire) } },
@@ -1839,10 +1876,10 @@ it.each(deletionControlNames)(
       );
     }
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-    expect(children.length).toBeLessThanOrEqual(24);
+    expect(children.length).toBeLessThanOrEqual(25);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
     expect(exchanges).toBeLessThanOrEqual(
-      control === "incoming-order" ? 204 : control === "outgoing-order" ? 209 : 205,
+      control === "incoming-order" ? 218 : control === "outgoing-order" ? 223 : 219,
     );
     for (const later of observed.result.scenarios.filter(
       (r) => bundle.manifest.scenarios.some((p) => p.id === r.id) && r.id !== row.id,
@@ -2166,8 +2203,8 @@ function assertCrossCarrierControls() {
     // Historical measurement-only derivative guards were650386B/17275nodes.
     // Historical root-accepted maximum701716B/18263nodes plus4096B/64nodes.
     // Command-minimum measured maximum756707B/19731nodes plus4096B/64nodes.
-    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(847979);
-    expect(nodes).toBeLessThanOrEqual(22128);
+    expect(Buffer.byteLength(normal)).toBeLessThanOrEqual(891310);
+    expect(nodes).toBeLessThanOrEqual(23346);
     const loaded = createCumulativeTransactionalArtifactBundle(
       loadProfileContractSelection("transactional"),
       { fixture: fixtureSource, manifest: { bytes: Buffer.from(JSON.stringify(changed)) } },
@@ -2206,15 +2243,17 @@ it.each(crossCarrierControls)(
       wire = crossCarrierWire(control),
       minimumWire = commandMinimumWire(),
       memberWire = sequenceMemberWire(),
-      principalWire = principalNamespaceWire();
+      principalWire = principalNamespaceWire(),
+      conditionalWire = conditionalReadWire();
+    const conditionalRouting = conditionalScenarioWire(
+      conditionalWire,
+      principalWire.onDispatch,
+      withPrincipalWire(principalWire, composedMemberWire(wire, minimumWire, memberWire)),
+    );
     let description: ReturnType<typeof applyCrossCarrierControl> | undefined;
     const observed = await observe({
       children,
-      onDispatch: principalWire.onDispatch,
-      afterExchange: withPrincipalWire(
-        principalWire,
-        composedMemberWire(wire, minimumWire, memberWire),
-      ),
+      ...conditionalRouting,
       onObserved(observed) {
         if (process.env.BDP_TRANSACTIONAL_CROSS_CARRIER_CONTROL_OUTPUT)
           writeFileSync(
@@ -2225,6 +2264,7 @@ it.each(crossCarrierControls)(
                 entry,
                 ...observed,
                 principalSupplemental: principalWire.summary(observed),
+                conditionalSupplemental: conditionalWire.summary(),
               },
               null,
               2,
@@ -2270,10 +2310,11 @@ it.each(crossCarrierControls)(
     assertCommandMinimumPositive(observed, minimumWire);
     assertMemberPositive(observed, memberWire);
     assertPrincipalPositive(observed, principalWire);
-    expect(children).toHaveLength(24);
+    conditionalWire.finish(observed, true);
+    expect(children).toHaveLength(25);
     expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
     const exchanges = observed.result.scenarios.reduce((n, r) => n + r.exchanges.length, 0);
-    expect(exchanges).toBe(control === "batch-semantic-conflict" ? 211 : 212);
+    expect(exchanges).toBe(control === "batch-semantic-conflict" ? 225 : 226);
     console.log(
       JSON.stringify({
         kind: "installed-tx-cross-carrier-control",
@@ -4133,3 +4174,518 @@ it("discriminates principal isolation against a separately bound collapsed names
     }),
   );
 }, 120000);
+
+const conditionalId = "transactional.http.conditional-reads";
+const conditionalParentScenarioIds = [
+  "read-update.idempotency.principal-isolation",
+  "read-update.http.command-minimum-fields",
+  "transactional.batch.atomic-commit",
+  "transactional.batch.rollback",
+  "transactional.batch.deletion-safety",
+  "transactional.batch.no-op-entries",
+  "transactional.set.mutation",
+  "transactional.set.zero-match",
+  "transactional.set.cardinality",
+  "transactional.set.singleton-targets",
+  "transactional.receipt.readable",
+  "transactional.receipt.pagination",
+  "transactional.idempotency.conflict",
+  "transactional.idempotency.cross-carrier",
+  "transactional.idempotency.failed-retained",
+  "transactional.sequence.member-transactions",
+] as const;
+const conditionalFalseTag = '"conditional-no-match"';
+const conditionalSeed =
+  '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"before"}}]}';
+const conditionalUpdate =
+  '{"operations":[{"operation":"updateBead","bead":"beads/a","propertiesChange":[{"op":"replace","path":"/title","value":"after"}]}]}';
+const conditionalActionIds = [
+  "seed",
+  "initial-get",
+  "initial-head",
+  "conditional-get",
+  "conditional-head",
+  "mismatch-get",
+  "mismatch-head",
+  "anonymous-get",
+  "anonymous-head",
+  "missing-get",
+  "missing-head",
+  "update",
+  "current-get",
+  "current-head",
+] as const;
+function conditionalRequests(control = false) {
+  const statuses = [
+    200,
+    200,
+    200,
+    control ? 200 : 304,
+    304,
+    412,
+    412,
+    401,
+    401,
+    404,
+    404,
+    200,
+    200,
+    200,
+  ];
+  return conditionalActionIds.map((action, i) => {
+    const post = i === 0 || i === 11;
+    const body = i === 0 ? conditionalSeed : i === 11 ? conditionalUpdate : undefined;
+    const headerLines = [{ name: "accept", value: "application/json" }];
+    if (post)
+      headerLines.push(
+        { name: "content-type", value: "application/json" },
+        { name: "idempotency-key", value: i === 0 ? "conditional-seed" : "conditional-update" },
+      );
+    if ([3, 4, 7, 8, 9, 10].includes(i))
+      headerLines.push({
+        name: "if-none-match",
+        value: control && i === 3 ? conditionalFalseTag : "*",
+      });
+    if (i === 5 || i === 6) headerLines.push({ name: "if-match", value: conditionalFalseTag });
+    return {
+      action,
+      method: post
+        ? ("POST" as const)
+        : action.endsWith("head")
+          ? ("HEAD" as const)
+          : ("GET" as const),
+      url: `${scope}${post ? "operations/batch" : i === 9 || i === 10 ? "beads/missing" : "beads/a"}`,
+      credentialRef: i === 7 || i === 8 ? "anonymous" : "operator",
+      headerLines,
+      body,
+      status: statuses[i]!,
+      bodyBytes: body === undefined ? 0 : Buffer.byteLength(body),
+      bodyDigest: body === undefined ? undefined : createHash("sha256").update(body).digest("hex"),
+    };
+  });
+}
+const conditionalMetadata = [
+  "bdp-scope-epoch",
+  "bdp-authorization-view",
+  "bdp-scope-position",
+  "cache-control",
+  "etag",
+  "content-type",
+  "content-length",
+  "vary",
+] as const;
+/** Independent shallow full-body oracle, with original serialized request evidence.
+ * Neither effectiveRequest nor credential-bearing runtime configuration is retained. */
+function conditionalReadWire(control = false) {
+  const literals = conditionalRequests(control),
+    maximum = control ? 4 : 14;
+  const dispatches: PrincipalDispatchInput[] = [];
+  const responses: {
+    action: string;
+    status: number;
+    bodyBytes: number;
+    bodyDigest: string;
+    headers: Record<string, string>;
+    requestBodyBytes: number;
+    requestBodyDigest: string | undefined;
+    writeState: "complete";
+  }[] = [];
+  const resources: Record<string, unknown>[] = [],
+    receipts: Record<string, unknown>[] = [];
+  const validator = createJsonSchemaValidator(schema);
+  let epoch: string | undefined, view: string | undefined, initialTag: string | undefined;
+  let session: ObservationSession | undefined;
+  function observeSession(current: ObservationSession) {
+    expect(current.scenario).toBe(conditionalId);
+    expect(current.reopen).toBe(false);
+    expect(Number.isSafeInteger(current.sessionOrdinal)).toBe(true);
+    expect(current.sessionOrdinal).toBeGreaterThanOrEqual(0);
+    if (session === undefined) session = current;
+    else expect(current).toBe(session);
+  }
+  function record(value: unknown): Record<string, unknown> {
+    expect(value).not.toBeNull();
+    expect(typeof value).toBe("object");
+    expect(Array.isArray(value)).toBe(false);
+    return value as Record<string, unknown>;
+  }
+  function nonempty(value: unknown): string {
+    expect(typeof value).toBe("string");
+    expect(value).not.toBe("");
+    return value as string;
+  }
+  return {
+    onDispatch(input: PrincipalDispatchInput, current: ObservationSession) {
+      observeSession(current);
+      expect(dispatches.length).toBeLessThan(maximum);
+      expect(dispatches.length).toBe(responses.length);
+      const literal = literals[dispatches.length]!;
+      expect(input).toEqual({
+        method: literal.method,
+        url: literal.url,
+        credentialRef: literal.credentialRef,
+      });
+      dispatches.push(
+        Object.freeze({ method: input.method, url: input.url, credentialRef: input.credentialRef }),
+      );
+    },
+    async afterExchange(
+      response: HttpExchangeResponse,
+      _signal: AbortSignal,
+      current: ObservationSession,
+    ) {
+      observeSession(current);
+      const i = responses.length,
+        literal = literals[i]!;
+      expect(i).toBeLessThan(maximum);
+      expect(dispatches).toHaveLength(i + 1);
+      const exact = response.exactRequest;
+      expect(response.url).toBe(literal.url);
+      expect(exact?.source).toBe("raw-http1-serializer");
+      expect(exact?.writeState).toBe("complete");
+      expect(exact!.headerLines.slice(0, literal.headerLines.length)).toEqual(literal.headerLines);
+      expect(
+        exact!.headerLines
+          .slice(literal.headerLines.length)
+          .some((h) => h.name.toLowerCase().startsWith("bdp-")),
+      ).toBe(false);
+      expect(exact!.bodyPresent).toBe(literal.body !== undefined);
+      expect(exact!.bodyOctets).toBe(literal.bodyBytes);
+      expect(exact!.bodyDigest).toBe(literal.bodyDigest);
+      expect(response.status).toBe(literal.status);
+      const bytes = Buffer.byteLength(response.bodyText);
+      expect(response.bodyOctets).toBe(bytes);
+      expect(bytes).toBeLessThanOrEqual(8192);
+      expect(response.wireResponseBytes).toBeDefined();
+      expect(response.headers["cache-control"]).toBe("private, no-store");
+      // Reference-only: authentication refusals occur before Scope observation.
+      // Their context absence is not a portable 401 requirement.
+      const anonymous = i === 7 || i === 8;
+      const position = i >= 11 ? "pos-2" : "pos-1";
+      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+        if (anonymous) expect(response.headers[name]).toBeUndefined();
+        else nonempty(response.headers[name]);
+      if (!anonymous) {
+        if (i === 0) {
+          epoch = response.headers["bdp-scope-epoch"];
+          view = response.headers["bdp-authorization-view"];
+        }
+        expect(response.headers["bdp-scope-epoch"]).toBe(epoch);
+        expect(response.headers["bdp-authorization-view"]).toBe(view);
+        expect(response.headers["bdp-scope-position"]).toBe(position);
+      }
+      if (literal.method === "HEAD") {
+        expect(response.bodyText).toBe("");
+        const get = responses[i - 1]!;
+        expect(response.status).toBe(get.status);
+        for (const name of conditionalMetadata) {
+          const actual = response.headers[name];
+          if (actual === undefined && ["content-length", "content-type", "vary"].includes(name))
+            continue;
+          expect(actual, `${literal.action}:${name}`).toBe(get.headers[name]);
+        }
+        if (
+          response.headers["content-length"] !== undefined &&
+          ![304, 412].includes(response.status)
+        )
+          expect(response.headers["content-length"]).toBe(String(get.bodyBytes));
+      } else if (response.status === 304 || response.status === 412) {
+        expect(response.bodyText).toBe("");
+        expect(response.headers["content-type"]).toBeUndefined();
+        if (response.status === 412) expect(response.headers["content-length"]).toBe("0");
+      } else if (i === 0 || i === 11) {
+        expect(response.headers["content-type"]).toBe("application/json");
+        const body = record(JSON.parse(response.bodyText));
+        expect(validator.validate("#/$defs/mutationReceipt", body)).toEqual([]);
+        expect(Array.isArray(body.results)).toBe(true);
+        const results = body.results as unknown[];
+        expect(results).toHaveLength(1);
+        const resource = record(record(results[0]).resource);
+        const revision = nonempty(resource.revision);
+        expect(validator.validate("#/$defs/beadRecord", resource)).toEqual([]);
+        expect(resource).toStrictEqual({
+          id: `${scope}beads/a`,
+          type: `${scope}types/task`,
+          revision,
+          properties: { title: i === 0 ? "before" : "after" },
+          metadata: {},
+        });
+        expect(results).toStrictEqual([
+          { operationIndex: 0, outcome: i === 0 ? "created" : "updated", resource },
+        ]);
+        const id = nonempty(body.id),
+          parsed = new URL(id),
+          prefix = `${scope}receipts/`;
+        expect(parsed.href).toBe(id);
+        expect([parsed.username, parsed.password, parsed.search, parsed.hash]).toEqual([
+          "",
+          "",
+          "",
+          "",
+        ]);
+        expect(id.startsWith(prefix)).toBe(true);
+        expect(/^[A-Za-z0-9_-]+$/.test(id.slice(prefix.length))).toBe(true);
+        nonempty(body.transaction);
+        nonempty(body.expiresAt);
+        expect(Number.isFinite(Date.parse(body.expiresAt as string))).toBe(true);
+        expect(body).toStrictEqual({
+          id,
+          status: "completed",
+          detail: "available",
+          idempotencyKey: i === 0 ? "conditional-seed" : "conditional-update",
+          scopeEpoch: epoch,
+          authorizationView: view,
+          transaction: body.transaction,
+          requiredPosition: position,
+          effectPosition: position,
+          results,
+          next: null,
+          expiresAt: body.expiresAt,
+        });
+        if (i === 11) {
+          expect(resource.revision).not.toBe(resources[0]!.revision);
+          expect(body.transaction).not.toBe(receipts[0]!.transaction);
+          expect(body.id).not.toBe(receipts[0]!.id);
+        }
+        resources.push(resource);
+        receipts.push(body);
+      } else if (response.status === 200) {
+        expect(response.headers["content-type"]).toBe("application/json");
+        const body = record(JSON.parse(response.bodyText));
+        expect(validator.validate("#/$defs/currentBeadRecord", body)).toEqual([]);
+        expect(body).toStrictEqual(resources[i === 12 ? 1 : 0]);
+        const revision = nonempty(body.revision);
+        // This fixture's generated revisions are ASCII opaque tokens. Assert the
+        // domain before independently requiring the corresponding quoted ETag.
+        expect(/^[A-Za-z0-9_-]+$/.test(revision)).toBe(true);
+        expect(response.headers.etag).toBe(`"${revision}"`);
+        if (i === 1) {
+          initialTag = response.headers.etag;
+          expect(initialTag).not.toBe(conditionalFalseTag);
+        }
+        // App-only before/after comparison; portable 304 checks use observed equality.
+        if (i === 12) expect(response.headers.etag).not.toBe(initialTag);
+      } else {
+        expect([7, 9]).toContain(i);
+        expect(response.headers["content-type"]).toBe("application/problem+json");
+        const body = record(JSON.parse(response.bodyText));
+        expect(validator.validate("#/$defs/readProblem", body)).toEqual([]);
+        expect(body).toStrictEqual({
+          type: `https://github.com/gastownhall/bdp/problems/${anonymous ? "authentication" : "not-found"}`,
+          code: anonymous ? "unauthenticated" : "resource-not-found",
+          status: anonymous ? 401 : 404,
+          retry: "after-state-change",
+        });
+      }
+      if (anonymous)
+        expect(response.headers["www-authenticate"]).toBe(
+          'Bearer realm="bdp-transaction-development"',
+        );
+      if (i >= 2 && i <= 6) expect(response.headers.etag).toBe(initialTag);
+      if (i === 3) expect(initialTag).not.toBe(conditionalFalseTag);
+      const headers: Record<string, string> = {};
+      for (const name of [...conditionalMetadata, "www-authenticate"])
+        if (response.headers[name] !== undefined) headers[name] = response.headers[name]!;
+      responses.push({
+        action: literal.action,
+        status: response.status,
+        bodyBytes: bytes,
+        bodyDigest: createHash("sha256").update(response.bodyText).digest("hex"),
+        headers,
+        requestBodyBytes: exact!.bodyOctets,
+        requestBodyDigest: exact!.bodyDigest,
+        writeState: "complete",
+      });
+    },
+    finish(observed: InstalledObservation, fullCohort = false) {
+      expect(session).toBeDefined();
+      expect(observed.sessions[session!.sessionOrdinal]).toMatchObject(session!);
+      const conditionalSessions = observed.sessions.filter((s) => s.scenario === conditionalId);
+      expect(conditionalSessions).toHaveLength(1);
+      expect(conditionalSessions[0]).toBe(observed.sessions[session!.sessionOrdinal]);
+      if (fullCohort) {
+        expect(observed.sessions.filter((s) => s.reopen === false).map((s) => s.scenario)).toEqual([
+          ...conditionalParentScenarioIds,
+          conditionalId,
+        ]);
+        expect(session!.sessionOrdinal).toBe(observed.sessions.length - 1);
+        expect(
+          observed.sessions
+            .slice(0, session!.sessionOrdinal)
+            .every((s) =>
+              conditionalParentScenarioIds.includes(
+                s.scenario as (typeof conditionalParentScenarioIds)[number],
+              ),
+            ),
+        ).toBe(true);
+      } else {
+        expect(session!.sessionOrdinal).toBe(0);
+        expect(observed.sessions).toHaveLength(1);
+      }
+      expect(dispatches).toHaveLength(maximum);
+      expect(responses).toHaveLength(maximum);
+      const row = observed.result.scenarios.find((r) => r.id === conditionalId)!;
+      expect(row.prerequisiteFailure).toBeUndefined();
+      expect(row.cleanupError).toBeUndefined();
+      expect(row.actions ?? []).toHaveLength(0);
+      expect(row.exchanges.map((e) => e.request.id)).toEqual(
+        conditionalActionIds.slice(0, maximum),
+      );
+      const failures: string[] = [];
+      for (const [i, exchange] of row.exchanges.entries()) {
+        expect(exchange.transportError).toBeUndefined();
+        expect(exchange.harnessError).toBeUndefined();
+        expect(exchange.request.method).toBe(literals[i]!.method);
+        expect(exchange.request.url).toBe(literals[i]!.url);
+        expect(exchange.request.exact?.writeState).toBe("complete");
+        expect(exchange.response?.status).toBe(responses[i]!.status);
+        expect(exchange.assertions.map((a) => a.id)).toEqual(
+          bundle.manifest.scenarios
+            .find((r) => r.id === conditionalId)!
+            .actions!.find((a) => a.id === conditionalActionIds[i])!
+            .assertions.map((a) => a.id),
+        );
+        failures.push(
+          ...exchange.assertions
+            .filter((a) => !a.passed)
+            .map((a) => `${exchange.request.id}:${a.id}`),
+        );
+      }
+      expect(row.state).toBe(control ? "fail" : "pass");
+      expect(failures).toEqual(
+        control ? ["conditional-get:status", "conditional-get:body-absent"] : [],
+      );
+    },
+    summary() {
+      return {
+        mode: control ? "nonmatching-if-none-match" : "positive",
+        session,
+        dispatches,
+        responses,
+        expectedExchanges: maximum,
+        provenance:
+          "authored credential handles and actual completed raw request fingerprints; safe response metadata and body digests; full report joined by action order; no wire credential attestation",
+      };
+    },
+  };
+}
+/** Route only the actual launched conditional session to the new observer. */
+function conditionalScenarioWire(
+  conditional: ReturnType<typeof conditionalReadWire>,
+  oldDispatch?: (request: PrincipalDispatchInput) => void,
+  oldAfterExchange?: (response: HttpExchangeResponse) => Promise<void>,
+) {
+  return {
+    onDispatch(input: PrincipalDispatchInput, session: ObservationSession) {
+      if (session.scenario === conditionalId) conditional.onDispatch(input, session);
+      else {
+        if (!oldDispatch) throw new Error("unexpected nonconditional dispatch");
+        oldDispatch(input);
+      }
+    },
+    async afterExchange(
+      response: HttpExchangeResponse,
+      signal: AbortSignal,
+      session: ObservationSession,
+    ) {
+      if (session.scenario === conditionalId)
+        await conditional.afterExchange(response, signal, session);
+      else {
+        if (!oldAfterExchange) throw new Error("unexpected nonconditional response");
+        await oldAfterExchange(response);
+      }
+    },
+  };
+}
+function applyConditionalControl(value: {
+  scenarios: { id: string; actions: Record<string, unknown>[] }[];
+}) {
+  const row = value.scenarios.find((r) => r.id === conditionalId)!;
+  const action = row.actions.find((a) => a.id === "conditional-get")!;
+  const raw = action.raw as { headerLines: { name: string; value: string }[] };
+  const matches = raw.headerLines.filter((h) => h.name === "if-none-match");
+  expect(matches).toHaveLength(1);
+  expect(matches[0]!.value).toBe("*");
+  matches[0]!.value = conditionalFalseTag;
+}
+it("pins conditional raw literals, request order and the sole header control", () => {
+  const literals = conditionalRequests();
+  expect(literals.map((r) => r.bodyBytes)).toEqual([141, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 130, 0, 0]);
+  expect([literals[0]!.bodyDigest, literals[11]!.bodyDigest]).toEqual([
+    "d63bac5f6ec230f2b2420b3c0b64ff21dd4fc6d9a8bdf616353d48e35a91d7ae",
+    "c86a262f896fd4b357050b2b952e8d9992aa5b98f4a5d60f1f6f793040770e20",
+  ]);
+  const canonical = JSON.parse(manifestSource.bytes.toString());
+  const row = canonical.scenarios.find((r: { id: string }) => r.id === conditionalId)!;
+  expect(row.id).toBe(conditionalId);
+  expect(row.actions.map((a: { id: string }) => a.id)).toEqual(conditionalActionIds);
+  for (const literal of literals) {
+    const action = row.actions.find((a: { id: string }) => a.id === literal.action)!;
+    expect(action.id).toBe(literal.action);
+    expect(action.method).toBe(literal.method);
+    expect(action.credentialRef).toBe(literal.credentialRef);
+    expect(action.raw).toEqual({
+      headerLines: literal.headerLines,
+      ...(literal.body === undefined ? {} : { body: { encoding: "utf8", value: literal.body } }),
+    });
+  }
+  const changed = structuredClone(canonical);
+  applyConditionalControl(changed);
+  const changedHeader = changed.scenarios
+    .find((r: { id: string }) => r.id === conditionalId)!
+    .actions.find((a: { id: string }) => a.id === "conditional-get")!
+    .raw.headerLines.find((h: { name: string }) => h.name === "if-none-match")!;
+  expect(changedHeader).toEqual({ name: "if-none-match", value: conditionalFalseTag });
+  changedHeader.value = "*";
+  expect(changed).toEqual(canonical);
+});
+it.each([false, true])(
+  "observes partial Transactional conditional reads and HEAD after mutation (control %s)",
+  async (control) => {
+    const output = process.env.BDP_TRANSACTIONAL_CONDITIONAL_OUTPUT;
+    if (output !== undefined && (!path.isAbsolute(output) || output.length > 4096))
+      throw new Error("absolute conditional observation output required");
+    const children: ChildProcess[] = [],
+      wire = conditionalReadWire(control);
+    const observed = await observe({
+      children,
+      scenarioSelection: [conditionalId],
+      ...conditionalScenarioWire(wire),
+      ...(control ? { manifest: applyConditionalControl } : {}),
+      onObserved(observed) {
+        if (output)
+          writeFileSync(
+            output,
+            JSON.stringify(
+              { sourceCommit, entry, ...observed, conditionalSupplemental: wire.summary() },
+              null,
+              2,
+            ) + "\n",
+          );
+      },
+    });
+    expect(observed.result.selectedScenarioIds).toEqual([conditionalId]);
+    expect(observed.result.scenarios).toHaveLength(1);
+    expect(observed.result.claimEligible).toBe(false);
+    wire.finish(observed);
+    expect(observed.sessions).toHaveLength(1);
+    expect(children).toHaveLength(2);
+    expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
+    if (control)
+      expect(observed.result.artifacts.manifestDigest).not.toBe(bundle.digests.manifestDigest);
+    else expect(observed.result.artifacts.manifestDigest).toBe(bundle.digests.manifestDigest);
+    console.log(
+      JSON.stringify({
+        kind: "installed-tx-conditional",
+        sourceCommit,
+        control,
+        exchanges: control ? 4 : 14,
+        childLaunches: children.length,
+        closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
+        conditionalSupplemental: wire.summary(),
+        claimEligible: false,
+      }),
+    );
+  },
+  120000,
+);

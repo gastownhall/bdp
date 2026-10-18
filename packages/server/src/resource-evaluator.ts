@@ -1,3 +1,4 @@
+import { jsonValueEqual } from "./json-value-equality.js";
 import {
   type RevisionActor,
   type BeadRecord,
@@ -379,33 +380,6 @@ function storedRecord(stored: EvaluatorStoredResource, scope: string): ResourceR
   return record;
 }
 
-/** An iterative RFC6902 value comparison over already-admitted numbers. */
-function equal(left: unknown, right: unknown): boolean {
-  const pending: Array<readonly [unknown, unknown]> = [[left, right]];
-  while (pending.length) {
-    const pair = pending.pop();
-    if (!pair) break;
-    const [a, b] = pair;
-    if (a === b) continue;
-    if (
-      !a ||
-      !b ||
-      typeof a !== "object" ||
-      typeof b !== "object" ||
-      Array.isArray(a) !== Array.isArray(b)
-    )
-      return false;
-    const aa = a as Record<string, unknown>;
-    const bb = b as Record<string, unknown>;
-    const keys = Object.keys(aa);
-    if (keys.length !== Object.keys(bb).length) return false;
-    for (const key of keys) {
-      if (!Object.hasOwn(bb, key)) return false;
-      pending.push([aa[key], bb[key]]);
-    }
-  }
-  return true;
-}
 function copy(value: unknown): unknown {
   if (value === null || typeof value !== "object") return value;
   const result: unknown[] | Record<string, unknown> = Array.isArray(value)
@@ -862,8 +836,8 @@ function evaluate(
   const noOp =
     !creating &&
     !deleting &&
-    equal(properties, before?.properties) &&
-    equal(commonMetadata, before?.metadata ?? {});
+    jsonValueEqual(properties, before?.properties) &&
+    jsonValueEqual(commonMetadata, before?.metadata ?? {});
   const contextInput = "revisionProvenance" in input ? input.revisionProvenance : undefined;
   // Protocol defaults: omitted and {} both carry only undetermined states.
   const needsContext =

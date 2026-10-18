@@ -7,6 +7,8 @@ import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { expect, it } from "vitest";
+import { Ajv2020 } from "ajv/dist/2020.js";
+import { isJsonSchemaDateTime, isJsonSchemaUri } from "@bdp/protocol";
 import { createRawHttpExchangeExecutor } from "@bdp/conformance";
 import { recordRawSse } from "@bdp/server/testing";
 import { installedTransactionBinding } from "../test-support/transactional-execution-binding.js";
@@ -313,4 +315,742 @@ it("installed Scope/Bead/Link Event SSE matches finite bytes and sparse Bead sur
   if (failures.length)
     throw new AggregateError(failures, "installed SSE observation or cleanup failed");
   console.log(JSON.stringify(report));
+}, 60000);
+
+it("installed Event cursors survive restart with Last-Event-ID precedence and source binding", async () => {
+  // The full suite executes this same witness locally; only externally bound artifacts
+  // can supply installed attribution. A declared source string alone proves no provenance.
+  const entryOverride = process.env.BDP_TRANSACTIONAL_INSTALLED_ENTRY;
+  const sourceOverride = process.env.BDP_TRANSACTIONAL_SOURCE_COMMIT;
+  const hasEntryOverride = entryOverride !== undefined;
+  const hasSourceOverride = sourceOverride !== undefined;
+  if (hasEntryOverride !== hasSourceOverride)
+    throw new Error("Event restart overrides must include both installed entry and source");
+  expect(source).toMatch(/^[0-9a-f]{40}$/);
+  const attribution = hasEntryOverride ? "external-installed-candidate" : "development-local";
+  if (hasEntryOverride) {
+    if (!entryOverride || !sourceOverride || !/^[0-9a-f]{40}$/.test(sourceOverride))
+      throw new Error(
+        "Event restart installed overrides must be nonempty and source must be a commit",
+      );
+    const installedRelative = path.relative(realpathSync(root), entry);
+    if (!installedRelative.startsWith(`..${path.sep}`) && !path.isAbsolute(installedRelative))
+      throw new Error("Event restart installed attribution requires an external entry");
+  }
+  const hash = (value: string | Uint8Array) => createHash("sha256").update(value).digest("hex");
+  const witnessPath = fileURLToPath(import.meta.url);
+  const witnessSource = {
+    fingerprintScope:
+      "witness file bytes and tracked working-tree diff only; excludes untracked inputs and installed payload provenance",
+    head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+    fileSha256: hash(readFileSync(witnessPath)),
+    diffSha256: hash(execFileSync("git", ["diff", "HEAD"], { cwd: root })),
+    dirtyPaths: execFileSync("git", ["diff", "--name-only", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    })
+      .trim()
+      .split("\n")
+      .filter(Boolean),
+  };
+  const controller = new AbortController();
+  const started = performance.now(),
+    workEnd = started + 45000;
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-event-restart-installed-"));
+  const token = randomBytes(32).toString("base64url");
+  function safeFailureMessage(error: unknown): string {
+    return (error instanceof Error ? error.message : "non-Error failure").replaceAll(
+      token,
+      "[credential redacted]",
+    );
+  }
+  const configuration = {
+    scope,
+    directory,
+    create: true,
+    artifacts,
+    credentials: [{ token, principal: "writer", canMutate: true }],
+  };
+  const seedKey = "event-restart-two-created-v1";
+  const seedBytes = Buffer.from(
+    JSON.stringify({
+      operations: ["a", "b"].map((id) => ({
+        operation: "createBead",
+        id: `beads/${id}`,
+        type,
+        properties: { n: 0 },
+      })),
+    }),
+  );
+  type Handle = Awaited<ReturnType<typeof launchInstalledTransaction>>;
+  type Session = {
+    ordinal: number;
+    create: boolean;
+    state: "launching" | "owned" | "unknown-no-handle";
+    handle?: Handle;
+    pid?: number | undefined;
+    listenUrl?: string | undefined;
+    binding?: ReturnType<typeof installedTransactionBinding>;
+    exit?: { code: number | null; signal: NodeJS.Signals | null };
+    closing?: Promise<void>;
+    closed: boolean;
+    stopUnknown: boolean;
+  };
+  const sessions: Session[] = [];
+  const failures: { phase: string; error: unknown }[] = [];
+  const pending = new Set<Promise<unknown>>();
+  const localSensitivityControls: string[] = [];
+  const requests: { ordinal: number; session: number; method: string; target: string }[] = [];
+  const responses: unknown[] = [];
+  let phase = "setup",
+    cleanupStarted = false,
+    abortedForCleanup = false,
+    removed = false;
+  let binding: ReturnType<typeof installedTransactionBinding> | undefined;
+  let epoch: string | undefined;
+  let events: Record<string, unknown>[] = [];
+  let sseEvidence: unknown;
+  let stream:
+    | {
+        recorder: ReturnType<typeof recordRawSse>;
+        closing?: Promise<void>;
+        drained: boolean;
+      }
+    | undefined;
+  function track<T>(promise: Promise<T>): Promise<T> {
+    pending.add(promise);
+    // Both handlers are attached before any race; even a late failure is observed.
+    void promise.then(
+      () => pending.delete(promise),
+      () => pending.delete(promise),
+    );
+    return promise;
+  }
+  function closeStream(): Promise<void> {
+    if (!stream) return Promise.resolve();
+    const owned = stream;
+    owned.closing ??= track(
+      owned.recorder.close().then(() => {
+        owned.drained = true;
+      }),
+    );
+    return owned.closing;
+  }
+  function closeSession(session: Session): Promise<void> {
+    if (!session.handle) {
+      session.stopUnknown = true;
+      return Promise.reject(new Error("no returned child handle; stop unknown"));
+    }
+    const handle = session.handle;
+    session.closing ??= track(
+      handle.close().then(() => {
+        session.exit = { code: handle.child.exitCode, signal: handle.child.signalCode };
+        if (session.exit.code !== 0 || session.exit.signal !== null)
+          throw new Error("child normal exit not established");
+        session.closed = true;
+      }),
+    );
+    return session.closing;
+  }
+  const workTimer = setTimeout(() => {
+    // Initiate socket stop before abort causes the launcher's automatic child stop.
+    void closeStream().catch(() => {});
+    controller.abort(new Error("Event restart work deadline"));
+  }, 45000);
+  async function bounded<T>(promise: Promise<T>, end: number, label: string): Promise<T> {
+    track(promise);
+    const remaining = end - performance.now();
+    if (remaining <= 0) throw new Error(`${label}: deadline exhausted`);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`${label}: deadline`)), remaining);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  async function boundedDrain(promise: Promise<void>, end: number, label: string) {
+    // A reporting bound, not evidence that helper kill/drain completed within ten seconds.
+    await bounded(promise, end, label);
+  }
+  function object(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      throw new Error("expected Event witness object");
+    return value as Record<string, unknown>;
+  }
+  function array(value: unknown): unknown[] {
+    if (!Array.isArray(value)) throw new Error("expected Event witness array");
+    return value;
+  }
+  function sameEvent(actual: unknown, expected: unknown) {
+    expect(actual).toEqual(expected);
+  }
+  function frameEvent(frame: string): unknown {
+    const data = frame.split("\n").filter((line) => line.startsWith("data: "));
+    expect(data).toHaveLength(1);
+    return JSON.parse(data[0]!.slice(6));
+  }
+  function sameFrame(frame: string, expected: Record<string, unknown>) {
+    const fields = frame.split("\n");
+    expect(fields.filter((line) => line.startsWith("id: "))).toEqual([`id: ${expected.id}`]);
+    expect(fields.filter((line) => line.startsWith("event: "))).toEqual([
+      `event: ${expected.type}`,
+    ]);
+    sameEvent(frameEvent(frame), expected);
+  }
+  function idFrames(recorder: ReturnType<typeof recordRawSse>) {
+    return recorder.frames.filter((frame) =>
+      frame.split("\n").some((line) => line.startsWith("id: ")),
+    );
+  }
+  function context(headers: Readonly<Record<string, string | undefined>>) {
+    expect(headers["bdp-scope-position"]).toBe("pos-1");
+    expect(headers["bdp-authorization-view"]).toBe("development-all-visible");
+    expect(headers["bdp-scope-epoch"]).toEqual(expect.any(String));
+    expect(headers["bdp-scope-epoch"]?.length).toBeGreaterThan(0);
+    if (epoch === undefined) epoch = headers["bdp-scope-epoch"];
+    else expect(headers["bdp-scope-epoch"]).toBe(epoch);
+  }
+  function beginRequest(session: Session, method: string, target: string) {
+    controller.signal.throwIfAborted();
+    if (cleanupStarted || performance.now() >= workEnd)
+      throw new Error("request outside work budget");
+    if (!session.handle || session.closed || session.closing)
+      throw new Error("request without active owner");
+    expect(requests.length).toBeLessThan(5);
+    requests.push({ ordinal: requests.length + 1, session: session.ordinal, method, target });
+  }
+  try {
+    const ajv = new Ajv2020({ allErrors: true, strict: true });
+    ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
+    ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
+    const bundle = JSON.parse(
+      readFileSync(path.join(root, "specs/profiles/core/bdp-v0.schema.json"), "utf8"),
+    );
+    ajv.addSchema(bundle);
+    const validators = Object.fromEntries(
+      ["mutationReceipt", "currentBeadRecord", "eventPage", "event", "transactionalProblem"].map(
+        (name) => [name, ajv.compile({ $ref: `${bundle.$id}#/$defs/${name}` })] as const,
+      ),
+    );
+    function validate(name: string, value: unknown) {
+      const validator = validators[name];
+      if (!validator) throw new Error("missing Event witness schema");
+      expect(validator(value), JSON.stringify(validator.errors)).toBe(true);
+    }
+    const installedConfiguration = (await bounded(
+      import(
+        pathToFileURL(path.join(path.dirname(entry), "transaction-runtime-configuration.js")).href
+      ),
+      workEnd,
+      "installed configuration import",
+    )) as typeof import("../../../packages/server/src/transaction-runtime-configuration.js");
+    const digest = installedConfiguration.transactionRuntimeDigest;
+    const associations = [
+      {
+        tokenDigest: digest({ revision: "transaction-credential-1", token }),
+        principal: "writer",
+        canMutate: true,
+      },
+    ];
+    const expectedAuthentication = digest({
+      revision: "transaction-authentication-1",
+      scheme: "bearer",
+      associations,
+    });
+    const expectedPolicy = digest({
+      revision: "transaction-policy-1",
+      view: "development-all-visible",
+      read: "all-visible",
+      aggregate: [],
+      associations,
+    });
+    async function launch(create: boolean) {
+      controller.signal.throwIfAborted();
+      if (cleanupStarted || performance.now() >= workEnd)
+        throw new Error("launch outside work budget");
+      if (sessions.length >= 2) throw new Error("extra Event witness launch");
+      const session: Session = {
+        ordinal: sessions.length + 1,
+        create,
+        state: "launching",
+        closed: false,
+        stopUnknown: false,
+      };
+      sessions.push(session);
+      const launching = track(
+        launchInstalledTransaction(entry, { ...configuration, create }, controller.signal).then(
+          (handle) => {
+            session.handle = handle;
+            session.pid = handle.child.pid;
+            session.listenUrl =
+              typeof handle.ready.listenUrl === "string" ? handle.ready.listenUrl : undefined;
+            session.state = "owned";
+            handle.child.once("exit", (code, signal) => {
+              session.exit = { code, signal };
+            });
+            if (handle.child.exitCode !== null || handle.child.signalCode !== null)
+              session.exit = { code: handle.child.exitCode, signal: handle.child.signalCode };
+            if (cleanupStarted || controller.signal.aborted || performance.now() >= workEnd) {
+              session.stopUnknown = true;
+              void closeSession(session).catch(() => {});
+            }
+            return handle;
+          },
+          (error: unknown) => {
+            session.state = "unknown-no-handle";
+            session.stopUnknown = true;
+            throw error;
+          },
+        ),
+      );
+      let handle: Handle;
+      try {
+        handle = await bounded(launching, workEnd, `launch ${session.ordinal}`);
+      } catch (error) {
+        session.stopUnknown = true;
+        throw error;
+      }
+      controller.signal.throwIfAborted();
+      expect(session.pid).toEqual(expect.any(Number));
+      expect(session.pid).toBeGreaterThan(0);
+      expect(handle.child.exitCode).toBeNull();
+      expect(handle.child.signalCode).toBeNull();
+      expect(handle.ready.scope).toBe(scope);
+      expect(handle.ready.authenticationIdentity).toBe(expectedAuthentication);
+      expect(handle.ready.policyIdentity).toBe(expectedPolicy);
+      expect(handle.ready.runtimeConfigurationIdentity).toBe(
+        digest({
+          revision: "transaction-runtime-1",
+          scope,
+          artifactIdentity: handle.ready.artifactIdentity,
+          settings: installedConfiguration.TRANSACTION_RUNTIME_DEFAULTS,
+          authorityMode: "canonical",
+          policyIdentity: expectedPolicy,
+          authenticationIdentity: expectedAuthentication,
+          profile: "transactional",
+          history: false,
+        }),
+      );
+      const actual = installedTransactionBinding(handle.ready, source, fixture);
+      session.binding = actual;
+      if (binding) expect(actual).toEqual(binding);
+      else binding = actual;
+      return session;
+    }
+    async function finite(
+      session: Session,
+      target: string,
+      status: number,
+      schemaName: string,
+      body?: Uint8Array,
+    ) {
+      const method = body === undefined ? ("GET" as const) : ("POST" as const);
+      beginRequest(session, method, target);
+      const url = new URL(target, scope).href;
+      const address = new URL(session.handle!.ready.listenUrl as string);
+      const execute = createRawHttpExchangeExecutor(
+        { transport: "plain", host: address.hostname, port: Number(address.port) },
+        {
+          requestTimeoutMs: 5000,
+          maximumBodyBytes: 131072,
+          exactMode: {
+            scope,
+            profile: "transactional",
+            routes: [{ method, url }],
+            maximumRequestHeaderBytes: 16384,
+            maximumRequestBodyBytes: 65536,
+            defaultCredentialRef: "writer",
+            credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
+            resolveCredentials: () => ({ authorization: `Bearer ${token}` }),
+          },
+        },
+      );
+      const response = await bounded(
+        execute({
+          method,
+          url,
+          signal: controller.signal,
+          credentialRef: "writer",
+          raw: {
+            headerLines: [
+              { name: "Accept", value: "application/json" },
+              ...(body === undefined
+                ? []
+                : [
+                    { name: "Content-Type", value: "application/json" },
+                    { name: "Idempotency-Key", value: seedKey },
+                  ]),
+            ],
+            ...(body === undefined ? {} : { bodyBytes: body }),
+          },
+        }),
+        workEnd,
+        `request ${requests.length}`,
+      );
+      responses.push({
+        ordinal: requests.length,
+        session: session.ordinal,
+        method,
+        target,
+        status: response.status,
+        bodyOctets: response.bodyOctets,
+        bodySha256: hash(response.bodyText),
+        wireSha256: response.wireResponseBytes ? hash(response.wireResponseBytes) : undefined,
+        headers: Object.fromEntries(
+          [
+            "content-type",
+            "bdp-scope-epoch",
+            "bdp-authorization-view",
+            "bdp-scope-position",
+            "x-bdp-development",
+          ].map((name) => [name, response.headers[name]] as const),
+        ),
+      });
+      expect(response.exactRequest?.writeState).toBe("complete");
+      expect(
+        response.exactRequest?.headerLines.find((h) => h.name.toLowerCase() === "host")?.value,
+      ).toBe("reference.invalid");
+      expect(response.wireResponseBytes?.length).toBeGreaterThan(0);
+      expect(response.status, response.bodyText).toBe(status);
+      expect(response.headers["content-type"]?.split(";")[0]).toBe(
+        status === 400 ? "application/problem+json" : "application/json",
+      );
+      expect(response.bodyOctets).toBe(Buffer.byteLength(response.bodyText));
+      expect(response.headers["x-bdp-development"]).toBe("non-attesting");
+      context(response.headers);
+      const value: unknown = JSON.parse(response.bodyText);
+      validate(schemaName, value);
+      return object(value);
+    }
+    phase = "first launch";
+    const first = await launch(true);
+    phase = "seed batch";
+    const receipt = await finite(first, "operations/batch", 200, "mutationReceipt", seedBytes);
+    expect(receipt).toMatchObject({
+      status: "completed",
+      detail: "available",
+      idempotencyKey: seedKey,
+      requiredPosition: "pos-1",
+      effectPosition: "pos-1",
+      scopeEpoch: epoch,
+      authorizationView: "development-all-visible",
+      next: null,
+    });
+    expect(receipt.transaction).toEqual(expect.any(String));
+    expect((receipt.transaction as string).length).toBeGreaterThan(0);
+    const results = array(receipt.results).map(object);
+    expect(results).toHaveLength(2);
+    const resources = results.map((result, i) => {
+      expect(result.operationIndex).toBe(i);
+      expect(result.outcome).toBe("created");
+      const resource = object(result.resource);
+      validate("currentBeadRecord", resource);
+      // Independent complete shape; the authority-issued revision is opaque.
+      expect(resource).toEqual({
+        id: `${scope}beads/${i === 0 ? "a" : "b"}`,
+        type,
+        revision: expect.any(String),
+        properties: { n: 0 },
+        metadata: {},
+      });
+      // Unattributed seed with recordChangeContext:false must not invent native provenance.
+      expect(resource).not.toHaveProperty("revisionProvenance");
+      expect((resource.revision as string).length).toBeGreaterThan(0);
+      return resource;
+    });
+    phase = "initial Event page";
+    const initial = await finite(first, "events/", 200, "eventPage");
+    expect(initial.source).toBe(`${scope}events/`);
+    expect(initial.next).toBeNull();
+    events = array(initial.events).map(object);
+    expect(events).toHaveLength(2);
+    events.forEach((event, i) => {
+      validate("event", event);
+      expect(event).toEqual({
+        id: expect.any(String),
+        ordinal: i,
+        type: "created",
+        source: `${scope}events/`,
+        subject: resources[i]!.id,
+        subjectType: type,
+        transaction: receipt.transaction,
+        time: expect.any(String),
+        data: {
+          revision: resources[i]!.revision,
+          properties: { n: 0 },
+          metadata: {},
+        },
+      });
+      expect(object(event.data)).not.toHaveProperty("revisionProvenance");
+      expect((event.id as string).length).toBeGreaterThan(0);
+    });
+    const e0 = events[0]!,
+      e1 = events[1]!;
+    expect(e0.id).not.toBe(e1.id);
+    phase = "first clean shutdown";
+    try {
+      await boundedDrain(closeSession(first), workEnd, phase);
+    } catch (error) {
+      first.stopUnknown = true;
+      throw error;
+    }
+    expect(first.closed).toBe(true);
+    expect(first.exit).toEqual({ code: 0, signal: null });
+    phase = "reopen";
+    const second = await launch(false);
+    expect(second.pid).not.toBe(first.pid);
+    phase = "restored Event page";
+    const restored = await finite(
+      second,
+      `events/?after=${encodeURIComponent(e0.id as string)}`,
+      200,
+      "eventPage",
+    );
+    expect(restored.source).toBe(`${scope}events/`);
+    expect(restored.next).toBeNull();
+    expect(array(restored.events)).toHaveLength(1);
+    sameEvent(array(restored.events)[0], e1);
+    const corrupted = structuredClone(object(array(restored.events)[0]));
+    corrupted.ordinal = 0;
+    expect(() => sameEvent(corrupted, e1)).toThrow();
+    localSensitivityControls.push("restored-event-ordinal");
+    phase = "header-precedence stream";
+    const sseTarget = `events/?after=${encodeURIComponent(e1.id as string)}`;
+    beginRequest(second, "GET", sseTarget);
+    const recorder = recordRawSse({
+      dial: second.handle!.ready.listenUrl as string,
+      host: "reference.invalid",
+      target: `/acme/${sseTarget}`,
+      headers: [
+        ["Authorization", `Bearer ${token}`],
+        ["Accept", "text/event-stream"],
+        ["Last-Event-ID", e0.id as string],
+      ],
+      signal: controller.signal,
+      timeoutMs: 5000,
+    });
+    stream = { recorder, drained: false };
+    await bounded(recorder.ready, workEnd, "SSE ready");
+    expect(recorder.status).toBe(200);
+    expect(recorder.headers).toMatchObject({
+      "content-type": "text/event-stream",
+      "cache-control": "no-store, no-transform",
+      "x-bdp-development": "non-attesting",
+    });
+    context(recorder.headers);
+    await bounded(
+      recorder.until(() => idFrames(recorder).length > 0),
+      workEnd,
+      "SSE first Event",
+    );
+    sameFrame(idFrames(recorder)[0]!, e1);
+    expect(controller.signal.aborted).toBe(false);
+    expect(recorder.destroyed).toBe(false);
+    const beforeCloseMs = recorder.elapsedMs;
+    expect(beforeCloseMs).toBeLessThan(5000);
+    const streamClosing = closeStream();
+    await boundedDrain(
+      streamClosing,
+      Math.min(workEnd, performance.now() + 10000),
+      "intentional SSE drain",
+    );
+    expect(recorder.status).toBe(200);
+    const observedFrames = idFrames(recorder);
+    expect(observedFrames).toHaveLength(1);
+    observedFrames.forEach((frame) => {
+      sameFrame(frame, e1);
+    });
+    expect(() => sameFrame(observedFrames[0]!, e0)).toThrow();
+    localSensitivityControls.push("frame-event-identity");
+    sseEvidence = {
+      requestOrdinal: 4,
+      session: second.ordinal,
+      target: sseTarget,
+      lastEventId: e0.id,
+      status: recorder.status,
+      headers: Object.fromEntries(
+        [
+          "content-type",
+          "cache-control",
+          "bdp-scope-epoch",
+          "bdp-authorization-view",
+          "bdp-scope-position",
+        ].map((name) => [name, recorder.headers[name]] as const),
+      ),
+      completeObservedFrames: observedFrames,
+      beforeIntentionalCloseMs: beforeCloseMs,
+      wireBytes: recorder.wireBytes.length,
+      wireSha256: hash(recorder.wireBytes),
+      drained: stream.drained,
+      observationLimit:
+        "complete frames observed in the bounded window; no indefinite absence claim",
+    };
+    phase = "known Bead rejects Scope cursor";
+    const foreign = await finite(
+      second,
+      `beads/a?view=events&after=${encodeURIComponent(e0.id as string)}`,
+      400,
+      "transactionalProblem",
+    );
+    expect(foreign.code).toBe("invalid-parameter");
+    expect(foreign.status).toBe(400);
+    expect(requests.map(({ ordinal, session, method }) => ({ ordinal, session, method }))).toEqual([
+      { ordinal: 1, session: 1, method: "POST" },
+      { ordinal: 2, session: 1, method: "GET" },
+      { ordinal: 3, session: 2, method: "GET" },
+      { ordinal: 4, session: 2, method: "GET" },
+      { ordinal: 5, session: 2, method: "GET" },
+    ]);
+    expect(responses).toHaveLength(4);
+    expect(localSensitivityControls).toEqual(["restored-event-ordinal", "frame-event-identity"]);
+    controller.signal.throwIfAborted();
+    if (performance.now() >= workEnd) throw new Error("Event restart work exceeded budget");
+  } catch (error) {
+    failures.push({ phase, error });
+  } finally {
+    cleanupStarted = true;
+    clearTimeout(workTimer);
+    const cleanupEnd = performance.now() + 10000;
+    try {
+      await boundedDrain(closeStream(), cleanupEnd, "final stream drain");
+    } catch (error) {
+      failures.push({ phase: "stream cleanup", error });
+    }
+    if (failures.length && !controller.signal.aborted) {
+      abortedForCleanup = true;
+      controller.abort(new Error("Event restart observation failed"));
+    }
+    for (const session of sessions) {
+      if (!session.handle) {
+        session.stopUnknown = true;
+        failures.push({
+          phase: `child ${session.ordinal} cleanup`,
+          error: new Error("launch stop unknown-no-handle"),
+        });
+        continue;
+      }
+      try {
+        await boundedDrain(closeSession(session), cleanupEnd, `child ${session.ordinal} drain`);
+      } catch (error) {
+        session.stopUnknown = true;
+        failures.push({ phase: `child ${session.ordinal} cleanup`, error });
+      }
+    }
+    if (controller.signal.aborted && !abortedForCleanup)
+      failures.push({ phase: "work signal", error: controller.signal.reason });
+    try {
+      expect(sessions).toHaveLength(2);
+      expect(sessions.map((session) => session.create)).toEqual([true, false]);
+      for (const session of sessions) {
+        expect(session.state).toBe("owned");
+        expect(session.stopUnknown).toBe(false);
+        expect(session.closed).toBe(true);
+        expect(session.exit).toEqual({ code: 0, signal: null });
+      }
+      expect(stream?.drained).toBe(true);
+      expect(pending.size).toBe(0);
+    } catch (error) {
+      failures.push({ phase: "ownership proof", error });
+    }
+    // Any semantic or second-launch failure preserves the store for separate diagnosis.
+    if (failures.length === 0) {
+      try {
+        rmSync(directory, { recursive: true, force: false });
+        removed = true;
+      } catch (error) {
+        failures.push({ phase: "directory cleanup", error });
+      }
+    }
+    const reportedStream = stream;
+    console.log(
+      JSON.stringify({
+        observation: "private-event-restart-cursor",
+        attribution,
+        installedProvenance:
+          attribution === "external-installed-candidate"
+            ? "requires separately verified external package/consumer/source binding"
+            : "none; development fallback is not installed evidence",
+        claimEligible: false,
+        outcome: failures.length ? "failed" : "passed",
+        declaredSourceCommit: source,
+        witnessSource,
+        entry,
+        entrySha256: hash(readFileSync(entry)),
+        binding,
+        node: process.version,
+        seedBodySha256: hash(seedBytes),
+        seedBodyBytes: seedBytes.length,
+        seedKey,
+        deadlines: {
+          work: 45000,
+          cleanup: 10000,
+          callback: 60000,
+          outerSupervisor: 120000,
+          finite: 5000,
+          recorder: 5000,
+        },
+        requests,
+        completedFiniteResponses: responses,
+        localSensitivityControls,
+        events,
+        sse: sseEvidence,
+        // Preserve available safe transport facts even when assertions failed before success evidence.
+        streamAtReport: reportedStream
+          ? {
+              status: reportedStream.recorder.status,
+              headers: Object.fromEntries(
+                [
+                  "content-type",
+                  "cache-control",
+                  "bdp-scope-epoch",
+                  "bdp-authorization-view",
+                  "bdp-scope-position",
+                ].map((name) => [name, reportedStream.recorder.headers[name]] as const),
+              ),
+              wireBytes: reportedStream.recorder.wireBytes.length,
+              wireSha256: hash(reportedStream.recorder.wireBytes),
+              completeObservedFrames: idFrames(reportedStream.recorder),
+              drained: reportedStream.drained,
+              destroyed: reportedStream.recorder.destroyed,
+            }
+          : undefined,
+        sessions: sessions.map((session) => ({
+          ordinal: session.ordinal,
+          create: session.create,
+          state: session.state,
+          pid: session.pid,
+          listenUrl: session.listenUrl,
+          binding: session.binding,
+          exit: session.exit,
+          closed: session.closed,
+          stopUnknown: session.stopUnknown,
+        })),
+        pendingOperationsAtReport: pending.size,
+        directory,
+        directoryRemoved: removed,
+        failures: failures.map(({ phase, error }) => ({
+          phase,
+          name:
+            error instanceof Error
+              ? error.name.replaceAll(token, "[credential redacted]")
+              : "non-Error",
+          message: safeFailureMessage(error),
+        })),
+        diagnosticLimit:
+          "startup helper may expose only generic error and no returned handle; no private child trace claimed",
+        supervisorAcceptanceRequired:
+          "isolated owned group; no survivors or forced cleanup; intervention always fails",
+      }),
+    );
+  }
+  if (failures.length)
+    throw new AggregateError(
+      failures.map(({ phase, error }) => new Error(`${phase}: ${safeFailureMessage(error)}`)),
+      "Event restart observation or cleanup failed",
+    );
 }, 60000);

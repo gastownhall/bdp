@@ -1,3 +1,4 @@
+import { jsonValueEqual } from "./json-value-equality.js";
 import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -407,6 +408,11 @@ describe("pure member Resource evaluation", () => {
     failure(f.createLink("edge"), "identity-taken");
   });
   it("normalizes accepted numeric spellings and preserves revisions and metadata on semantic no-ops", () => {
+    expect(jsonValueEqual({ a: -0, b: [1, 2] }, { b: [1, 2], a: 0 })).toBe(true);
+    expect(jsonValueEqual([1, 2], [2, 1])).toBe(false);
+    expect(jsonValueEqual({ a: null }, {})).toBe(false);
+    expect(jsonValueEqual([], {})).toBe(false);
+    expect(jsonValueEqual({ a: { b: [1] } }, { a: { b: [2] } })).toBe(false);
     const f = fixture();
     f.createBead(
       "a",

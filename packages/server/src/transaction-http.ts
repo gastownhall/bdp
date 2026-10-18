@@ -14,6 +14,8 @@ import {
 import {
   malformedTransactionMinimumHeaders,
   transactionMinimumHeaders,
+  currentReadMinimumHeaders,
+  TransactionMinimumUnsupported,
   TransactionMinimumFailure,
 } from "./transaction-consistency.js";
 /** Source-private partial Transactional HTTP projection. No discovery/profile
@@ -39,7 +41,7 @@ import {
 import type { HttpResponse } from "./index.js";
 import {
   type TransactionSingletonOperation,
-  prepareTransactionSequence,
+  prepareTransactionSequenceForReceiving,
   TransactionDevelopmentLimitError,
   TRANSACTION_RUNTIME_LIMITS,
   TRANSACTION_MAXIMUM_OPERATIONS,
@@ -54,6 +56,7 @@ import {
   TransactionMinimumVisibilityGap,
   transactionReadContexts,
   isCurrentTransactionMinimumRead,
+  currentReadMinimumKind,
 } from "./transaction-read.js";
 import type { TransactionReadContext } from "./transaction-store.js";
 import type { TransactionSubmission } from "./transaction-submission.js";
@@ -209,7 +212,7 @@ export function createTransactionHttpHandler(
     discover: async () => developmentGap("transactional-discovery"),
     async alias(suffix, request) {
       if (isReadProblem(suffix)) return problem(suffix);
-      const minimum = transactionMinimumHeaders(request.headers);
+      const minimum = currentReadMinimumHeaders(request.headers);
       const facet = minimum
         ? service.readAtMinimum(readPrincipal(request), minimum)
         : service.readFor(readPrincipal(request));
@@ -230,7 +233,7 @@ export function createTransactionHttpHandler(
         : response;
     },
     async perform(parsed, request) {
-      const minimum = transactionMinimumHeaders(request.headers);
+      const minimum = currentReadMinimumHeaders(request.headers);
       const facet = minimum
         ? service.readAtMinimum(readPrincipal(request), minimum)
         : service.readFor(readPrincipal(request));
@@ -325,20 +328,19 @@ export function createTransactionHttpHandler(
             observed.context,
           );
         }
-        let prepared: ReturnType<typeof prepareTransactionSequence>;
+        const prepared = prepareTransactionSequenceForReceiving(scope, received.text);
+        if (!acceptsJson(request.headers.get("accept"))) {
+          const observed = await service.sequenceRefusalObserved();
+          return context(empty(406), observed.context);
+        }
         try {
-          prepared = prepareTransactionSequence(scope, received.text);
+          const observed = await service.sequenceObserved(authorization.principal, prepared);
+          return context(jsonResponse(observed.body), observed.context);
         } catch (error) {
           if (error instanceof TransactionDevelopmentLimitError)
             return developmentGap("unsupported-transaction-composition");
           throw error;
         }
-        if (!acceptsJson(request.headers.get("accept"))) {
-          const observed = await service.sequenceRefusalObserved();
-          return context(empty(406), observed.context);
-        }
-        const observed = await service.sequenceObserved(authorization.principal, prepared);
-        return context(jsonResponse(observed.body), observed.context);
       }
       const decision: TransactionSubmission["authorization"] =
         authorization.kind === "unauthenticated"
@@ -367,8 +369,6 @@ export function createTransactionHttpHandler(
         if (!result.context) throw new Error("negotiation refusal lost same-entry context");
         return context(empty(406), result.context);
       }
-      if (result.kind === "development-limit")
-        return developmentGap("unsupported-transaction-composition");
       if (result.code === "idempotency-conflict") {
         if (!result.context) throw new Error("conflict refusal lost same-entry context");
         return context(
@@ -572,13 +572,19 @@ export function createTransactionHttpHandler(
       return receiptResponse(result, false);
     }
     const minimum = hasMinimumControls(request)
-      ? transactionMinimumHeaders(request.headers)
+      ? currentReadMinimumHeaders(request.headers)
       : undefined;
     if (hasMinimumControls(request) && !minimum) return developmentGap("minimum-position");
     if (minimum && alias === undefined) {
       // Aliases have their own conditioned authority path, not a canonical
       // ReadRequest or a member of the current Resource/collection subset.
       const parsed = requestFromUrl(url, scope);
+      // Preserve the old early unknown-token label on every excluded route.
+      if (
+        !transactionMinimumHeaders(request.headers) &&
+        (isReadProblem(parsed) || currentReadMinimumKind(parsed) === "strict")
+      )
+        return developmentGap("minimum-position");
       if (isReadProblem(parsed) && parsed.status === 400) return problem(parsed);
       if (isReadProblem(parsed) || !isCurrentTransactionMinimumRead(parsed, scope))
         return developmentGap("minimum-position-route");
@@ -638,6 +644,8 @@ export function createTransactionHttpHandler(
           response = transactionHttpProblem("invalid-parameter", error.context);
         else if (error instanceof TransactionEventProjectionGap)
           response = developmentGap(error.message);
+        else if (error instanceof TransactionMinimumUnsupported)
+          response = developmentGap("minimum-position");
         else if (error instanceof TransactionMinimumVisibilityGap)
           response = developmentGap("minimum-position-visibility");
         else response = empty(500);

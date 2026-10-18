@@ -164,13 +164,13 @@ const requests = [
     method: "POST",
     url: "https://reference.invalid/acme/operations/batch",
     key: "depth-b-fresh",
-    accept: "text/plain",
+    accept: "application/json",
     contentType: "application/json",
     body: '{"operations":[{"operation":"createBead","id":"beads/depth-b-b","type":"https://reference.invalid/acme/types/task","properties":{"title":"depth-b-b"},"metadata":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":"leaf"}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}',
     bodyBytes: 621,
     bodySha256: "a6116425a627b6949f395c388ec39aacf778683fc99f4118d0fd78e4d49c7f12",
-    status: 500,
-    contextPosition: null,
+    status: 200,
+    contextPosition: "pos-2",
   },
   {
     index: 5,
@@ -183,7 +183,7 @@ const requests = [
     body: '{"operations":[{"operation":"createBead","id":"beads/depth-b-b","type":"https://reference.invalid/acme/types/task","properties":{"title":"depth-b-b"},"metadata":{}}]}',
     bodyBytes: 166,
     bodySha256: "ae6c62f1c4ae74a2fb9ce1332d9c3d261bcf6cb0a53791579f2d6a6112a0db01",
-    status: 200,
+    status: 409,
     contextPosition: "pos-2",
   },
   {
@@ -248,13 +248,13 @@ const requests = [
     method: "POST",
     url: "https://reference.invalid/acme/operations/create-bead",
     key: "depth-s-fresh",
-    accept: "text/plain",
+    accept: "application/json",
     contentType: "application/json",
     body: '{"id":"beads/depth-s-b","type":"https://reference.invalid/acme/types/task","properties":{"title":"depth-s-b"},"metadata":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":{"nested":"leaf"}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}',
     bodyBytes: 579,
     bodySha256: "6d0e2cfadf5a0b4b5463aea20839d1b5b0346e1dd92470bc785a006c80082086",
-    status: 500,
-    contextPosition: null,
+    status: 200,
+    contextPosition: "pos-4",
   },
   {
     index: 11,
@@ -267,7 +267,7 @@ const requests = [
     body: '{"id":"beads/depth-s-b","type":"https://reference.invalid/acme/types/task","properties":{"title":"depth-s-b"},"metadata":{}}',
     bodyBytes: 124,
     bodySha256: "a1c0118b2e89a4f3697bdffae475794ea95ead3f7a5d67feb03ec19dd793e976",
-    status: 200,
+    status: 409,
     contextPosition: "pos-4",
   },
   {
@@ -300,7 +300,7 @@ const requests = [
   },
 ] as const;
 
-it("observes installed retained key conflicts before private carrier depth", async () => {
+it("observes installed retained key conflicts and fresh deep carrier execution", async () => {
   const controller = new AbortController();
   const deadlineReason = new Error("installed depth/key work deadline");
   let deadlineExceeded = false;
@@ -313,6 +313,7 @@ it("observes installed retained key conflicts before private carrier depth", asy
   let child: Awaited<ReturnType<typeof launchInstalledTransaction>> | undefined;
   let binding: ReturnType<typeof installedTransactionBinding> | undefined;
   let closed = false;
+  let launchAttempted = false;
   let cleanupExceeded = false;
   let attempted = 0;
   let expectedContext: readonly [string, string] | undefined;
@@ -346,10 +347,12 @@ it("observes installed retained key conflicts before private carrier depth", asy
     expect(requests).toHaveLength(13);
     expect(requests.reduce((sum, row) => sum + row.bodyBytes, 0)).toBe(3270);
     expect(Math.max(...requests.map((row) => row.bodyBytes))).toBe(621);
+    let deepChecked = 0;
     for (const row of requests) {
       expect(Buffer.byteLength(row.body ?? ""), row.label).toBe(row.bodyBytes);
       expect(digest(row.body ?? ""), row.label).toBe(row.bodySha256);
       if (row.label.includes("deep") || row.label.endsWith("fresh-depth")) {
+        deepChecked++;
         const parsed = record(JSON.parse(row.body!));
         const input = "operations" in parsed ? records(parsed.operations)[0]! : parsed;
         let value: unknown = input.metadata;
@@ -361,8 +364,10 @@ it("observes installed retained key conflicts before private carrier depth", asy
         expect(value, row.label).toBe("leaf");
       }
     }
+    expect(deepChecked).toBe(4);
     directory = mkdtempSync(path.join(tmpdir(), "bdp-depth-key-installed-"));
     controller.signal.throwIfAborted();
+    launchAttempted = true;
     child = await launchInstalledTransaction(
       entry,
       {
@@ -481,7 +486,13 @@ it("observes installed retained key conflicts before private carrier depth", asy
         position,
       ]);
     }
-    function completed(response: Wire, name: string, key: string, position: string) {
+    function completed(
+      response: Wire,
+      name: string,
+      key: string,
+      position: string,
+      metadata: unknown = {},
+    ) {
       status(response, 200, `depth-key:${name}:completed`);
       expect(response.headers["content-type"]).toBe("application/json");
       expect(response.headers["x-bdp-development-limit"]).toBeUndefined();
@@ -503,7 +514,7 @@ it("observes installed retained key conflicts before private carrier depth", asy
         type: beadType,
         revision: resource.revision,
         properties: { title: name },
-        metadata: {},
+        metadata,
       });
       expect(results).toStrictEqual([{ operationIndex: 0, outcome: "created", resource }]);
       expect(receipt).toStrictEqual({
@@ -558,20 +569,28 @@ it("observes installed retained key conflicts before private carrier depth", asy
       expect(replay.headers["x-bdp-development-limit"]).toBeUndefined();
       context(replay, originalPosition);
       expect(checked(replay.bodyText, "mutationReceipt")).toStrictEqual(seed.receipt);
-      const fresh = await exchange(base + 4);
-      status(fresh, 500, `depth-key:${carrier}:fresh-depth`);
-      expect(fresh.headers["x-bdp-development-limit"]).toBe("unsupported-transaction-composition");
-      expect(fresh.bodyText).toBe("");
-      expect(fresh.bodyOctets).toBe(0);
-      expect(fresh.headers["content-length"]).toBe("0");
-      expect(fresh.headers["content-type"]).toBeUndefined();
-      expect(fresh.headers["retry-after"]).toBeUndefined();
-      expect(contextNames.map((name) => fresh.headers[name])).toStrictEqual([
-        undefined,
-        undefined,
-        undefined,
-      ]);
-      completed(await exchange(base + 5), freshName, freshKey, advancedPosition);
+      const freshBody = record(JSON.parse(requests[base + 3]!.body!));
+      const freshInput = carrier === "batch" ? records(freshBody.operations)[0]! : freshBody;
+      completed(
+        await exchange(base + 4),
+        freshName,
+        freshKey,
+        advancedPosition,
+        freshInput.metadata,
+      );
+      const changed = await exchange(base + 5);
+      status(changed, 409, `depth-key:${carrier}:fresh-retained-conflict`);
+      context(changed, advancedPosition);
+      expect(changed.headers["x-bdp-development-limit"]).toBeUndefined();
+      expect(changed.headers["content-type"]).toBe("application/problem+json");
+      expect(changed.headers["retry-after"]).toBeUndefined();
+      expect(changed.headers["www-authenticate"]).toBeUndefined();
+      expect(checked(changed.bodyText, "transactionalProblem")).toStrictEqual({
+        type: "https://github.com/gastownhall/bdp/problems/conflict",
+        code: "idempotency-conflict",
+        status: 409,
+        retry: "never",
+      });
       const point = await exchange(base + 6);
       status(point, 200, `depth-key:${carrier}:point-unchanged`);
       expect(point.headers["content-type"]).toBe("application/json");
@@ -592,6 +611,9 @@ it("observes installed retained key conflicts before private carrier depth", asy
       `${scope}beads/depth-s-b`,
     ]);
     expect(items).toStrictEqual(savedResources);
+    expect(responses.map(({ headers }) => headers["bdp-scope-position"])).toStrictEqual(
+      requests.map(({ contextPosition }) => contextPosition),
+    );
     expect(attempted).toBe(13);
     expect(responses).toHaveLength(13);
     expect(
@@ -640,15 +662,24 @@ it("observes installed retained key conflicts before private carrier depth", asy
       clearTimeout(cleanupTimer);
     }
     const stopped =
-      child === undefined || child.child.exitCode !== null || child.child.signalCode !== null;
-    if (!stopped) failures.push(new Error("installed depth/key child remains active"));
+      !launchAttempted ||
+      (child !== undefined && (child.child.exitCode !== null || child.child.signalCode !== null));
+    if (!stopped)
+      failures.push(
+        new Error(
+          child === undefined
+            ? "installed depth/key child stop unproven"
+            : "installed depth/key child remains active",
+        ),
+      );
     try {
       if (directory && stopped) rmSync(directory, { recursive: true, force: true });
     } catch (error) {
       failures.push(error);
     }
     const directoryAbsent = directory === undefined || !existsSync(directory);
-    if (!directoryAbsent) failures.push(new Error("installed depth/key directory remains"));
+    if (stopped && !directoryAbsent)
+      failures.push(new Error("installed depth/key directory remains"));
     clearTimeout(deadline);
     if (deadlineExceeded && !failures.includes(deadlineReason)) failures.push(deadlineReason);
     try {
@@ -672,7 +703,9 @@ it("observes installed retained key conflicts before private carrier depth", asy
           deadlineExceeded,
           cleanupExceeded,
           closed,
+          launchAttempted,
           startupCompleted: child !== undefined,
+          stopKnown: stopped,
           childPid: child?.child.pid ?? null,
           childExitCode: child?.child.exitCode ?? null,
           childSignalCode: child?.child.signalCode ?? null,
