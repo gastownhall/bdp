@@ -164,7 +164,8 @@ uv run --no-project --with 'jsonschema[format]' python scripts/check_type_exampl
 
 The check validates six schemas and positive/negative shape cases, exact example
 references and owned-state consistency, category-preserving pair matches over
-the finite foundation graph, schema-copy equality and illustrative domain property
+the finite foundation graph, seven invalid ownership/endpoint fixture mutations,
+schema-copy equality and illustrative domain property
 cases. The Issue/Dependency prose is the existing WIP authoring draft, relocated with
 its inspected Preview 2 evidence intact; it is not a fresh runtime qualification.
 It preloads resources and forbids retrieval. It does not implement a generic Type

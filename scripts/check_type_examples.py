@@ -143,16 +143,60 @@ check(conformance_name, {"reviewRef": "https://example.org/review"}, True, "exte
 check(conformance_name, [], False, "conformance properties must be object")
 
 # Final-state fixture consistency, not a generic admission implementation.
+def check_owned_declaration_sources(candidate):
+    declarations = candidate["declarations"]
+    exact_declarations = {(d["id"], d["revision"]) for d in declarations}
+    assert len(exact_declarations) == len(declarations), "duplicate exact declaration"
+    for declaration in declarations:
+        sources = [d for d in candidate["definitions"] if d["id"] == declaration["source"]]
+        # This finite seed has one definition revision per identity.
+        assert len(sources) == 1, "source absent or ambiguous in finite seed"
+        assert declaration in sources[0]["ownedLinks"][conforms_id], "declaration absent from source owned state"
+    for owner in candidate["definitions"]:
+        for declaration in owner["ownedLinks"][conforms_id]:
+            assert declaration["source"] == owner["id"], "owned declaration source differs from owner"
+            assert declaration in declarations, "owned declaration absent from declaration table"
+
+
+fixture_refusals = 0
+
+
+def rejects_fixture_mutation(checker, candidate, expected_reason):
+    global fixture_refusals
+    try:
+        checker(candidate)
+    except AssertionError as error:
+        assert str(error) == expected_reason, ("unexpected mutation refusal", str(error))
+    else:
+        raise AssertionError("invalid fixture mutation accepted: " + expected_reason)
+    fixture_refusals += 1
+
+
+check_owned_declaration_sources(fixture)
+# A declaration copied into a second owner's snapshot must not manufacture
+# conformance, even when it remains in both the global table and correct owner.
+for mutation in ("copy", "move", "remove"):
+    candidate = deepcopy(fixture)
+    declaration = candidate["declarations"][0]
+    source = next(d for d in candidate["definitions"] if d["id"] == declaration["source"])
+    other = next(d for d in candidate["definitions"] if d["id"] != source["id"])
+    if mutation in {"copy", "move"}:
+        other["ownedLinks"][conforms_id].append(deepcopy(declaration))
+    if mutation in {"move", "remove"}:
+        source["ownedLinks"][conforms_id].remove(declaration)
+    reason = ("owned declaration source differs from owner" if mutation == "copy"
+              else "declaration absent from source owned state")
+    rejects_fixture_mutation(check_owned_declaration_sources, candidate, reason)
+candidate = deepcopy(fixture)
+candidate["declarations"].append(deepcopy(candidate["declarations"][0]))
+rejects_fixture_mutation(check_owned_declaration_sources, candidate, "duplicate exact declaration")
+
 for declaration in fixture["declarations"]:
     check(conformance_name, declaration["properties"], True, declaration["id"])
     source = next(d for d in definitions if d["id"] == declaration["source"])
     target = by_pin[pin_of(declaration["target"])]
     assert category(source) == category(target)
-    assert declaration in source["ownedLinks"][conforms_id]
     assert by_pin[pin_of(declaration["type"])]["id"] == conforms_id
-for definition in definitions:
-    for declaration in definition["ownedLinks"][conforms_id]:
-        assert declaration in fixture["declarations"]
 
 def closure(pin, visiting=()):
     assert pin not in visiting, ("example conformance cycle", pin)
@@ -178,6 +222,33 @@ def matches(types, reference):
     members = {p} | closure(p)
     return any((any(member[0] == t for member in members) if isinstance(t, str)
                 else pin_of(t) in members) for t in types)
+
+def check_seed_endpoint_domain(candidate):
+    # The fixture explicitly uses https://example.org/types/ as its sole Scope
+    # and beads/ as its definition path. This is not a production URI parser.
+    assert all(d["id"].startswith(prefix) for d in candidate["definitions"]), "definition outside finite seed Bead namespace"
+    conforms = next(d for d in candidate["definitions"] if d["id"] == conforms_id)
+    for pair in conforms["properties"]["linkConstraints"]["typeConstraints"]:
+        for side in ("source", "target"):
+            endpoint = pair[side]
+            assert endpoint["resourceKind"] == "bead", "finite seed endpoint must be a Bead"
+            assert endpoint["scope"] == "same", "finite seed endpoint must be same-Scope"
+
+
+# Type matching below is valid only after checking the finite endpoint domain;
+# it must not accidentally accept a relabelled cross-Scope or non-Bead arm.
+check_seed_endpoint_domain(fixture)
+for field, value, reason in (
+    ("scope", "cross", "finite seed endpoint must be same-Scope"),
+    ("resourceKind", "resource", "finite seed endpoint must be a Bead"),
+):
+    candidate = deepcopy(fixture)
+    conforms = next(d for d in candidate["definitions"] if d["id"] == conforms_id)
+    conforms["properties"]["linkConstraints"]["typeConstraints"][0]["source"][field] = value
+    rejects_fixture_mutation(check_seed_endpoint_domain, candidate, reason)
+candidate = deepcopy(fixture)
+candidate["definitions"][0]["id"] = "https://other.example/types/beads/type"
+rejects_fixture_mutation(check_seed_endpoint_domain, candidate, "definition outside finite seed Bead namespace")
 
 conforms = next(d for d in definitions if d["id"] == conforms_id)
 pairs = conforms["properties"]["linkConstraints"]["typeConstraints"]
@@ -226,4 +297,5 @@ for path in [HERE / "types.md", HERE / "README.md", ISSUE / "issue.md"]:
             assert (path.parent / destination.split("#", 1)[0]).exists(), (path, destination)
 print(f"PASS: {len(SCHEMAS)} schemas; {count} positive/negative shape cases; "
       f"{len(definitions)} definition records; {len(fixture['declarations'])} owned declarations; "
+      f"{fixture_refusals} invalid fixture mutations refused; "
       "example closure, embedded copies, domain property cases and local links consistent. No runtime qualification.")
