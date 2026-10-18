@@ -501,35 +501,35 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       return run(() => {
         let minimum = supplied;
         let captured = false;
+        let currentEvent = false;
         return waitForTransactionMinimum(
           () => {
-            // Preserve waiter preflight, then capture once before any deferred wait.
+            // Preserve waiter preflight and owner source-before-tuple failures.
             if (!captured) {
-              if (after === undefined && supplied !== undefined && supplied !== "unsupported") {
-                let initialMinimumSource = source === new URL("events/", scope).href;
-                if (!initialMinimumSource && typeof source === "string") {
-                  try {
-                    const parsed = transactionEventRequest(new URL(source), scope);
-                    initialMinimumSource =
-                      parsed !== undefined &&
-                      (parsed.source.kind === "bead" || parsed.source.kind === "link") &&
-                      parsed.after === undefined &&
-                      parsed.source.url === source;
-                  } catch (error) {
-                    // Classification failures retain the owner's source-error ordering.
-                    if (
-                      !(error instanceof TypeError) &&
-                      !(error instanceof TransactionEventParameterError)
-                    )
-                      throw error;
-                  }
-                }
-                // Malformed selected tuples must not be swallowed as classification errors.
-                if (initialMinimumSource) minimum = snapshotCurrentReadMinimum(supplied);
+              try {
+                const parsed = transactionEventRequest(new URL(source), scope);
+                currentEvent =
+                  parsed !== undefined &&
+                  parsed.after === undefined &&
+                  parsed.source.url === source;
+              } catch (error) {
+                if (
+                  !(error instanceof TypeError) &&
+                  !(error instanceof TransactionEventParameterError)
+                )
+                  throw error;
               }
+              // Tuple errors are outside classification catch; failed classification passes through.
+              if (currentEvent && supplied !== undefined && supplied !== "unsupported")
+                minimum = snapshotCurrentReadMinimum(supplied);
               captured = true;
             }
-            return owner.readEvents(source, after, minimum);
+            return owner.readEvents(
+              source,
+              after,
+              minimum,
+              currentEvent ? "current-event" : undefined,
+            );
           },
           minimumReads,
           signal,
@@ -542,17 +542,28 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       supplied?: TransactionMinimum | "unsupported",
       signal?: AbortSignal,
       invalidReconnect = false,
-      admission?: "initial-scope-sse",
+      admission?: "initial-scope-sse" | "current-event",
     ) {
       const initialScopeSseMinimum =
         admission === "initial-scope-sse" &&
         source === new URL("events/", scope).href &&
         after === undefined &&
         !invalidReconnect;
+      let currentEvent = false;
+      if (admission === "current-event") {
+        try {
+          const parsed = transactionEventRequest(new URL(source), scope);
+          currentEvent =
+            parsed !== undefined && parsed.after === undefined && parsed.source.url === source;
+        } catch (error) {
+          if (!(error instanceof TypeError) && !(error instanceof TransactionEventParameterError))
+            throw error;
+        }
+      }
       const minimum =
         supplied === undefined || supplied === "unsupported"
           ? supplied
-          : initialScopeSseMinimum
+          : initialScopeSseMinimum || currentEvent
             ? snapshotCurrentReadMinimum(supplied)
             : snapshotTransactionMinimum(supplied);
       return run(() =>
@@ -563,7 +574,11 @@ export function createTransactionService(owner: Owner, options: TransactionServi
               after,
               minimum,
               invalidReconnect,
-              initialScopeSseMinimum ? "initial-scope-sse" : undefined,
+              currentEvent
+                ? "current-event"
+                : initialScopeSseMinimum
+                  ? "initial-scope-sse"
+                  : undefined,
             ),
           minimumReads,
           signal,

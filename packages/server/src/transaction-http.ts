@@ -512,31 +512,11 @@ export function createTransactionHttpHandler(
     const eventRequest = receiptRoute ? undefined : transactionEventRequest(url, scope);
     if (eventRequest) {
       const media = selectChangefeedMedia(request.headers.get("accept"));
-      const initialFiniteMinimumSource =
-        (eventRequest.source.kind === "bead" ||
-          eventRequest.source.kind === "link" ||
-          (eventRequest.source.kind === "scope" &&
-            eventRequest.source.url === new URL("events/", scope).href)) &&
-        eventRequest.after === undefined &&
-        !url.searchParams.has("after") &&
-        media === "json" &&
-        !request.headers.has("last-event-id") &&
-        (lastEventIds?.length ?? 0) === 0;
       const fields =
         lastEventIds ??
         (request.headers.has("last-event-id") ? [request.headers.get("last-event-id")!] : []);
-      const initialScopeSseMinimum =
-        media === "sse" &&
-        eventRequest.source.kind === "scope" &&
-        eventRequest.source.url === new URL("events/", scope).href &&
-        eventRequest.after === undefined &&
-        !url.searchParams.has("after") &&
-        !request.headers.has("last-event-id") &&
-        fields.length === 0;
       const minimum = hasMinimumControls(request)
-        ? ((initialFiniteMinimumSource || initialScopeSseMinimum
-            ? currentReadMinimumHeaders(request.headers)
-            : transactionMinimumHeaders(request.headers)) ?? "unsupported")
+        ? (currentReadMinimumHeaders(request.headers) ?? "unsupported")
         : undefined;
       if (media !== "sse") {
         const observed = await service.events(
@@ -556,7 +536,7 @@ export function createTransactionHttpHandler(
         minimum,
         request.signal,
         fields.length > 1,
-        initialScopeSseMinimum ? "initial-scope-sse" : undefined,
+        "current-event",
       );
       if (observed.kind === "missing")
         return transactionHttpProblem("resource-not-found", observed.context);

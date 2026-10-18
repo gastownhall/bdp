@@ -1758,13 +1758,13 @@ it("serves initial Scope Event SSE opaque minima before conditional admission", 
     await pair(minimum("pos-2"), 503);
     await raw("events/", [["BDP-Scope-Epoch", "foreign-epoch"], ...opaque.slice(1)], 410);
     await raw("events/", [opaque[0]!, ["BDP-Authorization-View", "foreign-view"], opaque[2]!], 409);
-    await raw(`events/?after=${encodeURIComponent(after)}`, opaque, 500);
+    await raw(`events/?after=${encodeURIComponent(after)}`, opaque, 503);
     await raw("events/?after=", opaque, 400);
-    await raw("events/", [...opaque, ["Last-Event-ID", after]], 500);
-    await raw("events/", [...opaque, ["Last-Event-ID", ""]], 500);
-    await raw("events/", [...opaque, ["Last-Event-ID", after], ["Last-Event-ID", after]], 500);
-    await raw("beads/a?view=events", opaque, 500);
-    await raw("links/l?view=events", opaque, 500);
+    await raw("events/", [...opaque, ["Last-Event-ID", after]], 503);
+    await raw("events/", [...opaque, ["Last-Event-ID", ""]], 503);
+    await raw("events/", [...opaque, ["Last-Event-ID", after], ["Last-Event-ID", after]], 503);
+    await raw("beads/a?view=events", opaque, 503);
+    await raw("links/l?view=events", opaque, 503);
     await raw("beads/missing?view=events", opaque, 404);
     await raw("events/", opaque, 401, "GET", false);
     await raw("events/", [...known, ["If-None-Match", "*"]], 304, "HEAD");
@@ -1841,7 +1841,7 @@ it("serves initial Scope Event SSE opaque minima before conditional admission", 
         counts[row.status] = (counts[row.status] ?? 0) + 1;
         return counts;
       }, {}),
-    ).toEqual({ 200: 6, 503: 10, 500: 6, 400: 3, 404: 1, 401: 1, 304: 1, 412: 1, 409: 1, 410: 1 });
+    ).toEqual({ 200: 6, 503: 16, 400: 3, 404: 1, 401: 1, 304: 1, 412: 1, 409: 1, 410: 1 });
   } catch (error) {
     failures.push(error);
   } finally {
@@ -1870,4 +1870,869 @@ it("serves initial Scope Event SSE opaque minima before conditional admission", 
     }),
   );
   if (failures.length) throw new AggregateError(failures, "Scope SSE HTTP minimum failed");
+});
+
+// Current Event admission witnesses use the src owner/service/error graph.
+const replaySources = {
+  scope: `${scope}events/`,
+  bead: `${scope}beads/a?view=events`,
+  link: `${scope}links/l?view=events`,
+} as const;
+async function replayBound<T>(promise: Promise<T>, label: string, milliseconds = 1000): Promise<T> {
+  void promise.catch(() => {});
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(label)), milliseconds);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+it.each(["scope", "bead", "link"] as const)(
+  "gates current Event replay minima before cursor validation: %s",
+  async (sourceKind) => {
+    const { DatabaseSync } = await import("node:sqlite");
+    const { TransactionMinimumFailure, TransactionMinimumUnproved } = await import(
+      "./transaction-consistency.js"
+    );
+    const { TransactionEventParameterError, renderTransactionEvent } = await import(
+      "./transaction-events.js"
+    );
+    const f = ownerFixture();
+    f.run([create("a"), create("b"), link()]);
+    const source = replaySources[sourceKind];
+    let calls = 0;
+    const baselineRead = (target: string) => {
+      calls++;
+      return f.owner.readEvents(target);
+    };
+    const first = baselineRead(source);
+    const other = baselineRead(sourceKind === "scope" ? replaySources.bead : replaySources.scope);
+    if (first.kind !== "page" || other.kind !== "page") throw new Error("missing replay baseline");
+    expect(first.page.events).toHaveLength(1);
+    expect(other.page.events).toHaveLength(1);
+    const after = first.page.events[0]!.id,
+      wrong = other.page.events[0]!.id;
+    const context = first.context;
+    const opaque = {
+      scopeEpoch: context.scopeEpoch,
+      authorizationView: context.authorizationView,
+      minimumPosition: "unknown",
+    };
+    const known = { ...opaque, minimumPosition: context.scopePosition };
+    const stale = renderTransactionEvent(
+      { ...context, scopeEpoch: "foreign-epoch" },
+      source,
+      "pos-1",
+      first.page.events[0]!,
+    ).id;
+    const rows = [
+      { label: "initial-opaque", minimum: opaque, after: undefined, expected: "unproved" },
+      { label: "issued-opaque", minimum: opaque, after, expected: "unproved" },
+      { label: "stale-opaque", minimum: opaque, after: stale, expected: "unproved" },
+      {
+        label: "both-foreign",
+        minimum: { ...opaque, scopeEpoch: "foreign-epoch", authorizationView: "foreign-view" },
+        after: stale,
+        expected: "cursor-expired",
+      },
+      {
+        label: "foreign-view",
+        minimum: { ...opaque, authorizationView: "foreign-view" },
+        after,
+        expected: "foreign-view",
+      },
+      { label: "issued-known", minimum: known, after, expected: "success" },
+      { label: "wrong-source", minimum: known, after: wrong, expected: "parameter" },
+      { label: "strict-after", minimum: opaque, after, expected: "strict" },
+      {
+        label: "malformed",
+        minimum: { ...opaque, minimumPosition: "" },
+        after,
+        expected: "malformed",
+      },
+      { label: "missing", minimum: opaque, after: "invalid", expected: "missing" },
+    ];
+    let preparations = 0;
+    const records: unknown[] = [];
+    const original = DatabaseSync.prototype.prepare;
+    const observer = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: InstanceType<typeof DatabaseSync>,
+      sql,
+    ) {
+      if (/FROM groups/.test(sql)) preparations++;
+      return original.call(this, sql);
+    });
+    try {
+      for (const row of rows)
+        for (const method of ["finite", "sse"] as const) {
+          preparations = 0;
+          const intent = row.label === "strict-after" ? undefined : "current-event";
+          const target =
+            row.label === "missing"
+              ? `${scope}${sourceKind === "link" ? "links" : "beads"}/missing?view=events`
+              : source;
+          let value: unknown, error: unknown;
+          try {
+            calls++;
+            value =
+              method === "finite"
+                ? f.owner.readEvents(target, row.after, row.minimum, intent)
+                : f.owner.beginEventScan(target, row.after, row.minimum, false, intent);
+          } catch (caught) {
+            error = caught;
+          }
+          const observedContext =
+            error instanceof TransactionMinimumFailure ||
+            error instanceof TransactionMinimumUnproved ||
+            error instanceof TransactionEventParameterError
+              ? error.context
+              : value && typeof value === "object" && "context" in value
+                ? value.context
+                : undefined;
+          records.push({
+            label: row.label,
+            method,
+            source: target,
+            intent: intent ?? null,
+            after: row.after ?? null,
+            minimum: structuredClone(row.minimum),
+            outcome: error instanceof Error ? error.constructor.name : row.expected,
+            reason: error instanceof TransactionMinimumFailure ? error.reason : null,
+            context: observedContext,
+            groupPrepareCalls: preparations,
+          });
+          if (row.expected === "unproved") expect(error).toBeInstanceOf(TransactionMinimumUnproved);
+          else if (row.expected === "cursor-expired" || row.expected === "foreign-view") {
+            expect(error).toBeInstanceOf(TransactionMinimumFailure);
+            expect(error).toMatchObject({ reason: row.expected, context });
+          } else if (row.expected === "parameter")
+            expect(error).toBeInstanceOf(TransactionEventParameterError);
+          else if (row.expected === "strict" || row.expected === "malformed") {
+            expect(error).toBeInstanceOf(TypeError);
+            if (row.expected === "strict")
+              expect(error).toMatchObject({ message: "unsupported minimum tuple" });
+          } else {
+            expect(error).toBeUndefined();
+            expect(value).toMatchObject({
+              kind:
+                row.expected === "missing" ? "missing" : method === "finite" ? "page" : "packet",
+              context,
+            });
+          }
+          if (!["strict", "malformed"].includes(row.expected))
+            expect(observedContext).toEqual(context);
+          if (row.expected === "success") expect(preparations).toBeGreaterThan(0);
+          else expect(preparations).toBe(0);
+        }
+      expect(records).toHaveLength(20);
+    } finally {
+      observer.mockRestore();
+    }
+    console.log(
+      JSON.stringify({
+        observation: "event-replay-minimum-owner",
+        sourceKind,
+        source,
+        calls,
+        baselineCalls: 2,
+        baselineGroupPreparations: "unobserved",
+        seedCommits: 1,
+        rows: records,
+        groupObservation: "matching SQL preparations, not executions or allocation census",
+      }),
+    );
+  },
+);
+
+async function replayMinimumService(
+  sourceKind: keyof typeof replaySources,
+  transport: "json" | "sse",
+) {
+  const { createTransactionService } = await import("./transaction-service.js");
+  const { TransactionMinimumFailure, TransactionMinimumUnproved } = await import(
+    "./transaction-consistency.js"
+  );
+  const f = ownerFixture();
+  f.run([create("a"), create("b"), link()]);
+  const source = replaySources[sourceKind],
+    baseline = f.owner.readEvents(source);
+  if (baseline.kind !== "page") throw new Error("missing service replay baseline");
+  const after = baseline.page.events[0]!.id;
+  const minimum = {
+    scopeEpoch: baseline.context.scopeEpoch,
+    authorizationView: baseline.context.authorizationView,
+    minimumPosition: "unknown",
+  };
+  let now = 0,
+    waits = 0,
+    clockCalls = 0,
+    ownerCloseCalls = 0,
+    commits = 1,
+    serviceCalls = 0;
+  const entered = Promise.withResolvers<void>(),
+    latch = Promise.withResolvers<void>(),
+    controller = new AbortController();
+  const attempts: {
+    method: string;
+    after: string | null;
+    minimum: unknown;
+    intent: string | null;
+    outcome: string;
+    context?: import("./transaction-store.js").TransactionReadContext;
+  }[] = [];
+  function measured<T>(
+    method: string,
+    cursor: string | undefined,
+    tuple: unknown,
+    intent: string | undefined,
+    call: () => T,
+  ): T {
+    try {
+      const value = call();
+      attempts.push({
+        method,
+        after: cursor ?? null,
+        minimum: structuredClone(tuple),
+        intent: intent ?? null,
+        outcome: "success",
+      });
+      return value;
+    } catch (error) {
+      attempts.push({
+        method,
+        after: cursor ?? null,
+        minimum: structuredClone(tuple),
+        intent: intent ?? null,
+        outcome: error instanceof Error ? error.constructor.name : "non-Error",
+        ...(error instanceof TransactionMinimumFailure ||
+        error instanceof TransactionMinimumUnproved
+          ? { context: error.context }
+          : {}),
+      });
+      throw error;
+    }
+  }
+  const delegate = {
+    ...f.owner,
+    readEvents(...args: Parameters<typeof f.owner.readEvents>) {
+      return measured("finite", args[1], args[2], args[3], () => f.owner.readEvents(...args));
+    },
+    beginEventScan(...args: Parameters<typeof f.owner.beginEventScan>) {
+      return measured("sse", args[1], args[2], args[4], () => f.owner.beginEventScan(...args));
+    },
+    close() {
+      ownerCloseCalls++;
+      f.owner.close();
+    },
+  };
+  let token = 0;
+  const service = createTransactionService(delegate, {
+    ownerLifetime: "service",
+    minimumReads: {
+      budgetMs: 2,
+      now: () => {
+        clockCalls++;
+        return now;
+      },
+      wait: async () => {
+        waits++;
+        entered.resolve();
+        await latch.promise;
+      },
+    },
+    read: {
+      selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
+      advertisedLimits: {
+        page: { defaultItems: 1, maximumItems: 1 },
+        selector: { bytes: 4096, depth: 32, nodes: 256 },
+        cursorTtlMilliseconds: 1000,
+      },
+      pagination: {
+        scope,
+        defaultPageItems: 1,
+        maxPageItems: 1,
+        cursorTtlMs: 1000,
+        retainedStateCapacity: 100,
+        maxRetainedCursorPositionsPerSnapshot: 20,
+        retainedSnapshotByteCapacity: 100000,
+        retainedSnapshotNodeCapacity: 10000,
+        maxOpaqueTokenLength: 64,
+        tokenGenerationAttempts: 3,
+        idleCleanup: "on-demand",
+        clock: () => 1000,
+        generateOpaqueToken: () => `replay_${++token}`,
+      },
+    },
+  });
+  let closedSettled = false;
+  const closed = service.closed.then(
+    () => {
+      closedSettled = true;
+      return { ok: true as const };
+    },
+    (error: unknown) => {
+      closedSettled = true;
+      return { ok: false as const, error };
+    },
+  );
+  let closing: ReturnType<typeof service.close> | undefined;
+  const close = () => {
+    closing ??= service.close();
+    void closing.catch(() => {});
+    return closing;
+  };
+  const call = () => {
+    serviceCalls++;
+    return transport === "json"
+      ? service.events(source, after, minimum, controller.signal)
+      : service.beginEvents(source, after, minimum, controller.signal, false, "current-event");
+  };
+  type Outcome =
+    | { ok: true; value: Awaited<ReturnType<typeof call>> }
+    | { ok: false; error: unknown };
+  let operation: Promise<Outcome> | undefined;
+  return {
+    owner: f.owner,
+    minimum,
+    after,
+    attempts,
+    controller,
+    close,
+    closed,
+    start() {
+      operation = call().then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error }),
+      );
+      return operation;
+    },
+    async waitEntered() {
+      if (!operation) throw new Error("operation not started");
+      await replayBound(
+        Promise.race([
+          entered.promise,
+          operation.then(() => {
+            throw new Error("operation settled before wait entry");
+          }),
+        ]),
+        "Event wait entry timeout",
+      );
+    },
+    setNow(value: number) {
+      now = value;
+    },
+    release() {
+      latch.resolve();
+    },
+    closedSettled: () => closedSettled,
+    async advance() {
+      const result = await service.submit({
+        carrier: { kind: "batch" },
+        body: JSON.stringify({ operations: [create("c")] }),
+        key: "event-replay-advance",
+        authorization: { kind: "authorized", principal: "p" },
+        receiving: { acceptsJson: true, maximumOperations: 1 },
+      });
+      expect(result).toMatchObject({
+        kind: "receipt",
+        receipt: { status: "completed", requiredPosition: "pos-2" },
+      });
+      commits++;
+    },
+    async cleanup(failures: unknown[]) {
+      controller.abort();
+      latch.resolve();
+      now = 2;
+      try {
+        if (operation) await replayBound(operation, "Event operation drain timeout");
+      } catch (error) {
+        failures.push(error);
+      }
+      try {
+        await replayBound(close(), "Event service close timeout");
+        const result = await replayBound(closed, "Event closed observation timeout");
+        if (!result.ok) failures.push(result.error);
+      } catch (error) {
+        failures.push(error);
+      }
+    },
+    counts: () => ({
+      serviceCalls,
+      ownerAttempts: attempts.length,
+      baselineCalls: 1,
+      waits,
+      clockCalls,
+      commits,
+      ownerCloseCalls,
+    }),
+  };
+}
+it.each(["scope-json", "bead-json", "link-json", "scope-sse", "bead-sse", "link-sse"] as const)(
+  "captures current Event replay minimum once across owner entries: %s",
+  async (label) => {
+    const { TransactionMinimumFailure } = await import("./transaction-consistency.js");
+    const [kind, transport] = label.split("-") as [keyof typeof replaySources, "json" | "sse"];
+    const f = await replayMinimumService(kind, transport),
+      failures: unknown[] = [];
+    const captured = { ...f.minimum };
+    try {
+      const observed = f.start();
+      await f.waitEntered();
+      Object.assign(f.minimum, {
+        scopeEpoch: "mutated-epoch",
+        authorizationView: "mutated-view",
+        minimumPosition: "pos-1",
+      });
+      await f.advance();
+      f.setNow(2);
+      f.release();
+      const result = await replayBound(observed, "Event retry result timeout");
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error("opaque replay admitted");
+      expect(result.error).toBeInstanceOf(TransactionMinimumFailure);
+      expect(result.error).toMatchObject({
+        reason: "catch-up-timeout",
+        context: {
+          scopeEpoch: captured.scopeEpoch,
+          authorizationView: captured.authorizationView,
+          scopePosition: "pos-2",
+        },
+      });
+      expect(f.attempts.map((a) => a.minimum)).toEqual([captured, captured]);
+      expect(f.attempts.map((a) => a.after)).toEqual([f.after, f.after]);
+      expect(f.attempts.map((a) => a.intent)).toEqual(["current-event", "current-event"]);
+      expect(f.attempts.map((a) => a.context?.scopePosition)).toEqual(["pos-1", "pos-2"]);
+      expect(f.counts()).toMatchObject({
+        serviceCalls: 1,
+        ownerAttempts: 2,
+        baselineCalls: 1,
+        waits: 1,
+        clockCalls: 3,
+        commits: 2,
+      });
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      await f.cleanup(failures);
+    }
+    console.log(
+      JSON.stringify({
+        observation: "event-replay-minimum-capture",
+        label,
+        ...f.counts(),
+        attempts: f.attempts,
+        closed: f.closedSettled(),
+        failureCount: failures.length,
+      }),
+    );
+    if (failures.length) throw new AggregateError(failures, "Event replay capture failed");
+  },
+);
+it.each(["json", "sse"] as const)(
+  "drains current Event replay admission before owner close: %s",
+  async (transport) => {
+    const { ScopeServerOperationAbortedError } = await import("./read-request.js");
+    const f = await replayMinimumService("link", transport),
+      failures: unknown[] = [];
+    let postCloseProbes = 0,
+      synchronouslyUnsettled = false;
+    try {
+      const observed = f.start();
+      await f.waitEntered();
+      const closing = f.close();
+      synchronouslyUnsettled = !f.closedSettled();
+      expect(synchronouslyUnsettled).toBe(true);
+      f.controller.abort();
+      f.release();
+      const result = await replayBound(observed, "Event abort result timeout");
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error("aborted replay admitted");
+      expect(result.error).toBeInstanceOf(ScopeServerOperationAbortedError);
+      await replayBound(closing, "Event close timeout");
+      expect(await f.closed).toEqual({ ok: true });
+      postCloseProbes++;
+      expect(f.owner.withRead(() => true)).toMatchObject({
+        kind: "entry-refused",
+        reason: "not-accepting",
+      });
+      expect(f.counts()).toMatchObject({
+        serviceCalls: 1,
+        ownerAttempts: 1,
+        baselineCalls: 1,
+        waits: 1,
+        clockCalls: 2,
+        commits: 1,
+        ownerCloseCalls: 1,
+      });
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      await f.cleanup(failures);
+    }
+    console.log(
+      JSON.stringify({
+        observation: "event-replay-minimum-drain",
+        transport,
+        ...f.counts(),
+        attempts: f.attempts,
+        postCloseProbes,
+        synchronouslyUnsettled,
+        closed: f.closedSettled(),
+        failureCount: failures.length,
+      }),
+    );
+    if (failures.length) throw new AggregateError(failures, "Event replay drain failed");
+  },
+);
+
+it("serves current Event replay minima across media and reconnect selection", async () => {
+  const started = performance.now();
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-event-replay-http-"));
+  const token = randomBytes(32).toString("base64url");
+  const controller = new AbortController(),
+    failures: unknown[] = [];
+  const deadline = setTimeout(() => controller.abort(new Error("Event HTTP work deadline")), 4000);
+  let runtime: Awaited<ReturnType<typeof startTransactionRuntime>> | undefined;
+  let closed = false,
+    directoryRemoved = false;
+  const streams: ReturnType<typeof recordRawSse>[] = [];
+  const records: {
+    ordinal: number;
+    method: string;
+    target: string;
+    status: number;
+    bodyBytes: number;
+    context: Record<string, string | undefined>;
+  }[] = [];
+  const expected: { method: string; target: string; status: number }[] = [];
+  const positives: unknown[] = [];
+  const names = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
+  let requests = 0,
+    seedCommits = 0;
+  let current: Record<string, string> = {};
+  const ctx = (headers: Record<string, string>) =>
+    Object.fromEntries(names.map((name) => [name, headers[name]]));
+  const begin = (method: string, target: string, status: number) => {
+    controller.signal.throwIfAborted();
+    expect(++requests).toBeLessThanOrEqual(37);
+    expected.push({ method, target, status });
+  };
+  const record = (
+    method: string,
+    target: string,
+    status: number,
+    body: string,
+    headers: Record<string, string>,
+  ) =>
+    records.push({
+      ordinal: records.length + 1,
+      method,
+      target,
+      status,
+      bodyBytes: Buffer.byteLength(body),
+      context: ctx(headers),
+    });
+  try {
+    const { Ajv2020 } = await import("ajv/dist/2020.js");
+    const { readFileSync } = await import("node:fs");
+    const { isJsonSchemaDateTime, isJsonSchemaUri } = await import("@bdp/protocol");
+    const ajv = new Ajv2020({ strict: true, allErrors: true });
+    ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
+    ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
+    const bundle = JSON.parse(
+      readFileSync(new URL("../../../schemas/bdp-v0.schema.json", import.meta.url), "utf8"),
+    );
+    ajv.addSchema(bundle);
+    const problem = ajv.compile({ $ref: `${bundle.$id}#/$defs/transactionalProblem` });
+    const pageValidator = ajv.compile({ $ref: `${bundle.$id}#/$defs/eventPage` });
+    runtime = await startTransactionRuntime(
+      {
+        scope,
+        directory,
+        port: 0,
+        create: true,
+        types,
+        credentials: [{ token, principal: "p", canMutate: true }],
+      },
+      { receiptMaximumItems: 2, minimumReads: { budgetMs: 25 } },
+    );
+    const active = runtime;
+    const finite = async (target: string, method: "GET" | "POST" = "GET", body?: string) => {
+      begin(method, target, 200);
+      const response = await fetch(new URL(`/acme/${target}`, active.listenUrl), {
+        method,
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
+        headers: {
+          authorization: `Bearer ${token}`,
+          accept: "application/json",
+          ...(body === undefined
+            ? {}
+            : { "content-type": "application/json", "idempotency-key": "event-replay-http-seed" }),
+        },
+        ...(body === undefined ? {} : { body }),
+      });
+      const text = await response.text(),
+        headers = Object.fromEntries(response.headers);
+      record(method, target, response.status, text, headers);
+      expect(response.status).toBe(200);
+      return { value: JSON.parse(text), headers };
+    };
+    const raw = async (
+      target: string,
+      headers: [string, string][],
+      status: number,
+      method: "GET" | "HEAD" = "GET",
+      observed = true,
+      frames?: import("./transaction-batch.js").TransactionEvent[],
+    ) => {
+      begin(method, target, status);
+      const signal = new AbortController();
+      const stream = recordRawSse({
+        dial: active.listenUrl,
+        host: new URL(active.listenUrl).host,
+        target: `/acme/${target}`,
+        headers: [["Authorization", `Bearer ${token}`], ...headers],
+        method,
+        signal: AbortSignal.any([controller.signal, signal.signal]),
+        timeoutMs: 5000,
+      });
+      streams.push(stream);
+      const ready = stream.ready.then(
+        () => ({ ok: true as const }),
+        (error: unknown) => ({ ok: false as const, error }),
+      );
+      const drained = stream.closed.then(() => undefined);
+      const premature = drained.then(() => {
+        throw new Error("Event stream closed before live witness");
+      });
+      void premature.catch(() => {});
+      const rawFailures: unknown[] = [];
+      try {
+        const result = await ready;
+        if (!result.ok) throw result.error;
+        if (!frames) await drained;
+        expect(stream.status).toBe(status);
+        if (observed) expect(ctx(stream.headers)).toEqual(current);
+        else for (const name of names) expect(stream.headers[name]).toBeUndefined();
+        if (frames) {
+          expect(stream.headers["content-type"]).toBe("text/event-stream");
+          await Promise.race([
+            stream.until(() => eventFrames(stream).length >= frames.length),
+            premature,
+          ]);
+          const before = [...eventFrames(stream)];
+          expect(before.map(decoded)).toEqual(frames);
+          before.forEach((frame, i) => {
+            expect(frame.split("\n").filter((l) => l.startsWith("id: "))).toEqual([
+              `id: ${frames[i]!.id}`,
+            ]);
+            expect(frame.split("\n").filter((l) => l.startsWith("event: "))).toEqual([
+              `event: ${frames[i]!.type}`,
+            ]);
+          });
+          expect(controller.signal.aborted || signal.signal.aborted).toBe(false);
+          expect(stream.destroyed).toBe(false);
+          const liveBeforeClose = { aborted: false, destroyed: stream.destroyed };
+          await replayBound(stream.close(), "positive Event stream drain");
+          await drained;
+          expect(eventFrames(stream)).toEqual(before);
+          positives.push({
+            target,
+            ready: true,
+            status,
+            headers: { ...stream.headers },
+            framesBeforeClose: before,
+            framesAfterDrain: [...eventFrames(stream)],
+            liveBeforeClose,
+            drained: true,
+          });
+        } else {
+          expect(stream.frames).toHaveLength(0);
+          if (method === "HEAD") expect(stream.body).toBe("");
+          else if (status === 406) expect(stream.body).toBe("");
+          else if (status >= 400) {
+            const value: unknown = JSON.parse(stream.body);
+            expect(problem(value), JSON.stringify(problem.errors)).toBe(true);
+            const code =
+              status === 503
+                ? "catch-up-timeout"
+                : status === 410
+                  ? "cursor-expired"
+                  : status === 409
+                    ? "foreign-view"
+                    : status === 404
+                      ? "resource-not-found"
+                      : status === 400
+                        ? "invalid-parameter"
+                        : "not-acceptable";
+            expect(value).toMatchObject({ status, code });
+            expect(stream.headers["content-type"]).toBe("application/problem+json");
+            expect(stream.headers["content-length"]).toBe(String(Buffer.byteLength(stream.body)));
+          }
+          if (status === 503) {
+            expect(stream.headers).toMatchObject({
+              "retry-after": "1",
+              "cache-control": "private, no-store",
+            });
+            expect(stream.headers["x-bdp-development-limit"]).toBeUndefined();
+          }
+        }
+        record(method, target, stream.status, stream.body, stream.headers);
+      } catch (error) {
+        rawFailures.push(error);
+      } finally {
+        signal.abort();
+        try {
+          await replayBound(stream.close(), "raw Event stream drain");
+          await drained;
+        } catch (error) {
+          rawFailures.push(error);
+        }
+      }
+      if (rawFailures.length)
+        throw new AggregateError(rawFailures, "Event raw response or cleanup failed");
+    };
+    const seed = await finite(
+      "operations/batch",
+      "POST",
+      JSON.stringify({ operations: [create("a"), create("b"), link()] }),
+    );
+    expect(seed.value).toMatchObject({ status: "completed", requiredPosition: "pos-1" });
+    seedCommits++;
+    const histories: Record<string, import("./transaction-batch.js").TransactionEvent[]> = {};
+    for (const [kind, counts] of [
+      ["scope", [2, 2, 1]],
+      ["bead", [2]],
+      ["link", [1]],
+    ] as const) {
+      let target = replaySources[kind].slice(scope.length);
+      const events: import("./transaction-batch.js").TransactionEvent[] = [];
+      for (const [i, count] of counts.entries()) {
+        const result = await finite(target);
+        expect(pageValidator(result.value), JSON.stringify(pageValidator.errors)).toBe(true);
+        if (requests === 2) current = Object.fromEntries(names.map((n) => [n, result.headers[n]!]));
+        expect(ctx(result.headers)).toEqual(current);
+        expect(result.value.source).toBe(replaySources[kind]);
+        expect(result.value.events).toHaveLength(count);
+        events.push(...result.value.events);
+        if (i + 1 < counts.length) {
+          const next = new URL(result.value.next);
+          expect(next.origin).toBe(new URL(scope).origin);
+          expect(next.pathname).toBe("/acme/events/");
+          expect(next.searchParams.get("after")).toBe(result.value.events.at(-1).id);
+          expect([...next.searchParams.keys()]).toEqual(["after"]);
+          target = next.href.slice(scope.length);
+        } else expect(result.value.next).toBeNull();
+      }
+      histories[kind] = events;
+    }
+    const minimum = (position: string, media = "text/event-stream"): [string, string][] => [
+      ["Accept", media],
+      ["BDP-Scope-Epoch", current["bdp-scope-epoch"]!],
+      ["BDP-Authorization-View", current["bdp-authorization-view"]!],
+      ["BDP-Minimum-Scope-Position", position],
+    ];
+    for (const kind of ["scope", "bead", "link"] as const) {
+      const target = replaySources[kind].slice(scope.length),
+        after = histories[kind]![0]!.id,
+        suffix = `${target}${target.includes("?") ? "&" : "?"}after=${encodeURIComponent(after)}`;
+      await raw(suffix, minimum("unknown", "application/json"), 503);
+      await raw(suffix, minimum("unknown"), 503);
+      await raw(target, [...minimum("unknown"), ["Last-Event-ID", after]], 503);
+      const epoch = minimum("unknown");
+      epoch[1] = ["BDP-Scope-Epoch", "foreign-epoch"];
+      await raw(target, epoch, 410);
+      const view = minimum("unknown");
+      view[2] = ["BDP-Authorization-View", "foreign-view"];
+      await raw(target, view, 409);
+      await raw(suffix, minimum("pos-1"), 200, "HEAD");
+    }
+    await raw("beads/a?view=events", minimum("unknown"), 503);
+    await raw("links/l?view=events", minimum("unknown"), 503);
+    const scopeCursor = histories.scope![0]!.id,
+      beadCursor = histories.bead![0]!.id;
+    await raw(
+      "events/?after=",
+      [...minimum("unknown"), ["Last-Event-ID", scopeCursor]],
+      400,
+      "GET",
+      false,
+    );
+    const repeated: [string, string][] = [
+      ["Last-Event-ID", ""],
+      ["Last-Event-ID", "malformed"],
+    ];
+    await raw("beads/missing?view=events", [...minimum("unknown"), ...repeated], 404);
+    await raw("events/", [...minimum("unknown"), ...repeated], 503);
+    await raw("events/", [...minimum("pos-1"), ...repeated], 400);
+    await raw("events/", [...minimum("unknown", "application/json"), ...repeated], 503);
+    await raw("events/", minimum("unknown", "image/png"), 503);
+    await raw("events/", minimum("pos-1", "image/png"), 406);
+    await raw("events/", [...minimum("unknown"), ["If-None-Match", "*"]], 503);
+    await raw("events/", [...minimum("unknown"), ["If-Match", '"wrong"']], 503);
+    await raw(
+      `beads/a?view=events&after=${encodeURIComponent(scopeCursor)}`,
+      [...minimum("pos-1"), ["Last-Event-ID", beadCursor]],
+      200,
+      "GET",
+      true,
+      histories.bead!.slice(1),
+    );
+    await raw("links/l?view=events", minimum("pos-1"), 200, "GET", true, histories.link!);
+    expect(requests).toBe(37);
+    expect(records.map(({ method, target, status }) => ({ method, target, status }))).toEqual(
+      expected,
+    );
+    expect(positives).toHaveLength(2);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    controller.abort();
+    clearTimeout(deadline);
+    for (const stream of streams) {
+      try {
+        await replayBound(stream.close(), "Event HTTP cleanup stream");
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    if (runtime) {
+      try {
+        await replayBound(runtime.close(), "Event HTTP runtime cleanup");
+        closed = true;
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    if (closed && failures.length === 0) {
+      try {
+        rmSync(directory, { recursive: true, force: false });
+        directoryRemoved = true;
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+  }
+  const elapsedMs = performance.now() - started;
+  console.log(
+    JSON.stringify({
+      observation: "event-replay-minimum-http",
+      requests,
+      records,
+      seedCommits,
+      positives,
+      elapsedMs,
+      closed,
+      directory,
+      directoryRemoved,
+      failureCount: failures.length,
+    }),
+  );
+  if (failures.length) throw new AggregateError(failures, "Event replay HTTP failed");
+  expect(elapsedMs).toBeLessThan(4000);
 });
