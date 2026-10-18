@@ -55,10 +55,14 @@ Referenced schema resources and resolution bindings must be retained immutably w
 the Type revision, without fetching newer remote content during validation. Their
 descriptor representation is a root `propertiesSchema` plus a proposed `schemaResources`
 URI-to-resource map, immutable with its revision. The seed includes reachable descriptor
-and standard 2020-12 meta-schema copies at their original IDs; there is no standard-resource
-exemption. Copies are checked against the adjacent artifacts and `jsonschema-specifications`;
+and standard 2020-12 meta-schema copies at their original IDs. Baseline meta-schema
+provisioning remains unresolved: implementation-supplied or descriptor-carried, uniformly
+for written and omitted `$schema`. The current fixture carries copies for explicit-
+dialect roots but not its two omitted-dialect roots; it is not complete admission
+evidence for that unresolved obligation. Copies are checked against the adjacent
+artifacts and `jsonschema-specifications`;
 see [third-party notices](THIRD_PARTY_NOTICES.md). The finite checker uses each metatype's
-retained map with retrieval disabled. Map serialization and anonymous relative-base
+retained map with retrieval disabled for the exercised cases. Map serialization and anonymous relative-base
 handling still need review; separate Schema Beads or mutable sidecars are not required.
 The profile also requires syntactic enforcement of standard formats and refusal of Types relying on unknown/unsupported formats, without network
 or existence checks. This explicitly goes beyond annotation-only defaults; see
@@ -128,7 +132,9 @@ eligibility incorrectly. Local OR arrays are only a compact Cartesian expansion.
 
 Endpoint `scope` and `resourceKind` spellings remain candidate syntax. Typed `cross`
 and `either` Bead arms are permitted: a registered exact global Type definition can
-supply accepted endpoint-Type facts for any Link. Its canonical Scope stays unchanged,
+supply accepted endpoint-Type facts for any Link only when the endpoint is that
+Type-definition Bead itself. Registering an ordinary foreign Bead's claimed Type does
+not validate the Bead. Its canonical Scope stays unchanged,
 and an explicit `same` restriction still excludes a foreign endpoint. The ConformsTo
 seed therefore uses `either` arms while preserving its exact metatype selectors.
 
@@ -145,7 +151,8 @@ admit an external reference without proving its Type. Core Scope classification 
 `sourceMax` and `targetMax` are optional nonnegative integers on linkConstraints,
 not on pair alternatives. Each counts the declaring conformance family per
 endpoint identity across all arms and endpoint revision pins. No positive Link
-minimum or generic endpoint pin-mode requirement is introduced. An absent maximum
+minimum or generic endpoint pin-mode descriptor field is introduced; the checked
+foreign-definition path still requires an explicit pin. An absent maximum
 adds no local bound. Bead incoming/outgoing rules still permit minima and maxima.
 
 `unique: true` imposes ordered endpoint-identity pair uniqueness; `acyclic: true`
@@ -174,6 +181,12 @@ are Beads. Type owns ConformsTo; the BeadType and LinkType definition Beads inhe
 that ownership through their affiliation with BeadType. Selected owned Links are
 grouped once under their actual nominal Link Type identity; an empty owned set is
 `{}` without empty buckets. This projection requires a coordinated Core amendment.
+
+A definition's category comes from its own affiliation's effective Type set, not
+from the Types it itself promises to conform to. Thus a BeadType-affiliated definition
+specializing the LinkType metatype is not thereby ambiguous. Endpoint eligibility
+also grants no authority to mutate an installed origin definition; retained original
+declarations are distinct from newly created receiver-Scope Links.
 
 ConformsTo allows BeadType→BeadType or LinkType→LinkType. Its properties are an open
 object. It requires exact target pins and a conformance DAG over exact definition
@@ -249,7 +262,8 @@ properties schema is valid JSON Schema but admits no instances. Unknown extensio
 properties do not imply supported semantics. SemVer syntax proves no compatibility
 promise. The initial profile has no separate compatibility relation or SemVer migration
 guarantee; publication-label uniqueness is still open. Types §3.13 specifies a sound,
-bounded mandatory contradiction floor. Outside proved cases the static result is unknown;
+bounded mandatory contradiction floor and a separate warning for simple disjoint
+optional-property types. Outside proved cases the static result is unknown;
 full instance validation and authors' semantic responsibilities remain. This artifact
 checker does not implement that general admission floor.
 

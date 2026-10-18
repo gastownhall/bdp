@@ -84,8 +84,10 @@ selected default, the write refuses before acquisition (§7.2).
 An omitted Type on update preserves the existing exact affiliation. Supplying a
 Type reference replaces that reference as a whole, rather than merging its identity
 and revision members.
-A guarded ordinary update may explicitly replace the Type reference of a Bead or
-Link. It may accompany targeted property edits or explicit full replacement;
+An ordinary update may explicitly replace the Type reference of a Bead or Link,
+subject to the applicable Write revision preconditions. Whether retyping requires an
+additional mandatory guard remains an operation-contract question. The Type replacement
+may accompany targeted property edits or explicit full replacement;
 complete-result validation does not require every request to replace all properties.
 The resulting properties and affected graph must satisfy all applicable constraints,
 or the change fails atomically. A Link Type change that adds the Link to or removes
@@ -167,9 +169,13 @@ affiliation, recorded owned state, metadata and revision provenance.
 Own affiliation answers what this definition Bead is; outgoing ConformsTo Links
 answer what the instances it defines must satisfy. In particular LinkType's
 conformance to Type is between two Bead Types, not cross-kind conformance.
-Category is derived from affiliation/conformance to BeadType or LinkType, not a
-second writable `describes` discriminator. Admission must reject ambiguous
-membership in both categories. How direct common-Type instances are treated is
+A definition's category is determined by the effective Type set of its **own
+`type` affiliation**: the exact affiliated Type plus that Type's conformance closure.
+It is not determined by adding the types that the definition itself declares
+conformance to. There is no second writable `describes` discriminator. Admission must
+reject an affiliation whose effective Type set includes both categories. For example,
+D affiliated with BeadType may specialize the LinkType metatype: D is a Bead-Type
+definition whose instances are Link-Type definitions, not an ambiguously categorized D. How direct common-Type instances are treated is
 still open; the candidate uses the category-specific affiliations for usable definitions.
 
 Candidate schemas:
@@ -230,12 +236,20 @@ definitions whose exact state is accepted locally. Registration does not redefin
 arbitrary external endpoints remain opaque; accepting definitions does not grant
 permission to mutate their origin.
 
+Endpoint eligibility does not grant write authority. A descriptor arm that can match
+a registered foreign definition does not authorize revising that definition or its
+owned declarations. Retained origin declarations preserve their original identities,
+Scopes and exact owned-source context; exposing or admitting their retained semantic
+closure is distinct from creating new receiver-Scope Links. The precise source-Scope
+and pinned-owned-source operation seam remains deferred (§5.7); this distinction
+adds no endpoint restriction bypass.
+
 | Aspect | Contract |
 | --- | --- |
 | Direction | Source definition declares conformance to target definition |
 | Source | Declaration belongs to the source definition revision's recorded owned state |
 | Target | Exact pinned definition revision; no floating target in a stored declaration |
-| Kind agreement | Both definitions belong to the same category; enforced through endpoint pairs and semantic admission |
+| Kind agreement | Both definition endpoints belong to the same category, determined from their own affiliations; endpoint pairs and semantic admission use that distinction (§2.1) |
 | Meaning | Every valid source-Type instance satisfies the target's structural, semantic and explicit behavioral promises |
 | Inheritance | Transitive and acyclic over exact definition revisions; all inherited requirements apply |
 | Ownership | Through the common Type contract; mutations have source revision effects |
@@ -749,10 +763,21 @@ validation. Missing required resources or unresolved references cannot be treate
 valid constraints. The same Type revision must not change meaning when a publisher
 changes content at a referenced URL or when the network is unavailable.
 
+The effective baseline is 2020-12 whether `$schema` is written or omitted. The source
+of that baseline's meta-schema resources remains an explicit provisioning decision:
+implementation-supplied versus carried in each definition's descriptor. Spelling
+`$schema` must not implicitly choose between those policies. The current fixture copies
+standard meta-schema resources for its explicit-dialect roots but not its two omitted-
+dialect roots; it does not establish a uniform baseline-supply contract or prove
+complete profile admission. This gap does not relax the retained application-schema
+reference bindings or permit live retrieval during validation.
+
 The definition descriptor contains both `propertiesSchema` and a referenced-schema
 map, proposed as `schemaResources`. This map is immutable with the Type revision;
 validation needs neither separate Schema Beads nor a separately mutable sidecar. It
-contains the exact resources needed for offline evaluation of that definition's root.
+contains the exact referenced application-schema resources needed for offline
+evaluation of that definition's root. Baseline meta-schema provisioning is the
+separate unresolved obligation above.
 Each inherited definition retains its own root and map; conformance does not merge
 independent maps or let a child overwrite an ancestor's reference bindings.
 
@@ -767,7 +792,7 @@ conflicting resource-identity bindings refuse admission. Embedded `$id` resource
 containing schema and need not be duplicated in the map. Exact spelling and
 serialization are review syntax; self-contained immutable descriptor state is selected.
 
-For example, a definition can retain this complete root/reference pair (both use the
+For example, a definition can retain this application root/reference pair (both use the
 baseline dialect by omission):
 
 ```json
@@ -791,9 +816,14 @@ contradiction detection for arbitrary schemas.
 
 Admission must run the following finite checks over the local and inherited contracts.
 They establish contradictions, not satisfiability. Collect unconditional conjuncts:
-the schema itself, its `allOf` branches and statically bound `$ref` targets from the
-retained map. Follow each exact schema location once; recursive references do not
-by themselves constitute a contradiction. Do not treat `anyOf`, `oneOf`, conditional
+the schema itself, its `allOf` branches and statically resolvable `$ref` targets.
+Resolve each reference in its originating exact Type definition's schema environment:
+internal fragments and anchors, embedded `$id` resources, and that definition's retained
+`schemaResources` map, using standard base resolution. Never merge different definitions'
+maps or resolve an ancestor's reference through the child's bindings. An exact schema
+location includes the originating definition identity and revision as well as the
+resource/location within it. Follow each such location once; recursive references do
+not by themselves constitute a contradiction. Do not treat `anyOf`, `oneOf`, conditional
 branches, `not`, dynamic-reference alternatives or example data as unconditional
 conjuncts. The floor does not require a general solver for those constructs.
 
@@ -810,7 +840,14 @@ static expansion.
 | Numeric bounds | The allowed primitive types are exclusively numeric and the strongest direct lower bound exceeds the weakest upper bound, or equals it with either bound exclusive |
 | String/array/object sizes | The allowed primitive types are exclusively the respective kind and direct `minLength` exceeds `maxLength`, `minItems` exceeds `maxItems`, or `minProperties` exceeds `maxProperties` |
 | Required object names | The union of required names exceeds an applicable direct `maxProperties` |
-| Graph bounds | For the same governed population, effective minimum exceeds effective maximum under §5.3 |
+| Graph bounds | The candidate's own local/inherited declarations, proved to govern the same counted set, direction and endpoint population, have effective minimum exceeding effective maximum (§§5.2–5.4) |
+
+The static graph-bound check uses only the candidate's local and inherited declarations
+whose governed populations are proved identical. It does not collect every revision of
+a Link Type merely because an identity-wide selector could match it. For example,
+Assignment@1's maximum two cannot statically defeat a candidate requiring three Links
+that may instead use Assignment@2 with maximum five, absent an applicable inherited
+requirement. Runtime activation and final-state validation remain governed by §§5.2–5.4.
 
 The complete properties value is an object under the Resource contract. Only when
 a value is restricted to objects do required-name and object-closure proofs establish
@@ -822,6 +859,14 @@ does not merge `properties` lists. The bounded additional-properties check exclu
 `patternProperties` rather than guessing whether a pattern covers the required name.
 If another primitive kind can still satisfy a scalar constraint, a contradiction
 for just one kind is insufficient to refuse the definition.
+
+Separately from the refusal floor, implementations must warn about the simple direct
+optional-property case in §3.2: collected unconditional object schemas declare the
+same optional property with disjoint direct `type` constraints. Report that supplying
+it is impossible while omission remains permitted; do not refuse the whole Type for
+that reason. Use the same number/integer overlap rule. This bounded warning obligation
+does not require complete analysis of optional properties under arbitrary applicators,
+conditions or semantic constraints.
 
 The mandatory result is **proved contradiction** or **not established by this floor**.
 The latter is unknown, not a proof of validity, compatibility or inhabitation. An
@@ -912,8 +957,9 @@ match at least one pair, and both endpoints must match **that same pair**. Withi
 each side, a nonempty Type-reference array means OR. `['*']` means no Type
 restriction and the wildcard must appear alone. Actual JSON uses double quotes.
 Each non-wildcard entry may be a floating Type reference or `{uri, revision}`;
-matching follows §4.2. These are pins on
-**Type references**, not requirements that endpoint references be pinned.
+matching follows §4.2. These selector pins identify **Type references**. They do not
+introduce a generic endpoint pin-mode field; the checked foreign-definition path
+below separately requires an explicit endpoint revision pin.
 
 ```text
 ConformsTo:
@@ -943,7 +989,10 @@ external `resource` arm is opaque and carries no Type requirement. Link endpoint
 are not enabled by this Type-profile syntax; their admissibility is a Core question.
 
 **Registered exact Type definitions can satisfy endpoint Type constraints across
-origins for any Link Type.** Use the locally accepted definition's exact state and
+origins for any Link Type.** The endpoint must itself be a registered Type-definition
+Bead, referenced at an explicit exact revision. Registering the Type of an ordinary
+foreign Bead does not establish that Bead's claimed affiliation or validate its state.
+Use the locally accepted endpoint definition's exact state and
 retained dependency closure to check its Bead-Type affiliation/conformance. This is
 the same trusted dependency resolution used for Types (§7.2), not a network request
 or permission to mutate the definition. IDs and their Scope classification do not
@@ -959,8 +1008,8 @@ web resource is not proved conforming by its URI or presence in a cache. Wildcar
 Bead arms and opaque `resource` arms impose no Type check; `resource` arms carry
 no `types` member. The generic descriptor schema permits typed `cross`/`either`
 arms, but property-shape validation alone cannot establish the required registration
-and exact-state facts. A checked foreign-definition endpoint must explicitly pin the
-exact definition revision. An unpinned foreign endpoint cannot use this checked path,
+and exact-state facts. The endpoint on this checked path is the registered definition
+Bead itself, and its reference must explicitly pin that exact definition revision. An unpinned foreign endpoint cannot use this checked path,
 even if only one revision is retained or a local Type-write default is selected.
 Ordinary local floating endpoints remain supported. An opaque external reference can
 still match a wildcard/opaque arm where allowed; it does not gain a checked Type claim.
@@ -968,8 +1017,9 @@ Reference classification/canonicalization still needs precise Core rules.
 
 Arity, uniqueness and acyclicity apply across the combined family, not separately
 per alternative. One Link matching multiple alternatives counts once per rule.
-No generic endpoint `pinned`/`floating`/`either` restriction is added now; both
-reference forms remain possible, subject to any intrinsic domain semantics.
+No generic endpoint `pinned`/`floating`/`either` descriptor field is added now. Both
+reference forms remain possible where permitted, subject to intrinsic domain semantics
+and the explicit-pin requirement for the checked foreign-definition path above.
 A pin on an external endpoint does not establish that the resource exists or is immutable.
 
 Domain semantics can narrow the generic permissions. For example, the Memory
@@ -1343,6 +1393,9 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Standard meta-schema requires an unsupported baseline vocabulary | Refuse the definition; ignoring its asserted requirements is not validation |
 | Ordinary schema contains an unknown annotation | Do not invent assertion semantics; adding `$vocabulary` to an ordinary schema is not a required-extension negotiation mechanism |
 | Publisher changes bytes at a referenced schema URL after Type revision acceptance | Continue using that revision's retained exact closure and bindings; no newer remote substitution |
+| A retained schema is retrieved under one URI and declares a different canonical `$id` | The difference alone is valid; preserve standard retrieval/base/identity semantics, not a blanket key-equals-id rule |
+| Two retained resources establish conflicting contents for the same canonical schema identity in one definition environment | Refuse the conflicting binding; a map key cannot override the conflict |
+| D is affiliated with BeadType and declares conformance to the LinkType metatype | Do not classify D as ambiguous merely from that outgoing declaration; category follows D's own affiliation's effective Type set |
 | Required referenced schema resource is missing from the retained closure | Do not validate as though the missing requirement succeeded or fall back to live newer content |
 | Recomputed owned set or other final graph constraints make source-Bead retyping invalid | Reject atomically; leave prior affiliation, owned snapshots and Link revisions unchanged |
 | Supplied Type resolves to the already stored exact reference and no other state changes | No Type change by itself; ordinary no-op rules apply after revision preconditions |
@@ -1360,9 +1413,9 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Required exact declaration/definition is unavailable locally | Do not accept the missing contract as satisfied or fall forward to a newer revision |
 | Registered global definition is used for local validation | Does not grant authority to mutate its origin or change its canonical Scope |
 | Any Link crosses origins but its applicable descriptor permits only same-Scope endpoints | Registration alone does not bypass that restriction; reject the incompatible endpoint selection |
-| Any Link uses a cross/either arm to reference a registered exact global definition with the required Type | Permit that endpoint match from retained accepted facts; apply all remaining Link constraints and authorization |
-| Same arm names an unregistered foreign Bead claiming the required Type | Do not accept the Type claim or fetch remote content to make the check pass |
-| Typed foreign endpoint has no explicit revision, but its definition is registered and has a local write default | Refuse the checked endpoint match; do not infer a pin from the write default |
+| Any Link uses a cross/either arm whose endpoint is itself a registered global Type-definition Bead, explicitly pinned and satisfying the required Type | Permit that endpoint match from retained accepted facts; apply all remaining Link constraints and authorization |
+| Same arm names an ordinary foreign Bead whose claimed Type definition is registered | Do not accept the Bead's Type claim or fetch remote content to make the check pass |
+| Typed foreign endpoint names a registered Type-definition Bead without an explicit revision pin; that definition identity has a local write default | Refuse the checked endpoint match; do not infer a pin from the write default |
 | Exact foreign definition endpoint satisfies its Type requirement but its arm requires same-Scope | Refuse; exact registration does not bypass Scope restriction |
 | Auto-install is requested only by caller, or enabled only by Scope | Refuse automatic installation; both conditions are required |
 | One requested dependency fails graph registration | Register none of the newly requested graph; preserve pre-existing registrations; cached bytes remain unregistered |
@@ -1476,8 +1529,8 @@ The remaining decisions are narrower:
 
 | Area | Selected rule | Decision or contract work still needed |
 | --- | --- | --- |
-| Retyping and affected graph | Guarded explicit whole-reference replacement; complete-result validation; Type-only changes version; Link retyping entering/leaving ownership atomically revises the source; source-Bead retyping recomputes its owned set without implicit Link revisions; history stays immutable | Precise floating-endpoint revalidation and endpoint/pinned-source transitions; which checks defer to commit and revision production across batch members; coordinated Core/Write requests and diagnostics |
-| Schema admission | JSON Schema 2020-12 validation and syntactic format enforcement; unknown/unsupported formats and required vocabularies refuse; immutable descriptor-contained schema map; inherited schemas all apply; bounded contradiction floor (§§3.12–3.13) | Map serialization/binding details, extension presentation and defined semantic annotations; no complete satisfiability proof |
+| Retyping and affected graph | Explicit whole-reference replacement under applicable Write preconditions; complete-result validation; Type-only changes version; Link retyping entering/leaving ownership atomically revises the source; source-Bead retyping recomputes its owned set without implicit Link revisions; history stays immutable | Retyping-specific mandatory guard, precise floating-endpoint revalidation and endpoint/pinned-source transitions; which checks defer to commit and revision production across batch members; coordinated Core/Write requests and diagnostics |
+| Schema admission | JSON Schema 2020-12 validation and syntactic format enforcement; unknown/unsupported formats and required vocabularies refuse; immutable descriptor-contained schema map; inherited schemas all apply; bounded contradiction floor (§§3.12–3.13) | Baseline meta-schema provisioning, map serialization/binding details, extension presentation and defined semantic annotations; no complete satisfiability proof |
 | Exact conformance closure | Exact target pins, no exact-revision cycles; ancestor requirements deduplicated by originating exact definition/location; distinct declaration restrictions retained | Concrete location/qualifier representation and diagnostics; distinct from once-per-instance-Link counting |
 | Constraint evolution | §§5.4, 5.6 and 5.8 select local activation with cross-revision family populations and per-Link acyclicity | Precise inherited-declaration activation and selector/diagnostic syntax; no Scope-wide minimum over installed definitions |
 | Definition resolution | Registered exact global definitions satisfy endpoint Type checks for any Link, with explicit endpoint pins and Scope restrictions intact; arbitrary external resources remain opaque | Installation operation mechanics, Scope classification and inventory/read projection; locally retained available inventory does not rewrite origin identity/authority |
@@ -1781,7 +1834,7 @@ Beads behavior as implementing its proposed semantics.
 | --- | --- | --- |
 | Optional Scope-wide Types boundary | Selected direction (§1) | Coordinated canonical Core/Write and discovery amendment |
 | Exact affiliations and explicit retyping | Selected for Beads and Links; whole-reference replacement, Type-only revisions, atomic source revision for Link ownership transitions, and recomputed owned set on source-Bead retyping (§§2, 5.7) | Wire/schema propagation, affected-Link/endpoint transition and batch revision details, runtime qualification |
-| Conformance, structural and semantic | Selected foundation (§3), 2020-12 validation and format enforcement, refusal of unsupported required extensions and immutable schema closure; read/write responsibilities distinguished | Bounded floor qualification, map/extension and origin-location representation, semantic annotations; exact format-support qualification |
+| Conformance, structural and semantic | Selected foundation (§3), 2020-12 validation and format enforcement, refusal of unsupported required extensions and immutable schema closure; read/write responsibilities distinguished | Baseline meta-schema provisioning, bounded floor/warning qualification, map/extension and origin-location representation, semantic annotations; exact format-support qualification |
 | Constraint matching and populations | Pair unions, inherited conjunction, exact/identity-wide selectors and identity-based populations selected (§§4.2, 5) | Final selector syntax, inherited activation and local transition/availability checks; arbitrary external-resource validation excluded |
 | Arity, uniqueness and acyclicity | Transaction-final checks and the mixed-revision cases selected (§5) | General graph validator, atomic mutation and exact-source qualification NYI |
 | Definition representation | Definition Beads, descriptor fields and owned ConformsTo Links; shared exact trusted bootstrap selected; candidate schemas/seed present (§2) | Production bootstrap publication, lifecycle operations and resolution qualification |
