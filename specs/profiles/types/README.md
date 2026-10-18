@@ -39,24 +39,42 @@ need not expose definition Beads or ship the general Types profile. See
 [Memory proposal #7661](https://github.com/gastownhall/beads/issues/7661) and its
 [implementation/decision ledger](https://github.com/gastownhall/beads/issues/7656).
 
-These artifacts use [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/json-schema-core).
-Embedded schemas are checked against its meta-schema; an explicit root dialect
-must match. Dialect choice, requiredness and exact property names remain review
-proposals. URI/date formats need an enabled format checker. `$ref` composition
-here uses preloaded resources, not arbitrary network fetching; immutable published
-schema closure still needs lifecycle rules.
+JSON Schema 2020-12 and its standard validation rules are the selected baseline.
+Embedded schemas are checked against its meta-schema; an omitted root dialect uses
+2020-12 and a conflicting explicit dialect refuses. Unsupported required vocabularies
+identified by the applicable meta-schema must refuse; `$vocabulary` in an ordinary
+schema is not extension negotiation. Unknown annotations do not acquire assertion
+semantics by being present. See [JSON Schema Core §8.1](https://json-schema.org/draft/2020-12/json-schema-core#section-8.1)
+and Types §3.12. Descriptor field requiredness and exact names remain review syntax.
+
+Referenced schema resources and resolution bindings must be retained immutably with
+the Type revision, without fetching newer remote content during validation. Their
+closure encoding and installation remain open. The checker uses preloaded resources
+and forbids retrieval. The profile also requires syntactic enforcement of standard
+formats and refusal of Types relying on unknown/unsupported formats, without network
+or existence checks. This explicitly goes beyond annotation-only defaults; see
+[JSON Schema Validation §7.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-7.2).
+The checker enables Python `FormatChecker` for its illustrative URI/date cases;
+that setting alone proves neither coverage of every standard format nor admission
+refusal for unknown formats. It does not implement general required-vocabulary
+negotiation or prove arbitrary schema satisfiability.
 
 ## Changes from the current descriptor
 
 | Starting descriptor | Current draft |
 | --- | --- |
 | Descriptor id | Common Bead identity and revision |
+| Descriptor name and adopted `{id, name, describes}` inventory projection | No separate Type name identity; resource ID and aliases supply naming. Changing the adopted inventory projection requires a separate Core amendment. |
+| Closed descriptor object | Candidate descriptor roots permit extensions; unknown data does not imply implemented semantics. |
+| Core's always-open instance properties | Draft schema authors may choose closure, subject to inherited compatibility; adopting that change requires Core alignment. |
 | One descriptor with describes discriminator | Common Type plus BeadType/LinkType specializations; category follows affiliation/conformance; duplicate describes prohibited |
 | conformsTo array | Owned ConformsTo Links in the exact owner snapshot |
 | Optional propertiesSchema URL | Required embedded schema; no separate descriptor-schema layer |
 | Independent source/target constraints | linkConstraints.typeConstraints is a union of correlated endpoint pairs |
 | URL-keyed ownsOutgoing map with mandatory max | Bead ownership selector array, separate from arity |
 | Endpoint multiplicity policy | Family-wide sourceMax/targetMax plus Bead participation bounds |
+| Aggregate constraints supplied as Scope policy | Selected draft direction places declared arity/uniqueness/acyclicity in the Type contract; current policy/wire behavior is not silently replaced. |
+| Write prohibits mutation-triggered Type installation | Explicit automatic-installation mode is selected for the future lifecycle (§7.2), subject to validation/admission; coordinated Write adoption remains required. |
 | No common author release label | Proposed optional version with SemVer syntax; no runtime selection or compatibility inference |
 
 The current canonical owned-Link contract requires bounded owned sets. Separating
@@ -74,6 +92,18 @@ sides and wildcard mixed with specific Types are invalid. Unpinned selectors mat
 revision, never a repeatedly resolved latest definition. Pinned selectors require
 exact nominal affiliation or conformance. This does not change exact stored
 affiliation and ConformsTo target pins.
+
+For explicitly unpinned Type write input, the Scope instead uses its explicitly
+chosen installed exact default for the canonical Type identity. Installing a later
+revision alone does not change that default; an explicit default change affects
+future unpinned selections, not existing pins or updates omitting Type. Pinned input
+keeps its requested revision. Alias resolution does not promote a default, and
+identity-wide query/constraint matching never consults this write default. Unpinned
+input without a selected local exact default refuses, even with only one installed
+revision; an explicit admitted pin or explicit default selection is needed. Initial
+selection and its operation/permission contract remain open; no automatic first-install
+selection or fallback is introduced. See Types §7.2. These are semantic rules, not
+new descriptor fields or executable behavior in the literal fixture.
 
 A Link must match both sides of one pair. Within either side, arrays mean OR.
 Inherited pair lists remain separate conjunctions; concatenating them would widen
@@ -131,6 +161,13 @@ object. It requires exact target pins and a conformance DAG over exact definitio
 revisions, but the generic identity-based acyclic flag is deliberately absent.
 That flag would also forbid T@2→T@1, an unresolved part of revision evolution.
 Pair uniqueness on direct declarations/evidence is likewise not selected.
+A declaration's exact Link Type must already be accepted before the declaration is
+used to admit a candidate. An unaccepted specialization cannot establish its own
+ConformsTo membership through a self-typed declaration or mutually dependent
+unaccepted relationship Types. It can declare through built-in ConformsTo and then
+serve later declarations once accepted. This is a logical admission dependency;
+transaction/batch/import ordering syntax remains open. Trusted intrinsic bootstrap
+and permitted schema recursion are separate, not a blanket ban on reference loops.
 
 Eight definitions and four declarations form the finite example. These use trusted
 seed placeholders, not client-assigned production revision tokens. Definition
@@ -139,8 +176,14 @@ Bootstrap authority, revision allocation, upgrades and installation remain open.
 Sources are floating in the fixture; exact owner snapshots remain authoritative.
 No implicit affiliation edges appear in the graph. Bead and Link Type-only changes
 create Resource revisions even when properties are unchanged; this is a selected
-mutation rule, not behavior executed by these final-state fixtures. Current Core/Write
-mutation contracts still need coordinated propagation.
+mutation rule, not behavior executed by these final-state fixtures. A Link Type change
+entering or leaving its source's owned set also creates a new source revision atomically
+with the Link revision, preserving prior snapshots. Source-Bead retyping recomputes
+its owned set from existing outgoing Links under the new effective Type in the new
+Bead revision; Link revisions change only for explicit Link edits. Invalid final graphs
+refuse atomically. Endpoint movement, pinned-source pre-/post-mutation semantics and
+exact revision production across batch members remain separate open work. Current
+Core/Write mutation contracts still need coordinated propagation.
 
 A graph file/CLI payload must distinguish creating records with newly allocated
 revisions from preserving exported historical pins. Forward references within an
@@ -165,8 +208,13 @@ uv run --no-project --with 'jsonschema[format]' python scripts/check_type_exampl
 The check validates six schemas and positive/negative shape cases, exact example
 references and owned-state consistency, category-preserving pair matches over
 the finite foundation graph, seven invalid ownership/endpoint fixture mutations,
-schema-copy equality and illustrative domain property
-cases. The Issue/Dependency prose is the existing WIP authoring draft, relocated with
+schema-copy equality and illustrative domain property cases. Its category helper
+recognizes the fixture's direct intrinsic BeadType/LinkType affiliations only; it is
+not a general resolver for custom metatypes that conform to those categories. That
+fixture shortcut neither prohibits conforming metatypes nor proves their admission.
+The exact metatype selectors in the fixture remain intentional; a future intrinsic
+upgrade needs a coherent bootstrap decision, not an unreviewed switch to identity-wide
+selectors. The Issue/Dependency prose is the existing WIP authoring draft, relocated with
 its inspected Preview 2 evidence intact; it is not a fresh runtime qualification.
 It preloads resources and forbids retrieval. It does not implement a generic Type
 checker, import a graph, exercise a BDP server or qualify a release.
