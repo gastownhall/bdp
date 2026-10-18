@@ -322,51 +322,72 @@ and [Dependency properties](../issue/issue.md#42-properties-and-metadata).
 ## 3. Capture, find and read Memory Beads
 
 “Discovery” means finding Beads before reading their complete contents: list them,
-search for matching text, or follow Links. The command examples here and in Appendix A
-are proposed CLI design, not statements of shipped support.
+search for matching text, or follow Links. Memory Beads use shared authoring, query,
+Link and History operations. We define the useful operations here before choosing
+Memory-specific verbs or tuning ordinary create/update/list/show/delete commands.
+Appendix A gives concrete questions the query surface should help answer.
 
-### 3.1 Capture
+### 3.1 Capture and correct knowledge
 
-`bd memory create [BODY]` offers quick capture: an ordinary Memory Bead by default, optional
-Type selection, one body source (text, file or stdin) and an optional title. With body
-but no title, reuse the existing Memory authoring title helper: take the first nonblank
-line, collapse display whitespace and cap the title at 80 Unicode code points including
+Creating a Memory Bead supplies its Type, title, body and any additional properties
+or metadata. Body remains the primary content. An omitted title is derived using
+the existing Memory authoring title helper: take the first nonblank body line,
+collapse display whitespace and cap the title at 80 Unicode code points including
 an ellipsis when truncated. Preserve the complete body. An explicit title permits
 omitted body, stored as empty. Whitespace-only input cannot derive a nonblank title.
 
+For example, a technician records “Housing B uses a different seal” as an ordinary
+Memory Bead. The authoring operation supplies its stable identity and derives that
+display title if the technician did not supply one. A later guarded correction edits
+the same Bead and creates a revision. Choosing a Procedure Type is an explicit
+Type selection, not prose inference.
+
 Markdown, frontmatter and ordinary document hyperlinks remain content. They do not
-implicitly create properties or graph Links. Updates preserve omitted fields.
+implicitly create properties or graph Links. Targeted updates preserve omitted fields.
+The choice of positional title/body arguments, flags, file/stdin input and domain
+wrappers belongs to the later authoring-ergonomics pass.
 
 ### 3.2 List, search and follow Links
 
-| Intended action | Proposed entry point | What the caller receives |
+| Intended action | Concrete example | Result |
 | --- | --- | --- |
-| Browse Memory Beads | bd memory list | Compact summaries across the Memory family, with shared Type filters for narrower selection. |
-| Find matching text | bd memory search "housing B" | One summary per matching Memory Bead, showing the matched field and bounded excerpt. |
-| Find connected Beads | Shared bd link surface, selecting source/target and Link Type | Link identity, Type, endpoint References and available target summaries, without complete target content. |
-| Read the selected Bead | bd memory show MEMORY_ID | The complete selected current or exact record. |
+| Browse Memory Beads | List Procedure Beads whose authored status is approved. | Compact summaries, using explicit Type/status predicates. |
+| Find matching text | Search “housing B” across the Memory family. | One summary per matching Bead, identifying the matched field and bounded excerpt. |
+| Find connected Beads | Find knowledge explicitly linked to repair Issue I-42. | Guidance, AppliesTo or Association Link summaries with their direction, note/status and target/reference selection. |
+| Read a selected Bead | Read the exact Procedure edition returned by the search. | The complete selected record, deliberately requested. |
 
-The draft proposes **literal, case-insensitive substring search** for the supplied
-text across title, body and supported human keys. A multiword input is one search
-string; matching does not introduce a Boolean, regular-expression or semantic query
-language. Listing omits search text; an explicit search requires nonblank text.
-Search defaults to current live Memory Beads, including all specializations. Deleted
-and retained historical states are accessed through explicit History operations.
+The proposed baseline text predicate is **literal, case-insensitive substring
+matching** across title, body and supported human keys. A multiword input is one
+search string; a text predicate does not itself interpret Boolean syntax, regular
+expressions or semantic similarity. The shared query design may compose predicates
+with Boolean and graph operations. Listing omits a text predicate; an explicit text
+search requires nonblank input. Default selection is current live Memory Beads,
+including all specializations. History selection must be explicit.
 
-Shared Type and Link filters can narrow results. Property filters, including a
-declared status where available, are separate from text matching. Default text search
-does not examine arbitrary metadata, extra properties, provenance or referenced bodies.
-Any additional searchable fields must be documented explicitly. A key match identifies
-which key matched. Several matches on a Bead still produce one result.
+Queries need exact-Type and family selection, exact open-string status predicates,
+property presence/value predicates, explicit metadata predicates, and directional
+Link predicates. Status values are compared as recorded, without aliasing proposed,
+ratified or other strings to an inferred active category. Default text matching does
+not search arbitrary metadata, extra properties, provenance or referenced bodies;
+any added text-search fields must be named explicitly. Several matches on a Bead
+still produce one result, with match information for the selected projection.
 
-Search returns canonical identity, Scope context, Type, title, selected exact revision,
-supported keys, matched field and a bounded excerpt. The initial proposed order is
-title followed by canonical identity as a tie-breaker. All filters apply before
-pagination. Count/byte limits and continuation or completeness are explicit; a
-complete-results control either delivers all matching summaries within disclosed
-capacity or refuses. Continuations bind to the query and ordering and accurately
-refuse invalid/expired reuse or relevant state changes. Relevance ranking is consumer
-policy rather than a release prerequisite.
+Compact results identify canonical identity, Scope, Type, title, selected exact
+revision, supported keys and relevant match information. A key match identifies the
+matching key. The initial proposed text-search order is title, then canonical
+identity. Every query discloses a deterministic order and applies all predicates
+before pagination. Count/byte limits and continuation or completeness are explicit;
+a complete-results control either delivers all matching summaries within disclosed
+capacity or refuses. Continuations bind to the query/ordering and accurately refuse
+invalid/expired reuse or relevant state changes. Relevance ranking is consumer policy.
+
+For Link results, identify Link ID, concrete Type, source and target References,
+note/status and available endpoint summaries. Long notes and other potentially long
+properties use labelled bounded excerpts in compact results; full Link details are
+an explicit read. Preserve the difference between a stored current Reference and
+the exact state observed while evaluating the query.
+Following an Association family includes its conforming specializations when
+supported; exact Association selection remains distinct.
 
 A search implementation may examine body text to match it; that is distinct from
 returning complete bodies to the caller. Search, list and Link traversal return
@@ -374,24 +395,25 @@ compact results. The storage-acquisition versus consumer-delivery boundary for
 Chris's R8/R21 remains an explicit alignment question; compact output alone does not
 prove that unrelated bodies were never acquired internally.
 
-> **Design choice for Chris's R6.** The compact-results and explicit-recall split
-> follows his proposal. Literal matching, the initial ordering and the exact CLI
-> spelling above make this draft concrete; they remain proposed choices for review.
-> Shared Bead search supplies the mechanism with Memory selection, not a separate
-> Memory search store or engine.
+> **Design choice for Chris's R6.** Compact results followed by explicit recall
+> follow his proposal. Literal text matching and the initial ordering remain
+> concrete choices proposed for review. Query requirements below target the shared
+> Bead/Link query surface; they do not require a separate Memory search engine.
 
 ### 3.3 Complete reads
 
-`bd memory show MEMORY_ID` and the recall alias deliberately return the complete
-selected record: canonical identity and Scope, current or selected exact revision,
-Type, title, body and all properties, metadata, outgoing Links, available provenance
-and supported keys. Human output renders additional properties alongside body without
-copying them into stored Markdown. A body-only projection is labelled as such.
+An explicit complete read returns the selected Memory Bead: canonical identity and
+Scope, current or selected exact revision, Type, title, body and all properties,
+metadata, outgoing Links, available provenance and supported keys. For example,
+a technician selects Procedure P-17 at revision R3 from a compact result and reads
+that exact edition. A later edit to P-17 does not change what R3 returns.
 
-An empty body is a present value. Historical reads return the retained Type, content
-and outgoing set, without substituting current state. Stored content and diagnostics
-are untrusted data; output escapes them appropriately. Context consumers own their
-budgets, ordering and receipts and choose which full records to retrieve.
+Human output renders additional properties alongside body without copying them into
+stored Markdown. A body-only projection is labelled as such. An empty body is a
+present value. Historical reads return retained Type, content and outgoing state,
+without substituting current values. Stored content and diagnostics are untrusted
+data; output escapes them appropriately. Context consumers own their budgets,
+ordering and receipts and choose which full records to retrieve.
 
 ## 4. Memory Link Types
 
@@ -693,96 +715,122 @@ records source, decision, test and release evidence separately.
 | Default/automatic export | Follow declared exposure contract; automatic export emits no Memory records. |
 | Full read/output | Include complete selected content and distinct properties; escape untrusted text. |
 
-Open product decisions include exact CLI grammar/output, names and keys, source-pin
-mutation details, full initial scenario allocation and the selected storage-acquisition
+Open product decisions include Memory-specific workflow selection, exact query/CLI
+grammar/output, names and keys, source-pin mutation details, full initial scenario
+allocation and the selected storage-acquisition
 boundary. The shared Inception/revert meanings are decided; producer/schema/runtime
 integration remains owner work. Activity workflow, connected
 interchange, legacy conversion and project-feed/removal inclusion need their own
 explicit release decisions. Existing Dependency compatibility remains an integration
 item. Accepted decisions are recorded in #7656 rather than silently inferred here.
 
-## Appendix A. Proposed Memory CLI
+## Appendix A. Memory operations and query requirements
 
-`bd memory` is the canonical Memory command group, with remember/recall/memories/forget
-compatibility aliases. The following concrete verbs and flags are **proposed user
-design**, not claims of shipped support. The group earns its place through quick
-capture, family-aware compact results and deliberate complete recall. Ordinary edits,
-Link operations and History use their shared commands rather than duplicating every
-operation under Memory.
+### A.1 Principles before command spelling
 
-| Proposed Memory command | Tailoring beyond the shared operation |
+A Memory-specific verb should express an operation with a distinct user contract,
+not merely repeat a shared operation with a Type preselected. A sequence of generic
+operations may justify a workflow command if it adds a necessary guarantee, but the
+sequence's actual semantics must be defined first.
+
+The current model does **not yet require a new Memory-specific write verb**:
+
+| Desired action | Existing shared operation concept |
 | --- | --- |
-| bd memory create [BODY] | Quick capture defaults to an ordinary Memory Bead; accepts text/file/stdin, derives title when omitted, and permits explicit specialized Type. Return identity and accepted revision. |
-| bd memory list | Browse compact summaries across all Memory Bead Types by default, with shared filters and explicit exact-Type selection. |
-| bd memory search TEXT | Search title/body/keys with the matching, summary and bounds contract in §3.2; apply shared filters before pagination. |
-| bd memory show MEMORY | Deliberately retrieve the complete selected Memory Bead, including its distinct properties, metadata, outgoing Links and available provenance. |
+| Record knowledge, including a Decision or Requirement Bead | Create a typed Bead. |
+| Correct content, metadata or authored status | Guarded update of a Bead. |
+| Change its semantic classification | Guarded Type/property update. |
+| Relate knowledge to work, offer evidence or identify a replacement | Create an appropriately typed Link. Supersedes expresses replacement; it does not require a new write primitive. |
+| Remove a relationship or change its pin | Link-ID removal/update under the shared admission and source-version rules. |
+| Delete, compare history or recover retained content | Shared deletion and History operations. |
 
-| Shared command | Memory use |
-| --- | --- |
-| bd create --type TYPE | Create a Memory Bead through the ordinary typed Bead operation; preserve the same contract. |
-| bd update MEMORY | Targeted body/property/metadata edits, explicit replacement or guarded Type change. Omitted fields preserve state; validate the complete result. |
-| bd delete MEMORY | Recoverable disappearance with floating-Link cleanup, terminal evidence and affected-source reporting under shared preview/apply conventions. |
-| bd link | Author, inspect, edit, remove and re-pin Links by their shared identity/Reference rules. |
-| bd revert MEMORY@REVISION --if-revision CURRENT | Proposed shared CLI: create a same-ID revision from selected retained properties/metadata, checked against current state with current-operation provenance. Deleted-to-live resumes presence. No implicit Type/endpoint/other-Link rollback. |
+The same principle applies to reading: a text predicate, Type filter, graph traversal
+or complete record read is not a new Memory primitive simply because its input is a
+Memory Bead. The distinctive work below is selecting useful combinations of the
+Memory Types and relationship meanings through a capable shared query surface.
 
-**bd revert for this Memory workflow is not shipped.** Its meaning is accepted design;
-the selector/flag spelling above is proposed here and must align with the shared
-revision-aware CLI. Shipping bd restore retains its pre-compaction Issue recovery
-meaning. No separate Memory revert implementation or History store is introduced.
+The earlier namespace/compatibility direction remains: bd memory can host justified
+Memory workflows, and remember/recall/memories/forget project the canonical model.
+This pass selects no new verb or domain-tuned CRUD spelling. Positional title/body,
+body/title flags, file/stdin options and tuned create/update/list/delete/show commands
+are deliberately deferred. It makes no claim that existing bd update accepts body
+or body-file flags.
 
-Proposed authoring options include `--type`, `--title`, `--body-file`, `--stdin`,
-`--properties`, `--if-revision`, explicit replacement and structured-output selection.
-Reject conflicting body sources or ambiguous replacement before opening input or
-mutating storage. Exact flags, revision selectors and output need final shared-CLI
-review. Every declared writer either preserves the selected record or refuses.
+Shared bd revert meaning remains accepted design; it is not shipped for this Memory
+workflow. Its concrete CLI must be designed with the shared History surface. Shipping
+bd restore retains its pre-compaction Issue recovery meaning.
 
-| Compatibility entry point | Canonical behavior to preserve |
-| --- | --- |
-| bd remember | Deliberate write-only capture/update. A single content token is text. Same default Memory Bead Type and explicit write rules. |
-| bd recall | Complete selected current/exact Memory Bead read by supported ID/key. Empty body remains present. |
-| bd memories [SEARCH] | Compact list/search by default. Explicitly map and label the earlier body-carrying --json compatibility result; do not silently change it into a summary. |
-| bd forget | Recoverable Memory Bead deletion, including empty-body records, with documented immediate-write semantics. Generic bd delete retains its reviewed preview/apply behavior. |
+### A.2 Useful Memory queries
 
-Aliases share records, validators and operations. They preserve properties and do
-not infer reads from store contents. Generic create/show/update/list and Link commands
-preserve the same selected Memory contract or refuse before mutation. Issue inspection
-exposing informational Memory Links is M-D5 and may follow Preview 3; separate Link
-reads must still state supported completeness.
+Treat **bd query as a design surface**, rather than restricting these questions to
+its current grammar. The following scenarios specify useful inputs and results;
+they do not prescribe syntax, a separate query engine or a new Memory verb. Text
+search with shared filters is the baseline. The relationship-aware scenarios are
+proposed capabilities whose initial release allocation is recorded with Janet.
 
-### A.1 Walkthrough to vet the surface
+| Question | Example selection | Required information in the result |
+| --- | --- | --- |
+| What knowledge matches this topic? | Search “housing B”; optionally restrict to Procedure Beads with status approved. | Deduplicated Bead summaries, exact selected revisions, matched fields/excerpts, explicit order and bounds. |
+| What knowledge is recorded for this context? | Select Procedure or Policy Beads with explicit metadata predicates such as equipment=Housing B or jurisdiction=EU, optionally filtering authored status. | Matching summaries and the recorded paths/values explaining each match. The query applies the caller's predicates; it does not infer applicability or execute rules hidden in metadata. |
+| What knowledge is linked to this work? | For Issue I-42, collect outgoing Guidance targets, incoming AppliesTo sources and exact Association Links in either direction. | Knowledge summaries and the Link(s) explaining each match, including direction, note/status, stored current/exact Reference and observed state. |
+| What supports or challenges this edition? | For Decision D-8 at revision R2, find incoming Supports and Challenges Links targeting that exact revision. | Source Bead summaries, Link identities/status/notes and the exact edition each claim addresses. An identity-wide variant groups claims by targeted edition rather than merging their meanings. |
+| What replaces this knowledge, and what did it replace? | For Procedure P-17, inspect incoming and outgoing Supersedes Links, optionally following a bounded chain. | Replacement/predecessor direction and current-versus-exact target selections. If traversing, preserve paths, branches and cycle information; do not choose a winner or newest valid policy. |
+| Which citations differ from current knowledge? | For the exact References recorded on an Issue's Guidance Links, compare the cited revisions with the same identities' current revisions. | Pinned revision, current revision if available, whether they differ, and truthful unavailable/gone states. Different does not mean obsolete or wrong. Exact reads never fall forward. |
+| What work or knowledge refers to this Bead? | Reverse lookup for Policy K-4, optionally restricted to edition R3 and selected Link Types. | Referencing Beads and Links, direction and target selection. Incoming Guidance finds work citing the policy; outgoing AppliesTo can identify work the policy claims to apply to. A Link is not proof of reading or use. |
+| Which Decisions are connected to this Requirement? | From Requirement Q-6, find associated Decision Beads, optionally restricting Decision status to ratified. | Decision and Association summaries, matching Link directions and recorded statuses. Association does not assert satisfaction and ratified is authored status, not verified approval. |
 
-These names and flags illustrate the proposed grammar:
+For the work-knowledge query, Guidance and AppliesTo have specific directional roles;
+Association is the generic connection. Do not include Supports or Challenges simply
+because they conform to Association when the caller selected exactly Association.
+Conversely, an explicit family query includes all conforming Types with each concrete
+meaning visible. Deduplicate Beads while retaining the multiple Link reasons that
+made them match.
 
-```sh
-bd memory create --type procedure --title "Replace housing B seal" --body-file seal-procedure.md
-bd memory search "housing B"
-bd memory show MEMORY_ID
-bd update MEMORY_ID --type lesson --body-file lesson.md --if-revision CURRENT
-bd revert MEMORY_ID@RETAINED_REVISION --if-revision CURRENT
-```
+Queries may explicitly request recorded status, note, property or metadata predicates.
+No query silently treats a withdrawn Link as absent, interprets applicability metadata
+as an executable rule, infers which policy is authoritative or proves a Requirement
+fulfilled. Historical queries use their selected retained Bead/Link states rather
+than mixing historical content with current relationship state. An unsupported
+historical selection refuses. A bounded subset is returned only with its disclosed
+limits and continuation/completeness; a partial answer is never labelled complete.
 
-The technician creates a Procedure Bead whose body holds the instructions, searches
-compact summaries and explicitly reads it. A later guarded Type/body update creates
-one atomic outcome. Revert uses a retained body/properties/metadata selection under
-the current Type; it does not silently undo that Type change. Invalid resulting
-state or a stale guard leaves state unchanged. The final command is proposed, not
-available merely because the earlier commands or property artifacts pass.
+For multi-hop traversal, the caller chooses Link Types, direction and depth or other
+finite traversal bounds. Results identify paths and the revisions actually observed.
+Do not promise a graph-wide snapshot without a shared capability supplying one;
+recorded exact inputs remain exact even when current references later change.
+Unreachable or unauthorized endpoints follow shared visibility rules; report only
+what can be disclosed and do not claim exhaustive impact from a partial view.
 
-### A.2 Exposure and guidance
+### A.3 Potential workflows requiring more design
 
-- Generated guidance teaches search, explicit recall and deliberate capture. It does
-  not inject all Memory bodies or recursively follow Links. Exact `prime` commands
-  and delivery budgets require supported-surface acceptance.
-- Ordinary search, list, graph traversal and records merely referring to Memory use
-  compact summaries. They do not include full body or complete alternatives/other
-  potentially long properties. Match excerpts have the same bounded budget.
-- Complete `show`/recall is deliberate. Other body-carrying modes require an explicit
-  caller choice and clear output labelling; stored configuration cannot broaden a
-  surface from summary to full content. Legacy `memories --json` is an explicitly
-  named compatibility contract, not permission for other JSON views to expose bodies.
-- `bd export` excludes Memory unless explicitly requested. Automatic export emits
-  no Memory records, even if a prior manual export included them. A provider-level
-  whole-store restore backup is distinct from canonical export.
+“Record that I used this edition” differs from “recommend this knowledge to this
+Issue.” Guidance records the latter. If actual-use capture becomes a selected user
+workflow, define the shared Activity/provenance contract, who makes the assertion,
+what exact inputs it names and how the result is retrieved. Do not invent an executed
+use record from a Link or create a second Memory-specific Activity model.
+
+Consolidation, truth assessment, automatic applicability and context-pack construction
+remain consumer work. They are not new core verbs justified by this query design.
+A later domain workflow can compose the shared operations once its distinct contract
+and actual user benefit are demonstrated.
+
+### A.4 Exposure and compatibility
+
+- Generated guidance teaches compact search, explicit complete reads and deliberate
+  capture, with concrete command examples once the grammar is selected. It does not
+  inject all Memory bodies or recursively follow Links.
+- Ordinary search, list, traversal and records merely referring to Memory return
+  summaries and bounded excerpts. Complete bodies and potentially long properties
+  require explicit retrieval or a clearly labelled caller-selected full projection.
+- Existing remember/recall/memories/forget compatibility surfaces share canonical
+  records and preserve deliberate write-only capture, empty-body presence, exact
+  reads and recoverable deletion. Their exact mapping awaits the ergonomics pass;
+  a single content token never becomes a state-dependent read.
+- The earlier body-carrying memories --json compatibility proposal needs an explicit
+  mapping. It cannot silently become a summary or authorize full content on other
+  JSON surfaces. Stored configuration cannot broaden a summary surface to full content.
+- Canonical export excludes Memory unless explicitly requested. Automatic export
+  emits no Memory records. Whole-store provider recovery is a separate capability.
 
 ## Appendix B. Mapping to Chris's proposal
 
@@ -798,7 +846,7 @@ and shared Inception placement need explicit upstream alignment where they diffe
 | R3 | Body-first knowledge, optional declared properties including descriptive status, and application metadata. Applicability/validity remain metadata; Type/property and shared-Inception refinements require alignment. |
 | R4 | Deliberate write-only capture, title derivation, canonical success identity. |
 | R5 | Deletion with retained history, same-ID undelete through shared revert, and truthful erasure where supported. |
-| R6 | Concrete list/search/Link navigation followed by complete recall. Literal text matching and title/identity order proposed; summaries have truthful bounds/continuation. |
+| R6 | Topic search with explicit Type/status/property/Link predicates, compact deduplicated results and truthful order/bounds. Matching and query grammar remain proposed. |
 | R7 | Complete current/exact recall, content, Links and available provenance together. |
 | R8 | Selective recall/guidance; storage-acquisition boundary explicitly to settle. |
 | R9 | Structured Link identity/Type/reference/target information; Task projection is M-D5. |
@@ -824,7 +872,7 @@ and shared Inception placement need explicit upstream alignment where they diffe
 | R28 | Complete structured current/historical/deleted records and truthful bounds. |
 | R29 | Shared authorization; exact embedded/shared-server qualification. |
 | R30 | Preserve claims/evidence; external tools judge quality. |
-| R31 | Canonical bd memory offers capture, compact list/search and complete recall; ordinary edits/Links/History use shared commands. Exact spellings remain proposed. |
+| R31 | Define Memory-specific workflow semantics before adding verbs. Existing aliases retain the canonical model; domain-tuned CRUD and exact command grammar are deferred. |
 
 | Scenario | Realization / dependency |
 | --- | --- |

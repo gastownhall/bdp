@@ -187,3 +187,24 @@ none of these counts qualify runtime search, status workflow or new CLI support.
 
 Donna answered the placement question explicitly: **Memory and Association bases**.
 That placement is accepted product direction; the example strings remain conventions.
+
+## Fourth pass: Memory-specific functionality before CLI tuning
+
+Donna redirected CLI work to principles and genuinely distinct functionality before
+choosing create/update/list/show/delete customizations. Treat bd query as a redesign
+surface and specify useful Memory Bead/Link questions without its existing grammar.
+The three new /// annotations are consumed; originals are archived locally.
+
+| Comment / direction | Disposition |
+| --- | --- |
+| Examples for each operation | Section3 now supplies concrete capture/correction, browse, topic search, Link navigation and exact-read examples without inventing command flags. Appendix A adds eight query scenarios with inputs and result contracts. |
+| Second positional title, body/title flags | Deferred to the authoring-ergonomics pass as requested in chat. No decision made about positionals or domain wrappers. |
+| bd update lacks body/body-file flags | Removed the misleading illustrative command and all tuned CRUD grammar from the current proposal. Shared operation capabilities are stated without claiming existing flags. |
+| Unique Memory verbs first | Current model justifies no new write primitive: create/update/retype/Link/Supersedes/History use shared mechanisms. A future workflow verb must supply a distinct contract, not only preselect Type. |
+| Query redesign | Eight proposed scenarios: topic search, explicit context selection, knowledge linked to work, evidence for an edition, replacement navigation, pinned-versus-current comparison, reverse impact and Decisions linked to Requirements. Preserve concrete Link meanings, pins/history, bounds and match reasons. These do not automatically expand Preview3 allocation. |
+| Candidate actual-use workflow | Distinguish Guidance from an asserted use record. Shared Activity/provenance needs further design before selecting a verb; no second Activity model or automatic use inference. |
+
+The earlier four-command CLI/flag proposals above are historical and superseded by
+this principles-first pass. Schema/case/example JSON, including accepted common
+status and the Requirement catalog entry, are byte-identical to c064cc3; do not
+report the old property passes as a runtime query or CLI qualification.

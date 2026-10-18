@@ -182,3 +182,15 @@ recall commands; exact matching, ordering and new revert grammar are proposed us
 design, not runtime availability or upstream acceptance. Generic edits, Links and
 History remain shared operations. All source limitations and qualification claims
 above retain their original pinned evidence.
+
+## Query principles follow-up
+
+Donna deferred domain-tuned CRUD and exact CLI grammar. The product draft now
+identifies no additional Memory-specific write primitive and defines eight useful
+shared-query scenarios without assuming the old bd query grammar. The earlier
+capture/list/search/show command proposal is superseded, not an implementation task.
+Text/Type/status/property predicates, directional Link selection, exact target
+edition matching, bounded replacement paths, cited-versus-current comparisons and
+reverse lookup are desired query design capabilities. Actual-use capture is a
+separate shared Activity workflow to design if selected. No new Preview3 cutline,
+runtime qualification or implementation lane follows from publishing these scenarios.
