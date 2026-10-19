@@ -1,0 +1,52 @@
+{
+  "time": "2026-10-19T21:46:23.683330+00:00",
+  "scope": "Documentation/model integrity only. No runtime, shared metatype migration, or qualification.",
+  "sha256": "2d02bcfb69be8813ef415ee34f25d0a5e1b8dfeccd15379c0eee23c46c254562",
+  "bead_types": [
+    "Memory",
+    "Constraint",
+    "Policy",
+    "Decision",
+    "Procedure",
+    "Requirement",
+    "Scenario",
+    "Specification"
+  ],
+  "link_types": [
+    "references",
+    "superseded-by",
+    "requires",
+    "defines",
+    "subject-to",
+    "conformance",
+    "addresses",
+    "satisfies",
+    "violates"
+  ],
+  "checks": {
+    "eight_beads_nine_links": true,
+    "refines_labels_for_seventeen_types": true,
+    "three_peer_parents": true,
+    "base_parent": true,
+    "four_evidence_origins": true,
+    "common_ownership_eight_beads": true,
+    "five_generic_claim_endpoints": true,
+    "distinct_composition": true,
+    "no_stale_parent_query": true,
+    "no_comments_or_kind": true,
+    "user_frontmatter": true,
+    "shared_files_untouched": true,
+    "local_links_and_anchors": true,
+    "tables": true,
+    "whitespace": true
+  },
+  "missing_links": [],
+  "bad_table_lines": [],
+  "authoring_commit": "fc38e4403f256b49182f7e8ec8175e0f3286ec7d",
+  "authoring_path": "specs/type-packages/memory-references/memory-and-references.md",
+  "authoring_sha256": "2d02bcfb69be8813ef415ee34f25d0a5e1b8dfeccd15379c0eee23c46c254562",
+  "public_path": "specs/types/memory/memory.md",
+  "public_sha256": "b4f9231f32eeebde210c2848668aed43de10fc096072ead92b0c74a852e3dd34",
+  "preceding_public_commit": "4f280f45c2e05f02788e64a314765521ae78186d",
+  "change": "Editorial explanation only; CLI and subsequent contract text byte-identical to preceding public source."
+}

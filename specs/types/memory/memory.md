@@ -109,9 +109,15 @@ flowchart TD
 
 The release's child-level claims do not automatically create a Satisfies Link to the whole Specification Bead. A claim about the whole must account for every obligation, including the required Policy Bead and its defined children. If no assessment covers the log-redaction obligation, that part remains unknown. Neither a contribution nor the absence of a claim establishes a violation.
 
-### Follow a satisfaction claim
+### Determining Conformance
 
-The team also has a **CSV export goals** Specification Bead describing the higher-level outcome. Suppose the format Specification Bead has a Satisfies Link claiming that its contract fully covers those goals. If the release Bead has a Satisfies Link to the format Specification Bead, a coverage view can follow the chain:
+How do you know whether a subject conforms to a given set of constraints? Start with the subject and the constraints that apply to it. Follow its Subject To Links, including indirect applicability, then follow Requires Links, including Defines, to expose every necessary obligation. A coverage view keeps those paths visible so you can see why each obligation matters.
+
+Next, inspect the subject's Conformance Links and their evidence for the relevant revisions and context. An Addresses Link claims a contribution; a Satisfies Link claims complete satisfaction; a Violates Link claims a breach. These claims record assessments, not an automatic verdict. A missing assessment leaves an obligation unknown, and contradictory claims about the same subject, revisions, and context remain visible as a conflict. Deciding whether the evidence supports a claim still requires a person or an evaluator appropriate to the constraint.
+
+For the CSV release, Satisfies Links to the row-export Requirement and empty-selection Scenario cover those obligations. They do not establish conformance to the whole format Specification while its Policy obligations remain unassessed. Even when every child has a satisfaction claim, the Specification's own body may contain additional obligations.
+
+A coverage view can also follow compatible satisfaction claims through intermediate constraints. The team has a **CSV export goals** Specification Bead describing the higher-level outcome. Suppose the format Specification Bead has a Satisfies Link claiming that its contract fully covers those goals. If the release Bead has a Satisfies Link to the format Specification Bead, the view can explain an indirect claim:
 
 ```mermaid
 flowchart LR
