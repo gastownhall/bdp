@@ -169,6 +169,11 @@ for constraints, valid in [({"typeConstraints": []}, False), ({}, False),
                            ({"typeConstraints": [pair], "sourceMin": 1}, False),
                            ({"typeConstraints": [pair], "unique": True, "acyclic": True}, True),
                            ({"typeConstraints": [pair], "unique": False, "acyclic": False}, True),
+                           ({"typeConstraints": [pair], "allowSelf": False}, True),
+                           ({"typeConstraints": [pair], "allowSelf": True}, True),
+                           ({"typeConstraints": [pair], "allowSelf": "false"}, False),
+                           ({"typeConstraints": [pair], "allowSelf": 0}, False),
+                           ({"typeConstraints": [pair], "allowSelf": None}, False),
                            ({"typeConstraints": [pair], "acyclic": "yes"}, False)]:
     check(link_name, altered(base, linkConstraints=constraints), valid, "constraints " + repr(constraints))
 for key in ["ownsOutgoing", "incoming", "outgoing"]:
@@ -379,6 +384,7 @@ for source in definitions:
                       fixture_endpoint_matches(p["target"], "same", target["type"]) for p in pairs)
         assert matched == (category(source) == category(target))
 assert "acyclic" not in conforms["properties"]["linkConstraints"]
+assert conforms["properties"]["linkConstraints"].get("allowSelf", True) is True
 # Identity-wide selectors are not aliases for the latest revision.
 task_ref = {"uri": prefix + "task", "revision": "task-1"}
 assert matches([prefix + "issue"], task_ref)

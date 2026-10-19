@@ -270,10 +270,14 @@
                 },
                 "acyclic": {
                   "type": "boolean"
+                },
+                "allowSelf": {
+                  "type": "boolean",
+                  "description": "False prohibits equal source and target Resource identities, ignoring revision selectors. True or omission adds no local prohibition; inherited prohibitions remain binding."
                 }
               },
               "additionalProperties": false,
-              "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. False/omission adds no local restriction; cannot disable inherited restrictions. No Link minimum or endpoint pin-mode field."
+              "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. unique/acyclic false or omission adds no local restriction; allowSelf false imposes an identity self-link prohibition, true or omission does not. No local value disables inherited restrictions. No Link minimum or endpoint pin-mode field."
             }
           }
         },
@@ -1050,10 +1054,14 @@
                   },
                   "acyclic": {
                     "type": "boolean"
+                  },
+                  "allowSelf": {
+                    "type": "boolean",
+                    "description": "False prohibits equal source and target Resource identities, ignoring revision selectors. True or omission adds no local prohibition; inherited prohibitions remain binding."
                   }
                 },
                 "additionalProperties": false,
-                "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. False/omission adds no local restriction; cannot disable inherited restrictions. No Link minimum or endpoint pin-mode field."
+                "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. unique/acyclic false or omission adds no local restriction; allowSelf false imposes an identity self-link prohibition, true or omission does not. No local value disables inherited restrictions. No Link minimum or endpoint pin-mode field."
               }
             }
           },
@@ -1825,10 +1833,14 @@
                   },
                   "acyclic": {
                     "type": "boolean"
+                  },
+                  "allowSelf": {
+                    "type": "boolean",
+                    "description": "False prohibits equal source and target Resource identities, ignoring revision selectors. True or omission adds no local prohibition; inherited prohibitions remain binding."
                   }
                 },
                 "additionalProperties": false,
-                "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. False/omission adds no local restriction; cannot disable inherited restrictions. No Link minimum or endpoint pin-mode field."
+                "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. unique/acyclic false or omission adds no local restriction; allowSelf false imposes an identity self-link prohibition, true or omission does not. No local value disables inherited restrictions. No Link minimum or endpoint pin-mode field."
               }
             }
           },
