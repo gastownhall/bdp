@@ -33,3 +33,7 @@ Assessment-Bead modeling is under discussion. Executable applicability, detailed
 ## Decision provenance
 
 Donna directly accepted the Slack-review follow-through in Melinda's chat. Trish separately relayed Donna's accepted abstract-Conformance default after Melinda's consultation. The reviewed feedback is in [the announcement thread](https://gascityinc.slack.com/archives/C0BHVRDE6LW/p1792447437974909). The [Memory catalog](../../specs/types/memory/memory.md) carries the current wording. MEM-DEC-009 is an authoring label, not a store-assigned Bead identity.
+
+## Subsequent evaluation decision
+
+[MEM-DEC-010](memory-evaluation-decision-20261019.md) selects evaluation ownership for every claim, one full collective subject group per evaluation, and no direct unowned alternative. The current catalog propagates that behavior and proposes an Evaluation carrier; concrete naming/refinement, subject-reference encoding and lifecycle remain for review. The original Choice above remains historical.
