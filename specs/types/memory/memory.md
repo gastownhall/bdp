@@ -2,7 +2,7 @@
 type: Specification
 id: ""
 status: draft
-version: "0.1"
+version: "0.2"
 subjects:
   - Memory
   - references
@@ -13,6 +13,8 @@ subjects:
 This proposal defines Memory Bead and Link Types and their common constraint-system behavior. It is a published design draft; the [publication scope](#publication-scope-and-deferred-specification-work) separates the selected model from deferred mechanics and implementation qualification. It builds on [Chris's Memory Beads proposal](https://github.com/gastownhall/beads/issues/5877).
 
 Sections marked **informative**, including their subsections and examples, explain the design without adding requirements. The CLI sketch is also informative. All other contract text is **normative for this proposed design**. Normative status does not imply adoption or implementation; the publication-scope table identifies deferred work.
+
+> **Validation status.** Historical JSON Schemas, `definitions.json`, and example fixtures retained alongside this draft describe the earlier catalog. Their passing checks do not validate this v0.2 catalog. Current implementation or qualification evidence must name the exact catalog revision and deliberately regenerated schemas and fixtures.
 
 ## Overview (informative)
 
@@ -111,7 +113,7 @@ The release's child-level claims do not automatically create a Satisfies Link to
 
 ### Determining Conformance
 
-How do you know whether a subject conforms to a given set of constraints? Start with the subject and the constraints that apply to it. Follow its Subject To Links, including indirect applicability, then follow Requires Links, including Defines, to expose every necessary obligation. A coverage view keeps those paths visible so you can see why each obligation matters.
+How do you know whether a subject conforms to a given set of constraints? Start with the subject and the constraints that apply to it. Find its explicitly declared or implicitly selected Subject To roots, then follow Requires Links, including Defines, to expose every necessary obligation. Do not inherit another Constraint's Subject To declarations. A coverage view keeps those paths visible so you can see why each obligation matters.
 
 Next, inspect the subject's Conformance Links and their evidence for the relevant revisions and context. An Addresses Link claims a contribution; a Satisfies Link claims complete satisfaction; a Violates Link claims a breach. These claims record assessments, not an automatic verdict. A missing assessment leaves an obligation unknown, and contradictory claims about the same subject, revisions, and context remain visible as a conflict. Deciding whether the evidence supports a claim still requires a person or an evaluator appropriate to the constraint.
 
@@ -160,7 +162,7 @@ The following sketches identify useful questions before settling exact syntax. A
 
 | Candidate operation | Question answered | Useful result |
 | --- | --- | --- |
-| `bd memory constraints <subject>` | What Constraints govern this Bead? | Explicit and implicitly selected Subject To roots, transitively applicable Constraints, and supporting Subject To/Requires/Defines paths. Distinguish direct declarations from derived applicability. |
+| `bd memory constraints <subject>` | What Constraints govern this Bead? | Explicit and implicitly selected Subject To roots, necessary obligations reached through Requires/Defines, and supporting paths. Do not inherit Subject To declarations made by another subject. Distinguish direct declarations from derived applicability. |
 | `bd memory requires <constraint>` | What is necessary for satisfying this Constraint? | The Requires-family closure, including Defines. Show the defining tree separately from cross-tree dependencies, retaining shared targets and cycles without counting repeated visits as progress. |
 | `bd memory coverage <subject>` | What do we know about this subject meeting its obligations? | Applicable obligations with direct Satisfies, Addresses, and Violates claims; compatible indirect Satisfies chains; evidence; contradictions; and missing or unresolved assessments. A target selector could optionally narrow the view. |
 | `bd memory explain <subject> <constraint>` | Why does this Constraint apply, and what supports the assessment? | The explicit Link or predicate-match explanation, all reported derivation paths, selected revisions/context, supporting claim Links and evidence, and reasons composition is unavailable or disputed. |
@@ -173,8 +175,8 @@ Subject: <selected Issue>
 Constraint                 Claim summary        Applicability path
 CSV export Specification   contribution claimed subject-to
 Export selected rows       satisfaction claimed subject-to -> defines
-Protect customer data      conflicting claims   subject-to -> subject-to
-Redact application logs    unknown              subject-to -> subject-to -> defines
+Protect customer data      conflicting claims   subject-to -> requires
+Redact application logs    unknown              subject-to -> requires -> defines
 ```
 
 This is an illustrative presentation, not a prescribed output schema. Claim summaries identify what was asserted; they are not verified verdicts or values written into the Beads' open `status` properties. A contribution does not establish known incompleteness, and unknown does not establish a violation. An N/A Satisfies Link explanation should be visible with its condition and evidence.
@@ -200,29 +202,29 @@ A **subject** is the Bead whose obligations or behavior are being considered. It
 | Type | Common behavioral contract |
 | --- | --- |
 | Constraint | States obligations, restrictions, and their conditions in its body. Its meaning and inherited rules apply to every Constraint subtype. |
-| Subject To | Any Bead → Constraint. Declares applicable obligations and composes transitively. It makes no assessment claim. |
+| Subject To | Any Bead → Constraint. Declares applicable obligations without transitive Subject To inheritance. Necessary obligations are reached through Requires. It makes no assessment claim. |
 | Requires | Constraint → Constraint. Makes its target necessary for satisfying its source; necessity composes transitively. |
 | Defines | Refines Requires. Adds the defining-parent role, at most one defining parent per child, and an acyclic defining tree. |
-| Conformance | Any Bead → Constraint. Supplies the common claim, evidence, provenance and source-ownership contract without selecting a conclusion or general transitivity rule. |
+| Conformance | Any Bead → Constraint. Supplies the abstract common claim, evidence, provenance and assessment-independence contract without selecting a conclusion or general transitivity rule. |
 | Addresses | Refines Conformance. Claims a contribution without asserting complete satisfaction or known failure. It does not compose automatically. |
 | Satisfies | Refines Conformance. Claims complete satisfaction, potentially unattested. Compatible uninterrupted Satisfies chains support indirect claims. |
 | Violates | Refines Conformance. Claims a specific breach, with no implicit transitivity. |
 
-Applicability composes in two ways, for compatible revisions and the same applicable context:
+Subject To is not transitive. If X is subject to A and A is subject to B, B applies to A; that path alone does not make B apply to X. A Policy requiring Specification documents to undergo security review governs the Specification document, not every Issue or release governed by that Specification.
 
-- If X is subject to A, and A is subject to B, then X is indirectly subject to B.
-- If X is subject to A, and A requires B, then B is also an obligation for X. This includes Defines and every other Requires specialization, and continues through further dependencies and Subject To relationships.
+Necessary obligations are discovered through Requires. If X is subject to A and A requires B, then B is an obligation for X. Follow the complete Requires family, including Defines and further Requires dependencies, for compatible revisions and context. A view retains each supporting path and distinguishes derived obligations from direct Subject To declarations; it creates no inferred stored Links. Repeated visits and cycles add no obligations or evidence of satisfaction.
 
-These are derived applicability results. A view retains the supporting path and distinguishes it from a direct declaration; it creates no inferred stored Links. Traversal must terminate on cycles and duplicate paths, which add no obligations beyond those already reached and supply no evidence of satisfaction. Applicability does not propagate through an unrelated reference, Issue dependency, project membership, or ownership relationship without an explicit rule.
-
-For example, an Issue Bead can be subject to an export Specification that is itself subject to a data-protection Policy. The Issue Bead is indirectly subject to that Policy and to the Specification Bead's necessary Requirements. Separate assessment Links describe contribution, satisfaction, or breach; neither applicability nor a closed Issue status establishes satisfaction.
+For example, an export Specification requires a data-protection Policy and defines a row-export Requirement. An Issue subject to that Specification must account for both necessary obligations. The Specification may separately be subject to a document-review Policy without imposing that document-review process on the Issue.
 
 ```mermaid
 flowchart LR
     I["Issue: Add CSV export"] -->|subject-to| S["Specification: CSV export"]
-    S -->|subject-to| P["Policy: Protect customer data"]
+    S -->|requires| P["Policy: Protect customer data"]
     S -->|defines| R["Requirement: Export selected rows"]
+    S -->|subject-to| D["Policy: Review Specification documents"]
 ```
+
+Applicability does not propagate through Subject To chains, unrelated References Links, Issue Dependencies, project membership, or ownership relationships. Separate assessment Links describe contribution, satisfaction, or breach; neither applicability nor a closed Issue status establishes satisfaction.
 
 ### Explicit declarations and implicit selection
 
@@ -230,7 +232,7 @@ flowchart LR
 
 The applicability representation remains open: an inline predicate on the Constraint Bead and a Link to a Policy Bead supplying the selection rule are both candidates for implementation experiments. Using a Policy Bead to determine applicability is distinct from declaring that a subject is itself subject to that Policy Bead. No new applicability Link Type, authority rule, or executable Policy-body language is selected here.
 
-Constraint's optional `applicability` property is an executable predicate selecting additional subjects. A match implicitly establishes Subject To applicability; it does not create a stored Link. Explicit Subject To declarations and matching predicates are independent inclusions. Their union supplies starting relationships for the transitive rules above. A non-match does not filter an explicit Link or remove an obligation reached through another path. Omitting the property adds no predicate-selected subjects; it does not select every Bead or remove explicit applicability.
+Constraint's optional `applicability` property is an executable predicate selecting additional subjects. A match implicitly establishes Subject To applicability; it does not create a stored Link. Explicit Subject To declarations and matching predicates are independent inclusions. Their union supplies starting relationships for Requires-family obligation discovery above. A non-match does not filter an explicit Link or remove an obligation reached through another path. Omitting the property adds no predicate-selected subjects; it does not select every Bead or remove explicit applicability.
 
 Evaluation takes the predicate, a selected subject revision, and an explicit context snapshot. Within a selected authority and search scope, it returns match, non-match, or unresolved, retaining the rule, relevant facts, and revisions as its explanation. Missing or inaccessible information must not silently become a non-match. The concrete predicate representation, including the inline-field versus linked-Policy choice, available inputs and operators, graph-query boundaries, and authority rules remain open; this draft selects executable inclusion semantics, not a query syntax or automatic interpretation of prose.
 
@@ -244,13 +246,27 @@ A parent exception does not silently remove its Requires dependencies or Defines
 
 A generic constraint view recognizes Constraint and every Type refining it. It uses Type refinement, not a fixed enumeration of Policy, Decision, Procedure, Requirement, Scenario, or Specification. A future supported Constraint subtype inherits the common contract and may add its own properties or restrictions. This design does not require arbitrary public Type creation or installation as a prerequisite for the first release.
 
-The caller identifies the subject, context or governing roots to examine, and the relevant revisions. A Subject To Link declares an applicable Constraint Bead for any source Bead; predicate matches can supply additional implicit starting relationships. Within the selected context, the view follows Subject To transitively and the applicable Constraint Beads' Requires Link families, including Defines, to find the complete reachable set of applicable obligations. A dependency can cross defining trees without giving its target another defining parent. How an agent or task selects its subject and roots, who can establish binding applicability, and detailed traversal/revision mechanics remain open. A direct References Link supplies context without making its target a governing constraint. No inferred stored Subject To Links are created by dependency traversal.
+The caller identifies the subject, context or governing roots to examine, and the relevant revisions. A Subject To Link declares an applicable Constraint Bead for any source Bead; predicate matches can supply additional implicit starting relationships. Within the selected context, the view takes the subject's explicit or implicitly selected Subject To roots, then follows those Constraints' Requires Link families, including Defines, to find the complete reachable set of necessary obligations. It does not follow another Constraint's Subject To Links as if they bound the original subject. A dependency can cross defining trees without giving its target another defining parent. How an agent or task selects its subject and roots, who can establish binding applicability, and detailed traversal/revision mechanics remain open. A direct References Link supplies context without making its target a governing constraint. No inferred stored Subject To Links are created by dependency traversal.
 
 A coverage view can consider all available subjects or a selected Bead, including an Issue Bead, a Constraint Bead, or a Memory Bead describing a release. Querying the Conformance family includes Addresses, Satisfies, and Violates; querying the Requires family includes Defines. An Addresses-only query does not include its peer Satisfies or Violates Types. The view distinguishes applicable obligations declared through Subject To, direct and indirect Satisfies claims, contributions through Addresses, explicit Violates claims, and unknown assessment. Subject To alone supplies no assessment. Absence of a relevant assessment claim means unknown, not violation; absence of an Addresses Link alone does not mean unknown when a Violates Link claim exists. Missing supporting evidence leaves verification unresolved, even when a full-coverage claim is recorded. The view shows the participating revisions, context, supporting Links, and available evidence so a caller can inspect the result.
 
 Every outgoing Requires target is necessary for its source, including targets reached through Defines and through further Requires relationships. The parent's own body constraints still apply. A full claim about the parent asserts that those obligations have been met, but the claim itself is not verification. Child claims do not create an inferred stored parent Link, and satisfying all children is sufficient only when that completeness is explicitly asserted. A childless Constraint Bead is not automatically satisfied. If the same subject is claimed to violate a necessary Constraint Bead, a parent Satisfies claim is contradicted for compatible revisions and the same applicable context. Preserve both claims and expose the conflict; a violation claim itself still needs assessment. This reasoning creates neither a parent Violates Link nor an Addresses Link: failure alone establishes no contribution. Claims about another subject, revision, or context must not be combined as if they concerned the same assessment. Detailed reconciliation of conflicting evidence remains open.
 
 The Conformance Link Type declares optional evidence as text, such as test, review, execution, or source pointers. Addresses, Satisfies, and Violates Links inherit that field and the common claim contract. Multiple test or review passes may produce independent Satisfies, Violates, or Addresses Links between the same Bead pair, each retaining its identity, evidence, and provenance. Assessments need to distinguish the subject, target Constraint Bead, assessed revisions, applicable context, and supporting run. Link counts are not a verdict, and a later claim does not silently replace earlier claims. A validator authors a claim about the assessed source; it is not substituted for that source as a Link endpoint. This proposal supplies no evaluation algorithm, general constraint language, or automatic interpretation of arbitrary prose. The structured representation of assessment/run identity, evidence, and compound sufficient conditions remains open.
+
+### Issue workflow and assessment boundaries
+
+A Bead is eligible for dispatch only if its actual Type is Issue or refines Issue. Type membership alone does not establish readiness: ordinary Issue workflow rules still apply. Memory or Constraint membership, a status label, and the presence of Subject To or Conformance-family Links do not confer dispatch eligibility. Blocking semantics must be expressed by a Link whose Type is Dependency or refines Dependency; neither Requires nor Subject To becomes an Issue Dependency merely because it connects obligations.
+
+Closing an Issue records a workflow transition, not a Satisfies claim or a verified conformance result. Automation must not infer satisfaction from closed status or create assessment claims merely to reflect closure. A consumer using coverage as a release, compliance, or closing gate owns the acceptance and reconciliation policy. It must identify the evidence and authority it accepts, assessed revisions and context, and its handling of missing, conflicting, inaccessible, or bounded results. A claim's presence, a test-run label, and Link counts alone establish no verification.
+
+### Assessment records and claim lifecycle (informative)
+
+An Assessment Bead could group the claims and evidence from one assessment, so an operator could remove the assessment and its live claims together. This is a design direction, not an additional selected Bead Type or a deletion cascade. Shared ownership currently belongs to a Link's source. Giving an Assessment Bead ownership therefore needs a deliberate endpoint/subject representation or a shared ownership-model change. No new owner field, subject-reference field, run schema, or automatic deletion behavior is selected here. Removing live claims would still follow the shared history and retention contract; it would not establish that earlier evidence never existed.
+
+### Type-constraint enforcement
+
+An implementation claiming enforcement must validate affected Type constraints on create, update, and delete, including graph effects on surviving Beads and Links. This includes Defines' single-parent rule and the selected Defines and Superseded By acyclicity rules. Invalid resulting state must be rejected atomically at the shared contract's commit boundary; concurrent writes must not jointly evade an invariant. A merged graph must be validated before it is admitted as valid state. Batch validation follows the accepted shared transaction contract; this statement selects no storage or branch-merge mechanism. Read-time diagnostics alone do not constitute enforcement.
 
 ## Reading the definitions (informative)
 
@@ -268,14 +284,14 @@ The following definitions specify the Bead Types. Examples labelled informative 
 
 | Bead Type | Meaning |
 | --- | --- |
-| [Memory](#memory--bead-type) | A Memory Bead holds knowledge that should remain available for later use. All other Bead Types in this list conform to Memory. |
+| [Memory](#memory--bead-type) | A Memory Bead holds knowledge that should remain available for later use. All other Bead Types in this list refine Memory. |
 | [Constraint](#constraint--bead-type) | A Constraint Bead states an obligation or restriction; its subtypes share discovery and coverage rules. |
 | [Policy](#policy--bead-type) | A Policy Bead states a governing rule for a project or organization. |
 | [Decision](#decision--bead-type) | A Decision Bead explains a choice and the reasons for making it. |
 | [Procedure](#procedure--bead-type) | A Procedure Bead explains how to carry out a repeatable task. |
 | [Requirement](#requirement--bead-type) | A Requirement Bead states an outcome or constraint that must be met. |
 | [Scenario](#scenario--bead-type) | A Scenario Bead describes a concrete situation and the outcome expected in it. |
-| [Specification](#specification--bead-type) | A Specification Bead describes an intended result and conforms to Constraint. |
+| [Specification](#specification--bead-type) | A Specification Bead describes an intended result and refines Constraint. |
 
 ```mermaid
 flowchart BT
@@ -309,7 +325,6 @@ flowchart BT
 | Link Type family | Declared by | Effect |
 | --- | --- | --- |
 | `subject-to` | Memory | Owns applicability declarations; a Link change revises the source. |
-| `conformance` | Memory | Owns the common claim family, including Addresses, Satisfies, and Violates; a claim change revises the source. |
 | `superseded-by` | Memory | Revises the retiring source when its replacement Link changes. |
 
 ### Constraint — Bead Type
@@ -318,7 +333,7 @@ flowchart BT
 
 The body carries the constraint itself, including conditions, exceptions, and any explicit statement of what is sufficient to meet it. Its optional executable `applicability` predicate selects additional subjects without filtering explicit Subject To Links. A Satisfies Link claim may explain that a stated exception leaves no active obligation in the assessed case; this is vacuous satisfaction, not evidence that the subject performed work. Every Requires target, including each Defines child, is necessary for satisfying the source Constraint. All such children and the parent's own constraints must be accounted for. Plain Memory Beads can supply explanations through References Links without becoming required Constraint Beads. Neither an empty child set nor evidence for only some children establishes satisfaction of the parent.
 
-A Constraint Bead can be the source or target of Subject To, Addresses, Satisfies, and Violates Links. A Bead of any other Type, including an Issue Bead, can also be a source without having a Type refining Constraint. Subject To Links declare applicability. Addresses Links claim contributions without asserting completeness; Satisfies Links add complete-satisfaction claims. Violates Links claim specific breaches and do not conform to the Addresses Link Type. Assessment Links do not by themselves verify their claims. Status remains an optional descriptive label and adds no approval or enforcement effect.
+A Constraint Bead can be the source or target of Subject To, Addresses, Satisfies, and Violates Links. A Bead of any other Type, including an Issue Bead, can also be a source without having a Type refining Constraint. Subject To Links declare applicability. Addresses Links claim contributions without asserting completeness; Satisfies Links add complete-satisfaction claims. Violates Links claim specific breaches and do not refine the Addresses Link Type. Assessment Links do not by themselves verify their claims. Status remains an optional descriptive label and adds no approval or enforcement effect.
 
 **Example (informative).** A general Constraint Bead can state "No customer secrets may leave the approved environment". Put experimental context in metadata on a supported Type while custom Type authoring is unavailable; that metadata does not create a new Constraint subtype or an executable rule.
 
@@ -339,7 +354,6 @@ A Constraint Bead can be the source or target of Subject To, Addresses, Satisfie
 | --- | --- | --- |
 | `requires` | Constraint | Owns the entire Requires family, including Defines; a Link change revises the source. |
 | `subject-to` | Memory | Inherited ownership of applicability declarations. |
-| `conformance` | Memory | Inherited ownership of the common claim family, including Addresses, Satisfies, and Violates. |
 | `superseded-by` | Memory | Inherited ownership; revises this Bead when its replacement Link changes. |
 
 ### Policy — Bead Type
@@ -368,7 +382,6 @@ The `authority` value identifies who or what issued the Policy Bead; it is a cla
 | --- | --- | --- |
 | `requires` | Constraint | Inherited ownership of Requires and its specializations, including Defines. |
 | `subject-to` | Memory | Inherited ownership of applicability declarations. |
-| `conformance` | Memory | Inherited ownership of the common claim family, including Addresses, Satisfies, and Violates. |
 | `superseded-by` | Memory | Inherited ownership; revises this Bead when its replacement Link changes. |
 
 ### Decision — Bead Type
@@ -395,7 +408,6 @@ The `authority` value identifies who or what issued the Policy Bead; it is a cla
 | --- | --- | --- |
 | `requires` | Constraint | Inherited ownership of Requires and its specializations, including Defines. |
 | `subject-to` | Memory | Inherited ownership of applicability declarations. |
-| `conformance` | Memory | Inherited ownership of the common claim family, including Addresses, Satisfies, and Violates. |
 | `superseded-by` | Memory | Inherited ownership; revises this Bead when its replacement Link changes. |
 
 ### Procedure — Bead Type
@@ -421,7 +433,6 @@ The `authority` value identifies who or what issued the Policy Bead; it is a cla
 | --- | --- | --- |
 | `requires` | Constraint | Inherited ownership of Requires and its specializations, including Defines. |
 | `subject-to` | Memory | Inherited ownership of applicability declarations. |
-| `conformance` | Memory | Inherited ownership of the common claim family, including Addresses, Satisfies, and Violates. |
 | `superseded-by` | Memory | Inherited ownership; revises this Bead when its replacement Link changes. |
 
 ### Requirement — Bead Type
@@ -447,7 +458,6 @@ The `authority` value identifies who or what issued the Policy Bead; it is a cla
 | --- | --- | --- |
 | `requires` | Constraint | Inherited ownership of Requires and its specializations, including Defines. |
 | `subject-to` | Memory | Inherited ownership of applicability declarations. |
-| `conformance` | Memory | Inherited ownership of the common claim family, including Addresses, Satisfies, and Violates. |
 | `superseded-by` | Memory | Inherited ownership; revises this Bead when its replacement Link changes. |
 
 ### Scenario — Bead Type
@@ -473,7 +483,6 @@ The `authority` value identifies who or what issued the Policy Bead; it is a cla
 | --- | --- | --- |
 | `requires` | Constraint | Inherited ownership of Requires and its specializations, including Defines. |
 | `subject-to` | Memory | Inherited ownership of applicability declarations. |
-| `conformance` | Memory | Inherited ownership of the common claim family, including Addresses, Satisfies, and Violates. |
 | `superseded-by` | Memory | Inherited ownership; revises this Bead when its replacement Link changes. |
 
 ### Specification — Bead Type
@@ -500,12 +509,11 @@ The `authority` value identifies who or what issued the Policy Bead; it is a cla
 | --- | --- | --- |
 | `requires` | Constraint | Inherited ownership of Requires and its specializations, including Defines. |
 | `subject-to` | Memory | Inherited ownership of applicability declarations. |
-| `conformance` | Memory | Inherited ownership of the common claim family, including Addresses, Satisfies, and Violates. |
 | `superseded-by` | Memory | Inherited ownership; revises this Bead when its replacement Link changes. |
 
 ## Link Types
 
-The following definitions specify the Link Types. Examples labelled informative illustrate their use and add no rules. Each specialized Link conforms directly or transitively to `references` and inherits its optional `title`, `body`, and `status` properties. Requires and Defines share the selected Constraint-to-Constraint necessity semantics. Requires supplies the dependency family, with Defines adding defining-parent structure. Conformance supplies the common claim family, with Addresses, Satisfies, and Violates as peers. Subject To declares applicability independently of assessment.
+The following definitions specify the Link Types. Examples labelled informative illustrate their use and add no rules. Each specialized Link Type refines `references` directly or transitively and inherits its optional `title`, `body`, and `status` properties. Requires and Defines share the selected Constraint-to-Constraint necessity semantics. Requires supplies the dependency family, with Defines adding defining-parent structure. Conformance supplies the common claim family, with Addresses, Satisfies, and Violates as peers. Subject To declares applicability independently of assessment.
 
 | Link Type | Meaning |
 | --- | --- |
@@ -514,7 +522,7 @@ The following definitions specify the Link Types. Examples labelled informative 
 | [`requires`](#requires--link-type) | A `requires` Link says that its target Constraint is necessary for satisfying its source Constraint. |
 | [`defines`](#defines--link-type) | A `defines` Link makes one Constraint the defining parent of another and inherits Requires necessity. |
 | [`subject-to`](#subject-to--link-type) | A `subject-to` Link declares that its target Constraint applies to its source, without claiming satisfaction. |
-| [`conformance`](#conformance--link-type) | A common claim contract about a subject relative to a Constraint, without selecting a conclusion. |
+| [`conformance`](#conformance--link-type) | An abstract common claim contract about a subject relative to a Constraint, without selecting a conclusion. |
 | [`addresses`](#addresses--link-type) | An `addresses` Link claims a contribution toward meeting a Constraint, without asserting completeness. |
 | [`satisfies`](#satisfies--link-type) | A `satisfies` Link claims complete satisfaction of a Constraint. |
 | [`violates`](#violates--link-type) | A `violates` Link claims a specific breach of a target Constraint. |
@@ -686,9 +694,9 @@ Another Constraint Bead can require the child without becoming a second defining
 
 **Meaning and use.** Use a Subject To Link to declare that a Constraint Bead applies to any source Bead, including an Issue Bead. It identifies an obligation the source must meet without claiming contribution, satisfaction, or breach. For example, a release Bead can be subject to a data-protection Policy Bead before anyone has assessed its compliance.
 
-Subject To and Requires Links answer different questions. A Subject To Link identifies an applicable contract for a subject; a Requires Link identifies another Constraint Bead necessary for satisfying a Constraint Bead. Subject To Links compose transitively: if X is subject to A and A is subject to B, X is indirectly subject to B. Following the target's Requires Links also exposes necessary obligations, including children reached through Defines Links. These rules compose for compatible revisions and context, retain the supporting path, and create no additional stored Subject To Links. A Subject To Link declaration does not by itself prove that its author has authority to bind the source.
+Subject To and Requires Links answer different questions. A Subject To Link identifies an applicable contract for a subject; a Requires Link identifies another Constraint Bead necessary for satisfying a Constraint Bead. Subject To is not transitive: if X is subject to A and A is subject to B, B applies to A, not automatically to X. Following the target's Requires family exposes the necessary obligations for X, including children reached through Defines Links and further Requires dependencies. Retain supporting paths for compatible revisions and context, and create no additional stored Subject To Links. A Subject To Link declaration does not by itself prove that its author has authority to bind the source.
 
-**Example (informative).** An Issue Bead for CSV export is subject to the format Specification, which is subject to a customer-data Policy. The Policy Bead therefore applies indirectly to the Issue Bead. An export release can likewise be subject to these Constraints. Separate Satisfies, Addresses, or Violates Links describe assessments against those obligations. Removing or adding an assessment does not by itself remove the applicability declaration.
+**Example (informative).** An Issue Bead for CSV export is subject to the format Specification, which requires a customer-data Policy. The Policy Bead is therefore a necessary obligation for the Issue Bead. A separate Subject To Link from the Specification to a document-review Policy would govern the Specification, without imposing that review process on the Issue. An export release can likewise be subject to the format Specification. Separate Satisfies, Addresses, or Violates Links describe assessments against those obligations. Removing or adding an assessment does not by itself remove the applicability declaration.
 
 **Refines.** `references`. It inherits optional title, body, and status. It does not refine Addresses.
 
@@ -704,7 +712,7 @@ Subject To and Requires Links answer different questions. A Subject To Link iden
 | Arity and parallel Links | Many-to-many; no participation minimum or additional maximum. Independent declarations may coexist. |
 | Self Links and cycles | Inherit References' identity-self prohibition; no additional cycle prohibition. Circular declarations supply no evidence. |
 | Ownership | Every source Bead owns its outgoing Subject To-family Links under this contract. A Link change revises the source, without revising the target. |
-| Composition | Transitive across Subject To-family Links for compatible revisions and context. Applicability also extends through the target's Requires family, including Defines. Report the supporting path, terminate on repeated visits, and create no inferred stored Links. |
+| Composition | Subject To is not transitive. Discover the source's necessary obligations by following each applicable target's Requires family, including Defines. Retain supporting paths for compatible revisions and context, terminate on repeated visits, and create no inferred stored Links. |
 | Scope and pins | Scope follows References. Exact revision selection, contextual applicability, authority, and lifecycle mechanics remain open. |
 
 **Properties.** No new properties are selected. These fields do not substitute for unresolved structured applicability or authority rules.
@@ -721,7 +729,7 @@ Subject To and Requires Links answer different questions. A Subject To Link iden
 
 The common Type is neutral about the conclusion. Addresses, Satisfies, and Violates refine it as peers and supply contribution, complete-satisfaction, and breach assertions. Membership in the Conformance family alone establishes none of these conclusions. Evidence and an authored claim are not independent verification. A query over this family finds all three forms without enumerating them.
 
-Whether an unspecialized Conformance Link should be directly authorable remains open. This revision defines the shared contract; it introduces no `kind`, outcome enum, implicit default conclusion, or new test-execution operation.
+Conformance is abstract: a Link cannot declare Conformance itself as its actual Type. Concrete Link Types such as Addresses, Satisfies, and Violates refine it and inherit its common contract. Abstractness does not automatically make a refinement abstract. Family queries and ownership selectors naming Conformance still match its concrete refinements. The Conformance Type-definition Bead remains a legal instance of its metatype; the restriction concerns Links instantiating the defined Type. The generic representation belongs to the shared Types contract; this ruling selects no field spelling, `kind`, outcome enum, implicit default conclusion, or new test-execution operation.
 
 **Example (informative).** Two validation runs can author a Satisfies Link and a Violates Link from the same release Bead to the same Policy Bead. A Conformance-family view shows both claims, their evidence and their contexts rather than counting them as votes or silently replacing one.
 
@@ -739,7 +747,7 @@ Whether an unspecialized Conformance Link should be directly authorable remains 
 | Arity | Many-to-many; no participation minimum or additional maximum. |
 | Parallel claims | Allowed. Independent claims, assessment runs, evidence, and selected revisions retain their identities. Later claims do not silently erase earlier claims or resolve contradictions. |
 | Self Links and cycles | Inherit References' identity-self prohibition; no additional cycle prohibition. Circular claims supply no evidence. |
-| Ownership | Every source Bead owns its outgoing Conformance-family Links, including Addresses, Satisfies, and Violates. A claim change revises the source without revising the target. |
+| Ownership | Under the subject → Constraint representation selected here, Conformance-family claims are unowned. Creating, changing, or deleting a claim must not revise the assessed subject or target Constraint. Assessment-Bead ownership and grouping are separate design work; no third-party owner is introduced. |
 | Provenance | Identifies the actor making the claim; that actor is not substituted for the assessed source as an endpoint. |
 | Composition | No general transitivity or automatic coverage rule. Each specialization supplies any stronger composition rule. |
 | Scope and pins | Scope follows References. Detailed assessed-revision, context/run binding, and evidence-reconciliation mechanics remain deferred. |
@@ -776,7 +784,7 @@ Addresses, Satisfies, and Violates are peer specializations of Conformance. Quer
 | Self Links | Forbidden by Bead identity through References, including different revision selectors. |
 | Parallel Links | Allowed. Independent claims, evidence, and revision selections retain their identities. A later Satisfies Link does not overwrite or delete an earlier contribution. |
 | Cycles | No additional cycle prohibition. Circular claims do not manufacture supporting evidence or establish completion by themselves. |
-| Ownership | Inherited from Conformance: every source Bead owns its outgoing Conformance-family claims. A claim change revises its source; the Link change does not revise the target. |
+| Ownership | Inherited from Conformance: the claim is unowned under the subject → Constraint representation. Its mutation does not revise the assessed subject or target. |
 | Transitivity | Addresses supplies no automatic transitive coverage rule. The peer Satisfies Type supplies its own rule for uninterrupted Satisfies chains. |
 | Scope and pins | Scope follows References. Exact pin and assessment-reconciliation mechanics remain open. |
 
@@ -826,7 +834,7 @@ Other constraints:
 | Defined children | For Constraint and every refining subtype, all Defines children are necessary through Requires refinement. The parent's own constraints still apply. Children are not collectively sufficient unless that completeness is explicitly stated; a parent with no children is not automatically satisfied. Plain Memory notes supply context through References. |
 | Indirect coverage | An uninterrupted Satisfies chain supports an indirect full-coverage claim when intermediate revisions and assessment contexts are compatible. A case-specific exception supports composition only where that exception is established for the resulting subject and context; an N/A label alone supplies no such proof. Report the supporting chain separately from a direct Link; create no inferred stored Link. |
 | General-contribution steps | A chain with an Addresses step whose Type does not refine Satisfies establishes no automatic coverage of its final target. |
-| Arity, parallel Links, cycles and ownership | Inherit Conformance rules, including source ownership and no additional cycle prohibition. Circular claims alone are not evidence. |
+| Arity, parallel Links, cycles and ownership | Inherit Conformance rules, including assessment independence and no additional cycle prohibition. Circular claims alone are not evidence. |
 | Coexistence | Independent Addresses, Satisfies, and Violates claims for the same pair retain their own identities, evidence, and provenance, including claims from multiple assessment runs. Contradictory claims must be exposed rather than silently overwritten. |
 | Necessary-condition conflict | A claim that this same subject violates a necessary Constraint contradicts a parent satisfaction claim for compatible revisions and the same applicable context. Preserve the authored claims and report the conflict. This creates neither a parent Violates Link nor an Addresses Link; failure alone establishes no contribution. |
 | Open mechanics | Exact revision resolution and conflicting-assessment reconciliation remain to specify. |
@@ -863,7 +871,7 @@ Violates, Addresses, and Satisfies are peer specializations of the Conformance L
 | Breach | The source is claimed to breach a specific obligation in the target for the assessed revisions and context. |
 | Arity and parallel Links | Many-to-many; no participation minimum or additional maximum. Independent test passes and assessments may produce separate claims for the same pair. |
 | Self Links and cycles | Inherit References' identity-self prohibition; no additional cycle prohibition. Circular claims supply no evidence. |
-| Ownership | Inherited from Conformance: every source Bead owns its outgoing Conformance-family claims. A claim change revises the source, without revising the target. The assessing actor is identified through provenance. |
+| Ownership | Inherited from Conformance: the claim is unowned under the subject → Constraint representation. Its mutation does not revise the assessed subject or target. The assessing actor is identified through provenance. |
 | Transitivity | Violates is not implicitly transitive. Neither a Violates chain nor a dependency traversal creates an inferred stored Violates Link. |
 | Necessary-condition conflict | A breach claim about a necessary Constraint contradicts satisfaction of a dependent Constraint by the same subject for compatible revisions and context. Report the conflicting claims without silently converting their Types or inferring an Addresses contribution. |
 | Scope and pins | Scope follows References. Exact assessment/run binding, revision selection, and conflict-reconciliation mechanics remain open. |
@@ -886,10 +894,10 @@ Ownership is declared for a Link Type family and includes refining Link Types. T
 | Any Bead Type | direct `references` | As in References endpoint pairs | None | The Link has its own history; neither endpoint revises when it changes. |
 | Constraint or any subtype | `requires`, including `defines` | Constraint or any subtype | Source Constraint | Its revision includes its necessary dependencies. Defines also establishes the defining parent. |
 | Any Bead Type | `subject-to` | Constraint or any subtype | Source Bead | Its revision includes its declared applicable obligations. |
-| Any Bead Type | `conformance`, including `addresses`, `satisfies`, and `violates` | Constraint or any subtype | Source Bead | Its revision includes its claims, supporting evidence, and provenance; conclusions remain Type-specific. |
+| Any Bead Type | Concrete `conformance` refinements: `addresses`, `satisfies`, and `violates` | Constraint or any subtype | None under the subject → Constraint representation | A claim has its own history; recording it does not revise the assessed subject or target. |
 | Memory or any subtype | `superseded-by` | Replacement Memory or any subtype | Retiring source Bead | Its revision includes its selected replacement; the target is not revised by the Link change. |
 
-Defines permits at most one incoming Defines-family Link per child identity, while other Requires dependencies may have many incoming Links. Memory declares outgoing Subject To and Conformance ownership for its whole family. Every other participating source Bead Type must declare the same ownership, directly or through its own base; its Type need not refine Memory or Constraint. In particular, adoption requires adding those declarations to Issue and other source definitions. Widening Link endpoint eligibility alone does not install ownership on existing Types. Existing Issue→Issue Dependency ownership belongs to the separate Issue contract and is independent of these families.
+Defines permits at most one incoming Defines-family Link per child identity, while other Requires dependencies may have many incoming Links. Memory declares outgoing Subject To ownership for its whole family, but does not own assessment claims about itself. Every other participating source Bead Type must declare Subject To ownership, directly or through its own base, while keeping Conformance-family claims independent of its owned content; its Type need not refine Memory or Constraint. In particular, adoption requires adding those declarations to Issue and other source definitions. Widening Link endpoint eligibility alone does not install ownership on existing Types. Existing Issue→Issue Dependency ownership belongs to the separate Issue contract and is independent of these families.
 
 ## Publication scope and deferred specification work
 
@@ -906,8 +914,8 @@ The following specification work is deliberately deferred and does not block pub
 | Conditional dependency overrides | Stated conditions and exceptions may support an explicit N/A Satisfies claim. Requires targets, including Defines children, remain necessary. A parent's N/A explanation does not automatically waive them; qualified dependencies need a later explicit contract. |
 | Structured sufficient conditions | Requires expresses necessity. A body can state a complete acceptance condition, but this revision selects no machine-readable AND/OR/threshold language or solver. Children alone, including an empty child set, establish no parent satisfaction. |
 | Structured assessment/evidence and reconciliation | Independent claims and runs retain their identities, textual evidence, and available provenance. Assessed subject revisions and context must be distinguishable before claims are composed. The schema for run/context bindings, evidence references, conflict adjudication, and automated verification is deferred. Unresolved compatibility or evidence must be reported; Link counts and N/A text are not verdicts. |
-| Direct use of the common Conformance Type | The shared contract and three peer conclusions are selected. Whether unspecialized Conformance Links are directly authorable remains open; family membership alone supplies no conclusion. |
+| Generic representation of abstract Types | Conformance has no direct Link instances; concrete refinements remain usable, and family queries and ownership selectors still recognize them. The Conformance definition Bead is a metatype instance. Shared Types work supplies the representation without automatically making refinements abstract. |
 | Exact query/CLI grammar and presentation | Generic discovery must expose obligations, supporting paths, contribution/full/breach claims, and unresolved results. Domain-tuned CRUD, command/flag spelling, listing defaults, and ordering/bounds remain separate interface design. |
-| Detailed shared write/lifecycle integration | Source ownership, family graph rules, and refusal to silently manufacture evidence remain selected. Exact retype/edit/move/delete, recovery, and transaction integration must reconcile with accepted shared semantics. Non-Memory source definitions, including Issue, need matching ownership declarations; widening endpoints alone does not install them. |
+| Detailed shared write/lifecycle integration | Source ownership, family graph rules, and refusal to silently manufacture evidence remain selected. Exact retype/edit/move/delete, recovery, and transaction integration must reconcile with accepted shared semantics. Non-Memory source definitions, including Issue, need Subject To ownership and must not acquire ownership of assessment claims about themselves; widening endpoints alone does not install those rules. Assessment-record ownership, grouping and cleanup remain separate design work. |
 
-A deferred feature is not implicitly supported. Implementations must state the exact catalog revision and supported behavior, preserve existing accepted shared contracts, and report unavailable or unresolved behavior truthfully. An implementation omission of a selected rule requires a separate explicit scope decision and must not be represented as enforcement. Historical schemas, example corpora, and their passing results do not validate this revised catalog unless deliberately regenerated and checked against this revision.
+A deferred feature is not implicitly supported. Implementations must state the exact catalog revision and supported behavior, preserve existing accepted shared contracts, and report unavailable or unresolved behavior truthfully. An implementation omission of a selected rule requires a separate explicit scope decision and must not be represented as enforcement. Historical schemas, example corpora, and their passing results do not validate this revised catalog unless deliberately regenerated and checked against this revision. [Decision MEM-DEC-009](https://github.com/gastownhall/beads/issues/7656#mem-dec-009-constraint-applicability-and-independent-assessments) records the accepted applicability, assessment, and workflow boundaries. The older MEM-DEC-008 remains historical; its source-owned assessment rule and undecided direct Conformance authoring are superseded.

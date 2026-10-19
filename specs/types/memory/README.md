@@ -1,39 +1,36 @@
 # Memory catalog publication — October 19, 2026
 
-[Memory Bead and Link Types](memory.md) is the current published design draft: eight Bead Types and nine Link Types. Its [publication-scope table](memory.md#publication-scope-and-deferred-specification-work) lists deliberate deferrals. This publication is not BDP adoption, installed support, release qualification, or permission to lift an integration hold.
+[Memory Bead and Link Types](memory.md) is the current v0.2 design draft: eight Bead Types and nine Link Types, including abstract Conformance and its three concrete peer refinements. [Publication scope](memory.md#publication-scope-and-deferred-specification-work) distinguishes the selected model from deferred mechanics and runtime qualification.
 
-The catalog now defines common Constraint behavior, any-Bead subjects, transitive Subject To applicability, Requires/Defines necessity and tree structure, independent contribution/satisfaction/breach claims, conditional N/A satisfaction, and retirement. No separate Implementation or Proposal Bead Type is selected.
+## Current decisions
+
+[MEM-DEC-009](../../../docs/design/memory-review-boundaries-decision-20261019.md) records the review follow-through:
+
+- Subject To is nontransitive. Start with the subject's applicable roots and follow Requires, including Defines, to discover necessary obligations.
+- Conformance is abstract; concrete refinements remain usable and discoverable through the family. Under the current subject → Constraint representation, claims are unowned and do not revise the assessed subject. Assessment-Bead ownership is a separate design discussion.
+- Only Issue and Issue refinements are eligible for dispatch; only Dependency and its refinements carry Issue-blocking semantics. Closing an Issue establishes no satisfaction or verification.
+- Type graph constraints need affected-state validation on create/update/delete and at the shared commit/admission boundary.
+
+[MEM-DEC-008](../../../docs/design/memory-conformance-decision-20261019.md) retains its historical identity. Its peer hierarchy, common evidence, and Refines naming remain accepted; its source-owned assessment rule and undecided direct authoring are superseded. No Assessment Bead Type, third-party owner field, cascade, or new kind enum is selected.
 
 ## Source and projection
 
-- Authoring source revision: `fc38e4403f256b49182f7e8ec8175e0f3286ec7d`; path `specs/type-packages/memory-references/memory-and-references.md` in the private authoring scope.
-- Authoring source SHA256: `2d02bcfb69be8813ef415ee34f25d0a5e1b8dfeccd15379c0eee23c46c254562`.
-- Public `memory.md` SHA256: `b4f9231f32eeebde210c2848668aed43de10fc096072ead92b0c74a852e3dd34`.
-- Projection: retain frontmatter, title, body, examples, and Type definitions; omit the local-only Depends on locator section; replace the working Chris-proposal locator with its public [source issue](https://github.com/gastownhall/beads/issues/5877).
-- Public readers use this file and its repository revision. The private authoring scope is provenance, not a required or normative external dependency.
+- Authoring source revision: `f2dc4e2ac0a9300b0a8c146ffe7660c3f727a50f`; path `specs/type-packages/memory-references/memory-and-references.md` in the private authoring scope.
+- Authoring source SHA256: `3e5ee974c69ee0eca4f30402a081e5dff2c7f0077bcdff331f44179d8a021aef`.
+- Public `memory.md` SHA256: `c1997a66c985638da3fc564b7c9a62d32ebf28ec6f839adc79daa1f4160235ae`.
+- Projection retains frontmatter, title, body, examples and Type definitions; omits the local-only Depends on locator section; replaces the Chris-proposal locator with [its public source](https://github.com/gastownhall/beads/issues/5877).
+- The private authoring scope is provenance, not a required external contract dependency.
 
-The [reviewed Types profile](../../profiles/types/types.md) and its [immutable reference revision](https://github.com/gastownhall/bdp/blob/3f7ebc145513425c1362bf0ef88c756c41ed4315/specs/profiles/types/types.md) remain separate shared work. This publication changes neither that profile nor shared descriptor or authoring-format definitions.
+The separate [Types profile](../../profiles/types/types.md) and [immutable reviewed revision](https://github.com/gastownhall/bdp/blob/3f7ebc145513425c1362bf0ef88c756c41ed4315/specs/profiles/types/types.md) remain shared owner work. This publication does not edit the shared Type/metatype, Core/Write or authoring-format contracts.
 
-## Historical artifacts
+## Historical schemas and fixtures — not v0.2 validation
 
-The schemas, `definitions.json`, `bdp-exploration.md`, property fixtures, and `scripts/check_memory_examples.py` retained in this branch describe the earlier catalog at [3025dc7](https://github.com/gastownhall/bdp/tree/3025dc7a312d15cc715421ea1a281b5b0bd2b56d/specs/types/memory). They are historical review artifacts. Their successful property checks do **not** validate this catalog's current Types, constraints, graph rules, mutation behavior, or runtime support. No new installable schema projection is selected by this prose publication.
+The schemas, `definitions.json`, `bdp-exploration.md`, [property fixtures](../../../fixtures/specs/memory/README.md), and `scripts/check_memory_examples.py` describe the earlier catalog at [3025dc7](https://github.com/gastownhall/bdp/tree/3025dc7a312d15cc715421ea1a281b5b0bd2b56d/specs/types/memory). They are historical review artifacts. Their passing checks do **not** validate v0.2 Types, graph constraints, ownership, mutation behavior, or runtime support. The checker explicitly labels its results historical. Deliberately regenerated current schemas/fixtures and exact-revision implementation evidence remain required work before claiming such coverage.
 
-The [previous beads#7661 body](../../../docs/design/history/memory-issue-7661-before-20261019.md) is preserved for review history; its requirements, CLI text, examples and evidence retain their original source identities. It is not a second current catalog. PR143 preserves that ancestry and remains a draft targeting the shared specification branch.
+The [earlier issue body](../../../docs/design/history/memory-issue-7661-before-20261019.md), [pre-Conformance body](../../../docs/design/history/memory-issue-7661-before-conformance-20261019.md), and [preceding source](https://github.com/gastownhall/bdp/blob/83f7d2bb01109cfd27b053547f04afba55e5339b/specs/types/memory/memory.md) retain their original review identities. The full current draft is mirrored in [beads#7661](https://github.com/gastownhall/beads/issues/7661) with a link to [PR143](https://github.com/gastownhall/bdp/pull/143).
 
-## Validation and next handoff
+## Validation and handoff
 
-The [publication validation receipt](../../../docs/design/memory-editorial-completion-20261019.json) records exact source/projection digests and checks. Documentation/model-integrity checks cover eight Bead/nine Link definitions, actual refinement families, wildcard-source endpoint compatibility with References, ownership inheritance, seven inherited applicability declarations, Markdown tables/anchors, and whitespace. The executable applicability representation is explicitly deferred, not claimed as a supported schema or evaluator. No runtime tests or release qualification are claimed for this publication.
+The [current validation receipt](../../../docs/design/memory-review-boundaries-20261019.json) records source/projection digests and documentation/model-integrity checks: 17 definitions, concrete peer refinement and evidence, abstract-base behavior, assessment independence, nontransitive applicability with Requires closure, workflow/enforcement boundaries, Markdown links/tables, and whitespace. Historical checker syntax is checked without treating historical fixtures as current qualification.
 
-The selected core endpoint, family, ownership, tree, multiplicity and claim rules remain in force in the proposal. Any implementation omission needs an explicit scope decision. Trish owns shared Type reconciliation; Janet owns implementation scope, compatibility evidence and runtime qualification.
-
-## Conformance and Refines decision
-
-The [accepted Decision](../../../docs/design/memory-conformance-decision-20261019.md) introduces Conformance under References, with Addresses, Satisfies, and Violates as peers. Evidence is declared on Conformance and source ownership selects that common family. Satisfies no longer refines Addresses. Family queries and the informative CLI sketch reflect this distinction.
-
-Refines replaces the Type-to-Type name ConformsTo while retaining its universal structural/semantic promise. This owned catalog uses the new label; shared profile/metatype/authoring-format propagation and any stored identifier, wire or compatibility changes remain separate owner work. The linked immutable Types profile still uses its historical terminology. No Requires subtype relationship or synthetic type-field claim Link is introduced.
-
-The [preceding review-issue body](../../../docs/design/history/memory-issue-7661-before-conformance-20261019.md) and [preceding selected catalog](https://github.com/gastownhall/bdp/blob/b4b2249423e777a8241819c37ed2a77267159514/specs/types/memory/memory.md) retain their original identities. This revision supersedes that catalog's claim inheritance/evidence/ownership model and Type-relationship naming. Direct authoring of unspecialized Conformance Links remains open.
-
-## Editorial completion
-
-Donna's final editorial comment is incorporated in [Determining Conformance](memory.md#determining-conformance): begin with the subject and applicable constraints, inspect necessary obligations, then assess claims and evidence. The satisfaction-chain example follows that explanation. All text from the CLI section onward, including all Type definitions, is unchanged from [4f280f4](https://github.com/gastownhall/bdp/blob/4f280f45c2e05f02788e64a314765521ae78186d/specs/types/memory/memory.md). This pass changes explanatory prose only.
+This remains a design publication, not installed support, a release allocation, a merge authorization, or a change to implementation holds. Trish owns Memory-Type implementation and the shared Type/metatype design; Melinda owns the Memory specification; Janet coordinates integration and qualification.

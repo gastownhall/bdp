@@ -1,8 +1,8 @@
-"""Offline Memory Release property checks; optional BDP encoding exploration.
+"""HISTORICAL Memory property checks for catalog 3025dc7; not current v0.2 validation.
 
 Run: uv run --no-project --with 'jsonschema[format]' python scripts/check_memory_examples.py
 Add --with-bdp-exploration to check the separate, nonnormative definition graph.
-Neither mode implements or qualifies native Memory operations.
+Neither mode validates the current Memory catalog or qualifies native Memory operations.
 """
 import argparse
 import json
@@ -22,6 +22,8 @@ parser.add_argument("--with-bdp-exploration", action="store_true",
 parser.add_argument("--shared-schemas", type=Path, default=ROOT / "specs/profiles/types",
                     help="Shared experimental schemas, used only with --with-bdp-exploration")
 args = parser.parse_args()
+print("HISTORICAL CATALOG 3025dc7 ONLY: these schemas and fixtures do not validate "
+      "the current v0.2 Memory catalog or its runtime implementation.")
 K = "https://example.org/memory-types/"
 F = "https://example.org/types/beads/"
 MEMORY = (K + "memory", "memory-contract-1")
@@ -101,7 +103,7 @@ for link in records["links"]:
     errors = [error.message for error in validators["link"].iter_errors(link["properties"])]
     require(not errors, (link["id"], errors))
 
-print(f"PASS product properties: {len(schemas)} schemas; {len(cases)} positive/negative cases; "
+print(f"PASS HISTORICAL product properties: {len(schemas)} schemas; {len(cases)} positive/negative cases; "
       f"{len(records['records'])} Bead and {len(records['links'])} Link excerpts. "
       "No BDP definition/profile inputs required.")
 
@@ -185,9 +187,9 @@ if args.with_bdp_exploration:
             errors = list(validator(schema).iter_errors(link["properties"]))
             require(not errors, (link["id"], inherited, [e.message for e in errors]))
 
-    print(f"PASS optional BDP exploration: {len(definitions)} descriptors; "
+    print(f"PASS HISTORICAL optional BDP exploration: {len(definitions)} descriptors; "
           f"{len(owned_declarations)} declarations. Nonnormative encoding/closure only.")
 
-print("LIMIT: property shapes, formats and finite examples only. "
+print("HISTORICAL LIMIT: property shapes, formats and finite examples only. "
       "No prose meaning, endpoint admission, provenance, graph operations, History, "
       "transactions, CLI or installed runtime qualification.")

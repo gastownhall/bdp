@@ -33,3 +33,7 @@ The [Memory catalog](../../specs/types/memory/memory.md#conformance--link-type) 
 ## Decision provenance
 
 Donna Box directly accepted the Conformance peer hierarchy and Refines name in Melinda's chat on October 19, 2026. Melinda records the decision and projects it into the existing [beads#7656 Decision register](https://github.com/gastownhall/beads/issues/7656#mem-dec-008-conformance-claim-peers-and-type-refinement). MEM-DEC-008 is an authoring label; the Bead identity is unassigned.
+
+## Subsequent decision
+
+[MEM-DEC-009](memory-review-boundaries-decision-20261019.md) supersedes this entry's source-owned assessment rule and open direct-authoring question: Conformance is abstract and assessment claims do not revise the assessed subject. Its peer hierarchy, common evidence inheritance, and Refines name remain accepted. The original Choice above is retained as the historical decision.
