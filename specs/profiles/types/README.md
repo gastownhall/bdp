@@ -25,11 +25,11 @@ and concise normative field meanings; the profile owns detailed interpretation, 
 conformance, composition and lifecycle. Janet temporarily maintains the working
 descriptor in `donnabox/memory-beads` through October 21 at the latest under Donna's
 October 19 arrangement. The profile pins the
-[descriptor candidate at `742e002`](https://github.com/donnabox/memory-beads/blob/742e0025eb294a0d733c2ef0e945703f7325f965/specs/type-packages/type-system/type-system.md)
-and its [accepted placement Decision](https://github.com/donnabox/memory-beads/blob/742e0025eb294a0d733c2ef0e945703f7325f965/decisions/type-descriptor-profile-split.md).
-The descriptor's full commit is `742e0025eb294a0d733c2ef0e945703f7325f965`;
-its verified 17,535 bytes have SHA256
-`524935216f0498addab12e729cb848bd5e5592dba13d31debe5a28ee16a40dee`.
+[descriptor candidate at `cc32cba`](https://github.com/donnabox/memory-beads/blob/cc32cba35758a8dbbd89d5cf953c7035203cd836/specs/type-packages/type-system/type-system.md)
+and its [accepted placement Decision](https://github.com/donnabox/memory-beads/blob/cc32cba35758a8dbbd89d5cf953c7035203cd836/decisions/type-descriptor-profile-split.md).
+The descriptor's full commit is `cc32cba35758a8dbbd89d5cf953c7035203cd836`;
+its verified 17,565 bytes have SHA256
+`4f003e2f19c6a63e3f4c85fadf3d71880f6d42dead126d44bfe0e04519292684`.
 Both remote files were verified; the descriptor remains a proposed-design draft.
 Split review findings are dispositioned with native final correspondence closure;
 one council reviewer timed out without findings. Local schemas and fixtures remain review companions; no generated-code
