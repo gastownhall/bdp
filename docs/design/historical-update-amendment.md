@@ -121,6 +121,48 @@ Core properties are generic JSON, but a native Issue is not an arbitrary propert
 
 Before native integration Janet must bind this table to the exact complete Issue projection, field names and ordinary mutation API. Scalar source availability does not establish legal mutation. A generic-only helper can prepare independent composition, but it must not claim native Issue recovery qualification. No change to ordinary Issue or Dependency behavior is implied.
 
+## Observed native preview carriers (informative, October 20)
+
+The following crosswalk records published Beads author sources, not adopted BDP
+wire encodings or integrated/release-qualified behavior. Remote PR heads were
+read back as [Memory recovery134](https://github.com/donnabox/beads/pull/134)
+`d164c6323622a60e97566426f7da86326cd117e7`, [live native Issue135](https://github.com/donnabox/beads/pull/135)
+`44d78051b3958fee541d35632355c26fcbc5c726`, and [ordered native edits138](https://github.com/donnabox/beads/pull/138)
+`677cf6035adb5693c058be2a122b671f6e0ba637`. All three were open at observation.
+This prose inspection runs no product tests and transfers no PR qualification.
+
+Exact source references for the carrier inspection:
+[graphstore types](https://github.com/donnabox/beads/blob/d164c6323622a60e97566426f7da86326cd117e7/internal/storage/graphstore/types.go),
+[Memory terminal/history](https://github.com/donnabox/beads/blob/d164c6323622a60e97566426f7da86326cd117e7/internal/storage/graphstore/memory_terminal.go),
+[CLI versions projection](https://github.com/donnabox/beads/blob/d164c6323622a60e97566426f7da86326cd117e7/cmd/bd/graph_preview_versions.go),
+and [native Issue engineering crosswalk](https://github.com/donnabox/beads/blob/44d78051b3958fee541d35632355c26fcbc5c726/engdocs/GRAPH_NATIVE_HISTORICAL_UPDATE.md).
+PR138's published scope extends the earlier native crosswalk's ordered-edit
+refusal; it does not supply native deleted recovery.
+
+| Accepted distinction | Observed native preview carrier or scope | BDP correspondence still required |
+| --- | --- | --- |
+| Exact content source R1 differs from actual predecessor R7 or D | `HistoricalUpdateContext{fromRevision,previousRevision}` is output-only state under `Attribution.historicalUpdate` | Same distinctions as the proposed context above, but identical inner names do not adopt the enclosing BDP `revisionProvenance` extension or its closed schemas |
+| Current operation facts differ from source context | `Attribution` carries optional `inception`, `actor`, `status`, `recordedAt` and optional `historicalUpdate` | Native `status`/`recordedAt` are not automatically BDP provenance fields; preserve the existing public actor/context and truthful-absence laws |
+| Real deletion D differs from last live R7 | `MemoryTerminalState{id,revision,version,state,previousVersion,attribution}` requires `revision == version == D`, `state == deleted`, and a distinct `previousVersion` | Proposed public terminal has `revision` and `previousRevision`; duplicated native `version` and native `previousVersion` spelling are not a normative wire selection |
+| Terminal disclosure does not disclose the last live body | The Memory terminal omits Type, properties, metadata and owned Links; History reads D independently of hydrating R7 | Public terminal union, disclosure rules and exact-read routing remain proposed; no successful ordinary deleted Resource GET follows |
+| Recovery baseline is acquired separately from source R1 and terminal guard D | The Memory path acquires the last-current snapshot named by the terminal, validates the allocation and protected facts, and refuses an invalid baseline | This supports the baseline distinction above without establishing all public authorization, erasure or retention diagnoses |
+| Listing and observed current state share one snapshot | `VersionHistoryResult{kind,versions,currentState?}` obtains both in one transaction; this observed `currentState` is a Memory deletion descriptor, absent for live state | It is not the proposed public live-or-deleted `HistoryCurrentState` union or a BDP `historyVersionsPage`; omission alone establishes neither live state nor absence of an identity |
+| Live and terminal listing evidence remain distinguishable | CLI JSON keeps `versions`, adds `currentState` when present, and separates Memory `terminal_versions` | These CLI wrapper names do not select BDP page/row/result fields or require a second public array |
+| Opaque revision addresses differ from local ordering/display values | CLI rows expose `version`, `local_revision`, `change_at`, `actor`, and scalar `attribution` | Local ordinals and display times cannot become BDP revision tokens or public lineage; scalar row attribution is not the complete per-version context envelope |
+| Memory recovery does not imply native Issue or Link recovery | PR134 authors Memory recovery; PR135 authors live native composition; PR138 adds ordered native edits/replacement and corrected acquisition evidence | Native deleted recovery remains a separate successor; no Link recovery, HTTP History, shared SDK or capability adoption is supplied by these PRs |
+
+The remaining shared-wire selection is the public terminal/current-state and
+result/provenance extension, with its closed unions, requiredness, disclosure
+and capability boundary. In particular, select how authorized clients receive D
+separately from the unchanged final-live deletion identity, and reconcile the
+History/current-state and mutation/receipt/observation carriers together.
+The earlier sections offer concrete candidate encodings; native preview output
+is correspondence evidence, not approval of those encodings. Do not copy
+`terminal_versions`, `previousVersion`, duplicate `version`, native attribution
+fields or CLI wrapper names into normative BDP text by inference. Accepted
+source/guard independence, whole-envelope no-op preservation and authoritative
+recovery-baseline rules need no new decision here.
+
 ## Closed schema, SDK and writer crosswalk
 
 All paths below are actual repository paths at the pinned source. This table identifies required follow-up; no executable path is edited by this prose PR.
