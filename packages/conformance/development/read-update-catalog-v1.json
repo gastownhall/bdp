@@ -45,7 +45,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#attribution-on-mutations",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
+          "selectedText": "a write whose properties, metadata and, for a Link, complete endpoint states are all unchanged mints no revision and records no new provenance and retains the existing version’s entire envelope."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -83,12 +83,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#property-change-values",
-          "selectedText": "If both results equal their respective preceding objects under RFC 6902 Section 4.6 JSON comparison, the operation is a no-op."
+          "selectedText": "If both results equal their respective preceding objects under RFC 6902 Section 4.6 JSON comparison, and a Link's supplied endpoint states are also unchanged, the operation is a no-op."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#attribution-on-mutations",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
+          "selectedText": "a write whose properties, metadata and, for a Link, complete endpoint states are all unchanged mints no revision and records no new provenance and retains the existing version’s entire envelope."
         },
         {
           "source": "docs/specs/bdp.md",

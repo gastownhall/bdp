@@ -94,7 +94,7 @@ const REFERENCE_FIELDS: Readonly<Record<ReadUpdateOperation, readonly string[]>>
   createLink: ["id", "source", "target"],
   updateBead: ["bead"],
   deleteBead: ["bead"],
-  updateLink: ["link"],
+  updateLink: ["link", "source", "target"],
   deleteLink: ["link"],
   putAlias: ["alias", "target"],
   deleteAlias: ["alias"],

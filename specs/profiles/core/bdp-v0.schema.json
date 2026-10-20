@@ -1443,11 +1443,29 @@
           "properties": {
             "metadataChange": true
           }
+        },
+        {
+          "required": ["source"],
+          "properties": {
+            "source": true
+          }
+        },
+        {
+          "required": ["target"],
+          "properties": {
+            "target": true
+          }
         }
       ],
       "properties": {
         "link": {
           "$ref": "#/$defs/resourceReference"
+        },
+        "source": {
+          "$ref": "#/$defs/inputReference"
+        },
+        "target": {
+          "$ref": "#/$defs/inputReference"
         },
         "propertiesChange": {
           "$ref": "#/$defs/ordinaryUpdateChange"
@@ -2897,6 +2915,12 @@
         "revision": {
           "$ref": "#/$defs/revision"
         },
+        "source": {
+          "$ref": "#/$defs/reference"
+        },
+        "target": {
+          "$ref": "#/$defs/reference"
+        },
         "change": {
           "$ref": "#/$defs/propertyChange"
         },
@@ -2918,6 +2942,18 @@
           "required": ["metadataChange"],
           "properties": {
             "metadataChange": true
+          }
+        },
+        {
+          "required": ["source"],
+          "properties": {
+            "source": true
+          }
+        },
+        {
+          "required": ["target"],
+          "properties": {
+            "target": true
           }
         }
       ],
@@ -2999,6 +3035,12 @@
         "revision": {
           "$ref": "#/$defs/revision"
         },
+        "source": {
+          "$ref": "#/$defs/reference"
+        },
+        "target": {
+          "$ref": "#/$defs/reference"
+        },
         "change": {
           "$ref": "#/$defs/propertyChange"
         },
@@ -3018,7 +3060,9 @@
           "properties": {
             "change": true,
             "metadataChange": true,
-            "ownedLink": false
+            "ownedLink": false,
+            "source": true,
+            "target": true
           },
           "anyOf": [
             {
@@ -3032,6 +3076,18 @@
               "properties": {
                 "metadataChange": true
               }
+            },
+            {
+              "required": ["source"],
+              "properties": {
+                "source": true
+              }
+            },
+            {
+              "required": ["target"],
+              "properties": {
+                "target": true
+              }
             }
           ]
         },
@@ -3041,7 +3097,9 @@
           "properties": {
             "ownedLink": true,
             "change": false,
-            "metadataChange": false
+            "metadataChange": false,
+            "source": false,
+            "target": false
           }
         }
       ],

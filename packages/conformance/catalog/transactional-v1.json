@@ -233,7 +233,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#owned-links",
-          "selectedText": "Every mutation of an owned Link versions the source Bead."
+          "selectedText": "Every effectful mutation of an owned Link versions the source Bead."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -982,7 +982,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#events-and-event-sources",
-          "selectedText": "its delta carries `ownedLink` in place of `change` and `metadataChange`"
+          "selectedText": "its delta carries `ownedLink` in place of the direct `change`, `metadataChange`, `source` and `target` effects."
         }
       ]
     },
@@ -995,7 +995,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#events-and-event-sources",
-          "selectedText": "For `updated`, it is the owned Link's delta — the Link's `id` and `type`, its `previousRevision` and fresh `revision`, the committed `change` and/or `metadataChange`, and the Link's new version's `revisionProvenance` when one was recorded"
+          "selectedText": "For `updated`, it is the owned Link's delta — the Link's `id` and `type`, its `previousRevision` and fresh `revision`, the committed property, metadata and/or endpoint-state effects, and the Link's new version's `revisionProvenance` when one was recorded"
         }
       ]
     },
@@ -1433,7 +1433,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#version-erasure",
-          "selectedText": "which is the case exactly when every version of the Link that carried them is erased, since a Link's endpoints are immutable across its versions."
+          "selectedText": "which is the case when every version of the Link carrying that complete source/target Reference pair is erased."
         }
       ]
     },

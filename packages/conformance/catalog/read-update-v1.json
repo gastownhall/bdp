@@ -162,12 +162,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#property-change-values",
-          "selectedText": "If both results equal their respective preceding objects under RFC 6902 Section 4.6 JSON comparison, the operation is a no-op."
+          "selectedText": "If both results equal their respective preceding objects under RFC 6902 Section 4.6 JSON comparison, and a Link's supplied endpoint states are also unchanged, the operation is a no-op."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#attribution-on-mutations",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
+          "selectedText": "a write whose properties, metadata and, for a Link, complete endpoint states are all unchanged mints no revision and records no new provenance and retains the existing version’s entire envelope."
         }
       ]
     },
@@ -272,7 +272,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-revisions-and-guards",
-          "selectedText": "Every successful create — and every update that changes `properties`, common `metadata`, or, for a Bead whose Type owns outgoing Link Types, its owned Links — produces a fresh opaque Resource revision."
+          "selectedText": "Every successful create — and every update that changes `properties`, common `metadata`, a Link's complete endpoint References, or, for a Bead whose Type owns outgoing Link Types, its owned Links — produces a fresh opaque Resource revision."
         }
       ]
     },
@@ -308,7 +308,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#owned-links",
-          "selectedText": "Every mutation of an owned Link versions the source Bead."
+          "selectedText": "Every effectful mutation of an owned Link versions the source Bead."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -341,12 +341,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-revisions-and-guards",
-          "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision."
+          "selectedText": "If applying an update leaves `properties` and common `metadata` equal under the JSON value-comparison rules of RFC 6902 Section 4.6 and, for a Link, leaves both complete endpoint References unchanged, then the operation retains the existing revision."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#attribution-on-mutations",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
+          "selectedText": "a write whose properties, metadata and, for a Link, complete endpoint states are all unchanged mints no revision and records no new provenance and retains the existing version’s entire envelope."
         }
       ]
     },
@@ -364,7 +364,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#attribution-on-mutations",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
+          "selectedText": "a write whose properties, metadata and, for a Link, complete endpoint states are all unchanged mints no revision and records no new provenance and retains the existing version’s entire envelope."
         },
         {
           "source": "docs/specs/bdp.md",

@@ -85,6 +85,8 @@ export interface ReadUpdateInputs {
   };
   readonly updateLink: MintInput & {
     readonly link: string;
+    readonly source?: ReadUpdateInputReference;
+    readonly target?: ReadUpdateInputReference;
     readonly propertiesChange?: PropertyChange;
     readonly metadataChange?: PropertyChange;
     readonly expectedRevision?: string;
@@ -241,7 +243,7 @@ const REFERENCE_FIELDS: Readonly<Record<ReadUpdateOperation, readonly string[]>>
   updateBead: ["bead"],
   deleteBead: ["bead"],
   createLink: ["id", "source", "target"],
-  updateLink: ["link"],
+  updateLink: ["link", "source", "target"],
   deleteLink: ["link"],
   putAlias: ["target"],
   deleteAlias: [],
@@ -327,10 +329,14 @@ export function parseReadUpdateSequenceRequest(text: string): ReadUpdateSequence
           : kind === "updateBead" || kind === "deleteBead"
             ? { bead: "bead" }
             : kind === "updateLink" || kind === "deleteLink"
-              ? { link: "link" }
+              ? {
+                  link: "link",
+                  ...(kind === "updateLink" ? ({ source: "bead", target: "bead" } as const) : {}),
+                }
               : {};
     for (const [field, resourceKind] of Object.entries(expected)) {
       const reference = fields[field];
+      if (reference === undefined) continue;
       const uri = typeof reference === "string" ? reference : record(reference ?? null).uri;
       if (
         typeof uri === "string" &&

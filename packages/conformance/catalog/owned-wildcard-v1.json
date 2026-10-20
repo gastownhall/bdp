@@ -140,7 +140,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#owned-links",
-          "selectedText": "Every mutation of an owned Link versions the source Bead."
+          "selectedText": "Every effectful mutation of an owned Link versions the source Bead."
         },
         {
           "source": "docs/specs/bdp.md",

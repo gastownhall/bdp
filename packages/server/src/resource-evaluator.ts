@@ -607,6 +607,10 @@ function evaluate(
 ): ResourceEvaluation {
   const scope = options.scope;
   const { operation, input } = mutation;
+  // The draft carrier is ahead of this evaluator's endpoint/Event application.
+  // Refuse explicitly rather than accepting an intent and retaining old pins.
+  if (operation === "updateLink" && ("source" in input || "target" in input))
+    bad("endpoint re-pin is not implemented by this reference evaluator", options);
   const resolutions: ResourceReferenceResolution[] = [];
   const creating = operation === "createBead" || operation === "createLink";
   const deleting = operation === "deleteBead" || operation === "deleteLink";
