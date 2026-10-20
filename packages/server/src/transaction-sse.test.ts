@@ -621,11 +621,10 @@ it("effective reconnect cursor owns epoch/view/retention decisions; overridden q
     await f.request("changes/?after=genesis")
   ).json()) as TransactionChangefeedPage;
   const checkpoint = page.groups[0]!.checkpoint;
-  const foreignEpoch = checkpoint.replace(/^cg_[^_]+_/, `cg_${"x".repeat(43)}_`);
   // Use exact codec segments; base64url fields may themselves contain underscores.
   const stale = `cg_${"x".repeat(43)}_${checkpoint.slice(47, 90)}_1`;
   const foreign = `cg_${checkpoint.slice(3, 46)}_${"x".repeat(43)}_1`;
-  expect(foreignEpoch).not.toBe(checkpoint);
+  expect(stale).not.toBe(checkpoint);
   for (const [effective, status] of [
     [stale, 410],
     [foreign, 409],
