@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/memory-types/schemas/memory-decision.local-properties.schema.json",
+  "title": "Decision local properties requirements",
+  "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
+  "type": "object",
+  "properties": {
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "\\S"
+      }
+    }
+  },
+  "additionalProperties": true
+}

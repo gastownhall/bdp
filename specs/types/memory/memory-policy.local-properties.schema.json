@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/memory-types/schemas/memory-policy.local-properties.schema.json",
+  "title": "Policy local properties requirements",
+  "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
+  "type": "object",
+  "properties": {
+    "authority": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "uri"
+        },
+        {
+          "type": "object",
+          "required": ["uri", "revision"],
+          "properties": {
+            "uri": {
+              "type": "string",
+              "format": "uri"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "$comment": "Reuses only the Core Reference value shape. This property is authored data, not a protocol Reference or graph edge; no Core canonicalization, resolution, traversal or target validation. Opaque external URIs are allowed."
+    }
+  },
+  "additionalProperties": true
+}

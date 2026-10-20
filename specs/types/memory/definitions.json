@@ -1,0 +1,550 @@
+{
+  "_comment": "Nonnormative BDP encoding of the project-driven Memory vocabulary: eight Bead definitions and the generic references Link. Illustrative namespaces/revisions, not production identity allocation or adoption. Property copies mirror owned schemas. No runtime or endpoint qualification.",
+  "definitions": [
+    {
+      "id": "https://example.org/memory-types/memory",
+      "revision": "memory-contract-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "description": "Common Memory contract: title/body and optional open-string status.",
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/memory-types/schemas/memory.properties.schema.json",
+          "title": "Memory properties",
+          "$comment": "Memory V1 product property contract, not a BDP Type representation or complete mutation validator. Explicit Type supplies meaning; body is primary. Applicability/validity context stays in application metadata. Status is an optional open string; existing additional properties are preserved.",
+          "type": "object",
+          "required": ["title", "body"],
+          "properties": {
+            "title": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "body": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Optional author-reported status. Open vocabulary, no default or automatic workflow, approval, truth or visibility effect."
+            }
+          },
+          "additionalProperties": true
+        },
+        "ownsOutgoing": [
+          {
+            "any": true
+          }
+        ]
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": []
+      }
+    },
+    {
+      "id": "https://example.org/memory-types/policy",
+      "revision": "policy-contract-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "description": "A governing rule for how the project operates.",
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/memory-types/schemas/memory-policy.local-properties.schema.json",
+          "title": "Policy local properties requirements",
+          "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
+          "type": "object",
+          "properties": {
+            "authority": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "object",
+                  "required": ["uri", "revision"],
+                  "properties": {
+                    "uri": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "revision": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ],
+              "$comment": "Reuses only the Core Reference value shape. This property is authored data, not a protocol Reference or graph edge; no Core canonicalization, resolution, traversal or target validation. Opaque external URIs are allowed."
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/policy-conforms-memory",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/policy",
+            "target": {
+              "uri": "https://example.org/memory-types/memory",
+              "revision": "memory-contract-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://example.org/memory-types/decision",
+      "revision": "decision-contract-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "description": "A choice made, with its rationale and consequences.",
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/memory-types/schemas/memory-decision.local-properties.schema.json",
+          "title": "Decision local properties requirements",
+          "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
+          "type": "object",
+          "properties": {
+            "alternatives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "\\S"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/decision-conforms-memory",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/decision",
+            "target": {
+              "uri": "https://example.org/memory-types/memory",
+              "revision": "memory-contract-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://example.org/memory-types/procedure",
+      "revision": "procedure-contract-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "description": "Instructions for carrying out an activity; method versus execution-record boundaries remain under review.",
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/memory-types/schemas/memory-procedure.local-properties.schema.json",
+          "title": "Procedure local properties requirements",
+          "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/procedure-conforms-memory",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/procedure",
+            "target": {
+              "uri": "https://example.org/memory-types/memory",
+              "revision": "memory-contract-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://example.org/memory-types/specification",
+      "revision": "specification-contract-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "description": "A coherent statement of a system, interface or behavior contract.",
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/memory-types/schemas/memory-specification.local-properties.schema.json",
+          "title": "Specification local properties requirements",
+          "$comment": "Project-driven Memory specialization fragment. Also validate common title/body and optional open-string status. Body carries primary content. A coherent statement of a system, interface or behavior contract.",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/specification-conforms-memory",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/specification",
+            "target": {
+              "uri": "https://example.org/memory-types/memory",
+              "revision": "memory-contract-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://example.org/memory-types/requirement",
+      "revision": "requirement-contract-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "description": "A demanded outcome or constraint.",
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/memory-types/schemas/memory-requirement.local-properties.schema.json",
+          "title": "Requirement local properties requirements",
+          "$comment": "Memory V1 specialization fragment. Also validate common Memory properties: title, body and optional status. Body states the demanded outcome or constraint. No additional required primary field.",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/requirement-conforms-memory",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/requirement",
+            "target": {
+              "uri": "https://example.org/memory-types/memory",
+              "revision": "memory-contract-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://example.org/memory-types/scenario",
+      "revision": "scenario-contract-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "description": "A concrete situation, actors, actions and relevant outcomes illustrating behavior; not proof of test execution.",
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/memory-types/schemas/memory-scenario.local-properties.schema.json",
+          "title": "Scenario local properties requirements",
+          "$comment": "Project-driven Memory specialization fragment. Also validate common title/body and optional open-string status. Body carries primary content. A concrete situation, actors, actions and relevant outcomes illustrating behavior; not proof of test execution.",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/scenario-conforms-memory",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/scenario",
+            "target": {
+              "uri": "https://example.org/memory-types/memory",
+              "revision": "memory-contract-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://example.org/memory-types/proposal",
+      "revision": "proposal-contract-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "description": "A candidate change or course of action offered for consideration.",
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/memory-types/schemas/memory-proposal.local-properties.schema.json",
+          "title": "Proposal local properties requirements",
+          "$comment": "Project-driven Memory specialization fragment. Also validate common title/body and optional open-string status. Body carries primary content. A candidate change or course of action offered for consideration.",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": [
+          {
+            "id": "https://example.org/memory-types/links/proposal-conforms-memory",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/conforms-to",
+              "revision": "conformance-1"
+            },
+            "source": "https://example.org/memory-types/proposal",
+            "target": {
+              "uri": "https://example.org/memory-types/memory",
+              "revision": "memory-contract-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://example.org/memory-types/references",
+      "revision": "references-contract-1",
+      "type": {
+        "uri": "https://example.org/types/beads/link-type",
+        "revision": "link-type-1"
+      },
+      "properties": {
+        "description": "Generic informational connection involving a Memory Bead. It does not assert a domain-specific relationship.",
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://example.org/memory-types/schemas/memory-link.properties.schema.json",
+          "title": "references Link properties",
+          "$comment": "Generic informational references Link. Optional note explains the connection; optional open-string status is author-reported and has no automatic activation, authority or workflow effect. Endpoint/pin/ownership rules are not checked here.",
+          "type": "object",
+          "properties": {
+            "note": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Optional explanation of this relationship, distinct from the Memory body."
+            },
+            "status": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Optional author-reported status. Open vocabulary, no default or automatic workflow, approval, truth or visibility effect."
+            }
+          },
+          "additionalProperties": true
+        },
+        "linkConstraints": {
+          "typeConstraints": [
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/memory-types/memory",
+                    "revision": "memory-contract-1"
+                  }
+                ]
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/types/beads/issue",
+                    "revision": "issue-1"
+                  }
+                ]
+              }
+            },
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/types/beads/issue",
+                    "revision": "issue-1"
+                  }
+                ]
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/memory-types/memory",
+                    "revision": "memory-contract-1"
+                  }
+                ]
+              }
+            },
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/memory-types/memory",
+                    "revision": "memory-contract-1"
+                  }
+                ]
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "same",
+                "types": [
+                  {
+                    "uri": "https://example.org/memory-types/memory",
+                    "revision": "memory-contract-1"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/conforms-to": []
+      }
+    }
+  ],
+  "declarations": [
+    {
+      "id": "https://example.org/memory-types/links/policy-conforms-memory",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/policy",
+      "target": {
+        "uri": "https://example.org/memory-types/memory",
+        "revision": "memory-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/decision-conforms-memory",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/decision",
+      "target": {
+        "uri": "https://example.org/memory-types/memory",
+        "revision": "memory-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/procedure-conforms-memory",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/procedure",
+      "target": {
+        "uri": "https://example.org/memory-types/memory",
+        "revision": "memory-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/specification-conforms-memory",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/specification",
+      "target": {
+        "uri": "https://example.org/memory-types/memory",
+        "revision": "memory-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/requirement-conforms-memory",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/requirement",
+      "target": {
+        "uri": "https://example.org/memory-types/memory",
+        "revision": "memory-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/scenario-conforms-memory",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/scenario",
+      "target": {
+        "uri": "https://example.org/memory-types/memory",
+        "revision": "memory-contract-1"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://example.org/memory-types/links/proposal-conforms-memory",
+      "revision": "declaration-1",
+      "type": {
+        "uri": "https://example.org/types/beads/conforms-to",
+        "revision": "conformance-1"
+      },
+      "source": "https://example.org/memory-types/proposal",
+      "target": {
+        "uri": "https://example.org/memory-types/memory",
+        "revision": "memory-contract-1"
+      },
+      "properties": {}
+    }
+  ]
+}

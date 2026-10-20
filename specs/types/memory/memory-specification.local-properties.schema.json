@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/memory-types/schemas/memory-specification.local-properties.schema.json",
+  "title": "Specification local properties requirements",
+  "$comment": "Project-driven Memory specialization fragment. Also validate common title/body and optional open-string status. Body carries primary content. A coherent statement of a system, interface or behavior contract.",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": true
+}
