@@ -21,8 +21,11 @@ const sections: Record<string, number | undefined> = {
   "The uniformity principle": 1,
   "Part I — Data Model": 1,
   "Part II — Read": 1,
+  // Named draft amendments are visible but establish no profile obligations.
+  "Historical-base Update amendment (draft)": undefined,
   "Part III — Read+Update": 2,
   "Part IV — Transactional": 3,
+  "Historical-base Update and Bead recovery (draft amendment)": undefined,
   "Conformance index and informative end matter": undefined,
 };
 const sharedAnchors: Record<string, number> = {
@@ -230,6 +233,33 @@ describe("catalog citations respect cumulative profile boundaries", () => {
     expect(() => assertProfileCitation("#conformance-profiles-and-reading-guide", "read")).toThrow(
       "Unclassified",
     );
+  });
+  it("keeps explicit historical draft amendments outside every profile", () => {
+    for (const [source, anchors] of [
+      [
+        "specs/profiles/core/core.md",
+        [
+          "#historical-base-update-amendment-draft",
+          "#identity-current-state-and-historical-content",
+        ],
+      ],
+      [
+        "specs/profiles/write/write.md",
+        [
+          "#historical-base-update-and-bead-recovery-draft-amendment",
+          "#guards-no-op-and-atomic-effects",
+        ],
+      ],
+    ] as const) {
+      for (const anchor of anchors) {
+        expect(owners.has(anchor)).toBe(true);
+        expect(owners.get(anchor)?.profile).toBeUndefined();
+        for (const profile of ["read", "read-update", "transactional"] as const)
+          expect(() => assertSourceProfileCitation(source, anchor, profile)).toThrow(
+            "Unclassified",
+          );
+      }
+    }
   });
   it("keeps the explicit top-level section inventory complete", () => {
     expect(
