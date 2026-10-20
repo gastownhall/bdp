@@ -800,8 +800,12 @@ export function evaluateTransaction(
       scopeEvent(subject, "updated", {
         previousRevision: before.revision,
         revision: subject.revision,
-        ...(input.propertiesChange !== undefined ? { change: input.propertiesChange } : {}),
-        ...(input.metadataChange !== undefined ? { metadataChange: input.metadataChange } : {}),
+        ...(Array.isArray(input.propertiesChange) && input.propertiesChange.length > 0
+          ? { change: input.propertiesChange }
+          : {}),
+        ...(Array.isArray(input.metadataChange) && input.metadataChange.length > 0
+          ? { metadataChange: input.metadataChange }
+          : {}),
         ...(subject.revisionProvenance ? { revisionProvenance: subject.revisionProvenance } : {}),
       });
     } else {
@@ -849,8 +853,12 @@ export function evaluateTransaction(
           type: subject.type,
           previousRevision: before.revision,
           revision: subject.revision,
-          ...(input.propertiesChange !== undefined ? { change: input.propertiesChange } : {}),
-          ...(input.metadataChange !== undefined ? { metadataChange: input.metadataChange } : {}),
+          ...(Array.isArray(input.propertiesChange) && input.propertiesChange.length > 0
+            ? { change: input.propertiesChange }
+            : {}),
+          ...(Array.isArray(input.metadataChange) && input.metadataChange.length > 0
+            ? { metadataChange: input.metadataChange }
+            : {}),
           ...(subject.revisionProvenance ? { revisionProvenance: subject.revisionProvenance } : {}),
         };
       }
