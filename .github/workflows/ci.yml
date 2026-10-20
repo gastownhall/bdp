@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, codex/preview3-integration, codex/trish-spec-integration]
   push:
-    branches: [main]
+    branches: [main, codex/preview3-integration, codex/trish-spec-integration, codex/trish-preview3-ci-20261020]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
