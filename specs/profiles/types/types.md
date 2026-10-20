@@ -9,7 +9,7 @@ document on main makes the evolving design available for collaboration; it does
 not adopt its candidate wire shapes or require implementation of unfinished rules.
 
 The [Issue and Dependency draft](../../types/issue/issue.md) and
-[Memory product proposal](https://github.com/gastownhall/beads/issues/7661)
+[Memory draft](../../types/memory/memory.md)
 provide requirements and acceptance scenarios. Issue/Dependency records the
 selected product hierarchy of classification Types conforming to issue/dependency.
 Memory defines product behavior independently of its eventual BDP representation.

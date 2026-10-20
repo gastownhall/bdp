@@ -17,7 +17,7 @@ adapters. This does not redesign workflow or settle how live/computed fields sho
 appear in a versioned Type. No implementation change is made by this draft.
 
 The shared [Types draft](../../profiles/types/types.md) supplies conformance, pinned definitions,
-endpoint composition and arity rules. The [Memory draft](https://github.com/gastownhall/bdp/pull/143) is a companion
+endpoint composition and arity rules. The [Memory draft](../memory/memory.md) is a companion
 requirements exercise; its evolving design is tracked separately in PR143.
 Neither is a replacement for the current canonical BDP contract until adopted.
 
