@@ -4673,3 +4673,91 @@ atomicity, ordering, receipts, Events, replication, erasure and recovery
 obligations. The shared conformance index records the applicable case
 identifiers without granting implementation or qualification claims.
 
+
+
+## Historical-base Update and Bead recovery (draft amendment)
+
+This amendment extends the existing `UpdateBead` operation; it adds no operation
+directory target or `revert` operation. Its approved decisions are recorded in
+[Beads #7719](https://github.com/gastownhall/beads/issues/7719).
+Concrete encoding proposals and the required closed-schema/SDK changes are in
+[the sister packet](../../../docs/design/historical-update-amendment.md).
+This prose PR changes no executable schema, SDK or reference evaluator and does
+not advertise implementation support.
+
+```text
+UpdateBead(
+  bead,
+  fromRevision?,       // exact opaque source token for this same identity
+  propertiesChange?,
+  metadataChange?,     // fromRevision OR at least one patch-array member
+  expectedRevision?,   // actual current live or deletion revision, independently
+  revisionProvenance?
+) -> BeadState
+```
+
+`fromRevision` is optional and nonempty. Ordinary target resolution supplies
+the identity; the token does not contain an alternate target, alias, URL or
+sequence-local revision expression. A request containing `bead` and
+`fromRevision` alone is valid. Without `fromRevision`, the ordinary Update
+admission and empty-array rules remain unchanged. `UpdateLink`, `updateWhere`,
+Create and alias operations do not acquire this member. Historical Link
+recovery is outside this slice.
+
+### Sourced-field policy and composition
+
+| Field | Historical base | Explicit edits and final handling |
+| --- | --- | --- |
+| `properties` editable members | Exact source values, including absence and null | Apply ordered `propertiesChange`; validate the whole result against current effective Type and ordinary field rules. |
+| `properties` protected, initialization-only or service-managed members | Never implicitly replay historical values | Preserve or regenerate under the current contract. Explicit attempts to modify a protected member refuse under that contract. A Type/native adapter must enumerate these paths; unknown native fields are not implicitly writable. |
+| Common `metadata` | Exact source JSON object; legacy absence uses the existing `{}` read projection | Apply ordered `metadataChange`. Common metadata is Type-independent; this does not make similarly named service/native fields writable. |
+| `id` and allocation identity | Never sourced | Same allocated target identity. No identity reuse, unknown-ID upsert or alias rebinding. |
+| Declared Type and selected definition | Never sourced | Retain current Type; historical content incompatible with its current constraints refuses. No implicit retype or Type re-pin. |
+| Link endpoints and owned Links | Never sourced | Retain current graph/owned state; no replay of a historical owned snapshot or implicit revival of another Link. |
+| Revision and current predecessor | Never copied from source | Allocate one fresh revision for an effectful transition; predecessor is the actual current live/deletion revision. |
+| Actor, commit time, agent and message | Never copied from source | Use current-operation rules and truthful absence. A no-op retains the entire current envelope. |
+| Historical content-source fact | Exact source token, bound to this target | Record separately from predecessor only when a new result revision is minted. Not caller-editable provenance. |
+| Inception | Never copied from the historical source | Live updates preserve current-presence Inception; recovery sets `revert`. Missing legacy cause remains unknown. |
+
+The packet contains the concrete native Issue boundary and exclusions. An
+adapter without a complete editable/protected mapping must refuse historical
+mode rather than silently treat a native storage row as arbitrary properties.
+
+For an admitted historical request, compose the editable historical base first,
+retain current protected state, apply the explicit patches, then perform current
+Type, native, endpoint, ownership and complete graph validation. Patches are
+relative to the selected base, not to the current predecessor. Removing an
+absent member and replacing a missing member keep their ordinary failure rules.
+The final result must be valid under the current contracts even if the old
+source was valid under a different Type or definition. This does not change
+ordinary request failure/disclosure precedence.
+
+### Guards, no-op and atomic effects
+
+`expectedRevision`, when supplied, addresses the actual current state. A live
+R7 sourced from R1 is guarded by R7; recovery from R1 after deletion D is guarded
+by D. Omission retains ordinary Update behavior and adds no mandatory recovery
+guard. A missing terminal dependency must not be hidden by comparing a guard
+with the last live or content-source revision.
+
+Authorization, exact-source admission, current guard checks and complete
+validation precede a successful no-op result. If composed live properties and
+metadata equal current values under the ordinary semantic equality law, return
+ordinary `updated` with the retained revision/context/owned state. The selector
+or new caller context alone creates no revision or Event. Deleted-to-live
+changes presence and therefore creates one fresh live revision even if its
+editable content equals the last live content.
+
+Content, current/deletion state, retained history, context and any admitted
+owned effects commit atomically, or none do. Preserve ordinary singleton,
+sequence and atomic-batch distinctions. Include `fromRevision` in semantic
+request identity and retained replay: an exact replay returns its original
+outcome rather than reacquiring a now-changed source. Do not infer safe retry
+from equal content or a failed response write.
+
+Emitted deltas describe the actual current-to-result transition. Input patches
+against historical content are not necessarily those deltas. Preserve PR172's
+nonempty emitted-delta rule and omit empty delta members. Recovery's presence
+transition, terminal provenance, receipt and replication mapping need the
+explicit carrier crosswalk; no new Event type or public Event capability is
+introduced by this amendment.
