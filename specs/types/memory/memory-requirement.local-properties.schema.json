@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/memory-types/schemas/memory-requirement.local-properties.schema.json",
+  "title": "Requirement local properties requirements",
+  "$comment": "Memory V1 specialization fragment. Also validate common Memory properties: title, body and optional status. Body states the demanded outcome or constraint. No additional required primary field.",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": true
+}

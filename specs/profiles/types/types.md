@@ -8,7 +8,7 @@ remain the protocol authority until coordinated amendments land. Landing this
 document on main makes the evolving design available for collaboration; it does
 not adopt its candidate wire shapes or require implementation of unfinished rules.
 
-The [Issue and Dependency draft](../../types/issue/issue.md) and [Memory draft](https://github.com/gastownhall/bdp/pull/143)
+The [Issue and Dependency draft](../../types/issue/issue.md) and [Memory draft](../../types/memory/memory.md)
 provide requirements and acceptance scenarios. Issue/Dependency records the
 selected product hierarchy of classification Types conforming to issue/dependency.
 Memory is being reconciled and reviewed separately in PR143; this document does
