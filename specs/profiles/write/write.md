@@ -4723,6 +4723,21 @@ The packet contains the concrete native Issue boundary and exclusions. An
 adapter without a complete editable/protected mapping must refuse historical
 mode rather than silently treat a native storage row as arbitrary properties.
 
+Deleted-to-live recovery additionally requires an authoritative recovery
+baseline. The Type/native adapter must identify and acquire the retained
+identity and last-current facts that establish the current declared Type,
+selected definition and required protected/initialization-only values after
+payload deletion. An authorized terminal D and readable content source R1
+alone do not establish them. A terminal's predecessor reference identifies R7
+but does not guarantee its necessary facts remain available. Preserve those
+facts, or reconstruct the same authoritative values only under existing
+authority policy; never reinitialize them or substitute R1's conflicting
+values. Service-managed fields may regenerate only under their existing
+current rules, separately from immutable initialization facts. Refuse
+atomically if required authoritative baseline facts cannot be established or
+authorized through commit. No latest/default-last-live fallback, extra token,
+terminal payload expansion or mandatory recovery guard is introduced.
+
 For an admitted historical request, compose the editable historical base first,
 retain current protected state, apply the explicit patches, then perform current
 Type, native, endpoint, ownership and complete graph validation. Patches are

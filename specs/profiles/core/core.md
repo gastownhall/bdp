@@ -2040,7 +2040,16 @@ implementation must not claim admission or conformance from this section alone.
 
 A historical source is an exact retained live version of the same Bead identity.
 It supplies only the editable content selected by the Write field policy. It
-is neither the current state nor an optimistic concurrency guard. Recovery
+is neither the current state nor an optimistic concurrency guard. After
+payload deletion, recovery also requires sufficient authorized retained
+identity/last-current facts to establish the current Type, selected definition
+and required protected/initialization-only values. The adapter identifies
+this authoritative baseline independently of the editable source and the
+terminal guard; it preserves or reconstructs facts only under existing
+authority policy, regenerates service-managed values only where current rules
+permit, and refuses atomically if required facts cannot be established. A
+terminal's predecessor reference does not guarantee those facts remain
+available, and source content must not substitute for them. Recovery
 changes the presence of an already allocated identity; it does not allocate,
 reuse, alias, or upsert an unknown identity. Deletion and earlier retained
 history remain recorded. An erased identity or unavailable source cannot be
@@ -2077,7 +2086,9 @@ while replacing R7 must never describe R1 as the predecessor. Recovery after
 terminal D records D as predecessor, not the final live revision preceding D.
 Earlier version envelopes remain immutable. A live semantic no-op retains the
 existing revision and its entire envelope; it does not append a source-only
-History fact. Live-to-live sourcing preserves current-presence Inception;
+History fact. This includes any historical-source context already stored on
+that revision: a later historical or ordinary no-op neither removes nor
+replaces it. Live-to-live sourcing preserves current-presence Inception;
 deleted-to-live recovery records `revert`, as approved in
 [the Inception decision](https://github.com/gastownhall/beads/issues/7510#issuecomment-6242419971).
 
