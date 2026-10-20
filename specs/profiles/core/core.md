@@ -331,13 +331,12 @@ Link {
 ```
 
 For a Bead, `id` and `type` are immutable. For a Link, `id`, `type`,
-`source`, and `target` are immutable. `properties` and common `metadata` may be updated, and a
-Bead's `ownedLinks` plane changes only through its owned Links.
-Assigning a new value to an immutable member is not an update. Because a
-Link's endpoints are immutable, repointing or re-pinning an owned
-Link is a delete-and-create pair, each of which versions the source.
-Deleting a Resource and creating another Resource are distinct
-operations.
+and the URI identity of each endpoint are immutable. `properties`, common
+`metadata`, and each endpoint's optional pin may be updated. A Bead's
+`ownedLinks` plane changes only through its owned Links. Changing an endpoint
+URI requires deletion and creation of a distinct Link; changing only a pin
+updates the existing Link identity. Deleting a Resource and creating another
+Resource remain distinct operations.
 
 Every Link has independent Resource identity. Its `type`, `source`, and
 `target` describe it but do not identify it. BDP v0 permits multiple Links
@@ -398,8 +397,11 @@ validating or resolving one against retained history arrives with
 historical resolution. An external pin's token belongs to a namespace this
 Scope does not own and is never validated or dereferenced.
 
-Reference equality, incident traversal, and multiplicity use the URI
-alone; a pin adds no identity component. References do not carry the
+Reference identity equality, incident traversal, and multiplicity use the URI
+alone; a pin adds no identity component. Complete endpoint-state comparison
+for an update also compares whether the pin is present and, when present,
+its opaque token byte-for-byte. A floating Reference and a pinned Reference
+to the same URI are distinct endpoint states. References do not carry the
 endpoint Bead's declared Type: readers that need endpoint Types use the
 read views, and an authority validates endpoint Types against the
 identified Beads themselves.
@@ -459,11 +461,11 @@ Bead Types may own, every mutation of an owned Link versions the source,
 an incoming Link never versions its target, and `label` never appears in
 a record.
 
-Every mutation of an owned Link versions the source Bead. Because a
-Link's `id`, `type`, `source`, `target`, and pin are immutable, the only
-mutations that exist are creation, deletion, and property update;
-repointing or re-pinning an owned Link remains a delete-and-create pair,
-each of which versions the source. An incoming Link never versions its
+Every effectful mutation of an owned Link versions the source Bead. Updating
+only an endpoint pin preserves the Link's identity and versions that Link
+and its owning source atomically. A semantic no-op changes neither revision.
+Changing an endpoint URI still requires a delete-and-create pair, each of
+which versions the source. An incoming Link never versions its
 target, whatever its type, so reverse projections such as cited-by remain
 computed views. An owned Link remains a first-class Link with its own URL
 and its own revision: a caller addresses, reads, and updates it there
@@ -703,8 +705,8 @@ graph policies are deferred.
 
 A Resource revision is an opaque token for one version of that Resource.
 Clients compare revisions only for equality and must not derive meaning from
-their spelling. A revision covers its properties and metadata and, for an
-owning Bead, its owned-Link state. HTTP entity tags may represent revisions.
+their spelling. A revision covers its properties and metadata, a Link's complete endpoint
+References, and, for an owning Bead, its owned-Link state. HTTP entity tags may represent revisions.
 
 JSON value comparison is over **exact decimal values**. Two JSON numbers are the
 same value if and only if the decimal values their literals denote are

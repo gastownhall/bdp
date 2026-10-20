@@ -323,6 +323,32 @@ describe("pure member Resource evaluation", () => {
     expect(readStoredResource(legacy, scope).metadata).toEqual({});
     expect(f.records.get("beads/a")?.bodyJson).toBe(legacy.bodyJson);
   });
+  it.each(["source", "target"])(
+    "refuses staged %s re-pin before any partial reference write",
+    (endpoint) => {
+      const f = fixture([
+        beadDescriptor({ ownsOutgoing: { [linkType]: { max: 8 } } }),
+        linkDescriptor(),
+      ]);
+      f.createBead("a");
+      f.createBead("b");
+      f.createLink("edge");
+      const before = [...f.records.entries()];
+      const put = vi.spyOn(f.tx, "putResource");
+      const allocate = vi.spyOn(f.tx, "allocateRevision");
+      failure(
+        f.execute("updateLink", {
+          link: "links/edge",
+          [endpoint]: { uri: endpoint === "source" ? "beads/a" : "beads/b", revision: "r7" },
+          metadataChange: [{ op: "add", path: "/mustNotApply", value: true }],
+        }),
+        "validation-failed",
+      );
+      expect(put).not.toHaveBeenCalled();
+      expect(allocate).not.toHaveBeenCalled();
+      expect([...f.records.entries()]).toEqual(before);
+    },
+  );
   it("versions an owned Link and its source once for a metadata-only update", () => {
     const f = fixture([
       beadDescriptor({ ownsOutgoing: { [linkType]: { max: 8 } } }),

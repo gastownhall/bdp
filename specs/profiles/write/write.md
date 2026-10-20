@@ -142,14 +142,18 @@ an identity the creator did not write.
 ### Mutation revisions and guards
 
 Every successful create — and every update that changes `properties`,
-common `metadata`, or, for a Bead whose Type owns outgoing Link Types,
-its owned Links —
+common `metadata`, a Link's complete endpoint References, or, for a Bead
+whose Type owns outgoing Link Types, its owned Links —
 produces a fresh opaque Resource revision. A client compares revisions only for
 equality and must not derive meaning from their spelling. If applying an
-update leaves both `properties` and common `metadata` equal, under the JSON
-value-comparison rules of RFC 6902 Section 4.6, to their values immediately
-before that operation, then the operation retains the existing revision. A change to either value is one Resource
-transition, with one new revision.
+update leaves `properties` and common `metadata` equal under the JSON
+value-comparison rules of RFC 6902 Section 4.6 and, for a Link, leaves both
+complete endpoint References unchanged, then the operation retains the
+existing revision. Pin presence and opaque token equality participate in
+that endpoint-state comparison; URI identity comparison remains unchanged.
+Authorization, target liveness, applicable guards and complete final-state
+validation precede a successful no-op. One effectful update produces one
+Resource transition with one fresh revision.
 
 An explicit update or deletion may supply `expectedRevision`: the revision
 observed by an earlier read or mutation result. The authority applies the
@@ -190,8 +194,8 @@ Link versions both the Link and its source, and both carry it; deleting an
 owned Link mints no Link version (deletion never does) and versions only the
 source, which carries it. It is outside `properties`, never part of the
 `properties` view, and takes no part in the semantic no-op comparison: a
-write whose `properties` and common `metadata` changes are both no-ops mints
-no revision and records no new provenance and retains the existing version’s
+write whose properties, metadata and, for a Link, complete endpoint states
+are all unchanged mints no revision and records no new provenance and retains the existing version’s
 entire envelope.
 
 ### Property changes
@@ -210,7 +214,8 @@ Assigning JSON `null` and removing a member are distinct operations. The
 patch must yield a JSON object. The authority validates the complete
 `properties` result — not merely its changed members — against every effective
 Type contract; `metadata` has no Type schema. An update that leaves both
-objects unchanged is a no-op. Advertised limits bound the combined patch
+objects unchanged is a no-op only when any supplied endpoint states are also
+unchanged under Mutation revisions and guards. Advertised limits bound the combined patch
 operation count, the path size and depth, and the resulting representation
 size.
 
@@ -220,8 +225,9 @@ BDP represents each change as a bounded
 [RFC 6902 JSON Patch](https://www.rfc-editor.org/rfc/rfc6902.html) applied to
 one Resource object. `propertiesChange` targets `properties` and
 `metadataChange` targets common `metadata`; each JSON Pointer is relative to
-its own complete object. A Resource update supplies at least one of these
-arrays and may supply both in the same atomic operation. An omitted array
+its own complete object. UpdateBead supplies at least one of these arrays.
+UpdateLink may instead supply an endpoint pin edit, or combine endpoint edits
+with either or both arrays in the same atomic operation. An omitted array
 leaves its object unchanged. A change admits only `add`, `replace`, and
 `remove`. The other patch operations — `move`, `copy`, and `test` — are
 excluded from BDP v0. Operations execute in array order. `add` has RFC 6902
@@ -260,8 +266,8 @@ This distinguishes assigning JSON `null` from removing a member. Applying the
 properties patch must yield a JSON object satisfying every effective Type
 schema. The metadata patch must yield a JSON object. If both results equal
 their respective preceding objects under RFC 6902 Section 4.6 JSON
-comparison, the operation is a no-op. It preserves the
-Resource revision. Number equality in that
+comparison, and a Link's supplied endpoint states are also unchanged, the
+operation is a no-op. It preserves the Resource revision. Number equality in that
 comparison, and the admissibility of every number literal a change carries,
 are defined under [Revisions](../core/core.md#revisions).
 
@@ -329,8 +335,10 @@ pinned; whether an endpoint is in-Scope or out-of-Scope derives from its
 ```text
 UpdateLink(
   link,
+  source?,          // complete replacement Reference, same URI
+  target?,          // complete replacement Reference, same URI
   propertiesChange?,
-  metadataChange?,  // at least one change array is required
+  metadataChange?,  // at least one endpoint or change-array member is required
   expectedRevision?,
   revisionProvenance?
 ) -> LinkState
@@ -345,6 +353,16 @@ DeleteLink(
 ```
 
 `link` may be a durable Link ID or a sequence-local Link reference.
+
+The optional endpoint members replace only the selected endpoint's pin state.
+Resolve and canonicalize their URI identities under the existing Reference
+rules, then require each to equal that endpoint's existing URI. An omitted
+member preserves the complete stored Reference; a supplied floating Reference
+removes its pin. Neither endpoint identity nor the Link's Type may change.
+Link revision guards concern the actual current Link, independently of its
+stored endpoint pins. Complete endpoint-state equality is tested after the
+ordinary admission checks. An effectful owned-Link pin update and its source's
+new owned snapshot commit atomically; a no-op versions neither Resource.
 
 ### Alias mutation model
 
@@ -456,8 +474,9 @@ or interpretation — for an external target because its namespace is not
 ours, and for an in-Scope target because validating a past revision
 requires historical resolution, which arrives separately. The pin is
 unrelated to the containing Link's own `revision` and to
-`expectedRevision` guards. It does not participate in Link identity or
-Reference comparison.
+`expectedRevision` guards. It does not participate in Link identity,
+incident traversal or multiplicity. It does participate in complete endpoint
+state comparison for an update under Mutation revisions and guards.
 
 Creating or deleting a Link does not mutate an in-Scope endpoint Bead or
 change that Bead's Resource revision — with one declared exception: when
@@ -2846,10 +2865,12 @@ discriminator selects one of the eight generic operation records:
     "updateLink": {
       "type": "object",
       "required": ["operation", "link"],
-      "anyOf": [{ "required": ["propertiesChange"] }, { "required": ["metadataChange"] }],
+      "anyOf": [{ "required": ["propertiesChange"] }, { "required": ["metadataChange"] }, { "required": ["source"] }, { "required": ["target"] }],
       "properties": {
         "operation": { "const": "updateLink" },
         "link": { "$ref": "#/$defs/resourceReference" },
+        "source": { "$ref": "#/$defs/reference" },
+        "target": { "$ref": "#/$defs/reference" },
         "propertiesChange": { "$ref": "#/$defs/change" },
         "metadataChange": { "$ref": "#/$defs/change" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
@@ -3409,8 +3430,8 @@ materialize or index a projection without changing its contents or order.
 The model defines five domain-independent Event Types:
 
 - **created** — a Bead or Link began to exist;
-- **updated** — the mutable properties or common metadata of a Bead or Link changed, or an
-  owned Link of a Bead changed;
+- **updated** — the mutable properties or common metadata of a Bead or Link,
+  a Link's complete endpoint Reference state, or an owned Link of a Bead changed;
 - **deleted** — a Bead or Link ceased to exist;
 - **linked** — a Link became incident upon a Bead; and
 - **unlinked** — a Link ceased to be incident upon a Bead.
@@ -3433,10 +3454,16 @@ CreatedData {
   target?: Reference
 }
 
-UpdatedData { previousRevision: Revision revision: Revision change?:
-PropertyChange // changes properties metadataChange?: PropertyChange //
-changes common metadata ownedLink?: OwnedLinkChange revisionProvenance?:
-RevisionProvenance // the new version's carried attribution }
+UpdatedData {
+  previousRevision: Revision
+  revision: Revision
+  change?: PropertyChange          // committed properties delta
+  metadataChange?: PropertyChange  // committed common metadata delta
+  source?: Reference               // changed complete endpoint state; Link subject only
+  target?: Reference               // changed complete endpoint state; Link subject only
+  ownedLink?: OwnedLinkChange      // owning Bead subject; excludes the four direct effects
+  revisionProvenance?: RevisionProvenance
+}
 
 OwnedLinkChange {
   operation: created | updated | deleted
@@ -3449,6 +3476,8 @@ OwnedLinkDelta { id: URI // the owned Link's canonical URL type: TypeId
 previousRevision: Revision // the Link's revisions, not the source's
 revision: Revision change?: PropertyChange // changes the Link's properties
 metadataChange?: PropertyChange // changes the Link's common metadata
+source?: Reference // changed complete source endpoint state
+target?: Reference // changed complete target endpoint state
 revisionProvenance?: RevisionProvenance // the Link's new version's carried
 attribution }
 
@@ -3469,10 +3498,13 @@ that Event's bytes and does not synthesize a new Event or revision. The
 schema admits this historical form so old Event records remain readable.
 
 An owned-Link change produces an `updated` Event on the source Bead with
-its fresh revision; its delta carries `ownedLink` in place of `change` and
-`metadataChange`. Otherwise, at least one of `change` and `metadataChange`
-is present; both may be present for one atomic Resource update. An updated
-owned-Link delta follows the same rule. No single
+its fresh revision; its delta carries `ownedLink` in place of the direct
+`change`, `metadataChange`, `source` and `target` effects. Otherwise, at least
+one direct effect is present; any nonempty combination may describe one atomic
+Link update. Direct `source` and `target` effects are permitted only for a Link
+subject, never a Bead subject. An updated owned-Link delta follows the same
+four-effect presence rule. A supplied Property Change remains nonempty; an
+endpoint effect does not admit an empty `change` or `metadataChange` array. No single
 operation changes both a Bead's `properties` and one of its owned Links, and
 every owned-Link mutation mints its own source version, so a Mutation
 Transaction that changes both — or that changes two owned Links of one
@@ -3485,8 +3517,9 @@ complete record: exactly the record the Link serves at its own URL after the
 transition, because creation is the delta from absence, so its `revision` is
 the Link's fresh revision and its `revisionProvenance`, when present, is the
 Link's own. For `updated`, it is the owned Link's delta — the Link's `id` and
-`type`, its `previousRevision` and fresh `revision`, the committed `change`
-and/or `metadataChange`, and the Link's new version's `revisionProvenance`
+`type`, its `previousRevision` and fresh `revision`, the committed property,
+metadata and/or endpoint-state effects, and the Link's new version's
+`revisionProvenance`
 when one was recorded — the same delta the Link's own `updated` fact carries,
 so that neither fact carries the Link's properties in full. For `deleted`, it
 is the deleted Link's identity — `id`, `type`, and its final live `revision`
@@ -3522,9 +3555,9 @@ property change twice, under two subjects: once as the incident Link's
 `updated` fact and once as the source's own `updated` fact carrying the
 same delta.
 
-A no-op owned-Link update — one whose resulting `properties` and `metadata`
-both equal, under the RFC 6902 Section 4.6 comparison, their respective values
-immediately before it — retains the Link's revision and emits no Event, and
+A no-op owned-Link update leaves properties, metadata and both complete
+endpoint References unchanged after the ordinary guards and admission checks.
+It retains the Link's revision and emits no Event, and
 it does not version the source: there is no transition for the source's
 version to cover. An omitted change leaves its corresponding value unchanged.
 
@@ -3534,8 +3567,9 @@ the record's `ownedLinks` member: for `created`, inserting `link` in
 ascending code-unit order of `id`; for `updated`, locating the entry whose
 `id` equals `link.id` and whose `revision` equals `link.previousRevision`,
 applying `link.change` to its `properties` when present and
-`link.metadataChange` to its `metadata` when present, leaving each omitted
-value unchanged, and setting its `revision` to `link.revision` and its
+`link.metadataChange` to its `metadata` when present, replacing `source` or
+`target` with the corresponding supplied complete Reference when present,
+leaving each omitted value unchanged, and setting its `revision` to `link.revision` and its
 `revisionProvenance` to `link.revisionProvenance`, removing that member when
 the delta carries none; for `deleted`, removing the entry whose `id` equals
 `link.id`; then setting the record's `revision` to the Event's `revision` and
@@ -3550,9 +3584,19 @@ group's `changes` member carries the source Bead's complete postimage,
 `CreatedData` contains the complete initial properties and metadata, because
 creation is the delta from absence to the initial state; previously retained
 Events may omit metadata as described above. For a Link, it also contains the
-Link's source and target endpoint references. `UpdatedData` contains the
-committed Property Change for properties and/or metadata — or the owned-Link
-change — rather than a resulting state snapshot.
+Link's source and target endpoint references. `UpdatedData` contains the committed property/metadata changes and changed
+complete endpoint References — or the owned-Link change — rather than a
+resulting Resource snapshot. An endpoint effect is its complete resulting
+Reference, not a patch into an opaque token. A consumer verifies the unchanged
+endpoint URI against its held previous state before replacing a pin; a
+mismatch is not a re-pin it can apply. A delta omits unchanged endpoint states.
+A pin-only change produces no `linked` or `unlinked` fact because graph identity
+and incidence did not change. The Link's `updated` fact appears in the same
+eligible incident endpoint Bead feeds as other Link updates, without implying
+a target Bead revision; the owning source's separate revision follows the
+ordinary owned-Link rule. The structural Event schema cannot compare a held
+preimage or infer subject kind from a Type URI: those checks remain semantic
+Event validation, including refusal of direct endpoint effects on a Bead.
 `DeletedData.revision` is the Resource's final live revision. Deleted Events
 do not retain the Resource's properties.
 
@@ -4258,15 +4302,16 @@ contains deltas rather than Resource snapshots:
   Link it also carries the `source` and `target` endpoint references, with a
   stored pin preserved byte-identically.
 - `updated` carries `previousRevision`, `revision`, either `ownedLink` or at
-  least one of `change` and `metadataChange`, and the new version's
+  least one of `change`, `metadataChange`, `source` and `target`, and the new version's
   `revisionProvenance` when one was recorded. `change` targets `properties`;
   `metadataChange` targets common `metadata`. Both may appear for one atomic
   Resource update and use the same committed Property Change representation
-  accepted by singleton DML. `ownedLink` carries one owned-Link transition
+  accepted by singleton DML. For a Link, `source` and `target` carry only changed
+  complete endpoint References; omitted endpoints remain unchanged. `ownedLink` carries one owned-Link transition
   of the source Bead: `operation` is `created`, `updated`, or `deleted`, and
   `link` is the owned Link's complete record for the first, its own delta —
-  `id`, `type`, `previousRevision`, `revision`, `change` and/or
-  `metadataChange`, and `revisionProvenance`
+  `id`, `type`, `previousRevision`, `revision`, the supplied nonempty property,
+  metadata and/or endpoint-state effects, and `revisionProvenance`
   when recorded — for the second, and its identity — `id`, `type`, and final
   live `revision` — for the third.
 - `deleted` carries only `revision`, meaning the final live Resource
@@ -4505,9 +4550,11 @@ named subject and revision:
    carries erased content: the `created` or `updated` fact that minted the
    erased revision; the source Bead's `updated` fact whose `ownedLink`
    carries the erased Link version; and a `linked` or `unlinked` fact whose
-   endpoint References are erased content — which is the case exactly when
-   every version of the Link that carried them is erased, since a Link's
-   endpoints are immutable across its versions. A `deleted` fact carries
+   complete endpoint References are erased content — which is the case when
+   every version of the Link carrying that complete source/target Reference
+   pair is erased. Compare pin presence and opaque tokens as well as URI
+   identities: a surviving version with the same endpoint URIs but different
+   pins does not retain an older pair's content. A `deleted` fact carries
    only a lineage marker and is never withheld. Withholding removes the
    Event from every projection and leaves its ordinal as a gap exactly as a
    hidden fact does; every served Event's cursor stays valid, a cursor

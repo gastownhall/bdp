@@ -40,6 +40,12 @@ Serving BDP through `bdpbd` is distinct from native BDP support in `bd`.
 | [Memory library](types/memory/memory.md) | **WIP nine-Bead/nine-Link review catalog:** selected Evaluation with exact subject references, evaluation-owned claims and identity-lifetime subject-group binding. [Publication scope and historical-artifact boundary](types/memory/README.md); review tracked in [PR143](https://github.com/gastownhall/bdp/pull/143). No adoption claim. | Historical schemas, literals and offline cases remain separately identified; **this publication supplies no runtime qualification**. | **Existing precursor:** [Preview 2 source](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/schema.go#L53) defines title/body Memory and [informational Links](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/informational_types.go). Current product candidates and exact qualification remain in [Beads7656](https://github.com/gastownhall/beads/issues/7656); this historical source is not new runtime evidence. |
 | [Conformance index](conformance.md) | Current draft's shared requirement/case index; applies by advertised profile. | **Read executable evidence exists.** Catalog entries for other profiles are not proof those profiles passed. See [evidence rules](../packages/conformance/matrices/README.md). | Not a separate product feature. Only the named targets, builds, cases and qualifications in a recorded run are covered. |
 
+The endpoint pin-only UpdateLink amendment has schema/SDK carrier checks, not
+reference-runtime mutation/Event qualification. Its current implementation
+boundaries, including the reference evaluator's explicit refusal and Beads'
+owned-source deferral, are recorded in the
+[review packet](../docs/design/endpoint-pin-repin-20261020.md).
+
 **Not qualified / not established** means sufficient evidence is absent here; it
 does not assert that every underlying feature is missing. In this inventory,
 **NYI** is reserved for a specifically identified unimplemented feature. Update a
