@@ -1,7 +1,7 @@
 {
-  "time": "2026-10-19T23:40:09.414657+00:00",
-  "scope": "Documentation/model integrity only; accepted owner/group semantics propagated with proposed Evaluation carrier. No runtime or schema qualification.",
-  "sha256": "1f419829dd3b4207bf044c4c52baac786dbec626fb0fda570c526749c7ae5057",
+  "time": "2026-10-20T00:32:10.787904+00:00",
+  "scope": "Documentation/model integrity only; accepted Evaluation carrier, ownership/group semantics and exact subject-reference shape propagated. No runtime or schema qualification.",
+  "sha256": "3d2c8cafee95084ad6a3869d6f8312612f1c82d2233a71ee54fc2de62ab11c76",
   "bead_types": [
     "Memory",
     "Evaluation",
@@ -27,7 +27,7 @@
   "checks": {
     "nine_review_beads_nine_links": true,
     "eighteen_refinement_declarations": true,
-    "carrier_proposal_not_claimed_accepted": true,
+    "accepted_carrier_and_exact_references": true,
     "evaluation_owns_common_claim_family": true,
     "four_evaluation_claim_endpoint_tables": true,
     "any_bead_subject_to_preserved": true,
@@ -48,15 +48,14 @@
   },
   "missing_links": [],
   "bad_table_lines": [],
-  "proposed_carrier": "Evaluation refining Memory; name/refinement/subject-reference encoding remain for review",
-  "authoring_commit": "7595d937fa15f3e7133308700a6b9dc6e12326e1",
+  "accepted_carrier": "Evaluation refining Memory; required nonempty subjects array of exact {uri, revision} Bead references; floating subjects refused",
+  "authoring_commit": "f200bd3cf60c4ea6efa7fdd82064ae4e54aef640",
   "authoring_path": "specs/type-packages/memory-references/memory-and-references.md",
-  "authoring_sha256": "1f419829dd3b4207bf044c4c52baac786dbec626fb0fda570c526749c7ae5057",
+  "authoring_sha256": "3d2c8cafee95084ad6a3869d6f8312612f1c82d2233a71ee54fc2de62ab11c76",
   "public_path": "specs/types/memory/memory.md",
-  "public_sha256": "99fe6586b29bf91d184cb0f024f125b28c0c9b50c52abaa4efbba7cb1f58f5c7",
-  "previous_public_source": "010be6463c54041dc9ec266c385788ec1a3fd88b",
-  "decision": "MEM-DEC-010",
-  "accepted": "All claims evaluation-owned; one full collective subject group; no direct unowned alternative",
-  "proposed": "Concrete Evaluation carrier name/refinement; typed subjects property encoding and lifecycle remain for review",
-  "public_links_and_anchors": true
+  "public_sha256": "25905e496f36ab7f95046c5c98ed681aeb9aa0bb1c832d63beb6038120bd0ac5",
+  "previous_public_source": "12cbbf1c612c21fa7be3cd28b222bde92c84d414",
+  "decision": "MEM-DEC-010 with subsequent concrete carrier selection",
+  "accepted": "Evaluation refines Memory, owns Conformance family; required nonempty subjects array of exact {uri, revision} Bead references; floating subjects refused; whole-group collective semantics retained",
+  "remaining_open": "Lifecycle automation, structured context/evidence, reconciliation and ephemeral graph framing; no runtime qualification"
 }

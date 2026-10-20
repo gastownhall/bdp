@@ -37,3 +37,5 @@ Donna directly accepted the Slack-review follow-through in Melinda's chat. Trish
 ## Subsequent evaluation decision
 
 [MEM-DEC-010](memory-evaluation-decision-20261019.md) selects evaluation ownership for every claim, one full collective subject group per evaluation, and no direct unowned alternative. The current catalog propagates that behavior and proposes an Evaluation carrier; concrete naming/refinement, subject-reference encoding and lifecycle remain for review. The original Choice above remains historical.
+
+The subsequent concrete selection in MEM-DEC-010 adopts Evaluation refining Memory with required nonempty exact `{uri, revision}` subject references; floating subjects are refused. The original MEM-DEC-009 Choice and the intermediate 12cbbf1 review identity remain historical.

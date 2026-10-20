@@ -20,12 +20,20 @@ Query results must distinguish the evaluation/claim owner from the assessed subj
 
 Recording a conformance evaluation should not revise the subject being examined. A dedicated evaluation record can group its claims for understandable provenance and lifecycle handling. Collective scope supports systems whose components jointly meet a constraint without making false per-component claims.
 
-## Open representation and propagation
+## Original representation boundary (historical)
 
 Assessment was Melinda's working name for the evaluation record, not an existing or selected Type name. The concrete Type or reuse/refinement of an existing Type, subject-reference representation, revision syntax, evaluation-group binding, and cleanup/retention behavior remain to be specified. This ruling does not introduce a ninth Memory Bead Type, a new kind/outcome field, an automatic cascade, or a third-party ownership field.
 
 This resolves MEM-DEC-009's open evaluation-owner direction, collective-versus-individual meaning, full-group versus per-claim-subset scope, and the choice of one uniform evaluation-owned claim model. The earlier Memory source at 010be646 describes the direct subject-to-Constraint, unowned-claim baseline and retains its exact identity for historical/frozen consumers. The main Memory draft now propagates this decision and proposes Evaluation as a Memory subtype with a typed subject-group property. That concrete carrier, reference encoding and lifecycle still need review; publishing the successor does not switch a frozen implementation input. Accepted direction is not implemented or qualified behavior.
 
+## Subsequent concrete carrier selection
+
+Donna subsequently approved: **“Yes—Evaluation with exact subject revisions”**, answering Trish's explicit implementation question on October 19, 2026. Evaluation refines Memory and owns Conformance-family claims. Its `subjects` property is a required nonempty array of exact Bead references, each shaped as `{"uri": "…", "revision": "…"}`. Floating subject references are refused; selected exact revisions identify the assessed versions. This resolves the original carrier/refinement and subject-reference shape boundary above without changing the collective-group or ownership rules.
+
+The main Memory catalog propagates this selection. No installed Type ID, special lifecycle automation, deletion cascade, evaluator framework, ephemeral graph identity/framing, or broader pin policy is selected. Context/run bindings, structured evidence, reconciliation and detailed lifecycle integration remain open. Accepted design is distinct from implementation and qualification.
+
 ## Decision provenance
 
 Donna accepted evaluation-owned claims with multiple subjects or a compound subject, then explicitly selected collective meaning, one full subject group per evaluation, and evaluation ownership for all claims in Melinda's chat. The [query/CLI scope proposal](https://github.com/donnabox/beads/blob/3a161244f44a9ef97c952af965929f3cc32ff610/engdocs/design/memory-query-scope.md) carries the design implications; its exact published revision is recorded in the publication ledger. MEM-DEC-010 is an authoring label, not a store-assigned Bead identity.
+
+The concrete-carrier ruling was verified directly in Donna's question reply in **Beads: Trish (Active)**, chat `01a15316-0acc-7c71-b4d8-3e330e80d9de`, question `call_b0de333c50484d85a60a0bbbf401b3d0`, reply `01a156b7-cead-72c1-9d5b-9bee324115cf`. This is a recorded human ruling, not a claim of cryptographic attestation.

@@ -16,7 +16,7 @@ Sections marked **informative**, including their subsections and examples, expla
 
 > **Validation status.** Historical JSON Schemas, `definitions.json`, and example fixtures retained alongside this draft describe the earlier catalog. Their passing checks do not validate this v0.2 catalog. Current implementation or qualification evidence must name the exact catalog revision and deliberately regenerated schemas and fixtures.
 
-> **Evaluation update.** The accepted model places every conformance claim under an evaluation, for one full subject group assessed collectively. This draft proposes **Evaluation** as the concrete Memory subtype carrying that contract. Its name and `subjects` reference encoding remain proposals for review; no installed Type identity or complete lifecycle schema is implied.
+> **Evaluation update.** The accepted model places every conformance claim under an evaluation, for one full subject group assessed collectively. Donna selected **Evaluation** refining Memory as the concrete carrier. Its required nonempty `subjects` array contains exact Bead references shaped as `{"uri": "…", "revision": "…"}`; floating subject references are refused. This design selection does not itself install a Type identity, qualify an implementation, or select lifecycle automation.
 
 ## Overview (informative)
 
@@ -115,7 +115,7 @@ flowchart TD
     EB -->|satisfies| C
 ```
 
-Dashed arrows illustrate the proposed `subjects` property references, not another stored Link Type. The solid assessment Links are owned by their Evaluation Beads.
+Dashed arrows illustrate the `subjects` property references, not another stored Link Type. The solid assessment Links are owned by their Evaluation Beads.
 
 The child-level claims do not automatically establish satisfaction of the whole Specification. A full claim must account for every obligation, including required Policies and their defined children. An unassessed log-redaction obligation remains unknown. Neither contribution nor the absence of a claim establishes violation.
 
@@ -264,7 +264,7 @@ Every outgoing Requires target is necessary for its source, including targets re
 
 The Conformance Link Type declares optional evidence text, such as test, review, execution, or source pointers. Addresses, Satisfies, and Violates inherit it. Every such claim is owned by an evaluation, including self-authored and unattested claims. A validator authors an evaluation and its claims about the declared subject group; neither the actor nor the group members replace the evaluation as the claim Link's source. Independent runs may create evaluations for the same group, retaining their claims, evidence and provenance. Link counts, an evaluation's existence, and a test-run label are not verification. A later claim does not silently replace earlier claims.
 
-The proposed Evaluation Type below supplies the reviewable owner contract. Its concrete subject-reference encoding, structured context/run evidence, and lifecycle details remain open. No direct, unowned subject-to-Constraint claim form is retained as an alternative. This proposal supplies no solver, general constraint language, or automatic interpretation of arbitrary prose.
+The Evaluation Type below supplies the selected owner contract and requires exact subject-revision references. Structured context/run evidence and lifecycle details remain open. No direct, unowned subject-to-Constraint claim form is retained as an alternative. This proposal supplies no solver, general constraint language, or automatic interpretation of arbitrary prose.
 
 ### Issue workflow and assessment boundaries
 
@@ -299,7 +299,7 @@ The following definitions specify the Bead Types. Examples labelled informative 
 | Bead Type | Meaning |
 | --- | --- |
 | [Memory](#memory--bead-type) | A Memory Bead holds knowledge that should remain available for later use. All other Bead Types in this list refine Memory. |
-| [Evaluation](#evaluation--bead-type) | Proposed concrete carrier for an evaluation of one collective subject group; owns every claim it makes. |
+| [Evaluation](#evaluation--bead-type) | Concrete carrier for an evaluation of one collective subject group, bound to exact Bead revisions; owns every claim it makes. |
 | [Constraint](#constraint--bead-type) | A Constraint Bead states an obligation or restriction; its subtypes share discovery and coverage rules. |
 | [Policy](#policy--bead-type) | A Policy Bead states a governing rule for a project or organization. |
 | [Decision](#decision--bead-type) | A Decision Bead explains a choice and the reasons for making it. |
@@ -345,7 +345,7 @@ flowchart BT
 
 ### Evaluation — Bead Type
 
-**Design status.** Evaluation is the proposed Type name and Memory refinement carrying the accepted evaluation-owner contract. The behavior below is selected by MEM-DEC-010; the concrete name, subject-reference encoding and lifecycle details are proposals/open work, not installed Type identities or an accepted schema projection. Do not substitute metadata on a plain Memory Bead for the missing typed contract.
+**Design status.** Donna selected Evaluation refining Memory, with Conformance-family ownership and a required nonempty array of exact subject references. This extends MEM-DEC-010's accepted owner/group contract with the concrete carrier and subject-reference shape. Installation, implementation qualification, special lifecycle automation and ephemeral-output framing are separate; no installed Type identity is inferred from this document. `subjects` is a typed property, not a metadata convention.
 
 **Meaning and use.** An Evaluation Bead records an assessment of one subject group against one or more Constraints. Its body explains the evaluation, its context and method. Its `subjects` property identifies the Beads and selected revisions being assessed. The evaluation owns Addresses, Satisfies and Violates Links to Constraint Beads; those Links record the conclusions and supporting evidence. Self-authored or unattested claims use the same model. The evaluation record and its claims do not by themselves establish verification or trusted authority.
 
@@ -355,14 +355,25 @@ Every owned claim concerns the whole subject group collectively. A different gro
 
 **Refines.** Memory.
 
-**Properties.** The proposed `subjects` property is typed, not metadata. Each member must identify a Bead of any Type and its selected revision. The concrete reference value shape and binding/validation mechanics remain open; arbitrary strings must not be advertised as resolved subject bindings.
+**Properties.** `subjects` is a required nonempty array of exact Bead references. Each member is an object with required `uri` and `revision` members identifying a Bead of any Type and the exact revision assessed. The URI and opaque revision follow the shared Bead-reference contracts. A bare URI or an object without a revision is a floating subject reference and is refused; never silently substitute a newer revision for the one assessed. This property does not change the current-versus-exact policy of other Link endpoints.
+
+**Example subject value (informative).**
+
+```json
+[
+  {"uri": "https://beads.example/acme/beads/web-app", "revision": "web-r2"},
+  {"uri": "https://beads.example/acme/beads/api", "revision": "api-r7"}
+]
+```
+
+These URIs and revision tokens are illustrative, not assigned identities or revisions. The array declares one collective subject group; the claims do not select subsets.
 
 | Name | Type | Defined by | Use and meaning |
 | --- | --- | --- | --- |
 | `title` | Required nonblank text | Memory | Human-readable name for this evaluation. |
 | `body` | Required Markdown text; may be empty | Memory | Primary account of the assessment, method, context and caveats. |
 | `status` | Optional nonblank open string | Memory | Descriptive lifecycle label; no automatic verification, approval or conclusion. |
-| `subjects` | Required nonempty subject group of Beads with selected revisions; concrete reference encoding deferred | Evaluation | Full collective scope of every owned claim. A different group requires a different evaluation; no per-claim subset selector. |
+| `subjects` | Required nonempty array of exact Bead references: `{uri, revision}`; floating references refused | Evaluation | Full collective scope of every owned claim. A different group requires a different evaluation; no per-claim subset selector. |
 
 **Owned outgoing Link Types.**
 
@@ -795,7 +806,7 @@ Conformance is abstract: a Link cannot declare Conformance itself as its actual 
 | Ownership | The source Evaluation owns every Conformance-family claim. A claim mutation revises that evaluation, without revising its assessed subjects or target Constraint. There is no direct unowned claim form or third-party owner. |
 | Provenance | Identifies the actor making the claim; that actor is distinct from the owning evaluation and its assessed subjects. |
 | Composition | No general transitivity or automatic coverage rule. Each specialization supplies any stronger composition rule. |
-| Scope and pins | Scope follows References. The target and subject bindings remain within the current single-Scope baseline. Concrete subject-reference encoding, context/run binding and evidence reconciliation remain open. |
+| Scope and pins | Scope follows References. The target and subject bindings remain within the current single-Scope baseline. Subject references require exact `{uri, revision}` objects. Context/run binding and evidence reconciliation remain open. |
 
 **Properties.** Introduces optional evidence; inherits title, body, and status from References. These fields preserve the claim and its support without certifying it.
 
@@ -942,13 +953,13 @@ Ownership is declared for a Link Type family and includes refining Link Types. T
 | Evaluation or any subtype | Concrete `conformance` refinements: `addresses`, `satisfies`, and `violates` | Constraint or any subtype | Source Evaluation | The evaluation revision includes its claims; assessed subjects and target keep their revisions. |
 | Memory or any subtype | `superseded-by` | Replacement Memory or any subtype | Retiring source Bead | Its revision includes its selected replacement; the target is not revised by the Link change. |
 
-Defines permits at most one incoming Defines-family Link per child identity, while other Requires dependencies may have many incoming Links. Memory declares outgoing Subject To ownership for its family. The proposed Evaluation subtype adds outgoing Conformance-family ownership; no other assessed subject acquires ownership merely by being assessed. Every other participating source Bead Type must declare Subject To ownership, directly or through its own base, while keeping Conformance-family claims independent of its owned content; its Type need not refine Memory or Constraint. In particular, adoption requires adding those declarations to Issue and other source definitions. Widening Link endpoint eligibility alone does not install ownership on existing Types. Existing Issue→Issue Dependency ownership belongs to the separate Issue contract and is independent of these families.
+Defines permits at most one incoming Defines-family Link per child identity, while other Requires dependencies may have many incoming Links. Memory declares outgoing Subject To ownership for its family. The Evaluation subtype adds outgoing Conformance-family ownership; no other assessed subject acquires ownership merely by being assessed. Every other participating source Bead Type must declare Subject To ownership, directly or through its own base, while keeping Conformance-family claims independent of its owned content; its Type need not refine Memory or Constraint. In particular, adoption requires adding those declarations to Issue and other source definitions. Widening Link endpoint eligibility alone does not install ownership on existing Types. Existing Issue→Issue Dependency ownership belongs to the separate Issue contract and is independent of these families.
 
 ## Publication scope and deferred specification work
 
 This revision publishes the selected model for review and implementation planning. It does not adopt a new BDP profile, install Type definitions, qualify a runtime, select a release cutline, or lift an existing integration hold. Runtime scope and qualification remain separate decisions. A Bead identifying the assessed result is still distinct from an Issue Bead tracking work; no separate Implementation Bead Type is required.
 
-The review catalog now describes nine Bead Types: Memory, the proposed Evaluation carrier, Constraint, Policy, Decision, Procedure, Requirement, Scenario, and Specification. The earlier eight-Bead catalog remains an exact historical source. The evaluation-owner behavior is accepted; Evaluation naming/refinement and its concrete subject-reference representation are proposed or open, not an installed schema or an accepted Type identity. It has nine Link Types: References, Superseded By, Requires, Defines, Subject To, Conformance, Addresses, Satisfies, and Violates. Their Type refinement, declared properties, correlated endpoint pairs, family ownership, necessity, tree limits, multiplicity, and claim meanings are specified above. No `kind` field or subtype-specific constraint checker is required. These rules are not deferred merely because they may require implementation work.
+The review catalog describes nine Bead Types: Memory, Evaluation, Constraint, Policy, Decision, Procedure, Requirement, Scenario, and Specification. The earlier eight-Bead catalog remains an exact historical source. Evaluation refining Memory, Conformance-family ownership and the required nonempty exact `{uri, revision}` subject-reference array are selected design. Publishing this catalog does not install a Type identity or qualify a schema or runtime. It has nine Link Types: References, Superseded By, Requires, Defines, Subject To, Conformance, Addresses, Satisfies, and Violates. Their Type refinement, declared properties, correlated endpoint pairs, family ownership, necessity, tree limits, multiplicity, and claim meanings are specified above. No `kind` field or subtype-specific constraint checker is required. These rules are not deferred merely because they may require implementation work.
 
 The following specification work is deliberately deferred and does not block publication of this design:
 
@@ -958,9 +969,9 @@ The following specification work is deliberately deferred and does not block pub
 | Executable applicability representation and evaluator | Explicit Links and implicit matches independently include subjects; a selector non-match cancels neither. The concrete `applicability` value shape or linked-Policy representation, query language/operators, permitted inputs, evaluation bounds, time/context binding, authority, and root selection are deferred. The abstract property is a reserved design extension, not an installable executable schema or a supported evaluator. Arbitrary strings must not be advertised as executable predicates. |
 | Conditional dependency overrides | Stated conditions and exceptions may support an explicit N/A Satisfies claim. Requires targets, including Defines children, remain necessary. A parent's N/A explanation does not automatically waive them; qualified dependencies need a later explicit contract. |
 | Structured sufficient conditions | Requires expresses necessity. A body can state a complete acceptance condition, but this revision selects no machine-readable AND/OR/threshold language or solver. Children alone, including an empty child set, establish no parent satisfaction. |
-| Evaluation representation, evidence and reconciliation | Every claim is evaluation-owned and concerns its whole subject group collectively. The proposed Evaluation carrier and typed `subjects` property make the owner model reviewable. Final Type name/refinement, concrete subject-reference encoding and validation, context/run bindings, structured evidence, conflict adjudication and automated verification remain open. Unresolved compatibility must be reported; group claims are not distributed to members, and Link counts are not verdicts. |
+| Evaluation context, evidence and reconciliation | Every claim is Evaluation-owned and concerns its whole subject group collectively. Evaluation refines Memory, owns Conformance-family claims, and requires a nonempty `subjects` array of exact `{uri, revision}` Bead references; floating subject references are refused. Context/run bindings, structured evidence, conflict adjudication and automated verification remain open. Unresolved compatibility must be reported; group claims are not distributed to members, and Link counts are not verdicts. |
 | Generic representation of abstract Types | Conformance has no direct Link instances; concrete refinements remain usable, and family queries and ownership selectors still recognize them. The Conformance definition Bead is a metatype instance. Shared Types work supplies the representation without automatically making refinements abstract. |
 | Exact query/CLI grammar and presentation | Generic discovery must expose obligations, supporting paths, contribution/full/breach claims, and unresolved results. Domain-tuned CRUD, command/flag spelling, listing defaults, and ordering/bounds remain separate interface design. |
 | Detailed shared write/lifecycle integration | Source ownership, family graph rules, and refusal to silently manufacture evidence remain selected. Exact retype/edit/move/delete, recovery, and transaction integration must reconcile with accepted shared semantics. Non-Memory source definitions, including Issue, need Subject To ownership and must not acquire ownership of assessment claims about themselves; widening endpoints alone does not install those rules. Evaluation ownership, one full collective group per evaluation, and the uniform claim form are selected. Exact cleanup/retention operations remain design work; ownership alone selects no cascade. |
 
-A deferred feature is not implicitly supported. Implementations must state the exact catalog revision and supported behavior, preserve existing accepted shared contracts, and report unavailable or unresolved behavior truthfully. An implementation omission of a selected rule requires a separate explicit scope decision and must not be represented as enforcement. Historical schemas, example corpora, and their passing results do not validate this revised catalog unless deliberately regenerated and checked against this revision. [Decision MEM-DEC-009](https://github.com/gastownhall/beads/issues/7656#mem-dec-009-constraint-applicability-and-independent-assessments) records the accepted applicability, assessment, and workflow boundaries. The older MEM-DEC-008 remains historical; its source-owned-by-subject assessment rule and undecided direct Conformance authoring are superseded. [MEM-DEC-010](https://github.com/gastownhall/beads/issues/7656#mem-dec-010-evaluation-owned-collective-conformance-claims) selects the uniform evaluation-owned collective claim model; this draft propagates that accepted behavior while clearly marking the proposed concrete carrier and remaining mechanics.
+A deferred feature is not implicitly supported. Implementations must state the exact catalog revision and supported behavior, preserve existing accepted shared contracts, and report unavailable or unresolved behavior truthfully. An implementation omission of a selected rule requires a separate explicit scope decision and must not be represented as enforcement. Historical schemas, example corpora, and their passing results do not validate this revised catalog unless deliberately regenerated and checked against this revision. [Decision MEM-DEC-009](https://github.com/gastownhall/beads/issues/7656#mem-dec-009-constraint-applicability-and-independent-assessments) records the accepted applicability, assessment, and workflow boundaries. The older MEM-DEC-008 remains historical; its source-owned-by-subject assessment rule and undecided direct Conformance authoring are superseded. [MEM-DEC-010](https://github.com/gastownhall/beads/issues/7656#mem-dec-010-evaluation-owned-collective-conformance-claims) selects the uniform evaluation-owned collective claim model; this draft propagates that accepted behavior and the subsequent accepted Evaluation carrier/exact-subject-reference selection, while keeping remaining mechanics explicit.

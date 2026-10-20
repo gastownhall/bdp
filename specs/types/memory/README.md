@@ -1,12 +1,12 @@
 # Memory catalog publication — October 19, 2026
 
-[Memory Bead and Link Types](memory.md) is the current v0.2 review draft. It describes **nine Bead Types and nine Link Types**, including **Evaluation as a proposed concrete carrier** for the accepted evaluation-owner model. The earlier eight-Bead catalog is preserved at [Memory010](https://github.com/gastownhall/bdp/blob/010be6463c54041dc9ec266c385788ec1a3fd88b/specs/types/memory/memory.md). Neither this source publication nor its Type count means installation, adoption or runtime support.
+[Memory Bead and Link Types](memory.md) is the current v0.2 review draft. It describes **nine Bead Types and nine Link Types**, including **Evaluation as the selected Memory subtype** for the accepted evaluation-owner model, with required nonempty exact `{uri, revision}` subject references. The earlier eight-Bead catalog is preserved at [Memory010](https://github.com/gastownhall/bdp/blob/010be6463c54041dc9ec266c385788ec1a3fd88b/specs/types/memory/memory.md). Neither this source publication nor its Type count means installation, adoption or runtime support.
 
-## Accepted behavior and proposed carrier
+## Accepted behavior and carrier
 
 [MEM-DEC-010](../../../docs/design/memory-evaluation-decision-20261019.md) selects one uniform model: every Addresses, Satisfies or Violates claim is owned by an evaluation, including self-authored/unattested claims. Each evaluation has one nonempty full subject group, and every claim concerns that group collectively. Any Bead can be assessed; group claims are not distributed to individual members. Different groups need separate evaluations, and independent evaluations can assess the same group.
 
-The structured catalog proposes Evaluation refining Memory, with a typed `subjects` group and Conformance-family ownership. **That concrete Type name/refinement, subject-reference encoding and lifecycle remain proposed/open.** They are not implicit metadata conventions, installed Type identities or a qualified schema projection. The current selected shared source supplies no concrete Activity typedef to adopt by reference.
+Donna selected Evaluation refining Memory, with Conformance-family ownership and a required nonempty typed `subjects` array. Each member is an exact `{uri, revision}` Bead reference; floating subject references are refused. The ruling is recorded as a subsequent extension of MEM-DEC-010. Special lifecycle automation, structured context/evidence and ephemeral graph framing remain open. Accepted design is distinct from installed Type identities and qualified schema/runtime projections. The current selected shared source supplies no concrete Activity typedef to adopt by reference.
 
 All examples, claim endpoints/ownership, group-aware query behavior and satisfaction composition now use the evaluation-owner model. Satisfies composition follows evaluation subject bindings and compatible claims, not a literal chain of stored Satisfies Links. A collective intermediate group cannot be distributed to a singleton Constraint.
 
@@ -14,9 +14,9 @@ The earlier [MEM-DEC-009](../../../docs/design/memory-review-boundaries-decision
 
 ## Source and projection
 
-- Authoring source revision: `7595d937fa15f3e7133308700a6b9dc6e12326e1`; path `specs/type-packages/memory-references/memory-and-references.md` in the private authoring scope.
-- Authoring source SHA256: `1f419829dd3b4207bf044c4c52baac786dbec626fb0fda570c526749c7ae5057`.
-- Public `memory.md` SHA256: `99fe6586b29bf91d184cb0f024f125b28c0c9b50c52abaa4efbba7cb1f58f5c7`.
+- Authoring source revision: `f200bd3cf60c4ea6efa7fdd82064ae4e54aef640`; path `specs/type-packages/memory-references/memory-and-references.md` in the private authoring scope.
+- Authoring source SHA256: `3d2c8cafee95084ad6a3869d6f8312612f1c82d2233a71ee54fc2de62ab11c76`.
+- Public `memory.md` SHA256: `25905e496f36ab7f95046c5c98ed681aeb9aa0bb1c832d63beb6038120bd0ac5`.
 - Projection retains frontmatter, title, body, examples and definitions; omits the local-only Depends on locator; replaces the Chris-proposal locator with [its public source](https://github.com/gastownhall/beads/issues/5877).
 - Private authoring paths are provenance, not external normative dependencies.
 
@@ -30,6 +30,6 @@ The [original issue body](../../../docs/design/history/memory-issue-7661-before-
 
 ## Validation and handoff
 
-The [current receipt](../../../docs/design/memory-evaluation-claims-20261019.json) records source/projection digests and documentation/model-integrity checks for 18 Type definitions, evaluation ownership and four claim endpoint tables, collective/full-group scope, logical claim composition, Type refinement/evidence, and Markdown links/tables/whitespace. No regenerated schema or native runtime qualification is claimed.
+The [current receipt](../../../docs/design/memory-evaluation-claims-20261019.json) records source/projection digests and documentation/model-integrity checks for 18 Type definitions, accepted carrier/exact-subject-reference selection, evaluation ownership and four claim endpoint tables, collective/full-group scope, logical claim composition, Type refinement/evidence, and Markdown links/tables/whitespace. No regenerated schema or native runtime qualification is claimed.
 
 Trish owns Memory-Type implementation and shared Type/metatype design; Melinda owns the Memory specification; Janet coordinates integration and qualification. A consumer frozen at Memory010 keeps that exact input until deliberate reconciliation selects a successor. Publication changes neither implementation holds nor merge, runner, runtime-pin or release authority.

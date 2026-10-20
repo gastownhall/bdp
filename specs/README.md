@@ -13,7 +13,7 @@ outside this directory are non-normative and may be stale.
 | Conformance index | [conformance.md](conformance.md) | Shared current-v0 requirement/case index; applicability remains profile-specific |
 | Types profile | [types.md](profiles/types/types.md) | WIP next design; does not yet replace Core's existing Type contract |
 | Issue/Dependency library | [issue.md](types/issue/issue.md) | WIP domain design using the proposed Types profile; historical implementation evidence is labeled |
-| Memory library | [memory.md](types/memory/memory.md) | WIP nine-Bead/nine-Link review catalog, including a proposed Evaluation carrier for accepted evaluation-owned claims; [publication scope and historical-artifact boundary](types/memory/README.md), review tracked in [PR143](https://github.com/gastownhall/bdp/pull/143); no adoption or implementation claim |
+| Memory library | [memory.md](types/memory/memory.md) | WIP nine-Bead/nine-Link review catalog, including selected Evaluation with exact subject references and evaluation-owned claims; [publication scope and historical-artifact boundary](types/memory/README.md), review tracked in [PR143](https://github.com/gastownhall/bdp/pull/143); no adoption or implementation claim |
 
 The Issue draft links its source audit at an immutable authoring commit. That
 audit remains unmerged historical evidence outside this specification tree; it
