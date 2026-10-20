@@ -1,5 +1,13 @@
 # Draft Types review artifacts
 
+The profile prose now calls Type-to-Type refinement **Refines**, following the
+accepted naming decision. The pinned descriptor, schema filenames and executable
+bootstrap artifacts retain their earlier `ConformsTo` label and existing
+serialized identities. This update changes prose correspondence only; prior
+artifact checks still describe those unchanged bytes, and no alias, identity
+migration or new runtime support is implied. See the profile's
+[naming and artifact boundary](types.md#22-the-refines-link-type).
+
 Review artifacts for [Types](types.md) and [Issue/Dependency](../../types/issue/issue.md).
 They are not the canonical BDP schema bundle, registered Type IDs, an installable
 package, or implementation qualification. Schema IDs under
@@ -10,7 +18,7 @@ package, or implementation qualification. Schema IDs under
 | [type-definition.properties.schema.json](type-definition.properties.schema.json) | Common properties of Type-definition Beads | The properties schema of Type **is** the common descriptor schema |
 | [bead-type-definition.properties.schema.json](bead-type-definition.properties.schema.json) | BeadType instances (definitions of Bead Types) | Includes common schema, allows participation/ownership rules, prohibits Link constraints |
 | [link-type-definition.properties.schema.json](link-type-definition.properties.schema.json) | LinkType instances (definitions of Link Types) | Includes common schema and requires endpoint-pair constraints |
-| [conforms-to.properties.schema.json](conforms-to.properties.schema.json) | ConformsTo Link properties | Open base object; semantic qualifiers still require understanding/enforcement |
+| [conforms-to.properties.schema.json](conforms-to.properties.schema.json) | Refines Link properties (legacy artifact label: `ConformsTo`) | Open base object; semantic qualifiers still require understanding/enforcement |
 | [schema-composition-cases.json](schema-composition-cases.json) | Product/ApprovedProduct conjunction and closure examples | Finite independent-schema cases; no property merge or closure rewriting |
 | [issue.properties.schema.json](../../types/issue/issue.properties.schema.json) | Issue instance properties | Base review fragment; not full domain/write validation |
 | [dependency.properties.schema.json](../../types/issue/dependency.properties.schema.json) | Dependency instance properties | Base review fragment; child-specific workflow fields remain open |
@@ -92,7 +100,7 @@ negotiation or prove arbitrary schema satisfiability.
 
 The proposed design changes the recorded adopted descriptor snapshot above.
 Core/Write alignment remains necessary for definition-Bead identity, category
-specialization, owned ConformsTo declarations, embedded schema closure, closed
+specialization, owned Refines declarations, embedded schema closure, closed
 instance-properties roots, Type lifecycle operations and inventory projections.
 Adopted Write prohibits mutation-triggered Type installation; the proposed explicit
 automatic-installation mode requires coordinated Write adoption. Aggregate constraints
@@ -119,7 +127,7 @@ The literal graph contains eight definition Beads and four owned declarations.
 Its IDs and revision tokens are placeholders, not a production bootstrap publication.
 Sources are floating in this fixture; exact owner snapshots remain authoritative.
 Definition reference loops, including BeadType's self-affiliation, are distinct from
-conformance cycles. ConformsTo deliberately has neither generic identity acyclicity
+conformance cycles. Refines deliberately has neither generic identity acyclicity
 nor an identity self-link prohibition: explicit T@2→T@1 remains permitted, while
 exact-revision cycles reject. Shape checks do not prove declaration admission.
 
@@ -165,7 +173,8 @@ The check validates six schemas and positive/negative shape cases, exact example
 references, owned-state consistency and inherited ownership-selector matches, category-preserving pair matches over
 the finite foundation graph, twelve invalid ownership/projection/endpoint/schema-map fixture mutations,
 schema-copy equality, five self-link shape cases (boolean false/true accepted;
-string, number and null rejected), intrinsic-ConformsTo assertions that generic
+string, number and null rejected), assertions on the legacy `ConformsTo`
+artifact (Refines in the prose) that generic
 acyclicity is absent and no local self-link prohibition is added, twelve
 Product/ApprovedProduct composition cases, ten finite
 endpoint-fact cases, two revision-closure cases and illustrative domain property cases.

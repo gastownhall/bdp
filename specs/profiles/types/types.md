@@ -63,7 +63,8 @@ CLI terminology only where it clarifies a shared semantic requirement.
 ### 1.1 Descriptor specification and profile rules
 
 The [Type descriptor specification][descriptor-spec] defines the abstract format
-of Type, BeadType and LinkType descriptors and the abstract ConformsTo field format: field
+of Type, BeadType and LinkType descriptors and the abstract Refines field format
+(named ConformsTo in the pinned descriptor): field
 shapes, requiredness, defaults, local shape restrictions and concise normative
 field meanings. This profile defines how those declarations are interpreted and
 enforced together: affiliation, conformance, schema composition, graph constraint
@@ -175,7 +176,7 @@ The representation boundary is:
 | --- | --- |
 | An instance's affiliation | Distinguished `type` field, pinned to a definition Bead revision under this profile |
 | The definition Bead's own affiliation | Its own `type` field; Type metatype and bootstrap candidate in §§2.1–2.3 |
-| Direct conformance declarations | Owned ConformsTo Links, recorded with the source definition revision |
+| Direct conformance declarations | Owned Refines Links, recorded with the source definition revision |
 | Properties schema and other constraints | Fields in the definition Bead's `properties`; candidate schemas indexed in [the artifact README](README.md) |
 | Later review of a declaration | An independent Activity referencing the declaration Link revision, when the shared Provenance V2 mechanism is supported |
 
@@ -195,7 +196,7 @@ properties schema of Type is the common descriptor schema; there is no additiona
 independent descriptor-schema layer. The envelope supplies identity, revision,
 affiliation, recorded owned state, metadata and revision provenance.
 
-Own affiliation answers what this definition Bead is; outgoing ConformsTo Links
+Own affiliation answers what this definition Bead is; outgoing Refines Links
 answer what the instances it defines must satisfy. In particular LinkType's
 conformance to Type is between two Bead Types, not cross-kind conformance.
 A definition's category is determined by the effective Type set of its **own
@@ -214,15 +215,29 @@ Their `$ref` factoring is repository authoring. Published schema closure and ref
 bindings must be immutable for the Type revision (§3.12). Open descriptor extension
 bags do not imply that unknown semantics are understood or enforced.
 
-Type owns ConformsTo; BeadType and LinkType inherit this behavior. That governs
+Type owns Refines; BeadType and LinkType inherit this behavior. That governs
 **definition Beads**. A descriptor's own `ownsOutgoing` instead governs the instances
 it describes. Neither rule synthesizes affiliation edges in the ordinary graph.
 Passing a properties schema does not establish semantic compatibility, valid
 conformance closure, supported constraints, category agreement or admission for use.
 
-### 2.2 The ConformsTo Link Type
+### 2.2 The Refines Link Type
 
-The intrinsic bootstrap **ConformsTo** is defined by a Bead affiliated with LinkType.
+**Naming and artifact correspondence.** Refines is the selected name for the
+Type-to-Type relationship previously called ConformsTo. It expresses structural
+and semantic refinement between Type definitions; it is separate from the Memory
+Conformance claim family. This prose uses Refines for that relationship.
+
+The pinned descriptor and adjacent executable candidate artifacts still use the
+earlier `ConformsTo` label and `conforms-to.properties.schema.json` locator. Their
+serialized identities, revision pins, schema filenames and retained graph bytes
+are unchanged by this naming update. The bootstrap graph and artifact-check
+results below refer to those existing bytes. They are not proof of a renamed
+serialized bootstrap. A coordinated artifact/identity change, if selected, needs
+its own source correspondence and qualification; this prose creates no alias or
+stored-identity migration.
+
+The intrinsic bootstrap **Refines** is defined by a Bead affiliated with LinkType.
 The following selected seed values instantiate the descriptor format. Its endpoint
 alternatives are `(BeadType → BeadType) OR (LinkType → LinkType)`. The source and
 target must match the same alternative; independently allowing both categories
@@ -235,7 +250,7 @@ declarations locally, preserving their identities and exact revisions. This perm
 category and conformance validation without an online fetch; it does not infer
 anything about arbitrary external graph endpoints or grant publication authority.
 This is the common endpoint rule for registered exact Type definitions, not an
-exemption reserved for ConformsTo (§5.1). The candidate ConformsTo descriptor uses
+exemption reserved for Refines (§5.1). The candidate Refines descriptor uses
 `scope: either` for its category-preserving pairs, allowing same- and cross-origin
 definitions whose exact state is accepted locally. Registration does not redefine
 `scope: same` or bypass any explicit endpoint-Scope restriction. Unregistered or
@@ -250,14 +265,14 @@ closure is distinct from creating new receiver-Scope Links. The precise source-S
 and pinned-owned-source operation seam remains deferred (§5.7); this distinction
 adds no endpoint restriction bypass.
 
-The descriptor supplies the abstract ConformsTo field format; the intrinsic seed
+The descriptor supplies the abstract Refines field format; the intrinsic seed
 selects the values discussed here. Its
 structural and semantic promise is interpreted by §§3.1–3.9; exact-revision DAG
 validation belongs to §3.8, and recorded source ownership/declaration admission
 belongs to §3.10. Common Link revision provenance applies; later Activities may
 reference an exact declaration revision when the shared mechanism is supported.
 
-The [ConformsTo properties schema](conforms-to.properties.schema.json)
+The [Refines properties schema](conforms-to.properties.schema.json)
 is an open object with no required relationship-specific fields. No conditional
 membership, confidence or method semantics are invented. No arbitrary maximum or
 pair-uniqueness rule is added: multiple direct declarations with independent
@@ -268,10 +283,10 @@ are different. The example deliberately does not turn on the general constraint:
 it would prohibit the permitted explicit T@2 → T@1 conformance as an identity
 self-loop. Every inherited promise still applies, and exact-revision cycles remain
 prohibited (§§3.8, 4). This corrects the earlier illustrative suggestion to set
-`acyclic: true` directly on ConformsTo. Source-pin operation details and installation
+`acyclic: true` directly on Refines. Source-pin operation details and installation
 mechanics remain open; registered exact definition endpoint checks follow the common
 rule in §5.1.
-Stored target pins are an intrinsic ConformsTo semantic requirement, not a generic
+Stored target pins are an intrinsic Refines semantic requirement, not a generic
 endpoint pin-mode constraint added to the descriptor language.
 
 ### 2.3 Literal graph and bootstrap candidate
@@ -283,7 +298,7 @@ The candidate trusted seed establishes these exact affiliation relationships:
 | Type | BeadType | None |
 | BeadType | BeadType | Type |
 | LinkType | BeadType | Type |
-| ConformsTo | LinkType | None |
+| Refines (artifact label: `ConformsTo`) | LinkType | None |
 | issue / task | BeadType | task declares issue |
 | dependency / blocks | LinkType | blocks declares dependency |
 
@@ -292,7 +307,7 @@ illustrative definition Beads and four owned declarations: BeadType→Type,
 LinkType→Type, task→issue and blocks→dependency. All affiliations and declaration
 targets pin revisions. Schema copies match the adjacent artifacts.
 
-Type, BeadType, LinkType and ConformsTo are the intrinsic bootstrap definitions.
+Type, BeadType, LinkType and Refines are the intrinsic bootstrap definitions.
 They are supplied as a shared exact bootstrap graph: implementations initialize
 from the same published stable identities, revision tokens and definition content.
 Trusted initialization installs that graph; ordinary Scope operations cannot update
@@ -641,16 +656,16 @@ higher-priced instances valid under that source Type while excluding them from
 its declared conformance. Evidence, review or confidence annotations do not relax
 the promise or turn membership into a probabilistic result.
 
-A specialized Link Type that conforms to the base ConformsTo Link Type must
+A specialized Link Type that conforms to the base Refines Link Type must
 preserve this same promise. Qualifier syntax and execution remain to specify.
 A consumer recognizing the base relationship can rely on the base promise; that
 does not imply it can validate additional requirements it does not understand.
 
 ### 3.10 Conformance declarations are owned Links
 
-Direct conformance declarations are represented by owned ConformsTo Links from
+Direct conformance declarations are represented by owned Refines Links from
 one Type-definition Bead to another. The source declares conformance to the exact
-pinned target definition revision. Conforming specializations of ConformsTo also
+pinned target definition revision. Conforming specializations of Refines also
 participate, under the tightening-only rule in §3.9 and transitive ownership
 matching in §5.7. The name here describes the selected relationship; production
 identity and bootstrap publication mechanics remain open; §2 supplies a candidate
@@ -659,13 +674,13 @@ properties schema and seed definition.
 A declaration's exact Link Type must already be accepted before the declaration
 is used to admit a candidate Type. The candidate cannot use an unproven relationship
 to establish its own authority. For example, a proposed specialized Link Type S@1
-cannot establish conformance to ConformsTo@1 solely through a declaration itself
+cannot establish conformance to Refines@1 solely through a declaration itself
 typed by the unaccepted S@1. Mutually dependent unaccepted specializations cannot
 justify one another this way, even without a cycle among their declared target
 edges. Exact target-edge acyclicity alone is insufficient.
 
 A new specialization can instead declare its conformance through the built-in
-ConformsTo Type; once accepted, it can supply the Link Type for later declarations.
+Refines Type; once accepted, it can supply the Link Type for later declarations.
 This specifies the logical admission dependency, not a transaction-start-only rule
 or a batch/import ordering syntax. The trusted intrinsic bootstrap in §2.3 remains
 a distinct boundary. Its metatype reference loops, and recursive JSON Schemas, are
@@ -708,21 +723,21 @@ required historical walk.
 
 ### 3.11 Evaluate conformance Links before extending the pattern
 
-ConformsTo is a bounded first use of relationships between definition Beads. It
+Refines is a bounded first use of relationships between definition Beads. It
 is selected for this draft so we can evaluate ordinary Link editing, declaration
 provenance, specialization and graph display together. It is not a decision to
 represent every constraint as a Link. Link constraints remain descriptor fields;
 possible later reuse of the pattern is a hypothesis to test.
 
 A general Bead/Link viewer can display an exposed Type hierarchy using the actual
-ConformsTo Links without understanding their semantic contract. This is a benefit
+Refines Links without understanding their semantic contract. This is a benefit
 of the representation, not a claim that today's `bd graph` is qualified against
 this future catalog. A current-state view and the exact historical hierarchy of
 T@r are different views; the latter requires §3.10's recorded-state traversal.
 Instance traversal does not implicitly enter either hierarchy through `type`.
 
 Evaluation should cover editing and retracting declarations, recording later
-reviews without altering history, displaying specialized ConformsTo Links, and
+reviews without altering history, displaying specialized Refines Links, and
 reading historical closures after current declarations change. Measure query and
 index behavior rather than assume Links are faster than indexed fields. Bootstrap,
 publication/transaction behavior and retention must also be made concrete before
@@ -940,7 +955,7 @@ means “resolve latest each time validation runs.” The predicate is stable ev
 though future incompatible revisions can satisfy it by identity. Use a pin when
 the relationship relies on a particular structural/semantic contract.
 
-This selector rule does not change storage of affiliations or ConformsTo targets:
+This selector rule does not change storage of affiliations or Refines targets:
 those still pin exact revisions; explicit unpinned author input resolves once to
 the Scope-selected installed exact default before commit; without one the write
 refuses before acquisition (§7.2). Constraint selectors
@@ -974,7 +989,7 @@ introduce a generic endpoint pin-mode field; the checked foreign-definition path
 below separately requires an explicit endpoint revision pin.
 
 ```text
-ConformsTo:
+Refines:
     (source [BeadType], target [BeadType])
  OR (source [LinkType], target [LinkType])
 
@@ -1009,7 +1024,7 @@ retained dependency closure to check its Bead-Type affiliation/conformance. This
 the same trusted dependency resolution used for Types (§7.2), not a network request
 or permission to mutate the definition. IDs and their Scope classification do not
 change. A `same` condition still excludes cross-Scope endpoints; registration alone
-cannot bypass it. ConformsTo's candidate pairs therefore use `either` rather than
+cannot bypass it. The Refines candidate pairs therefore use `either` rather than
 silently ignoring a `same` condition.
 
 **Arbitrary external graph resources remain opaque.** The Scope may inspect reference
@@ -1353,7 +1368,7 @@ CLI flags must not waive the protocol invariant or claim that all family Links
 are acyclic when only the adopting Links carry that promise. Property spelling may
 be reviewed for clarity without changing the selected semantics.
 
-ConformsTo's intrinsic DAG over exact definition revisions remains distinct from
+The Refines intrinsic DAG over exact definition revisions remains distinct from
 this identity-based constraint (§2.2). No blanket acyclicity is imposed on generic
 Dependency or substituted for existing scheduler/hierarchy rules.
 
@@ -1389,10 +1404,10 @@ longer cycles. Conversely `allowSelf: true` does not waive an inherited or local
 acyclicity requirement, which also rejects length-one cycles. Uniqueness alone
 only limits duplicate ordered pairs; it does not prohibit the first self-link.
 
-ConformsTo must continue permitting explicit T@2→T@1 declarations. The intrinsic
-ConformsTo definition therefore adds no identity self-link prohibition; its exact
+Refines must continue permitting explicit T@2→T@1 declarations. The intrinsic
+Refines definition therefore adds no identity self-link prohibition; its exact
 revision cycle check still rejects T@1→T@1 and indirect exact-revision cycles.
-A ConformsTo specialization may tighten eligibility (§3.9), including a self-link
+A Refines specialization may tighten eligibility (§3.9), including a self-link
 prohibition. The intrinsic relation permits T@2→T@1; a stricter specialization
 need not admit every pair admitted by the intrinsic relation.
 No generic endpoint pin-mode or selected-set cycle constraint is added by this rule.
@@ -1410,7 +1425,7 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Replacement omits mandatory caller-writable approvalCode | Reject; do not preserve omitted writable data as an implicit merge |
 | A live heartbeat changes while an exact Resource revision is read | Do not alter that revision's properties; observation data belongs outside revision-covered properties |
 | Two inherited ownership selectors match the same Link | Include the Link once under its actual nominal Link Type identity |
-| Owned Link conforms to ConformsTo but has its own specialized nominal Type | Group under the specialization's identity, preserving the Link's exact Type pin |
+| Owned Link conforms to Refines but has its own specialized nominal Type | Group under the specialization's identity, preserving the Link's exact Type pin |
 | No outgoing Links are selected as owned | Project ownedLinks as an empty object, not empty buckets per selector |
 | Registered global definition is available in local Type inventory | Preserve canonical origin identity/authority; do not treat retained declarations as new local writes |
 | Bead or Link changes only its Type identity; properties/metadata are equal | New Resource revision; prior exact affiliation and owned snapshot remain unchanged |
@@ -1429,9 +1444,9 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Link Type ownership transition fails validation or a required guard | Commit neither revision; no automatic repair or partial owned-set change |
 | Source Bead changes Type with a different effective ownership selection | Its new Bead revision records the recomputed set of existing outgoing Links; unchanged Links gain no new revisions |
 | Source-Bead retyping also explicitly edits an outgoing Link | Apply the explicit Link change atomically and validate the complete resulting graph; ownership recomputation alone does not mint Link revisions |
-| Unaccepted S@1 uses a declaration typed S@1 to establish its own ConformsTo membership | Reject the circular justification; the declaration's exact Link Type must already be accepted before use |
-| Two unaccepted ConformsTo specializations justify each other through their own Link Types | Reject that justification even if declared target edges form no cycle |
-| S@1 establishes conformance through accepted built-in ConformsTo, then is used for a later declaration | Admission dependency is grounded; all remaining validation and ownership requirements still apply |
+| Unaccepted S@1 uses a declaration typed S@1 to establish its own Refines membership | Reject the circular justification; the declaration's exact Link Type must already be accepted before use |
+| Two unaccepted Refines specializations justify each other through their own Link Types | Reject that justification even if declared target edges form no cycle |
+| S@1 establishes conformance through accepted built-in Refines, then is used for a later declaration | Admission dependency is grounded; all remaining validation and ownership requirements still apply |
 | Trusted metatype reference loop or recursive JSON Schema | Not rejected merely by the grounded-declaration rule; respective bootstrap/schema rules remain applicable |
 | Properties schema omits its root dialect declaration | Evaluate under the 2020-12 baseline |
 | Properties schema explicitly selects a conflicting dialect | Reject; do not silently evaluate under a different dialect |
@@ -1481,11 +1496,11 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Change a descriptor constraint field | Create a new definition revision; older revisions retain their field values and recorded owned conformance state |
 | A Bead represents a Link-Type definition | The definition is a Bead; its described instances are Links; no cross-kind conformance follows |
 | Traverse an instance's ordinary incident Links | Its distinguished type field creates no implicit Link into the Type graph |
-| T@3 owns a ConformsTo declaration targeting A@2; A@2 owns one targeting B@1 | T@3's closure includes those exact revisions even after A changes |
+| T@3 owns a Refines declaration targeting A@2; A@2 owns one targeting B@1 | T@3's closure includes those exact revisions even after A changes |
 | Delete or edit a conformance declaration | Apply source ownership revision effects; preserve the declaration in historical owner revisions |
 | Someone publishes an assertion outside T's authoritative owned set | It does not change T's conformance contract |
 | Record a later review as an Activity whose subject is the declaration Link revision | Preserve the declaration and owner revision; the Activity is independent |
-| Specialized ConformsTo Link has valid tightening-only semantics | Include it in conformance and ownership through transitive Link-Type conformance |
+| Specialized Refines Link has valid tightening-only semantics | Include it in conformance and ownership through transitive Link-Type conformance |
 | T conforms to C | Every valid T record satisfies C's structure and semantics |
 | A conformance qualifier adds a price ceiling to T | Enforce the ceiling as part of T's effective contract; preserve every target-Type promise |
 | A qualifier leaves some valid T instances outside the declared target contract | Invalid as a conformance declaration; qualifiers cannot weaken or make membership conditional |
@@ -1562,8 +1577,8 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Parent forbids self-links; child says true or omits allowSelf | Reject a self-link; the inherited prohibition still applies |
 | allowSelf omitted or true, with no inherited prohibition or acyclicity | No self-link prohibition from this field; other admission rules still apply |
 | allowSelf true with inherited acyclic true | Reject self-links and other forbidden cycles; true does not override acyclicity |
-| A ConformsTo specialization declares allowSelf false | Tightening-only rules apply: that specialization rejects same-identity endpoints; intrinsic ConformsTo still permits T@2→T@1 |
-| ConformsTo T@2→T@1 versus T@1→T@1 | No identity-based self prohibition; accept the former if otherwise valid, reject the latter as an exact-revision cycle |
+| A Refines specialization declares allowSelf false | Tightening-only rules apply: that specialization rejects same-identity endpoints; intrinsic Refines still permits T@2→T@1 |
+| Refines T@2→T@1 versus T@1→T@1 | No identity-based self prohibition; accept the former if otherwise valid, reject the latter as an exact-revision cycle |
 | T@2 explicitly declares conformance to T@1 | Permitted with all T@1 promises; no reverse or age-based compatibility is inferred |
 | Two paths reach the same requirement location in C@1 | Apply that originating exact requirement once; retain restrictions contributed by distinct declarations |
 | Paths reach the same location in C@1 and C@2 | Apply both exact-version requirements; text equality does not merge their identities |
@@ -1599,7 +1614,7 @@ The remaining decisions are narrower:
 | Availability and lifecycle | Atomic requested-graph registration; automatic installation requires Scope and caller opt-in; explicit local default; retirement preserves existing use/history and removes/replaces retired defaults | Registration/retirement granularity, operation/permission contracts and physical-removal retention |
 | Revision compatibility | Conformance only initially, including explicit same-identity revision conformance; none inferred from age/SemVer; no migration guarantee | Optional version-label publication semantics |
 | Property write/read boundary | Replacement covers ordinary writable fields, preserves init-only values, rejects changes to them, and completes service read-only fields before validation; live observations are separate | Field designation/annotation syntax, init-only retyping, observation representation and shared signing/provenance contracts |
-| Definition representation | [Descriptor specification][descriptor-spec] plus owned ConformsTo Links; candidate schemas and final-state seed | Final field requiredness and selector syntax; installable graph creation/preservation format remains §7.1 work |
+| Definition representation | [Descriptor specification][descriptor-spec] plus owned Refines Links; candidate schemas and final-state seed | Final field requiredness and selector syntax; installable graph creation/preservation format remains §7.1 work |
 | Descriptor/profile correspondence | Accepted ownership division (§1.1); disagreement is a specification defect | Field correspondence audit and reviewed immutable pin; deliberate relocation/handoff into BDP or renewed arrangement before expiry; no silent precedence or extension |
 | Endpoint identity dependency | Self-link comparison shares canonical endpoint identity with arity, uniqueness and acyclicity (§5.9) | Existing Core reference classification/canonicalization work (§5.1); no new interim policy selected |
 
