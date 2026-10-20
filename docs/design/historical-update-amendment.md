@@ -2,7 +2,7 @@
 
 Status: reviewable sister amendment for [Beads #7719](https://github.com/gastownhall/beads/issues/7719), October 19, 2026. Donna approved the behavior; the concrete encodings labeled **proposed** below require review. This is prose and illustrative schema only. No executable schema, SDK, server, Beads source, capability, runtime pin or release branch is changed by this PR.
 
-Base: BDP [PR172 at 8dc9aef8097c5e1be94fdf94842b98771e92351a](https://github.com/gastownhall/bdp/commit/8dc9aef8097c5e1be94fdf94842b98771e92351a), stacked on the Preview3 integration source b12665d64c2aaf6172bd1cdab409cef31ef28f44. PR172 remains a separate frozen dependency. Its ordinary empty arrays and four nonempty Event forwarding guards are retained. Its tests are not qualification of this amendment.
+Base: Preview3 integration [78dac695f8689134d1da900f11d21895a2da0e28](https://github.com/gastownhall/bdp/commit/78dac695f8689134d1da900f11d21895a2da0e28), including the landed Memory/Types proposals and ordinary empty-update [PR172](https://github.com/gastownhall/bdp/pull/172). The original172 amendment was8dc9aef8097c5e1be94fdf94842b98771e92351a; its qualified successor4aea9f4b8a02fd9c8420fe81c5ef65116017546c preserves ordinary empty arrays and nonempty emitted deltas. Those tests are not qualification of the proposed historical carriers here.
 
 ## Approved semantics and bounded ownership
 
