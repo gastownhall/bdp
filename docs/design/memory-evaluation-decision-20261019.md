@@ -32,8 +32,16 @@ Donna subsequently approved: **“Yes—Evaluation with exact subject revisions�
 
 The main Memory catalog propagates this selection. No installed Type ID, special lifecycle automation, deletion cascade, evaluator framework, ephemeral graph identity/framing, or broader pin policy is selected. Context/run bindings, structured evidence, reconciliation and detailed lifecycle integration remain open. Accepted design is distinct from implementation and qualification.
 
+## Subsequent identity-binding clarification
+
+On October 20, 2026, Donna selected keeping the original subject group bound to the Bead identity when an Evaluation is retyped away from Evaluation and later back. The first successfully accepted Evaluation state establishes that binding. Reordering the same exact subject group is allowed; changing its membership or selected revisions requires a new Evaluation Bead identity. Repeated leave/return transitions and removing claims do not reset the binding. An ordinary `subjects` extension property before the Bead first becomes an Evaluation does not bind it.
+
+The main Memory draft carries this invariant. It does not prescribe a new database field or retention mechanism, change the previously selected BDP source revision, or claim product qualification. The implementation owner records evidence separately in [BDP59](https://github.com/gastownhall/bdp/issues/59).
+
 ## Decision provenance
 
 Donna accepted evaluation-owned claims with multiple subjects or a compound subject, then explicitly selected collective meaning, one full subject group per evaluation, and evaluation ownership for all claims in Melinda's chat. The [query/CLI scope proposal](https://github.com/donnabox/beads/blob/3a161244f44a9ef97c952af965929f3cc32ff610/engdocs/design/memory-query-scope.md) carries the design implications; its exact published revision is recorded in the publication ledger. MEM-DEC-010 is an authoring label, not a store-assigned Bead identity.
 
 The concrete-carrier ruling was verified directly in Donna's question reply in **Beads: Trish (Active)**, chat `01a15316-0acc-7c71-b4d8-3e330e80d9de`, question `call_b0de333c50484d85a60a0bbbf401b3d0`, reply `01a156b7-cead-72c1-9d5b-9bee324115cf`. This is a recorded human ruling, not a claim of cryptographic attestation.
+
+The identity-binding ruling was verified in Donna's question reply in **Beads: Trish (Active)**, chat `01a15316-0acc-7c71-b4d8-3e330e80d9de`, question `call_b7c0b11d98ce471985d324c6e7fefd8f`, reply `01a159b6-f123-7d72-974d-b33545b0b985`: **“Keep original group for that identity (Recommended)”**. The first-acceptance, ordering and pre-Evaluation-extra details are recorded in the current [BDP59 ledger](https://github.com/gastownhall/bdp/issues/59) and Trish's implementation handoff.
