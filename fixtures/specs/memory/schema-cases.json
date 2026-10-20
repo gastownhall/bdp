@@ -1,0 +1,1044 @@
+{
+  "_comment": "Project-driven Memory property cases: eight Bead Types share title/body and optional nonblank open-string status; references Link has optional note/status. Metadata remains application-defined; root extensions are preserved without inferred meaning. No endpoint, graph, approval, History, transaction, CLI or runtime qualification.",
+  "cases": [
+    {
+      "label": "plain Memory requires no classification",
+      "type": "memory",
+      "properties": {
+        "title": "Note",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "missing title is not a final-state record",
+      "type": "memory",
+      "properties": {
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "blank title",
+      "type": "memory",
+      "properties": {
+        "title": " \n",
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "missing body",
+      "type": "memory",
+      "properties": {
+        "title": "Note"
+      },
+      "valid": false
+    },
+    {
+      "label": "body is Markdown text",
+      "type": "memory",
+      "properties": {
+        "title": "Note",
+        "body": {}
+      },
+      "valid": false
+    },
+    {
+      "label": "memory permits uninterpreted root kind extension; affiliation still selects the Type",
+      "type": "memory",
+      "properties": {
+        "title": "Note",
+        "body": "",
+        "kind": "note"
+      },
+      "valid": true
+    },
+    {
+      "label": "future properties remain open",
+      "type": "memory",
+      "properties": {
+        "title": "Note",
+        "body": "",
+        "applicationValue": 7
+      },
+      "valid": true
+    },
+    {
+      "label": "valid memory",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal."
+      },
+      "valid": true
+    },
+    {
+      "label": "valid decision",
+      "type": "decision",
+      "properties": {
+        "title": "Supplier choice",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
+        "alternatives": ["Beta"]
+      },
+      "valid": true
+    },
+    {
+      "label": "decision body needs no duplicate primary field",
+      "type": "decision",
+      "properties": {
+        "title": "Supplier choice",
+        "body": "Acme met the delivery window; Beta did not.",
+        "alternatives": ["Beta"]
+      },
+      "valid": true
+    },
+    {
+      "label": "decision still inherits title",
+      "type": "decision",
+      "properties": {
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
+        "alternatives": ["Beta"]
+      },
+      "valid": false
+    },
+    {
+      "label": "decision permits uninterpreted root kind extension; affiliation still selects the Type",
+      "type": "decision",
+      "properties": {
+        "title": "Supplier choice",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
+        "alternatives": ["Beta"],
+        "kind": "decision"
+      },
+      "valid": true
+    },
+    {
+      "label": "valid procedure",
+      "type": "procedure",
+      "properties": {
+        "title": "Seal replacement",
+        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan."
+      },
+      "valid": true
+    },
+    {
+      "label": "procedure body needs no duplicate primary field",
+      "type": "procedure",
+      "properties": {
+        "title": "Seal replacement",
+        "body": "Use this for housing B; consult the job's authorized work plan."
+      },
+      "valid": true
+    },
+    {
+      "label": "procedure still inherits title",
+      "type": "procedure",
+      "properties": {
+        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan."
+      },
+      "valid": false
+    },
+    {
+      "label": "procedure permits uninterpreted root kind extension; affiliation still selects the Type",
+      "type": "procedure",
+      "properties": {
+        "title": "Seal replacement",
+        "body": "1. Isolate the pump\n2. Replace the seal\n3. Inspect for leaks\n\nUse this for housing B; consult the job's authorized work plan.",
+        "kind": "procedure"
+      },
+      "valid": true
+    },
+    {
+      "label": "valid policy",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend."
+      },
+      "valid": true
+    },
+    {
+      "label": "policy body needs no duplicate primary field",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "The policy records a rule, not authority to spend."
+      },
+      "valid": true
+    },
+    {
+      "label": "policy still inherits title",
+      "type": "policy",
+      "properties": {
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend."
+      },
+      "valid": false
+    },
+    {
+      "label": "policy permits uninterpreted root kind extension; affiliation still selects the Type",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
+        "kind": "policy"
+      },
+      "valid": true
+    },
+    {
+      "label": "alternatives []",
+      "type": "decision",
+      "properties": {
+        "title": "Supplier choice",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
+        "alternatives": []
+      },
+      "valid": true
+    },
+    {
+      "label": "alternatives ['']",
+      "type": "decision",
+      "properties": {
+        "title": "Supplier choice",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
+        "alternatives": [""]
+      },
+      "valid": false
+    },
+    {
+      "label": "alternatives 'Beta'",
+      "type": "decision",
+      "properties": {
+        "title": "Supplier choice",
+        "body": "Use Acme for the next quarter\n\nAcme met the delivery window; Beta did not.",
+        "alternatives": "Beta"
+      },
+      "valid": false
+    },
+    {
+      "label": "prior applicability property survives as uninterpreted extension data",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "applicability": {
+          "description": "Western region"
+        }
+      },
+      "valid": true
+    },
+    {
+      "label": "prior applicability interval survives without a supplied interval contract",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "applicability": {
+          "description": "Western region",
+          "validFrom": "not-an-instant"
+        }
+      },
+      "valid": true
+    },
+    {
+      "label": "prior applicability shape has no standardized property requirements",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "applicability": {}
+      },
+      "valid": true
+    },
+    {
+      "label": "Link properties {}",
+      "type": "link",
+      "properties": {},
+      "valid": true
+    },
+    {
+      "label": "Link properties {'note': 'See inspection report'}",
+      "type": "link",
+      "properties": {
+        "note": "See inspection report"
+      },
+      "valid": true
+    },
+    {
+      "label": "Link properties {'note': ' '}",
+      "type": "link",
+      "properties": {
+        "note": " "
+      },
+      "valid": false
+    },
+    {
+      "label": "link permits uninterpreted root kind extension; affiliation still selects the Type",
+      "type": "link",
+      "properties": {
+        "kind": "supports"
+      },
+      "valid": true
+    },
+    {
+      "label": "Link properties {'applicationNote': 'unknown extension'}",
+      "type": "link",
+      "properties": {
+        "applicationNote": "unknown extension"
+      },
+      "valid": true
+    },
+    {
+      "label": "authority canonical URI",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
+        "authority": "https://example.org/project/beads/memory"
+      },
+      "valid": true
+    },
+    {
+      "label": "authority opaque URN",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
+        "authority": "urn:example:document"
+      },
+      "valid": true
+    },
+    {
+      "label": "authority exact Reference",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
+        "authority": {
+          "uri": "https://example.org/project/beads/memory",
+          "revision": "memory-r1"
+        }
+      },
+      "valid": true
+    },
+    {
+      "label": "authority missing revision",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
+        "authority": {
+          "uri": "https://example.org/project/beads/memory"
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "authority empty revision",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
+        "authority": {
+          "uri": "https://example.org/project/beads/memory",
+          "revision": ""
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "authority extra Reference member",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
+        "authority": {
+          "uri": "https://example.org/project/beads/memory",
+          "revision": "memory-r1",
+          "unrecognized": 1
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "authority relative URI",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
+        "authority": "relative/path"
+      },
+      "valid": false
+    },
+    {
+      "label": "authority source-entry wrapper",
+      "type": "policy",
+      "properties": {
+        "title": "Supplier assessment policy",
+        "body": "Record delivery capability before selecting a supplier\n\nThe policy records a rule, not authority to spend.",
+        "authority": {
+          "ref": "https://example.org/project/beads/memory"
+        }
+      },
+      "valid": false
+    },
+    {
+      "label": "prior applicability extension is preserved without semantic interpretation",
+      "type": "memory",
+      "properties": {
+        "title": "Housing B uses a different seal",
+        "body": "Check the housing before ordering the seal.",
+        "applicability": {
+          "description": "Western region",
+          "region": "west"
+        }
+      },
+      "valid": true
+    },
+    {
+      "label": "kind cannot replace required inherited body",
+      "type": "procedure",
+      "properties": {
+        "title": "Procedure",
+        "kind": "procedure"
+      },
+      "valid": false
+    },
+    {
+      "label": "kind does not turn plain Memory into Procedure",
+      "type": "memory",
+      "properties": {
+        "title": "Ordinary note",
+        "body": "",
+        "kind": "procedure"
+      },
+      "valid": true
+    },
+    {
+      "label": "decision preserves explicit empty body",
+      "type": "decision",
+      "properties": {
+        "title": "A recorded decision",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "decision rejects non-text body",
+      "type": "decision",
+      "properties": {
+        "title": "A recorded decision",
+        "body": null
+      },
+      "valid": false
+    },
+    {
+      "label": "procedure preserves explicit empty body",
+      "type": "procedure",
+      "properties": {
+        "title": "A recorded procedure",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "procedure rejects non-text body",
+      "type": "procedure",
+      "properties": {
+        "title": "A recorded procedure",
+        "body": null
+      },
+      "valid": false
+    },
+    {
+      "label": "policy preserves explicit empty body",
+      "type": "policy",
+      "properties": {
+        "title": "A recorded policy",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "policy rejects non-text body",
+      "type": "policy",
+      "properties": {
+        "title": "A recorded policy",
+        "body": null
+      },
+      "valid": false
+    },
+    {
+      "label": "old choice may survive as uninterpreted extension data",
+      "type": "decision",
+      "properties": {
+        "title": "Supplier",
+        "body": "Use Acme; delivery fits.",
+        "choice": {
+          "legacy": "preserved"
+        }
+      },
+      "valid": true
+    },
+    {
+      "label": "Requirement body carries primary content",
+      "type": "requirement",
+      "properties": {
+        "title": "Data residency",
+        "body": "Customer data stays in the EU."
+      },
+      "valid": true
+    },
+    {
+      "label": "Requirement empty body remains representable",
+      "type": "requirement",
+      "properties": {
+        "title": "Data residency",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "Requirement missing title",
+      "type": "requirement",
+      "properties": {
+        "body": "EU only"
+      },
+      "valid": false
+    },
+    {
+      "label": "Requirement missing body",
+      "type": "requirement",
+      "properties": {
+        "title": "Data residency"
+      },
+      "valid": false
+    },
+    {
+      "label": "Requirement blank title",
+      "type": "requirement",
+      "properties": {
+        "title": "  ",
+        "body": "EU only"
+      },
+      "valid": false
+    },
+    {
+      "label": "Requirement body must be text",
+      "type": "requirement",
+      "properties": {
+        "title": "Data residency",
+        "body": ["EU only"]
+      },
+      "valid": false
+    },
+    {
+      "label": "memory open vocabulary",
+      "type": "memory",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "memory blank status",
+      "type": "memory",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "memory non-text status",
+      "type": "memory",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "memory null status",
+      "type": "memory",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "decision open vocabulary",
+      "type": "decision",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "decision blank status",
+      "type": "decision",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "decision non-text status",
+      "type": "decision",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "decision null status",
+      "type": "decision",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "requirement open vocabulary",
+      "type": "requirement",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "requirement blank status",
+      "type": "requirement",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "requirement non-text status",
+      "type": "requirement",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "requirement null status",
+      "type": "requirement",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "procedure open vocabulary",
+      "type": "procedure",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "procedure blank status",
+      "type": "procedure",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "procedure non-text status",
+      "type": "procedure",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "procedure null status",
+      "type": "procedure",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "policy open vocabulary",
+      "type": "policy",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "policy blank status",
+      "type": "policy",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "policy non-text status",
+      "type": "policy",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "policy null status",
+      "type": "policy",
+      "properties": {
+        "title": "Status example",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "link open vocabulary",
+      "type": "link",
+      "properties": {
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "link blank status",
+      "type": "link",
+      "properties": {
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "link non-text status",
+      "type": "link",
+      "properties": {
+        "status": 7
+      },
+      "valid": false
+    },
+    {
+      "label": "link null status",
+      "type": "link",
+      "properties": {
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "specification body carries primary content",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": "Record the relevant contract or situation."
+      },
+      "valid": true
+    },
+    {
+      "label": "specification empty body is present",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "specification missing title",
+      "type": "specification",
+      "properties": {
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "specification missing body",
+      "type": "specification",
+      "properties": {
+        "title": "Project record"
+      },
+      "valid": false
+    },
+    {
+      "label": "specification blank title",
+      "type": "specification",
+      "properties": {
+        "title": "  ",
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "specification non-text body",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": []
+      },
+      "valid": false
+    },
+    {
+      "label": "specification open status",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "specification blank status",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "specification non-text status",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": 5
+      },
+      "valid": false
+    },
+    {
+      "label": "specification null status",
+      "type": "specification",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario body carries primary content",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": "Record the relevant contract or situation."
+      },
+      "valid": true
+    },
+    {
+      "label": "scenario empty body is present",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "scenario missing title",
+      "type": "scenario",
+      "properties": {
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario missing body",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record"
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario blank title",
+      "type": "scenario",
+      "properties": {
+        "title": "  ",
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario non-text body",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": []
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario open status",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "scenario blank status",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario non-text status",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": 5
+      },
+      "valid": false
+    },
+    {
+      "label": "scenario null status",
+      "type": "scenario",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal body carries primary content",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": "Record the relevant contract or situation."
+      },
+      "valid": true
+    },
+    {
+      "label": "proposal empty body is present",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": ""
+      },
+      "valid": true
+    },
+    {
+      "label": "proposal missing title",
+      "type": "proposal",
+      "properties": {
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal missing body",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record"
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal blank title",
+      "type": "proposal",
+      "properties": {
+        "title": "  ",
+        "body": "Text"
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal non-text body",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": []
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal open status",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": "locally-reviewed"
+      },
+      "valid": true
+    },
+    {
+      "label": "proposal blank status",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": " \n"
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal non-text status",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": 5
+      },
+      "valid": false
+    },
+    {
+      "label": "proposal null status",
+      "type": "proposal",
+      "properties": {
+        "title": "Project record",
+        "body": "",
+        "status": null
+      },
+      "valid": false
+    }
+  ]
+}
