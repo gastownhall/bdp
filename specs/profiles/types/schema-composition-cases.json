@@ -13,10 +13,7 @@
           "minimum": 0
         }
       },
-      "required": [
-        "name",
-        "price"
-      ],
+      "required": ["name", "price"],
       "additionalProperties": true
     },
     "approval": {
@@ -27,9 +24,7 @@
           "minLength": 1
         }
       },
-      "required": [
-        "approvalCode"
-      ],
+      "required": ["approvalCode"],
       "additionalProperties": true
     },
     "closedProduct": {
@@ -44,10 +39,7 @@
           "minimum": 0
         }
       },
-      "required": [
-        "name",
-        "price"
-      ],
+      "required": ["name", "price"],
       "additionalProperties": false
     },
     "closedChildMissingInherited": {
@@ -58,9 +50,7 @@
           "minLength": 1
         }
       },
-      "required": [
-        "approvalCode"
-      ],
+      "required": ["approvalCode"],
       "additionalProperties": false
     },
     "closedChild": {
@@ -73,19 +63,14 @@
           "minLength": 1
         }
       },
-      "required": [
-        "approvalCode"
-      ],
+      "required": ["approvalCode"],
       "additionalProperties": false
     }
   },
   "cases": [
     {
       "label": "open parent accepts required child field",
-      "contracts": [
-        "product",
-        "approval"
-      ],
+      "contracts": ["product", "approval"],
       "instance": {
         "name": "Pump",
         "price": 25,
@@ -95,10 +80,7 @@
     },
     {
       "label": "open composed contracts allow unrelated extension",
-      "contracts": [
-        "product",
-        "approval"
-      ],
+      "contracts": ["product", "approval"],
       "instance": {
         "name": "Pump",
         "price": 25,
@@ -109,10 +91,7 @@
     },
     {
       "label": "missing child required field",
-      "contracts": [
-        "product",
-        "approval"
-      ],
+      "contracts": ["product", "approval"],
       "instance": {
         "name": "Pump",
         "price": 25
@@ -121,10 +100,7 @@
     },
     {
       "label": "inherited price restriction remains",
-      "contracts": [
-        "product",
-        "approval"
-      ],
+      "contracts": ["product", "approval"],
       "instance": {
         "name": "Pump",
         "price": -1,
@@ -134,10 +110,7 @@
     },
     {
       "label": "closed parent rejects required child property",
-      "contracts": [
-        "closedProduct",
-        "approval"
-      ],
+      "contracts": ["closedProduct", "approval"],
       "instance": {
         "name": "Pump",
         "price": 25,
@@ -147,10 +120,7 @@
     },
     {
       "label": "omitting child property cannot repair closed parent conflict",
-      "contracts": [
-        "closedProduct",
-        "approval"
-      ],
+      "contracts": ["closedProduct", "approval"],
       "instance": {
         "name": "Pump",
         "price": 25
@@ -159,10 +129,7 @@
     },
     {
       "label": "independently closed child rejects unlisted inherited fields",
-      "contracts": [
-        "product",
-        "closedChildMissingInherited"
-      ],
+      "contracts": ["product", "closedChildMissingInherited"],
       "instance": {
         "name": "Pump",
         "price": 25,
@@ -172,10 +139,7 @@
     },
     {
       "label": "dropping inherited fields cannot repair closed child conflict",
-      "contracts": [
-        "product",
-        "closedChildMissingInherited"
-      ],
+      "contracts": ["product", "closedChildMissingInherited"],
       "instance": {
         "approvalCode": "A-17"
       },
@@ -183,10 +147,7 @@
     },
     {
       "label": "closed child explicitly permits inherited names",
-      "contracts": [
-        "product",
-        "closedChild"
-      ],
+      "contracts": ["product", "closedChild"],
       "instance": {
         "name": "Pump",
         "price": 25,
@@ -196,10 +157,7 @@
     },
     {
       "label": "closed child rejects unrelated extra field",
-      "contracts": [
-        "product",
-        "closedChild"
-      ],
+      "contracts": ["product", "closedChild"],
       "instance": {
         "name": "Pump",
         "price": 25,
@@ -210,10 +168,7 @@
     },
     {
       "label": "permitting inherited price name does not weaken parent restriction",
-      "contracts": [
-        "product",
-        "closedChild"
-      ],
+      "contracts": ["product", "closedChild"],
       "instance": {
         "name": "Pump",
         "price": -1,
@@ -223,10 +178,7 @@
     },
     {
       "label": "permitting inherited name does not weaken parent type",
-      "contracts": [
-        "product",
-        "closedChild"
-      ],
+      "contracts": ["product", "closedChild"],
       "instance": {
         "name": 17,
         "price": 25,
