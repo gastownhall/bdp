@@ -382,6 +382,62 @@ it("preserves owned no-op versions and provenance with no group or effect positi
   expect(f.group().events).toHaveLength(2);
 });
 
+it.each([
+  { propertiesChange: [] },
+  { metadataChange: [] },
+  { propertiesChange: [], metadataChange: [] },
+])("preserves empty owned-update batch results and idempotent retries: %j", (change) => {
+  const f = fixture();
+  seed(f);
+  f.run([edge()], "edge");
+  const source = f.record("beads/a");
+  const original = f.record("links/l");
+  const groups = f.owner.inspect().groups.length;
+  const operations = [
+    { operation: "updateLink", link: "links/l", expectedRevision: original.revision, ...change },
+  ];
+  const receipt = f.run(operations, "empty");
+  expect(receipt.status).toBe("completed");
+  expect(receipt.effectPosition).toBeUndefined();
+  expect(results(receipt)[0]).toMatchObject({
+    outcome: "updated",
+    resource: original,
+    sourceRevision: source.revision,
+  });
+  expect(f.admit(operations, "empty")).toMatchObject({ kind: "existing", receipt });
+  expect(f.record("beads/a")).toEqual(source);
+  expect(f.owner.inspect().groups).toHaveLength(groups);
+  const failed = f.run(
+    [
+      { ...patch(1), metadataChange: [] },
+      { operation: "updateLink", link: "links/l", expectedRevision: "stale", ...change },
+    ],
+    "rollback",
+  );
+  expect(failed).toMatchObject({ status: "failed", problem: { code: "revision-mismatch" } });
+  expect(f.record("links/l")).toEqual(original);
+  expect(f.record("beads/a")).toEqual(source);
+  expect(f.owner.inspect().groups).toHaveLength(groups);
+  expect(f.run([{ ...patch(1), metadataChange: [] }], "effectful").status).toBe("completed");
+  expect(f.record("links/l").properties).toEqual({ n: 1 });
+  expect(f.owner.inspect().groups).toHaveLength(groups + 1);
+  expect(
+    f.run(
+      [
+        {
+          operation: "updateLink",
+          link: "links/l",
+          propertiesChange: [],
+          metadataChange: [{ op: "add", path: "/reviewed", value: true }],
+        },
+      ],
+      "effectful-metadata",
+    ).status,
+  ).toBe("completed");
+  expect(f.record("links/l").metadata).toEqual({ note: "old", reviewed: true });
+  expect(f.owner.inspect().groups).toHaveLength(groups + 2);
+});
+
 it("normalizes labeled creation/deletion to final tombstones while retaining intermediate facts", () => {
   const f = fixture();
   const receipt = f.run([

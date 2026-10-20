@@ -113,6 +113,81 @@ function runSteps(stepper: ReturnType<typeof createTransactionSequenceStepper>) 
 }
 
 describe("private Transactional sequence slice", () => {
+  it("executes empty update sequence members, replays their results and preserves refusal checks", () => {
+    const f = fixture();
+    commit(f.store, "seed", "createBead", { id: "beads/a", type: bead });
+    commit(f.store, "edge", "createLink", {
+      id: "links/l",
+      type: link,
+      source: "beads/a",
+      target: "beads/a",
+    });
+    const before = f.store.inspect().resources;
+    const groups = f.store.inspect().groups.length;
+    const request = sequence([
+      {
+        operation: "updateBead",
+        bead: "beads/a",
+        propertiesChange: [],
+        idempotencyKey: "empty-bead",
+      },
+      {
+        operation: "updateLink",
+        link: "links/l",
+        metadataChange: [],
+        idempotencyKey: "empty-link",
+      },
+      {
+        operation: "updateBead",
+        bead: "beads/a",
+        propertiesChange: [],
+        metadataChange: [],
+        idempotencyKey: "empty-both",
+      },
+      {
+        operation: "updateLink",
+        link: "links/l",
+        propertiesChange: [],
+        expectedRevision: "stale",
+        idempotencyKey: "stale",
+      },
+      {
+        operation: "updateBead",
+        bead: "beads/missing",
+        metadataChange: [],
+        idempotencyKey: "absent",
+      },
+    ]);
+    const response = runSteps(createTransactionSequenceStepper(f.store, "p", request));
+    expect(response?.results.map((r) => r.outcome ?? r.code)).toEqual([
+      "updated",
+      "updated",
+      "updated",
+      "revision-mismatch",
+      "resource-not-found",
+    ]);
+    expect(runSteps(createTransactionSequenceStepper(f.store, "p", request))).toEqual(response);
+    expect(f.store.inspect().resources).toEqual(before);
+    expect(f.store.inspect().groups).toHaveLength(groups);
+    const mixed = runSteps(
+      createTransactionSequenceStepper(
+        f.store,
+        "p",
+        sequence([
+          {
+            operation: "updateBead",
+            bead: "beads/a",
+            propertiesChange: [],
+            metadataChange: [{ op: "add", path: "/n", value: 1 }],
+            idempotencyKey: "effectful",
+          },
+        ]),
+      ),
+    );
+    expect(mixed?.results[0]?.resource).toMatchObject({ metadata: { n: 1 } });
+    expect(f.store.inspect().groups).toHaveLength(groups + 1);
+  });
+
   it("runs all eight explicit operation kinds as separate commits with locator-only aliases", () => {
     const f = fixture();
     const stepper = createTransactionSequenceStepper(

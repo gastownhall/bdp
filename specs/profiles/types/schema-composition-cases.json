@@ -1,0 +1,190 @@
+{
+  "_comment": "Finite 2020-12 conjunction/closure examples for Types \u00a73.4. Every named contract validates the same complete instance unchanged; no property merge or cross-schema closure rewriting. Closed roots require the Core amendment identified in the profile README delta inventory. Not Type admission/runtime qualification.",
+  "schemas": {
+    "product": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": ["name", "price"],
+      "additionalProperties": true
+    },
+    "approval": {
+      "type": "object",
+      "properties": {
+        "approvalCode": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["approvalCode"],
+      "additionalProperties": true
+    },
+    "closedProduct": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": ["name", "price"],
+      "additionalProperties": false
+    },
+    "closedChildMissingInherited": {
+      "type": "object",
+      "properties": {
+        "approvalCode": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["approvalCode"],
+      "additionalProperties": false
+    },
+    "closedChild": {
+      "type": "object",
+      "properties": {
+        "name": true,
+        "price": true,
+        "approvalCode": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["approvalCode"],
+      "additionalProperties": false
+    }
+  },
+  "cases": [
+    {
+      "label": "open parent accepts required child field",
+      "contracts": ["product", "approval"],
+      "instance": {
+        "name": "Pump",
+        "price": 25,
+        "approvalCode": "A-17"
+      },
+      "valid": true
+    },
+    {
+      "label": "open composed contracts allow unrelated extension",
+      "contracts": ["product", "approval"],
+      "instance": {
+        "name": "Pump",
+        "price": 25,
+        "approvalCode": "A-17",
+        "supplier": "Acme"
+      },
+      "valid": true
+    },
+    {
+      "label": "missing child required field",
+      "contracts": ["product", "approval"],
+      "instance": {
+        "name": "Pump",
+        "price": 25
+      },
+      "valid": false
+    },
+    {
+      "label": "inherited price restriction remains",
+      "contracts": ["product", "approval"],
+      "instance": {
+        "name": "Pump",
+        "price": -1,
+        "approvalCode": "A-17"
+      },
+      "valid": false
+    },
+    {
+      "label": "closed parent rejects required child property",
+      "contracts": ["closedProduct", "approval"],
+      "instance": {
+        "name": "Pump",
+        "price": 25,
+        "approvalCode": "A-17"
+      },
+      "valid": false
+    },
+    {
+      "label": "omitting child property cannot repair closed parent conflict",
+      "contracts": ["closedProduct", "approval"],
+      "instance": {
+        "name": "Pump",
+        "price": 25
+      },
+      "valid": false
+    },
+    {
+      "label": "independently closed child rejects unlisted inherited fields",
+      "contracts": ["product", "closedChildMissingInherited"],
+      "instance": {
+        "name": "Pump",
+        "price": 25,
+        "approvalCode": "A-17"
+      },
+      "valid": false
+    },
+    {
+      "label": "dropping inherited fields cannot repair closed child conflict",
+      "contracts": ["product", "closedChildMissingInherited"],
+      "instance": {
+        "approvalCode": "A-17"
+      },
+      "valid": false
+    },
+    {
+      "label": "closed child explicitly permits inherited names",
+      "contracts": ["product", "closedChild"],
+      "instance": {
+        "name": "Pump",
+        "price": 25,
+        "approvalCode": "A-17"
+      },
+      "valid": true
+    },
+    {
+      "label": "closed child rejects unrelated extra field",
+      "contracts": ["product", "closedChild"],
+      "instance": {
+        "name": "Pump",
+        "price": 25,
+        "approvalCode": "A-17",
+        "supplier": "Acme"
+      },
+      "valid": false
+    },
+    {
+      "label": "permitting inherited price name does not weaken parent restriction",
+      "contracts": ["product", "closedChild"],
+      "instance": {
+        "name": "Pump",
+        "price": -1,
+        "approvalCode": "A-17"
+      },
+      "valid": false
+    },
+    {
+      "label": "permitting inherited name does not weaken parent type",
+      "contracts": ["product", "closedChild"],
+      "instance": {
+        "name": 17,
+        "price": 25,
+        "approvalCode": "A-17"
+      },
+      "valid": false
+    }
+  ]
+}

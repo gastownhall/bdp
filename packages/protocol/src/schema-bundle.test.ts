@@ -37,6 +37,88 @@ const ajv = new Ajv2020({ allErrors: true, strict: true, validateFormats: false 
 ajv.addSchema(schema);
 
 describe("BDP v0 schema bundle", () => {
+  it.each(["bead", "link"] as const)(
+    "admits empty ordinary %s update arrays in singleton, sequence and batch requests",
+    (kind) => {
+      const operation = kind === "bead" ? "updateBead" : "updateLink";
+      const subject = { [kind]: `${kind}s/a` };
+      const effectful = [{ op: "add", path: "/x", value: 1 }];
+      const changes = [
+        { propertiesChange: [] },
+        { metadataChange: [] },
+        { propertiesChange: [], metadataChange: [] },
+        { propertiesChange: [], metadataChange: effectful },
+        { propertiesChange: effectful, metadataChange: [] },
+      ];
+      for (const change of changes) {
+        const input = { ...subject, ...change };
+        expectValid(`${operation}Request`, input);
+        expectValid("sequenceRequest", {
+          operations: [{ operation, idempotencyKey: "key", ...input }],
+        });
+        expectValid("batchRequest", { operations: [{ operation, ...input }] });
+        expect(() => parseReadUpdateRequest(operation, JSON.stringify(input))).not.toThrow();
+      }
+      for (const change of [{}, { propertiesChange: null }, { metadataChange: {} }]) {
+        const input = { ...subject, ...change };
+        expectInvalid(`${operation}Request`, input);
+        expectInvalid("sequenceRequest", {
+          operations: [{ operation, idempotencyKey: "key", ...input }],
+        });
+        expectInvalid("batchRequest", { operations: [{ operation, ...input }] });
+      }
+    },
+  );
+
+  it("keeps emitted deltas and updateWhere nonempty while preserving ordinary patch restrictions", () => {
+    const patch = [{ op: "remove", path: "/x" }];
+    for (const [definition, field] of [
+      ["ownedLinkDelta", "change"],
+      ["ownedLinkDelta", "metadataChange"],
+      ["updatedData", "change"],
+      ["updatedData", "metadataChange"],
+      ["updateWhereMembers", "change"],
+    ]) {
+      const validate = ajv.compile({
+        $ref: `${BDP_V0_SCHEMA_ID}#/$defs/${definition}/properties/${field}`,
+      });
+      expect(validate(patch)).toBe(true);
+      expect(validate([])).toBe(false);
+    }
+    for (const op of ["move", "copy", "test"])
+      expectInvalid("updateBeadRequest", {
+        bead: "beads/a",
+        propertiesChange: [{ op, path: "/x", value: 1 }],
+      });
+  });
+
+  it("keeps the Write appendix ordinary-update inputs aligned without relaxing updateWhere", () => {
+    const write = readFileSync(path.join(workspaceRoot, "specs/profiles/write/write.md"), "utf8");
+    const embedded = [...write.matchAll(/```json\n([\s\S]*?)\n```/g)]
+      .map((match) => JSON.parse(match[1] ?? "null") as SchemaRecord)
+      .find((value) => value.$defs && requiredRecord(value.$defs, "$defs").change);
+    if (!embedded) throw new Error("missing Write request schema");
+    const validator = new Ajv2020({ strict: false, validateFormats: false });
+    validator.addSchema(embedded, "write-request");
+    for (const [operation, subject] of [
+      ["updateBead", "bead"],
+      ["updateLink", "link"],
+    ] as const) {
+      const validate = validator.compile({ $ref: `write-request#/$defs/${operation}` });
+      for (const change of [
+        { propertiesChange: [] },
+        { metadataChange: [] },
+        { propertiesChange: [], metadataChange: [] },
+      ])
+        expect(validate({ operation, [subject]: `${subject}s/a`, ...change })).toBe(true);
+      expect(validate({ operation, [subject]: `${subject}s/a` })).toBe(false);
+    }
+    const updateWhere = validator.compile({ $ref: "write-request#/$defs/updateWhere" });
+    expect(
+      updateWhere({ operation: "updateWhere", collection: "beads", selector: "*", change: [] }),
+    ).toBe(false);
+  });
+
   it("is the canonical JSON Schema 2020-12 bundle at the protocol id", () => {
     expect(schema.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
     expect(schema.$id).toBe(BDP_V0_SCHEMA_ID);
@@ -218,6 +300,7 @@ describe("BDP v0 schema bundle", () => {
       "mutationReceiptPage",
       "mutationResult",
       "mutationResultMembers",
+      "ordinaryUpdateChange",
       "ownedLinkChange",
       "ownedLinkDeclaration",
       "ownedLinkDelta",

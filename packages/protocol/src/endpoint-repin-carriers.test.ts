@@ -34,6 +34,8 @@ describe("proposed same-ID endpoint re-pin carriers", () => {
   it.each([
     { source: { uri: "beads/a", revision: "opaque@r7" } },
     { target: "beads/a" },
+    { target: "beads/a", propertiesChange: [] },
+    { source: { uri: "beads/a", revision: "r8" }, metadataChange: [] },
     { source: "beads/a", target: { uri: "beads/a", revision: "r8" }, propertiesChange: patch },
   ])("accepts endpoint-only presence and combined edits %j", (members) => {
     const input = { link: "links/l", ...members };

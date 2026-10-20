@@ -49,10 +49,11 @@ implemented.
 ## Adjacent amendment preservation
 
 This branch starts from the published Preview 3 integration successor including
-Memory PR143. It does not wholesale adopt unmerged PR172 or PR174. Ordinary
-update-array admission belongs to PR172; the emitted-delta guards and nested
-presence alternatives remain intact and endpoint effects add their own guarded
-alternatives. Historical-base update/recovery appendices in PR174 remain their
+Memory PR143 and normally incorporates merged PR172. Ordinary empty update-array
+admission from PR172 is preserved, including sequence/batch no-op behavior.
+Endpoint-only updates and endpoint intent beside empty arrays are admitted by
+the combined carrier; emitted-delta guards and nested presence alternatives
+remain intact. Historical-base update/recovery appendices in PR174 remain their
 own contract; this amendment adds no Link historical-base update, recovery,
 source-pin observation point or provenance rename.
 

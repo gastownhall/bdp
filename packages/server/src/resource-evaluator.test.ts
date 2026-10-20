@@ -263,6 +263,106 @@ describe("pure member Resource evaluation", () => {
     },
   );
 
+  it.each(["bead", "link"] as const)(
+    "executes empty %s updates through guards, authorization and liveness checks",
+    (kind) => {
+      const f = fixture();
+      f.createBead("a");
+      f.createBead("b");
+      if (kind === "link") f.createLink("edge");
+      const id = kind === "bead" ? "beads/a" : "links/edge";
+      const operation = kind === "bead" ? "updateBead" : "updateLink";
+      const subject = { [kind]: id };
+      const before = f.body(id);
+      const writes = f.writes();
+      const allocations = f.allocations();
+      for (const change of [
+        { propertiesChange: [] },
+        { metadataChange: [] },
+        { propertiesChange: [], metadataChange: [] },
+      ]) {
+        const input = { ...subject, ...change, expectedRevision: before.revision };
+        const result = f.execute(operation, input);
+        expect(result.outcome).toMatchObject({ outcome: "updated", resource: before });
+        expect(result.changed).toEqual([]);
+        failure(f.execute(operation, { ...input, expectedRevision: "stale" }), "revision-mismatch");
+        failure(
+          f.execute(operation, input, { policy: { ...f.options.policy, canWrite: () => false } }),
+          "forbidden",
+        );
+        failure(
+          f.execute(operation, { ...input, [kind]: `${kind}s/missing` }),
+          "resource-not-found",
+        );
+      }
+      expect(f.writes()).toBe(writes);
+      expect(f.allocations()).toEqual(allocations);
+      expect(f.body(id)).toEqual(before);
+      expect(f.authorized).toContain(before.id);
+      f.execute(kind === "bead" ? "deleteBead" : "deleteLink", subject);
+      failure(f.execute(operation, { ...subject, propertiesChange: [] }), "resource-not-found");
+    },
+  );
+
+  it.each(["bead", "link"] as const)(
+    "validates final properties of empty and composed tolerant-unset %s updates",
+    (kind) => {
+      const f = fixture();
+      f.createBead("a");
+      f.createBead("b");
+      if (kind === "link") f.createLink("edge");
+      const type = kind === "bead" ? beadType : linkType;
+      const descriptor =
+        kind === "bead"
+          ? beadDescriptor({ propertiesSchema: "https://schemas.test/final" })
+          : linkDescriptor({ propertiesSchema: "https://schemas.test/final" });
+      f.installed.set(type, JSON.stringify(descriptor));
+      const seen: unknown[] = [];
+      let reject = false;
+      f.contracts.set(type, {
+        descriptor,
+        validateProperties(properties, diagnostics) {
+          seen.push(properties);
+          if (!reject && !("temporary" in properties)) return { valid: true };
+          return {
+            valid: false,
+            diagnosticsComplete: diagnostics.emit({
+              schemaLocation: "https://schemas.test/final",
+              instanceLocation: "",
+              message: "fixture rejects final state",
+            }),
+          };
+        },
+      });
+      const id = kind === "bead" ? "beads/a" : "links/edge";
+      const operation = kind === "bead" ? "updateBead" : "updateLink";
+      const subject = { [kind]: id };
+      const before = f.body(id);
+      const tolerantUnset = [
+        { op: "add", path: "/temporary", value: null },
+        { op: "remove", path: "/temporary" },
+      ];
+      expect(
+        f.execute(operation, { ...subject, propertiesChange: tolerantUnset }).outcome,
+      ).toMatchObject({ outcome: "updated", resource: before });
+      expect(seen).toEqual([{}]);
+      expect(
+        f.execute(operation, { ...subject, propertiesChange: [], metadataChange: tolerantUnset })
+          .outcome,
+      ).toMatchObject({ outcome: "updated", resource: before });
+      failure(
+        f.execute(operation, {
+          ...subject,
+          propertiesChange: [{ op: "remove", path: "/temporary" }],
+        }),
+        "validation-failed",
+      );
+      reject = true;
+      failure(f.execute(operation, { ...subject, propertiesChange: [] }), "validation-failed");
+      expect(f.body(id)).toEqual(before);
+    },
+  );
+
   it("updates properties and metadata atomically, clears to empty, and preserves a no-op revision", () => {
     const f = fixture();
     f.createBead("a", { title: "before" }, { metadata: { owner: "team" } });
