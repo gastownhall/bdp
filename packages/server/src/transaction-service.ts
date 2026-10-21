@@ -1,46 +1,47 @@
-import { eraseReceiptEntry } from "./transaction-erasure.js";
-import { projectTransactionEntry } from "./transaction-authorization.js";
-import { assembleTransactionDiscovery } from "./transaction-discovery.js";
-import { transactionEventRequest, TransactionEventParameterError } from "./transaction-events.js";
-import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
-import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
-import {
-  checkCurrentReadMinimum,
-  snapshotTransactionMinimum,
-  snapshotCurrentReadMinimum,
-  waitForTransactionMinimum,
-  type TransactionMinimum,
-  type TransactionMinimumWaitOptions,
-} from "./transaction-consistency.js";
 /** Source-private same-owner lifecycle. No HTTP receiver, directory or profile
  * advertisement. Passing ownerLifetime:"service" transfers owner shutdown to
  * this service after successful construction; callers must stop using the owner.
  * Trusted policy publication drains finite mutations before revoking delivery. */
 import { createNodeLifecycleScheduler, type LifecycleScheduler } from "./sequence-executor.js";
+import { projectTransactionEntry } from "./transaction-authorization.js";
 import type { PreparedTransactionSequence } from "./transaction-batch.js";
+import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
+import {
+  checkCurrentReadMinimum,
+  snapshotCurrentReadMinimum,
+  snapshotTransactionMinimum,
+  type TransactionMinimum,
+  type TransactionMinimumWaitOptions,
+  waitForTransactionMinimum,
+} from "./transaction-consistency.js";
+import { assembleTransactionDiscovery } from "./transaction-discovery.js";
+import { eraseReceiptEntry } from "./transaction-erasure.js";
+import { TransactionEventParameterError, transactionEventRequest } from "./transaction-events.js";
+import {
+  captureTransactionReadDeliveryOptions,
+  captureTransactionReadRequest,
+  createTransactionReadPlane,
+  isRetainedCollectionMinimumRead,
+  type TransactionReadOptions,
+} from "./transaction-read.js";
 import {
   createTransactionSequenceStepper,
   type TransactionSequenceResponse,
 } from "./transaction-sequence.js";
-import {
-  createTransactionReadPlane,
-  captureTransactionReadDeliveryOptions,
-  captureTransactionReadRequest,
-  type TransactionReadOptions,
-} from "./transaction-read.js";
+import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
+import type {
+  openTransactionStore,
+  TransactionChangePublication,
+  TransactionEventScan,
+  TransactionReadContext,
+  TransactionReceipt,
+  TransactionReceiptPage,
+} from "./transaction-store.js";
 import {
   submitTransaction,
   type TransactionSubmission,
   type TransactionSubmissionResult,
 } from "./transaction-submission.js";
-import type {
-  openTransactionStore,
-  TransactionReadContext,
-  TransactionChangePublication,
-  TransactionEventScan,
-  TransactionReceipt,
-  TransactionReceiptPage,
-} from "./transaction-store.js";
 
 export class TransactionStreamCapacityError extends Error {}
 
@@ -397,11 +398,10 @@ export function createTransactionService(owner: Owner, options: TransactionServi
               // signal getter or allowing an unconditioned successful fallback.
               return facet.perform(capturedRequest, receiving);
             }
-            return waitForTransactionMinimum(
-              () => facet.perform(capturedRequest, captured),
-              minimumReads,
-              captured?.signal,
-            );
+            const attempt = isRetainedCollectionMinimumRead(capturedRequest)
+              ? read.prepareRetainedMinimumRead(principal, minimum, capturedRequest, captured)
+              : () => facet.perform(capturedRequest, captured);
+            return waitForTransactionMinimum(attempt, minimumReads, captured?.signal);
           }),
         resolveAlias: (url, receiving) =>
           run(() => {
