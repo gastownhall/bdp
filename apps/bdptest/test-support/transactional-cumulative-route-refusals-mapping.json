@@ -1,0 +1,33 @@
+{
+  "ordinaryConfiguration": "73bdc0e24d65a8ab4444c5698b84d368a39cdcbbe2caad3ef7d913a317b1930b",
+  "predicates": [
+    {
+      "id": "transactional.receipt.root",
+      "source": "docs/specs/bdp.md:4635,5132-5140",
+      "newBranch": "discovered namespace GET404 and HEAD parity even with existing key; original retry recovers SAME receipt/no second effects"
+    },
+    {
+      "id": "transactional.changefeed.start-intent",
+      "source": "docs/specs/bdp.md:6036-6050,6183-6194",
+      "newBranch": "omittedboth GET400/HEAD parity; source parser receiving refusal no observation; real served LastEventID overrides explicitstartnow/latercompletegroup only"
+    }
+  ],
+  "nativeSource": [
+    "transaction-http.ts:511-521,589-627,702-707",
+    "transaction-changefeed.ts:110-128",
+    "transaction-store.ts:1590-1627"
+  ],
+  "excluded": [
+    "malformed minimum collision",
+    "anonymous precedence",
+    "all arbitrary query names/key encodings",
+    "durable client consumer",
+    "wholeprofile"
+  ],
+  "unchangedCaps": {
+    "seconds": 90,
+    "bytes": 4194304,
+    "nodes": 100000,
+    "depth": 128
+  }
+}
