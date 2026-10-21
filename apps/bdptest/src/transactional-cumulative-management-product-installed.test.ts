@@ -294,7 +294,7 @@ async function seed(h: Harness) {
     operation: "createBead",
     id: "beads/" + id,
     type,
-    properties: { title: id, label: id, n: 0 },
+    properties: { title: id, label: id, n: id === "r32" ? 2 : 0 },
     metadata: { phase: "management" },
   }));
   const a = await h.send(
@@ -315,7 +315,7 @@ const set = {
   collection: "beads",
   selector: "$[?@.properties.n == 0]",
   change: [{ op: "replace", path: "/n", value: 1 }],
-  cardinality: { min: 33, max: 33 },
+  cardinality: { min: 32, max: 32 },
 };
 async function receipt(h: Harness) {
   const r = await h.send("operations/update-where", "POST", set, "management-bulk");
@@ -324,10 +324,10 @@ async function receipt(h: Harness) {
   expect(r.value.results).toHaveLength(32);
   const p = await h.send(r.value.next);
   expect(p.status).toBe(200);
-  expect(p.value.results).toHaveLength(2);
+  expect(p.value.results).toHaveLength(1);
   expect(p.value.next).toBeNull();
   const all = [...r.value.results, ...p.value.results];
-  expect(all[0]).toEqual({ operationIndex: 0, outcome: "matched", count: 33 });
+  expect(all[0]).toEqual({ operationIndex: 0, outcome: "matched", count: 32 });
   for (const [i, row] of all.slice(1).entries())
     expect(row).toEqual({
       operationIndex: 0,
@@ -604,7 +604,11 @@ async function erasureRestore(h: Harness) {
   expect(successor.revision).not.toBe(old.revision);
   expect(corrected.group.erasures).toEqual(
     expect.arrayContaining([
-      { subject: old.id, revision: old.revision, digest: sha(Buffer.from(canonical(old))) },
+      {
+        subject: old.id,
+        revision: old.revision,
+        digest: { scheme: "sha-256-jcs", value: sha(Buffer.from(canonical(old))) },
+      },
     ]),
   );
   const ownerAfter = await h.send("beads/a");
@@ -614,7 +618,7 @@ async function erasureRestore(h: Harness) {
       {
         subject: ownerBefore.value.id,
         revision: ownerBefore.value.revision,
-        digest: sha(Buffer.from(canonical(ownerBefore.value))),
+        digest: { scheme: "sha-256-jcs", value: sha(Buffer.from(canonical(ownerBefore.value))) },
       },
     ]),
   );
@@ -654,7 +658,7 @@ async function erasureRestore(h: Harness) {
     {
       subject: original.id,
       revision: original.revision,
-      digest: sha(Buffer.from(canonical(original))),
+      digest: { scheme: "sha-256-jcs", value: sha(Buffer.from(canonical(original))) },
     },
   ]);
   const newSnap = await h.send("snapshot");

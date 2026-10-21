@@ -1,0 +1,13 @@
+# Fixed Transactional management/recovery companion
+
+This NEW three-case packed campaign complements the ordinary cumulative carrier. Its literal fixture is the ordinary author's frozen dd85ddf descriptor (11 Types, three schemas), and the same actual five-role private credential bank is selected by an explicit local path. Tokens remain private; only role descriptors and bank hash are retained in redacted evidence.
+
+The genuine installed runtime is composed with its existing private clock seam, authentic same-facade administration, existing empty-policy transition and offline native backup/restore. This is NONORDINARY: runtimeConfigurationIdentity is null, no ordinary deployment configurationMetadata is invented, and identical artifacts/roles do not imply identical ordinary runtime qualification.
+
+- Temporal: real32-match+one matched-entry receipt pages and33-resource Snapshot pages; allocation-pressure service503 before expiry while issued detail stays available; inclusive fixed Snapshot/24h receipt boundaries, compact creation allocation, failed-receipt forgetting, exact-key replay and sequence expiry.
+- Policy: actual create:false reopen, full receipt/page reauthorization and withholding, foreign principal404 and actual current-view headers, immutable retained context after the genuine policy transition. No foreign-view+expired overlap.
+- Erasure/recovery: real owned-Link correction+tombstone/cascade, historical erasure, receipt/content and Snapshot/checkpoint fences, actual permanent erasure ledger before native restore visibility, new epoch/key namespace and ordinary reopen. No inferred permission to disclose erased identity.
+
+The selection JSON inventories42 control-touched rows from the actual251 active baseline, not42 full qualifications. The report must map actual assertions per subclause and retain all other clauses OPEN: especially downstream replicas, persistent consumers, durability/reconciliation, live stream publication, optional History, pending erased-identity permission and foreign-view+expiry precedence. Pre-expiry allocation failure is not a manufactured unavailable-page failure. Installed module/archive/config bindings, all failed source/log receipts and process cleanup are retained; no old proof or passed cohort is replayed for ownership.
+
+The own selection stays within the existing1MiB/100000 expanded-node/depth128 admission bounds. Each NEW case has45s watchdog/64HTTP bound, existing1MiB response/64KiB authored request bounds, and the private launcher has10s waits and64KiB combined child log bound. No product cap or timing change.
