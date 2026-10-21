@@ -1,0 +1,55 @@
+{
+  "id": "read.http.raw-request-targets",
+  "selectedClause": "Empty, `.`, and `..` segments, controls, backslashes, queries, fragments, scheme-relative references, and encoded `/` or `\\` separators are invalid.",
+  "spec": "docs/specs/bdp.md:990-1000",
+  "base": "4f9b51d269d1631bd183cf663e8d855a2909dd69",
+  "productionSource": "5f3a67e89d62a0dcb4e9a7b9a6cb78b2c0a3e50c",
+  "ordinaryDeployment": true,
+  "nativeConfigurationIdentity": "9af00876e91f71137ff31c226d368590a018ce2367cdb93110ea246dc7420d46",
+  "claimEligible": false,
+  "newMissingSubclause": "Actual credential-bearing fixed raw backslash/control/invalid-UTF8 targets cannot reach a normalized Resource identity; prior237 backslash/control/invalid-UTF8 probes were anonymous.",
+  "witnesses": [
+    {
+      "kind": "backslash",
+      "rawSuffixBase64": "XHN1ZmZpeA==",
+      "actualSource": "attempt2/attempt3 partial installed run",
+      "status": 400,
+      "stage": "authenticated application raw-target gate",
+      "body": "malformed-request Problem; private,no-store; not401/200/redirect"
+    },
+    {
+      "kind": "control",
+      "rawSuffixBase64": "AQ==",
+      "actualSource": "attempt3 partial installed run",
+      "status": 400,
+      "stage": "native HTTP parser before application authentication",
+      "body": "empty; credential header actually sent, not evidence that application authentication ran"
+    },
+    {
+      "kind": "invalidUTF8",
+      "rawSuffixBase64": "wyg=",
+      "actualSource": "attempt4 changed-only installed run PASS",
+      "status": 400,
+      "stage": "native HTTP parser before application authentication",
+      "body": "empty; credential header actually sent, not evidence that application authentication ran"
+    }
+  ],
+  "oracles": "Literal expected refusal stages/status/body; independent complete known Bead props/metadata before/after and exact single-item collection. Negative oracle rejects normalized200, authentication401 shortcut, wrong Problem code, or nonempty parser-refusal body.",
+  "attribution": {
+    "attempt1": "Negative oracle PASS; installed setup failed wrong fixture target createBead404 before raw probes.",
+    "attempt2": "Correct create-bead route; create+canonical+backslash assertions passed, then decoder wrongly required Content-Length for native parser close-delimited response. Raw failed parser response not persisted; no invented byte observation for it.",
+    "attempt3": "Decoder accepts bounded EOF-framed response; requested control/UTF8 subset was not applied by author source patch. Backslash was unnecessarily repeated and control passed; invalidUTF8 correctly refused bodyless400 but fixture wrongly expected application Problem. Failure and exact actual five wires preserved; no second backslash credit.",
+    "attempt4": "Only failed invalidUTF8 selected plus necessary fresh ordinary create/before/after/collection; PASS1, pure oracle skipped. All five full wires retained, same exact ordinary configuration identity.",
+    "negativeOracle2": "Affected final pure oracle PASS; installed case skipped. No final all-three-green run or old237/104 replay."
+  },
+  "bounds": {
+    "aggregateSeconds": 90,
+    "requestTimeoutMs": 5000,
+    "requestBytes": 65536,
+    "responseBytes": 1048576,
+    "artifactBytes": 4194304,
+    "nodes": 100000,
+    "depth": 128
+  },
+  "scopeLimit": "New subclause-specific evidence only. Prior selected raw-target classes remain their original observations; no whole130/profile, History, scheduler/clock/policy/native control, unsafe URL general transport or unconditional contextheader exemption. Root owns finite map reconciliation."
+}
