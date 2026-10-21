@@ -267,6 +267,17 @@ it("ordinary startup refuses a missing deployment without exposing credentials o
   try {
     expect(await child.done).toEqual({ code: 2, signal: null });
     expect(child.output[1]).toContain('"event":"startup.reference_refused"');
+    expect(child.output[1]).toContain('"code":"file"');
+    const refusal = completeDiagnostics(child.output[1], true).find(
+      (record) => record.event === "startup.reference_refused",
+    );
+    expect(refusal).toEqual({
+      level: "error",
+      event: "startup.reference_refused",
+      executable: "bdptest",
+      message: "reference deployment startup failed",
+      code: "file",
+    });
     expect(child.output[1]).not.toContain('"event":"server.started"');
     expect(child.output[1]).not.toContain(f.token);
   } finally {
