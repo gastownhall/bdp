@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "id": "tx-native-resource-representation-limit",
+  "selectedPredicate": "transactional.batch.transaction-limits",
+  "status": "bounded-native-resource-limit-observation-only",
+  "ordinaryConfiguration": "73bdc0e24d65a8ab4444c5698b84d368a39cdcbbe2caad3ef7d913a317b1930b",
+  "case": "NEW TX representation-limit rejects the oversized owning-source postimage and rolls back the preceding operation",
+  "nativeBound": {
+    "name": "resource.representationBytes",
+    "bytes": 262144,
+    "advertisementClaim": false,
+    "transactionWideNamedLimit": false
+  },
+  "newHTTP": 15,
+  "oracles": [
+    "independently authored complete original owner/target/three Link records; actual opaque original revisions",
+    "staged target update rolls back when later owned Link causes oversized source postimage",
+    "full failed receipt operationIndex1; no fabricated dotted limit",
+    "same-key retry and receipt GET exact failed receipt",
+    "same saved real checkpoint empty suffix and unchanged pos4"
+  ],
+  "remaining": [
+    "Advertised transaction limits are not demonstrated by an unadvertised per-Resource bound.",
+    "Other limit classes, all-limit interactions, whole profile qualification and release remain outside this case."
+  ]
+}
