@@ -41,6 +41,7 @@ export const TRANSACTION_SNAPSHOT_LIMITS = Object.freeze({
 export const TRANSACTION_SNAPSHOT_TOKEN_POLICY = "hmac-sha256-ordinal-1";
 export const transactionSnapshotSchema = `
 CREATE TABLE snapshots(id TEXT PRIMARY KEY, disposition TEXT NOT NULL) STRICT;
+CREATE TABLE snapshot_epoch_fences(epoch TEXT PRIMARY KEY, head INTEGER NOT NULL) STRICT;
 CREATE TABLE snapshot_records(snapshot TEXT NOT NULL, kind TEXT NOT NULL, ordinal INTEGER NOT NULL, id TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(snapshot,kind,ordinal), UNIQUE(snapshot,id)) STRICT;
 CREATE TABLE snapshot_pages(snapshot TEXT NOT NULL, kind TEXT NOT NULL, ordinal INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, start INTEGER NOT NULL, end INTEGER NOT NULL, bytes INTEGER NOT NULL, digest TEXT NOT NULL, PRIMARY KEY(snapshot,kind,ordinal)) STRICT;
 `;

@@ -117,6 +117,41 @@ function launch(configuration: unknown) {
   };
 }
 
+function restoredContext(
+  headers: Record<string, string>,
+  epoch: string,
+  view: string,
+  position: string,
+) {
+  for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+    expect(typeof headers[name] === "string" && headers[name]!.length > 0).toBe(true);
+  expect(headers["bdp-scope-epoch"]).toBe(epoch);
+  expect(headers["bdp-authorization-view"]).toBe(view);
+  expect(headers["bdp-scope-position"]).toBe(position);
+}
+it("restore context oracle rejects missing/stale/empty context and old-epoch success", () => {
+  const headers = {
+    "bdp-scope-epoch": "new-epoch",
+    "bdp-authorization-view": "view",
+    "bdp-scope-position": "pos-1",
+  };
+  restoredContext(headers, "new-epoch", "view", "pos-1");
+  for (const key of Object.keys(headers)) {
+    const missing = { ...headers };
+    delete missing[key as keyof typeof missing];
+    expect(() => restoredContext(missing, "new-epoch", "view", "pos-1")).toThrow();
+    expect(() =>
+      restoredContext({ ...headers, [key]: "" }, "new-epoch", "view", "pos-1"),
+    ).toThrow();
+  }
+  expect(() =>
+    restoredContext({ ...headers, "bdp-scope-epoch": "old-epoch" }, "new-epoch", "view", "pos-1"),
+  ).toThrow();
+  expect(() =>
+    restoredContext({ ...headers, "bdp-scope-position": "pos-4" }, "new-epoch", "view", "pos-1"),
+  ).toThrow();
+});
+
 it.skipIf(!entry)(
   "packed native restore preserves permanent erasure state and fences epoch-local HTTP handles before normal serving",
   async () => {
@@ -333,6 +368,18 @@ it.skipIf(!entry)(
       const fresh = await exchange("snapshot");
       expect(fresh.wire.status).toBe(200);
       expect(fresh.value.scopeEpoch).toBe(restored.configuration.scopeEpoch);
+      const expectCurrent = (response: Awaited<ReturnType<typeof exchange>>, position = "pos-1") =>
+        restoredContext(
+          response.wire.headers,
+          fresh.value.scopeEpoch,
+          fresh.value.authorizationView,
+          position,
+        );
+      expectCurrent(fresh);
+      const canonical = await exchange("beads/a");
+      expect(canonical.wire.status).toBe(200);
+      expect(canonical.value).toEqual(backupImage);
+      expectCurrent(canonical);
       expect(fresh.value.beads.items).toEqual([backupImage]);
       expect(fresh.value.erasures).toEqual(erased.group.erasures);
       for (const target of [
@@ -343,10 +390,12 @@ it.skipIf(!entry)(
         const stale = await exchange(target);
         expect(stale.wire.status).toBe(410);
         expect(stale.value.code).toBe("cursor-expired");
+        expectCurrent(stale);
       }
       const oldReceipt = await exchange(backupReceipt.value.id);
       expect(oldReceipt.wire.status).toBe(404);
       expect(oldReceipt.value.code).toBe("resource-not-found");
+      expectCurrent(oldReceipt);
       const replacement = await exchange(
         "operations/update-bead",
         "POST",
@@ -356,9 +405,11 @@ it.skipIf(!entry)(
       expect(replacement.value.status).toBe("completed");
       expect(replacement.value.id).not.toBe(backupReceipt.value.id);
       expect(replacement.value.scopeEpoch).toBe(fresh.value.scopeEpoch);
+      expectCurrent(replacement);
       await command("reopen");
       const reopened = await exchange("snapshot");
       expect(reopened.value.scopeEpoch).toBe(fresh.value.scopeEpoch);
+      expectCurrent(reopened);
       expect(reopened.value.erasures).toEqual(fresh.value.erasures);
       expect(reopened.value.beads.items).toEqual([backupImage]);
       report = {

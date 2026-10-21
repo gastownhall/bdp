@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, expect, it } from "vitest";
 import { parseTypeDescriptor } from "@bdp/protocol";
-import { prepareTransaction } from "./transaction-batch.js";
+import { prepareTransaction, prepareTransactionSingleton } from "./transaction-batch.js";
 import { openTransactionStore, type TransactionStoreOptions } from "./transaction-store.js";
 
 const scope = "https://restore.test/s/";
@@ -278,3 +278,72 @@ for (const stage of ["before-restore-commit", "after-restore-commit"] as const)
       expect(f.owner.inspect().position).toBe("1");
     }
   });
+it("keeps complete multi-record ledger framing and repeated-epoch handle fences without reusing later allocated identities", () => {
+  const f = fixture();
+  const a = f.create();
+  const b = f.create("b");
+  f.update("backup");
+  f.run([
+    {
+      operation: "updateBead",
+      bead: "beads/b",
+      propertiesChange: [{ op: "replace", path: "/value", value: "backup-b" }],
+    },
+  ]);
+  f.save();
+  const allocated = f.create("later");
+  f.run([{ operation: "deleteBead", bead: "beads/later" }]);
+  f.owner.eraseHistoricalVersions(
+    [a.resource!, b.resource!].map((r) => ({ subject: r.id, revision: r.revision })),
+  );
+  const ledger = f.owner.erasureLedger();
+  const old = f.owner.captureSnapshot().manifest;
+  f.reopen(true);
+  const first = f.owner.captureSnapshot().manifest;
+  expect(f.owner.inspect().groups).toEqual([
+    expect.objectContaining({ erasures: ledger, changes: [], events: [], eventCount: 0 }),
+  ]);
+  const request = prepareTransaction(
+    scope,
+    JSON.stringify({
+      operations: [
+        { operation: "createBead", id: "beads/later", type, properties: {}, metadata: {} },
+      ],
+    }),
+  );
+  const admission = f.owner.admit("principal", "never-reuse", request);
+  if (admission.kind !== "owned") throw Error("fresh claim required");
+  expect(f.owner.execute(admission.claim).status).toBe("failed");
+  expect(
+    f.owner.readRetainedVersion(allocated.resource!.id, allocated.resource!.revision).kind,
+  ).toBe("retained");
+  f.reopen(true);
+  expect(() => f.owner.readSnapshot(snapshotId(old.id))).toThrow("cursor-expired");
+  expect(() => f.owner.readSnapshot(snapshotId(first.id))).toThrow("cursor-expired");
+  expect(f.owner.captureSnapshot().manifest.erasures).toEqual(ledger);
+});
+it("restores locator state with an empty ledger at new genesis while preserving prior issued handle expiry", () => {
+  const f = fixture();
+  f.create();
+  f.create("b");
+  const alias = (target: string, key: string) => {
+    const request = prepareTransactionSingleton(
+      scope,
+      "putAlias",
+      JSON.stringify({ alias: "alias/work", target }),
+    );
+    const admission = f.owner.admit("principal", key, request);
+    if (admission.kind !== "owned") throw Error("new alias claim required");
+    expect(f.owner.execute(admission.claim).status).toBe("completed");
+  };
+  alias("beads/a", "alias-a");
+  f.save();
+  alias("beads/b", "alias-b");
+  const prior = f.owner.captureSnapshot().manifest;
+  f.reopen(true);
+  expect(f.owner.inspect().position).toBe("0");
+  expect(f.owner.inspect().groups).toEqual([]);
+  expect(f.owner.aliasTarget("work")).toBe(`${scope}beads/a`);
+  expect(f.owner.captureSnapshot().manifest.erasures).toEqual([]);
+  expect(() => f.owner.readSnapshot(snapshotId(prior.id))).toThrow("cursor-expired");
+});

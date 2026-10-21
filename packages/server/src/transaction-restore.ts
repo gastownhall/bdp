@@ -29,6 +29,7 @@ export function applyNativeTransactionRestore(
   configuration: string,
   capture: string,
 ): { readonly epoch: string; readonly positions: number } {
+  requireNative(db.isTransaction, "existing owner transaction required");
   requireNative(path.isAbsolute(backup), "absolute backup path required");
   const a = statSync(destination),
     b = statSync(backup);
@@ -183,6 +184,7 @@ export function applyNativeTransactionRestore(
     db.prepare("UPDATE metadata SET value=? WHERE name='epoch'").run(epoch);
     let position = 0;
     let records: unknown[] = [];
+    let payloadBytes = 0;
     let transaction = randomUUID();
     const frame = (items: readonly unknown[]) => ({
       scopeEpoch: epoch,
@@ -215,6 +217,7 @@ export function applyNativeTransactionRestore(
         );
       }
       records = [];
+      payloadBytes = 0;
       transaction = randomUUID();
     };
     // Sorted stable permanent identities; greedily bounded whole groups, no
@@ -223,16 +226,22 @@ export function applyNativeTransactionRestore(
       .prepare("SELECT record FROM erasure_ledger ORDER BY subject,revision")
       .iterate()) {
       const record: unknown = JSON.parse(String(row.record));
+      const recordBytes = Buffer.byteLength(transactionStorageText(record));
+      // Empty-array frame already includes both brackets. Only complete record
+      // bytes and inter-record commas replace its empty payload; no repeated
+      // serialization/copy of the growing permanent ledger prefix.
+      const envelopeBytes = () => Buffer.byteLength(transactionStorageText(frame([])));
       if (
-        Buffer.byteLength(transactionStorageText(frame([...records, record]))) >
+        envelopeBytes() + payloadBytes + (records.length ? 1 : 0) + recordBytes >
         TRANSACTION_EVENT_GROUP_BYTES
       )
         flush();
-      records.push(record);
       requireNative(
-        Buffer.byteLength(transactionStorageText(frame(records))) <= TRANSACTION_EVENT_GROUP_BYTES,
+        envelopeBytes() + recordBytes <= TRANSACTION_EVENT_GROUP_BYTES,
         "single ledger record exceeds group byte bound",
       );
+      payloadBytes += (records.length ? 1 : 0) + recordBytes;
+      records.push(record);
     }
     flush();
     db.prepare("UPDATE metadata SET value=? WHERE name='position'").run(String(position));
