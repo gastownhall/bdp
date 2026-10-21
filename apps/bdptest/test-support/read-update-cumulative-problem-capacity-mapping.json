@@ -1,0 +1,23 @@
+{
+  "id": "temporarily-unavailable",
+  "requirements": ["read.http.problem-table", "read-update.problem.table"],
+  "family": "unavailable",
+  "status": 503,
+  "retry": "after-delay",
+  "media": "application/problem+json",
+  "cache": "private, no-store",
+  "selectedCase": "actualordinarynativepagination capacity100,50admitted snapshots+50futurecursor reservations;51strefuses",
+  "healthyContinuation": "oldest issuednext remains200/exactcomplete2records andstableterminalrepeat",
+  "runtimeControlsChanged": false,
+  "ordinaryConfiguration": "9af00876e91f71137ff31c226d368590a018ce2367cdb93110ea246dc7420d46",
+  "whole31Cohort": false,
+  "sourcePreflight": "source-preflight.json",
+  "requestCount": 56,
+  "sourceRefs": [
+    "packages/server/src/read-pagination.ts:263-270",
+    "packages/server/src/read-pagination.ts:415-450",
+    "packages/server/src/development-authority.ts:66",
+    "packages/server/src/read-request.ts:954-968",
+    "packages/server/src/index.ts:728-747"
+  ]
+}
