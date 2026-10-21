@@ -1,12 +1,10 @@
 # Draft Types review artifacts
 
-The profile prose now calls Type-to-Type refinement **Refines**, following the
-accepted naming decision. The pinned descriptor, schema filenames and executable
-bootstrap artifacts retain their earlier `ConformsTo` label and existing
-serialized identities. This update changes prose correspondence only; prior
-artifact checks still describe those unchanged bytes, and no alias, identity
-migration or new runtime support is implied. See the profile's
-[naming and artifact boundary](types.md#22-the-refines-link-type).
+The working descriptor, profile, schemas and candidate graph use **Refines** for
+Type-to-Type refinement. The October 20 amendment adds the selected `abstract`
+marker and `propertyAccess` map, uses one common Type selector shape, and specifies
+family-wide duplicate direct exact-target refusal. These are proposed-design
+artifacts, not runtime adoption, a stored-identity migration or a compatibility alias.
 
 Review artifacts for [Types](types.md) and [Issue/Dependency](../../types/issue/issue.md).
 They are not the canonical BDP schema bundle, registered Type IDs, an installable
@@ -18,7 +16,7 @@ package, or implementation qualification. Schema IDs under
 | [type-definition.properties.schema.json](type-definition.properties.schema.json) | Common properties of Type-definition Beads | The properties schema of Type **is** the common descriptor schema |
 | [bead-type-definition.properties.schema.json](bead-type-definition.properties.schema.json) | BeadType instances (definitions of Bead Types) | Includes common schema, allows participation/ownership rules, prohibits Link constraints |
 | [link-type-definition.properties.schema.json](link-type-definition.properties.schema.json) | LinkType instances (definitions of Link Types) | Includes common schema and requires endpoint-pair constraints |
-| [conforms-to.properties.schema.json](conforms-to.properties.schema.json) | Refines Link properties (legacy artifact label: `ConformsTo`) | Open base object; semantic qualifiers still require understanding/enforcement |
+| [refines.properties.schema.json](refines.properties.schema.json) | Refines Link properties | Open descriptive properties; general executable qualifiers are deferred |
 | [schema-composition-cases.json](schema-composition-cases.json) | Product/ApprovedProduct conjunction and closure examples | Finite independent-schema cases; no property merge or closure rewriting |
 | [issue.properties.schema.json](../../types/issue/issue.properties.schema.json) | Issue instance properties | Base review fragment; not full domain/write validation |
 | [dependency.properties.schema.json](../../types/issue/dependency.properties.schema.json) | Dependency instance properties | Base review fragment; child-specific workflow fields remain open |
@@ -30,18 +28,18 @@ package, or implementation qualification. Schema IDs under
 [Types §1.1](types.md#11-descriptor-specification-and-profile-rules) records the
 ownership split: the descriptor owns abstract shapes, defaults, local restrictions
 and concise normative field meanings; the profile owns detailed interpretation, enforcement,
-conformance, composition and lifecycle. Janet temporarily maintains the working
-descriptor in `donnabox/memory-beads` through October 21 at the latest under Donna's
-October 19 arrangement. The profile pins the
-[descriptor candidate at `cc32cba`](https://github.com/donnabox/memory-beads/blob/cc32cba35758a8dbbd89d5cf953c7035203cd836/specs/type-packages/type-system/type-system.md)
-and its [accepted placement Decision](https://github.com/donnabox/memory-beads/blob/cc32cba35758a8dbbd89d5cf953c7035203cd836/decisions/type-descriptor-profile-split.md).
-The descriptor's full commit is `cc32cba35758a8dbbd89d5cf953c7035203cd836`;
-its verified 17,565 bytes have SHA256
-`4f003e2f19c6a63e3f4c85fadf3d71880f6d42dead126d44bfe0e04519292684`.
-Both remote files were verified; the descriptor remains a proposed-design draft.
-Split review findings are dispositioned with native final correspondence closure;
-one council reviewer timed out without findings. Local schemas and fixtures remain review companions; no generated-code
-or lossless Markdown conversion claim is made.
+conformance, composition and lifecycle. Trish maintains the working descriptor source in `donnabox/memory-beads` under
+the temporary placement arrangement through October 21; relocation remains a
+separate coordinated handoff. The reviewed candidate is
+[descriptor `01beba80`](https://github.com/donnabox/memory-beads/blob/01beba80b07fbed0564cabba1827f69b17d84369/specs/type-packages/type-system/type-system.md),
+from [source PR3](https://github.com/donnabox/memory-beads/pull/3). Its full commit is
+`01beba80b07fbed0564cabba1827f69b17d84369`, 22,427 bytes, SHA256
+`57eb7040aa2351edf9d86d9a9a8886959e692ca487a1ce8cd1c65e6033e986e1`.
+It is a draft source candidate; publication here does not merge it or adopt a profile.
+The original [placement Decision](https://github.com/donnabox/memory-beads/blob/cc32cba35758a8dbbd89d5cf953c7035203cd836/decisions/type-descriptor-profile-split.md)
+remains historical context. Local schemas and fixtures remain review companions,
+not generated code or a lossless Markdown conversion. Renew exact-source
+correspondence review before moving this pin again.
 
 Starting descriptor inspected on October 14, 2026: BDP main
 [`bd2178dd6f4b9f7c2d239624d7edaa3d961c3e26`](https://github.com/gastownhall/bdp/blob/bd2178dd6f4b9f7c2d239624d7edaa3d961c3e26/schemas/bdp-v0.schema.json).
@@ -68,26 +66,30 @@ JSON Schema 2020-12 and its standard validation rules are the selected baseline.
 Every schema resource in the retained closure uses the standard dialect; omission
 uses/inherits that baseline. Other explicit dialect URIs refuse, including on embedded
 resources. Literal/example data keys are not schema declarations. The root-only shape
-check is not a closure walker. Custom/derived meta-schema presentation remains open;
+check is not a closure walker. A general executable extension language is deferred;
 support for an extension does not imply acceptance of its dialect URI. Unsupported
 required vocabularies identified by the applicable meta-schema must refuse;
 `$vocabulary` in an ordinary schema is not extension negotiation. Unknown annotations do not acquire assertion
 semantics by being present. See [JSON Schema Core §8.1](https://json-schema.org/draft/2020-12/json-schema-core#section-8.1)
-and Types §3.12. Descriptor field requiredness and exact names remain review syntax.
+and Types §3.12. The common fields now include optional boolean `abstract` and a `propertyAccess`
+map from object-member JSON Pointers to writable, init-only or service-managed.
+Defaults and inherited restrictions are interpreted by the profile; shape checks
+do not prove enforcement.
 
 Referenced schema resources and resolution bindings must be retained immutably with
 the Type revision, without fetching newer remote content during validation. Their
 descriptor representation is a root `propertiesSchema` plus a proposed `schemaResources`
 URI-to-resource map, immutable with its revision. The seed includes reachable descriptor
-and standard 2020-12 meta-schema copies at their original IDs. Baseline meta-schema
-provisioning remains unresolved: implementation-supplied or descriptor-carried, uniformly
-for written and omitted `$schema`. The current fixture carries copies for explicit-
-dialect roots but not its two omitted-dialect roots; it is not complete admission
-evidence for that unresolved obligation. Copies are checked against the adjacent
-artifacts and `jsonschema-specifications`;
-see [third-party notices](THIRD_PARTY_NOTICES.md). The finite checker uses each metatype's
-retained map with retrieval disabled for the exercised cases. Map serialization and anonymous relative-base
-handling still need review; separate Schema Beads or mutable sidecars are not required.
+and standard 2020-12 meta-schema copies at their original IDs. Implementations supply the standard 2020-12 meta-schema resources for both
+written and omitted dialects; a definition need not embed copies. The fixture
+retains some standard copies for review, checked against adjacent artifacts and
+`jsonschema-specifications`; see [third-party notices](THIRD_PARTY_NOTICES.md).
+The finite checker preloads the standard baseline and each metatype's retained
+application map with retrieval disabled. Relative external schema references
+require an explicit applicable absolute schema base. No base is invented from
+the Type identity or download location. Separate Schema Beads and mutable
+sidecars are not required.
+
 The profile also requires syntactic enforcement of standard formats and refusal of Types relying on unknown/unsupported formats, without network
 or existence checks. This explicitly goes beyond annotation-only defaults; see
 [JSON Schema Validation §7.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-7.2).
@@ -119,9 +121,9 @@ Core/Types integration must reconcile view budgets explicitly; no arbitrary
 universal maximum is invented here. Proposed actual-nominal-Type grouping and
 empty owned set `{}` also require a coordinated Core amendment.
 
-Ownership/participation selectors deliberately retain `{anyOf: [...]}` or
-`{any: true}` while endpoint selectors use arrays. Uniform shorthand is deferred;
-this spelling asymmetry is not an authorization to rewrite other selector surfaces.
+Endpoint, ownership and participation Type selectors share `{anyOf: [...]}` or
+`{any: true}`. Correlated endpoint pairs retain their conjunction/union meanings;
+the old endpoint arrays and `["*"]` are not aliases in these candidate artifacts.
 
 The literal graph contains eight definition Beads and four owned declarations.
 Its IDs and revision tokens are placeholders, not a production bootstrap publication.
@@ -145,7 +147,7 @@ For example min3/max2 is syntax-valid but semantically inconsistent; a false
 properties schema is valid JSON Schema but admits no instances. Unknown extension
 properties do not imply supported semantics. SemVer syntax proves no compatibility
 promise. The initial profile has no separate compatibility relation or SemVer migration
-guarantee; publication-label uniqueness is still open. Types §3.13 specifies a sound,
+guarantee; informational version labels may repeat across exact definition revisions. Types §3.13 specifies a sound,
 bounded mandatory contradiction floor and a separate warning for simple disjoint
 optional-property types. Outside proved cases the static result is unknown;
 full instance validation and authors' semantic responsibilities remain. This artifact
@@ -173,9 +175,10 @@ The check validates six schemas and positive/negative shape cases, exact example
 references, owned-state consistency and inherited ownership-selector matches, category-preserving pair matches over
 the finite foundation graph, twelve invalid ownership/projection/endpoint/schema-map fixture mutations,
 schema-copy equality, five self-link shape cases (boolean false/true accepted;
-string, number and null rejected), assertions on the legacy `ConformsTo`
-artifact (Refines in the prose) that generic
-acyclicity is absent and no local self-link prohibition is added, twelve
+string, number and null rejected), abstract/property-policy/selector shape cases,
+finite direct-abstract-use and exact-target Refines family uniqueness cases, and
+assertions that generic identity
+acyclicity is absent from Refines and no local self-link prohibition is added, twelve
 Product/ApprovedProduct composition cases, ten finite
 endpoint-fact cases, two revision-closure cases and illustrative domain property cases.
 Four finite dialect cases explicitly enumerate root/embedded/retained resource facts;

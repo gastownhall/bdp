@@ -39,9 +39,7 @@
           }
         ]
       },
-      "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
-      }
+      "ownedLinks": {}
     },
     {
       "id": "https://example.org/memory-types/policy",
@@ -88,13 +86,13 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/memory-types/links/policy-conforms-memory",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/memory-types/policy",
             "target": {
@@ -134,13 +132,13 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/memory-types/links/decision-conforms-memory",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/memory-types/decision",
             "target": {
@@ -172,13 +170,13 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/memory-types/links/procedure-conforms-memory",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/memory-types/procedure",
             "target": {
@@ -210,13 +208,13 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/memory-types/links/specification-conforms-memory",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/memory-types/specification",
             "target": {
@@ -248,13 +246,13 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/memory-types/links/requirement-conforms-memory",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/memory-types/requirement",
             "target": {
@@ -286,13 +284,13 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/memory-types/links/scenario-conforms-memory",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/memory-types/scenario",
             "target": {
@@ -324,13 +322,13 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/memory-types/links/proposal-conforms-memory",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/memory-types/proposal",
             "target": {
@@ -377,74 +375,84 @@
               "source": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": [
-                  {
-                    "uri": "https://example.org/memory-types/memory",
-                    "revision": "memory-contract-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/memory-types/memory",
+                      "revision": "memory-contract-1"
+                    }
+                  ]
+                }
               },
               "target": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": [
-                  {
-                    "uri": "https://example.org/types/beads/issue",
-                    "revision": "issue-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/types/beads/issue",
+                      "revision": "issue-1"
+                    }
+                  ]
+                }
               }
             },
             {
               "source": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": [
-                  {
-                    "uri": "https://example.org/types/beads/issue",
-                    "revision": "issue-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/types/beads/issue",
+                      "revision": "issue-1"
+                    }
+                  ]
+                }
               },
               "target": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": [
-                  {
-                    "uri": "https://example.org/memory-types/memory",
-                    "revision": "memory-contract-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/memory-types/memory",
+                      "revision": "memory-contract-1"
+                    }
+                  ]
+                }
               }
             },
             {
               "source": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": [
-                  {
-                    "uri": "https://example.org/memory-types/memory",
-                    "revision": "memory-contract-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/memory-types/memory",
+                      "revision": "memory-contract-1"
+                    }
+                  ]
+                }
               },
               "target": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": [
-                  {
-                    "uri": "https://example.org/memory-types/memory",
-                    "revision": "memory-contract-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/memory-types/memory",
+                      "revision": "memory-contract-1"
+                    }
+                  ]
+                }
               }
             }
           ]
         }
       },
-      "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": []
-      }
+      "ownedLinks": {}
     }
   ],
   "declarations": [
@@ -452,8 +460,8 @@
       "id": "https://example.org/memory-types/links/policy-conforms-memory",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/memory-types/policy",
       "target": {
@@ -466,8 +474,8 @@
       "id": "https://example.org/memory-types/links/decision-conforms-memory",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/memory-types/decision",
       "target": {
@@ -480,8 +488,8 @@
       "id": "https://example.org/memory-types/links/procedure-conforms-memory",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/memory-types/procedure",
       "target": {
@@ -494,8 +502,8 @@
       "id": "https://example.org/memory-types/links/specification-conforms-memory",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/memory-types/specification",
       "target": {
@@ -508,8 +516,8 @@
       "id": "https://example.org/memory-types/links/requirement-conforms-memory",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/memory-types/requirement",
       "target": {
@@ -522,8 +530,8 @@
       "id": "https://example.org/memory-types/links/scenario-conforms-memory",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/memory-types/scenario",
       "target": {
@@ -536,8 +544,8 @@
       "id": "https://example.org/memory-types/links/proposal-conforms-memory",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/memory-types/proposal",
       "target": {

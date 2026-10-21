@@ -18,7 +18,7 @@ NAMES = (
     "type-definition.properties.schema.json",
     "bead-type-definition.properties.schema.json",
     "link-type-definition.properties.schema.json",
-    "conforms-to.properties.schema.json",
+    "refines.properties.schema.json",
     "issue.properties.schema.json",
     "dependency.properties.schema.json",
 )
@@ -62,7 +62,7 @@ definitions = fixture["definitions"]
 by_pin = {(d["id"], d["revision"]): d for d in definitions}
 assert len(by_pin) == len(definitions)
 prefix = "https://example.org/types/beads/"
-conforms_id = prefix + "conforms-to"
+conforms_id = prefix + "refines"
 
 def pin_of(reference):
     return reference["uri"], reference["revision"]
@@ -85,13 +85,23 @@ for key in ["propertiesSchema"]:
 for key, value in [("description", 42), ("describes", "bead"), ("propertiesSchema", "https://example.org/schema"),
                    ("propertiesSchema", {"type": 42}), ("propertiesSchema", {"required": "title"}),
                    ("propertiesSchema", {"$schema": "http://json-schema.org/draft-07/schema#"}),
-                   ("conformsTo", []), ("id", "https://example.org/type"), ("revision", "r1"),
+                   ("conformsTo", []), ("refines", []), ("id", "https://example.org/type"), ("revision", "r1"),
                    ("ownedLinks", {}), ("source", {}), ("pairUnique", True)]:
     check(type_name, altered(base, **{key: value}), False, "invalid " + key + repr(value))
 check(type_name, {"propertiesSchema": {"type": "object"}}, True, "identity is envelope; no display-name field needed")
 check(type_name, altered(base, propertiesSchema=True), True, "explicit permissive schema")
 check(type_name, altered(base, propertiesSchema=False), True, "false schema is syntax-valid only")
 check(type_name, altered(base, extensionNote="example"), True, "open descriptor root")
+for abstract, valid in [(True, True), (False, True), ("true", False), (0, False), (None, False)]:
+    check(type_name, altered(base, abstract=abstract), valid, "abstract marker shape")
+for policy, valid in [({}, True), ({"/code": "init-only"}, True),
+                      ({"/computed": "service-managed", "/title": "writable"}, True),
+                      ({"/address/postcode": "init-only", "/a~1b": "writable"}, True),
+                      ({"/": "writable", "/~0": "writable"}, True),
+                      ({"": "writable"}, False), ({"code": "writable"}, False),
+                      ({"/bad~2escape": "writable"}, False),
+                      ({"/code": "readOnly"}, False), ({"/code": True}, False), ([], False)]:
+    check(type_name, altered(base, propertyAccess=policy), valid, "property access shape")
 for resources, valid in [({}, True), ({"https://example.org/schema/value": True}, True),
                          ({"relative": True}, False),
                          ({"https://example.org/schema/value": 42}, False)]:
@@ -141,7 +151,10 @@ for bounds, valid in [({"min": 1, "max": 1}, True), ({"max": 0}, True), ({"min":
     check(bead_name, altered(base, outgoing=[{"linkTypes": selector, **bounds}]), valid, "participation " + repr(bounds))
 
 def endpoint(types, scope="same"):
-    return {"resourceKind": "bead", "scope": scope, "types": types}
+    # Convenience for the existing finite cases; the emitted candidate wire
+    # shape is always the common selector, never the predecessor array shape.
+    selector = ({"any": True} if types == ["*"] else {"anyOf": types}) if isinstance(types, list) else types
+    return {"resourceKind": "bead", "scope": scope, "types": selector}
 
 pair = {"source": endpoint(selector["anyOf"]), "target": endpoint(["*"])}
 link = altered(base, linkConstraints={"typeConstraints": [pair]})
@@ -153,6 +166,9 @@ for key in ["source", "target"]:
     del candidate[key]
     check(link_name, altered(base, linkConstraints={"typeConstraints": [candidate]}), False, "missing endpoint " + key)
 for ep, valid in [(endpoint(["*"]), True), (endpoint([prefix + "issue"]), True),
+                  (endpoint({"any": True}), True), (endpoint({"anyOf": [prefix + "issue"]}), True),
+                  ({"resourceKind": "bead", "scope": "same", "types": ["*"]}, False),
+                  ({"resourceKind": "bead", "scope": "same", "types": [prefix + "issue"]}, False),
                   (endpoint([]), False), (endpoint(["*", prefix + "issue"]), False),
                   (endpoint([{"uri": prefix + "issue", "revision": ""}]), False),
                   (endpoint(["*"], "cross"), True), (endpoint(["*"], "either"), True),
@@ -283,18 +299,18 @@ def closure(pin, visiting=(), records=by_pin):
 for pin in by_pin:
     closure(pin)
 for label, file_name in [("type", type_name), ("bead-type", bead_name), ("link-type", link_name),
-                          ("conforms-to", conformance_name), ("issue", issue_name), ("dependency", dependency_name)]:
+                          ("refines", conformance_name), ("issue", issue_name), ("dependency", dependency_name)]:
     definition = next(d for d in definitions if d["id"] == prefix + label)
     assert definition["properties"]["propertiesSchema"] == SCHEMAS[file_name]
 
 # Check pair correlation using the finite foundation graph's exact Type closure.
-def matches(types, reference, records=by_pin):
-    if types == ["*"]:
+def matches(selector, reference, records=by_pin):
+    if selector.get("any") is True:
         return True
     p = pin_of(reference)
     members = {p} | closure(p, records=records)
     return any((any(member[0] == t for member in members) if isinstance(t, str)
-                else pin_of(t) in members) for t in types)
+                else pin_of(t) in members) for t in selector["anyOf"])
 
 def check_effective_ownership(candidate):
     # Definition Beads use their own Bead-Type affiliation's inherited selectors;
@@ -306,8 +322,7 @@ def check_effective_ownership(candidate):
         selectors = [selector for ancestor in ancestors
                      for selector in records[ancestor]["properties"].get("ownsOutgoing", [])]
         for declaration in (link for group in owner["ownedLinks"].values() for link in group):
-            assert any(selector.get("any") is True or
-                       matches(selector["anyOf"], declaration["type"], records)
+            assert any(matches(selector, declaration["type"], records)
                        for selector in selectors), "owned declaration lacks effective ownership selector"
 
 
@@ -350,7 +365,7 @@ def fixture_endpoint_matches(arm, actual_scope, exact_type, registered_exact_def
     # network resolver or implemented registry. Foreign checked cases use exact state.
     if arm["resourceKind"] != "bead" or arm["scope"] not in {"either", actual_scope}:
         return False
-    if arm["types"] == ["*"]:
+    if arm["types"].get("any") is True:
         return True
     if actual_scope == "cross" and (not registered_exact_definition or not endpoint_revision):
         return False
@@ -387,10 +402,53 @@ assert "acyclic" not in conforms["properties"]["linkConstraints"]
 assert conforms["properties"]["linkConstraints"].get("allowSelf", True) is True
 # Identity-wide selectors are not aliases for the latest revision.
 task_ref = {"uri": prefix + "task", "revision": "task-1"}
-assert matches([prefix + "issue"], task_ref)
-assert matches([{"uri": prefix + "issue", "revision": "issue-1"}], task_ref)
-assert not matches([{"uri": prefix + "issue", "revision": "issue-2"}], task_ref)
-assert not matches([prefix + "dependency"], task_ref)
+assert matches({"anyOf": [prefix + "issue"]}, task_ref)
+assert matches({"anyOf": [{"uri": prefix + "issue", "revision": "issue-1"}]}, task_ref)
+assert not matches({"anyOf": [{"uri": prefix + "issue", "revision": "issue-2"}]}, task_ref)
+assert not matches({"anyOf": [prefix + "dependency"]}, task_ref)
+
+# Abstractness is direct-definition use policy, not an inherited prohibition.
+# These finite checks do not establish generic instance creation/admission.
+def direct_use_allowed(reference):
+    return not by_pin[pin_of(reference)]["properties"].get("abstract", False)
+
+assert not direct_use_allowed({"uri": prefix + "type", "revision": "type-1"})
+assert direct_use_allowed(bead_meta)
+assert direct_use_allowed(link_meta)
+assert direct_use_allowed(task_ref)
+
+
+def check_direct_target_uniqueness(owner, accepted_refines_family):
+    # Exact accepted family membership is stipulated for this finite checker;
+    # it is not a registry or specialized Link-Type admission implementation.
+    seen = set()
+    for group in owner["ownedLinks"].values():
+        for declaration in group:
+            if pin_of(declaration["type"]) not in accepted_refines_family:
+                continue
+            target = pin_of(declaration["target"])
+            assert target not in seen, "duplicate direct exact target across Refines family"
+            seen.add(target)
+
+
+base_declaration = deepcopy(fixture["declarations"][0])
+base_family = {pin_of(base_declaration["type"])}
+specialized_pin = (prefix + "reviewed-refines", "specialized-1")
+family = base_family | {specialized_pin}
+specialized = deepcopy(base_declaration)
+specialized["id"] += "-reviewed"
+specialized["type"] = {"uri": specialized_pin[0], "revision": specialized_pin[1]}
+owner = {"ownedLinks": {conforms_id: [base_declaration], specialized_pin[0]: [specialized]}}
+try:
+    check_direct_target_uniqueness(owner, family)
+except AssertionError as error:
+    assert str(error) == "duplicate direct exact target across Refines family"
+else:
+    raise AssertionError("different Refines specialization bypassed exact-target uniqueness")
+specialized["target"]["revision"] += "-another"
+check_direct_target_uniqueness(owner, family)
+for owner in definitions:
+    check_direct_target_uniqueness(owner, base_family)
 
 # Exact-target traversal permits same-identity earlier-revision conformance, but
 # still refuses exact cycles. These minimal records test the traversal only,
@@ -462,8 +520,9 @@ def check_fixture_schema_maps(candidate):
             if uri in visited:
                 continue
             visited.add(uri)
-            assert uri in retained, "fixture schema resource missing"
-            pending.extend(fixture_schema_references(retained[uri], uri))
+            assert uri in retained or uri in SPECIFICATIONS, "fixture schema resource missing"
+            supplied = retained[uri] if uri in retained else SPECIFICATIONS[uri].contents
+            pending.extend(fixture_schema_references(supplied, uri))
 
 
 check_fixture_schema_maps(fixture)
@@ -474,14 +533,20 @@ for definition in definitions:
                     else next(s for s in SCHEMAS.values() if s["$id"] == uri))
         assert schema == expected, ("retained schema copy drift", uri)
     metatype = by_pin[pin_of(definition["type"])]["properties"]
-    offline = Registry(retrieve=unavailable).with_resources([
+    offline = Registry(retrieve=unavailable).with_resources(list(SPECIFICATIONS.items()) + [
         (uri, Resource.from_contents(schema, default_specification=DRAFT202012))
         for uri, schema in metatype.get("schemaResources", {}).items()])
     Draft202012Validator(metatype["propertiesSchema"], registry=offline,
                         format_checker=FormatChecker()).validate(definition["properties"])
 candidate = deepcopy(fixture)
-next(d for d in candidate["definitions"] if d["id"] == prefix + "type")["properties"]["schemaResources"].pop(
-    "https://json-schema.org/draft/2020-12/meta/core")
+for definition in candidate["definitions"]:
+    definition["properties"]["schemaResources"] = {
+        uri: resource for uri, resource in definition["properties"].get("schemaResources", {}).items()
+        if not uri.startswith("https://json-schema.org/")}
+check_fixture_schema_maps(candidate)
+candidate = deepcopy(fixture)
+next(d for d in candidate["definitions"] if d["id"] == prefix + "bead-type")["properties"]["schemaResources"].pop(
+    SCHEMAS[type_name]["$id"])
 rejects_fixture_mutation(check_fixture_schema_maps, candidate, "fixture schema resource missing")
 
 

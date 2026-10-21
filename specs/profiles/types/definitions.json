@@ -1,5 +1,5 @@
 {
-  "_comment": "Review-only final graph literals, not import/transaction syntax. Eight definitions and four owned declarations. Type, BeadType and LinkType affiliate with BeadType; ConformsTo affiliates with LinkType. Shared exact bootstrap publication/trusted initialization is selected; these IDs/revisions remain illustrative placeholders, not production values. Prior exact intrinsic versions are retained on upgrade. No implicit affiliation edges. ConformsTo allows same/cross registered exact definition endpoints using either-Scope pairs, preserves exact metatype selectors, and is acyclic over exact revisions. Explicit T@2 conformsTo T@1 is allowed; generic identity-based acyclicity is deliberately absent. The fixture carries reachable application schemas and standard meta-schema copies for explicit-dialect roots; its two omitted-dialect roots carry no standard copies. Effective baseline meta-schema provisioning remains an explicit open decision, so these finite literals do not prove a uniform admission closure. Standard copies come from jsonschema-specifications and retain published IDs/content. Validation performs no network fetch.",
+  "_comment": "Review-only final graph literals, not import/transaction syntax. Eight definitions and four owned declarations. Type, BeadType and LinkType affiliate with BeadType; Refines affiliates with LinkType. Shared exact bootstrap publication/trusted initialization is selected; these IDs/revisions remain illustrative placeholders, not production values. Prior exact intrinsic versions are retained on upgrade. No implicit affiliation edges. Refines allows same/cross registered exact definition endpoints using either-Scope pairs, preserves exact metatype selectors, and is acyclic over exact revisions. Explicit T@2 conformsTo T@1 is allowed; generic identity-based acyclicity is deliberately absent. The fixture carries reachable application schemas and standard meta-schema copies for explicit-dialect roots; its two omitted-dialect roots carry no standard copies. Implementations supply standard 2020-12 meta-schemas; these optional retained standard copies are review material, not a per-definition requirement. The finite literals do not prove general admission. Standard copies come from jsonschema-specifications and retain published IDs/content. Validation performs no network fetch.",
   "definitions": [
     {
       "id": "https://example.org/types/beads/type",
@@ -38,7 +38,7 @@
                   }
                 }
               ],
-              "$comment": "Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. Custom extension presentation remains open."
+              "$comment": "Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. No general executable extension language is selected initially; unsupported required semantics refuse."
             },
             "schemaResources": {
               "type": "object",
@@ -65,8 +65,25 @@
             "version": {
               "type": "string",
               "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
-              "$comment": "Optional proposed author release label. No inferred conformance, revision matching or upgrade. Publication uniqueness remains open."
-            }
+              "$comment": "Optional informational author release label; labels may repeat across exact revisions. No inferred conformance, revision matching or upgrade."
+            },
+            "abstract": {
+              "type": "boolean",
+              "default": false,
+              "description": "True forbids direct instance affiliation with this exact definition. Does not automatically make refinements abstract."
+            },
+            "propertyAccess": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^/(?:[^~]|~[01])*$"
+              },
+              "additionalProperties": {
+                "enum": ["writable", "init-only", "service-managed"]
+              },
+              "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
+            },
+            "refines": false
           },
           "additionalProperties": true,
           "$defs": {
@@ -153,22 +170,6 @@
               "additionalProperties": false,
               "$comment": "Candidate Bead participation rule: min omitted means zero; max omitted means unbounded. min<=max and intersection with inherited/Link bounds need semantic validation."
             },
-            "endpointTypes": {
-              "oneOf": [
-                {
-                  "type": "array",
-                  "const": ["*"]
-                },
-                {
-                  "type": "array",
-                  "minItems": 1,
-                  "uniqueItems": true,
-                  "items": {
-                    "$ref": "#/$defs/typeReference"
-                  }
-                }
-              ]
-            },
             "endpointConstraint": {
               "oneOf": [
                 {
@@ -182,7 +183,7 @@
                       "enum": ["same", "cross", "either"]
                     },
                     "types": {
-                      "$ref": "#/$defs/endpointTypes"
+                      "$ref": "#/$defs/typeSelector"
                     }
                   },
                   "additionalProperties": false
@@ -253,8 +254,8 @@
           {
             "anyOf": [
               {
-                "uri": "https://example.org/types/beads/conforms-to",
-                "revision": "conformance-1"
+                "uri": "https://example.org/types/beads/refines",
+                "revision": "refines-1"
               }
             ]
           }
@@ -682,7 +683,8 @@
               }
             }
           }
-        }
+        },
+        "abstract": true
       },
       "ownedLinks": {}
     },
@@ -758,7 +760,7 @@
                     }
                   }
                 ],
-                "$comment": "Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. Custom extension presentation remains open."
+                "$comment": "Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. No general executable extension language is selected initially; unsupported required semantics refuse."
               },
               "schemaResources": {
                 "type": "object",
@@ -785,8 +787,25 @@
               "version": {
                 "type": "string",
                 "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
-                "$comment": "Optional proposed author release label. No inferred conformance, revision matching or upgrade. Publication uniqueness remains open."
-              }
+                "$comment": "Optional informational author release label; labels may repeat across exact revisions. No inferred conformance, revision matching or upgrade."
+              },
+              "abstract": {
+                "type": "boolean",
+                "default": false,
+                "description": "True forbids direct instance affiliation with this exact definition. Does not automatically make refinements abstract."
+              },
+              "propertyAccess": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^/(?:[^~]|~[01])*$"
+                },
+                "additionalProperties": {
+                  "enum": ["writable", "init-only", "service-managed"]
+                },
+                "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
+              },
+              "refines": false
             },
             "additionalProperties": true,
             "$defs": {
@@ -873,22 +892,6 @@
                 "additionalProperties": false,
                 "$comment": "Candidate Bead participation rule: min omitted means zero; max omitted means unbounded. min<=max and intersection with inherited/Link bounds need semantic validation."
               },
-              "endpointTypes": {
-                "oneOf": [
-                  {
-                    "type": "array",
-                    "const": ["*"]
-                  },
-                  {
-                    "type": "array",
-                    "minItems": 1,
-                    "uniqueItems": true,
-                    "items": {
-                      "$ref": "#/$defs/typeReference"
-                    }
-                  }
-                ]
-              },
               "endpointConstraint": {
                 "oneOf": [
                   {
@@ -902,7 +905,7 @@
                         "enum": ["same", "cross", "either"]
                       },
                       "types": {
-                        "$ref": "#/$defs/endpointTypes"
+                        "$ref": "#/$defs/typeSelector"
                       }
                     },
                     "additionalProperties": false
@@ -1394,13 +1397,13 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/types/links/bead-type-conforms",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/types/beads/bead-type",
             "target": {
@@ -1471,7 +1474,7 @@
                     }
                   }
                 ],
-                "$comment": "Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. Custom extension presentation remains open."
+                "$comment": "Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. No general executable extension language is selected initially; unsupported required semantics refuse."
               },
               "schemaResources": {
                 "type": "object",
@@ -1498,8 +1501,25 @@
               "version": {
                 "type": "string",
                 "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
-                "$comment": "Optional proposed author release label. No inferred conformance, revision matching or upgrade. Publication uniqueness remains open."
-              }
+                "$comment": "Optional informational author release label; labels may repeat across exact revisions. No inferred conformance, revision matching or upgrade."
+              },
+              "abstract": {
+                "type": "boolean",
+                "default": false,
+                "description": "True forbids direct instance affiliation with this exact definition. Does not automatically make refinements abstract."
+              },
+              "propertyAccess": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^/(?:[^~]|~[01])*$"
+                },
+                "additionalProperties": {
+                  "enum": ["writable", "init-only", "service-managed"]
+                },
+                "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
+              },
+              "refines": false
             },
             "additionalProperties": true,
             "$defs": {
@@ -1586,22 +1606,6 @@
                 "additionalProperties": false,
                 "$comment": "Candidate Bead participation rule: min omitted means zero; max omitted means unbounded. min<=max and intersection with inherited/Link bounds need semantic validation."
               },
-              "endpointTypes": {
-                "oneOf": [
-                  {
-                    "type": "array",
-                    "const": ["*"]
-                  },
-                  {
-                    "type": "array",
-                    "minItems": 1,
-                    "uniqueItems": true,
-                    "items": {
-                      "$ref": "#/$defs/typeReference"
-                    }
-                  }
-                ]
-              },
               "endpointConstraint": {
                 "oneOf": [
                   {
@@ -1615,7 +1619,7 @@
                         "enum": ["same", "cross", "either"]
                       },
                       "types": {
-                        "$ref": "#/$defs/endpointTypes"
+                        "$ref": "#/$defs/typeSelector"
                       }
                     },
                     "additionalProperties": false
@@ -2107,13 +2111,13 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/types/links/link-type-conforms",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/types/beads/link-type",
             "target": {
@@ -2126,8 +2130,8 @@
       }
     },
     {
-      "id": "https://example.org/types/beads/conforms-to",
-      "revision": "conformance-1",
+      "id": "https://example.org/types/beads/refines",
+      "revision": "refines-1",
       "type": {
         "uri": "https://example.org/types/beads/link-type",
         "revision": "link-type-1"
@@ -2135,9 +2139,9 @@
       "properties": {
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
-          "$id": "https://example.org/bdp-draft/schemas/conforms-to.properties.schema.json",
-          "title": "Draft ConformsTo Link properties",
-          "$comment": "Base relationship requires no own properties. Extensions/specializations may add evidence or enforceable tightening-only qualifiers. This open object is not permission to ignore unknown semantic requirements. Endpoints, pins, ownership, kind equality and cycle checks are outside properties validation. Provenance is in the common revisionProvenance envelope, not required here.",
+          "$id": "https://example.org/bdp-draft/schemas/refines.properties.schema.json",
+          "title": "Draft Refines Link properties",
+          "$comment": "Base relationship requires no own properties. Descriptive metadata is allowed; no general executable qualifier language is selected initially. Required unsupported enforcement semantics refuse. Endpoints, exact-target family uniqueness, pins, ownership, kind equality and exact-revision cycles require semantic checks. Common revision provenance is not duplicated here.",
           "type": "object",
           "properties": {},
           "additionalProperties": true
@@ -2148,44 +2152,52 @@
               "source": {
                 "resourceKind": "bead",
                 "scope": "either",
-                "types": [
-                  {
-                    "uri": "https://example.org/types/beads/bead-type",
-                    "revision": "bead-type-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/types/beads/bead-type",
+                      "revision": "bead-type-1"
+                    }
+                  ]
+                }
               },
               "target": {
                 "resourceKind": "bead",
                 "scope": "either",
-                "types": [
-                  {
-                    "uri": "https://example.org/types/beads/bead-type",
-                    "revision": "bead-type-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/types/beads/bead-type",
+                      "revision": "bead-type-1"
+                    }
+                  ]
+                }
               }
             },
             {
               "source": {
                 "resourceKind": "bead",
                 "scope": "either",
-                "types": [
-                  {
-                    "uri": "https://example.org/types/beads/link-type",
-                    "revision": "link-type-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/types/beads/link-type",
+                      "revision": "link-type-1"
+                    }
+                  ]
+                }
               },
               "target": {
                 "resourceKind": "bead",
                 "scope": "either",
-                "types": [
-                  {
-                    "uri": "https://example.org/types/beads/link-type",
-                    "revision": "link-type-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/types/beads/link-type",
+                      "revision": "link-type-1"
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -3157,13 +3169,13 @@
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/types/links/task-conforms",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/types/beads/task",
             "target": {
@@ -3201,22 +3213,26 @@
               "source": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": [
-                  {
-                    "uri": "https://example.org/types/beads/issue",
-                    "revision": "issue-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/types/beads/issue",
+                      "revision": "issue-1"
+                    }
+                  ]
+                }
               },
               "target": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": [
-                  {
-                    "uri": "https://example.org/types/beads/issue",
-                    "revision": "issue-1"
-                  }
-                ]
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://example.org/types/beads/issue",
+                      "revision": "issue-1"
+                    }
+                  ]
+                }
               }
             }
           ],
@@ -3666,25 +3682,29 @@
               "source": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": ["*"]
+                "types": {
+                  "any": true
+                }
               },
               "target": {
                 "resourceKind": "bead",
                 "scope": "same",
-                "types": ["*"]
+                "types": {
+                  "any": true
+                }
               }
             }
           ]
         }
       },
       "ownedLinks": {
-        "https://example.org/types/beads/conforms-to": [
+        "https://example.org/types/beads/refines": [
           {
             "id": "https://example.org/types/links/blocks-conforms",
             "revision": "declaration-1",
             "type": {
-              "uri": "https://example.org/types/beads/conforms-to",
-              "revision": "conformance-1"
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
             },
             "source": "https://example.org/types/beads/blocks",
             "target": {
@@ -3702,8 +3722,8 @@
       "id": "https://example.org/types/links/task-conforms",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/types/beads/task",
       "target": {
@@ -3716,8 +3736,8 @@
       "id": "https://example.org/types/links/blocks-conforms",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/types/beads/blocks",
       "target": {
@@ -3730,8 +3750,8 @@
       "id": "https://example.org/types/links/bead-type-conforms",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/types/beads/bead-type",
       "target": {
@@ -3744,8 +3764,8 @@
       "id": "https://example.org/types/links/link-type-conforms",
       "revision": "declaration-1",
       "type": {
-        "uri": "https://example.org/types/beads/conforms-to",
-        "revision": "conformance-1"
+        "uri": "https://example.org/types/beads/refines",
+        "revision": "refines-1"
       },
       "source": "https://example.org/types/beads/link-type",
       "target": {
