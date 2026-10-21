@@ -45,6 +45,26 @@ async function main() {
       await runtime.close();
       if (process.connected) process.disconnect();
     })());
+  let failure: Promise<void> | undefined;
+  const fail = (cause: unknown) =>
+    (failure ??= (async () => {
+      let retainedFailure = cause;
+      process.exitCode = 2;
+      try {
+        await close();
+      } catch (error) {
+        retainedFailure = new AggregateError(
+          [cause, error],
+          "creator rebind and native close failed",
+        );
+      } finally {
+        try {
+          process.stderr.write(inspect(retainedFailure, { depth: 8 }) + "\n");
+        } finally {
+          if (process.connected) process.disconnect();
+        }
+      }
+    })());
   process.on("message", (v: { command?: unknown; now?: unknown }) => {
     chain = chain
       .then(async () => {
@@ -63,15 +83,19 @@ async function main() {
         now = v.now;
         await send({ event: "creator-rebind.done", command: v.command, ready: await ready() });
       })
-      .catch(async (error) => {
-        console.error(inspect(error, { depth: 8 }));
-        await close();
-        process.exitCode = 1;
-      });
+      .catch(fail);
   });
-  process.once("SIGTERM", () => void close());
-  process.once("disconnect", () => void close());
-  await send({ event: "creator-rebind.ready", ...(await ready()) });
+  process.once("SIGTERM", () => {
+    void close().catch(fail);
+  });
+  process.once("disconnect", () => {
+    void close().catch(fail);
+  });
+  try {
+    await send({ event: "creator-rebind.ready", ...(await ready()) });
+  } catch (error) {
+    await fail(error);
+  }
 }
 main().catch((error) => {
   console.error(inspect(error, { depth: 8 }));
