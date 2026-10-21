@@ -53,6 +53,16 @@ Finite changefeed reads and reconnects before an observable erasure floor return
 before copied bytes can be served; their compact issued identities remain known.
 Fresh Snapshots include the projected permanent ledger.
 
+Ordinary Read collection and incident-Link pagination also holds immutable
+copies. The owner synchronously invalidates that view's pagination snapshots
+and cursor entries when erasure commits, without closing the Read plane or
+resetting its clock. Ordinary non-erasure commits preserve continuations and
+their original rows. The original snapshot context follows a cached page through
+Promise delivery and private HTTP response shaping; the final transport check
+uses that body context, while the public headers retain the current serving
+observation. Cleanup attempts all composed cache invalidations; any failure
+fences the owner with the complete collected causes before further delivery.
+
 An already-admitted changefeed stream may cross erasure position P only if the
 complete frame through P-1 has already been handed to its transport. Lagging or
 backpressured streams with queued earlier groups are aborted in the same

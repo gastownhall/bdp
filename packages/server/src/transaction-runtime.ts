@@ -28,6 +28,7 @@ import {
 import {
   createTransactionHttpHandler,
   transactionHttpProblem,
+  transactionHttpSourceContext,
   TRANSACTION_HTTP_TARGET_BYTES,
   type TransactionReceivedBody,
   type TransactionHttpResult,
@@ -182,10 +183,12 @@ export async function startTransactionRuntime(
         lastEventIds,
       );
       if (selected.kind === "finite") {
+        const sourceContext = transactionHttpSourceContext(selected);
         const scopeEpoch = selected.headers.get("bdp-scope-epoch"),
           authorizationView = selected.headers.get("bdp-authorization-view"),
           scopePosition = selected.headers.get("bdp-scope-position");
-        if (scopeEpoch && authorizationView && scopePosition)
+        if (sourceContext) service!.assertPublication(sourceContext);
+        else if (scopeEpoch && authorizationView && scopePosition)
           service!.assertPublication({ scopeEpoch, authorizationView, scopePosition });
         deliver(response, selected);
       } else {
