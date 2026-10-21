@@ -832,8 +832,8 @@ The definition descriptor contains both `propertiesSchema` and a referenced-sche
 map, proposed as `schemaResources`. This map is immutable with the Type revision;
 validation needs neither separate Schema Beads nor a separately mutable sidecar. It
 contains the exact referenced application-schema resources needed for offline
-evaluation of that definition's root. Baseline meta-schema provisioning is the
-separate unresolved obligation above.
+evaluation of that definition's root. The standard meta-schema baseline is
+implementation-supplied as specified above.
 Each inherited definition retains its own root and map; conformance does not merge
 independent maps or let a child overwrite an ancestor's reference bindings.
 

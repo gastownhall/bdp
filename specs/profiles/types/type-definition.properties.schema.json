@@ -77,7 +77,8 @@
         ]
       },
       "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
-    }
+    },
+    "refines": false
   },
   "additionalProperties": true,
   "$defs": {

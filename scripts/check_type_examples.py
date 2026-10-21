@@ -85,7 +85,7 @@ for key in ["propertiesSchema"]:
 for key, value in [("description", 42), ("describes", "bead"), ("propertiesSchema", "https://example.org/schema"),
                    ("propertiesSchema", {"type": 42}), ("propertiesSchema", {"required": "title"}),
                    ("propertiesSchema", {"$schema": "http://json-schema.org/draft-07/schema#"}),
-                   ("conformsTo", []), ("id", "https://example.org/type"), ("revision", "r1"),
+                   ("conformsTo", []), ("refines", []), ("id", "https://example.org/type"), ("revision", "r1"),
                    ("ownedLinks", {}), ("source", {}), ("pairUnique", True)]:
     check(type_name, altered(base, **{key: value}), False, "invalid " + key + repr(value))
 check(type_name, {"propertiesSchema": {"type": "object"}}, True, "identity is envelope; no display-name field needed")
