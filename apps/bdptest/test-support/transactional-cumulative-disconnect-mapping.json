@@ -1,0 +1,28 @@
+{
+  "base": "500625217f0952368fa15a0b7ad79f87d6fce015",
+  "runtimeSource": "bb13be5206c60f27477e320c7d82db2f53643355",
+  "rows": [
+    {
+      "id": "transactional.http.disconnect-admitted",
+      "selectedClause": "Once a mutation is admitted, client disconnection does not decide the outcome. The authority commits or rolls back, and it records one terminal receipt.",
+      "scope": "ONE actual admitted sequence-create socketloss followed by samekey direct retries and one terminalreceipt/effect",
+      "notSelected": "othercarrier/rollback/crash/transientabort"
+    },
+    {
+      "id": "transactional.http.internal-fault",
+      "selectedClause": "client disconnection, a transport failure, and a bodyless500 decide nothing: the transaction commits or fails on its own, the receipt records which",
+      "scope": "actual lost response by clientdestroyedsubmittingTCP after confirmed native durableadmission",
+      "notSelected": "bodyless500/nativefault/rollback counterpart"
+    }
+  ],
+  "ordinaryDeployment": false,
+  "runtimeConfigurationIdentity": null,
+  "control": "unchanged original native249 scheduler; clock/policy/comparison/deadline unchanged; no callback rewriting or fakeoutcome",
+  "actualPrivateRequest": "full original requestbytes private0600 outside publishedarchive; publicredactedcopy explicitly distinguished from originalwire",
+  "caps": {
+    "seconds": 90,
+    "bytes": 4194304,
+    "nodes": 100000,
+    "depth": 128
+  }
+}
