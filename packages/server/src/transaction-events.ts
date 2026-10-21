@@ -41,7 +41,6 @@ export const TRANSACTION_EVENT_GROUP_BYTES = Math.min(
 export const TRANSACTION_EVENT_FIRST_PAGE_BYTES = 5 * R + N + A + 1024;
 if (TRANSACTION_EVENT_FIRST_PAGE_BYTES > TRANSACTION_EVENT_PAGE_BYTES)
   throw new Error("transaction tuple cannot support the finite Event page budget");
-export class TransactionEventProjectionGap extends Error {}
 export class TransactionEventParameterError extends Error {
   constructor(
     message?: string,
@@ -205,6 +204,7 @@ export function projectTransactionEventGroup(
     group.authorizationView !== (visible ? context.authorizationView : INITIAL_TRANSACTION_VIEW) ||
     group.position !== `pos-${expectedPosition}` ||
     group.checkpoint !== group.position ||
+    (group.erasurePruned !== undefined && typeof group.erasurePruned !== "boolean") ||
     !Array.isArray(group.events) ||
     group.eventCount !== group.events.length ||
     !Array.isArray(group.changes) ||

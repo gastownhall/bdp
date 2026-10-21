@@ -46,11 +46,7 @@ import {
   transactionMinimumHeaders,
 } from "./transaction-consistency.js";
 import { TRANSACTION_HTTP_OPERATIONS } from "./transaction-discovery.js";
-import {
-  TransactionEventParameterError,
-  TransactionEventProjectionGap,
-  transactionEventRequest,
-} from "./transaction-events.js";
+import { TransactionEventParameterError, transactionEventRequest } from "./transaction-events.js";
 import {
   currentReadMinimumKind,
   isCurrentTransactionMinimumRead,
@@ -701,8 +697,6 @@ export function createTransactionHttpHandler(
           error instanceof TransactionChangefeedParameterError
         )
           response = transactionHttpProblem("invalid-parameter", error.context);
-        else if (error instanceof TransactionEventProjectionGap)
-          response = developmentGap(error.message);
         else if (error instanceof TransactionContinuationMinimumUnsupported)
           response = developmentGap("minimum-position-route");
         else if (error instanceof TransactionMinimumUnsupported)

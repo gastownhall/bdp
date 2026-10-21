@@ -152,7 +152,7 @@ export function projectTransactionChangeGroup(
     !Array.isArray(group.changes) ||
     !Array.isArray(group.events) ||
     (group.changes.length + group.events.length + group.erasures.length === 0 &&
-      !(value as { erasurePruned?: boolean }).erasurePruned)
+      (value as { erasurePruned?: boolean }).erasurePruned !== true)
   )
     throw new Error("invalid retained change group framing");
   const ids = new Set<string>();

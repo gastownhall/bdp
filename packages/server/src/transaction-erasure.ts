@@ -165,9 +165,11 @@ export function planHistoricalErasure(
   if (selected.size > 4096)
     throw new Error("historical erasure cascade exceeds administrative bound");
   for (const body of selected.values()) {
+    if (typeof body.id !== "string" || !body.id.startsWith(scope))
+      throw new TypeError("canonical same-scope cascade subject required");
     const row = db
       .prepare("SELECT body FROM resources WHERE id=?")
-      .get(String(body.id).slice(scope.length));
+      .get(body.id.slice(scope.length));
     if (row && (JSON.parse(String(row.body)) as Record<string, unknown>).revision === body.revision)
       throw new Error("live-version erasure requires an atomic successor or tombstone");
   }
