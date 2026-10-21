@@ -11,6 +11,7 @@ import {
   runConformanceMatrix,
   type ExactHttpModeOptions,
   type RawHttpExchangeExecutor,
+  type RawHttpDialRoute,
 } from "@bdp/conformance";
 import {
   createCumulativeReadUpdateArtifactBundle,
@@ -53,10 +54,18 @@ const helpers = (await import(
   launchInstalledReference(
     entry: string,
     configuration: unknown,
-  ): Promise<{ child: ChildProcess; ready: Record<string, unknown>; close(): Promise<unknown> }>;
+  ): Promise<{
+    child: ChildProcess;
+    ready: Record<string, unknown>;
+    dialRoute: RawHttpDialRoute;
+    close(): Promise<unknown>;
+  }>;
 };
 async function closeInstalledChild(
-  child: Awaited<ReturnType<typeof helpers.launchInstalledReference>>,
+  child: Pick<
+    Awaited<ReturnType<typeof helpers.launchInstalledReference>>,
+    "child" | "ready" | "close"
+  >,
 ) {
   await child.close();
   // A settled exit alone is insufficient: the helper also observes forced SIGKILL exits.
@@ -1285,9 +1294,9 @@ async function run(
   const coverage = JSON.parse(
     source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.toString(),
   ) as { rows: { id: string; wholeContract: boolean }[] };
-  const port = await helpers.availablePort();
+  const port = 0;
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-cumulative-ru-"));
-  const dialRoute = { transport: "plain" as const, host: "127.0.0.1", port };
+  let dialRoute: RawHttpDialRoute | undefined;
   const mode: ExactHttpModeOptions = {
     scope,
     profile: "read-update",
@@ -1507,6 +1516,7 @@ async function run(
           expect(child.ready.configurationIdentity).toBe(sessions[0].configurationIdentity);
           expect(child.ready.payloadIdentity).toBe(sessions[0].payloadIdentity);
         }
+        dialRoute = child.dialRoute;
         sessions.push({ scenario: scenario.id, ...child.ready });
         if (
           Array.isArray(fixture.readSeedScenarios) &&
@@ -1691,7 +1701,7 @@ async function run(
   };
   async function observe() {
     if (!target.exactConfiguration) throw Error("exact target configuration missing");
-    const executeClient = createInstalledExactClient(exactMode, dialRoute, (observation) => {
+    const observeClient = (observation: unknown) => {
       observations.push({ scenario: currentScenario, observation });
       if (currentScenario === coldDirectoryId) {
         if (coldClients.length >= 11) throw Error("extra cold directory client observation");
@@ -1707,7 +1717,11 @@ async function run(
           ...actual.observation,
         });
       }
-    });
+    };
+    const executeClient: ReturnType<typeof createInstalledExactClient> = async (execution) => {
+      if (!dialRoute) throw Error("scenario child has no observed listener");
+      return createInstalledExactClient(exactMode, dialRoute, observeClient)(execution);
+    };
     const result = await runConformanceMatrix({
       ...(signal === undefined ? {} : { signal }),
       scope,
@@ -4511,6 +4525,12 @@ it.each([
       undefined,
       control,
     );
+    if (process.env.BDP_RU_LISTENER_CORRUPTION_REPORT)
+      writeFileSync(
+        process.env.BDP_RU_LISTENER_CORRUPTION_REPORT,
+        JSON.stringify(report, null, 2) + "\n",
+        { flag: "wx", mode: 0o600 },
+      );
     expect(report.counterfactualApplications).toBe(1);
     const row = report.result.scenarios.find((r) => r.id === control.scenario);
     expect(row?.state).toBe("fail");

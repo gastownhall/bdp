@@ -107,6 +107,7 @@ async function main() {
       send({
         event: "qualification.ready",
         scope: runtime.scope,
+        listenUrl: runtime.listenUrl,
         claimEligible: false,
         configurationIdentity: runtime.configurationIdentity,
         artifactIdentity: runtime.artifactIdentity,

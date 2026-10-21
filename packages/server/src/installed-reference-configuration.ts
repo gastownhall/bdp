@@ -99,7 +99,7 @@ export function captureInstalledReferenceConfiguration(input: unknown) {
   if (
     !["127.0.0.1", "::1"].includes(host) ||
     !Number.isSafeInteger(listener.port) ||
-    (listener.port as number) < 1 ||
+    (listener.port as number) < 0 ||
     (listener.port as number) > 65535
   )
     throw new TypeError("explicit loopback listener required");

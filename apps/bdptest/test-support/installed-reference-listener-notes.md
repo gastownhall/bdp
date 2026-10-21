@@ -1,0 +1,9 @@
+# Child-owned RU listener allocation
+
+The private installed RU configuration accepts listener port 0, already supported by the actual development runtime. The child binds it and returns the runtime's authentic listenUrl. The launcher validates that loopback address (and any requested nonzero port) before exposing an immutable dial route. Canonical Scope/Host, profile and configuration identity remain independent of the physical listener port.
+
+The cumulative RU matrix now asks each bootstrap/scenario child for port 0. Source-native setup and client actions use that child's returned address; the exact client is created only after scenario preparation, because it snapshots its dial route. There is no released parent reservation, retry, delay extension, identity repair, or public/debug capability. Existing explicit-port callers remain supported; their historical tests/configuration bindings are not relabeled.
+
+New focused controls check capture identity/bounds, malformed ready addresses, three live child-owned listeners, an actual occupied explicit port refusal with terminal cleanup, and clean explicit-port reopen. The separately selected rb-seed-link regression preserves its original assertion/cap semantics. A retained EADDRINUSE identifies a collision, but the old CI did not record the competing occupant; no causal identity is invented.
+
+The legacy runtime intentionally returns only `{scope, close}`. A source-private WeakMap records the address observed inside the actual listen success/cleanup boundary; the installed factory reads it using that same authentic runtime object and adds listenUrl only to its private result. Copied handles cannot supply this observation. No public facade key or configuration identity formula changes. The first typecheck exposed the missing legacy address field before any subject ran; that failed source/log remains retained.
