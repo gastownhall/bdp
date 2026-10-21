@@ -1,0 +1,126 @@
+{
+  "profile": "read-update",
+  "ids": [
+    "read-update.sequence.expired-creator-binding",
+    "read-update.idempotency.expired",
+    "read-update.idempotency.expired-failure",
+    "read-update.idempotency.authorization-view"
+  ],
+  "rows": [
+    {
+      "id": "read-update.sequence.expired-creator-binding",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "and, for a creation that allocated an identity, that identity and its Resource kind, through which a later `@name` reference still resolves"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "or an `idempotency-expired` disposition, whose tombstone keeps the identity the creation allocated and its Resource kind"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "resolves each `@name` reference to the identity its creating member bound \u2014 taken from that member's fresh, retained, or expired disposition, never from the spelling"
+        }
+      ],
+      "preciseControlBoundary": "Trusted owner clock plus retained real creation fact, not fabricated expired receipt.",
+      "predicateWorkRemaining": "RU expired successful tombstone keeps allocated kind/ID; source dependency uses creator fact. Need real controlled expiry and @name binding after detail discard; TX completed receipt lifetime/epoch rules differ, no RU expired-detail inference."
+    },
+    {
+      "id": "read-update.idempotency.authorization-view",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "Authorization View changes do not create a new namespace: the principal-bound disposition remains retained and cannot execute again"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "before returning a retained `created` or `updated` result the authority re-authorizes disclosure of the retained record \u2014 the record as retained, whether or not the Resource still exists \u2014 against the present view"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "When the view no longer projects that record, the member fails with `forbidden` and discloses nothing retained. That response is not retained: it replaces neither the disposition nor its semantic identity, it permits no execution"
+        }
+      ],
+      "preciseControlBoundary": "Actual policy transition with immutable prior capture and retained original postimage; ordinary fixed policy configuration cannot pretend to change policy.",
+      "predicateWorkRemaining": "RU reauthorizes exact retained postimage without executing or overwriting original, including deleted original subject overlay. Current TX retires to receipt.reauthorization. Need genuine policy change/withheld/unwithheld original result evidence; all-visible stores do not demonstrate it."
+    },
+    {
+      "id": "read-update.idempotency.expired",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "Presenting an expired key with the same semantic identity fails with `idempotency-expired`; the authority never executes the member again and never reports the discarded outcome."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "Presenting an expired key with a different semantic identity remains `idempotency-conflict`."
+        }
+      ],
+      "preciseControlBoundary": "Real owner clock seam with unchanged24h retention, not sleep/cap reduction/new epoch.",
+      "predicateWorkRemaining": "RU success expiry drops detail/keeps fingerprint+creator/witness tombstone; same request expired vs changed conflict. Current TX retires to expired-detail receipt behavior. No treating real new-epoch execution as expired same namespace."
+    },
+    {
+      "id": "read-update.idempotency.expired-failure",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "A retained failure committed nothing: after the interval the authority MAY forget it entirely, and a later presentation of its key is unknown and executes"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "For a disposition that committed state \u2014 `created`, `updated` including a semantic no-op, or `deleted` \u2014 it MUST then retain a compact tombstone"
+        }
+      ],
+      "preciseControlBoundary": "Real owner clock and actual selected failure-forgetting policy, preserve MAY semantics.",
+      "predicateWorkRemaining": "RU MAY delete retained failure after floor, successful no-op still permanent tombstone. Current TX retires to failed-retained rules. Need controlled actual failure forgetting/success-noop expiry observations on correct profile; no mandatory error-forgetting policy invented."
+    }
+  ],
+  "source": "6230b85ddb54e5252f4e5e9bf34a46f8be53e000",
+  "ordinaryRuntimeConfigurationIdentity": null,
+  "scope": "https://reference.invalid/acme/",
+  "configuration": "same exact17Types4schemas and3principalbank as frozen7791736; NEW private clock/policy source binding, NOT ordinary identity",
+  "cases": [
+    "expired-creator",
+    "expired-failure",
+    "authorization-view",
+    "authorization-view-updated"
+  ],
+  "bounds": {
+    "artifactBytes": 4194304,
+    "nodes": 100000,
+    "depth": 128,
+    "aggregateSeconds": 90,
+    "requestsPerCase": 32,
+    "requestBodyBytes": 65536,
+    "responseBodyBytes": 1048576,
+    "transportSeconds": 5,
+    "retentionMs": 86400000,
+    "minimumRetentionMs": 86400000
+  },
+  "residuals": [
+    "No restore",
+    "No concurrent or duration permission claim",
+    "Failure forgetting is selected MAY policy, not universal requirement",
+    "No full130/profile award",
+    "Clock does not control Read pagination cursor Date.now"
+  ],
+  "fixtureReadSeedsExecuted": false,
+  "evidenceAttribution": {
+    "attempt1": "pure negative oracle PASS; three installed cases fail wrong legacy route, all cleanly closed/removed",
+    "attempt2": "three affected installed cases fail test full-record oracle missing metadata {}; no product failure",
+    "attempt3": "three affected installed cases PASS,33HTTP/13controls; pure oracle skipped",
+    "attempt4": "one NEW updated-disposition policy case PASS, previousfour tests skipped",
+    "finalAllCasesRun": false
+  }
+}

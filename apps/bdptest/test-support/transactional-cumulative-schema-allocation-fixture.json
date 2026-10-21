@@ -1,0 +1,151 @@
+{
+  "fixtureVersion": 1,
+  "id": "tx-cumulative-schema-allocation-v1",
+  "seed": 0,
+  "capabilities": ["installed-transactional-http", "transactional-receipt-observation"],
+  "scope": "https://reference.invalid/acme/",
+  "bindings": {
+    "batch": "https://reference.invalid/acme/operations/batch",
+    "subject": "https://reference.invalid/acme/beads/a",
+    "created": "https://reference.invalid/acme/beads/new",
+    "update-where": "https://reference.invalid/acme/operations/update-where",
+    "delete-where": "https://reference.invalid/acme/operations/delete-where",
+    "snapshot": "https://reference.invalid/acme/snapshot",
+    "changes": "https://reference.invalid/acme/changes/",
+    "events": "https://reference.invalid/acme/events/",
+    "type": "https://reference.invalid/acme/types/task",
+    "schema": "https://reference.invalid/acme/schemas/properties"
+  },
+  "artifacts": {
+    "descriptors": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/task",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/task\",\"name\":\"Task\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/properties\"}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/relationship",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/relationship\",\"name\":\"Relationship\",\"describes\":\"link\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/properties\",\"source\":{\"conformsTo\":[\"https://reference.invalid/acme/types/task\"],\"external\":\"opaque\"},\"target\":{\"conformsTo\":[\"https://reference.invalid/acme/types/task\"],\"external\":\"opaque\"}}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/strict",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/strict\",\"name\":\"Strict\",\"describes\":\"bead\",\"conformsTo\":[\"https://reference.invalid/acme/types/task\"],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/strict\"}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/minimal",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/minimal\",\"name\":\"Minimal\",\"describes\":\"bead\",\"conformsTo\":[]}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/mixed",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/mixed\",\"name\":\"Mixed\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/wildcard-n\",\"ownsOutgoing\":{\"*\":{\"max\":3},\"https://reference.invalid/acme/types/explicit\":{\"max\":1},\"https://reference.invalid/acme/types/empty\":{\"max\":1}}}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/only",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/only\",\"name\":\"Wildcard only\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/wildcard-n\",\"ownsOutgoing\":{\"*\":{\"max\":2}}}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/plain",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/plain\",\"name\":\"Plain\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/wildcard-n\"}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/explicit",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/explicit\",\"name\":\"explicit\",\"describes\":\"link\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/wildcard-n\",\"source\":{\"conformsTo\":[]},\"target\":{\"conformsTo\":[]}}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/empty",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/empty\",\"name\":\"empty\",\"describes\":\"link\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/wildcard-n\",\"source\":{\"conformsTo\":[]},\"target\":{\"conformsTo\":[]}}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/wild",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/wild\",\"name\":\"wild\",\"describes\":\"link\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/wildcard-n\",\"source\":{\"conformsTo\":[]},\"target\":{\"conformsTo\":[]}}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/other",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/other\",\"name\":\"other\",\"describes\":\"link\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/wildcard-n\",\"source\":{\"conformsTo\":[]},\"target\":{\"conformsTo\":[]}}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/parent",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/parent\",\"name\":\"Parent\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/parent\"}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/child",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/child\",\"name\":\"Child\",\"describes\":\"bead\",\"conformsTo\":[\"https://reference.invalid/acme/types/parent\"],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/child\"}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/own-only",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/own-only\",\"name\":\"Own schema only\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/child\"}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/many-required",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/many-required\",\"name\":\"Many required\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/many-required\"}"
+      }
+    ],
+    "schemas": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/properties",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/properties\",\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"},\"label\":{\"type\":\"string\"},\"n\":{\"type\":\"number\"}},\"additionalProperties\":true}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/wildcard-n",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/wildcard-n\",\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}},\"required\":[\"n\"],\"additionalProperties\":false}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/strict",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/strict\",\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"},\"n\":{\"type\":\"integer\"}},\"required\":[\"n\"],\"additionalProperties\":false}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/parent",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/parent\",\"type\":\"object\",\"properties\":{\"parentOnly\":{\"type\":\"string\",\"const\":\"parent-ok\"}},\"required\":[\"parentOnly\"],\"additionalProperties\":true}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/child",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/child\",\"type\":\"object\",\"properties\":{\"childOnly\":{\"type\":\"integer\"}},\"required\":[\"childOnly\"],\"additionalProperties\":true}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/many-required",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/many-required\",\"type\":\"object\",\"properties\":{\"r00\":{\"type\":\"integer\"},\"r01\":{\"type\":\"integer\"},\"r02\":{\"type\":\"integer\"},\"r03\":{\"type\":\"integer\"},\"r04\":{\"type\":\"integer\"},\"r05\":{\"type\":\"integer\"},\"r06\":{\"type\":\"integer\"},\"r07\":{\"type\":\"integer\"},\"r08\":{\"type\":\"integer\"},\"r09\":{\"type\":\"integer\"},\"r10\":{\"type\":\"integer\"},\"r11\":{\"type\":\"integer\"},\"r12\":{\"type\":\"integer\"},\"r13\":{\"type\":\"integer\"},\"r14\":{\"type\":\"integer\"},\"r15\":{\"type\":\"integer\"},\"r16\":{\"type\":\"integer\"}},\"required\":[\"r00\",\"r01\",\"r02\",\"r03\",\"r04\",\"r05\",\"r06\",\"r07\",\"r08\",\"r09\",\"r10\",\"r11\",\"r12\",\"r13\",\"r14\",\"r15\",\"r16\"],\"additionalProperties\":false}"
+      }
+    ]
+  },
+  "campaign": {
+    "profile": "transactional",
+    "history": false,
+    "authorityMode": "canonical",
+    "initialPolicy": "all-visible",
+    "cors": "not-configured",
+    "credentialRoles": [
+      {
+        "ref": "operator",
+        "principal": "same",
+        "canMutate": true
+      },
+      {
+        "ref": "reader",
+        "principal": "same",
+        "canMutate": false
+      },
+      {
+        "ref": "principal-a",
+        "principal": "principal-a",
+        "canMutate": true
+      },
+      {
+        "ref": "principal-a-rotated",
+        "principal": "principal-a",
+        "canMutate": true
+      },
+      {
+        "ref": "principal-b",
+        "principal": "principal-b",
+        "canMutate": true
+      },
+      {
+        "ref": "anonymous",
+        "principal": null,
+        "canMutate": false
+      }
+    ],
+    "credentialGeneration": "One actual random bank per campaign invocation, reused across all sessions/manifests. Never a new bank per case. No serialized token.",
+    "stateRule": "Scenario state may reset in owned stores, but source/payload/contracts/initialpolicy/authentication/fixture and runtime config identities must remain identical; otherwise report unlike target rather than pooling."
+  },
+  "description": "NEW ordinary installed allocation/schema witness configuration, separate from the historical fixed11/3 configuration."
+}
