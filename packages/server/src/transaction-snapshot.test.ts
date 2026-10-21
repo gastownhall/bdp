@@ -677,8 +677,18 @@ it("independent expected inventory rejects coherent omissions and early terminat
 });
 it("new private Snapshot entry points do not escape package public exports", () => {
   const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-  expect(Object.keys(manifest.exports).sort()).toEqual([".", "./development"]);
-  for (const file of ["index.ts", "development.ts"])
+  expect(Object.keys(manifest.exports).sort()).toEqual([
+    ".",
+    "./development",
+    "./reference-configuration",
+    "./reference-startup",
+  ]);
+  for (const file of [
+    "index.ts",
+    "development.ts",
+    "reference-deployment.ts",
+    "reference-startup.ts",
+  ])
     for (const privateModule of ["transaction-snapshot", "json-value-equality"])
       expect(readFileSync(new URL(file, import.meta.url), "utf8")).not.toContain(privateModule);
 });

@@ -2,6 +2,7 @@ import { observeInstalledReference } from "./installed-reference-observation.mjs
 import { createRequire } from "node:module";
 import { assertServerExports, isolatedWorkspace } from "./smoke-safety.mjs";
 import { spawn } from "node:child_process";
+import { createServer } from "node:net";
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -373,6 +374,26 @@ async function installPackedWorkspace() {
       "read-pagination.d.ts.map",
       "read-pagination.js",
       "read-pagination.js.map",
+      "reference-startup.d.ts",
+      "reference-startup.d.ts.map",
+      "reference-startup.js",
+      "reference-startup.js.map",
+      "reference-deployment.d.ts",
+      "reference-deployment.d.ts.map",
+      "reference-deployment.js",
+      "reference-deployment.js.map",
+      "reference-deployment-runtime.d.ts",
+      "reference-deployment-runtime.d.ts.map",
+      "reference-deployment-runtime.js",
+      "reference-deployment-runtime.js.map",
+      "reference-deployment-process.d.ts",
+      "reference-deployment-process.d.ts.map",
+      "reference-deployment-process.js",
+      "reference-deployment-process.js.map",
+      "reference-deployment-state.d.ts",
+      "reference-deployment-state.d.ts.map",
+      "reference-deployment-state.js",
+      "reference-deployment-state.js.map",
       "read-request.d.ts",
       "read-request.d.ts.map",
       "read-request.js",
@@ -420,6 +441,36 @@ async function installPackedWorkspace() {
       (await realpath(path.join(installedServerRoot, "dist", "development.js")))
     )
       throw new Error("packed development facade does not resolve to its explicit entry");
+    const deploymentEntry = consumer.resolve("@bdp/server/reference-configuration");
+    if (
+      (await realpath(deploymentEntry)) !==
+      (await realpath(path.join(installedServerRoot, "dist", "reference-deployment.js")))
+    )
+      throw new Error("packed deployment loader does not resolve to its approved entry");
+    const deployment = await import(pathToFileURL(deploymentEntry).href);
+    if (
+      Object.keys(deployment).sort().join(",") !==
+      "ReferenceDeploymentError,loadReferenceDeployment"
+    )
+      throw new Error("packed deployment entry exposes unexpected capabilities");
+    const publicDeclaration = await readFile(
+      path.join(installedServerRoot, "dist", "reference-deployment.d.ts"),
+      "utf8",
+    );
+    for (const name of [
+      "reference-deployment-state",
+      "installed-reference-configuration",
+      "transaction-runtime",
+      "TransactionRuntime",
+      "credentials",
+      "projectedInput",
+      "authenticate",
+      "metadata(",
+      "readOptions(",
+    ])
+      if (publicDeclaration.includes(name))
+        throw new Error("packed deployment declaration exposes private capture types");
+    await observePackedDeploymentLoader(deployment, temporaryRoot);
     const protocol = await import(pathToFileURL(consumer.resolve("@bdp/protocol")).href);
     const transactionFixture = JSON.parse(
       await readFile(path.join(workspaceRoot, "fixtures/transactional/discovery.json"), "utf8"),
@@ -456,6 +507,16 @@ async function installPackedWorkspace() {
       "prepareSetCore" in publicServer
     )
       throw new Error("packed root exposes private transaction service");
+    if (
+      "startPreparedReferenceDeployment" in publicServer ||
+      "startPreparedDevelopmentReferenceRuntime" in publicServer ||
+      "startPreparedTransactionRuntime" in publicServer ||
+      "assemblePreparedDevelopmentArguments" in publicServer ||
+      "loadReferenceDeployment" in publicServer ||
+      "referenceDeploymentState" in publicServer ||
+      "registerReferenceDeployment" in publicServer
+    )
+      throw new Error("packed root exposes deployment preparation or private registry");
     if ("createContextualReadPagination" in publicServer)
       throw new Error("packed root exposes private contextual pagination factory");
     const pagination = publicServer.createReadPagination({
@@ -522,6 +583,14 @@ async function installPackedWorkspace() {
     for (const specifier of [
       "@bdp/conformance/transactional-observation",
       "@bdp/conformance/dist/transactional-observation.js",
+      "@bdp/server/reference-deployment",
+      "@bdp/server/dist/reference-deployment.js",
+      "@bdp/server/reference-deployment-runtime",
+      "@bdp/server/dist/reference-deployment-runtime.js",
+      "@bdp/server/reference-deployment-process",
+      "@bdp/server/dist/reference-deployment-process.js",
+      "@bdp/server/reference-deployment-state",
+      "@bdp/server/dist/reference-deployment-state.js",
       "@bdp/server/development-composition",
       "@bdp/server/dist/development-composition.js",
       "@bdp/server/installed-payload",
@@ -959,6 +1028,9 @@ try {
       fail(executable, "bdptest.fixture should be unset by default");
     }
 
+    if (executable === "bdptest" && Object.hasOwn(startupConfig.bdptest, "deploymentFile"))
+      fail(executable, "bdptest.deploymentFile should be unset by default");
+
     console.log(`${executable}: installed clean lifecycle passed`);
   }
 
@@ -969,15 +1041,27 @@ try {
   const bdptestMapped = await runLifecycle("bdptest", installed.entry("bdptest"), true, {
     BDP_SERVER_ADVERTISED_PROFILE: "read-update",
     BDP_BDPTEST_FIXTURE: "smoke-fixture",
+    BDP_BDPTEST_DEPLOYMENT_FILE: path.join(
+      installed.temporaryRoot,
+      "must-not-open-deployment.json",
+    ),
   });
   const bdptestConfig = startupConfigFor(parseDiagnostics(bdptestMapped.stderr, "bdptest"));
   if (
     bdptestConfig?.server?.advertisedProfile !== "read-update" ||
-    bdptestConfig?.bdptest?.fixture !== "smoke-fixture"
+    bdptestConfig?.bdptest?.fixture !== "smoke-fixture" ||
+    bdptestConfig?.bdptest?.deploymentFile !==
+      path.join(installed.temporaryRoot, "must-not-open-deployment.json") ||
+    bdptestMapped.code !== 0 ||
+    parseDiagnostics(bdptestMapped.stderr, "bdptest").some(
+      (entry) => entry.event === "server.started",
+    )
   ) {
-    fail("bdptest", "BDP_SERVER_ADVERTISED_PROFILE / BDP_BDPTEST_FIXTURE did not round-trip");
+    fail("bdptest", "profile/fixture/deployment path did not round-trip without serving");
   }
-  console.log("bdptest: server.advertisedProfile and bdptest.fixture round-trip through tarball");
+  console.log(
+    "bdptest: profile/fixture/deployment path round-trip without opening deployment or serving",
+  );
 
   const bdpbdMapped = await runLifecycle("bdpbd", installed.entry("bdpbd"), true, {
     BDP_SERVER_ADVERTISED_PROFILE: "read-update",
@@ -1124,4 +1208,166 @@ try {
   console.log("bdp: role isolation lifecycle ignores invalid bdptest/server values");
 } finally {
   await rm(installed.temporaryRoot, { recursive: true, force: true });
+}
+
+/** Pure installed-loader witness; this guard owns the occupied intended port.
+ * Success excludes acquisition of that configured listener. Source forbidden-call
+ * instrumentation separately observes attempted startup calls. Store paths stay
+ * absent. This is not installed service evidence. */
+async function observePackedDeploymentLoader(deployment, temporaryRoot) {
+  const guard = createServer();
+  await new Promise((resolve, reject) => {
+    guard.once("error", reject);
+    guard.listen(0, "127.0.0.1", resolve);
+  });
+  try {
+    const address = guard.address();
+    if (address === null || typeof address === "string")
+      throw new Error("missing owned loader witness port");
+    const scope = "https://packed-deployment.test/s/",
+      token = "packed_deployment_secret_01234567890123456789";
+    const file = path.join(temporaryRoot, "pure-deployment.json");
+    const descriptor = `${scope}types/item`,
+      schema = `${scope}schemas/item`;
+    const artifacts = {
+      descriptors: [
+        {
+          retrievalUri: descriptor,
+          utf8: JSON.stringify({
+            id: descriptor,
+            name: "Item",
+            describes: "bead",
+            conformsTo: [],
+            propertiesSchema: schema,
+          }),
+        },
+      ],
+      schemas: [
+        {
+          retrievalUri: schema,
+          utf8: JSON.stringify({
+            $id: schema,
+            type: "object",
+            properties: { n: { type: "integer" } },
+            additionalProperties: false,
+          }),
+        },
+      ],
+    };
+    const inert = (value) => {
+      if (typeof value === "function") throw new Error("packed deployment returned a capability");
+      if (value !== null && typeof value === "object") {
+        if (!Object.isFrozen(value)) throw new Error("packed deployment returned mutable data");
+        for (const [key, child] of Object.entries(value)) {
+          if (
+            [
+              "credentials",
+              "token",
+              "authenticate",
+              "metadata",
+              "readOptions",
+              "projectedInput",
+              "installed",
+              "preflight",
+            ].includes(key)
+          )
+            throw new Error("packed deployment exposes private state");
+          inert(child);
+        }
+      }
+    };
+    for (const profile of ["read-update", "transactional"]) {
+      const directory = path.join(temporaryRoot, `absent-${profile}-store`);
+      const configuration =
+        profile === "read-update"
+          ? {
+              directory,
+              create: true,
+              credentials: [{ token, principal: "writer" }],
+              policies: { writer: { create: true, write: true, hidden: [], readOnly: [] } },
+              contracts: { descriptors: [], schemas: [] },
+              maximumEndpointMultiplicity: [],
+            }
+          : {
+              directory,
+              create: true,
+              credentials: [{ token, principal: "writer", canMutate: true }],
+              artifacts,
+            };
+      const input = {
+        deploymentFile: file,
+        scope: { url: scope },
+        server: {
+          host: "127.0.0.1",
+          port: address.port,
+          advertisedProfile: profile,
+          limits: {
+            page: {
+              defaultItems: profile === "read-update" ? 20 : 2,
+              maximumItems: profile === "read-update" ? 100 : 32,
+            },
+            selector: { bytes: 4096, depth: 32, nodes: 256 },
+            cursorTtlMilliseconds: profile === "read-update" ? 60000 : 1000,
+          },
+        },
+      };
+      const body = { format: "bdptest-reference-deployment-1", profile, configuration };
+      await writeFile(file, JSON.stringify(body));
+      const result = await deployment.loadReferenceDeployment(input);
+      inert(result);
+      if (
+        result.profile !== profile ||
+        result.canonicalScope !== scope ||
+        result.listener.port !== address.port ||
+        JSON.stringify(result).includes(token)
+      )
+        throw new Error("packed deployment returned incorrect or secret-bearing summary");
+      for (const candidate of [
+        { ...body, profile: profile === "read-update" ? "transactional" : "read-update" },
+        {
+          ...body,
+          configuration: {
+            ...configuration,
+            [profile === "read-update" ? "contracts" : "artifacts"]: {
+              descriptors: [{ retrievalUri: descriptor, utf8: "packed_payload_sentinel" }],
+              schemas: [],
+            },
+          },
+        },
+      ]) {
+        await writeFile(file, JSON.stringify(candidate));
+        let refused = false;
+        try {
+          await deployment.loadReferenceDeployment(input);
+        } catch (error) {
+          if (
+            !(error instanceof deployment.ReferenceDeploymentError) ||
+            error.code !== "contract" ||
+            "cause" in error ||
+            [token, "packed_payload_sentinel"].some((secret) =>
+              `${error} ${JSON.stringify(error)}`.includes(secret),
+            )
+          )
+            throw error;
+          refused = true;
+        }
+        if (!refused) throw new Error("packed deployment accepted an invalid contract");
+      }
+      try {
+        await realpath(directory);
+        throw new Error("packed loader created a store directory");
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+      if (!guard.listening || guard.address().port !== address.port)
+        throw new Error("packed loader disturbed the owned witness listener");
+    }
+    console.log(
+      "installed pure reference deployment loader: RU/TX, refusals and inert boundary passed",
+    );
+  } finally {
+    await new Promise((resolve, reject) =>
+      guard.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
 }

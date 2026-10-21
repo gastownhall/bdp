@@ -1411,3 +1411,69 @@ describe("explicit reference ReadUpdate defaults", () => {
     expect(resolveServerReadUpdateLimits()).not.toHaveProperty("diagnosticCount");
   });
 });
+
+describe("bdptest.deploymentFile", () => {
+  it("stores a nonsecret absolute path without opening it and preserves precedence", () => {
+    expect(load({}).bdptest).not.toHaveProperty("deploymentFile");
+    const file = {
+      path: "/config.json",
+      contents: JSON.stringify({ bdptest: { deploymentFile: "/file.json" } }),
+    };
+    expect(load({}, file).bdptest.deploymentFile).toBe("/file.json");
+    const resolved = load({ BDP_BDPTEST_DEPLOYMENT_FILE: "/not-opened/é.json" }, file);
+    expect(resolved.bdptest.deploymentFile).toBe("/not-opened/é.json");
+    expect(redactStartupConfig(resolved).bdptest.deploymentFile).toBe("/not-opened/é.json");
+    expect(
+      loadAsBdptest({ BDP_BDPTEST_DEPLOYMENT_FILE: "/deployment.json" }).bdptest.deploymentFile,
+    ).toBe("/deployment.json");
+  });
+  it.each([
+    "",
+    "relative.json",
+    "/sentinel-secret\u0000.json",
+    "/sentinel-secret\n.json",
+    "/\ud800",
+    `/${"é".repeat(8192)}`,
+  ])("refuses invalid path case %# with field/rule-only diagnostics", (value) => {
+    for (const role of [undefined, "bdptest"] as const) {
+      const env = { BDP_BDPTEST_DEPLOYMENT_FILE: value };
+      const result = issues(() =>
+        role === undefined
+          ? loadStartupConfig({ env })
+          : loadStartupConfig({ env, role: "bdptest" }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]?.path).toBe("bdptest.deploymentFile");
+      expect(JSON.stringify(result)).not.toContain("sentinel-secret");
+      expect(result[0]?.message).toContain("absolute well-formed path");
+    }
+  });
+  it("uses UTF8 bytes at the exact path bound", () => {
+    const value = `/${"é".repeat(8191)}a`;
+    expect(Buffer.byteLength(value)).toBe(16384);
+    expect(load({ BDP_BDPTEST_DEPLOYMENT_FILE: value }).bdptest.deploymentFile).toBe(value);
+  });
+  it.each(["bdp", "bdpbd", "conformance"] as const)(
+    "ignores content but preserves global vocabulary for %s",
+    (role) => {
+      const options = {
+        role,
+        env: { BDP_BDPTEST_DEPLOYMENT_FILE: "relative-invalid" },
+        configFile: "/shared.json",
+      };
+      const resolve = (contents: string) => {
+        const readFile = () => contents;
+        switch (role) {
+          case "bdp":
+            return loadStartupConfig({ ...options, role: "bdp", readFile });
+          case "bdpbd":
+            return loadStartupConfig({ ...options, role: "bdpbd", readFile });
+          case "conformance":
+            return loadStartupConfig({ ...options, role: "conformance", readFile });
+        }
+      };
+      expect(resolve('{"bdptest":{"deploymentFile":42}}')).not.toHaveProperty("bdptest");
+      expect(() => resolve('{"bdptest":{"deploymentFil":42}}')).toThrow(ConfigError);
+    },
+  );
+});
