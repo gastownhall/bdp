@@ -1,0 +1,11 @@
+{
+  "predicate": "transactional.idempotency.semantic-identity",
+  "clause": "Batch label references normalize to supplied canonical identity or omitted-ID creator index; name spelling is excluded, never substituted with allocated identity.",
+  "cases": ["NEW TX supplied creator label", "NEW TX omitted creator index"],
+  "configuration": "ordinary unchanged 73bd fixture; compiled bb13/34e packages reused",
+  "limits": { "seconds": 90, "bytes": 4194304, "nodes": 100000, "depth": 128, "HTTPPerCase": 30 },
+  "residuals": [
+    "Other semantic identity operands and carriers retain separate evidence",
+    "No whole251/profile award"
+  ]
+}
