@@ -1,0 +1,20 @@
+{
+  "ids": ["transactional.sequence.in-flight-projection", "transactional.sequence.pending-creator"],
+  "case": "NEW pending sequence precedence and key isolation",
+  "selected": "Foreign pending creator beats immutable mismatch; dependents of pending/transient creator skip competing terminal-key comparison and release only newly owned fresh reservation.",
+  "nativeControl": "Same existing247/249 original callback scheduler only; no product outcome emulation",
+  "ordinaryDeployment": false,
+  "runtimeConfigurationIdentity": null,
+  "caps": {
+    "seconds": 90,
+    "bytes": 4194304,
+    "nodes": 100000,
+    "depth": 128,
+    "HTTPTimeoutMs": 5000,
+    "nativeTimeoutMs": 10000
+  },
+  "residuals": [
+    "Other producer/principal/expiry/crash permutations and direct unresolved comparison remain separately attributed",
+    "No whole251/profile qualification"
+  ]
+}
