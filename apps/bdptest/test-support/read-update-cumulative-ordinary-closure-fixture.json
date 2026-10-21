@@ -1,0 +1,27 @@
+{
+  "fixtureVersion": 1,
+  "id": "ru-ordinary-closure-extra-schema-v1",
+  "seed": 0,
+  "capabilities": ["installed-read-update-http"],
+  "scope": "https://reference.invalid/acme/",
+  "bindings": {
+    "scope": "https://reference.invalid/acme/",
+    "type": "https://reference.invalid/acme/types/closure-many",
+    "schema": "https://reference.invalid/acme/schemas/closure-many"
+  },
+  "artifacts": {
+    "descriptors": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/closure-many",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/closure-many\",\"name\":\"Closure many errors\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/closure-many\"}"
+      }
+    ],
+    "schemas": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/closure-many",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/closure-many\",\"type\":\"object\",\"properties\":{\"e00\":{\"type\":\"integer\"},\"e01\":{\"type\":\"integer\"},\"e02\":{\"type\":\"integer\"},\"e03\":{\"type\":\"integer\"},\"e04\":{\"type\":\"integer\"},\"e05\":{\"type\":\"integer\"},\"e06\":{\"type\":\"integer\"},\"e07\":{\"type\":\"integer\"},\"e08\":{\"type\":\"integer\"},\"e09\":{\"type\":\"integer\"},\"e10\":{\"type\":\"integer\"},\"e11\":{\"type\":\"integer\"},\"e12\":{\"type\":\"integer\"},\"e13\":{\"type\":\"integer\"},\"e14\":{\"type\":\"integer\"},\"e15\":{\"type\":\"integer\"},\"e16\":{\"type\":\"integer\"},\"e17\":{\"type\":\"integer\"},\"e18\":{\"type\":\"integer\"},\"e19\":{\"type\":\"integer\"},\"e20\":{\"type\":\"integer\"},\"e21\":{\"type\":\"integer\"},\"e22\":{\"type\":\"integer\"},\"e23\":{\"type\":\"integer\"},\"e24\":{\"type\":\"integer\"},\"e25\":{\"type\":\"integer\"},\"e26\":{\"type\":\"integer\"},\"e27\":{\"type\":\"integer\"},\"e28\":{\"type\":\"integer\"},\"e29\":{\"type\":\"integer\"},\"e30\":{\"type\":\"integer\"},\"e31\":{\"type\":\"integer\"},\"e32\":{\"type\":\"integer\"}},\"required\":[\"e00\",\"e01\",\"e02\",\"e03\",\"e04\",\"e05\",\"e06\",\"e07\",\"e08\",\"e09\",\"e10\",\"e11\",\"e12\",\"e13\",\"e14\",\"e15\",\"e16\",\"e17\",\"e18\",\"e19\",\"e20\",\"e21\",\"e22\",\"e23\",\"e24\",\"e25\",\"e26\",\"e27\",\"e28\",\"e29\",\"e30\",\"e31\",\"e32\"],\"additionalProperties\":false}"
+      }
+    ]
+  },
+  "description": "ONE bounded additional Type/schema over exact current17/4 cumulativeRU configuration; only truncation case selects resulting18/5 config. Not a relabel of9af; actual full configuration/artifact identities captured from installed source."
+}
