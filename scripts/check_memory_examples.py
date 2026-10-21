@@ -35,7 +35,7 @@ LINK_NAMES = {"references"}
 SHARED_NAMES = ("type-definition.properties.schema.json",
                 "bead-type-definition.properties.schema.json",
                 "link-type-definition.properties.schema.json",
-                "conforms-to.properties.schema.json")
+                "refines.properties.schema.json")
 
 
 def read(path):
@@ -139,16 +139,16 @@ if args.with_bdp_exploration:
         name = definition["id"].removeprefix(K) if is_bead else "link"
         require(definition["properties"]["propertiesSchema"] == schemas[name],
                 ("Embedded schema differs from owned artifact", definition["id"]))
-        recorded = definition["ownedLinks"][F + "conforms-to"]
+        recorded = definition["ownedLinks"].get(F + "refines", [])
         parent = None
         if is_bead and name in CHILDREN:
             parent = MEMORY
         for declaration in recorded:
             require(declaration["source"] == definition["id"], "Wrong declaration owner")
-            require(exact(declaration["type"]) == (F + "conforms-to", "conformance-1"),
+            require(exact(declaration["type"]) == (F + "refines", "refines-1"),
                     "Unexpected declaration affiliation")
             require(exact(declaration["target"]) == parent, "Wrong family ancestor pin")
-            errors = list(shared_validators["conforms-to.properties.schema.json"].iter_errors(declaration["properties"]))
+            errors = list(shared_validators["refines.properties.schema.json"].iter_errors(declaration["properties"]))
             require(not errors, "Invalid declaration properties")
             owned_declarations.append(declaration)
         require(len(recorded) == (1 if parent else 0), "Unexpected direct conformance")
@@ -160,7 +160,7 @@ if args.with_bdp_exploration:
         require(pin not in active, ("Exact fixture conformance cycle", pin))
         require(pin in combined, ("Missing exact fixture definition", pin))
         result = {pin}
-        for declaration in combined[pin].get("ownedLinks", {}).get(F + "conforms-to", []):
+        for declaration in combined[pin].get("ownedLinks", {}).get(F + "refines", []):
             result.update(closure(exact(declaration["target"]), (*active, pin)))
         return result
 
