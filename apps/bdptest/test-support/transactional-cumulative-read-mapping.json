@@ -1,0 +1,90 @@
+{
+  "kind": "TX_INHERITED_LINKS_READ_FINITE_MAPPING_1",
+  "base": "8458e63ead937f9c051a39b3b957a089bdbb9cbf",
+  "fixture": "transactional-cumulative-product-fixture.json",
+  "configurationExpected": "73bdc0e24d65a8ab4444c5698b84d368a39cdcbbe2caad3ef7d913a317b1930b",
+  "selectedRows": [
+    {
+      "id": "read.collections.links",
+      "title": "Link collection returns complete records and continuation",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "The `beads/` and `links/` collections return complete Resource records; the `types/` collection returns Type summaries."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "The baseline order every authority MUST support is\n`canonical-uri` \u2014 ascending lexicographic comparison, by Unicode code\nunit, of each item's absolute canonical `id`."
+        }
+      ],
+      "catalogOrigin": "read-v1.json",
+      "carrierUnit": "read-core",
+      "currentPortablePlan": false,
+      "firstReadBundle": false,
+      "wholePredicateState": "unexecuted-unreconciled",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "wireRule": "Inherited semantic predicates retain exact clauses; explicit TX receipt/status/Event rules override lower-profile wire forms. No RU direct-response oracle presumed valid."
+    },
+    {
+      "id": "read.collections.structural-predicates",
+      "title": "Collection structural predicates compose exactly",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "Different predicates are combined with logical AND. Within `endpoint`, source and target are combined with logical OR."
+        }
+      ],
+      "catalogOrigin": "read-v1.json",
+      "carrierUnit": "read-core",
+      "currentPortablePlan": false,
+      "firstReadBundle": false,
+      "wholePredicateState": "unexecuted-unreconciled",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "wireRule": "Inherited semantic predicates retain exact clauses; explicit TX receipt/status/Event rules override lower-profile wire forms. No RU direct-response oracle presumed valid."
+    },
+    {
+      "id": "read.collections.invalid-query",
+      "title": "Unsupported and repeated collection parameters are rejected",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "A parameter may occur at most once in BDP v0; repeated parameters are errors rather than implicit unions."
+        }
+      ],
+      "catalogOrigin": "read-v1.json",
+      "carrierUnit": "read-core",
+      "currentPortablePlan": false,
+      "firstReadBundle": false,
+      "wholePredicateState": "unexecuted-unreconciled",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "wireRule": "Inherited semantic predicates retain exact clauses; explicit TX receipt/status/Event rules override lower-profile wire forms. No RU direct-response oracle presumed valid."
+    }
+  ],
+  "cases": {
+    "links-collection": "complete unfiltered canonical Link records,3 issued pages,HEAD parity,AND/endpoint OR/selfdedup/external exact URI",
+    "collection-errors": "eight repeated parameter names,unsupported/view/include400request-never andHEADbodyless"
+  },
+  "notSelected": [
+    "History",
+    "hidden projection",
+    "concurrent retained-page mutation already234",
+    "Types/schema already234",
+    "SSE",
+    "new policy/admin/clock",
+    "whole251qualification"
+  ],
+  "manifestMeaning": "Existing artifact factory selection references three rowIDs; source-owned cases execute actual requests directly, not a claim that the manifest HTTP actions were independently executed."
+}

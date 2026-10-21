@@ -1,0 +1,114 @@
+{
+  "manifestVersion": 2,
+  "catalogId": "transactional-v1",
+  "scenarios": [
+    {
+      "id": "read.collections.links",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "tx-cumulative-product-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "source-owned-campaign-reference",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/"
+          },
+          "credentialRef": "operator",
+          "assertions": [
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            }
+          ],
+          "raw": {
+            "headerLines": []
+          },
+          "captures": []
+        }
+      ]
+    },
+    {
+      "id": "read.collections.structural-predicates",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "tx-cumulative-product-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "source-owned-campaign-reference",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/"
+          },
+          "credentialRef": "operator",
+          "assertions": [
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            }
+          ],
+          "raw": {
+            "headerLines": []
+          },
+          "captures": []
+        }
+      ]
+    },
+    {
+      "id": "read.collections.invalid-query",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "tx-cumulative-product-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "source-owned-campaign-reference",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/"
+          },
+          "credentialRef": "operator",
+          "assertions": [
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            }
+          ],
+          "raw": {
+            "headerLines": []
+          },
+          "captures": []
+        }
+      ]
+    }
+  ]
+}
