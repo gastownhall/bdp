@@ -47,7 +47,9 @@ function fixture() {
       }),
     ],
   });
-  const service = createTransactionService(owner, {
+  let service: ReturnType<typeof createTransactionService> | undefined;
+  cleanup.push(() => (service ? service.close() : owner.close()));
+  service = createTransactionService(owner, {
     ownerLifetime: "service",
     read: {
       selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
@@ -73,7 +75,6 @@ function fixture() {
       },
     },
   });
-  cleanup.push(() => service.close());
   return {
     owner,
     service,
