@@ -34,11 +34,16 @@ type SchemaRecord = Record<string, unknown>;
 type JsonRecord = Record<string, unknown>;
 
 /** The rows this draft adds; the specification table and the bundle must both agree. */
-const TRANSACTIONAL_PROBLEM_ROWS: readonly (readonly [string, string, number, string])[] = [
+const FROZEN_TRANSACTIONAL_PROBLEM_ROWS: readonly (readonly [string, string, number, string])[] = [
   ["cardinality-violated", "conflict", 409, "after-state-change"],
   ["event-history-expired", "gone", 410, "never"],
   ["catch-up-timeout", "unavailable", 503, "after-delay"],
 ];
+// S1 is an explicitly accepted amendment, kept separate from the frozen spec table.
+const TRANSACTIONAL_PROBLEM_ROWS = [
+  ...FROZEN_TRANSACTIONAL_PROBLEM_ROWS,
+  ["snapshot-position-too-old", "conflict", 409, "after-state-change"],
+] as const;
 /** The Read+Update rows precede these in the table; the Read+Update lockstep test owns them. */
 const READ_UPDATE_ROW_COUNT = 13;
 
@@ -145,7 +150,7 @@ describe("Transactional problem rows", () => {
     expect([...readRows, ...updateRows].map(([code]) => code)).toEqual(
       def("readUpdateProblemCode").enum,
     );
-    expect(transactionRows).toEqual(TRANSACTIONAL_PROBLEM_ROWS);
+    expect(transactionRows).toEqual(FROZEN_TRANSACTIONAL_PROBLEM_ROWS);
   });
 
   it("mirrors the rows in the bundle's Transactional problem branches", () => {
