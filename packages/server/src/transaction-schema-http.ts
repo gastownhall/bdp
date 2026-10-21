@@ -1,9 +1,17 @@
 /** Source-private exact local retrieval identities. No resolver, installation API,
- * public discovery or minimum-control support is implied by this projection. */
+ * public discovery or profile qualification is implied by this projection. */
 import type { HttpResponse } from "./index.js";
 import { assertDevelopmentContracts, type DevelopmentContracts } from "./development-contracts.js";
 import { applyReadHttpSemantics } from "./read-http.js";
-import { hasMinimumControls, type TransactionHttpAuthorization } from "./transaction-http.js";
+import {
+  hasMinimumControls,
+  transactionMinimumFailureResponse,
+  type TransactionHttpAuthorization,
+} from "./transaction-http.js";
+import {
+  malformedTransactionMinimumHeaders,
+  currentReadMinimumHeaders,
+} from "./transaction-consistency.js";
 import type { createTransactionService } from "./transaction-service.js";
 
 export function createTransactionSchemaHttp(
@@ -42,12 +50,23 @@ export function createTransactionSchemaHttp(
     if (
       (request.method !== "GET" && request.method !== "HEAD") ||
       authorization.kind !== "authenticated" ||
-      hasMinimumControls(request)
+      malformedTransactionMinimumHeaders(request.headers)
     )
       return undefined;
     const entry = entries.get(request.url);
     if (!entry) return undefined;
-    const observed = await observe();
+    const supplied = hasMinimumControls(request);
+    const minimum = supplied ? currentReadMinimumHeaders(request.headers) : undefined;
+    if (supplied && minimum === undefined)
+      throw new Error("lexically valid schema minimum lost its tuple");
+    let observed: Awaited<ReturnType<typeof observe>>;
+    try {
+      observed = await observe(minimum, request.signal);
+    } catch (error) {
+      const failure = transactionMinimumFailureResponse(error);
+      if (!failure) throw error;
+      return Object.freeze({ response: applyReadHttpSemantics(request, failure) });
+    }
     // Selection needs representation metadata, not another parsed schema copy.
     const response = applyReadHttpSemantics(request, {
       status: 200,
