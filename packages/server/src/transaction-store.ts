@@ -49,7 +49,6 @@ import {
   TransactionMinimumFailure,
   checkCurrentReadMinimum,
   checkTransactionMinimum,
-  TransactionMinimumUnsupported,
   snapshotCurrentReadMinimum,
   snapshotTransactionMinimum,
   type TransactionMinimum,
@@ -2271,7 +2270,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           (minimum.scopeEpoch !== context.scopeEpoch ||
             minimum.authorizationView !== context.authorizationView)
         )
-          throw new TransactionMinimumUnsupported("retained-snapshot-context");
+          snapshots.rejectForeignMinimumContext(
+            observedRequest.id,
+            now,
+            context,
+            minimum,
+            observedRequest.kind === "page" ? observedRequest.stream : undefined,
+            observedRequest.kind === "page" ? observedRequest.token : undefined,
+          );
         if (
           minimum &&
           (observedRequest.kind === "create" || observedRequest.kind === "preflight")

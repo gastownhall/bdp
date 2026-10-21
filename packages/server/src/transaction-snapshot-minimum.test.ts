@@ -7,7 +7,10 @@ import { DatabaseSync } from "node:sqlite";
 import { parseTypeDescriptor } from "@bdp/protocol";
 import { afterEach, expect, it } from "vitest";
 import { prepareTransactionSetCore } from "./transaction-batch.js";
-import { TransactionMinimumUnsupported } from "./transaction-consistency.js";
+import {
+  TransactionMinimumFailure,
+  TransactionMinimumUnsupported,
+} from "./transaction-consistency.js";
 import { startTransactionRuntime } from "./transaction-runtime.js";
 import { createTransactionService, type TransactionServiceOptions } from "./transaction-service.js";
 import {
@@ -211,10 +214,15 @@ it("S1 preserves unknown identity404 under satisfied actual minima and fences fo
   for (const expired of [false, true]) {
     if (expired) f.setTime(1000000 + TRANSACTION_SNAPSHOT_LIMITS.lifetimeMs + 1);
     for (const request of requests(f.captured.body)) {
-      for (const changed of [{ scopeEpoch: "foreign" }, { authorizationView: "foreign" }])
-        expect(() =>
-          f.owner.observeSnapshot(request, { ...f.minimum("pos-15"), ...changed }),
-        ).toThrow(TransactionMinimumUnsupported);
+      for (const changed of [{ scopeEpoch: "foreign" }, { authorizationView: "foreign" }]) {
+        const observe = () =>
+          f.owner.observeSnapshot(request, { ...f.minimum("pos-15"), ...changed });
+        if (expired) expect(observe).toThrow(TransactionMinimumUnsupported);
+        else {
+          expect(observe).toThrow(TransactionMinimumFailure);
+          expect(observe).toThrow("scopeEpoch" in changed ? "cursor-expired" : "foreign-view");
+        }
+      }
     }
     for (const request of [
       { kind: "manifest", id: "unknown" },
