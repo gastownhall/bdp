@@ -219,15 +219,19 @@ export function transactionSnapshotStorage(
         ),
       "issued page counts",
     );
+    const retired =
+      d.epoch !== context.scopeEpoch && d.expired
+        ? statement("SELECT head FROM snapshot_epoch_fences WHERE epoch=?").get(d.epoch)
+        : undefined;
     integrity(
-      d.epoch === context.scopeEpoch &&
+      (d.epoch === context.scopeEpoch || retired !== undefined) &&
         (d.view === context.authorizationView || d.view === INITIAL_TRANSACTION_VIEW),
       "persisted context mismatch",
     );
     integrity(
       Number.isSafeInteger(d.position) &&
         d.position >= 0 &&
-        d.position <= Number(context.scopePosition.slice(4)),
+        d.position <= (retired ? Number(retired.head) : Number(context.scopePosition.slice(4))),
       "anchor exceeds owner",
     );
     integrity(
@@ -830,6 +834,30 @@ export function transactionSnapshotStorage(
     return manifestValue(id, d, context, firstPage("bead"), firstPage("link"));
   }
   return Object.freeze({
+    /** Atomic offline retirement: keep actual issued handle/token commitments,
+     * remove all promised body detail, and preserve the original context. */
+    retireEpoch(context: TransactionReadContext) {
+      ledgerBounds();
+      let issuedInEpoch = false;
+      for (const row of statement("SELECT id FROM snapshots").all()) {
+        const id = String(row.id),
+          d = disposition(id, context)!;
+        if (d.epoch !== context.scopeEpoch) continue;
+        issuedInEpoch = true;
+        const { binding: _binding, ...unsigned } = d;
+        statement("UPDATE snapshots SET disposition=? WHERE id=?").run(
+          text(sealDisposition(id, { ...unsigned, expired: true })),
+          id,
+        );
+      }
+      if (issuedInEpoch)
+        statement("INSERT OR IGNORE INTO snapshot_epoch_fences VALUES(?,?)").run(
+          context.scopeEpoch,
+          Number(context.scopePosition.slice(4)),
+        );
+      statement("DELETE FROM snapshot_records").run();
+      statement("DELETE FROM snapshot_pages").run();
+    },
     expire,
     invalidateBefore(position: number, context: TransactionReadContext) {
       for (const row of statement("SELECT id FROM snapshots").all()) {

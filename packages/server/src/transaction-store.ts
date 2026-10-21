@@ -56,6 +56,7 @@ import {
 } from "./transaction-consistency.js";
 /** Independent private Transactional owner. Never open this format as a RU store. */
 import { randomUUID } from "node:crypto";
+import { applyNativeTransactionRestore } from "./transaction-restore.js";
 import {
   transactionErasureSchema,
   retainErasureVersions,
@@ -230,6 +231,8 @@ export interface TransactionStoreOptions {
   readonly file: string;
   readonly scope: string;
   readonly create: boolean;
+  /** Source-private OFFLINE native restore; existing current destination required. */
+  readonly nativeRestore?: string;
   readonly types: readonly TypeDescriptor[];
   readonly contracts?: DevelopmentContracts;
   readonly clock?: () => number;
@@ -251,7 +254,9 @@ export interface TransactionStoreOptions {
       | "before-policy-commit"
       | "after-policy-commit"
       | "before-erasure-commit"
-      | "after-erasure-commit",
+      | "after-erasure-commit"
+      | "before-restore-commit"
+      | "after-restore-commit",
   ) => void;
 }
 interface Row {
@@ -307,6 +312,8 @@ interface ReceiptPagePlan {
  * Startup retracts abandoned pending receipts instead of running requests itself.
  * Private Scope policy; this is not an authentication boundary. */
 export function openTransactionStore(options: TransactionStoreOptions) {
+  if (options.nativeRestore !== undefined && options.create)
+    throw new Error("native restore requires an existing permanent anchor");
   const scope = parseCanonicalScope(options.scope);
   const view = INITIAL_TRANSACTION_VIEW;
   let authorization: TransactionAuthorizationSnapshot = initialTransactionAuthorization();
@@ -717,6 +724,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           throw new Error("invalid stored authorization policy");
         authorization = parseTransactionAuthorization(metadata("authorizationPolicy"));
       }
+      db.exec(
+        "CREATE TABLE IF NOT EXISTS snapshot_epoch_fences(epoch TEXT PRIMARY KEY, head INTEGER NOT NULL) STRICT",
+      );
       // Immutable for this exclusive owner; establish it before the first sweep.
       epoch = metadata("epoch");
       const retracted = Number(
@@ -764,6 +774,20 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         for (const result of receipt.results ?? [])
           if (result.resource) retainErasureVersions(db, result.resource);
       }
+      if (options.nativeRestore !== undefined) {
+        if (legacyRequestStorage) throw new Error("native restore requires current native format");
+        snapshots.retireEpoch(readContext());
+        const restored = applyNativeTransactionRestore(
+          db,
+          options.file,
+          options.nativeRestore,
+          scope,
+          configuration,
+          capture,
+        );
+        epoch = restored.epoch;
+        options.fault?.("before-restore-commit");
+      }
       sweep(instant());
       return retracted;
     });
@@ -771,6 +795,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     db.close();
     if (options.create) unlinkSync(options.file);
     throw error;
+  }
+  if (options.nativeRestore !== undefined) {
+    try {
+      options.fault?.("after-restore-commit");
+    } catch (error) {
+      db.close();
+      throw error;
+    }
   }
   // Immutable installation facts are the same ones used by mutation evaluation.
   // Current authorization is captured separately inside each serialized entry.
