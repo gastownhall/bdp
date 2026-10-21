@@ -1,31 +1,35 @@
 /** Same-owner private Read composition with source conditions for canonical
  * current points, Type inventory and initial Resource/incident-Link reads. The service owns finite
- * waits; continuation minimums, receipt serving and replication Snapshots are
- * separate contracts. */
-import {
-  checkCurrentReadMinimum,
-  snapshotCurrentReadMinimum,
-  TransactionMinimumFailure,
-  type TransactionMinimum,
-} from "./transaction-consistency.js";
+ * waits. Known satisfied Bead/Link collection continuation minima compare the
+ * retained query prefix; other continuation cases remain unselected. */
+
 import { isProxy } from "node:util/types";
+import type { ReadRequest } from "@bdp/protocol";
 import {
-  createContextualAuthorityReadPlane,
-  AuthorityReadError,
+  type AuthorityAliasResult,
   type AuthorityReadDeliveryOptions,
+  AuthorityReadError,
+  type AuthorityReadFacet,
   type AuthorityReadOptions,
   type AuthorityReadPlane,
-  type AuthorityReadFacet,
   type AuthorityReadResult,
-  type AuthorityAliasResult,
+  createContextualAuthorityReadPlane,
   type ReadObservation,
 } from "./authority-read.js";
-import type { ReadRequest } from "@bdp/protocol";
-import type { TransactionReadContext } from "./transaction-store.js";
-import type { openTransactionStore } from "./transaction-store.js";
 import { INITIAL_TRANSACTION_VIEW } from "./transaction-authorization.js";
+import {
+  checkCurrentReadMinimum,
+  checkTransactionMinimum,
+  snapshotCurrentReadMinimum,
+  snapshotTransactionMinimum,
+  type TransactionMinimum,
+  TransactionMinimumFailure,
+} from "./transaction-consistency.js";
+import type { openTransactionStore, TransactionReadContext } from "./transaction-store.js";
 
 export class TransactionMinimumVisibilityGap extends Error {}
+/** Private unsupported boundary, not a public too-old-cursor diagnosis. */
+export class TransactionContinuationMinimumUnsupported extends Error {}
 
 /** Current private minimum subset; full request validation remains with Read. */
 export function isCurrentTransactionMinimumRead(request: ReadRequest, scope: string): boolean {
@@ -80,6 +84,16 @@ function dataOnlyReadRequest(request: ReadRequest): boolean {
       const field = Object.getOwnPropertyDescriptor(request, key);
       return typeof key === "string" && field !== undefined && "value" in field;
     })
+  );
+}
+
+/** Only ordinary Bead/Link query continuations; Type/incident/History are separate. */
+export function isRetainedCollectionMinimumRead(request: ReadRequest): boolean {
+  return (
+    dataOnlyReadRequest(request) &&
+    request.kind === "collection" &&
+    (request.collection === "beads" || request.collection === "links") &&
+    typeof request.continuation === "string"
   );
 }
 
@@ -328,7 +342,8 @@ export function createTransactionReadPlane(
             return observe(
               facet.perform(capturedRequest, options).then((result) => checked(result)),
             );
-          if (!isCurrentTransactionMinimumRead(capturedRequest, owner.scope))
+          const retained = isRetainedCollectionMinimumRead(capturedRequest);
+          if (!retained && !isCurrentTransactionMinimumRead(capturedRequest, owner.scope))
             return Promise.reject(new TypeError("minimum-read route outside supported subset"));
           const condition = minimumCondition(minimum, currentReadMinimumKind(capturedRequest));
           let captured: AuthorityReadDeliveryOptions | undefined;
@@ -341,6 +356,31 @@ export function createTransactionReadPlane(
               facet.perform(capturedRequest, options).then((result) => checked(result)),
             );
           }
+          if (retained)
+            return observe(
+              facet.perform(capturedRequest, captured).then((result) => {
+                // Complete the ordinary query/authorization/TTL/projection checks
+                // and the existing saved-prefix publication fence first. The
+                // current entry is not evidence of the retained rows' freshness.
+                checked(result);
+                if (result.kind !== "success")
+                  throw new TransactionContinuationMinimumUnsupported();
+                const snapshot = transactionReadContexts(result.observation).snapshot;
+                if (snapshot === undefined) throw new TransactionContinuationMinimumUnsupported();
+                try {
+                  snapshotTransactionMinimum(minimum);
+                  checkTransactionMinimum(minimum, snapshot);
+                } catch (error) {
+                  if (error instanceof TypeError || error instanceof TransactionMinimumFailure)
+                    throw new TransactionContinuationMinimumUnsupported();
+                  throw error;
+                }
+                // No second traversal, wait, reanchor or expiry extension. Normal
+                // lazy page/token production remains with the existing cache.
+                // Return the SAME page and original/current observations.
+                return result;
+              }),
+            );
           return observe(
             facet
               .perform(capturedRequest, { ...captured, sourceCondition: condition })

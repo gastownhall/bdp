@@ -1,68 +1,68 @@
-import { TransactionAuthorizationFailure } from "./transaction-authorization.js";
-import type { TransactionEventPacket } from "./transaction-store.js";
-import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
-import {
-  transactionChangefeedRequest,
-  TransactionChangefeedParameterError,
-  type TransactionChangefeedPage,
-} from "./transaction-changefeed.js";
-import {
-  transactionEventRequest,
-  TransactionEventParameterError,
-  TransactionEventProjectionGap,
-} from "./transaction-events.js";
-import {
-  malformedTransactionMinimumHeaders,
-  transactionMinimumHeaders,
-  currentReadMinimumHeaders,
-  TransactionMinimumUnsupported,
-  TransactionMinimumFailure,
-} from "./transaction-consistency.js";
 /** Private Transactional HTTP projection. Discovery is non-attesting; public
  * profile admission and cumulative qualification remain separate. */
 import {
   isReadProblem,
   JsonSyntaxError,
-  ReadUpdateCarrierError,
   parseCanonicalScope,
   parseReadUpdateProblem,
   prepareReadUpdateSequence,
-  readProblem,
   type ReadProblem,
   type ReadProblemCode,
+  ReadUpdateCarrierError,
+  readProblem,
+  snapshotPositionTooOldProblem,
 } from "@bdp/protocol";
-import { createReadHttpRoute, jsonResponse, scopeDataResponse } from "./read-http-routing.js";
+import type { HttpResponse } from "./index.js";
 import {
   acceptsJson,
   applyReadHttpSemantics,
-  selectChangefeedMedia,
   conditionalReadStatus,
+  selectChangefeedMedia,
 } from "./read-http.js";
-import type { HttpResponse } from "./index.js";
-import {
-  type TransactionSingletonOperation,
-  prepareTransactionSequenceForReceiving,
-  TransactionDevelopmentLimitError,
-  TRANSACTION_RUNTIME_LIMITS,
-  TRANSACTION_MAXIMUM_OPERATIONS,
-} from "./transaction-batch.js";
-import type { createTransactionService } from "./transaction-service.js";
+import { createReadHttpRoute, jsonResponse, scopeDataResponse } from "./read-http-routing.js";
 import {
   classifyAliasPath,
   requestFromUrl,
   ScopeServerOperationAbortedError,
 } from "./read-request.js";
+import { TransactionAuthorizationFailure } from "./transaction-authorization.js";
 import {
+  prepareTransactionSequenceForReceiving,
+  TRANSACTION_MAXIMUM_OPERATIONS,
+  TRANSACTION_RUNTIME_LIMITS,
+  TransactionDevelopmentLimitError,
+  type TransactionSingletonOperation,
+} from "./transaction-batch.js";
+import {
+  type TransactionChangefeedPage,
+  TransactionChangefeedParameterError,
+  transactionChangefeedRequest,
+} from "./transaction-changefeed.js";
+import {
+  currentReadMinimumHeaders,
+  malformedTransactionMinimumHeaders,
+  TransactionMinimumFailure,
+  TransactionMinimumUnsupported,
+  transactionMinimumHeaders,
+} from "./transaction-consistency.js";
+import { TRANSACTION_HTTP_OPERATIONS } from "./transaction-discovery.js";
+import {
+  TransactionEventParameterError,
+  TransactionEventProjectionGap,
+  transactionEventRequest,
+} from "./transaction-events.js";
+import {
+  currentReadMinimumKind,
+  isCurrentTransactionMinimumRead,
+  isRetainedCollectionMinimumRead,
+  TransactionContinuationMinimumUnsupported,
   TransactionMinimumVisibilityGap,
   transactionReadContexts,
-  isCurrentTransactionMinimumRead,
-  currentReadMinimumKind,
 } from "./transaction-read.js";
-import type { TransactionReadContext } from "./transaction-store.js";
+import type { createTransactionService } from "./transaction-service.js";
+import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
+import type { TransactionEventPacket, TransactionReadContext } from "./transaction-store.js";
 import type { TransactionSubmission } from "./transaction-submission.js";
-
-import { TRANSACTION_HTTP_OPERATIONS } from "./transaction-discovery.js";
-import { snapshotPositionTooOldProblem } from "@bdp/protocol";
 export type TransactionHttpAuthorization =
   | { readonly kind: "unauthenticated" }
   | { readonly kind: "authenticated"; readonly principal: string; readonly canMutate: boolean };
@@ -665,7 +665,11 @@ export function createTransactionHttpHandler(
         (isReadProblem(parsed) || currentReadMinimumKind(parsed) === "strict")
       )
         return developmentGap("minimum-position");
-      if (isReadProblem(parsed) || !isCurrentTransactionMinimumRead(parsed, scope))
+      if (
+        isReadProblem(parsed) ||
+        (!isCurrentTransactionMinimumRead(parsed, scope) &&
+          !isRetainedCollectionMinimumRead(parsed))
+      )
         return developmentGap("minimum-position-route");
     }
     return readRoute(request);
@@ -703,6 +707,8 @@ export function createTransactionHttpHandler(
           response = transactionHttpProblem("invalid-parameter", error.context);
         else if (error instanceof TransactionEventProjectionGap)
           response = developmentGap(error.message);
+        else if (error instanceof TransactionContinuationMinimumUnsupported)
+          response = developmentGap("minimum-position-route");
         else if (error instanceof TransactionMinimumUnsupported)
           response = developmentGap("minimum-position");
         else if (error instanceof TransactionMinimumVisibilityGap)

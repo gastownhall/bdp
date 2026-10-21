@@ -2,32 +2,32 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  parseTypeDescriptor,
-  isReadProblem,
   type AbsoluteHttpUrl,
+  isReadProblem,
+  parseTypeDescriptor,
   type ReadRequest,
 } from "@bdp/protocol";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  type AuthorityReadDeliveryOptions,
+  AuthorityReadError,
+  type ReadObservation,
+} from "./authority-read.js";
+import { requestFromUrl } from "./read-request.js";
 import { prepareTransaction, prepareTransactionSingleton } from "./transaction-batch.js";
-import { openTransactionStore, type TransactionReadContext } from "./transaction-store.js";
+import {
+  TransactionMinimumFailure,
+  TransactionMinimumUnproved,
+} from "./transaction-consistency.js";
+import { createTransactionHttpHandler, transactionHttpSourceContext } from "./transaction-http.js";
 import {
   createTransactionReadPlane,
   currentReadMinimumKind,
   transactionReadContexts,
 } from "./transaction-read.js";
-import {
-  TransactionMinimumFailure,
-  TransactionMinimumUnproved,
-} from "./transaction-consistency.js";
 import { createTransactionService } from "./transaction-service.js";
-import { createTransactionHttpHandler, transactionHttpSourceContext } from "./transaction-http.js";
-import {
-  AuthorityReadError,
-  type AuthorityReadDeliveryOptions,
-  type ReadObservation,
-} from "./authority-read.js";
-import { requestFromUrl } from "./read-request.js";
+import { openTransactionStore, type TransactionReadContext } from "./transaction-store.js";
 
 const scope = "https://example.test/transaction/";
 const bead = "https://example.test/types/bead",
@@ -1472,7 +1472,9 @@ describe("current Type and incident-Link minimums", () => {
       expect(typeof next).toBe("string");
       const parsed = requestFromUrl(new URL(String(next)), scope);
       if (isReadProblem(parsed)) throw new Error("invalid actual continuation");
-      await expect(read.perform(parsed)).rejects.toThrow("outside supported subset");
+      if (collection === "types")
+        await expect(read.perform(parsed)).rejects.toThrow("outside supported subset");
+      else expect(body(await read.perform(parsed))).toBe(body(await facet.perform(parsed)));
     }
     // These corruption controls exercise the same independent record oracle.
     const rows = items(await read.perform({ kind: "bead-links", bead: url("beads/a"), limit: 10 }));
