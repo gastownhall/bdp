@@ -404,6 +404,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   let maintenanceFailure: { readonly cause: unknown } | undefined;
   let ownerFailure: Error | undefined;
   const eventScans = new WeakMap<TransactionEventScan, EventScanState>();
+  const erasureObservers = new Set<() => void>();
   const changePublications = new Map<
     TransactionChangePublication,
     {
@@ -1016,6 +1017,17 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       });
       try {
         fenceErasurePublications(Number(result.context.scopePosition.slice(4)));
+        // Synchronously discard owner-composed ordinary Read caches before
+        // any post-erasure state can be delivered, including a late fault.
+        const failures: unknown[] = [];
+        for (const observer of [...erasureObservers]) {
+          try {
+            observer();
+          } catch (error) {
+            failures.push(error);
+          }
+        }
+        if (failures.length) throw new AggregateError(failures, "erasure cache purge failed");
         options.fault?.("after-erasure-commit");
       } catch (error) {
         throw fence(error);
@@ -2344,6 +2356,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         }),
       ),
     eraseHistoricalVersions,
+    observeErasures(observer: () => void): () => void {
+      return enter(() => {
+        if (typeof observer !== "function") throw new TypeError("erasure observer required");
+        erasureObservers.add(observer);
+        return () => {
+          erasureObservers.delete(observer);
+        };
+      });
+    },
     /** Private retained-version observation, not a new History/HTTP operation. */
     readRetainedVersion(subject: string, revision: string) {
       if (typeof subject !== "string" || typeof revision !== "string")
@@ -2387,7 +2408,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         if (
           context.scopeEpoch !== epoch ||
           context.authorizationView !== authorization.authorizationView ||
-          Number(context.scopePosition.slice(4)) < erasureFloor(readContext())
+          // Epoch/view equality above admits this view for the current ledger
+          // query. No unrelated head observation is needed for this floor.
+          Number(context.scopePosition.slice(4)) < erasureFloor(context)
         )
           throw new TransactionErasureFence("response predates erasure publication");
       });

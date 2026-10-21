@@ -84,6 +84,15 @@ export type TransactionHttpResult =
   | (HttpResponse & { readonly kind: "finite" })
   | ChangefeedStream
   | EventStream;
+/** Private body provenance survives response shaping but is never a wire header
+ * or a caller-provided context. A continuation's current serving observation
+ * cannot stand in for the older immutable rows it carries. */
+const responseSourceContexts = new WeakMap<HttpResponse, TransactionReadContext>();
+export function transactionHttpSourceContext(
+  response: HttpResponse,
+): TransactionReadContext | undefined {
+  return responseSourceContexts.get(response);
+}
 type Service = ReturnType<typeof createTransactionService>;
 function empty(status: number, allow?: string): HttpResponse {
   return {
@@ -124,6 +133,16 @@ function context(response: HttpResponse, observation: TransactionReadContext): H
   response.headers.set("bdp-scope-epoch", observation.scopeEpoch);
   response.headers.set("bdp-authorization-view", observation.authorizationView);
   response.headers.set("bdp-scope-position", observation.scopePosition);
+  responseSourceContexts.set(response, observation);
+  return response;
+}
+function readContextResponse(
+  response: HttpResponse,
+  observation: Parameters<typeof transactionReadContexts>[0],
+): HttpResponse {
+  const contexts = transactionReadContexts(observation);
+  context(response, contexts.current);
+  responseSourceContexts.set(response, contexts.snapshot ?? contexts.current);
   return response;
 }
 function streamResponse(request: Request, observation: TransactionReadContext): HttpResponse {
@@ -231,9 +250,7 @@ export function createTransactionHttpHandler(
                 "cache-control": "private, no-store",
               }),
             };
-      return "observation" in result
-        ? context(response, transactionReadContexts(result.observation).current)
-        : response;
+      return "observation" in result ? readContextResponse(response, result.observation) : response;
     },
     async perform(parsed, request) {
       const minimum = currentReadMinimumHeaders(request.headers);
@@ -252,9 +269,7 @@ export function createTransactionHttpHandler(
                 ? result.observation.resourceRevision
                 : undefined,
             );
-      return "observation" in result
-        ? context(response, transactionReadContexts(result.observation).current)
-        : response;
+      return "observation" in result ? readContextResponse(response, result.observation) : response;
     },
   });
   // Target shape, never receipt existence or authorization, determines Allow.
@@ -698,12 +713,15 @@ export function createTransactionHttpHandler(
         (response.kind === "changefeed-stream" || response.kind === "event-stream")
       )
         return response;
-      return {
+      const finite = {
         ...(request.method === "GET" || request.method === "HEAD"
           ? applyReadHttpSemantics(request, response)
           : response),
-        kind: "finite",
+        kind: "finite" as const,
       };
+      const source = responseSourceContexts.get(response);
+      if (source) responseSourceContexts.set(finite, source);
+      return finite;
     },
   });
 }
