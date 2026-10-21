@@ -1,0 +1,30 @@
+{
+  "fixtureVersion": 1,
+  "id": "reference-transactional-receipt-pages-v1",
+  "seed": 0,
+  "capabilities": ["installed-transactional-http", "transactional-receipt-observation"],
+  "bindings": {
+    "subject": "https://reference.invalid/acme/beads/r00",
+    "last-subject": "https://reference.invalid/acme/beads/r31",
+    "type": "https://reference.invalid/acme/types/receipt-page",
+    "schema": "https://reference.invalid/acme/schemas/receipt-page",
+    "batch": "https://reference.invalid/acme/operations/batch",
+    "update-where": "https://reference.invalid/acme/operations/update-where"
+  },
+  "scope": "https://reference.invalid/acme/",
+  "artifacts": {
+    "descriptors": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/receipt-page",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/receipt-page\",\"name\":\"ReceiptPage\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/receipt-page\"}"
+      }
+    ],
+    "schemas": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/receipt-page",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/receipt-page\",\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\"},\"n\":{\"type\":\"integer\"}},\"required\":[\"label\",\"n\"],\"additionalProperties\":false}"
+      }
+    ]
+  },
+  "recipe": "Seed32 r00-r31 with n0; updateWhere32 ->matched+32 entries, default receipt32+1; two authenticated principals, same-store create:false reopen; no limit or clock overrides."
+}
