@@ -268,7 +268,7 @@ it("ordinary startup refuses a missing deployment without exposing credentials o
     expect(await child.done).toEqual({ code: 2, signal: null });
     expect(child.output[1]).toContain('"event":"startup.reference_refused"');
     expect(child.output[1]).toContain('"code":"file"');
-    const refusal = completeDiagnostics(child.output[1], true).find(
+    const refusal = completeDiagnostics(required(child.output[1]), true).find(
       (record) => record.event === "startup.reference_refused",
     );
     expect(refusal).toEqual({
