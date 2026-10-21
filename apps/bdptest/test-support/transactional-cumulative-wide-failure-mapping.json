@@ -1,0 +1,18 @@
+{
+  "predicate": "transactional.receipt.transaction-level-failure",
+  "case": "NEW TX wide-failure",
+  "scope": "One genuine post-admission matchedResources32 failure after a staged update; full rollback and stable failed receipt.",
+  "bounds": {
+    "watchdogSeconds": 90,
+    "evidenceBytes": 4194304,
+    "nodes": 100000,
+    "depth": 128,
+    "maximumHTTP": 30
+  },
+  "nativeLimits": {
+    "matchedResources": 32,
+    "inducedEvents": 256,
+    "advertised": false
+  },
+  "residuals": ["Other transaction-wide limits/duration", "Whole profile/council qualification"]
+}
