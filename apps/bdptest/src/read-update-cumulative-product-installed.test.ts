@@ -1,4 +1,6 @@
 /** Replacement selected-configuration carrier. No protocol/profile award is made here. */
+import { execFileSync } from "node:child_process";
+import { createServer } from "node:http";
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,6 +12,8 @@ import {
   createRawHttpExchangeExecutor,
   createRawHttpScenarioTarget,
   type ExactHttpModeOptions,
+  type RawHttpDialRoute,
+  type ScenarioActionExecutor,
   runConformanceMatrix,
 } from "@bdp/conformance";
 import {
@@ -46,7 +50,7 @@ const build = process.env.BDP_RU_CUMULATIVE_BUILD;
 const evidenceDirectory = process.env.BDP_RU_CUMULATIVE_EVIDENCE;
 const credentialFile = process.env.BDP_RU_CUMULATIVE_CREDENTIALS;
 const targetedFile = process.env.BDP_RU_CUMULATIVE_TARGETED_IDS;
-const sourceCommit = "5f3a67e89d62a0dcb4e9a7b9a6cb78b2c0a3e50c";
+const declaredSource = process.env.BDP_RU_CUMULATIVE_SOURCE;
 const scope = "https://reference.invalid/acme/";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const source = (name: string) => ({ bytes: readFileSync(path.join(root, name)) });
@@ -62,6 +66,24 @@ type Report = ArtifactObservation & {
   nativeReadObservations: unknown[];
   processes: Record<string, unknown>[];
 };
+function requireCampaignSource(value: string | undefined, observed: string, trackedDirty: string) {
+  if (!value || !/^[a-f0-9]{40}$/.test(value))
+    throw Error("explicit exact RU campaign source commit required");
+  if (value !== observed || trackedDirty !== "")
+    throw Error("RU campaign source does not match clean selected checkout");
+  return value;
+}
+function currentCumulativeClient(
+  mode: ExactHttpModeOptions,
+  currentRoute: () => RawHttpDialRoute | undefined,
+  observe: (value: unknown) => void,
+): ScenarioActionExecutor {
+  return async (execution) => {
+    const route = currentRoute();
+    if (!route) throw Error("current installed child dial route unavailable");
+    return createCumulativeRUClient(mode, route, observe)(execution);
+  };
+}
 function artifactSet() {
   return createReadUpdateArtifactSet(loadProfileContractSelection("read-update"), {
     index: source(`${base}index.json`),
@@ -81,6 +103,14 @@ it.skipIf(!entry)(
   async () => {
     if (!entry || !build || !evidenceDirectory || !credentialFile)
       throw Error("explicit packed carrier inputs required");
+    const sourceCommit = requireCampaignSource(
+      declaredSource,
+      execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+      execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
+        cwd: root,
+        encoding: "utf8",
+      }).trim(),
+    );
     const credentials = JSON.parse(readFileSync(credentialFile, "utf8")) as RUCampaignCredentials;
     const secrets = Object.values(credentials);
     if (
@@ -179,15 +209,15 @@ it.skipIf(!entry)(
         let current = "bootstrap";
         let target: ReturnType<typeof createRawHttpScenarioTarget> | undefined;
         try {
-          const port = await helpers.availablePort();
-          const dialRoute = { transport: "plain" as const, host: "127.0.0.1", port };
+          let dialRoute: RawHttpDialRoute | undefined;
+          let currentReady: Record<string, unknown> | undefined;
           const configuration = (name: string) =>
             cumulativeRUConfiguration(
               {
                 scope,
                 directory: path.join(directory, name),
                 create: true,
-                listener: { host: "127.0.0.1", port },
+                listener: { host: "127.0.0.1", port: 0 },
               },
               descriptors,
               credentials,
@@ -332,31 +362,49 @@ it.skipIf(!entry)(
           });
           const sessions: Record<string, unknown>[] = [];
           let restartCurrent: (() => Promise<unknown>) | undefined;
+          let reopening = false,
+            reopens = 0;
 
           target = createRawHttpScenarioTarget(
             async (scenario, _scope, _seed, fixture, signal) => {
               current = scenario.id;
+              dialRoute = undefined;
+              currentReady = undefined;
               signal.throwIfAborted();
-              const child = await helpers.launchInstalledReference(
-                entry,
-                configuration(scenario.id),
-              );
-              let close = owned(child, scenario.id);
-              let reopens = 0;
+              const child = await helpers.launchInstalledReference(entry, {
+                ...configuration(scenario.id),
+                create: !reopening,
+              });
+              const preparedRoute: RawHttpDialRoute = child.dialRoute;
+              dialRoute = preparedRoute;
+              currentReady = child.ready;
+              const close = owned(child, reopening ? `${scenario.id}@reopen` : scenario.id);
+              if (!reopening) reopens = 0;
               restartCurrent = async () => {
                 if (++reopens !== 1) throw Error("only one declared normal reopen per scenario");
                 controller.signal.throwIfAborted();
-                await close();
-                const reopened = await helpers.launchInstalledReference(entry, {
-                  ...configuration(scenario.id),
-                  create: false,
-                });
-                close = owned(reopened, `${scenario.id}@reopen`);
-                assertSameServedProfileConfiguration(baseline, bind(reopened.ready));
+                // The raw target snapshots its route at prepare. Reprepare the
+                // SAME target after cleanup so both HTTP actions and the client
+                // use the newly observed port; never carry a closed listener.
+                dialRoute = undefined;
+                currentReady = undefined;
+                await target!.harness.cleanup!(scenario, scope, controller.signal);
+                reopening = true;
+                try {
+                  await target!.harness.prepare!(
+                    scenario,
+                    scope,
+                    _seed,
+                    fixture,
+                    controller.signal,
+                  );
+                } finally {
+                  reopening = false;
+                }
                 const actual = {
                   scenario: scenario.id,
                   operation: "normal-close-and-reopen",
-                  ready: reopened.ready,
+                  ready: currentReady,
                 };
                 observations.push(actual);
                 return actual;
@@ -365,21 +413,28 @@ it.skipIf(!entry)(
                 assertSameServedProfileConfiguration(baseline, bind(child.ready));
                 sessions.push({ scenario: scenario.id, ...child.ready });
                 if (
+                  !reopening &&
                   Array.isArray(fixture.readSeedScenarios) &&
                   fixture.readSeedScenarios.includes(scenario.id)
                 )
                   await seedInstalledReadFixture(
                     fixture,
                     scope,
-                    createRawHttpExchangeExecutor(dialRoute, { exactMode: mode }),
+                    createRawHttpExchangeExecutor(preparedRoute, { exactMode: mode }),
                     signal,
                     (observation) => setupObservations.push({ scenario: current, observation }),
                   );
                 return {
                   capabilities: fixture.capabilities,
                   bindings: fixture.bindings,
-                  dialRoute,
-                  close: () => close(),
+                  dialRoute: preparedRoute,
+                  close: () => {
+                    if (dialRoute === preparedRoute) {
+                      dialRoute = undefined;
+                      currentReady = undefined;
+                    }
+                    return close();
+                  },
                 };
               } catch (error) {
                 try {
@@ -395,8 +450,10 @@ it.skipIf(!entry)(
             { exactMode: mode, requestTimeoutMs: 5000 },
           );
           if (!target.exactConfiguration) throw Error("actual exact configuration missing");
-          const executeClient = createCumulativeRUClient(mode, dialRoute, (observation) =>
-            observations.push({ scenario: current, observation }),
+          const executeClient = currentCumulativeClient(
+            mode,
+            () => dialRoute,
+            (observation) => observations.push({ scenario: current, observation }),
           );
           const result = await runConformanceMatrix({
             scope,
@@ -599,3 +656,132 @@ it.skipIf(!entry)(
   },
   120000,
 );
+
+it("NEW RU carrier source input refuses missing malformed dirty or differently pinned checkout", () => {
+  const selected = "1".repeat(40);
+  expect(requireCampaignSource(selected, selected, "")).toBe(selected);
+  for (const input of [undefined, "HEAD", "1".repeat(39), "A".repeat(40)])
+    expect(() => requireCampaignSource(input, selected, "")).toThrow("explicit exact");
+  expect(() => requireCampaignSource(selected, "2".repeat(40), "")).toThrow("clean selected");
+  expect(() => requireCampaignSource(selected, selected, " M tracked.ts")).toThrow(
+    "clean selected",
+  );
+});
+
+it("NEW RU carrier client and raw target use current prepared listener after clean reprepare", async () => {
+  const errors: unknown[] = [],
+    requests: unknown[] = [],
+    closes: number[] = [];
+  const servers = [1, 2].map((generation) =>
+    createServer((request, response) => {
+      requests.push({ generation, url: request.url, host: request.headers.host });
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ generation }));
+    }),
+  );
+  let target: ReturnType<typeof createRawHttpScenarioTarget> | undefined;
+  let route: RawHttpDialRoute | undefined;
+  let generation = 0;
+  const signal = AbortSignal.timeout(5000),
+    url = scope + "beads/carrier-unit";
+  const mode: ExactHttpModeOptions = {
+    scope,
+    profile: "read-update",
+    routes: [{ method: "GET", url }],
+    maximumRequestHeaderBytes: 16384,
+    maximumRequestBodyBytes: 65536,
+    defaultCredentialRef: "operator",
+    credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
+    resolveCredentials: () => ({ authorization: "Bearer synthetic-carrier-unit" }),
+  };
+  const client = currentCumulativeClient(
+    mode,
+    () => route,
+    () => {},
+  );
+  const execution = {
+    family: "client" as const,
+    operation: "installed.exact-request",
+    scope,
+    bindings: { subject: url },
+    input: { targetBinding: "subject", method: "GET", credentialRef: "operator" },
+    signal,
+  };
+  try {
+    await expect(client(execution)).rejects.toThrow("dial route unavailable");
+    const routes: RawHttpDialRoute[] = [];
+    for (const server of servers) {
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(0, "127.0.0.1", resolve);
+      });
+      const address = server.address();
+      if (!address || typeof address === "string") throw Error("real local test listener absent");
+      routes.push({ transport: "plain", host: "127.0.0.1", port: address.port });
+    }
+    target = createRawHttpScenarioTarget(
+      async () => {
+        const current = generation++,
+          observed = routes[current];
+        if (!observed) throw Error("undeclared unit generation");
+        route = observed;
+        return {
+          capabilities: [],
+          bindings: {},
+          dialRoute: observed,
+          async close() {
+            closes.push(current);
+            route = undefined;
+          },
+        };
+      },
+      { exactMode: mode, requestTimeoutMs: 5000 },
+    );
+    const scenario = {} as Parameters<typeof target.harness.prepare>[0];
+    const fixture = {} as Parameters<typeof target.harness.prepare>[3];
+    for (const expected of [1, 2]) {
+      await target.harness.prepare!(scenario, scope, 0, fixture, signal);
+      const raw = await target.execute({
+        method: "GET",
+        url,
+        signal,
+        credentialRef: "operator",
+        raw: { headerLines: [] },
+      });
+      expect(JSON.parse(raw.bodyText)).toEqual({ generation: expected });
+      expect(await client(execution)).toMatchObject({
+        status: 200,
+        body: { generation: expected },
+      });
+      await target.harness.cleanup!(scenario, scope, signal);
+      await expect(client(execution)).rejects.toThrow("dial route unavailable");
+    }
+    expect(requests).toEqual(
+      [1, 1, 2, 2].map((generation) => ({
+        generation,
+        url: "/acme/beads/carrier-unit",
+        host: "reference.invalid",
+      })),
+    );
+    expect(closes).toEqual([0, 1]);
+  } catch (error) {
+    errors.push(error);
+  } finally {
+    try {
+      await target?.close();
+    } catch (error) {
+      errors.push(error);
+    }
+    for (const server of servers) {
+      try {
+        if (server.listening)
+          await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve())),
+          );
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+  }
+  if (errors.length) throw new AggregateError(errors, "new carrier routing unit failed");
+});
