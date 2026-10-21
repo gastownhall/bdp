@@ -67,6 +67,14 @@ export interface DevelopmentHttpComposition {
   ): HttpHandler;
 }
 /** Private installed-candidate transport; never accepted by the development facade. */
+const installedReferenceListeners = new WeakMap<object, string>();
+/** Source-private address observation for the authentic installed factory only.
+ * Public development handles keep their existing scope/close keyset. */
+export function installedReferenceListenUrl(handle: object): string {
+  const value = installedReferenceListeners.get(handle);
+  if (value === undefined) throw new TypeError("authentic installed reference runtime required");
+  return value;
+}
 export interface InstalledReferenceTransport {
   readonly scope: string;
   readonly host: string;
@@ -368,6 +376,7 @@ async function startDevelopmentRuntimeCore(
   let serving = false;
   const pending = new Set<Promise<void>>();
   let scope = "";
+  let observedListenUrl = "";
   const handle = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     try {
       if (!serving || closing || !authority) throw new ReceivingError("temporarily-unavailable");
@@ -695,6 +704,7 @@ async function startDevelopmentRuntimeCore(
     });
     const address = server.address();
     if (address === null || typeof address === "string") throw new Error("no development address");
+    observedListenUrl = `http://${address.family === "IPv6" ? `[${address.address}]` : address.address}:${address.port}/`;
     scope =
       transport === undefined
         ? `http://127.0.0.1:${address.port}${scopePath}`
@@ -768,7 +778,10 @@ async function startDevelopmentRuntimeCore(
     return completion;
   }
   const legacy = { scope, close };
-  if (!prepared) return Object.freeze(legacy);
+  if (!prepared) {
+    if (transport !== undefined) installedReferenceListeners.set(legacy, observedListenUrl);
+    return Object.freeze(legacy);
+  }
   const address = server.address();
   // Already checked immediately after listen. No asynchronous work intervenes here.
   if (!address || typeof address === "string" || !checkedOwner)
