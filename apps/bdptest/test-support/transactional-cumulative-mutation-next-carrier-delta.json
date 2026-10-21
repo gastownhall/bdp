@@ -1,0 +1,626 @@
+{
+  "kind": "finite ordinary mutation/receipt/Event carrier delta",
+  "base": "793c86d223a4231997e3aa4333462bb2133ee47d",
+  "rows": [
+    {
+      "id": "read-update.singleton.create-bead",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#explicit-bead-operations",
+          "selectedText": "If `id` is omitted, the authority allocates one."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "`created` and `updated` carry `resource`, the complete Resource record as a `GET` of its URL would now return it"
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "partial-demonstrated",
+      "unresolved": ["All new creations supply IDs; omitted-ID allocation not exercised."]
+    },
+    {
+      "id": "read-update.singleton.update-bead",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "Applying the properties patch must yield a JSON object satisfying every effective Type schema. The metadata patch must yield a JSON object."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "A semantic no-op update, defined under [Mutation revisions and guards](#mutation-revisions-and-guards), succeeds with outcome `updated` and the retained revision."
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "read-update.singleton.document-patch-merge-replace",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "`propertiesChange` targets `properties` and `metadataChange` targets common `metadata`; each JSON Pointer is relative to its own complete object."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "`add` has RFC 6902 object replacement and array insertion/append semantics."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "A root-pointer `replace` with `{}` clears either object, including common `metadata`."
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "read-update.singleton.document-patch-atomicity",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-changes",
+          "selectedText": "A Resource update can apply one to `properties`, one to common `metadata`, or both atomically."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "If both results equal their respective preceding objects under RFC 6902 Section 4.6 JSON comparison, the operation is a no-op."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#attribution-on-mutations",
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version\u2019s entire envelope."
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "read-update.singleton.document-patch-validation",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-changes",
+          "selectedText": "The authority validates the complete `properties` result \u2014 not merely its changed members \u2014 against every effective Type contract; `metadata` has no Type schema."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "The metadata patch must yield a JSON object."
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "partial-demonstrated",
+      "unresolved": [
+        "Complete strict required-field refusal/metadata-object refusal and success. Strict schema overlaps inherited Task constraints; no independent inherited-only violation witness."
+      ]
+    },
+    {
+      "id": "read-update.singleton.expected-revision",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "An explicit update or deletion may supply `expectedRevision`: the revision observed by an earlier read or mutation result. The authority applies the operation only if the Resource still has that revision. A mismatch fails the individual operation without changing state. Omitting `expectedRevision` applies the change to the Resource's current state."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "`revision-mismatch`: the member's `expectedRevision` is not the Resource's current revision."
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.singleton.receipt",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-operation-directory-and-singletons",
+          "selectedText": "The request executes as a one-operation Mutation Transaction."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "Singleton operation targets on a Transactional Scope use exactly these statuses and rules"
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.receipt.problem-shape",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "It carries the code's `status` \u2014 the HTTP status the failure would have had as a direct response, required because the enclosing status is `200 OK` \u2014 and `operationIndex`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "the problem carries `pointer`, an RFC 6901 JSON Pointer into the request body as submitted"
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "partial-demonstrated",
+      "unresolved": [
+        "Embedded status and correct operationIndex observed; no request-pointer-bearing failure selected."
+      ]
+    },
+    {
+      "id": "transactional.receipt.validation-diagnostics",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "A `validation-failed` problem carries `diagnostics` and, when it truncated them, `diagnosticsTruncated`"
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "partial-demonstrated",
+      "unresolved": [
+        "Full required/type/schema/metadata-document diagnostics observed; advertised truncation boundary not crossed."
+      ]
+    },
+    {
+      "id": "transactional.receipt.headers",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "The recorded `requiredPosition` remains evidence about the original view; it is not a valid minimum-read checkpoint for the replacement view."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "The three Transactional response fields on a receipt or page response are the serving request's own observation, never the body's history"
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.receipt.validator-omission",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Receipt and receipt-page representations MUST omit `ETag` and `Last-Modified` initially and retain `Cache-Control: private, no-store`."
+        }
+      ],
+      "cases": ["patch-guards"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.batch.label-errors",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "The service rejects forward references, unknown names, duplicate names, and Resource-kind mismatches."
+        }
+      ],
+      "cases": ["batch-delete"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.batch.envelope-errors",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "A batch request carries exactly one required `Idempotency-Key` HTTP field; the JSON body does not repeat it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "A body-level `idempotencyKey`, a per-operation `idempotencyKey`, or any other undefined member makes the request malformed."
+        }
+      ],
+      "cases": ["batch-delete"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.batch.pre-admission-precedence",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "A syntactically invalid request therefore never consults key state, and a retained or pending duplicate negotiates its receipt representation before limits and rate limits are evaluated"
+        }
+      ],
+      "cases": ["batch-delete"],
+      "proposedStatus": "partial-demonstrated",
+      "unresolved": [
+        "Malformed same retained key returns syntax400 and leaves original receipt untouched. Pending duplicates/limit/rate negotiation branch unobserved."
+      ]
+    },
+    {
+      "id": "transactional.batch.rollback",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "The receipt contains no committed operation results because the complete transaction is rolled back. Retrying returns that same failed receipt."
+        }
+      ],
+      "cases": ["batch-delete"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.batch.deletion-safety",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#explicit-bead-operations",
+          "selectedText": "`DeleteBead` fails if any live Link is incident upon (attached to) the Bead when the operation is reached."
+        }
+      ],
+      "cases": ["batch-delete"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.batch.revision-guard-race",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "The authority applies the operation only if the Resource still has that revision. A mismatch fails the individual operation without changing state."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-revision-visibility",
+          "selectedText": "In an atomic batch, a revision mismatch fails the complete Mutation Transaction."
+        }
+      ],
+      "cases": ["batch-delete"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": [],
+      "scopeNote": "Selected text is late revision mismatch rolling back complete batch. That exact predicate observed; title does not award concurrent race coverage."
+    },
+    {
+      "id": "read-update.singleton.delete-bead",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "`deleted` carries `deleted`, the identity record of the removed Resource, and no Resource record: `resourceKind`, `bead` or `link`, and `resource`, holding the absolute canonical `id`, the immutable `type`, and `revision`, the Resource's final live revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "Deletion mints no version: the identity's `revision` is the revision the Resource had when it was deleted, never a newly minted one"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#reads-after-deletion",
+          "selectedText": "After a Bead or Link is deleted, ordinary `GET`, `view=properties`, and, for a Bead, `view=links` return the same `404` `resource-not-found` problem used for an unknown or non-visible identity."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "`incident-links-exist`: a Bead deletion reached while a live Link is incident upon the Bead."
+        }
+      ],
+      "cases": ["batch-delete"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "read-update.singleton.delete-link",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "`deleted` carries `deleted`, the identity record of the removed Resource, and no Resource record: `resourceKind`, `bead` or `link`, and `resource`, holding the absolute canonical `id`, the immutable `type`, and `revision`, the Resource's final live revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "Deletion mints no version: the identity's `revision` is the revision the Resource had when it was deleted, never a newly minted one"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#reads-after-deletion",
+          "selectedText": "After a Bead or Link is deleted, ordinary `GET`, `view=properties`, and, for a Bead, `view=links` return the same `404` `resource-not-found` problem used for an unknown or non-visible identity."
+        }
+      ],
+      "cases": ["batch-delete"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.receipt.deleted-identity",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "or `deleted`, carrying `deleted`, the deleted Resource's identity record \u2014 `resourceKind` and `resource`, holding `id`, `type`, and final live `revision`"
+        }
+      ],
+      "cases": ["batch-delete"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.receipt.no-transient-failure",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-problem-details",
+          "selectedText": "A `failed` receipt never carries `temporarily-unavailable`"
+        }
+      ],
+      "cases": ["batch-delete"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.batch.atomic-commit",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "executes atomically, so every operation commits or none do;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Created and updated results carry complete postimages \u2014 the full Resource state after the change \u2014 and revisions."
+        }
+      ],
+      "cases": ["owned-events"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.batch.owned-link-transitions",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Every mutation of an owned Link versions the source Bead."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "produces one `updated` Event per transition, each with its own `previousRevision` and `revision`, in operation order."
+        }
+      ],
+      "cases": ["owned-events"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "read-update.singleton.owned-link-source-revision",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Every mutation of an owned Link versions the source Bead."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "the result additionally carries `source`, the source Bead's absolute canonical URL, and `sourceRevision`, the source Bead's resulting revision, on creation, update, and deletion alike"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "`source` and `sourceRevision` are absent from every other result, and each is present exactly when the other is."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-local-resource-references",
+          "selectedText": "Creating or deleting a Link does not mutate an in-Scope endpoint Bead or change that Bead's Resource revision"
+        }
+      ],
+      "cases": ["owned-events"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "read-update.singleton.owned-link-no-op",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "On a semantic no-op update `sourceRevision` is the source's unchanged current revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#attribution-on-mutations",
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version\u2019s entire envelope."
+        }
+      ],
+      "cases": ["owned-events"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.receipt.owned-link-source",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "An entry for an operation on an owned Link additionally carries `source`, the source Bead's canonical URL, and `sourceRevision`, the source Bead's resulting revision, on creation, update, and deletion alike"
+        }
+      ],
+      "cases": ["owned-events"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.event.owned-link-delta",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "An owned-Link change produces an `updated` Event on the source Bead with its fresh revision"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "its delta carries `ownedLink` in place of `change` and `metadataChange`"
+        }
+      ],
+      "cases": ["owned-events"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.event.owned-link-update-delta",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "For `updated`, it is the owned Link's delta \u2014 the Link's `id` and `type`, its `previousRevision` and fresh `revision`, the committed `change` and/or `metadataChange`, and the Link's new version's `revisionProvenance` when one was recorded"
+        }
+      ],
+      "cases": ["owned-events"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.event.owned-link-deleted-identity",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "For `deleted`, it is the deleted Link's identity \u2014 `id`, `type`, and its final live `revision` \u2014 because deletion mints no Link version and a deleted Event does not retain properties."
+        }
+      ],
+      "cases": ["owned-events"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.event.fact-order",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "the Link's lifecycle fact first, then the graph facts at its in-Scope endpoints, source before target"
+        }
+      ],
+      "cases": ["owned-events"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "transactional.event.graph-facts",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "Link creation produces a `created` fact about the Link and a `linked` fact at each in-Scope endpoint Bead. Link deletion produces a `deleted` fact about the Link and an `unlinked` fact at each in-Scope endpoint Bead."
+        }
+      ],
+      "cases": ["owned-events", "incident-metadata"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": [],
+      "scopeNote": "Ordinary local source/target graph creation/deletion facts, plus incident metadata updates; optional external/hidden deployments not inferred."
+    },
+    {
+      "id": "transactional.event.no-op-owned-update",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "retains the Link's revision and emits no Event, and it does not version the source"
+        }
+      ],
+      "cases": ["owned-events"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    },
+    {
+      "id": "read-update.singleton.update-link",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "`created` and `updated` carry `resource`, the complete Resource record as a `GET` of its URL would now return it"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "An owned Link remains a first-class Link with its own URL and its own revision: a caller addresses, reads, and updates it there like any other Link."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-local-resource-references",
+          "selectedText": "Creating or deleting a Link does not mutate an in-Scope endpoint Bead or change that Bead's Resource revision"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "Every successful create \u2014 and every update that changes `properties`, common `metadata`, or, for a Bead whose Type owns outgoing Link Types, its owned Links \u2014 produces a fresh opaque Resource revision."
+        }
+      ],
+      "cases": ["incident-metadata"],
+      "proposedStatus": "partial-demonstrated",
+      "unresolved": [
+        "Complete current Link postimages/metadata noops and endpoint stability observed; no full optional deployment assertion."
+      ]
+    },
+    {
+      "id": "transactional.http.finite-validator-omission",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#receipt-and-finite-feed-http-validators",
+          "selectedText": "Finite Scope changefeed pages and finite Event pages, both Scope `events/` and Resource `view=events`, MUST omit `ETag` and `Last-Modified` initially."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#receipt-and-finite-feed-http-validators",
+          "selectedText": "SSE has no per-group HTTP validator or new group-addressing URL"
+        }
+      ],
+      "cases": ["incident-metadata"],
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "unresolved": []
+    }
+  ],
+  "rowCount": 34,
+  "incidentSubclause": {
+    "normativeSource": "docs/specs/bdp.md Event Source/updated data contracts",
+    "case": "incident-metadata",
+    "observed": "Full metadata-only and equal-properties+metadata updated facts at Link and both endpoint finite Event Sources. SAME transaction/ordinal/time/subject/type/data; source-specific cursor IDs intentionally not compared across sources. No new SSE cohort."
+  },
+  "directSourceCases": true,
+  "portableManifestLinked": false,
+  "fixtureUnchanged": true,
+  "profileClaimEligible": false,
+  "unselectedConditions": [
+    "No pending/inflight/concurrency/race/duration/fault observation",
+    "No private admin/clock/policy or fabricated hidden/History target",
+    "No receipt truncation/expiry threshold or request-pointer failure sample",
+    "No ordinary receiving400 context exception asserted"
+  ]
+}
