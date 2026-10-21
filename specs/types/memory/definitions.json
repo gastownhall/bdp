@@ -16,10 +16,7 @@
           "title": "Memory properties",
           "$comment": "Memory V1 product property contract, not a BDP Type representation or complete mutation validator. Explicit Type supplies meaning; body is primary. Applicability/validity context stays in application metadata. Status is an optional open string; existing additional properties are preserved.",
           "type": "object",
-          "required": [
-            "title",
-            "body"
-          ],
+          "required": ["title", "body"],
           "properties": {
             "title": {
               "type": "string",
@@ -68,10 +65,7 @@
                 },
                 {
                   "type": "object",
-                  "required": [
-                    "uri",
-                    "revision"
-                  ],
+                  "required": ["uri", "revision"],
                   "properties": {
                     "uri": {
                       "type": "string",

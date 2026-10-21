@@ -15,9 +15,7 @@
           "title": "Common Type descriptor properties",
           "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
           "type": "object",
-          "required": [
-            "propertiesSchema"
-          ],
+          "required": ["propertiesSchema"],
           "properties": {
             "description": {
               "type": "string"
@@ -81,11 +79,7 @@
                 "pattern": "^/(?:[^~]|~[01])*$"
               },
               "additionalProperties": {
-                "enum": [
-                  "writable",
-                  "init-only",
-                  "service-managed"
-                ]
+                "enum": ["writable", "init-only", "service-managed"]
               },
               "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
             },
@@ -105,10 +99,7 @@
                 },
                 {
                   "type": "object",
-                  "required": [
-                    "uri",
-                    "revision"
-                  ],
+                  "required": ["uri", "revision"],
                   "properties": {
                     "uri": {
                       "$ref": "#/$defs/typeUrl"
@@ -126,9 +117,7 @@
               "oneOf": [
                 {
                   "type": "object",
-                  "required": [
-                    "anyOf"
-                  ],
+                  "required": ["anyOf"],
                   "properties": {
                     "anyOf": {
                       "type": "array",
@@ -143,9 +132,7 @@
                 },
                 {
                   "type": "object",
-                  "required": [
-                    "any"
-                  ],
+                  "required": ["any"],
                   "properties": {
                     "any": {
                       "const": true
@@ -158,9 +145,7 @@
             },
             "participationConstraint": {
               "type": "object",
-              "required": [
-                "linkTypes"
-              ],
+              "required": ["linkTypes"],
               "properties": {
                 "linkTypes": {
                   "$ref": "#/$defs/typeSelector"
@@ -176,14 +161,10 @@
               },
               "anyOf": [
                 {
-                  "required": [
-                    "min"
-                  ]
+                  "required": ["min"]
                 },
                 {
-                  "required": [
-                    "max"
-                  ]
+                  "required": ["max"]
                 }
               ],
               "additionalProperties": false,
@@ -193,21 +174,13 @@
               "oneOf": [
                 {
                   "type": "object",
-                  "required": [
-                    "resourceKind",
-                    "scope",
-                    "types"
-                  ],
+                  "required": ["resourceKind", "scope", "types"],
                   "properties": {
                     "resourceKind": {
                       "const": "bead"
                     },
                     "scope": {
-                      "enum": [
-                        "same",
-                        "cross",
-                        "either"
-                      ]
+                      "enum": ["same", "cross", "either"]
                     },
                     "types": {
                       "$ref": "#/$defs/typeSelector"
@@ -217,9 +190,7 @@
                 },
                 {
                   "type": "object",
-                  "required": [
-                    "resourceKind"
-                  ],
+                  "required": ["resourceKind"],
                   "properties": {
                     "resourceKind": {
                       "const": "resource"
@@ -232,10 +203,7 @@
             },
             "endpointPair": {
               "type": "object",
-              "required": [
-                "source",
-                "target"
-              ],
+              "required": ["source", "target"],
               "properties": {
                 "source": {
                   "$ref": "#/$defs/endpointConstraint"
@@ -248,9 +216,7 @@
             },
             "linkConstraints": {
               "type": "object",
-              "required": [
-                "typeConstraints"
-              ],
+              "required": ["typeConstraints"],
               "properties": {
                 "typeConstraints": {
                   "type": "array",
@@ -303,10 +269,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "prefixItems": {
                 "$ref": "#/$defs/schemaArray"
@@ -387,10 +350,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Content vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "contentEncoding": {
                 "type": "string"
@@ -411,10 +371,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Core vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "$id": {
                 "$ref": "#/$defs/uriReferenceString",
@@ -478,10 +435,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Format vocabulary meta-schema for annotation results",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "format": {
                 "type": "string"
@@ -496,10 +450,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Meta-data vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "title": {
                 "type": "string"
@@ -534,10 +485,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Unevaluated applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "unevaluatedItems": {
                 "$dynamicRef": "#meta"
@@ -555,10 +503,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Validation vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "type": {
                 "anyOf": [
@@ -649,15 +594,7 @@
                 "default": 0
               },
               "simpleTypes": {
-                "enum": [
-                  "array",
-                  "boolean",
-                  "integer",
-                  "null",
-                  "number",
-                  "object",
-                  "string"
-                ]
+                "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
               },
               "stringArray": {
                 "type": "array",
@@ -706,10 +643,7 @@
                 "$ref": "meta/content"
               }
             ],
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "$comment": "This meta-schema also defines keywords that have appeared in previous drafts in order to prevent incompatible extensions as they remain in common use.",
             "properties": {
               "definitions": {
@@ -803,9 +737,7 @@
             "title": "Common Type descriptor properties",
             "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
             "type": "object",
-            "required": [
-              "propertiesSchema"
-            ],
+            "required": ["propertiesSchema"],
             "properties": {
               "description": {
                 "type": "string"
@@ -869,11 +801,7 @@
                   "pattern": "^/(?:[^~]|~[01])*$"
                 },
                 "additionalProperties": {
-                  "enum": [
-                    "writable",
-                    "init-only",
-                    "service-managed"
-                  ]
+                  "enum": ["writable", "init-only", "service-managed"]
                 },
                 "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
               },
@@ -893,10 +821,7 @@
                   },
                   {
                     "type": "object",
-                    "required": [
-                      "uri",
-                      "revision"
-                    ],
+                    "required": ["uri", "revision"],
                     "properties": {
                       "uri": {
                         "$ref": "#/$defs/typeUrl"
@@ -914,9 +839,7 @@
                 "oneOf": [
                   {
                     "type": "object",
-                    "required": [
-                      "anyOf"
-                    ],
+                    "required": ["anyOf"],
                     "properties": {
                       "anyOf": {
                         "type": "array",
@@ -931,9 +854,7 @@
                   },
                   {
                     "type": "object",
-                    "required": [
-                      "any"
-                    ],
+                    "required": ["any"],
                     "properties": {
                       "any": {
                         "const": true
@@ -946,9 +867,7 @@
               },
               "participationConstraint": {
                 "type": "object",
-                "required": [
-                  "linkTypes"
-                ],
+                "required": ["linkTypes"],
                 "properties": {
                   "linkTypes": {
                     "$ref": "#/$defs/typeSelector"
@@ -964,14 +883,10 @@
                 },
                 "anyOf": [
                   {
-                    "required": [
-                      "min"
-                    ]
+                    "required": ["min"]
                   },
                   {
-                    "required": [
-                      "max"
-                    ]
+                    "required": ["max"]
                   }
                 ],
                 "additionalProperties": false,
@@ -981,21 +896,13 @@
                 "oneOf": [
                   {
                     "type": "object",
-                    "required": [
-                      "resourceKind",
-                      "scope",
-                      "types"
-                    ],
+                    "required": ["resourceKind", "scope", "types"],
                     "properties": {
                       "resourceKind": {
                         "const": "bead"
                       },
                       "scope": {
-                        "enum": [
-                          "same",
-                          "cross",
-                          "either"
-                        ]
+                        "enum": ["same", "cross", "either"]
                       },
                       "types": {
                         "$ref": "#/$defs/typeSelector"
@@ -1005,9 +912,7 @@
                   },
                   {
                     "type": "object",
-                    "required": [
-                      "resourceKind"
-                    ],
+                    "required": ["resourceKind"],
                     "properties": {
                       "resourceKind": {
                         "const": "resource"
@@ -1020,10 +925,7 @@
               },
               "endpointPair": {
                 "type": "object",
-                "required": [
-                  "source",
-                  "target"
-                ],
+                "required": ["source", "target"],
                 "properties": {
                   "source": {
                     "$ref": "#/$defs/endpointConstraint"
@@ -1036,9 +938,7 @@
               },
               "linkConstraints": {
                 "type": "object",
-                "required": [
-                  "typeConstraints"
-                ],
+                "required": ["typeConstraints"],
                 "properties": {
                   "typeConstraints": {
                     "type": "array",
@@ -1080,10 +980,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "prefixItems": {
                 "$ref": "#/$defs/schemaArray"
@@ -1164,10 +1061,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Content vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "contentEncoding": {
                 "type": "string"
@@ -1188,10 +1082,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Core vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "$id": {
                 "$ref": "#/$defs/uriReferenceString",
@@ -1255,10 +1146,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Format vocabulary meta-schema for annotation results",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "format": {
                 "type": "string"
@@ -1273,10 +1161,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Meta-data vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "title": {
                 "type": "string"
@@ -1311,10 +1196,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Unevaluated applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "unevaluatedItems": {
                 "$dynamicRef": "#meta"
@@ -1332,10 +1214,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Validation vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "type": {
                 "anyOf": [
@@ -1426,15 +1305,7 @@
                 "default": 0
               },
               "simpleTypes": {
-                "enum": [
-                  "array",
-                  "boolean",
-                  "integer",
-                  "null",
-                  "number",
-                  "object",
-                  "string"
-                ]
+                "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
               },
               "stringArray": {
                 "type": "array",
@@ -1483,10 +1354,7 @@
                 "$ref": "meta/content"
               }
             ],
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "$comment": "This meta-schema also defines keywords that have appeared in previous drafts in order to prevent incompatible extensions as they remain in common use.",
             "properties": {
               "definitions": {
@@ -1574,9 +1442,7 @@
             "outgoing": false
           },
           "additionalProperties": true,
-          "required": [
-            "linkConstraints"
-          ]
+          "required": ["linkConstraints"]
         },
         "schemaResources": {
           "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json": {
@@ -1585,9 +1451,7 @@
             "title": "Common Type descriptor properties",
             "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
             "type": "object",
-            "required": [
-              "propertiesSchema"
-            ],
+            "required": ["propertiesSchema"],
             "properties": {
               "description": {
                 "type": "string"
@@ -1651,11 +1515,7 @@
                   "pattern": "^/(?:[^~]|~[01])*$"
                 },
                 "additionalProperties": {
-                  "enum": [
-                    "writable",
-                    "init-only",
-                    "service-managed"
-                  ]
+                  "enum": ["writable", "init-only", "service-managed"]
                 },
                 "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
               },
@@ -1675,10 +1535,7 @@
                   },
                   {
                     "type": "object",
-                    "required": [
-                      "uri",
-                      "revision"
-                    ],
+                    "required": ["uri", "revision"],
                     "properties": {
                       "uri": {
                         "$ref": "#/$defs/typeUrl"
@@ -1696,9 +1553,7 @@
                 "oneOf": [
                   {
                     "type": "object",
-                    "required": [
-                      "anyOf"
-                    ],
+                    "required": ["anyOf"],
                     "properties": {
                       "anyOf": {
                         "type": "array",
@@ -1713,9 +1568,7 @@
                   },
                   {
                     "type": "object",
-                    "required": [
-                      "any"
-                    ],
+                    "required": ["any"],
                     "properties": {
                       "any": {
                         "const": true
@@ -1728,9 +1581,7 @@
               },
               "participationConstraint": {
                 "type": "object",
-                "required": [
-                  "linkTypes"
-                ],
+                "required": ["linkTypes"],
                 "properties": {
                   "linkTypes": {
                     "$ref": "#/$defs/typeSelector"
@@ -1746,14 +1597,10 @@
                 },
                 "anyOf": [
                   {
-                    "required": [
-                      "min"
-                    ]
+                    "required": ["min"]
                   },
                   {
-                    "required": [
-                      "max"
-                    ]
+                    "required": ["max"]
                   }
                 ],
                 "additionalProperties": false,
@@ -1763,21 +1610,13 @@
                 "oneOf": [
                   {
                     "type": "object",
-                    "required": [
-                      "resourceKind",
-                      "scope",
-                      "types"
-                    ],
+                    "required": ["resourceKind", "scope", "types"],
                     "properties": {
                       "resourceKind": {
                         "const": "bead"
                       },
                       "scope": {
-                        "enum": [
-                          "same",
-                          "cross",
-                          "either"
-                        ]
+                        "enum": ["same", "cross", "either"]
                       },
                       "types": {
                         "$ref": "#/$defs/typeSelector"
@@ -1787,9 +1626,7 @@
                   },
                   {
                     "type": "object",
-                    "required": [
-                      "resourceKind"
-                    ],
+                    "required": ["resourceKind"],
                     "properties": {
                       "resourceKind": {
                         "const": "resource"
@@ -1802,10 +1639,7 @@
               },
               "endpointPair": {
                 "type": "object",
-                "required": [
-                  "source",
-                  "target"
-                ],
+                "required": ["source", "target"],
                 "properties": {
                   "source": {
                     "$ref": "#/$defs/endpointConstraint"
@@ -1818,9 +1652,7 @@
               },
               "linkConstraints": {
                 "type": "object",
-                "required": [
-                  "typeConstraints"
-                ],
+                "required": ["typeConstraints"],
                 "properties": {
                   "typeConstraints": {
                     "type": "array",
@@ -1862,10 +1694,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "prefixItems": {
                 "$ref": "#/$defs/schemaArray"
@@ -1946,10 +1775,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Content vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "contentEncoding": {
                 "type": "string"
@@ -1970,10 +1796,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Core vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "$id": {
                 "$ref": "#/$defs/uriReferenceString",
@@ -2037,10 +1860,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Format vocabulary meta-schema for annotation results",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "format": {
                 "type": "string"
@@ -2055,10 +1875,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Meta-data vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "title": {
                 "type": "string"
@@ -2093,10 +1910,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Unevaluated applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "unevaluatedItems": {
                 "$dynamicRef": "#meta"
@@ -2114,10 +1928,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Validation vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "type": {
                 "anyOf": [
@@ -2208,15 +2019,7 @@
                 "default": 0
               },
               "simpleTypes": {
-                "enum": [
-                  "array",
-                  "boolean",
-                  "integer",
-                  "null",
-                  "number",
-                  "object",
-                  "string"
-                ]
+                "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
               },
               "stringArray": {
                 "type": "array",
@@ -2265,10 +2068,7 @@
                 "$ref": "meta/content"
               }
             ],
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "$comment": "This meta-schema also defines keywords that have appeared in previous drafts in order to prevent incompatible extensions as they remain in common use.",
             "properties": {
               "definitions": {
@@ -2411,10 +2211,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "prefixItems": {
                 "$ref": "#/$defs/schemaArray"
@@ -2495,10 +2292,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Content vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "contentEncoding": {
                 "type": "string"
@@ -2519,10 +2313,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Core vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "$id": {
                 "$ref": "#/$defs/uriReferenceString",
@@ -2586,10 +2377,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Format vocabulary meta-schema for annotation results",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "format": {
                 "type": "string"
@@ -2604,10 +2392,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Meta-data vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "title": {
                 "type": "string"
@@ -2642,10 +2427,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Unevaluated applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "unevaluatedItems": {
                 "$dynamicRef": "#meta"
@@ -2663,10 +2445,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Validation vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "type": {
                 "anyOf": [
@@ -2757,15 +2536,7 @@
                 "default": 0
               },
               "simpleTypes": {
-                "enum": [
-                  "array",
-                  "boolean",
-                  "integer",
-                  "null",
-                  "number",
-                  "object",
-                  "string"
-                ]
+                "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
               },
               "stringArray": {
                 "type": "array",
@@ -2814,10 +2585,7 @@
                 "$ref": "meta/content"
               }
             ],
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "$comment": "This meta-schema also defines keywords that have appeared in previous drafts in order to prevent incompatible extensions as they remain in common use.",
             "properties": {
               "definitions": {
@@ -2875,16 +2643,9 @@
           "title": "Draft Issue core properties fragment",
           "$comment": "Review fragment, not complete domain write validation. See https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/issue.md for native constraints, policy, writers and observations.",
           "type": "object",
-          "required": [
-            "id",
-            "title",
-            "status",
-            "priority"
-          ],
+          "required": ["id", "title", "status", "priority"],
           "not": {
-            "required": [
-              "issue_type"
-            ]
+            "required": ["issue_type"]
           },
           "properties": {
             "id": {
@@ -2925,10 +2686,7 @@
               "maxLength": 255
             },
             "estimated_minutes": {
-              "type": [
-                "integer",
-                "null"
-              ],
+              "type": ["integer", "null"],
               "minimum": 0
             },
             "labels": {
@@ -2938,33 +2696,21 @@
               }
             },
             "external_ref": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": ["string", "null"]
             },
             "spec_id": {
               "type": "string"
             },
             "due_at": {
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": ["string", "null"],
               "format": "date-time"
             },
             "defer_until": {
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": ["string", "null"],
               "format": "date-time"
             },
             "closed_at": {
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": ["string", "null"],
               "format": "date-time"
             },
             "close_reason": {
@@ -2992,10 +2738,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "prefixItems": {
                 "$ref": "#/$defs/schemaArray"
@@ -3076,10 +2819,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Content vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "contentEncoding": {
                 "type": "string"
@@ -3100,10 +2840,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Core vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "$id": {
                 "$ref": "#/$defs/uriReferenceString",
@@ -3167,10 +2904,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Format vocabulary meta-schema for annotation results",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "format": {
                 "type": "string"
@@ -3185,10 +2919,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Meta-data vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "title": {
                 "type": "string"
@@ -3223,10 +2954,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Unevaluated applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "unevaluatedItems": {
                 "$dynamicRef": "#meta"
@@ -3244,10 +2972,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Validation vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "type": {
                 "anyOf": [
@@ -3338,15 +3063,7 @@
                 "default": 0
               },
               "simpleTypes": {
-                "enum": [
-                  "array",
-                  "boolean",
-                  "integer",
-                  "null",
-                  "number",
-                  "object",
-                  "string"
-                ]
+                "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
               },
               "stringArray": {
                 "type": "array",
@@ -3395,10 +3112,7 @@
                 "$ref": "meta/content"
               }
             ],
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "$comment": "This meta-schema also defines keywords that have appeared in previous drafts in order to prevent incompatible extensions as they remain in common use.",
             "properties": {
               "definitions": {
@@ -3488,9 +3202,7 @@
           "$comment": "Review fragment, not complete domain write validation. See https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/issue.md for native constraints, policy, writers and observations.",
           "type": "object",
           "not": {
-            "required": [
-              "dep_type"
-            ]
+            "required": ["dep_type"]
           },
           "properties": {},
           "additionalProperties": true
@@ -3535,10 +3247,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "prefixItems": {
                 "$ref": "#/$defs/schemaArray"
@@ -3619,10 +3328,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Content vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "contentEncoding": {
                 "type": "string"
@@ -3643,10 +3349,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Core vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "$id": {
                 "$ref": "#/$defs/uriReferenceString",
@@ -3710,10 +3413,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Format vocabulary meta-schema for annotation results",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "format": {
                 "type": "string"
@@ -3728,10 +3428,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Meta-data vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "title": {
                 "type": "string"
@@ -3766,10 +3463,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Unevaluated applicator vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "unevaluatedItems": {
                 "$dynamicRef": "#meta"
@@ -3787,10 +3481,7 @@
             },
             "$dynamicAnchor": "meta",
             "title": "Validation vocabulary meta-schema",
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "properties": {
               "type": {
                 "anyOf": [
@@ -3881,15 +3572,7 @@
                 "default": 0
               },
               "simpleTypes": {
-                "enum": [
-                  "array",
-                  "boolean",
-                  "integer",
-                  "null",
-                  "number",
-                  "object",
-                  "string"
-                ]
+                "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
               },
               "stringArray": {
                 "type": "array",
@@ -3938,10 +3621,7 @@
                 "$ref": "meta/content"
               }
             ],
-            "type": [
-              "object",
-              "boolean"
-            ],
+            "type": ["object", "boolean"],
             "$comment": "This meta-schema also defines keywords that have appeared in previous drafts in order to prevent incompatible extensions as they remain in common use.",
             "properties": {
               "definitions": {
