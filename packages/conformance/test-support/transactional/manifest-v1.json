@@ -7,9 +7,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "reference-transactional-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -199,9 +197,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "reference-transactional-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -362,9 +358,7 @@
               "kind": "json-array-set",
               "pointer": "/items",
               "itemPointer": "/id",
-              "equals": [
-                "https://reference.invalid/acme/beads/a"
-              ]
+              "equals": ["https://reference.invalid/acme/beads/a"]
             }
           ]
         },
@@ -520,9 +514,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "reference-transactional-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -833,9 +825,7 @@
                 "content-type",
                 "content-length"
               ],
-              "optionalHeaders": [
-                "content-length"
-              ]
+              "optionalHeaders": ["content-length"]
             },
             {
               "id": "etag",
@@ -858,9 +848,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "reference-transactional-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -909,10 +897,7 @@
               "id": "allow",
               "kind": "header-tokens",
               "name": "allow",
-              "includes": [
-                "GET",
-                "HEAD"
-              ],
+              "includes": ["GET", "HEAD"],
               "allowsAdditional": false
             }
           ],
@@ -925,9 +910,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "reference-transactional-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -1152,10 +1135,7 @@
               "id": "allow",
               "kind": "header-tokens",
               "name": "allow",
-              "includes": [
-                "GET",
-                "HEAD"
-              ],
+              "includes": ["GET", "HEAD"],
               "allowsAdditional": false
             },
             {
@@ -1173,9 +1153,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "reference-transactional-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -1545,9 +1523,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "reference-transactional-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -2006,9 +1982,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "reference-transactional-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -2195,9 +2169,7 @@
                 "content-type",
                 "content-length"
               ],
-              "optionalHeaders": [
-                "content-length"
-              ]
+              "optionalHeaders": ["content-length"]
             },
             {
               "id": "etag",
