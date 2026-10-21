@@ -611,13 +611,23 @@ export function transactionSnapshotStorage(
       )
         unrecognized();
     }
-    // Unselected context/identity collisions keep the existing private gap.
-    // Do not select an expiry or non-disclosure diagnosis for them via S1.
+    // An unexpired, same-epoch foreign-view identity keeps its existing409
+    // under the actual current tuple and genesis: no anchor failure competes.
+    // All other context/expiry/position collisions remain unselected.
     if (
       minimum &&
       (d.view !== context.authorizationView ||
         minimum.scopeEpoch !== d.epoch ||
-        minimum.authorizationView !== d.view)
+        minimum.authorizationView !== d.view) &&
+      !(
+        d.view !== context.authorizationView &&
+        d.epoch === context.scopeEpoch &&
+        !d.expired &&
+        now <= d.expires &&
+        minimum.scopeEpoch === context.scopeEpoch &&
+        minimum.authorizationView === context.authorizationView &&
+        minimum.minimumPosition === "genesis"
+      )
     )
       throw new TransactionMinimumUnsupported("retained-snapshot-context");
     // Qualified witnesses separate unexpired foreign-view and same-view expiry.

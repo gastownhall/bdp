@@ -1,39 +1,39 @@
 /** Explicitly non-attesting, loopback-only mutable development server. */
 import { timingSafeEqual } from "node:crypto";
-import { isDeepStrictEqual } from "node:util";
-import type { Socket } from "node:net";
-import { referenceDeploymentState } from "./reference-deployment-state.js";
-import type { PreparedReferenceDeployment } from "./reference-deployment.js";
-import type { captureInstalledReferenceConfiguration } from "./installed-reference-configuration.js";
-import { createDevelopmentComposition } from "./development-composition.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { TextDecoder } from "node:util";
+import type { Socket } from "node:net";
 import path from "node:path";
+import { isDeepStrictEqual, TextDecoder } from "node:util";
 import {
-  ReadUpdateCarrierError,
-  JsonSyntaxError,
-  stringifyJsonValue,
-  readProblem,
-  parseReadUpdateProblem,
   decodeJsonDocument,
+  JsonSyntaxError,
   parseCanonicalScope,
   parseReadUpdateOperationDirectory,
-  type ReadUpdateOperationDirectory,
+  parseReadUpdateProblem,
   type ReadProblemCode,
+  ReadUpdateCarrierError,
   type ReadUpdateOperation,
+  type ReadUpdateOperationDirectory,
+  readProblem,
+  stringifyJsonValue,
 } from "@bdp/protocol";
-import { applyReadHttpSemantics, resourceRevisionEtag, acceptsJson } from "./read-http.js";
-import { normalizationSafeRawRequestPath } from "./node-http-target.js";
-import type { HttpResponse, HttpHandler } from "./index.js";
+import type { DevelopmentAuthorityConfiguration } from "./development-authority.js";
+import { DEVELOPMENT_LIMITS, openDevelopmentAuthority } from "./development-authority.js";
+import { createDevelopmentComposition } from "./development-composition.js";
 import {
   administrativeArray,
   administrativeData,
-  assertDevelopmentContracts,
   assertDevelopmentAccessPolicy,
+  assertDevelopmentContracts,
   captureDevelopmentAggregatePolicy,
 } from "./development-contracts.js";
-import type { DevelopmentAuthorityConfiguration } from "./development-authority.js";
-import { DEVELOPMENT_LIMITS, openDevelopmentAuthority } from "./development-authority.js";
+import type { HttpHandler, HttpResponse } from "./index.js";
+import type { captureInstalledReferenceConfiguration } from "./installed-reference-configuration.js";
+import { normalizationSafeRawRequestPath } from "./node-http-target.js";
+import { acceptsJson, applyReadHttpSemantics, resourceRevisionEtag } from "./read-http.js";
+import { classifyAliasPath } from "./read-request.js";
+import type { PreparedReferenceDeployment } from "./reference-deployment.js";
+import { referenceDeploymentState } from "./reference-deployment-state.js";
 import type { LifecycleScheduler } from "./sequence-executor.js";
 
 export interface DevelopmentServerOptions {
@@ -391,12 +391,27 @@ async function startDevelopmentRuntimeCore(
       const origin = header(request, "origin");
       if (transport === undefined && origin !== undefined) throw new ReceivingError("forbidden");
       const rawUrl = request.url ?? "";
+      const fragmentAt = rawUrl.indexOf("#");
+      const fragmentPrefix =
+        fragmentAt === -1
+          ? undefined
+          : normalizationSafeRawRequestPath(rawUrl.slice(0, fragmentAt));
+      // Preserve the existing nonobserving alias refusal before WHATWG URL
+      // conversion loses a literal fragment. Authentication/Host/Origin and
+      // every other normalization check retain their earlier precedence.
+      const aliasFragment =
+        composedRead !== undefined &&
+        (request.method === "GET" || request.method === "HEAD") &&
+        fragmentPrefix !== undefined &&
+        classifyAliasPath(
+          new URL(fragmentPrefix, new URL(scope).origin),
+          parseCanonicalScope(scope),
+        ) !== undefined;
       const pathAndQuery = normalizationSafeRawRequestPath(rawUrl);
-      if (
-        pathAndQuery === undefined ||
-        (transport === undefined && (!rawUrl.startsWith("/") || rawUrl.startsWith("//")))
-      )
+      if (transport === undefined && (!rawUrl.startsWith("/") || rawUrl.startsWith("//")))
         throw new ReceivingError("malformed-request");
+      if (aliasFragment) throw new ReceivingError("resource-not-found");
+      if (pathAndQuery === undefined) throw new ReceivingError("malformed-request");
       // Only configured Scope determines identity, including absolute-form requests.
       const url = new URL(pathAndQuery, new URL(scope).origin);
       const schema = schemaArtifacts.find((entry) => entry.uri === url.href);
