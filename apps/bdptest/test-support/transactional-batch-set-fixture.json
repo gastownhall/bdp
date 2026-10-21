@@ -1,0 +1,33 @@
+{
+  "fixtureVersion": 1,
+  "id": "reference-transactional-batch-set-product-v1",
+  "seed": 0,
+  "capabilities": ["installed-transactional-http", "transactional-receipt-observation"],
+  "scope": "https://reference.invalid/acme/",
+  "bindings": {
+    "subject": "https://reference.invalid/acme/beads/a",
+    "target": "https://reference.invalid/acme/beads/b",
+    "type": "https://reference.invalid/acme/types/batch-task",
+    "schema": "https://reference.invalid/acme/schemas/batch-task",
+    "batch": "https://reference.invalid/acme/operations/batch"
+  },
+  "artifacts": {
+    "descriptors": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/batch-task",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/batch-task\",\"name\":\"BatchTask\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/batch-task\"}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/batch-link",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/batch-link\",\"name\":\"BatchLink\",\"describes\":\"link\",\"conformsTo\":[],\"source\":{\"conformsTo\":[\"https://reference.invalid/acme/types/batch-task\"],\"external\":\"none\"},\"target\":{\"conformsTo\":[\"https://reference.invalid/acme/types/batch-task\"],\"external\":\"none\"}}"
+      }
+    ],
+    "schemas": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/batch-task",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/batch-task\",\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\"},\"n\":{\"type\":\"integer\"}},\"required\":[\"label\",\"n\"],\"additionalProperties\":false}"
+      }
+    ]
+  },
+  "recipe": "Each case has its own actual installed store; labels, rollback/noop, inclusive/outside cardinality. No clock/page/limit overrides."
+}
