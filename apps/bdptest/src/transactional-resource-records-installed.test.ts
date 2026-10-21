@@ -330,9 +330,14 @@ async function installed(label: string, body: (session: Session) => Promise<void
       await child?.close();
       await childClosed;
       expect(child?.child.exitCode).toBe(0);
-      rmSync(directory, { recursive: true, force: true });
     } catch (error) {
       cleanupErrors.push(error);
+    } finally {
+      try {
+        rmSync(directory, { recursive: true, force: true });
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
     }
     const report = {
       kind: "installed-read-resource-partial",
