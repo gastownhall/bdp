@@ -1,11 +1,19 @@
 import { realpath, stat } from "node:fs/promises";
-import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 export function assertServerExports(manifest) {
   const expected = {
     ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
     "./development": { types: "./dist/development.d.ts", default: "./dist/development.js" },
+    "./reference-configuration": {
+      types: "./dist/reference-deployment.d.ts",
+      default: "./dist/reference-deployment.js",
+    },
+    "./reference-startup": {
+      types: "./dist/reference-startup.d.ts",
+      default: "./dist/reference-startup.js",
+    },
   };
   if (!isDeepStrictEqual(manifest.exports, expected))
     throw new Error(

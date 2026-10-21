@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { referenceDeploymentState } from "./reference-deployment-state.js";
+import type { PreparedReferenceDeployment } from "./reference-deployment.js";
 import { TransactionAuthorizationFailure } from "./transaction-authorization.js";
 /** Source-private loopback fixture. Never selected by installed config/profile
  * admission. It exposes actual routes, not an incomplete BDP discovery claim. */
@@ -98,7 +101,34 @@ export async function startTransactionRuntime(
   options: TransactionRuntimeOptions,
   seams: TransactionRuntimeTestSeams = {},
 ) {
-  const captured = captureTransactionRuntimeConfiguration(options, seams);
+  const { scope, listenUrl, configurationMetadata, replaceAuthorizationPolicy, targets, close } =
+    await startTransactionRuntimeCore(captureTransactionRuntimeConfiguration(options, seams));
+  // Keep the legacy declaration and runtime result restricted to its original six keys.
+  return Object.freeze({
+    scope,
+    listenUrl,
+    configurationMetadata,
+    replaceAuthorizationPolicy,
+    targets,
+    close,
+  });
+}
+export async function startPreparedTransactionRuntime(
+  handle: PreparedReferenceDeployment,
+  signal?: AbortSignal,
+) {
+  const state = referenceDeploymentState(handle);
+  if (state.profile !== "transactional") throw new TypeError("prepared Transactional required");
+  signal?.throwIfAborted();
+  return startTransactionRuntimeCore(state.preflight, {
+    handle,
+    ...(signal === undefined ? {} : { signal }),
+  });
+}
+async function startTransactionRuntimeCore(
+  captured: ReturnType<typeof captureTransactionRuntimeConfiguration>,
+  prepared?: { readonly handle: PreparedReferenceDeployment; readonly signal?: AbortSignal },
+) {
   const { settings, configuredScope, contracts, types } = captured;
   const capturedSeams = captured.seams;
   let service: ReturnType<typeof createTransactionService> | undefined;
@@ -304,25 +334,52 @@ export async function startTransactionRuntime(
     if (Reflect.get(server, key) !== settings.transport[key])
       throw new Error("runtime transport configuration mismatch");
   server.on("timeout", (socket) => socket.destroy());
+  const sockets = new Set<Socket>();
+  if (prepared)
+    server.on("connection", (socket) => {
+      sockets.add(socket);
+      socket.once("close", () => sockets.delete(socket));
+    });
+  const terminal = Promise.withResolvers<void>();
+  void terminal.promise.catch(() => {});
+  let liveFault: { readonly cause: unknown } | undefined;
+  const listenerFaults: unknown[] = [];
+  let rejectListening: ((error: unknown) => void) | undefined;
+  let published = false;
+  let checkedOwner:
+    | ReturnType<ReturnType<typeof openTransactionStore>["readConfiguration"]>
+    | undefined;
+  const checkPrepared = () => {
+    prepared?.signal?.throwIfAborted();
+    if (liveFault) throw liveFault.cause;
+  };
+  const onListenerError = (error: Error) => {
+    if (!listenerFaults.includes(error)) listenerFaults.push(error);
+    liveFault ??= { cause: error };
+    rejectListening?.(error);
+    terminal.reject(error);
+    if (published) void close().catch(() => {});
+  };
+  const onAbort = () => {
+    if (published) void close().catch(() => {});
+  };
+  if (prepared) {
+    server.on("error", onListenerError);
+    prepared.signal?.addEventListener("abort", onAbort, { once: true });
+  }
   const closeListener = () =>
     new Promise<void>((resolve, reject) => {
+      if (prepared && !server.listening) {
+        for (const socket of sockets) socket.destroy();
+        resolve();
+        return;
+      }
       server.close((error) => (error ? reject(error) : resolve()));
       server.closeAllConnections();
+      if (prepared) for (const socket of sockets) socket.destroy();
     });
   let owner: ReturnType<typeof openTransactionStore> | undefined;
-  try {
-    await new Promise<void>((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(captured.port, settings.transport.host, () => {
-        server.removeListener("error", reject);
-        resolve();
-      });
-    });
-    const address = server.address();
-    if (!address || typeof address === "string")
-      throw new Error("missing private transaction address");
-    listenUrl = `http://127.0.0.1:${address.port}/`;
-    scope = configuredScope ?? new URL("acme/", listenUrl).href;
+  const prepareOwner = () => {
     owner = openTransactionStore({
       file: path.join(captured.directory, "transaction.sqlite"),
       scope,
@@ -333,6 +390,22 @@ export async function startTransactionRuntime(
       maintenanceIntervalMs: settings.maintenanceIntervalMs,
       ...(capturedSeams.clock ? { clock: capturedSeams.clock } : {}),
     });
+    if (prepared) {
+      checkPrepared();
+      const actual = owner.readConfiguration();
+      if (
+        actual.receiptMaximumItems !== settings.receiptMaximumItems ||
+        !isDeepStrictEqual(
+          captured.readOptions(scope).advertisedLimits,
+          prepared.handle.preflightReadLimits,
+        )
+      )
+        throw new Error("prepared Transactional read limits mismatch");
+      configurationMetadata = captured.metadata(actual, scope);
+      if (!configurationMetadata || configurationMetadata.authorityMode !== "canonical")
+        throw new Error("prepared Transactional metadata unavailable");
+      checkedOwner = actual;
+    }
     service = createTransactionService(owner, {
       ownerLifetime: "service",
       maximumStreams: settings.changefeedStream.maximumStreams,
@@ -341,17 +414,56 @@ export async function startTransactionRuntime(
       minimumReads: { budgetMs: settings.minimumReadBudgetMs, ...capturedSeams.minimumReads },
       read: captured.readOptions(scope),
     });
-    configurationMetadata = captured.metadata(owner.readConfiguration(), scope);
+    if (!prepared) configurationMetadata = captured.metadata(owner.readConfiguration(), scope);
     schemas = createTransactionSchemaHttp(scope, contracts, service.schemaObserved);
     handler = createTransactionHttpHandler(service, scope, capturedSeams.maximumOperations);
+  };
+  try {
+    if (prepared) {
+      if (prepared.handle.listener.port < 1 || !configuredScope)
+        throw new TypeError("intended listener required");
+      scope = configuredScope;
+      checkPrepared();
+      prepareOwner();
+      await Promise.resolve();
+      checkPrepared();
+    }
+    await new Promise<void>((resolve, reject) => {
+      if (prepared) rejectListening = reject;
+      else server.once("error", reject);
+      server.listen(
+        prepared?.handle.listener.port ?? captured.port,
+        prepared?.handle.listener.host ?? settings.transport.host,
+        () => {
+          if (!prepared) server.removeListener("error", reject);
+          rejectListening = undefined;
+          resolve();
+        },
+      );
+    });
+    const address = server.address();
+    if (!address || typeof address === "string")
+      throw new Error("missing private transaction address");
+    listenUrl = `http://127.0.0.1:${address.port}/`;
+    scope = configuredScope ?? new URL("acme/", listenUrl).href;
+    if (!prepared) prepareOwner();
+    checkPrepared();
+    if (prepared) {
+      await Promise.resolve();
+      checkPrepared();
+    }
+    published = true;
   } catch (error) {
-    const failures: unknown[] = [error];
+    prepared?.signal?.removeEventListener("abort", onAbort);
+    terminal.reject(error);
+    const failures: unknown[] = [error, ...listenerFaults.filter((fault) => fault !== error)];
     if (server.listening)
       try {
         await closeListener();
       } catch (failure) {
         failures.push(failure);
       }
+    if (prepared) await Promise.allSettled([...pending]);
     try {
       if (service) await service.close();
       else owner?.close();
@@ -363,7 +475,7 @@ export async function startTransactionRuntime(
       : new AggregateError(failures, "transaction runtime startup cleanup failed");
   }
   let completion: Promise<void> | undefined;
-  return Object.freeze({
+  const legacy = {
     scope,
     listenUrl,
     configurationMetadata,
@@ -371,30 +483,57 @@ export async function startTransactionRuntime(
       readonly timeoutMs: number;
       readonly signal?: AbortSignal;
     }) => service!.replaceAuthorizationPolicy(options),
-    /** Test-only inventory, not an HTTP Operation Directory. */ targets: handler.targets,
-    close(): Promise<void> {
-      if (!completion) {
-        closing = true;
-        completion = (async () => {
-          const failures: unknown[] = [];
-          try {
-            await closeListener();
-          } catch (error) {
-            failures.push(error);
-          }
-          await Promise.allSettled([...pending]);
-          try {
-            await service?.close();
-          } catch (error) {
-            failures.push(error);
-          }
-          if (firstStreamFault) failures.unshift(firstStreamFault.cause);
-          if (failures.length)
-            throw new AggregateError(failures, "transaction runtime shutdown failed");
-        })();
-        void completion.catch(() => {});
-      }
-      return completion;
-    },
+    /** Test-only inventory, not an HTTP Operation Directory. */ targets: handler!.targets,
+    close,
+  };
+  function close(): Promise<void> {
+    if (!completion) {
+      closing = true;
+      completion = (async () => {
+        const failures: unknown[] = [];
+        try {
+          await closeListener();
+        } catch (error) {
+          failures.push(error);
+        }
+        await Promise.allSettled([...pending]);
+        try {
+          await service?.close();
+        } catch (error) {
+          failures.push(error);
+        }
+        if (firstStreamFault) failures.unshift(firstStreamFault.cause);
+        failures.unshift(...listenerFaults);
+        if (failures.length)
+          throw new AggregateError(failures, "transaction runtime shutdown failed");
+      })()
+        .then(
+          () => {
+            terminal.resolve();
+          },
+          (error: unknown) => {
+            terminal.reject(error);
+            throw error;
+          },
+        )
+        .finally(() => {
+          prepared?.signal?.removeEventListener("abort", onAbort);
+        });
+      void completion.catch(() => {});
+    }
+    return completion;
+  }
+  if (!prepared) return Object.freeze(legacy);
+  if (!checkedOwner || !configurationMetadata) throw new Error("missing prepared owner");
+  return Object.freeze({
+    ...legacy,
+    history: configurationMetadata.history,
+    completion: terminal.promise,
+    ownerFacts: Object.freeze({
+      scope,
+      scopeEpoch: checkedOwner.scopeEpoch,
+      readLimits: captured.readOptions(scope).advertisedLimits,
+      installedTypeIds: Object.freeze(checkedOwner.installedTypes.map((t) => t.id)),
+    }),
   });
 }

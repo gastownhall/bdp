@@ -3,9 +3,9 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { createServer, createConnection } from "node:net";
-import { request } from "node:http";
 import { once } from "node:events";
+import { request } from "node:http";
+import { createConnection, createServer } from "node:net";
 import path from "node:path";
 export async function availablePort() {
   const server = createServer();
@@ -22,6 +22,7 @@ export async function launchInstalledReference(entry, configuration) {
   });
   let stdout = "",
     stderr = "";
+  let qualificationError;
   child.stdout.on("data", (b) => {
     stdout += b;
     if (stdout.length > 65536) child.kill("SIGKILL");
@@ -32,6 +33,9 @@ export async function launchInstalledReference(entry, configuration) {
   });
   const exited = new Promise((resolve) =>
     child.once("exit", (code, signal) => resolve({ code, signal })),
+  );
+  const closed = new Promise((resolve) =>
+    child.once("close", (code, signal) => resolve({ code, signal })),
   );
   const bounded = async (promise) => {
     let timer;
@@ -58,6 +62,52 @@ export async function launchInstalledReference(entry, configuration) {
         child.send({ configuration });
       }),
     );
+    if (ready?.event === "qualification.failed") {
+      const phases = ["configuration", "candidate-start", "serving", "closing"];
+      const classes = [
+        "Error",
+        "TypeError",
+        "RangeError",
+        "SyntaxError",
+        "AggregateError",
+        "unknown",
+      ];
+      const codes = [
+        null,
+        "EADDRINUSE",
+        "EADDRNOTAVAIL",
+        "EACCES",
+        "EPERM",
+        "EMFILE",
+        "ENFILE",
+        "ENOSPC",
+        "ENOENT",
+        "EEXIST",
+        "EIO",
+        "EBUSY",
+        "EROFS",
+        "ERR_SQLITE_ERROR",
+        "ERR_INVALID_ARG_TYPE",
+        "ERR_INVALID_ARG_VALUE",
+        "ERR_OUT_OF_RANGE",
+      ];
+      if (
+        Object.keys(ready).sort().join(",") !== "code,errorClass,event,phase" ||
+        !phases.includes(ready.phase) ||
+        !classes.includes(ready.errorClass) ||
+        !codes.includes(ready.code)
+      )
+        throw Error("invalid installed qualification diagnostic");
+      const diagnostic = Object.freeze({
+        phase: ready.phase,
+        errorClass: ready.errorClass,
+        code: ready.code,
+      });
+      const error = Error(`installed child qualification refused: ${JSON.stringify(diagnostic)}`);
+      error.qualification = diagnostic;
+      qualificationError = error;
+      throw error;
+    }
     assert.equal(ready.event, "qualification.ready");
     assert.equal(ready.claimEligible, false);
     assert.match(ready.configurationIdentity, /^[a-f0-9]{64}$/);
@@ -81,6 +131,23 @@ export async function launchInstalledReference(entry, configuration) {
   } catch (error) {
     child.kill("SIGKILL");
     await bounded(exited);
+    const terminal = await bounded(closed);
+    // Preserve the historical failure vocabulary only after the child really
+    // closed. The appended detail is the validated closed diagnostic, never
+    // arbitrary stderr/configuration/exception text.
+    if (error === qualificationError && error instanceof Error)
+      error.message = `installed child exited: installed reference qualification failed; ${error.message}`;
+    if (error instanceof Error)
+      Object.defineProperty(error, "qualificationProcess", {
+        value: Object.freeze({
+          pid: child.pid,
+          ...terminal,
+          stdout,
+          stderr,
+          stdoutEOF: child.stdout.readableEnded,
+          stderrEOF: child.stderr.readableEnded,
+        }),
+      });
     throw error;
   }
 }
