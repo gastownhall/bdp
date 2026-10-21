@@ -1,0 +1,5 @@
+# Admitted disconnect boundary
+
+One NEW sequence-create request is actually written to an authenticated loopback TCP socket. The existing typed scheduler receives and holds the ORIGINAL execution callback after real admission. A same-key direct request independently observes its pending receipt. The submitting socket is then deliberately destroyed before any response; that transport has UNKNOWN outcome and no complete response is fabricated. Another pending retry proves the key/receipt survive; releasing the original callback allows one complete terminal receipt, record and Scope group.
+
+This is NONORDINARY scheduler control with null ordinary identity, reusing exact fresh252 runtime packages bb13/34e0966c, byte-identical to current5006 production. No old249/247/source test replay, package rebuild, clock/policy or wait-budget change. The bodyless500, authority fault, rollback and crash counterparts remain unselected. Native cleanup and unconditional store removal retain all causes. Full actual submitted request remains private0600; public artifacts redact Authorization and retain length/digest/write state and actual response-prefix bytes.
