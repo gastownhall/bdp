@@ -1,0 +1,311 @@
+{
+  "kind": "incremental carrier mapping; frozen PR232 untouched",
+  "priorPlan": "transactional-cumulative-product-carrier-plan.json at90c7a937",
+  "requiredCanonicalIds": 251,
+  "retiredIds": 13,
+  "newRows": [
+    {
+      "id": "read.types.inventory",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#types-and-type-descriptors",
+          "selectedText": "Each page is an object containing `items` and `next`; each item is exactly the Type summary `{id, name, describes}`."
+        }
+      ],
+      "newCase": "types-schemas",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-types-continuation-1/types-schemas-campaign.json",
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "residual": "Schema retrieval covers exactly current3 captured documents, not unselected referenced-schema deployment; no minimum-wait branch."
+    },
+    {
+      "id": "read.types.descriptor",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#types-and-type-descriptors",
+          "selectedText": "Descriptor objects and endpoint-constraint objects are closed: no members are allowed except those defined above."
+        }
+      ],
+      "newCase": "types-schemas",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-types-continuation-1/types-schemas-campaign.json",
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "residual": "Schema retrieval covers exactly current3 captured documents, not unselected referenced-schema deployment; no minimum-wait branch."
+    },
+    {
+      "id": "read.collections.selector",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "The structural predicates and Selector decide the complete matching set before pagination, but only within the request's Authorization View."
+        }
+      ],
+      "newCase": "continuation",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-types-continuation-1/continuation-campaign.json",
+      "proposedStatus": "partial-demonstrated",
+      "residual": "Fixed visible Task selector only, no changed permission/expiry branches."
+    },
+    {
+      "id": "read.collections.pagination-snapshot",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "A cursor continues one logical projected snapshot: every page belongs to the same selected set, authorization projection, and Resource revisions as the initial request."
+        }
+      ],
+      "newCase": "continuation",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-types-continuation-1/continuation-campaign.json",
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "residual": "Fixed visible Task selector only, no changed permission/expiry branches."
+    },
+    {
+      "id": "read-update.numeric-model.same-value-no-op",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "Two JSON numbers are the same value if and only if the decimal values their literals denote are equal, whatever their spelling: `1.0`, `1`, and `1e0` are one value, and `9007199254740993` and `9007199254740992` are two."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-consistency",
+          "selectedText": "Read+Update has no durable Mutation Receipts and no BDP Events."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "Number equality in that comparison, and the admissibility of every number literal a change carries, are defined under [Revisions](#revisions)."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "Number equality under the no-op law is over exact decimal values."
+        }
+      ],
+      "newCase": "numeric",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-numeric-1/numeric-campaign.json",
+      "proposedStatus": "partial-demonstrated",
+      "residual": "Raw token and recursive model/no-op evidence; no every-number or every-schema claim."
+    },
+    {
+      "id": "read-update.numeric-model.round-trip-admission",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "a number literal is **admissible** if and only if converting its exact decimal value to the nearest IEEE 754 binary64 value and serializing that value back in its shortest round-trip form \u2014 the ECMAScript `Number::toString` form that [RFC 8785 Section 3.2.2.3](https://www.rfc-editor.org/rfc/rfc8785.html#section-3.2.2.3) adopts \u2014 yields a literal denoting the same exact decimal value."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "`1e300` and its expanded form are admissible; `-0.0` denotes zero, is admissible, and is the same value as `0`; `9007199254740993` and a decimal of twenty significant digits are not admissible."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#numeric-admission",
+          "selectedText": "An authority MUST refuse at admission a `properties` document \u2014 supplied whole or through a Property Change \u2014 that contains an inadmissible literal at any depth: nothing changes, and the operation fails as the write profiles' `validation-failed` with a diagnostic naming the offending member."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#validation-and-results",
+          "selectedText": "Type and properties-schema constraints, and the admissibility of every number literal under [Revisions](#revisions);"
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "An authority MUST refuse at admission any number literal in `properties`, at any depth, whose exact decimal value does not round-trip through IEEE 754 binary64 unchanged, as `validation-failed` with a diagnostic naming the member"
+        }
+      ],
+      "newCase": "numeric",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-numeric-1/numeric-campaign.json",
+      "proposedStatus": "partial-demonstrated",
+      "residual": "Raw token and recursive model/no-op evidence; no every-number or every-schema claim."
+    },
+    {
+      "id": "read-update.numeric-model.nested-refusal",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#numeric-admission",
+          "selectedText": "An authority MUST refuse at admission a `properties` document \u2014 supplied whole or through a Property Change \u2014 that contains an inadmissible literal at any depth"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#numeric-admission",
+          "selectedText": "with a diagnostic naming the offending member."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "any number literal in `properties`, at any depth"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "A numeric failure in an unapplied `properties` or `metadata` patch may omit `instanceLocation` rather than identify a postimage position that is not yet known. A request-body pointer does not identify a position in that document."
+        }
+      ],
+      "newCase": "numeric",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-numeric-1/numeric-campaign.json",
+      "proposedStatus": "partial-demonstrated",
+      "residual": "Raw token and recursive model/no-op evidence; no every-number or every-schema claim."
+    },
+    {
+      "id": "read-update.sequence.order-and-partial-commit",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "starts members strictly in declaration order and never runs them in parallel;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "commits each successful member immediately and never rolls it back because a later member fails;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "continues after a failed member so later independent work can run;"
+        }
+      ],
+      "newCase": "sequence",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-sequence-3/sequence-campaign.json",
+      "proposedStatus": "partial-demonstrated",
+      "residual": "No pending/interleaving/disconnect/expiry/erased-permission credit; full selected-clause reconciliation remains ROOT-owned. Member-transactions only ordinary terminal projection/effects, not direct pending admission observation."
+    },
+    {
+      "id": "read-update.sequence.local-bindings",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "The binding becomes available only after the create commits"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "A reference to a creating member whose retained disposition is a failure fails that member with `binding-unavailable`, a retained failure"
+        }
+      ],
+      "newCase": "sequence",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-sequence-3/sequence-campaign.json",
+      "proposedStatus": "partial-demonstrated",
+      "residual": "No pending/interleaving/disconnect/expiry/erased-permission credit; full selected-clause reconciliation remains ROOT-owned. Member-transactions only ordinary terminal projection/effects, not direct pending admission observation."
+    },
+    {
+      "id": "read-update.sequence.retained-failure",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "Every other disposition, success or failure, is retained, and a retained failure answers a retry exactly as a retained success does for as long as it is retained"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A retained disposition is returned without re-executing anything."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Re-keying a creating member changes the identity of every member that references its binding: a client that corrects a creator presents new keys for its dependents as well."
+        }
+      ],
+      "newCase": "sequence",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-sequence-3/sequence-campaign.json",
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "residual": "No pending/interleaving/disconnect/expiry/erased-permission credit; full selected-clause reconciliation remains ROOT-owned. Member-transactions only ordinary terminal projection/effects, not direct pending admission observation."
+    },
+    {
+      "id": "read-update.sequence.member-problem-shape",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-problem-envelopes",
+          "selectedText": "Each failed member contains the same Problem Details shape with its would-be `status`, its zero-based `operationIndex`, and, when the member declared one, its `operationName`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-response-envelope",
+          "selectedText": "Every entry carries `operationIndex`, the member's zero-based position in the request's `operations` array, and carries `operationName` exactly when the member declared `name`."
+        }
+      ],
+      "newCase": "sequence",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-sequence-3/sequence-campaign.json",
+      "proposedStatus": "partial-demonstrated",
+      "residual": "No pending/interleaving/disconnect/expiry/erased-permission credit; full selected-clause reconciliation remains ROOT-owned. Member-transactions only ordinary terminal projection/effects, not direct pending admission observation."
+    },
+    {
+      "id": "read-update.sequence.idempotent-retry",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with the same semantic identity: the authority does not execute the member and returns the retained disposition, positioned with the present member's `operationIndex` and `operationName`;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "The authority runs the remaining members to their terminal dispositions and retains those dispositions under their keys, so a retry recovers a lost response member by member."
+        }
+      ],
+      "newCase": "sequence",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-sequence-3/sequence-campaign.json",
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "residual": "No pending/interleaving/disconnect/expiry/erased-permission credit; full selected-clause reconciliation remains ROOT-owned. Member-transactions only ordinary terminal projection/effects, not direct pending admission observation."
+    },
+    {
+      "id": "transactional.sequence.member-transactions",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Each member is a one-operation Mutation Transaction: the sequence's admission admits every member whose key is unknown, in declaration order, recording a pending receipt for each"
+        }
+      ],
+      "newCase": "sequence",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-sequence-3/sequence-campaign.json",
+      "proposedStatus": "partial-demonstrated",
+      "residual": "No pending/interleaving/disconnect/expiry/erased-permission credit; full selected-clause reconciliation remains ROOT-owned. Member-transactions only ordinary terminal projection/effects, not direct pending admission observation."
+    },
+    {
+      "id": "transactional.sequence.completed-projection",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "a `completed` receipt with its detail available projects the receipt's one result entry in the shape of"
+        }
+      ],
+      "newCase": "sequence",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-sequence-3/sequence-campaign.json",
+      "proposedStatus": "partial-demonstrated",
+      "residual": "No pending/interleaving/disconnect/expiry/erased-permission credit; full selected-clause reconciliation remains ROOT-owned. Member-transactions only ordinary terminal projection/effects, not direct pending admission observation."
+    },
+    {
+      "id": "transactional.sequence.failed-creator",
+      "selectedClauses": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "a member whose `@name` creator's receipt is `failed` fails with `binding-unavailable` in its own `failed` receipt"
+        }
+      ],
+      "newCase": "sequence",
+      "actualObservation": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-ordinary-next/attempt-sequence-3/sequence-campaign.json",
+      "proposedStatus": "demonstrated-selected-config-predicate-proposed",
+      "residual": "No pending/interleaving/disconnect/expiry/erased-permission credit; full selected-clause reconciliation remains ROOT-owned. Member-transactions only ordinary terminal projection/effects, not direct pending admission observation."
+    }
+  ],
+  "newFullCampaign": false,
+  "existing047Observations": "not relabeled; this delta uses NEW current-production package bytes only",
+  "profileClaimEligible": false
+}

@@ -1,0 +1,9 @@
+# Ordinary cumulative follow-up (partial)
+
+Base 90c7a937 contains current e04 production (packages identical to5f3), frozen PR232 remains unchanged. Same authored11-Type/3-schema fixture and private five-role credential bank; actual packed/config bindings are recorded per run, not pooled with earlier047 payload observations.
+
+Four new installed scenarios passed: all captured Type/schema representations27HTTP, selector continuation7HTTP, raw numeric admission22HTTP, sequence partial-commit/retry8HTTP. One NEW continuation oracle passed. Total64successfulHTTP; two failed sequence author attempts add2observedHTTP and are retained. Sequence failed first due missing digest import (typecheck result was not awaited), then invalid names on non-creating members triggered genuine pre-owner400. Exact closed schema admits names only on creating members. No context requirement was waived; corrected fixture executed independently. No product runtime fix.
+
+New tests execute existing current packed implementation with fixed ordinary configuration, not historical17 scripts/tests. Numeric assertion text is reused from existing installed numeric case but target/schema/config changed and raw number token stays text before transmission. Sequence has six ordered members: creator, failed creator, failed dependent, dependent update, independent creation, no-op update; retry repositions retained results/names. No live owner interleave, pending/disconnect, clock expiry, positive erased permission or History grant.
+
+Carrier delta is proposed finite clause linkage, not profile eligibility. No251replacement campaign, same single history, global process absence, runtime/custody/fit or whole-profile qualification claim. Startup output remains bounded/drained by existing launcher; full pre-ready output is not exposed. Owner test runner retains raw outer logs/snapshots/exit/EOF/reap/group evidence.
