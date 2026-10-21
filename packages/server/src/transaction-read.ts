@@ -1,7 +1,7 @@
 /** Same-owner private Read composition with source conditions for canonical
  * current points, Type inventory and initial Resource/incident-Link reads. The service owns finite
- * waits. Known satisfied Bead/Link collection continuation minima compare the
- * retained query prefix; other continuation cases remain unselected. */
+ * waits. Bead/Link/Type inventory and incident-Link continuation minima compare
+ * their actual retained query prefix; History remains unselected. */
 
 import { isProxy } from "node:util/types";
 import type { ReadRequest } from "@bdp/protocol";
@@ -87,12 +87,16 @@ function dataOnlyReadRequest(request: ReadRequest): boolean {
   );
 }
 
-/** Only ordinary Bead/Link query continuations; Type/incident/History are separate. */
+/** Native ordinary/Type collection and incident-Link continuations share the
+ * same captured query source context. History is not part of this route. */
 export function isRetainedCollectionMinimumRead(request: ReadRequest): boolean {
   return (
     dataOnlyReadRequest(request) &&
-    request.kind === "collection" &&
-    (request.collection === "beads" || request.collection === "links") &&
+    ((request.kind === "collection" &&
+      (request.collection === "beads" ||
+        request.collection === "links" ||
+        request.collection === "types")) ||
+      request.kind === "bead-links") &&
     typeof request.continuation === "string"
   );
 }

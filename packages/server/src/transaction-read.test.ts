@@ -1543,7 +1543,9 @@ describe("current Type and incident-Link minimums", () => {
       });
       if (kind === "incident") assertLinks(items(second), ["out"]);
       else expect(items(second)).toEqual([{ id: types[0]!.id, name: "Bead", describes: "bead" }]);
-      await expect(pending.perform(parsed)).rejects.toThrow("outside supported subset");
+      const conditioned = await pending.perform(parsed);
+      expect(body(conditioned)).toBe(body(second));
+      expect(contexts(conditioned)).toEqual(contexts(second));
     },
   );
 
