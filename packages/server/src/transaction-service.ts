@@ -3,7 +3,6 @@
  * this service after successful construction; callers must stop using the owner.
  * Trusted policy publication drains finite mutations before revoking delivery. */
 import { createNodeLifecycleScheduler, type LifecycleScheduler } from "./sequence-executor.js";
-import { projectTransactionEntry } from "./transaction-authorization.js";
 import type { PreparedTransactionSequence } from "./transaction-batch.js";
 import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
 import {
@@ -26,6 +25,7 @@ import {
 } from "./transaction-read.js";
 import {
   createTransactionSequenceStepper,
+  projectCurrentSequenceEntry,
   type TransactionSequenceResponse,
 } from "./transaction-sequence.js";
 import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
@@ -788,10 +788,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           );
           const body = {
             results: response.results.map((entry) =>
-              projectTransactionEntry(
-                eraseReceiptEntry(entry, erased),
-                policy.readPolicy === "all-visible",
-              ),
+              projectCurrentSequenceEntry(eraseReceiptEntry(entry, erased), policy.readPolicy),
             ),
           };
           // Traverse frozen parents too: this observation guarantees every descendant is frozen.

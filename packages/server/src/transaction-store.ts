@@ -1737,10 +1737,17 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   function creatorFact(operation: string, receipt?: TransactionReceipt): CreatorFact {
     if (!receipt || receipt.status === "failed") return { kind: "unbound" };
     if (receipt.status === "pending") return { kind: "transient" };
+    const result = (
+      receipt.results as
+        | { resource?: { id: string }; erased?: { id: string }; outcome?: string }[]
+        | undefined
+    )?.[0];
+    // Erasure removes the postimage, not the creator's durable allocated identity.
+    // This private binding grants no disclosure or authority to a dependent.
     const entry =
       receipt.detail === "expired"
         ? (receipt.allocated as { id: string; type: string }[])[0]
-        : (receipt.results as { resource: { id: string } }[])[0]?.resource;
+        : (result?.resource ?? (result?.outcome === "erased" ? result.erased : undefined));
     if (!entry || typeof entry.id !== "string") throw new Error("creator lost allocation");
     return {
       kind: "bound",
