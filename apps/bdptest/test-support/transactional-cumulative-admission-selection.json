@@ -1,0 +1,116 @@
+{
+  "kind": "finite native TX held admission selection",
+  "activeBaseline": 251,
+  "runtimeSource": "5f3a67e89d62a0dcb4e9a7b9a6cb78b2c0a3e50c",
+  "fixture": "transactional-cumulative-product-fixture.json",
+  "control": "original typed scheduler callbacks only; no comparison budget/clock/policy change",
+  "wholeProfile": false,
+  "rows": [
+    {
+      "id": "transactional.receipt.pending-202",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "`202 Accepted` with the `pending` Mutation Receipt: to the original submission only when the transaction is still executing at the wait bound, and to an identical duplicate that the authority answers before the transaction is terminal.",
+          "ordinal": 0
+        }
+      ],
+      "catalogOrigins": [
+        {
+          "path": "packages/conformance/catalog/transactional-v1.json",
+          "pointer": "/scenarios/34",
+          "line": 558
+        }
+      ],
+      "status": "partial-demonstrated",
+      "actualCase": "joins genuinely held TX admission across singleton batch sequence and pending receipt",
+      "evidence": "attempt5/held-cross-carrier.json",
+      "observed": "Owner sequence admits key before held original callback1; singleton/batch same pending receipt; direct changed body conflicts; duplicate sequence callback2 reports in-progress; original release creates one record/group; singleton/batch terminal retries and sequence callback3 return SAME retained postimage; one receipt remains unchanged.",
+      "residual": "Original singleton/batch submission at its synchronous wait bound remains UNEXERCISED: the owning carrier here is a sequence and only proven-equal direct duplicates return 202.",
+      "ordinaryDeployment": false,
+      "runtimeConfigurationIdentity": null
+    },
+    {
+      "id": "transactional.idempotency.concurrent-join",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Concurrent requests with the same key and the same semantic request join one execution. A duplicate may wait for the terminal response or receive the same pending receipt. Either way, it never executes again.",
+          "ordinal": 0
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "For direct carriers, handing a duplicate a receipt presupposes established semantic equality. A request that encounters an unresolved reservation follows the bounded comparison rules below.",
+          "ordinal": 1
+        }
+      ],
+      "catalogOrigins": [
+        {
+          "path": "packages/conformance/catalog/transactional-v1.json",
+          "pointer": "/scenarios/43",
+          "line": 685
+        }
+      ],
+      "status": "partial-demonstrated",
+      "actualCase": "joins genuinely held TX admission across singleton batch sequence and pending receipt",
+      "evidence": "attempt5/held-cross-carrier.json",
+      "observed": "Owner sequence admits key before held original callback1; singleton/batch same pending receipt; direct changed body conflicts; duplicate sequence callback2 reports in-progress; original release creates one record/group; singleton/batch terminal retries and sequence callback3 return SAME retained postimage; one receipt remains unchanged.",
+      "residual": "Known-equal admitted request is observed. Conditional unresolved semantic reservation/default 1000ms comparison wait is NOT selected or claimed.",
+      "ordinaryDeployment": false,
+      "runtimeConfigurationIdentity": null
+    },
+    {
+      "id": "transactional.idempotency.cross-carrier",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A one-operation batch, the equivalent singleton request, and the equivalent sequence member therefore present one semantic request, and any of them retrieves the receipt the others created.",
+          "ordinal": 0
+        }
+      ],
+      "catalogOrigins": [
+        {
+          "path": "packages/conformance/catalog/transactional-v1.json",
+          "pointer": "/scenarios/46",
+          "line": 735
+        }
+      ],
+      "status": "demonstrated-selected-predicate-proposed",
+      "actualCase": "joins genuinely held TX admission across singleton batch sequence and pending receipt",
+      "evidence": "attempt5/held-cross-carrier.json",
+      "observed": "Owner sequence admits key before held original callback1; singleton/batch same pending receipt; direct changed body conflicts; duplicate sequence callback2 reports in-progress; original release creates one record/group; singleton/batch terminal retries and sequence callback3 return SAME retained postimage; one receipt remains unchanged.",
+      "residual": "",
+      "ordinaryDeployment": false,
+      "runtimeConfigurationIdentity": null
+    },
+    {
+      "id": "transactional.idempotency.one-key-state",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "two routes MUST NOT each treat the same key as unknown.",
+          "ordinal": 0
+        }
+      ],
+      "catalogOrigins": [
+        {
+          "path": "packages/conformance/catalog/transactional-v1.json",
+          "pointer": "/scenarios/54",
+          "line": 853
+        }
+      ],
+      "status": "demonstrated-selected-predicate-proposed",
+      "actualCase": "joins genuinely held TX admission across singleton batch sequence and pending receipt",
+      "evidence": "attempt5/held-cross-carrier.json",
+      "observed": "Owner sequence admits key before held original callback1; singleton/batch same pending receipt; direct changed body conflicts; duplicate sequence callback2 reports in-progress; original release creates one record/group; singleton/batch terminal retries and sequence callback3 return SAME retained postimage; one receipt remains unchanged.",
+      "residual": "",
+      "ordinaryDeployment": false,
+      "runtimeConfigurationIdentity": null
+    }
+  ]
+}

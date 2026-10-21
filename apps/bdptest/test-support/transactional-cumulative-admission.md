@@ -1,0 +1,9 @@
+# Genuine installed TX held admission
+
+One new finite case uses the unchanged 5f3 packaged Transactional runtime and the frozen cumulative 11-Type/3-schema artifact and five-principal bank. The typed private scheduler holds the ORIGINAL callback after native bulk admission; it never supplies outcomes. This is NONORDINARY scheduler-controlled evidence, with ordinary runtime identity null. No clock, policy, comparison wait or capacity is changed.
+
+The sequence owns the real pending key. Equivalent singleton and one-operation batch return the same full pending receipt; changed requests conflict without effects. A competing sequence reports in-progress. Releasing the owner produces one complete record and one change group. Both direct carriers and a later sequence retrieve the retained result with current sequence presentation labels. Full literal property/metadata expectations are independent of response construction; the opaque allocated revision is joined consistently across all complete postimages.
+
+The pending-202 row remains partial: original direct submission at its synchronous wait bound is not observed. Unresolved comparison, disconnection, recovery, duration and transient-fault branches are not selected. No full251/profile claim or old17 replay.
+
+Validation history preserves three fixture expectation failures: missing canonical collection slash, omitted original member name on terminal receipt, and an overly broad validator-absence assertion on a canonical resource GET. The last was narrowed to mutation/receipt/change responses; canonical GET instead checks its actual revision ETag. Attempt4 passed the initial 15-exchange case. Attempt5 adds the materially new terminal-sequence rejoin (17 exchanges) and capture bounds; it is not an ownership-only replay. No runtime product bug was found.
