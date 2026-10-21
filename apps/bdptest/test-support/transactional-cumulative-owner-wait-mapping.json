@@ -1,0 +1,107 @@
+{
+  "kind": "NONORDINARY_OWNER_WAIT_BOUNDARY",
+  "compiledSource": "8c0283ba181bd24b5d504839e8bd974d21a0e747",
+  "testBase": "4f2584b574af418dbd6938825245b7563e6d61fb",
+  "ordinaryRuntimeConfigurationIdentity": null,
+  "roles": "samefixedTX11Types3schemas/fiveprivatecredentials, genuine scheduler+observationalrealclock control makes nonordinary metadata unavailable",
+  "rows": [
+    {
+      "id": "transactional.idempotency.transient-abort",
+      "selectedRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "A transient abort after admission \u2014 a serialization conflict the authority does not retry, or a component it cannot reach \u2014 retracts the pending receipt and unbinds the key in one durable step"
+        }
+      ],
+      "proposed": "partial finite installed cleanup complement; classified transient cause remains conditional",
+      "observed": "Real native scheduling infrastructure throw after original first commit aborts remaining sequence reservations. Original pending creator receipt404; key gets genuinely fresh receipt/transaction. Waiting dependent wins current native admission and commits once. Original sequence returns generic bodyless500; NOT a claimed known-transient503 or fake component outage.",
+      "residual": "No configured recoverable serialization/external component cause or typed transient503 selected; genericError must not be relabeled. Existing source/private owner fault tests already exercise atomic rollback/retraction; no replay."
+    },
+    {
+      "id": "transactional.idempotency.ownership-fencing",
+      "selectedRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "the Resource state, the change group, and the terminal receipt commit atomically only while the committing execution still owns the receipt"
+        }
+      ],
+      "proposed": "existing executed native owner/source invariant complement, installed retirement/replacement now observed; no fresh stale-claim port",
+      "observed": "Existing native store test retains genuine claim\u2192retract\u2192freshclaim\u2192oldexecute fenced\u2192one group (transaction-store.test.ts218-233 plus alias counterpart). New actual installed waiter wins freshkey after native abort; no old originalcreator effect/group, retainedprefix stays one group.",
+      "residual": "No public runtime liveclaim/retract accessor, and this fixture does not manufacture one or invoke a stale claim. Old native currentCI executed test is separate layer/config; no installed stale-claim execution claim."
+    },
+    {
+      "id": "transactional.idempotency.unresolved-comparison",
+      "selectedRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A direct singleton or batch that encounters an unresolved reservation MUST reject an already provable semantic mismatch with `409` `idempotency-conflict`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Otherwise it MUST wait for comparison to become possible, within one finite authority-selected comparison budget."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "This budget is separate from `transaction.duration`, which bounds admitted execution;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Until equality is established, this caller MUST NOT receive the owner's pending receipt, execute a second mutation, or retract the owner's reservation."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If comparison remains unresolved at the deadline, return direct `503` `temporarily-unavailable` with `retry: after-delay`; the response SHOULD carry `Retry-After` when a useful delay is known."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Once the reservation resolves, ordinary canonical comparison returns the existing receipt or the conflict."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting comparison or admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
+        }
+      ],
+      "proposed": "new finite installed unresolved wait/deadline/conflict paths demonstrated with native source complements",
+      "observed": "Before original creator execution, genuine dependent refs unresolved: mismatch409; potentialequal direct request enters native comparison (realclockthirdcall afterfirstpendingloop), no pendingreceipt leaked, original1000ms deadline503temporarily-unavailable/after-delay while ownerstillpending. Originalcallbacks then resolve; canonicalconflict409. No secondmutation atdeadline.",
+      "residual": "No live epoch fabrication; actualruntime cannot replace epoch while sameowner remains serving. Existing epoch/ownerstop source and executed native comparisons remain separate. Equalityresolution native testcase alreadypassed; no all-carrier/policy matrix or fabricatedHistory."
+    },
+    {
+      "id": "transactional.idempotency.retraction-retry",
+      "selectedRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If that unresolved reservation is retracted while the explicit direct request is waiting, the request MAY compete for fresh admission in the same Scope epoch, under current authorization and within the same overall finite deadline."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "It executes only after winning a new reservation for its own request; it inherits neither the previous attempt's ownership, receipt identity, nor unresolved dependency form."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Retraction or a change of owner MUST NOT reset the deadline."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting comparison or admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
+        }
+      ],
+      "proposed": "new finite installed native retraction\u2192freshadmission before same originaldeadline, supplemented by existing churn-deadline native test",
+      "observed": "One directrequest waits before native schedulingfault cancels remainder. Source compareloop keeps one deadline; request then wins genuinely new admission under actualcurrentauth and sameepoch, createsone Link, fullretry/receipt/state/four completefeedchanges match; oldcreatorreceipt404/newcreatorreceipt different, originalprefix retained. Realclockelapsed below1000 andno wait/budget override.",
+      "residual": "No deliberatelatechurn or liveepoch replacement duplicated. Existing native tests transaction-dependencies.test.ts279-293 and623-658 verify noreset/epochstop; root may combine sourceinvariant+actualinstalled path without ownership replay."
+    }
+  ],
+  "noWhole251ProfileAward": true
+}
