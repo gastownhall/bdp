@@ -1,0 +1,33 @@
+{
+  "status": "executed-mechanism-check-not-profile-qualification",
+  "date": "2026-10-20",
+  "dependency": "github.com/theory/jsonpath v0.12.2",
+  "go": "go1.26.3",
+  "command": "GOWORK=off go test -json -count=1 -timeout=30s .",
+  "package_pass": true,
+  "top_level_pass": [
+    "TestStandardPredicatesAndBindings",
+    "TestTrueFunctionExtension",
+    "TestNonstandardSurfacesRejectedByStandardParser",
+    "TestTrueGraphPredicateWithExplicitSelectorString",
+    "TestNestedSelectorValidatedBeforeBooleanShortCircuit",
+    "TestGraphSelectorCannotSelectEnvelopeOrProjection"
+  ],
+  "subtest_pass": [
+    "TestStandardPredicatesAndBindings/missing-is-not-null",
+    "TestStandardPredicatesAndBindings/presence-includes-null-and-false",
+    "TestStandardPredicatesAndBindings/absence",
+    "TestStandardPredicatesAndBindings/absence-or-null-explicit",
+    "TestStandardPredicatesAndBindings/incomparable-order-is-false",
+    "TestStandardPredicatesAndBindings/literal-dotted-key",
+    "TestStandardPredicatesAndBindings/same-link-neighbor-witness",
+    "TestStandardPredicatesAndBindings/parallel-link-bindings-preserved",
+    "TestStandardPredicatesAndBindings/explicit-outer-binding-capture"
+  ],
+  "source_sha256": {
+    "go.mod": "1ed9398418cd43f0a393e0c1044f250b958049fc3b5dc578159e71d43e8e3a48",
+    "go.sum": "68a28bd0ee65ee98ab39167c8073ef029a450c6b9e577807afb39341cb0888e5",
+    "query_test.go": "0ce31479172de0b775133cba30c8cc1351dccaeb50d471c15d19c7c256481f62"
+  },
+  "limitations": "complete prepared in-memory input; no product provider/parser/backend/CLI qualification"
+}
