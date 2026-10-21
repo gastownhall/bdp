@@ -1,0 +1,721 @@
+{
+  "fixtureVersion": 1,
+  "id": "reference-read-update-schema-v1",
+  "seed": 0,
+  "capabilities": ["installed-read-update-http"],
+  "bindings": {
+    "nr.source": "beads/nr-source",
+    "nr.target": "beads/nr-target",
+    "nr.bead-integer": "beads/nr-bead-integer",
+    "nr.bead-precision": "beads/nr-bead-precision",
+    "nr.bead-overflow": "beads/nr-bead-overflow",
+    "nr.link-integer": "links/nr-link-integer",
+    "nr.link-precision": "links/nr-link-precision",
+    "nr.link-overflow": "links/nr-link-overflow",
+    "nn.source": "beads/nn-source",
+    "nn.target": "beads/nn-target",
+    "nn.bead-properties": "beads/nn-bead-properties",
+    "nn.bead-metadata": "beads/nn-bead-metadata",
+    "nn.link-properties": "links/nn-link-properties",
+    "nn.link-metadata": "links/nn-link-metadata",
+    "att.subject": "beads/att-subject",
+    "att.owner": "beads/att-owner",
+    "att.target": "beads/att-target",
+    "att.unowned": "links/att-unowned",
+    "att.owned": "links/att-owned",
+    "num.subject": "beads/num-subject",
+    "num.target": "beads/num-target",
+    "num.link": "links/num-link",
+    "bead.demo-a": "beads/read-a",
+    "link.demo-b-a": "links/read-a",
+    "http.resource": "beads/read-a",
+    "http.link": "links/read-a",
+    "http.absent": "beads/http-never-created",
+    "w1.a": "beads/w1-a",
+    "w1.b": "beads/w1-b",
+    "w1.l": "links/w1-l",
+    "w1.local-pin": "links/w1-local-pin",
+    "w1.external-pin": "links/w1-external-pin",
+    "w1.missing-link": "links/w1-missing",
+    "w1.alias": "alias/w1-locator",
+    "w1.unknown-alias": "alias/w1-unknown",
+    "w1b.owner": "beads/w1b-owner",
+    "w1b.target": "beads/w1b-target",
+    "w1b.unowned-source": "beads/w1b-unowned-source",
+    "w1b.link": "links/w1b-owned",
+    "w1b.unowned-link": "links/w1b-unowned",
+    "w2.beads.w2-collision": "beads/w2-collision",
+    "w2.beads.w2-prefix": "beads/w2-prefix",
+    "w2.beads.w2-missing": "beads/w2-missing",
+    "w2.beads.w2-tail": "beads/w2-tail",
+    "w2.beads.w2-bind-tail": "beads/w2-bind-tail",
+    "w2.beads.w2-alias-target": "beads/w2-alias-target",
+    "w2.beads.w2-held": "beads/w2-held",
+    "w2.beads.w2-independent": "beads/w2-independent",
+    "w2.beads.w2-count-0": "beads/w2-count-0",
+    "w2.beads.w2-count-1": "beads/w2-count-1",
+    "w2.beads.w2-count-2": "beads/w2-count-2",
+    "w2.beads.w2-count-3": "beads/w2-count-3",
+    "w2.beads.w2-count-4": "beads/w2-count-4",
+    "w2.beads.w2-count-5": "beads/w2-count-5",
+    "w2.beads.w2-count-6": "beads/w2-count-6",
+    "w2.beads.w2-count-7": "beads/w2-count-7",
+    "w2.beads.w2-count-8": "beads/w2-count-8",
+    "w2.beads.w2-count-9": "beads/w2-count-9",
+    "w2.beads.w2-count-10": "beads/w2-count-10",
+    "w2.beads.w2-count-11": "beads/w2-count-11",
+    "w2.beads.w2-count-12": "beads/w2-count-12",
+    "w2.beads.w2-count-13": "beads/w2-count-13",
+    "w2.beads.w2-count-14": "beads/w2-count-14",
+    "w2.beads.w2-count-15": "beads/w2-count-15",
+    "w2.beads.w2-count-16": "beads/w2-count-16",
+    "w2.beads.w2-count-17": "beads/w2-count-17",
+    "w2.beads.w2-count-18": "beads/w2-count-18",
+    "w2.beads.w2-count-19": "beads/w2-count-19",
+    "w2.beads.w2-count-20": "beads/w2-count-20",
+    "w2.beads.w2-count-21": "beads/w2-count-21",
+    "w2.beads.w2-count-22": "beads/w2-count-22",
+    "w2.beads.w2-count-23": "beads/w2-count-23",
+    "w2.beads.w2-count-24": "beads/w2-count-24",
+    "w2.beads.w2-count-25": "beads/w2-count-25",
+    "w2.beads.w2-count-26": "beads/w2-count-26",
+    "w2.beads.w2-count-27": "beads/w2-count-27",
+    "w2.beads.w2-count-28": "beads/w2-count-28",
+    "w2.beads.w2-count-29": "beads/w2-count-29",
+    "w2.beads.w2-count-30": "beads/w2-count-30",
+    "w2.beads.w2-count-31": "beads/w2-count-31",
+    "w2.beads.w2-count-32": "beads/w2-count-32",
+    "w2.beads.w2-duplicate-key-pre": "beads/w2-duplicate-key-pre",
+    "w2.beads.w2-duplicate-key-tail": "beads/w2-duplicate-key-tail",
+    "w2.beads.w2-duplicate-name-pre": "beads/w2-duplicate-name-pre",
+    "w2.beads.w2-duplicate-name-tail": "beads/w2-duplicate-name-tail",
+    "w2.beads.w2-invalid-key-pre": "beads/w2-invalid-key-pre",
+    "w2.beads.w2-invalid-key-tail": "beads/w2-invalid-key-tail",
+    "w2.beads.w2-invalid-name-pre": "beads/w2-invalid-name-pre",
+    "w2.beads.w2-invalid-name-tail": "beads/w2-invalid-name-tail",
+    "w2.beads.w2-name-update-pre": "beads/w2-name-update-pre",
+    "w2.beads.w2-name-update-corrected-1": "beads/w2-name-update-corrected-1",
+    "w2.beads.w2-forward-pre": "beads/w2-forward-pre",
+    "w2.beads.w2-forward-tail": "beads/w2-forward-tail",
+    "w2.beads.w2-forward-corrected-0": "beads/w2-forward-corrected-0",
+    "w2.beads.w2-unknown-pre": "beads/w2-unknown-pre",
+    "w2.beads.w2-unknown-tail": "beads/w2-unknown-tail",
+    "w2.beads.w2-unknown-corrected-1": "beads/w2-unknown-corrected-1",
+    "w2.beads.w2-self-pre": "beads/w2-self-pre",
+    "w2.links.w2-self": "links/w2-self",
+    "w2.beads.w2-self-tail": "beads/w2-self-tail",
+    "w2.beads.w2-self-corrected-1": "beads/w2-self-corrected-1",
+    "w2.beads.w2-bead-as-link-pre": "beads/w2-bead-as-link-pre",
+    "w2.beads.w2-bead-as-link-tail": "beads/w2-bead-as-link-tail",
+    "w2.beads.w2-bead-as-link-corrected-1": "beads/w2-bead-as-link-corrected-1",
+    "w2.beads.w2-link-as-bead-pre": "beads/w2-link-as-bead-pre",
+    "w2.links.w2-link-as-bead": "links/w2-link-as-bead",
+    "w2.beads.w2-link-as-bead-tail": "beads/w2-link-as-bead-tail",
+    "w2.beads.w2-link-as-bead-corrected-1": "beads/w2-link-as-bead-corrected-1",
+    "w2.beads.w2-link-as-bead-corrected-2": "beads/w2-link-as-bead-corrected-2",
+    "w2.beads.w2-link-as-endpoint-pre": "beads/w2-link-as-endpoint-pre",
+    "w2.links.w2-link-as-endpoint": "links/w2-link-as-endpoint",
+    "w2.links.w2-link-as-endpoint-ref": "links/w2-link-as-endpoint-ref",
+    "w2.beads.w2-link-as-endpoint-tail": "beads/w2-link-as-endpoint-tail",
+    "w2.beads.w2-link-as-endpoint-corrected-1": "beads/w2-link-as-endpoint-corrected-1",
+    "w2.beads.w2-link-as-endpoint-corrected-2": "beads/w2-link-as-endpoint-corrected-2",
+    "w2.beads.w2-top-key-pre": "beads/w2-top-key-pre",
+    "w2.beads.w2-top-key-tail": "beads/w2-top-key-tail",
+    "w2.beads.w2-empty-pre": "beads/w2-empty-pre",
+    "w2.beads.w2-empty-tail": "beads/w2-empty-tail",
+    "w2.beads.w2-missing-pre": "beads/w2-missing-pre",
+    "w2.beads.w2-missing-tail": "beads/w2-missing-tail",
+    "w2.beads.w2-unknown-root-pre": "beads/w2-unknown-root-pre",
+    "w2.beads.w2-unknown-root-tail": "beads/w2-unknown-root-tail",
+    "w2.beads.w2-unknown-member-pre": "beads/w2-unknown-member-pre",
+    "w2.beads.w2-unknown-member-tail": "beads/w2-unknown-member-tail",
+    "w2.beads.w2-unknown-operation-pre": "beads/w2-unknown-operation-pre",
+    "w2.beads.w2-unknown-operation-corrected-1": "beads/w2-unknown-operation-corrected-1",
+    "w2.beads.w2-malformed-json-pre": "beads/w2-malformed-json-pre",
+    "w2.beads.w2-malformed-json-tail": "beads/w2-malformed-json-tail",
+    "w2.beads.w2-duplicate-json-pre": "beads/w2-duplicate-json-pre",
+    "w2.beads.w2-duplicate-json-tail": "beads/w2-duplicate-json-tail",
+    "w2.beads.w2-surrogate-pre": "beads/w2-surrogate-pre",
+    "w2.beads.w2-surrogate-tail": "beads/w2-surrogate-tail",
+    "w2.beads.w2-anonymous-pre": "beads/w2-anonymous-pre",
+    "w2.beads.w2-anonymous-tail": "beads/w2-anonymous-tail",
+    "w2.beads.w2-media-pre": "beads/w2-media-pre",
+    "w2.beads.w2-media-tail": "beads/w2-media-tail",
+    "w2.beads.w2-body-size-pre": "beads/w2-body-size-pre",
+    "w2.beads.w2-body-size-tail": "beads/w2-body-size-tail",
+    "w2.beads.w2-bad-pointer-pre": "beads/w2-bad-pointer-pre",
+    "w2.beads.w2-bad-pointer-tail": "beads/w2-bad-pointer-tail",
+    "w2.beads.w2-bad-pointer-corrected-1": "beads/w2-bad-pointer-corrected-1",
+    "w2.links.w2-shape": "links/w2-shape",
+    "w2.alias.shape": "alias/w2-shape",
+    "retry.retry-cross-a": "beads/retry-cross-a",
+    "retry.retry-cross-b": "beads/retry-cross-b",
+    "retry.retry-cross-f": "beads/retry-cross-f",
+    "retry.retry-cross-g": "beads/retry-cross-g",
+    "retry.retry-position-f": "beads/retry-position-f",
+    "retry.retry-position-b": "beads/retry-position-b",
+    "retry.retry-position-d": "beads/retry-position-d",
+    "admission.beads.ak-source": "beads/ak-source",
+    "admission.beads.ak-target": "beads/ak-target",
+    "admission.beads.ak-update": "beads/ak-update",
+    "admission.beads.ak-delete": "beads/ak-delete",
+    "admission.links.ak-update": "links/ak-update",
+    "admission.links.ak-delete": "links/ak-delete",
+    "admission.alias.ak-locator-put": "alias/ak-locator-put",
+    "admission.alias.ak-locator-delete": "alias/ak-locator-delete",
+    "admission.beads.ak-route-create": "beads/ak-route-create",
+    "admission.links.ak-route-create": "links/ak-route-create",
+    "admission.beads.ak-empty": "beads/ak-empty",
+    "admission.beads.ak-long": "beads/ak-long",
+    "admission.beads.ak-quoted": "beads/ak-quoted",
+    "admission.beads.ak-space": "beads/ak-space",
+    "admission.beads.ak-tab": "beads/ak-tab",
+    "admission.beads.ak-punctuation": "beads/ak-punctuation",
+    "admission.beads.ak-comma": "beads/ak-comma",
+    "admission.beads.ak-latin": "beads/ak-latin",
+    "admission.beads.ak-seq-empty-prefix": "beads/ak-seq-empty-prefix",
+    "admission.beads.ak-seq-empty-member": "beads/ak-seq-empty-member",
+    "admission.beads.ak-seq-long-prefix": "beads/ak-seq-long-prefix",
+    "admission.beads.ak-seq-long-member": "beads/ak-seq-long-member",
+    "admission.beads.ak-seq-quoted-prefix": "beads/ak-seq-quoted-prefix",
+    "admission.beads.ak-seq-quoted-member": "beads/ak-seq-quoted-member",
+    "admission.beads.ak-seq-space-prefix": "beads/ak-seq-space-prefix",
+    "admission.beads.ak-seq-space-member": "beads/ak-seq-space-member",
+    "admission.beads.ak-seq-tab-prefix": "beads/ak-seq-tab-prefix",
+    "admission.beads.ak-seq-tab-member": "beads/ak-seq-tab-member",
+    "admission.beads.ak-seq-punctuation-prefix": "beads/ak-seq-punctuation-prefix",
+    "admission.beads.ak-seq-punctuation-member": "beads/ak-seq-punctuation-member",
+    "admission.beads.ak-seq-comma-prefix": "beads/ak-seq-comma-prefix",
+    "admission.beads.ak-seq-comma-member": "beads/ak-seq-comma-member",
+    "admission.beads.ak-seq-latin-prefix": "beads/ak-seq-latin-prefix",
+    "admission.beads.ak-seq-latin-member": "beads/ak-seq-latin-member",
+    "admission.beads.ak-repeat-same-0": "beads/ak-repeat-same-0",
+    "admission.beads.ak-repeat-same": "beads/ak-repeat-same",
+    "admission.beads.ak-repeat-distinct-0": "beads/ak-repeat-distinct-0",
+    "admission.beads.ak-repeat-distinct-1": "beads/ak-repeat-distinct-1",
+    "admission.beads.ak-repeat-distinct": "beads/ak-repeat-distinct",
+    "admission.beads.ak-repeat-mixed-0": "beads/ak-repeat-mixed-0",
+    "admission.beads.ak-repeat-mixed-1": "beads/ak-repeat-mixed-1",
+    "admission.beads.ak-repeat-mixed": "beads/ak-repeat-mixed",
+    "admission.beads.ak-valid-one": "beads/ak-valid-one",
+    "admission.beads.ak-valid-maximum": "beads/ak-valid-maximum",
+    "admission.beads.ak-valid-alphabet": "beads/ak-valid-alphabet",
+    "admission.beads.am-source": "beads/am-source",
+    "admission.beads.am-target": "beads/am-target",
+    "admission.beads.am-update": "beads/am-update",
+    "admission.beads.am-delete": "beads/am-delete",
+    "admission.beads.am-alt-delete": "beads/am-alt-delete",
+    "admission.links.am-update": "links/am-update",
+    "admission.links.am-delete": "links/am-delete",
+    "admission.links.am-alt-delete": "links/am-alt-delete",
+    "admission.alias.am-locator-put": "alias/am-locator-put",
+    "admission.alias.am-locator-delete": "alias/am-locator-delete",
+    "admission.alias.am-locator-alt-delete": "alias/am-locator-alt-delete",
+    "admission.beads.am-route-create-alt": "beads/am-route-create-alt",
+    "admission.links.am-route-create-alt": "links/am-route-create-alt",
+    "admission.beads.am-seq-0-corrected": "beads/am-seq-0-corrected",
+    "admission.beads.am-seq-1-corrected": "beads/am-seq-1-corrected",
+    "admission.beads.am-plain-corrected": "beads/am-plain-corrected",
+    "admission.beads.am-problem-corrected": "beads/am-problem-corrected",
+    "admission.beads.am-charset": "beads/am-charset",
+    "admission.beads.am-irrelevant": "beads/am-irrelevant",
+    "reference.beads.ra-source": "beads/ra-source",
+    "reference.beads.ra-target": "beads/ra-target",
+    "reference.beads.ra-update": "beads/ra-update",
+    "reference.beads.ra-delete": "beads/ra-delete",
+    "reference.links.ra-update": "links/ra-update",
+    "reference.links.ra-delete": "links/ra-delete",
+    "reference.alias.ra-locator-put": "alias/ra-locator-put",
+    "reference.alias.ra-locator-delete": "alias/ra-locator-delete",
+    "reference.links.ra-create-link-source": "links/ra-create-link-source",
+    "reference.links.ra-create-link-source-pin": "links/ra-create-link-source-pin",
+    "reference.links.ra-create-link-target": "links/ra-create-link-target",
+    "reference.links.ra-create-link-target-pin": "links/ra-create-link-target-pin",
+    "reference.alias.ra-locator-new": "alias/ra-locator-new",
+    "reference.beads.ra-created-id": "beads/ra-created-id",
+    "reference.links.ra-created-id": "links/ra-created-id",
+    "reference.beads.ra-metadata": "beads/ra-metadata",
+    "reference.beads.rb-source": "beads/rb-source",
+    "reference.beads.rb-target": "beads/rb-target",
+    "reference.links.rb-live": "links/rb-live",
+    "reference.alias.rb-locator-live": "alias/rb-locator-live",
+    "reference.alias.rb-locator-alias-local": "alias/rb-locator-alias-local",
+    "reference.alias.rb-locator-alias-absolute": "alias/rb-locator-alias-absolute",
+    "reference.alias.rb-locator-link-local": "alias/rb-locator-link-local",
+    "reference.alias.rb-locator-link-absolute": "alias/rb-locator-link-absolute",
+    "reference.alias.rb-locator-external": "alias/rb-locator-external",
+    "reference.beads.rb-rb-sequence-alias-tail": "beads/rb-rb-sequence-alias-tail",
+    "reference.alias.rb-locator-sequence": "alias/rb-locator-sequence",
+    "reference.beads.rb-rb-sequence-endpoint-tail": "beads/rb-rb-sequence-endpoint-tail",
+    "reference.links.rb-endpoint-source": "links/rb-endpoint-source",
+    "reference.beads.rc-source": "beads/rc-source",
+    "reference.beads.rc-target": "beads/rc-target",
+    "reference.links.rc-live": "links/rc-live",
+    "reference.alias.rc-locator-live": "alias/rc-locator-live",
+    "reference.alias.rc-locator-put-local": "alias/rc-locator-put-local",
+    "reference.alias.rc-locator-put-absolute": "alias/rc-locator-put-absolute",
+    "reference.alias.rc-locator-missing": "alias/rc-locator-missing",
+    "reference.alias.rc-locator-missing-absolute": "alias/rc-locator-missing-absolute",
+    "reference.beads.rc-rc-sequence-wrong-tail": "beads/rc-rc-sequence-wrong-tail",
+    "reference.beads.rc-missing": "beads/rc-missing"
+  },
+  "oracles": {
+    "collections": {
+      "link-records": [
+        [
+          "links/read-a",
+          "types/relates",
+          "beads/read-z",
+          "beads/read-a",
+          {
+            "edge": "a"
+          },
+          {
+            "tag": "a"
+          }
+        ],
+        [
+          "links/read-z",
+          "types/relates",
+          "beads/read-z",
+          "beads/read-a",
+          {
+            "edge": "z"
+          },
+          {
+            "tag": "z"
+          }
+        ]
+      ],
+      "bead-records": [
+        [
+          "beads/read-a",
+          "types/task",
+          {
+            "title": "a",
+            "open": {
+              "untouched": true
+            }
+          },
+          {
+            "tag": "a"
+          }
+        ],
+        [
+          "beads/read-z",
+          "types/task",
+          {
+            "title": "z",
+            "open": {
+              "untouched": true
+            }
+          },
+          {
+            "tag": "z"
+          }
+        ]
+      ],
+      "type-summaries": [
+        ["types/blocks", "Blocks", "link"],
+        ["types/bug", "Bug", "bead"],
+        ["types/chore", "Chore", "bead"],
+        ["types/cites", "Cites", "link"],
+        ["types/decision", "Decision", "bead"],
+        ["types/dependency", "Dependency", "link"],
+        ["types/epic", "Epic", "bead"],
+        ["types/feature", "Feature", "bead"],
+        ["types/relates", "Relates", "link"],
+        ["types/relationship", "Relationship", "link"],
+        ["types/schema-bead-base", "Schema bead base", "bead"],
+        ["types/schema-bead-child", "Schema bead child", "bead"],
+        ["types/schema-link-base", "Schema link base", "link"],
+        ["types/schema-link-child", "Schema link child", "link"],
+        ["types/task", "Task", "bead"],
+        ["types/tracked-item", "Tracked Item", "bead"],
+        ["types/work-item", "Work Item", "bead"]
+      ]
+    },
+    "ordering": {
+      "types": [
+        ["types/blocks"],
+        ["types/bug"],
+        ["types/chore"],
+        ["types/cites"],
+        ["types/decision"],
+        ["types/dependency"],
+        ["types/epic"],
+        ["types/feature"],
+        ["types/relates"],
+        ["types/relationship"],
+        ["types/schema-bead-base"],
+        ["types/schema-bead-child"],
+        ["types/schema-link-base"],
+        ["types/schema-link-child"],
+        ["types/task"],
+        ["types/tracked-item"],
+        ["types/work-item"]
+      ],
+      "beads": [["beads/read-a"], ["beads/read-z"]],
+      "links": [["links/read-a"], ["links/read-z"]]
+    },
+    "resources": {
+      "bead.demo-a": {
+        "id": "beads/read-a",
+        "properties": {
+          "title": "a",
+          "open": {
+            "untouched": true
+          }
+        },
+        "metadata": {
+          "tag": "a"
+        }
+      },
+      "link.demo-b-a": {
+        "id": "links/read-a",
+        "source": "beads/read-z",
+        "target": "beads/read-a",
+        "properties": {
+          "edge": "a"
+        },
+        "metadata": {
+          "tag": "a"
+        }
+      }
+    },
+    "referenceEvidence": {
+      "value-0": {
+        "n": 1
+      },
+      "value-1": {
+        "tag": "admission"
+      },
+      "value-2": {
+        "edge": 1
+      },
+      "value-3": {
+        "tag": "reference"
+      },
+      "value-4": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/ra-locator-put",
+        "target": "https://reference.invalid/acme/beads/ra-source"
+      },
+      "value-5": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/ra-locator-delete",
+        "target": "https://reference.invalid/acme/beads/ra-source"
+      },
+      "identities-0": [
+        ["https://reference.invalid/acme/beads/ra-delete"],
+        ["https://reference.invalid/acme/beads/ra-source"],
+        ["https://reference.invalid/acme/beads/ra-target"],
+        ["https://reference.invalid/acme/beads/ra-update"]
+      ],
+      "identities-1": [
+        ["https://reference.invalid/acme/links/ra-delete"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-6": {
+        "type": "https://github.com/gastownhall/bdp/problems/request",
+        "code": "malformed-request",
+        "status": 400,
+        "retry": "never"
+      },
+      "value-7": {
+        "n": 2
+      },
+      "value-8": {
+        "type": "https://github.com/gastownhall/bdp/problems/not-found",
+        "code": "resource-not-found",
+        "status": 404,
+        "retry": "after-state-change"
+      },
+      "identities-2": [
+        ["https://reference.invalid/acme/beads/ra-source"],
+        ["https://reference.invalid/acme/beads/ra-target"],
+        ["https://reference.invalid/acme/beads/ra-update"]
+      ],
+      "identities-3": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-delete"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-9": {
+        "uri": "https://reference.invalid/acme/beads/ra-source",
+        "revision": "fixture-pin"
+      },
+      "identities-4": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-create-link-source-pin"],
+        ["https://reference.invalid/acme/links/ra-delete"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "identities-5": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-create-link-source-pin"],
+        ["https://reference.invalid/acme/links/ra-create-link-target"],
+        ["https://reference.invalid/acme/links/ra-delete"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-10": {
+        "uri": "https://reference.invalid/acme/beads/ra-target",
+        "revision": "fixture-pin"
+      },
+      "identities-6": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-create-link-source-pin"],
+        ["https://reference.invalid/acme/links/ra-create-link-target"],
+        ["https://reference.invalid/acme/links/ra-create-link-target-pin"],
+        ["https://reference.invalid/acme/links/ra-delete"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-11": {
+        "edge": 2
+      },
+      "identities-7": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-create-link-source-pin"],
+        ["https://reference.invalid/acme/links/ra-create-link-target"],
+        ["https://reference.invalid/acme/links/ra-create-link-target-pin"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-12": {
+        "outcome": "updated",
+        "alias": "https://reference.invalid/acme/alias/ra-locator-put",
+        "target": "https://reference.invalid/acme/beads/ra-target"
+      },
+      "value-13": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/ra-locator-new",
+        "target": "https://reference.invalid/acme/beads/ra-target"
+      },
+      "value-14": {
+        "outcome": "deleted",
+        "alias": "https://reference.invalid/acme/alias/ra-locator-delete"
+      },
+      "identities-8": [
+        ["https://reference.invalid/acme/beads/ra-created-id"],
+        ["https://reference.invalid/acme/beads/ra-source"],
+        ["https://reference.invalid/acme/beads/ra-target"],
+        ["https://reference.invalid/acme/beads/ra-update"]
+      ],
+      "value-15": {
+        "tag": "@made"
+      },
+      "identities-9": [
+        ["https://reference.invalid/acme/beads/ra-created-id"],
+        ["https://reference.invalid/acme/beads/ra-metadata"],
+        ["https://reference.invalid/acme/beads/ra-source"],
+        ["https://reference.invalid/acme/beads/ra-target"],
+        ["https://reference.invalid/acme/beads/ra-update"]
+      ],
+      "identities-10": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-create-link-source-pin"],
+        ["https://reference.invalid/acme/links/ra-create-link-target"],
+        ["https://reference.invalid/acme/links/ra-create-link-target-pin"],
+        ["https://reference.invalid/acme/links/ra-created-id"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-16": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/rb-locator-live",
+        "target": "https://reference.invalid/acme/beads/rb-source"
+      },
+      "identities-11": [
+        ["https://reference.invalid/acme/beads/rb-source"],
+        ["https://reference.invalid/acme/beads/rb-target"]
+      ],
+      "identities-12": [["https://reference.invalid/acme/links/rb-live"]],
+      "value-17": {
+        "type": "https://github.com/gastownhall/bdp/problems/validation",
+        "code": "validation-failed",
+        "status": 422,
+        "retry": "never",
+        "diagnostics": [
+          {
+            "message": "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted"
+          }
+        ]
+      },
+      "value-18": {
+        "type": "https://github.com/gastownhall/bdp/problems/validation",
+        "code": "validation-failed",
+        "status": 422,
+        "retry": "never",
+        "diagnostics": [
+          {
+            "message": "Link endpoint is not a Bead reference"
+          }
+        ]
+      },
+      "value-19": {
+        "type": "https://github.com/gastownhall/bdp/problems/validation",
+        "code": "validation-failed",
+        "status": 422,
+        "retry": "never",
+        "diagnostics": [
+          {
+            "message": "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted"
+          }
+        ],
+        "operationIndex": 0
+      },
+      "identities-13": [
+        ["https://reference.invalid/acme/beads/rb-rb-sequence-alias-tail"],
+        ["https://reference.invalid/acme/beads/rb-source"],
+        ["https://reference.invalid/acme/beads/rb-target"]
+      ],
+      "value-20": {
+        "type": "https://github.com/gastownhall/bdp/problems/validation",
+        "code": "validation-failed",
+        "status": 422,
+        "retry": "never",
+        "diagnostics": [
+          {
+            "message": "Link endpoint is not a Bead reference"
+          }
+        ],
+        "operationIndex": 0
+      },
+      "identities-14": [
+        ["https://reference.invalid/acme/beads/rb-rb-sequence-alias-tail"],
+        ["https://reference.invalid/acme/beads/rb-rb-sequence-endpoint-tail"],
+        ["https://reference.invalid/acme/beads/rb-source"],
+        ["https://reference.invalid/acme/beads/rb-target"]
+      ],
+      "value-21": {
+        "outcome": "updated",
+        "alias": "https://reference.invalid/acme/alias/rb-locator-live",
+        "target": "https://reference.invalid/acme/beads/rb-target"
+      },
+      "value-22": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "idempotency-conflict",
+        "status": 409,
+        "retry": "never"
+      },
+      "value-23": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/rb-locator-alias-local",
+        "target": "https://reference.invalid/acme/beads/rb-target"
+      },
+      "identities-15": [
+        ["https://reference.invalid/acme/links/rb-endpoint-source"],
+        ["https://reference.invalid/acme/links/rb-live"]
+      ],
+      "value-24": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/rc-locator-live",
+        "target": "https://reference.invalid/acme/beads/rc-source"
+      },
+      "identities-16": [
+        ["https://reference.invalid/acme/beads/rc-source"],
+        ["https://reference.invalid/acme/beads/rc-target"]
+      ],
+      "identities-17": [["https://reference.invalid/acme/links/rc-live"]],
+      "value-25": {
+        "type": "https://github.com/gastownhall/bdp/problems/not-found",
+        "code": "resource-not-found",
+        "status": 404,
+        "retry": "after-state-change",
+        "operationIndex": 0
+      },
+      "identities-18": [
+        ["https://reference.invalid/acme/beads/rc-rc-sequence-wrong-tail"],
+        ["https://reference.invalid/acme/beads/rc-source"],
+        ["https://reference.invalid/acme/beads/rc-target"]
+      ],
+      "identities-19": [
+        ["https://reference.invalid/acme/beads/rc-missing"],
+        ["https://reference.invalid/acme/beads/rc-rc-sequence-wrong-tail"],
+        ["https://reference.invalid/acme/beads/rc-source"],
+        ["https://reference.invalid/acme/beads/rc-target"]
+      ],
+      "value-26": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/rc-locator-put-local",
+        "target": "https://reference.invalid/acme/beads/rc-missing"
+      },
+      "value-27": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/rc-locator-missing",
+        "target": "https://reference.invalid/acme/beads/rc-target"
+      },
+      "value-28": {
+        "outcome": "deleted",
+        "alias": "https://reference.invalid/acme/alias/rc-locator-missing"
+      }
+    }
+  },
+  "readSeed": {
+    "beads": [
+      {
+        "id": "beads/read-z",
+        "type": "types/task",
+        "properties": {
+          "title": "z",
+          "open": {
+            "untouched": true
+          }
+        },
+        "metadata": {
+          "tag": "z"
+        }
+      },
+      {
+        "id": "beads/read-a",
+        "type": "types/task",
+        "properties": {
+          "title": "a",
+          "open": {
+            "untouched": true
+          }
+        },
+        "metadata": {
+          "tag": "a"
+        }
+      }
+    ],
+    "links": [
+      {
+        "id": "links/read-z",
+        "type": "types/relates",
+        "source": "beads/read-z",
+        "target": "beads/read-a",
+        "properties": {
+          "edge": "z"
+        },
+        "metadata": {
+          "tag": "z"
+        }
+      },
+      {
+        "id": "links/read-a",
+        "type": "types/relates",
+        "source": "beads/read-z",
+        "target": "beads/read-a",
+        "properties": {
+          "edge": "a"
+        },
+        "metadata": {
+          "tag": "a"
+        }
+      }
+    ]
+  },
+  "readSeedScenarios": [
+    "read.resource.bead-record",
+    "read.resource.link-record",
+    "read.resource.properties-view",
+    "read.resource.default-bounded",
+    "read.collections.beads",
+    "read.collections.links",
+    "read.http.get-head",
+    "read.http.cache-cors",
+    "read.http.accept-negotiation",
+    "read.http.conditional-reads",
+    "read.http.head-conditional-parity"
+  ]
+}

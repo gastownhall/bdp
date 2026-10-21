@@ -1,0 +1,7 @@
+# RU alias fragment receiving boundary
+
+Canonical spec alias-resolution1424–1442 requires unknown/query/fragment alias URLs to share resource-not-found404. The RU receiver previously rejected the fragment as generic malformed400 before the alias classifier; TX195 did not repair this separate receiving path. This patch classifies only composed Read GET/HEAD alias paths whose prefragment path already passes normalization. Authentication, trusted Host/Origin and ordinary receiving checks remain ahead of refusal. Shared normalization remains unchanged; nonalias fragments and unsafe alias paths remain400. No alias/Resource lookup or owner state is consulted by this refusal.
+
+The NEW packed test uses the real fixed three-principal RU schema cohort (17Types/four schemas), ordinary installed-reference launcher and exact rawRequestTarget port. RED on56a7 retained six actual HTTP observations, including fragment400, plus an independent fixture-only signal expectation error: caught SIGTERM correctly exits0/null/EOF. GREEN expects that actual clean terminal and adds empty/HEAD/unknown fragment, nonalias, unsafe-path and unauthenticated controls. Full current target remains unchanged. No TX195, old RU matrix, old proof stage or completed cohort is rerun for ownership.
+
+This narrow regression is part of the RU carrier authoring frontier; no full cumulative130/307clause or whole-profile qualification is implied.
