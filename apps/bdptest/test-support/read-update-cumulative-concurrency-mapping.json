@@ -1,0 +1,154 @@
+{
+  "kind": "NEW_INSTALLED_PRIVATE_SCHEDULER_RU_CONCURRENCY_WITNESSES",
+  "base": "779173640af62cca7ceef5b212a692e8be9657a7",
+  "productionSource": "5f3a67e89d62a0dcb4e9a7b9a6cb78b2c0a3e50c",
+  "configurationIdentity": "9af00876e91f71137ff31c226d368590a018ce2367cdb93110ea246dc7420d46",
+  "ordinaryDeployment": false,
+  "claimEligible": false,
+  "wholeProfileAward": false,
+  "controls": {
+    "source": "installed development-runtime.startDevelopmentReferenceRuntime scheduler argument, original assembly/composition/configuration",
+    "actualCallbacks": "installed sequence-executor.createSequenceLifecycle.scheduleMember AFTER store.admit full keys",
+    "turns": {
+      "maximumQueued": 64,
+      "maximumScheduled": 128,
+      "maximumReleased": 128
+    },
+    "clock": "unchanged actual clock",
+    "delay": "actual installed Node maintenance timer unchanged",
+    "IPC": "test-private release original callback ordinal, never member outcome/result/storage calls"
+  },
+  "shapes": [
+    "local-name: first admitted carrier claims creator only; competing sequence sees transient creator, owns and releases its NEW dependent key without execution, independent tail commits. After original creator terminal, retry replays creator and genuinely executes released dependent after an unrelated update between members; full result/current state include interleaving.",
+    "state-reference: same admitted keys but dependency via durable Bead path, competitor sees both keys in flight rather than retaining missing-subject failure; independent tail advances, original creator/dependent recover and retry replays"
+  ],
+  "requirements": [
+    {
+      "id": "read-update.sequence.transient-predecessor",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "the member fails with `idempotency-in-progress`, the authority consults no key state for it, executes nothing, retains nothing, and releases its claim on the member's key"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A member whose `@name` reference names a creating member of the same request whose disposition was transient is transient by the same rule"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "Neither prevents later independent members from running."
+        }
+      ],
+      "preciseControlBoundary": null,
+      "predicateWorkRemaining": "Need real pending/transient creator causing dependent transient before key lookup, claim release/no retained dependent, independent tail success. Source branch exists; ordinary permanent creator failure/retained binding case does not cover it."
+    },
+    {
+      "id": "read-update.sequence.interleaving",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "permits unrelated requests to interleave between members, taking no sequence-wide transaction, reservation, or lock."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "Bindings are confined to one sequence request and do not add isolation: an interleaving request may update or delete the committed Resource before a later member uses it."
+        }
+      ],
+      "preciseControlBoundary": null,
+      "predicateWorkRemaining": "Source schedules/yields between members and owns no sequence-wide SQL transaction; request-local creators retained. Need actual unrelated mutation between committed members and later binding observing updated/deleted state. Guarded concurrent singleton race is not this sequence witness."
+    },
+    {
+      "id": "read-update.idempotency.in-progress",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is in flight \u2014 claimed by a request whose member has not reached a terminal outcome: the member fails with `idempotency-in-progress`, the authority executes nothing and retains nothing for the presenting member, and a retry after the delay receives the retained disposition once the first presentation has reached a retained outcome"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "a delayed retry may instead find the key still in flight, meet a transient disposition of its own, or, after a long delay, find the disposition expired"
+        }
+      ],
+      "preciseControlBoundary": null,
+      "predicateWorkRemaining": "RU claimed state returns transient/no retained duplicate. Current TX retires row for concurrent-join/pending receipt semantics; direct unresolved comparison wait is separate, not imported RU idempotency-in-progress vehicle."
+    },
+    {
+      "id": "read-update.idempotency.key-reservation",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A sequence claims every member's unknown key at admission, in declaration order, before its first member starts; a singleton claims its key before executing."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "so it can neither execute a member ahead of the original's earlier members nor retain a disposition the original would contradict"
+        }
+      ],
+      "preciseControlBoundary": null,
+      "predicateWorkRemaining": "RU admit runs complete-key inserts atomically before first scheduled member; TX admitSequence reserves all unknowns plus dependencies in one atomic admission. Need real overlapping dependent request observation; sequential key reuse does not show ahead-of-prefix prevention."
+    },
+    {
+      "id": "read-update.idempotency.claim-atomicity",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "The claims one carrier makes at admission are one linearizable step relative to competing admissions: a competing presentation observes all of a carrier's claims or none of them, so two presentations of one sequence can never split its keys between them, even for members that depend on each other through state rather than through `@name`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "The claim step holds no lock past admission; members execute, interleave, and are answered exactly as before."
+        }
+      ],
+      "preciseControlBoundary": null,
+      "predicateWorkRemaining": "Single BEGIN IMMEDIATE admission encloses all unknown-key claims; no SQL lock spans member sequence. Need actual competing carrier all-or-none/no split ownership behavior including dependencies through state, not just @name; no current installed row identified."
+    },
+    {
+      "id": "read-update.idempotency.concurrent-dependent-retry",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "so that a retry after the delay executes the creator and then the dependent, and a concurrent retry can never poison the dependent member of the request that first presented the keys"
+        }
+      ],
+      "preciseControlBoundary": null,
+      "predicateWorkRemaining": "Need creator+dependent overlapping retry plus later recovery proving no dependent poison and original owns all keys. Existing overlap witness is single guarded update only; ordinary retained local-binding example lacks simultaneous admission."
+    },
+    {
+      "id": "read-update.idempotency.transient-not-retained",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A disposition whose `retry` is `after-delay` \u2014 `rate-limited`, `temporarily-unavailable`, and `idempotency-in-progress` \u2014 is transient and is never retained: the member was not executed, and a later member presenting the same key executes it."
+        }
+      ],
+      "preciseControlBoundary": null,
+      "predicateWorkRemaining": "RU after-delay branch releases owned claim; current TX retraction/transient compatibility source differs. Need actual rate-limited/unavailable/in-progress applicable transient then same-key execution; retained permanent failure cannot substitute."
+    }
+  ],
+  "limits": {
+    "manifestBytes": 4194304,
+    "jsonValueNodes": 100000,
+    "maximumDepth": 128,
+    "aggregateMilliseconds": 90000,
+    "changed": false
+  },
+  "residuals": [
+    "Two actual controlled schedules are bounded witnesses, not universal linearizability proof.",
+    "No clock/policy/expiry/History/restore control, production hook, config/public operation or callback supplying truth.",
+    "No direct SQL query counter: no key consultation on transient dependency is joined to exact literal source branch plus actual unpoisoned original/retry behavior, not asserted as measured query count.",
+    "No failed/positive237 singleton race or104ordinary scenario replay. Native process terminal records use own direct sidecar, not shared writer projection."
+  ]
+}
