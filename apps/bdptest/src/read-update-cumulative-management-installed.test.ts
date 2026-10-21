@@ -1,6 +1,6 @@
 /** NEW packed RU management observations. No ordinary runtime identity or whole-profile award. */
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -64,9 +64,21 @@ function problem(v: unknown, code: string, status: number) {
   expect(p.outcome).toBeUndefined();
   return p;
 }
+class ManagementHarnessFailure extends AggregateError {
+  constructor(
+    readonly primary: unknown,
+    readonly evidence: Value,
+    closing: unknown[],
+  ) {
+    super([primary, ...closing], "management harness refused before ownership handoff", {
+      cause: primary,
+    });
+  }
+}
 async function run(name: string, body: (h: Awaited<ReturnType<typeof harness>>) => Promise<void>) {
   if (!entry || !build || !output || !bankPath) throw Error("explicit packed bindings required");
   let h: Awaited<ReturnType<typeof harness>> | undefined;
+  let startupEvidence: Value | undefined;
   const failures: unknown[] = [];
   // All allocation/startup is inside the owned failure/removal boundary.
   const directory = await mkdtemp(path.join(tmpdir(), "bdp-ru-management-"));
@@ -74,6 +86,7 @@ async function run(name: string, body: (h: Awaited<ReturnType<typeof harness>>) 
     h = await harness(name, directory);
     await body(h);
   } catch (error) {
+    if (error instanceof ManagementHarnessFailure) startupEvidence = error.evidence;
     failures.push(error);
   }
   if (h) {
@@ -91,7 +104,7 @@ async function run(name: string, body: (h: Awaited<ReturnType<typeof harness>>) 
     failures.push(error);
   }
   try {
-    const evidence = h ? h.evidence : { startupFailed: true };
+    const evidence = h ? h.evidence : (startupEvidence ?? { startupFailed: true });
     const text =
       JSON.stringify(
         { name, ...evidence, removed, failures: failures.map((e) => inspect(e, { depth: 12 })) },
@@ -108,7 +121,7 @@ async function run(name: string, body: (h: Awaited<ReturnType<typeof harness>>) 
   }
   if (failures.length) throw new AggregateError(failures, "RU management scenario failed");
 }
-async function harness(name: string, directory: string) {
+async function harness(name: string, directory: string, injectedDiscoveryFailure?: Error) {
   const modules = [];
   for (const n of (await readdir(build!)).filter((n) => n.endsWith(".js")).sort()) {
     const b = await readFile(path.join(path.dirname(entry!), n));
@@ -191,19 +204,27 @@ async function harness(name: string, directory: string) {
     expect(r.ownerLimits.lifecycle.minimumRetentionMs).toBe(DAY);
     expect(r.listenerInput).toEqual({ host: "127.0.0.1", port });
   }
+  async function refuseBeforeHandoff(primary: unknown): Promise<never> {
+    clearTimeout(timer);
+    evidence.timerClearedBeforeHandoffFailure = true;
+    evidence.childPid = child.child.pid;
+    const closing: unknown[] = [];
+    try {
+      evidence.terminal = await child.close();
+    } catch (error) {
+      closing.push(error);
+    }
+    // Retain the original receiving/discovery failure and every close cause.
+    // The outer owner can remove the store only after this close/reap settles.
+    throw new ManagementHarnessFailure(primary, evidence, closing);
+  }
   let ready: Value;
   try {
     ready = await child.ready;
     checkReady(ready);
     evidence.initialReady = ready;
   } catch (error) {
-    clearTimeout(timer);
-    try {
-      evidence.terminal = await child.close();
-    } catch (closing) {
-      throw new AggregateError([error, closing], "startup and cleanup failed");
-    }
-    throw error;
+    return refuseBeforeHandoff(error);
   }
   async function control(command: string, now?: number) {
     const result = await child.control({ command, ...(now === undefined ? {} : { now }) });
@@ -285,22 +306,27 @@ async function harness(name: string, directory: string) {
       value: response.bodyText ? (JSON.parse(response.bodyText) as Value) : undefined,
     };
   }
-  const discovery = await send("bdp.json");
-  expect(discovery.status).toBe(200);
-  expect(discovery.value).toMatchObject({
-    scope,
-    profile: "read-update",
-    operations: scope + "operations/",
-  });
-  const directoryResponse = await send("operations/");
-  expect(directoryResponse.status).toBe(200);
-  expect(directoryResponse.value).toMatchObject({
-    createBead: "create-bead",
-    updateBead: "update-bead",
-    deleteBead: "delete-bead",
-    sequence: "sequence",
-  });
-  evidence.operationDirectory = directoryResponse.value;
+  try {
+    const discovery = await send("bdp.json");
+    expect(discovery.status).toBe(200);
+    expect(discovery.value).toMatchObject({
+      scope,
+      profile: "read-update",
+      operations: scope + "operations/",
+    });
+    if (injectedDiscoveryFailure) throw injectedDiscoveryFailure;
+    const directoryResponse = await send("operations/");
+    expect(directoryResponse.status).toBe(200);
+    expect(directoryResponse.value).toMatchObject({
+      createBead: "create-bead",
+      updateBead: "update-bead",
+      deleteBead: "delete-bead",
+      sequence: "sequence",
+    });
+    evidence.operationDirectory = directoryResponse.value;
+  } catch (error) {
+    return refuseBeforeHandoff(error);
+  }
   return {
     evidence,
     send,
@@ -609,3 +635,89 @@ it("rejects incorrect expiry and retained-record oracles", () => {
     ),
   ).toThrow();
 });
+
+it.skipIf(!entry)(
+  "closes a genuine ready owner when discovery refuses before harness handoff",
+  async () => {
+    if (!output) throw Error("evidence required");
+    let directory: string | undefined,
+      evidence: Value = {},
+      removed = false;
+    const failures: unknown[] = [],
+      primary = Error("NEW deterministic test-only post-discovery refusal");
+    try {
+      directory = await mkdtemp(path.join(tmpdir(), "bdp-ru-management-discovery-refusal-"));
+      let caught: unknown;
+      try {
+        await harness("discovery-refusal", directory, primary);
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(ManagementHarnessFailure);
+      const failure = caught as ManagementHarnessFailure;
+      evidence = failure.evidence;
+      expect(failure.primary).toBe(primary);
+      expect(failure.cause).toBe(primary);
+      expect(failure.errors).toEqual([primary]);
+      expect(evidence.initialReady).toMatchObject({
+        event: "management.ready",
+        ordinaryDeployment: false,
+      });
+      expect(evidence.timerClearedBeforeHandoffFailure).toBe(true);
+      expect(evidence.childPid).toBeGreaterThan(0);
+      expect(evidence.wires).toHaveLength(1);
+      expect(evidence.wires[0]).toMatchObject({
+        method: "GET",
+        url: scope + "bdp.json",
+        status: 200,
+      });
+      expect(evidence.terminal).toMatchObject({
+        code: 0,
+        signal: null,
+        forced: false,
+        overflow: false,
+        stdoutEOF: true,
+        stderrEOF: true,
+        reaped: true,
+      });
+      evidence.expectedPrimaryFailure = {
+        message: primary.message,
+        sameOriginalCause: true,
+        noCloseFailure: true,
+      };
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      if (directory) {
+        await rm(directory, { recursive: true, force: true });
+        await expect(stat(directory)).rejects.toMatchObject({ code: "ENOENT" });
+        removed = true;
+      }
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      const text =
+        JSON.stringify(
+          {
+            ...evidence,
+            removed,
+            directory,
+            failures: failures.map((e) => inspect(e, { depth: 12 })),
+          },
+          null,
+          2,
+        ) + "\n";
+      const bank = JSON.parse(await readFile(bankPath!, "utf8"));
+      for (const token of Object.values(bank) as string[])
+        if (text.includes(token)) throw Error("private credential in evidence");
+      await writeFile(path.join(output, "discovery-refusal.json"), text);
+    } catch (error) {
+      failures.push(error);
+    }
+    if (failures.length)
+      throw new AggregateError(failures, "discovery refusal cleanup regression failed");
+  },
+  90000,
+);
