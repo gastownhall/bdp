@@ -18,6 +18,13 @@ const deleted = (r: any, kind: "bead" | "link") => ({
   resourceKind: kind,
   resource: { id: r.id, type: r.type, revision: r.revision },
 });
+/** Spec change-groups: internal changes order has no semantic effect. Events retain exact order. */
+function completeChanges(entries: any[]) {
+  expect(new Set(entries.map((e) => e.resource.id)).size).toBe(entries.length);
+  return [...entries].sort((a, b) =>
+    a.resource.id < b.resource.id ? -1 : a.resource.id > b.resource.id ? 1 : 0,
+  );
+}
 function delta(actual: any, expected: unknown) {
   expect(actual).toEqual(expected);
 }
@@ -34,6 +41,21 @@ it("NEW mutation delta oracle refuses snapshots, wrong prior revision and omitte
     { previousRevision: "old", revision: "new" },
   ])
     expect(() => delta(bad, expected)).toThrow();
+});
+it("NEW complete state-change oracle refuses duplicate, missing and wrong-revision entries", () => {
+  const a = {
+      operation: "tombstone",
+      resourceKind: "bead",
+      resource: { id: scope + "beads/a", type: task, revision: "r-a" },
+    },
+    l = {
+      operation: "tombstone",
+      resourceKind: "link",
+      resource: { id: scope + "links/l", type: relationship, revision: "r-l" },
+    };
+  expect(completeChanges([l, a])).toEqual([a, l]);
+  for (const bad of [[a, a, l], [a], [a, { ...l, resource: { ...l.resource, revision: "wrong" } }]])
+    expect(() => expect(completeChanges(bad)).toEqual([a, l])).toThrow();
 });
 it.skipIf(!productEntry)(
   "NEW cumulative singleton complete document patches, atomic validation and revision guards",
@@ -436,7 +458,7 @@ it.skipIf(!productEntry)(
       }
       const groups = await feed(c);
       expect(groups.map((g) => g.position)).toEqual(["pos-1", "pos-2"]);
-      expect(groups[1].changes).toEqual(
+      expect(completeChanges(groups[1].changes)).toEqual(
         [a, b, l].map((r, i) => ({
           operation: "tombstone",
           ...deleted(r, i === 2 ? "link" : "bead"),
@@ -570,7 +592,7 @@ it.skipIf(!productEntry)(
       expect(g.eventCount).toBe(8);
       expect(g.events).toHaveLength(8);
       for (const e of g.events) expect(validator.validate("#/$defs/event", e)).toEqual([]);
-      expect(g.changes).toEqual([
+      expect(completeChanges(g.changes)).toEqual([
         { operation: "upsert", resourceKind: "bead", resource: a3 },
         { operation: "upsert", resourceKind: "link", resource: l3 },
       ]);
@@ -694,7 +716,7 @@ it.skipIf(!productEntry)(
         revision: last.sourceRevision,
         ownedLink: { operation: "deleted", link: { id: l3.id, type: wild, revision: l3.revision } },
       });
-      expect(d.changes).toEqual([
+      expect(completeChanges(d.changes)).toEqual([
         { operation: "upsert", resourceKind: "bead", resource: a4 },
         { operation: "tombstone", ...deleted(l3, "link") },
       ]);
