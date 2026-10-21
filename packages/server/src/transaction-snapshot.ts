@@ -575,7 +575,21 @@ export function transactionSnapshotStorage(
     minimum?: TransactionMinimum,
   ) {
     function unrecognized(): never {
-      if (minimum) throw new TransactionMinimumUnsupported("retained-snapshot-identity");
+      if (minimum) {
+        const required =
+          minimum.minimumPosition === "genesis" ? 0 : Number(minimum.minimumPosition.slice(4));
+        // A satisfied minimum in the actual current context adds no competing
+        // consistency failure to an unknown identity's uniform404. Keep the
+        // unselected future/foreign tuple combinations explicitly unsupported.
+        if (
+          minimum.scopeEpoch !== context.scopeEpoch ||
+          minimum.authorizationView !== context.authorizationView ||
+          !Number.isSafeInteger(required) ||
+          required < 0 ||
+          required > Number(context.scopePosition.slice(4))
+        )
+          throw new TransactionMinimumUnsupported("retained-snapshot-identity");
+      }
       throw new TransactionSnapshotFailure("resource-not-found");
     }
     if (typeof id !== "string" || !idPattern.test(id)) unrecognized();
