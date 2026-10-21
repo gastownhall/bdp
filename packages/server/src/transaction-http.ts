@@ -84,6 +84,16 @@ export type TransactionHttpResult =
  * or a caller-provided context. A continuation's current serving observation
  * cannot stand in for the older immutable rows it carries. */
 const responseSourceContexts = new WeakMap<HttpResponse, TransactionReadContext>();
+type RetainedSnapshotTarget = Extract<TransactionSnapshotRequest, { kind: "manifest" | "page" }>;
+// Only successful actual retained selections enter this map. No initial
+// capture, preflight, refusal, client context or executable callback is stored.
+const responseSnapshotTargets = new WeakMap<HttpResponse, RetainedSnapshotTarget>();
+export function transactionHttpSnapshotTarget(
+  response: HttpResponse,
+): RetainedSnapshotTarget | undefined {
+  return responseSnapshotTargets.get(response);
+}
+
 export function transactionHttpSourceContext(
   response: HttpResponse,
 ): TransactionReadContext | undefined {
@@ -498,7 +508,11 @@ export function createTransactionHttpHandler(
           return applyReadHttpSemantics(request, eligible);
         }
       }
-      return snapshotResponse(await service.snapshot(target, minimum, request.signal));
+      const observed = await service.snapshot(target, minimum, request.signal);
+      const response = snapshotResponse(observed);
+      if ((target.kind === "manifest" || target.kind === "page") && observed.kind === target.kind)
+        responseSnapshotTargets.set(response, Object.freeze({ ...target }));
+      return response;
     }
     const changefeed = transactionChangefeedRequest(url, scope);
     if (changefeed) {
@@ -722,6 +736,8 @@ export function createTransactionHttpHandler(
       };
       const source = responseSourceContexts.get(response);
       if (source) responseSourceContexts.set(finite, source);
+      const snapshot = responseSnapshotTargets.get(response);
+      if (snapshot) responseSnapshotTargets.set(finite, snapshot);
       return finite;
     },
   });

@@ -32,6 +32,7 @@ import {
   createTransactionHttpHandler,
   transactionHttpProblem,
   transactionHttpSourceContext,
+  transactionHttpSnapshotTarget,
   TRANSACTION_HTTP_TARGET_BYTES,
   type TransactionReceivedBody,
   type TransactionHttpResult,
@@ -179,6 +180,7 @@ async function startTransactionRuntimeCore(
   const handle = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     let signal: AbortSignal | undefined;
     let streamContext: TransactionReadContext | undefined;
+    let retainedSnapshot: ReturnType<typeof transactionHttpSnapshotTarget>;
     try {
       if (closing || !handler) {
         deliver(response, transactionHttpProblem("temporarily-unavailable"));
@@ -260,6 +262,7 @@ async function startTransactionRuntimeCore(
         lastEventIds,
       );
       if (selected.kind === "finite") {
+        retainedSnapshot = transactionHttpSnapshotTarget(selected);
         const sourceContext = transactionHttpSourceContext(selected);
         const scopeEpoch = selected.headers.get("bdp-scope-epoch"),
           authorizationView = selected.headers.get("bdp-authorization-view"),
@@ -378,12 +381,43 @@ async function startTransactionRuntimeCore(
       } else if (error instanceof TransactionStreamCapacityError) {
         deliver(response, transactionHttpProblem("temporarily-unavailable", streamContext));
       } else if (!response.destroyed) {
-        response.writeHead(500, {
-          "content-length": "0",
-          "cache-control": "private, no-store",
-          "x-bdp-development": "non-attesting",
-        });
-        response.end();
+        let expiredSnapshot: HttpResponse | undefined;
+        if (error instanceof TransactionErasureFence && error.erasureContext && retainedSnapshot) {
+          try {
+            // Diagnose ONLY the same already-issued retained target. Never
+            // replay the handler, recapture /snapshot, redo POST, or restart a
+            // minimum wait. A successful selection has already passed its
+            // original minimum; this extra entry checks actual erasure expiry.
+            const observed = await service!.snapshot(retainedSnapshot);
+            if (
+              observed.kind === "problem" &&
+              observed.code === "cursor-expired" &&
+              observed.context.scopeEpoch === error.erasureContext.scopeEpoch &&
+              observed.context.authorizationView === error.erasureContext.authorizationView
+            ) {
+              service!.assertPublication(observed.context);
+              expiredSnapshot = transactionHttpProblem("cursor-expired", observed.context);
+            }
+          } catch {
+            // A competing owner/context/lifecycle failure keeps the original
+            // generic failure. No second diagnosis or alternate read is tried.
+          }
+          // The one diagnosis added an await; preserve disconnect semantics
+          // rather than emitting even a content-free failure after cancellation.
+          if (signal?.aborted || response.headersSent || response.destroyed) {
+            response.destroy();
+            return;
+          }
+        }
+        if (expiredSnapshot) deliver(response, expiredSnapshot);
+        else {
+          response.writeHead(500, {
+            "content-length": "0",
+            "cache-control": "private, no-store",
+            "x-bdp-development": "non-attesting",
+          });
+          response.end();
+        }
       }
     }
   };
