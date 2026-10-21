@@ -260,10 +260,9 @@ export function projectTransactionEventGroup(
         const pair = endpoints.get(event.subject);
         if (!pair) throw new Error("incident Link update lacks same-group endpoints");
         include = pair.some((endpoint) => reference(endpoint) === source.subject);
-        // Literal incident rule currently mentions properties only. Do not silently
-        // decide metadata-only membership while the spec disposition is pending.
-        if (include && data.change === undefined && data.metadataChange !== undefined)
-          throw new TransactionEventProjectionGap("incident-link-metadata");
+        // The committed updated fact already establishes an effectful properties
+        // or common-metadata transition. Endpoint membership is the same for both;
+        // a supplied properties patch need not itself have changed anything.
       }
     }
     if (visible && include)
