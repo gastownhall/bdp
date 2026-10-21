@@ -1518,12 +1518,12 @@ it("gates fresh Snapshot opaque minima before allocation and expiry", () => {
   expect(
     observe({ kind: "manifest", id: handle(first.body) }, { ...minimum, minimumPosition: "pos-1" }),
   ).toMatchObject({ kind: "problem", code: "cursor-expired" });
-  expect(() =>
+  expect(
     observe(
       { kind: "page", id: handle(first.body), stream: "bead", token: "unused" },
       { ...minimum, minimumPosition: "pos-1" },
     ),
-  ).toThrow(TransactionMinimumUnsupported);
+  ).toEqual({ kind: "problem", code: "resource-not-found", context: first.context });
   expect(snapshotCalls).toBe(14);
   expect(preEntryExcludedCalls).toBe(2);
   expect(offlineInspections).toBe(2);
