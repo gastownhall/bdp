@@ -133,7 +133,14 @@ export type TransactionReadContext = {
   readonly scopePosition: string;
 };
 /** Expected erasure publication cancellation, distinct from an owner failure. */
-export class TransactionErasureFence extends Error {}
+export class TransactionErasureFence extends Error {
+  constructor(
+    message?: string,
+    readonly erasureContext?: TransactionReadContext,
+  ) {
+    super(message);
+  }
+}
 export interface TransactionChangePublication {
   readonly signal: AbortSignal;
   publish(checkpoint: string, write: () => boolean): boolean;
@@ -2707,12 +2714,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       return enter(() => {
         if (
           context.scopeEpoch !== epoch ||
-          context.authorizationView !== authorization.authorizationView ||
-          // Epoch/view equality above admits this view for the current ledger
-          // query. No unrelated head observation is needed for this floor.
-          Number(context.scopePosition.slice(4)) < erasureFloor(context)
+          context.authorizationView !== authorization.authorizationView
         )
           throw new TransactionErasureFence("response predates erasure publication");
+        // Only a SAME-context erasure-floor failure carries this diagnosis.
+        // Epoch/view collisions retain their original unclassified refusal.
+        if (Number(context.scopePosition.slice(4)) < erasureFloor(context))
+          throw new TransactionErasureFence("response predates erasure publication", readContext());
       });
     },
     acquireChangePublication(
