@@ -18,6 +18,7 @@ export function launchRUAllocation(entry: string, configuration: unknown) {
     bytes = 0,
     overflow = false,
     forced = false;
+  let forcedReason: "output-overflow" | "deadline" | null = null;
   if (!child.stdout || !child.stderr) throw new Error("missing child pipes");
   child.stdout.on("data", (chunk: Buffer) => {
     stdout += chunk.toString("utf8");
@@ -31,6 +32,8 @@ export function launchRUAllocation(entry: string, configuration: unknown) {
     bytes += chunk.length;
     if (bytes > 65536) {
       overflow = true;
+      forced = true;
+      forcedReason ??= "output-overflow";
       child.kill("SIGKILL");
       return false;
     }
@@ -50,6 +53,7 @@ export function launchRUAllocation(entry: string, configuration: unknown) {
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => {
             forced = true;
+            forcedReason ??= "deadline";
             child.kill("SIGKILL");
             void closed.then(() => reject(new Error("installed child deadline")), reject);
           }, 10000);
@@ -90,6 +94,7 @@ export function launchRUAllocation(entry: string, configuration: unknown) {
           bytes,
           overflow,
           forced,
+          forcedReason,
           stdoutEOF: child.stdout!.readableEnded,
           stderrEOF: child.stderr!.readableEnded,
           reaped: true,

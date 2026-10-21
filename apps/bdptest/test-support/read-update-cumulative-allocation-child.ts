@@ -6,6 +6,29 @@ import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 
 let retainedFailure: unknown;
+let ownedClose: (() => Promise<void>) | undefined;
+let terminalClose: Promise<void> | undefined;
+function retain(error: unknown) {
+  if (retainedFailure === error) return;
+  retainedFailure =
+    retainedFailure === undefined
+      ? error
+      : new AggregateError([retainedFailure, error], "owned fixture failures");
+}
+function terminate(): Promise<void> {
+  terminalClose ??= (async () => {
+    try {
+      await ownedClose?.();
+    } catch (error) {
+      retain(error);
+      process.exitCode = 2;
+      process.stderr.write("ALLOCATION_FIXTURE_CLOSE_REFUSED\n");
+    } finally {
+      if (process.connected) process.disconnect();
+    }
+  })();
+  return terminalClose;
+}
 async function main() {
   const installed = process.env.BDP_RU_ALLOCATION_RUNTIME;
   if (!installed || !process.send || !process.connected) throw Error("installed IPC required");
@@ -52,6 +75,7 @@ async function main() {
       await runtime.close();
       if (process.connected) process.disconnect();
     })());
+  ownedClose = close;
   function observeClosedNative() {
     const db = new DatabaseSync(path.join(options.directory, "reference.sqlite"), {
       readOnly: true,
@@ -121,21 +145,17 @@ async function main() {
         await send({ event: "allocation.observed", observation });
       })
       .catch(async (error: unknown) => {
-        retainedFailure = error; // Never format a potentially namespace-bearing exception.
+        retain(error); // Never format a potentially namespace-bearing exception.
         process.exitCode = 2;
         process.stderr.write("ALLOCATION_FIXTURE_CONTROL_REFUSED\n");
-        try {
-          await close();
-        } catch (closingError) {
-          retainedFailure = new AggregateError([error, closingError], "owned close refused");
-        }
+        await terminate();
       });
   });
   process.once("SIGTERM", () => {
-    void close();
+    void terminate();
   });
   process.once("disconnect", () => {
-    void close();
+    void terminate();
   });
   await send({
     event: "allocation.ready",
@@ -155,11 +175,11 @@ async function main() {
     namespaceExported: false,
   });
 }
-void main().catch((error: unknown) => {
-  retainedFailure = error;
+void main().catch(async (error: unknown) => {
+  retain(error);
   process.stderr.write("ALLOCATION_FIXTURE_STARTUP_REFUSED\n");
   process.exitCode = 2;
-  if (process.connected) process.disconnect();
+  await terminate();
 });
 // Keep genuine failures owned through process terminal; no exception projection is evidence of their full contents.
 process.once("exit", () => {
