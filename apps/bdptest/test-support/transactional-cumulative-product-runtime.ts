@@ -1,6 +1,6 @@
 /** Composition of existing installed launcher/binding/raw transport; no target emulation. */
 import { createHash } from "node:crypto";
-import { readFile, readdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { readFile, readdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -106,7 +106,8 @@ export async function withProductCampaign(
     results: Record<string, unknown> = {};
   const closes: Array<() => Promise<void>> = [];
   let directory: string | undefined,
-    baseline: ReturnType<typeof installedTransactionBinding> | undefined;
+    baseline: ReturnType<typeof installedTransactionBinding> | undefined,
+    removed = false;
   const controller = new AbortController(),
     watchdog = setTimeout(
       () => controller.abort(Error("NEW cumulative product aggregate60s deadline")),
@@ -132,6 +133,7 @@ export async function withProductCampaign(
       const terminal = new Promise<Record<string, unknown>>((resolve) =>
         child.child.once("close", (code: number | null, signal: string | null) =>
           resolve({
+            pid: child.child.pid,
             code,
             signal,
             stdoutEOF: child.child.stdout?.readableEnded,
@@ -157,11 +159,23 @@ export async function withProductCampaign(
                 timer = setTimeout(() => reject(Error("cumulative child EOF deadline")), 10000);
               }),
             ]);
+            let pidAbsent = false;
+            const pid = child.child.pid;
+            if (!Number.isSafeInteger(pid) || !pid) throw Error("actual native child PID absent");
+            try {
+              process.kill(pid, 0);
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+              pidAbsent = true;
+            }
+            observed = { ...observed, reaped: true, pidAbsent };
             expect(observed).toMatchObject({
               code: 0,
               signal: null,
               stdoutEOF: true,
               stderrEOF: true,
+              reaped: true,
+              pidAbsent: true,
             });
           } catch (error) {
             errors.push(error);
@@ -240,7 +254,11 @@ export async function withProductCampaign(
         failures.push(error);
       }
     try {
-      if (directory) await rm(directory, { recursive: true, force: true });
+      if (directory) {
+        await rm(directory, { recursive: true, force: true });
+        await expect(stat(directory)).rejects.toMatchObject({ code: "ENOENT" });
+        removed = true;
+      }
     } catch (error) {
       failures.push(error);
     }
@@ -257,6 +275,8 @@ export async function withProductCampaign(
             schemaSHA256: sha(schema),
             baseline,
             sessions,
+            directory,
+            removed,
             wires,
             results,
             failures: failures.map((error) => inspect(error, { depth: 8 })),
