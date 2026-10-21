@@ -286,6 +286,52 @@ export function createTransactionReadPlane(
     }
     return result;
   };
+  // One binding cell per service operation, never shared by facet reuse or
+  // concurrent requests. Every attempt still traverses the ordinary authority.
+  const retainedAttempt = <O extends ReadRequest>(
+    facet: AuthorityReadFacet,
+    minimum: TransactionMinimum,
+    request: O,
+    receiving: AuthorityReadDeliveryOptions | undefined,
+    waitable: boolean,
+  ) => {
+    let bound: TransactionReadContext | undefined;
+    return () =>
+      facet.perform(request, receiving).then((result) => {
+        checked(result);
+        // Only a genuinely validated initial page establishes cursor eligibility.
+        // Once bound, preserve actual native expiry/eviction/projection refusals.
+        if (result.kind !== "success") {
+          if (waitable && bound !== undefined) return result;
+          throw new TransactionContinuationMinimumUnsupported();
+        }
+        const { current, snapshot } = transactionReadContexts(result.observation);
+        if (snapshot === undefined) throw new TransactionContinuationMinimumUnsupported();
+        if (
+          bound !== undefined &&
+          (snapshot.scopeEpoch !== bound.scopeEpoch ||
+            snapshot.authorizationView !== bound.authorizationView ||
+            snapshot.scopePosition !== bound.scopePosition)
+        )
+          throw new TransactionContinuationMinimumUnsupported();
+        try {
+          snapshotTransactionMinimum(minimum);
+          checkTransactionMinimum(minimum, snapshot);
+        } catch (error) {
+          if (waitable && error instanceof TransactionMinimumFailure && error.reason === "behind") {
+            bound ??= snapshot;
+            // The unsatisfied data prefix is the saved one. A timeout's error
+            // headers describe this attempt's CURRENT serving entry, not old rows.
+            throw new TransactionMinimumFailure("behind", current);
+          }
+          if (error instanceof TypeError || error instanceof TransactionMinimumFailure)
+            throw new TransactionContinuationMinimumUnsupported();
+          throw error;
+        }
+        bound ??= snapshot;
+        return result;
+      });
+  };
   const observe = <T>(promise: Promise<T>): Promise<T> => {
     void promise.catch(() => {});
     return promise;
@@ -329,6 +375,25 @@ export function createTransactionReadPlane(
   };
   return Object.freeze({
     ...composed,
+    /** Source-private per-operation retry closure. The service alone owns the
+     * fixed wait deadline; no cursor is minted, renewed or reanchored here. */
+    prepareRetainedMinimumRead<O extends ReadRequest>(
+      principal: Parameters<AuthorityReadPlane["readFor"]>[0],
+      supplied: TransactionMinimum,
+      request: O,
+      receiving: AuthorityReadDeliveryOptions | undefined,
+    ) {
+      const capturedRequest = captureTransactionReadRequest(request);
+      if (!isRetainedCollectionMinimumRead(capturedRequest))
+        throw new TypeError("retained collection minimum required");
+      return retainedAttempt(
+        plane.readFor(principal),
+        snapshotCurrentReadMinimum(supplied),
+        capturedRequest,
+        captureTransactionReadDeliveryOptions(receiving),
+        true,
+      );
+    },
     minimumFor(
       principal: Parameters<AuthorityReadPlane["readFor"]>[0],
       supplied: TransactionMinimum,
@@ -357,30 +422,7 @@ export function createTransactionReadPlane(
             );
           }
           if (retained)
-            return observe(
-              facet.perform(capturedRequest, captured).then((result) => {
-                // Complete the ordinary query/authorization/TTL/projection checks
-                // and the existing saved-prefix publication fence first. The
-                // current entry is not evidence of the retained rows' freshness.
-                checked(result);
-                if (result.kind !== "success")
-                  throw new TransactionContinuationMinimumUnsupported();
-                const snapshot = transactionReadContexts(result.observation).snapshot;
-                if (snapshot === undefined) throw new TransactionContinuationMinimumUnsupported();
-                try {
-                  snapshotTransactionMinimum(minimum);
-                  checkTransactionMinimum(minimum, snapshot);
-                } catch (error) {
-                  if (error instanceof TypeError || error instanceof TransactionMinimumFailure)
-                    throw new TransactionContinuationMinimumUnsupported();
-                  throw error;
-                }
-                // No second traversal, wait, reanchor or expiry extension. Normal
-                // lazy page/token production remains with the existing cache.
-                // Return the SAME page and original/current observations.
-                return result;
-              }),
-            );
+            return observe(retainedAttempt(facet, minimum, capturedRequest, captured, false)());
           return observe(
             facet
               .perform(capturedRequest, { ...captured, sourceCondition: condition })
