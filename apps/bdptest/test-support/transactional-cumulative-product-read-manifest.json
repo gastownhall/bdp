@@ -7,9 +7,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "tx-cumulative-product-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -330,10 +328,7 @@
                 "bdp-authorization-view",
                 "bdp-scope-position"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -353,9 +348,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "tx-cumulative-product-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -537,9 +530,7 @@
               "kind": "json-array-set",
               "pointer": "/items",
               "itemPointer": "/id",
-              "equals": [
-                "https://reference.invalid/acme/beads/a"
-              ]
+              "equals": ["https://reference.invalid/acme/beads/a"]
             },
             {
               "id": "next",
@@ -797,9 +788,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "tx-cumulative-product-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -1110,9 +1099,7 @@
                 "content-type",
                 "content-length"
               ],
-              "optionalHeaders": [
-                "content-length"
-              ]
+              "optionalHeaders": ["content-length"]
             },
             {
               "id": "etag",
@@ -1211,11 +1198,7 @@
                 "last-modified",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "content-length",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "content-length", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -1311,11 +1294,7 @@
                 "last-modified",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "content-length",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "content-length", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -1411,11 +1390,7 @@
                 "last-modified",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "content-length",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "content-length", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -1511,11 +1486,7 @@
                 "last-modified",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "content-length",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "content-length", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -1611,11 +1582,7 @@
                 "last-modified",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "content-length",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "content-length", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -1706,11 +1673,7 @@
                 "last-modified",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "content-length",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "content-length", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -1801,11 +1764,7 @@
                 "last-modified",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "content-length",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "content-length", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -1825,9 +1784,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "tx-cumulative-product-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -1876,10 +1833,7 @@
               "id": "allow",
               "kind": "header-tokens",
               "name": "allow",
-              "includes": [
-                "GET",
-                "HEAD"
-              ],
+              "includes": ["GET", "HEAD"],
               "allowsAdditional": false
             }
           ],
@@ -1904,10 +1858,7 @@
               "id": "allow",
               "kind": "header-tokens",
               "name": "allow",
-              "includes": [
-                "GET",
-                "HEAD"
-              ],
+              "includes": ["GET", "HEAD"],
               "allowsAdditional": false
             }
           ],
@@ -1941,10 +1892,7 @@
               "id": "allow",
               "kind": "header-tokens",
               "name": "allow",
-              "includes": [
-                "GET",
-                "HEAD"
-              ],
+              "includes": ["GET", "HEAD"],
               "allowsAdditional": false
             }
           ],
@@ -1978,10 +1926,7 @@
               "id": "allow",
               "kind": "header-tokens",
               "name": "allow",
-              "includes": [
-                "GET",
-                "HEAD"
-              ],
+              "includes": ["GET", "HEAD"],
               "allowsAdditional": false
             }
           ],
@@ -2003,9 +1948,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "tx-cumulative-product-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -2230,10 +2173,7 @@
               "id": "allow",
               "kind": "header-tokens",
               "name": "allow",
-              "includes": [
-                "GET",
-                "HEAD"
-              ],
+              "includes": ["GET", "HEAD"],
               "allowsAdditional": false
             },
             {
@@ -2379,9 +2319,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "tx-cumulative-product-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -2819,10 +2757,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -2910,10 +2845,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -3006,10 +2938,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -3102,10 +3031,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -3191,10 +3117,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -3280,10 +3203,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -3376,10 +3296,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -3465,10 +3382,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -3561,10 +3475,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -3584,9 +3495,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "tx-cumulative-product-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -5885,9 +5794,7 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "tx-cumulative-product-v1",
-        "requires": [
-          "installed-transactional-http"
-        ]
+        "requires": ["installed-transactional-http"]
       },
       "applicability": {
         "requires": []
@@ -6074,9 +5981,7 @@
                 "content-type",
                 "content-length"
               ],
-              "optionalHeaders": [
-                "content-length"
-              ]
+              "optionalHeaders": ["content-length"]
             },
             {
               "id": "etag",
@@ -6540,10 +6445,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -6642,10 +6544,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -6740,10 +6639,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -6834,10 +6730,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",
@@ -6934,10 +6827,7 @@
                 "content-type",
                 "vary"
               ],
-              "optionalHeaders": [
-                "content-type",
-                "vary"
-              ]
+              "optionalHeaders": ["content-type", "vary"]
             }
           ],
           "credentialRef": "operator",

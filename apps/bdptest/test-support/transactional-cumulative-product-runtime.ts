@@ -278,8 +278,8 @@ export async function withProductCampaign(
 
 /** Existing raw executor bound to the SAME campaign bank and installed session. */
 export async function productSession(c: Campaign, scenario: string) {
-  const child = await c.launch(scenario, false, c.signal);
-  const address = new URL(String(child.ready.listenUrl));
+  let child = await c.launch(scenario, false, c.signal);
+  let address = new URL(String(child.ready.listenUrl));
   const state: { position: string; epoch?: string; view?: string } = { position: "pos-0" };
   let requests = 0;
   async function exchange(
@@ -360,6 +360,11 @@ export async function productSession(c: Campaign, scenario: string) {
     position(value: string) {
       state.position = value;
     },
-    close: child.close,
+    close: () => child.close(),
+    async reopen() {
+      await child.close();
+      child = await c.launch(scenario, true, c.signal);
+      address = new URL(String(child.ready.listenUrl));
+    },
   };
 }

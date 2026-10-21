@@ -53,3 +53,28 @@ it("admits bounded inheritedRead bundle and one complete fixture without borrowi
     initialPolicy: "all-visible",
   });
 });
+it("joins selected carrier responsibilities without gaps/overlap or pretending source cases are portable manifest actions", () => {
+  const selected = loadProfileContractSelection("transactional"),
+    plan = JSON.parse(source("carrier-plan").bytes.toString("utf8"));
+  expect(plan.rows.map((r: { id: string }) => r.id)).toEqual(selected.required.map((r) => r.id));
+  const partition = plan.bundles.flatMap((b: { requirementIds: string[] }) => b.requirementIds);
+  expect(partition.length).toBe(251);
+  expect(new Set(partition).size).toBe(251);
+  expect([...partition].sort()).toEqual(selected.required.map((r) => r.id).sort());
+  for (const row of plan.rows) {
+    expect(plan.bundles.find((b: { id: string }) => b.id === row.bundle).requirementIds).toContain(
+      row.id,
+    );
+    if (row.implementationScope === "not-implemented-in-this-tranche")
+      expect(row.caseRefs).toEqual([]);
+    if (row.conditionalRole !== null)
+      expect(row.implementationScope).toBe("conditional-role-not-selected");
+  }
+  expect(plan.nativeArtifactBundles[0].selectedIds).toEqual(
+    JSON.parse(source("read-manifest").bytes.toString("utf8")).scenarios.map(
+      (r: { id: string }) => r.id,
+    ),
+  );
+  expect(plan.claimEligible).toBe(false);
+  expect(source("carrier-plan").bytes.byteLength).toBeLessThanOrEqual(1048576);
+});

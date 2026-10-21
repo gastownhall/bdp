@@ -41,8 +41,16 @@ const inheritedReadIds = [
   "read.http.conditional-reads",
   "read.http.head-conditional-parity",
 ] as const;
-const selectedReadIds = process.env.BDP_CUMULATIVE_PRODUCT_SCENARIOS?.split(",") ?? [...inheritedReadIds];
-if (selectedReadIds.some(id=>!inheritedReadIds.includes(id as typeof inheritedReadIds[number])) || new Set(selectedReadIds).size!==selectedReadIds.length) throw Error("invalid explicit Read selection");
+const selectedReadIds = process.env.BDP_CUMULATIVE_PRODUCT_SCENARIOS?.split(",") ?? [
+  ...inheritedReadIds,
+];
+if (
+  selectedReadIds.some(
+    (id) => !inheritedReadIds.includes(id as (typeof inheritedReadIds)[number]),
+  ) ||
+  new Set(selectedReadIds).size !== selectedReadIds.length
+)
+  throw Error("invalid explicit Read selection");
 const inheritedRequests: Record<string, readonly (readonly [string, string, number, string?])[]> = {
   "read.discovery.scope-service-desc": [
     ["GET", "", 204],
