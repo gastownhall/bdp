@@ -22,6 +22,7 @@ export async function launchInstalledReference(entry, configuration) {
   });
   let stdout = "",
     stderr = "";
+  let qualificationError;
   child.stdout.on("data", (b) => {
     stdout += b;
     if (stdout.length > 65536) child.kill("SIGKILL");
@@ -104,6 +105,7 @@ export async function launchInstalledReference(entry, configuration) {
       });
       const error = Error(`installed child qualification refused: ${JSON.stringify(diagnostic)}`);
       error.qualification = diagnostic;
+      qualificationError = error;
       throw error;
     }
     assert.equal(ready.event, "qualification.ready");
@@ -130,6 +132,11 @@ export async function launchInstalledReference(entry, configuration) {
     child.kill("SIGKILL");
     await bounded(exited);
     const terminal = await bounded(closed);
+    // Preserve the historical failure vocabulary only after the child really
+    // closed. The appended detail is the validated closed diagnostic, never
+    // arbitrary stderr/configuration/exception text.
+    if (error === qualificationError && error instanceof Error)
+      error.message = `installed child exited: installed reference qualification failed; ${error.message}`;
     if (error instanceof Error)
       Object.defineProperty(error, "qualificationProcess", {
         value: Object.freeze({
