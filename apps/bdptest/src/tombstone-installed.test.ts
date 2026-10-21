@@ -583,31 +583,47 @@ it.skipIf(!entry)(
           stderrEOF: true,
         });
       } finally {
-        if (evidence)
-          await writeFile(
-            path.join(evidence, "observation.json"),
-            JSON.stringify(
-              {
-                report,
-                terminal,
-                terminals,
-                generations,
-                failure: failure === undefined ? null : inspect(failure, { depth: 8 }),
-                wires,
-                sse: stream
-                  ? {
-                      wireBase64: stream.wireBytes.toString("base64"),
-                      destroyed: stream.destroyed,
-                      status: stream.status,
-                    }
-                  : null,
-              },
-              null,
-              2,
-            ),
-            { mode: 0o600 },
-          );
-        await rm(directory, { recursive: true, force: true });
+        let evidenceFailure: unknown;
+        try {
+          if (evidence)
+            await writeFile(
+              path.join(evidence, "observation.json"),
+              JSON.stringify(
+                {
+                  report,
+                  terminal,
+                  terminals,
+                  generations,
+                  failure: failure === undefined ? null : inspect(failure, { depth: 8 }),
+                  wires,
+                  sse: stream
+                    ? {
+                        wireBase64: stream.wireBytes.toString("base64"),
+                        destroyed: stream.destroyed,
+                        status: stream.status,
+                      }
+                    : null,
+                },
+                null,
+                2,
+              ),
+              { mode: 0o600 },
+            );
+        } catch (error) {
+          evidenceFailure = error;
+          throw error;
+        } finally {
+          try {
+            await rm(directory, { recursive: true, force: true });
+          } catch (cleanupError) {
+            if (evidenceFailure !== undefined)
+              throw new AggregateError(
+                [evidenceFailure, cleanupError],
+                "evidence writing and temporary-store cleanup failed",
+              );
+            throw cleanupError;
+          }
+        }
       }
     }
   },
