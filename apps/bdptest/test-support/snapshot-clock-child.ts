@@ -11,9 +11,7 @@ async function main() {
   if (!directory || !process.send || !process.connected)
     throw new Error("clock bridge binding missing");
   const configuration = await new Promise<unknown>((resolve) => {
-    process.once("message", (input: { configuration: unknown }) =>
-      resolve(input.configuration),
-    );
+    process.once("message", (input: { configuration: unknown }) => resolve(input.configuration));
   });
   let now = 1000000,
     advanced = false;
