@@ -15,6 +15,46 @@ const childEntry = fileURLToPath(
   new URL("../test-support/crash-recovery-child.ts", import.meta.url),
 );
 type RecordValue = Record<string, unknown>;
+const contextFields = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
+function responseContext(
+  headers: Readonly<Record<string, string | undefined>>,
+  expectedPosition: "pos-0" | "pos-1",
+) {
+  const entries = contextFields.map((name) => {
+    const value = headers[name];
+    if (typeof value !== "string" || !/^[A-Za-z0-9_-]{1,256}$/.test(value))
+      throw new Error(`missing or malformed crash-recovery context: ${name}`);
+    return [name, value] as const;
+  });
+  const context = Object.fromEntries(entries);
+  if (context["bdp-scope-position"] !== expectedPosition)
+    throw new Error("unexpected crash-recovery observed position");
+  return Object.freeze(context);
+}
+it("crash-recovery head oracle rejects missing context and extra-effect positions", () => {
+  const valid = {
+    "bdp-scope-epoch": "epoch-fixture",
+    "bdp-authorization-view": "view-fixture",
+    "bdp-scope-position": "pos-1",
+  };
+  expect(responseContext(valid, "pos-1")).toEqual(valid);
+  expect(
+    responseContext({ ...valid, "bdp-scope-position": "pos-0" }, "pos-0")["bdp-scope-position"],
+  ).toBe("pos-0");
+  for (const name of contextFields) {
+    const absent: Record<string, string | undefined> = { ...valid };
+    delete absent[name];
+    expect(() => responseContext(absent, "pos-1")).toThrow("missing or malformed");
+    for (const value of ["", "invalid value"])
+      expect(() => responseContext({ ...valid, [name]: value }, "pos-1")).toThrow(
+        "missing or malformed",
+      );
+  }
+  for (const position of ["pos-0", "pos-2"])
+    expect(() => responseContext({ ...valid, "bdp-scope-position": position }, "pos-1")).toThrow(
+      "unexpected crash-recovery observed position",
+    );
+});
 async function installedBindings() {
   if (!installed) throw new Error("missing installed server directory");
   const emitted = fileURLToPath(new URL("../../../packages/server/dist/", import.meta.url));
@@ -274,7 +314,8 @@ for (const phase of ["after-admission", "after-commit"] as const satisfies reado
 
         const before = await f.exchange(resource);
         expect(before.status).toBe(phase === "after-admission" ? 404 : 200);
-        expect(before.headers["bdp-scope-position"]).toBe(
+        const beforeContext = responseContext(
+          before.headers,
           phase === "after-admission" ? "pos-0" : "pos-1",
         );
         if (phase === "after-admission") {
@@ -294,12 +335,16 @@ for (const phase of ["after-admission", "after-commit"] as const satisfies reado
         const after = await f.exchange(resource);
         expect(after.status).toBe(200);
         expect(after.body).toMatchObject({ properties: { n: 7 } });
+        // Pin the FIRST retry observation, not only equality with a later read.
+        const afterContext = responseContext(after.headers, "pos-1");
+        for (const name of ["bdp-scope-epoch", "bdp-authorization-view"])
+          expect(afterContext[name]).toBe(beforeContext[name]);
         const replay = await f.exchange(target, request);
         expect(replay.status).toBe(200);
         expect(replay.body).toEqual(retry.body);
         const final = await f.exchange(resource);
         expect(final.body).toEqual(after.body);
-        expect(final.headers["bdp-scope-position"]).toBe(after.headers["bdp-scope-position"]);
+        expect(responseContext(final.headers, "pos-1")).toEqual(afterContext);
         const stopped = await active.stop("SIGTERM");
         runs.push({ phase: "reopen", ...stopped });
         active = undefined;
