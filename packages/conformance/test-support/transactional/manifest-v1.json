@@ -3,6 +3,2557 @@
   "catalogId": "transactional-v1",
   "scenarios": [
     {
+      "id": "read.discovery.scope-service-desc",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "probe",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [
+            {
+              "binding": "observed-descriptor",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "service.desc",
+              "kind": "header",
+              "name": "link",
+              "contains": "rel=\"service-desc\""
+            }
+          ]
+        },
+        {
+          "id": "descriptor",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "observed-descriptor"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/transactionalDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "transactional"
+            },
+            {
+              "id": "scope",
+              "kind": "json-pointer",
+              "pointer": "/scope",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/"
+            },
+            {
+              "id": "beads",
+              "kind": "json-pointer",
+              "pointer": "/beads",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/"
+            },
+            {
+              "id": "links",
+              "kind": "json-pointer",
+              "pointer": "/links",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/"
+            },
+            {
+              "id": "types",
+              "kind": "json-pointer",
+              "pointer": "/types",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read.discovery.canonical-navigation",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "navigation",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/transactionalDiscovery"
+            },
+            {
+              "id": "beads",
+              "kind": "json-pointer",
+              "pointer": "/beads",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/"
+            },
+            {
+              "id": "links",
+              "kind": "json-pointer",
+              "pointer": "/links",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/"
+            },
+            {
+              "id": "types",
+              "kind": "json-pointer",
+              "pointer": "/types",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/"
+            }
+          ]
+        },
+        {
+          "id": "beads",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadCollection"
+            },
+            {
+              "id": "ids",
+              "kind": "json-array-set",
+              "pointer": "/items",
+              "itemPointer": "/id",
+              "equals": ["https://reference.invalid/acme/beads/a"]
+            }
+          ]
+        },
+        {
+          "id": "links",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/linkCollection"
+            },
+            {
+              "id": "empty",
+              "kind": "json-pointer",
+              "pointer": "/items",
+              "exists": true,
+              "equals": []
+            }
+          ]
+        },
+        {
+          "id": "types",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/typesInventory"
+            },
+            {
+              "id": "ids",
+              "kind": "json-array-set",
+              "pointer": "/items",
+              "itemPointer": "/id",
+              "equals": [
+                "https://reference.invalid/acme/types/task",
+                "https://reference.invalid/acme/types/relationship"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read.http.get-head",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "scope-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "scope-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "resource-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/a"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "title",
+              "kind": "json-pointer",
+              "pointer": "/properties/title",
+              "exists": true,
+              "equals": "inherited-read"
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/metadata",
+              "exists": true,
+              "equals": {}
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "resource-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "resource-get",
+              "headers": [
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "cache-control",
+                "etag",
+                "content-type",
+                "content-length"
+              ],
+              "optionalHeaders": ["content-length"]
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read.http.method-405",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "post-read",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 405
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "allow",
+              "kind": "header-tokens",
+              "name": "allow",
+              "includes": ["GET", "HEAD"],
+              "allowsAdditional": false
+            }
+          ],
+          "negativeMethodProbe": true
+        }
+      ]
+    },
+    {
+      "id": "read.http.cache-cors",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "private-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/a"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "title",
+              "kind": "json-pointer",
+              "pointer": "/properties/title",
+              "exists": true,
+              "equals": "inherited-read"
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/metadata",
+              "exists": true,
+              "equals": {}
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "origin-refused",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "origin",
+                "value": "https://other.invalid"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 403
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "forbidden"
+            },
+            {
+              "id": "no.cors",
+              "kind": "header",
+              "name": "access-control-allow-origin",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "options",
+          "family": "http",
+          "method": "OPTIONS",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "origin",
+                "value": "https://other.invalid"
+              },
+              {
+                "name": "access-control-request-method",
+                "value": "GET"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 405
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "allow",
+              "kind": "header-tokens",
+              "name": "allow",
+              "includes": ["GET", "HEAD"],
+              "allowsAdditional": false
+            },
+            {
+              "id": "no.cors",
+              "kind": "header",
+              "name": "access-control-allow-origin",
+              "absent": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read.http.accept-negotiation",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "json",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/a"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "title",
+              "kind": "json-pointer",
+              "pointer": "/properties/title",
+              "exists": true,
+              "equals": "inherited-read"
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/metadata",
+              "exists": true,
+              "equals": {}
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "unacceptable",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/plain"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "head-unacceptable",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/plain"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "missing-before-media",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/missing"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/plain"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "auth-before-media",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "anonymous",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/plain"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 401
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "unauthenticated"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read.http.conditional-reads",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "baseline",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/a"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "title",
+              "kind": "json-pointer",
+              "pointer": "/properties/title",
+              "exists": true,
+              "equals": "inherited-read"
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/metadata",
+              "exists": true,
+              "equals": {}
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "not-modified",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "baseline"
+            }
+          ]
+        },
+        {
+          "id": "head-not-modified",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "precondition",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "\"nonmatching\""
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "missing-before-conditional",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/missing"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "auth-before-conditional",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "anonymous",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 401
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "unauthenticated"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read.http.head-conditional-parity",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "baseline",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/a"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "title",
+              "kind": "json-pointer",
+              "pointer": "/properties/title",
+              "exists": true,
+              "equals": "inherited-read"
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/metadata",
+              "exists": true,
+              "equals": {}
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.metadata",
+              "kind": "response-metadata-equals",
+              "request": "baseline",
+              "headers": [
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "cache-control",
+                "etag",
+                "content-type",
+                "content-length"
+              ],
+              "optionalHeaders": ["content-length"]
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "missing-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/missing"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "missing-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/missing"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "anonymous-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "anonymous",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 401
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "unauthenticated"
+            }
+          ]
+        },
+        {
+          "id": "anonymous-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "anonymous",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 401
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "conditional-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "conditional-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "authored",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "context.scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "context.authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "context.scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "read-update.idempotency.principal-isolation",
       "requiredProfile": "read-update",
       "setup": {
