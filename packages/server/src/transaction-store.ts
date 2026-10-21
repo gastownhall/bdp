@@ -74,7 +74,8 @@ import { parseCanonicalScope, parseTypeDescriptor, type TypeDescriptor } from "@
 import { assertDevelopmentContracts, type DevelopmentContracts } from "./development-contracts.js";
 import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
 import type { AuthorityReadReader, OwnerReadEntryResult, ReadPrincipal } from "./authority-read.js";
-import type { EvaluatorStoredResource } from "./resource-evaluator.js";
+import { readStoredResource, type EvaluatorStoredResource } from "./resource-evaluator.js";
+import { validateLiveBeadCorrection, liveCorrectionEvent } from "./transaction-live-correction.js";
 import {
   TransactionDevelopmentLimitError,
   TRANSACTION_RUNTIME_LIMITS,
@@ -824,6 +825,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         state.controller.abort(new TransactionErasureFence("pre-erasure stream is behind"));
   }
   function eraseHistoricalVersions(requested: readonly HistoricalErasureSubject[]) {
+    return eraseVersions(requested);
+  }
+  function correctLiveBeadVersion(subject: string, revision: string, request: PreparedTransaction) {
+    return eraseVersions([{ subject, revision }], request);
+  }
+  function eraseVersions(
+    requested: readonly HistoricalErasureSubject[],
+    correction?: PreparedTransaction,
+  ) {
     return enter(() => {
       if (
         activeSequences.size ||
@@ -835,14 +845,67 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       )
         throw new Error("historical erasure requires drained mutation ownership");
       const result = atomic(() => {
+        const previousPosition = Number(metadata("position"));
+        if (!Number.isSafeInteger(previousPosition) || previousPosition >= Number.MAX_SAFE_INTEGER)
+          throw new Error("Scope position exhausted");
+        const position = previousPosition + 1,
+          transaction = randomUUID();
+        let correctedChanges: readonly import("./transaction-batch.js").TransactionStateChange[] =
+          [];
+        let correctedEvents: TransactionEvent[] = [];
+        if (correction !== undefined) {
+          const target = requested[0];
+          if (
+            requested.length !== 1 ||
+            !target ||
+            typeof target.subject !== "string" ||
+            !target.subject.startsWith(`${scope}beads/`) ||
+            typeof target.revision !== "string" ||
+            !target.revision
+          )
+            throw new TypeError("one exact current Bead version required");
+          const stored = resource(target.subject.slice(scope.length));
+          if (!stored || stored.kind !== "bead")
+            throw new Error("current Bead correction unavailable");
+          const before = readStoredResource(stored, scope);
+          if (before.id !== target.subject || before.revision !== target.revision)
+            throw new Error("current Bead revision differs");
+          const normalized = validateLiveBeadCorrection(correction, scope, before);
+          const evaluated = evaluateOwnedTransaction(
+            normalized,
+            transaction,
+            `pos-${position}`,
+            instant(),
+          );
+          if (!evaluated.ok)
+            throw new Error("live correction validation refused", { cause: evaluated.problem });
+          const change = evaluated.changes[0],
+            event = evaluated.events[0];
+          if (
+            evaluated.changes.length !== 1 ||
+            !change ||
+            change.operation !== "upsert" ||
+            change.resourceKind !== "bead" ||
+            !("properties" in change.resource) ||
+            change.resource.id !== target.subject ||
+            evaluated.events.length !== 1 ||
+            !event ||
+            event.type !== "updated" ||
+            event.subject !== target.subject
+          )
+            throw new Error(
+              "live correction requires a changed unowned Bead; unchanged state needs unsupported tombstone",
+            );
+          correctedChanges = evaluated.changes;
+          correctedEvents = [liveCorrectionEvent(before, change.resource, event)];
+          retainErasureVersions(db, change.resource);
+        }
         const plan = planHistoricalErasure(db, scope, requested);
         const selected = new Set(
           plan.map(({ record }) => JSON.stringify([record.subject, record.revision])),
         );
         const erased = (id: unknown, revision: unknown) =>
           selected.has(JSON.stringify([id, revision]));
-        const position = Number(metadata("position")) + 1;
-        if (!Number.isSafeInteger(position)) throw new Error("Scope position exhausted");
         const records = plan.map(({ record }) => record);
         const group = {
           scopeEpoch: epoch,
@@ -851,11 +914,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           position: `pos-${position}`,
           previousPosition: `pos-${position - 1}`,
           projectionAdvance: false,
-          transaction: randomUUID(),
-          changes: [],
+          transaction,
+          changes: correctedChanges,
           erasures: records,
-          eventCount: 0,
-          events: [],
+          eventCount: correctedEvents.length,
+          events: correctedEvents,
         };
         const groupText = json(group);
         if (Buffer.byteLength(groupText) > TRANSACTION_EVENT_GROUP_BYTES)
@@ -1609,6 +1672,112 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     claims.set(claim, { principal, key, owner, normalized });
     return { kind: "owned", claim };
   }
+  function evaluateOwnedTransaction(
+    normalized: NormalizedTransaction,
+    transaction: string,
+    position: string,
+    now: number,
+  ) {
+    let active = true;
+    function scoped<T>(fn: () => T): T {
+      if (!active) throw new Error("expired Resource transaction");
+      return fn();
+    }
+    const tx: TransactionMutationContext = {
+      resources: (kind) =>
+        scoped(() =>
+          Object.freeze(
+            db
+              .prepare("SELECT id FROM resources WHERE kind=?")
+              .all(kind)
+              .map((row) => Object.freeze(requiredResource(String(row.id)))),
+          ),
+        ),
+      resource: (id) => scoped(() => resource(id)),
+      incidentLinks: (id) =>
+        scoped(() =>
+          db
+            .prepare("SELECT id FROM resources WHERE kind='link' AND (source=? OR target=?)")
+            .all(id, id)
+            .map((r) => requiredResource(String(r.id))),
+        ),
+      outgoingLinks: (id) =>
+        scoped(() =>
+          db
+            .prepare("SELECT id FROM resources WHERE kind='link' AND source=?")
+            .all(id)
+            .map((r) => requiredResource(String(r.id))),
+        ),
+      identityWasCommitted: (id) =>
+        scoped(() => db.prepare("SELECT id FROM identities WHERE id=?").get(id) !== undefined),
+      alias: (path) => scoped(() => alias(path)),
+      putAlias: (path, target) =>
+        scoped(() => {
+          db.prepare(
+            "INSERT INTO aliases VALUES(?,?) ON CONFLICT(path) DO UPDATE SET target=excluded.target",
+          ).run(path, target);
+        }),
+      deleteAlias: (path) =>
+        scoped(() => {
+          db.prepare("DELETE FROM aliases WHERE path=?").run(path);
+        }),
+      installedType: (id) => scoped(() => installed.get(id)),
+      allocateResourceId: (kind) =>
+        scoped(() => {
+          for (let attempt = 0; attempt < 32; attempt++) {
+            const suffix = randomUUID(),
+              id = `${kind === "bead" ? "beads" : "links"}/${suffix}`;
+            if (
+              !db.prepare("SELECT id FROM identities WHERE id=?").get(id) &&
+              (kind !== "bead" || alias(suffix) === undefined)
+            )
+              return id;
+          }
+          throw new Error("Resource identity allocation exhausted");
+        }),
+      allocateRevision: () => scoped(() => randomUUID()),
+      putResource: (r) =>
+        scoped(() => {
+          db.prepare("INSERT OR IGNORE INTO identities VALUES(?)").run(r.id);
+          db.prepare(
+            "INSERT INTO resources VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body",
+          ).run(r.id, r.bodyJson, r.kind, r.source ?? null, r.target ?? null);
+        }),
+      deleteResource: (id) =>
+        scoped(() => {
+          // Retain its identity for the epoch; deletion never permits reuse.
+          db.prepare("DELETE FROM resources WHERE id=?").run(id);
+        }),
+    };
+    return (() => {
+      try {
+        return evaluateTransaction(
+          normalized,
+          tx,
+          {
+            scope,
+            contracts: compiled?.registry ?? {
+              get(id, bytes) {
+                const descriptor = descriptors.find((d) => d.id === id);
+                return descriptor && installed.get(id) === bytes ? { descriptor } : undefined;
+              },
+            },
+            aliasPolicy: { canRead: () => true, canWriteBead: () => true },
+            policy: { canRead: () => true, canCreate: () => true, canWrite: () => true },
+            maximumEndpointMultiplicity: [],
+            observeCommitTime: instant,
+            recordChangeContext: false,
+            limits: TRANSACTION_RUNTIME_LIMITS,
+          },
+          transaction,
+          position,
+          now,
+        );
+      } finally {
+        active = false;
+      }
+    })();
+  }
   function executeClaim(claim: TransactionClaim): TransactionReceipt;
   function executeClaim(claim: TransactionClaim, observed: true): TransactionReceiptObservation;
   function executeClaim(
@@ -1637,108 +1806,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             throw new Error("position allocation unsafe");
           const position = `pos-${previous + 1}`,
             now = instant();
-          let active = true;
-          function scoped<T>(fn: () => T): T {
-            if (!active) throw new Error("expired Resource transaction");
-            return fn();
-          }
-          const tx: TransactionMutationContext = {
-            resources: (kind) =>
-              scoped(() =>
-                Object.freeze(
-                  db
-                    .prepare("SELECT id FROM resources WHERE kind=?")
-                    .all(kind)
-                    .map((row) => Object.freeze(requiredResource(String(row.id)))),
-                ),
-              ),
-            resource: (id) => scoped(() => resource(id)),
-            incidentLinks: (id) =>
-              scoped(() =>
-                db
-                  .prepare("SELECT id FROM resources WHERE kind='link' AND (source=? OR target=?)")
-                  .all(id, id)
-                  .map((r) => requiredResource(String(r.id))),
-              ),
-            outgoingLinks: (id) =>
-              scoped(() =>
-                db
-                  .prepare("SELECT id FROM resources WHERE kind='link' AND source=?")
-                  .all(id)
-                  .map((r) => requiredResource(String(r.id))),
-              ),
-            identityWasCommitted: (id) =>
-              scoped(
-                () => db.prepare("SELECT id FROM identities WHERE id=?").get(id) !== undefined,
-              ),
-            alias: (path) => scoped(() => alias(path)),
-            putAlias: (path, target) =>
-              scoped(() => {
-                db.prepare(
-                  "INSERT INTO aliases VALUES(?,?) ON CONFLICT(path) DO UPDATE SET target=excluded.target",
-                ).run(path, target);
-              }),
-            deleteAlias: (path) =>
-              scoped(() => {
-                db.prepare("DELETE FROM aliases WHERE path=?").run(path);
-              }),
-            installedType: (id) => scoped(() => installed.get(id)),
-            allocateResourceId: (kind) =>
-              scoped(() => {
-                for (let attempt = 0; attempt < 32; attempt++) {
-                  const suffix = randomUUID(),
-                    id = `${kind === "bead" ? "beads" : "links"}/${suffix}`;
-                  if (
-                    !db.prepare("SELECT id FROM identities WHERE id=?").get(id) &&
-                    (kind !== "bead" || alias(suffix) === undefined)
-                  )
-                    return id;
-                }
-                throw new Error("Resource identity allocation exhausted");
-              }),
-            allocateRevision: () => scoped(() => randomUUID()),
-            putResource: (r) =>
-              scoped(() => {
-                db.prepare("INSERT OR IGNORE INTO identities VALUES(?)").run(r.id);
-                db.prepare(
-                  "INSERT INTO resources VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body",
-                ).run(r.id, r.bodyJson, r.kind, r.source ?? null, r.target ?? null);
-              }),
-            deleteResource: (id) =>
-              scoped(() => {
-                // Retain its identity for the epoch; deletion never permits reuse.
-                db.prepare("DELETE FROM resources WHERE id=?").run(id);
-              }),
-          };
           db.exec("SAVEPOINT effects");
-          const result = (() => {
-            try {
-              return evaluateTransaction(
-                normalized,
-                tx,
-                {
-                  scope,
-                  contracts: compiled?.registry ?? {
-                    get(id, bytes) {
-                      const descriptor = descriptors.find((d) => d.id === id);
-                      return descriptor && installed.get(id) === bytes ? { descriptor } : undefined;
-                    },
-                  },
-                  aliasPolicy: { canRead: () => true, canWriteBead: () => true },
-                  policy: { canRead: () => true, canCreate: () => true, canWrite: () => true },
-                  maximumEndpointMultiplicity: [],
-                  observeCommitTime: instant,
-                  recordChangeContext: false,
-                  limits: TRANSACTION_RUNTIME_LIMITS,
-                },
-                core.transaction,
-                position,
-                now,
-              );
-            } finally {
-              active = false;
-            }
-          })();
+          const result = evaluateOwnedTransaction(normalized, core.transaction, position, now);
           options.fault?.("after-effects");
           // The minimum starts when evaluation has become terminal, not at
           // admission or before Resource callbacks have consumed execution time.
@@ -2356,6 +2425,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         }),
       ),
     eraseHistoricalVersions,
+    correctLiveBeadVersion,
     observeErasures(observer: () => void): () => void {
       return enter(() => {
         if (typeof observer !== "function") throw new TypeError("erasure observer required");
