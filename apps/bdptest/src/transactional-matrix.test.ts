@@ -39,8 +39,23 @@ const entry =
 const source = (file: string) => ({
   bytes: readFileSync(path.join(root, "packages/conformance/test-support/transactional", file)),
 });
+// Old seventeen-case tests retain their exact historical partial source view.
+// The new inherited-Read cohort below loads the FULL current manifest directly.
+function originalSeventeenSource(bytes: Uint8Array, key: "scenarios" | "rows") {
+  const text = Buffer.from(bytes).toString();
+  const header = `"${key}": [\n`;
+  const start = text.indexOf(header) + header.length;
+  const oldFirst = text.indexOf(
+    '    {\n      "id": "read-update.idempotency.principal-isolation"',
+    start,
+  );
+  if (start < header.length || oldFirst < start)
+    throw new Error("historical partial slice unavailable");
+  return Buffer.from(text.slice(0, start) + text.slice(oldFirst));
+}
 const fixtureSource = source("fixture-v1.json"),
-  manifestSource = source("manifest-v1.json");
+  fullManifestSource = source("manifest-v1.json"),
+  manifestSource = { bytes: originalSeventeenSource(fullManifestSource.bytes, "scenarios") };
 const bundle = createCumulativeTransactionalArtifactBundle(
   loadProfileContractSelection("transactional"),
   { manifest: manifestSource, fixture: fixtureSource },
@@ -4689,3 +4704,340 @@ it.each([false, true])(
   },
   120000,
 );
+
+// This product cohort uses the FULL current manifest, same installed TX binding,
+// same fixture and raw executor. The old seventeen tests above remain historical.
+const inheritedReadIds = [
+  "read.discovery.scope-service-desc",
+  "read.discovery.canonical-navigation",
+  "read.http.get-head",
+  "read.http.method-405",
+  "read.http.cache-cors",
+  "read.http.accept-negotiation",
+  "read.http.conditional-reads",
+  "read.http.head-conditional-parity",
+] as const;
+const inheritedRequests: Record<string, readonly (readonly [string, string, number, string?])[]> = {
+  "read.discovery.scope-service-desc": [
+    ["GET", "", 204],
+    ["GET", "bdp.json", 200],
+  ],
+  "read.discovery.canonical-navigation": [
+    ["GET", "bdp.json", 200],
+    ["GET", "beads/", 200],
+    ["GET", "links/", 200],
+    ["GET", "types/", 200],
+  ],
+  "read.http.get-head": [
+    ["GET", "", 204],
+    ["HEAD", "", 204],
+    ["GET", "beads/a", 200],
+    ["HEAD", "beads/a", 200],
+  ],
+  "read.http.method-405": [["POST", "", 405]],
+  "read.http.cache-cors": [
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 403],
+    ["OPTIONS", "beads/a", 405],
+  ],
+  "read.http.accept-negotiation": [
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 406],
+    ["HEAD", "beads/a", 406],
+    ["GET", "beads/missing", 404],
+    ["GET", "beads/a", 401, "anonymous"],
+  ],
+  "read.http.conditional-reads": [
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 304],
+    ["HEAD", "beads/a", 304],
+    ["GET", "beads/a", 412],
+    ["GET", "beads/missing", 404],
+    ["GET", "beads/a", 401, "anonymous"],
+  ],
+  "read.http.head-conditional-parity": [
+    ["GET", "beads/a", 200],
+    ["HEAD", "beads/a", 200],
+    ["GET", "beads/missing", 404],
+    ["HEAD", "beads/missing", 404],
+    ["GET", "beads/a", 401, "anonymous"],
+    ["HEAD", "beads/a", 401, "anonymous"],
+    ["GET", "beads/a", 304],
+    ["HEAD", "beads/a", 304],
+  ],
+};
+it("inherited Read: eight partial rows execute on the same installed Transactional configuration", async () => {
+  const requested = process.env.BDP_INHERITED_READ_SCENARIOS?.split(",") ?? [...inheritedReadIds];
+  expect(requested.length).toBeGreaterThan(0);
+  expect(new Set(requested).size).toBe(requested.length);
+  for (const id of requested) expect(inheritedReadIds).toContain(id);
+  const full = createCumulativeTransactionalArtifactBundle(
+    loadProfileContractSelection("transactional"),
+    {
+      manifest: fullManifestSource,
+      fixture: fixtureSource,
+    },
+  );
+  expect(loadProfileContractSelection("transactional").required).toHaveLength(251);
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-inherited-read-"));
+  const tokens: PrincipalTokens = {
+    operator: randomBytes(32).toString("base64url"),
+    reader: randomBytes(32).toString("base64url"),
+    principalA: randomBytes(32).toString("base64url"),
+    principalARotated: randomBytes(32).toString("base64url"),
+    principalB: randomBytes(32).toString("base64url"),
+  };
+  const roles = principalCredentialRoles(tokens, false);
+  const configuration = {
+    scope,
+    directory: path.join(directory, "bootstrap"),
+    create: true,
+    credentials: roles.map(({ token, principal, canMutate }) => ({ token, principal, canMutate })),
+    artifacts: artifacts(),
+  };
+  const controller = new AbortController(),
+    signal = controller.signal;
+  const timer = setTimeout(
+    () => controller.abort(new Error("inherited Read cohort deadline")),
+    60000,
+  );
+  const children: ChildProcess[] = [],
+    sessions: Record<string, unknown>[] = [],
+    wires: Record<string, unknown>[] = [],
+    seeds: Record<string, unknown>[] = [];
+  const offsets = new Map<string, number>(),
+    contexts = new Map<string, Record<string, string>>();
+  let target: ReturnType<typeof createTransactionalExecutionBinding> | undefined;
+  let observed: Awaited<ReturnType<typeof runCumulativeTransactionalMatrix>> | undefined;
+  let baseline: ReturnType<typeof installedTransactionBinding> | undefined;
+  let activeScenario: string | undefined, failure: unknown;
+  const cleanupFailures: unknown[] = [];
+  const routes: ExactHttpModeOptions["routes"] = [
+    { method: "POST", url: scope + "operations/batch" },
+    { method: "GET", url: scope },
+    { method: "HEAD", url: scope },
+    { method: "POST", url: scope },
+    { method: "GET", url: scope + "bdp.json" },
+    { method: "GET", url: scope + "beads/" },
+    { method: "GET", url: scope + "links/" },
+    { method: "GET", url: scope + "types/" },
+    { method: "GET", url: scope + "beads/a" },
+    { method: "HEAD", url: scope + "beads/a" },
+    { method: "GET", url: scope + "beads/missing" },
+    { method: "HEAD", url: scope + "beads/missing" },
+    { method: "OPTIONS", url: scope + "beads/a" },
+  ];
+  const exactMode: ExactHttpModeOptions = {
+    scope,
+    profile: "transactional",
+    routes,
+    maximumRequestHeaderBytes: 16384,
+    maximumRequestBodyBytes: 65536,
+    defaultCredentialRef: "operator",
+    credentialHandles: [
+      ...roles.map(({ ref }) => ({ id: ref, headerNames: ["authorization"] })),
+      { id: "anonymous", headerNames: [] },
+    ],
+    resolveCredentials: ({ credentialRef }) => principalHeaders(roles, credentialRef, false),
+  };
+  const snapshot = (response: HttpExchangeResponse) => ({
+    url: response.url,
+    status: response.status,
+    headers: response.headers,
+    bodyText: response.bodyText,
+    bodyOctets: response.bodyOctets,
+    wireBase64:
+      response.wireResponseBytes === undefined
+        ? null
+        : Buffer.from(response.wireResponseBytes).toString("base64"),
+    wireSha256:
+      response.wireResponseBytes === undefined
+        ? null
+        : createHash("sha256").update(response.wireResponseBytes).digest("hex"),
+    writeState: response.exactRequest?.writeState,
+  });
+  try {
+    const bootstrap = await launchInstalledTransaction(entry, configuration, signal);
+    children.push(bootstrap.child);
+    try {
+      baseline = installedTransactionBinding(bootstrap.ready, sourceCommit, fixtureSource);
+    } finally {
+      await bootstrap.close();
+    }
+    target = createTransactionalExecutionBinding({
+      baseline,
+      sourceCommit,
+      fixtureSource,
+      exactMode,
+      launch: async (scenario, reopen, currentSignal) => {
+        expect(reopen).toBe(false);
+        expect(requested).toContain(scenario);
+        const child = await launchInstalledTransaction(
+          entry,
+          { ...configuration, directory: path.join(directory, scenario), create: true },
+          currentSignal,
+        );
+        children.push(child.child);
+        try {
+          assertSameServedProfileConfiguration(
+            baseline!.served,
+            installedTransactionBinding(child.ready, sourceCommit, fixtureSource).served,
+          );
+          activeScenario = scenario;
+          sessions.push({ ...child.ready, scenario, reopen });
+          const address = new URL(child.ready.listenUrl as string);
+          const execute = createRawHttpExchangeExecutor(
+            { transport: "plain", host: address.hostname, port: Number(address.port) },
+            { exactMode, requestTimeoutMs: 5000 },
+          );
+          const seedBody = Buffer.from(
+            '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"inherited-read"},"metadata":{}}]}',
+          );
+          const seed = await execute({
+            method: "POST",
+            url: scope + "operations/batch",
+            signal: currentSignal,
+            credentialRef: "operator",
+            raw: {
+              headerLines: [
+                { name: "content-type", value: "application/json" },
+                { name: "accept", value: "application/json" },
+                { name: "idempotency-key", value: "inherited-fixture-seed" },
+              ],
+              bodyBytes: seedBody,
+            },
+          });
+          seeds.push({ scenario, requestBody: seedBody.toString(), ...snapshot(seed) });
+          expect(seed.status).toBe(200);
+          expect(seed.exactRequest?.writeState).toBe("complete");
+          const receipt = JSON.parse(seed.bodyText);
+          expect(receipt).toMatchObject({
+            status: "completed",
+            detail: "available",
+            requiredPosition: "pos-1",
+            effectPosition: "pos-1",
+          });
+          expect(seed.headers["bdp-scope-position"]).toBe("pos-1");
+          contexts.set(scenario, seed.headers);
+          offsets.set(scenario, 0);
+          return child;
+        } catch (error) {
+          await child.close();
+          throw error;
+        }
+      },
+    });
+    observed = await runCumulativeTransactionalMatrix(
+      {
+        scope,
+        profile: "transactional",
+        seed: 0,
+        signal,
+        artifactBundle: full,
+        scenarioSelection: requested,
+        execute: async () => {
+          throw new Error("generic executor forbidden");
+        },
+        exactExecution: {
+          configuration: target.target.exactConfiguration!,
+          execute: async (request) => {
+            const scenario = activeScenario;
+            if (!scenario) throw new Error("no observed session");
+            const index = offsets.get(scenario) ?? 0;
+            const expected = inheritedRequests[scenario]?.[index];
+            expect(expected).toBeDefined();
+            expect(request.method).toBe(expected![0]);
+            expect(request.url).toBe(scope + expected![1]);
+            expect(request.credentialRef ?? "operator").toBe(expected![3] ?? "operator");
+            const response = await target!.target.execute(request);
+            wires.push({
+              scenario,
+              ordinal: index + 1,
+              method: request.method,
+              requestUrl: request.url,
+              credentialRef: request.credentialRef ?? "operator",
+              authoredHeaders: request.raw?.headerLines,
+              ...snapshot(response),
+            });
+            offsets.set(scenario, index + 1);
+            expect(response.status).toBe(expected![2]);
+            expect(response.wireResponseBytes?.byteLength).toBeGreaterThan(0);
+            expect(response.exactRequest?.writeState).toBe("complete");
+            if (response.status !== 401 && response.status !== 403 && response.status !== 405) {
+              const context = contexts.get(scenario)!;
+              for (const key of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+                expect(response.headers[key], key).toBe(context[key]);
+            }
+            if (request.method === "HEAD" || [204, 304, 405, 406, 412].includes(response.status))
+              expect(response.bodyOctets).toBe(0);
+            return response;
+          },
+        },
+        harness: target.target.harness,
+        schemaValidator: createJsonSchemaValidator(schema),
+        declaredTargetLabel: "same-installed-tx-inherited-read-partial",
+        prepareTimeoutMs: 10000,
+        cleanupTimeoutMs: 10000,
+        requestTimeoutMs: 5000,
+      },
+      target.context,
+    );
+    expect(observed.scenarios.map((r) => r.id)).toEqual(
+      inheritedReadIds.filter((id) => requested.includes(id)),
+    );
+    for (const row of observed.scenarios) {
+      expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
+      expect(offsets.get(row.id)).toBe(inheritedRequests[row.id]!.length);
+    }
+    expect(observed.claimEligible).toBe(false);
+  } catch (error) {
+    failure = error;
+  } finally {
+    try {
+      await target?.target.close();
+    } catch (error) {
+      cleanupFailures.push(error);
+    }
+    clearTimeout(timer);
+    rmSync(directory, { recursive: true, force: true });
+    const report = {
+      kind: "same-installed-TX-inherited-Read-partial",
+      sourceCommit,
+      entry,
+      sourceDirty:
+        execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).length > 0,
+      entrySha256: createHash("sha256").update(readFileSync(entry)).digest("hex"),
+      manifestSha256: createHash("sha256").update(fullManifestSource.bytes).digest("hex"),
+      fixtureSha256: full.digests.fixtureDigest,
+      selectedRequiredCount: 251,
+      selectedScenarioIds: requested,
+      baseline,
+      sessions,
+      seeds,
+      wires,
+      result: observed,
+      childLaunches: children.length,
+      closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
+      closedStreams: children.map((c) => ({
+        pid: c.pid,
+        exit: c.exitCode,
+        signal: c.signalCode,
+        stdoutEnded: c.stdout?.readableEnded,
+        stderrEnded: c.stderr?.readableEnded,
+      })),
+      directoryAbsent: !(await import("node:fs")).existsSync(directory),
+      failureCount: (failure === undefined ? 0 : 1) + cleanupFailures.length,
+      claimEligible: false,
+      wholeContracts: false,
+      enabledCorsObserved: false,
+    };
+    if (process.env.BDP_INHERITED_READ_OUTPUT)
+      writeFileSync(process.env.BDP_INHERITED_READ_OUTPUT, JSON.stringify(report, null, 2) + "\n");
+    console.log(JSON.stringify(report));
+  }
+  if (failure !== undefined || cleanupFailures.length)
+    throw new AggregateError(
+      [...(failure === undefined ? [] : [failure]), ...cleanupFailures],
+      "inherited Read cohort failed",
+    );
+}, 90000);
