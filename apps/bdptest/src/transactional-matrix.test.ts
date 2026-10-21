@@ -4721,24 +4721,50 @@ const inheritedRequests: Record<string, readonly (readonly [string, string, numb
   "read.discovery.scope-service-desc": [
     ["GET", "", 204],
     ["GET", "bdp.json", 200],
+    ["HEAD", "", 204],
+    ["HEAD", "bdp.json", 200],
   ],
   "read.discovery.canonical-navigation": [
     ["GET", "bdp.json", 200],
     ["GET", "beads/", 200],
     ["GET", "links/", 200],
     ["GET", "types/", 200],
+    ["GET", "types/task", 200],
   ],
   "read.http.get-head": [
     ["GET", "", 204],
     ["HEAD", "", 204],
     ["GET", "beads/a", 200],
     ["HEAD", "beads/a", 200],
+    ["GET", "bdp.json", 200],
+    ["HEAD", "bdp.json", 200],
+    ["GET", "beads/", 200],
+    ["HEAD", "beads/", 200],
+    ["GET", "links/", 200],
+    ["HEAD", "links/", 200],
+    ["GET", "types/", 200],
+    ["HEAD", "types/", 200],
+    ["GET", "types/task", 200],
+    ["HEAD", "types/task", 200],
+    ["GET", "beads/a?view=properties", 200],
+    ["HEAD", "beads/a?view=properties", 200],
+    ["GET", "beads/a?view=links", 200],
+    ["HEAD", "beads/a?view=links", 200],
   ],
-  "read.http.method-405": [["POST", "", 405]],
+  "read.http.method-405": [
+    ["POST", "", 405],
+    ["POST", "beads/a", 405],
+    ["POST", "bdp.json", 405],
+    ["POST", "beads/", 405],
+  ],
   "read.http.cache-cors": [
     ["GET", "beads/a", 200],
     ["GET", "beads/a", 403],
     ["OPTIONS", "beads/a", 405],
+    ["GET", "bdp.json", 200],
+    ["GET", "beads/", 200],
+    ["GET", "links/", 200],
+    ["GET", "types/", 200],
   ],
   "read.http.accept-negotiation": [
     ["GET", "beads/a", 200],
@@ -4746,6 +4772,24 @@ const inheritedRequests: Record<string, readonly (readonly [string, string, numb
     ["HEAD", "beads/a", 406],
     ["GET", "beads/missing", 404],
     ["GET", "beads/a", 401, "anonymous"],
+    ["GET", "beads/a", 200],
+    ["HEAD", "beads/a", 200],
+    ["GET", "beads/a", 200],
+    ["HEAD", "beads/a", 200],
+    ["GET", "beads/a", 200],
+    ["HEAD", "beads/a", 200],
+    ["GET", "beads/a", 200],
+    ["HEAD", "beads/a", 200],
+    ["GET", "beads/a", 406],
+    ["HEAD", "beads/a", 406],
+    ["GET", "beads/a", 406],
+    ["HEAD", "beads/a", 406],
+    ["GET", "beads/a", 200],
+    ["HEAD", "beads/a", 200],
+    ["GET", "beads/a", 406],
+    ["HEAD", "beads/a", 406],
+    ["GET", "beads/a", 200],
+    ["HEAD", "beads/a", 200],
   ],
   "read.http.conditional-reads": [
     ["GET", "beads/a", 200],
@@ -4754,6 +4798,48 @@ const inheritedRequests: Record<string, readonly (readonly [string, string, numb
     ["GET", "beads/a", 412],
     ["GET", "beads/missing", 404],
     ["GET", "beads/a", 401, "anonymous"],
+    ["GET", "beads/a", 412],
+    ["GET", "beads/a", 304],
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 412],
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 304],
+    ["GET", "beads/a", 304],
+    ["GET", "beads/a", 200],
+    ["GET", "bdp.json", 412],
+    ["GET", "bdp.json", 200],
+    ["GET", "bdp.json", 304],
+    ["GET", "bdp.json", 200],
+    ["GET", "beads/", 412],
+    ["GET", "beads/", 200],
+    ["GET", "beads/", 304],
+    ["GET", "beads/", 200],
+    ["GET", "types/task", 412],
+    ["GET", "types/task", 200],
+    ["GET", "types/task", 304],
+    ["GET", "types/task", 200],
+    ["GET", "beads/a?view=properties", 412],
+    ["GET", "beads/a?view=properties", 200],
+    ["GET", "beads/a?view=properties", 304],
+    ["GET", "beads/a?view=properties", 200],
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a", 200],
+    ["GET", "beads/a?view=properties", 200],
+    ["GET", "beads/a?view=properties", 200],
+    ["GET", "beads/a?view=properties", 200],
+    ["GET", "beads/a?view=properties", 200],
+    ["GET", "beads/a?view=properties", 200],
+    ["GET", "bdp.json", 200],
+    ["GET", "bdp.json", 200],
+    ["GET", "bdp.json", 200],
+    ["GET", "bdp.json", 200],
+    ["GET", "bdp.json", 200],
+    ["GET", "beads/a", 406],
   ],
   "read.http.head-conditional-parity": [
     ["GET", "beads/a", 200],
@@ -4764,8 +4850,136 @@ const inheritedRequests: Record<string, readonly (readonly [string, string, numb
     ["HEAD", "beads/a", 401, "anonymous"],
     ["GET", "beads/a", 304],
     ["HEAD", "beads/a", 304],
+    ["GET", "beads/a", 412],
+    ["HEAD", "beads/a", 412],
+    ["GET", "bdp.json", 412],
+    ["HEAD", "bdp.json", 412],
+    ["GET", "bdp.json", 304],
+    ["HEAD", "bdp.json", 304],
+    ["GET", "beads/a", 200],
+    ["HEAD", "beads/a", 200],
   ],
 };
+function inheritedReadContext(headers: Readonly<Record<string, string | undefined>>) {
+  const result: Record<string, string> = {};
+  for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]) {
+    const value = headers[name];
+    if (typeof value !== "string" || !/^[A-Za-z0-9_-]{1,256}$/.test(value))
+      throw new Error(`missing or malformed inherited Read context: ${name}`);
+    result[name] = value;
+  }
+  if (result["bdp-scope-position"] !== "pos-1")
+    throw new Error("unexpected seeded observation position");
+  return result;
+}
+function inheritedDiscovery(value: unknown) {
+  expect(
+    createJsonSchemaValidator(schema).validate("#/$defs/transactionalDiscovery", value),
+  ).toEqual([]);
+  const body = value as Record<string, unknown>;
+  expect(body.bdpVersion).toBe("0");
+  expect(body.profile).toBe("transactional");
+  expect(body.scope).toBe(scope);
+  for (const [name, path] of Object.entries({
+    beads: "beads/",
+    links: "links/",
+    types: "types/",
+    operations: "operations/",
+    aliases: "alias/",
+    receipts: "receipts/",
+    snapshot: "snapshot",
+    changes: "changes/",
+    events: "events/",
+  }))
+    expect(body[name], name).toBe(scope + path);
+}
+function inheritedServiceDescriptor(value: string | undefined) {
+  if (value === undefined) throw new Error("service-desc missing");
+  const match = /^<([^>]+)>; rel="service-desc"; type="application\/json"$/.exec(value);
+  if (!match?.[1]) throw new Error("invalid configured service-desc Link");
+  expect(new URL(match[1], scope).href).toBe(scope + "bdp.json");
+}
+it("inherited Read: required context and discovery negative oracles reject missing and wrong fields", () => {
+  const headers = {
+    "bdp-scope-epoch": "epoch-fixture",
+    "bdp-authorization-view": "view-fixture",
+    "bdp-scope-position": "pos-1",
+  };
+  expect(inheritedReadContext(headers)).toEqual(headers);
+  for (const name of Object.keys(headers)) {
+    const missing: Record<string, string | undefined> = { ...headers };
+    delete missing[name];
+    expect(() => inheritedReadContext(missing)).toThrow("missing or malformed");
+    for (const value of ["", "invalid value"])
+      expect(() => inheritedReadContext({ ...headers, [name]: value })).toThrow(
+        "missing or malformed",
+      );
+  }
+  expect(() => inheritedReadContext({ ...headers, "bdp-scope-position": "pos-2" })).toThrow(
+    "unexpected seeded",
+  );
+  const value = {
+    bdpVersion: "0",
+    profile: "transactional",
+    scope,
+    beads: scope + "beads/",
+    links: scope + "links/",
+    types: scope + "types/",
+    operations: scope + "operations/",
+    aliases: scope + "alias/",
+    receipts: scope + "receipts/",
+    snapshot: scope + "snapshot",
+    changes: scope + "changes/",
+    events: scope + "events/",
+    scopeEpoch: "epoch-fixture",
+    authorizationView: "view-fixture",
+    headPosition: "pos-1",
+    minimumReplayPosition: "pos-0",
+  };
+  const validator = createJsonSchemaValidator(schema);
+  inheritedDiscovery(value);
+  inheritedServiceDescriptor('<bdp.json>; rel="service-desc"; type="application/json"');
+  for (const field of [
+    "beads",
+    "links",
+    "types",
+    "operations",
+    "aliases",
+    "receipts",
+    "snapshot",
+    "changes",
+    "events",
+  ])
+    expect(() => inheritedDiscovery({ ...value, [field]: scope + "wrong/" })).toThrow();
+  for (const link of [
+    undefined,
+    "",
+    '<bdp.json>; rel="service-doc"; type="application/json"',
+    '<bdp.json>; rel="service-desc"; type="text/plain"',
+    '<wrong.json>; rel="service-desc"; type="application/json"',
+  ])
+    expect(() => inheritedServiceDescriptor(link)).toThrow();
+  expect(validator.validate("#/$defs/transactionalDiscovery", value)).toEqual([]);
+  for (const key of Object.keys(value)) {
+    const missing: Record<string, unknown> = { ...value };
+    delete missing[key];
+    expect(
+      validator.validate("#/$defs/transactionalDiscovery", missing).length,
+      key,
+    ).toBeGreaterThan(0);
+  }
+  for (const patch of [
+    { bdpVersion: "1" },
+    { profile: "read" },
+    { beads: "relative/" },
+    { scope: "not-a-url" },
+    { operations: 0 },
+    { headPosition: "invalid value" },
+  ])
+    expect(
+      validator.validate("#/$defs/transactionalDiscovery", { ...value, ...patch }).length,
+    ).toBeGreaterThan(0);
+});
 it("inherited Read: eight partial rows execute on the same installed Transactional configuration", async () => {
   const requested = process.env.BDP_INHERITED_READ_SCENARIOS?.split(",") ?? [...inheritedReadIds];
   expect(requested.length).toBeGreaterThan(0);
@@ -4826,6 +5040,21 @@ it("inherited Read: eight partial rows execute on the same installed Transaction
     { method: "GET", url: scope + "beads/missing" },
     { method: "HEAD", url: scope + "beads/missing" },
     { method: "OPTIONS", url: scope + "beads/a" },
+    { method: "HEAD", url: scope + "bdp.json" },
+    { method: "POST", url: scope + "bdp.json" },
+    { method: "POST", url: scope + "beads/a" },
+    { method: "POST", url: scope + "beads/" },
+    { method: "HEAD", url: scope + "beads/" },
+    { method: "HEAD", url: scope + "links/" },
+    { method: "HEAD", url: scope + "types/" },
+    { method: "GET", url: scope + "types/task" },
+    { method: "HEAD", url: scope + "types/task" },
+    { method: "GET", url: scope + "beads/a?view=properties" },
+    { method: "HEAD", url: scope + "beads/a?view=properties" },
+    { method: "GET", url: scope + "beads/a?view=links" },
+    { method: "HEAD", url: scope + "beads/a?view=links" },
+    { method: "GET", url: scope + "beads/?limit=0" },
+    { method: "HEAD", url: scope + "beads/?limit=0" },
   ];
   const exactMode: ExactHttpModeOptions = {
     scope,
@@ -4918,6 +5147,7 @@ it("inherited Read: eight partial rows execute on the same installed Transaction
             effectPosition: "pos-1",
           });
           expect(seed.headers["bdp-scope-position"]).toBe("pos-1");
+          inheritedReadContext(seed.headers);
           contexts.set(scenario, seed.headers);
           offsets.set(scenario, 0);
           return child;
@@ -4927,6 +5157,59 @@ it("inherited Read: eight partial rows execute on the same installed Transaction
         }
       },
     });
+    const executeInherited = async (
+      request: Parameters<ReturnType<typeof createRawHttpExchangeExecutor>>[0],
+    ) => {
+      const scenario = activeScenario;
+      if (!scenario) throw new Error("no observed session");
+      const index = offsets.get(scenario) ?? 0;
+      const expected = inheritedRequests[scenario]?.[index];
+      expect(expected).toBeDefined();
+      expect(request.method).toBe(expected![0]);
+      expect(request.url).toBe(scope + expected![1]);
+      expect(request.credentialRef ?? "operator").toBe(expected![3] ?? "operator");
+      const response = await target!.target.execute(request);
+      wires.push({
+        scenario,
+        ordinal: index + 1,
+        method: request.method,
+        requestUrl: request.url,
+        credentialRef: request.credentialRef ?? "operator",
+        authoredHeaders: request.raw?.headerLines,
+        resolvedSemanticHeaders: request.headers,
+        actualSafeHeaders: response.exactRequest?.headerLines.filter(
+          (h) => h.name.toLowerCase() !== "authorization",
+        ),
+        ...snapshot(response),
+      });
+      offsets.set(scenario, index + 1);
+      expect(response.status).toBe(expected![2]);
+      expect(response.wireResponseBytes?.byteLength).toBeGreaterThan(0);
+      expect(response.exactRequest?.writeState).toBe("complete");
+      if (response.status === 204 && request.url === scope)
+        inheritedServiceDescriptor(response.headers.link);
+      if (response.status === 200 && request.method === "GET" && request.url === scope + "bdp.json")
+        inheritedDiscovery(JSON.parse(response.bodyText));
+      if (request.raw)
+        expect(response.exactRequest?.headerLines.slice(0, request.raw.headerLines.length)).toEqual(
+          request.raw.headerLines,
+        );
+      else
+        for (const [name, value] of Object.entries(request.headers ?? {}))
+          expect(
+            response.exactRequest?.headerLines.some(
+              (h) => h.name.toLowerCase() === name.toLowerCase() && h.value === value,
+            ),
+          ).toBe(true);
+      if (response.status !== 401 && response.status !== 403 && response.status !== 405) {
+        expect(inheritedReadContext(response.headers)).toEqual(
+          inheritedReadContext(contexts.get(scenario)!),
+        );
+      }
+      if (request.method === "HEAD" || [204, 304, 405, 406, 412].includes(response.status))
+        expect(response.bodyOctets).toBe(0);
+      return response;
+    };
     observed = await runCumulativeTransactionalMatrix(
       {
         scope,
@@ -4935,43 +5218,26 @@ it("inherited Read: eight partial rows execute on the same installed Transaction
         signal,
         artifactBundle: full,
         scenarioSelection: requested,
-        execute: async () => {
-          throw new Error("generic executor forbidden");
+        execute: async (request) => {
+          // Existing runner materializes its restricted observed-ETag forms here.
+          // Keep the same selected session, credentials, raw serializer and observer.
+          if (!request.headers || request.raw) throw new Error("unexpected ordinary request");
+          return executeInherited({
+            method: request.method,
+            url: request.url,
+            signal: request.signal,
+            credentialRef: "operator",
+            raw: {
+              headerLines: Object.entries(request.headers).map(([name, value]) => ({
+                name,
+                value,
+              })),
+            },
+          });
         },
         exactExecution: {
           configuration: target.target.exactConfiguration!,
-          execute: async (request) => {
-            const scenario = activeScenario;
-            if (!scenario) throw new Error("no observed session");
-            const index = offsets.get(scenario) ?? 0;
-            const expected = inheritedRequests[scenario]?.[index];
-            expect(expected).toBeDefined();
-            expect(request.method).toBe(expected![0]);
-            expect(request.url).toBe(scope + expected![1]);
-            expect(request.credentialRef ?? "operator").toBe(expected![3] ?? "operator");
-            const response = await target!.target.execute(request);
-            wires.push({
-              scenario,
-              ordinal: index + 1,
-              method: request.method,
-              requestUrl: request.url,
-              credentialRef: request.credentialRef ?? "operator",
-              authoredHeaders: request.raw?.headerLines,
-              ...snapshot(response),
-            });
-            offsets.set(scenario, index + 1);
-            expect(response.status).toBe(expected![2]);
-            expect(response.wireResponseBytes?.byteLength).toBeGreaterThan(0);
-            expect(response.exactRequest?.writeState).toBe("complete");
-            if (response.status !== 401 && response.status !== 403 && response.status !== 405) {
-              const context = contexts.get(scenario)!;
-              for (const key of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-                expect(response.headers[key], key).toBe(context[key]);
-            }
-            if (request.method === "HEAD" || [204, 304, 405, 406, 412].includes(response.status))
-              expect(response.bodyOctets).toBe(0);
-            return response;
-          },
+          execute: executeInherited,
         },
         harness: target.target.harness,
         schemaValidator: createJsonSchemaValidator(schema),
@@ -5041,3 +5307,7 @@ it("inherited Read: eight partial rows execute on the same installed Transaction
       "inherited Read cohort failed",
     );
 }, 90000);
+
+// Exact failed request/wire and unchanged context expectation are retained in
+// the product evidence. Do not grant this path from the unaffected cohort.
+it.todo("inherited Read: pre-owner parser400 context semantics pending Donna reconciliation");

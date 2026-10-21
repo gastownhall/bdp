@@ -89,6 +89,12 @@
               "kind": "header",
               "name": "link",
               "contains": "rel=\"service-desc\""
+            },
+            {
+              "id": "link",
+              "kind": "header",
+              "name": "link",
+              "contains": "type=\"application/json\""
             }
           ]
         },
@@ -187,8 +193,153 @@
               "pointer": "/types",
               "exists": true,
               "equals": "https://reference.invalid/acme/types/"
+            },
+            {
+              "id": "bdpversion",
+              "kind": "json-pointer",
+              "pointer": "/bdpVersion",
+              "exists": true,
+              "equals": "0"
+            },
+            {
+              "id": "operations",
+              "kind": "json-pointer",
+              "pointer": "/operations",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/operations/"
+            },
+            {
+              "id": "aliases",
+              "kind": "json-pointer",
+              "pointer": "/aliases",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/alias/"
+            },
+            {
+              "id": "receipts",
+              "kind": "json-pointer",
+              "pointer": "/receipts",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/receipts/"
+            },
+            {
+              "id": "snapshot",
+              "kind": "json-pointer",
+              "pointer": "/snapshot",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/snapshot"
+            },
+            {
+              "id": "changes",
+              "kind": "json-pointer",
+              "pointer": "/changes",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/changes/"
+            },
+            {
+              "id": "events",
+              "kind": "json-pointer",
+              "pointer": "/events",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/events/"
             }
           ]
+        },
+        {
+          "id": "scope-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.scope",
+              "kind": "response-metadata-equals",
+              "request": "probe",
+              "headers": [
+                "link",
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position"
+              ]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "descriptor-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "observed-descriptor"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.descriptor",
+              "kind": "response-metadata-equals",
+              "request": "descriptor",
+              "headers": [
+                "content-type",
+                "cache-control",
+                "vary",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
         }
       ]
     },
@@ -223,7 +374,29 @@
               }
             ]
           },
-          "captures": [],
+          "captures": [
+            {
+              "binding": "observed-beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            },
+            {
+              "binding": "observed-links",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/links"
+              }
+            },
+            {
+              "binding": "observed-types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            }
+          ],
           "assertions": [
             {
               "id": "status",
@@ -296,8 +469,7 @@
           "family": "http",
           "method": "GET",
           "target": {
-            "binding": "scope",
-            "path": "beads/"
+            "binding": "observed-beads"
           },
           "credentialRef": "operator",
           "raw": {
@@ -359,6 +531,13 @@
               "pointer": "/items",
               "itemPointer": "/id",
               "equals": ["https://reference.invalid/acme/beads/a"]
+            },
+            {
+              "id": "next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
             }
           ]
         },
@@ -367,8 +546,7 @@
           "family": "http",
           "method": "GET",
           "target": {
-            "binding": "scope",
-            "path": "links/"
+            "binding": "observed-links"
           },
           "credentialRef": "operator",
           "raw": {
@@ -430,6 +608,13 @@
               "pointer": "/items",
               "exists": true,
               "equals": []
+            },
+            {
+              "id": "next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
             }
           ]
         },
@@ -438,8 +623,7 @@
           "family": "http",
           "method": "GET",
           "target": {
-            "binding": "scope",
-            "path": "types/"
+            "binding": "observed-types"
           },
           "credentialRef": "operator",
           "raw": {
@@ -450,7 +634,15 @@
               }
             ]
           },
-          "captures": [],
+          "captures": [
+            {
+              "binding": "observed-task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/items/1/id"
+              }
+            }
+          ],
           "assertions": [
             {
               "id": "status",
@@ -504,8 +696,78 @@
                 "https://reference.invalid/acme/types/task",
                 "https://reference.invalid/acme/types/relationship"
               ]
+            },
+            {
+              "id": "next",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
             }
           ]
+        },
+        {
+          "id": "task-descriptor",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "observed-task-type"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "describes",
+              "kind": "json-pointer",
+              "pointer": "/describes",
+              "exists": true,
+              "equals": "bead"
+            },
+            {
+              "id": "propertiesschema",
+              "kind": "json-pointer",
+              "pointer": "/propertiesSchema",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/schemas/properties"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
         }
       ]
     },
@@ -840,6 +1102,668 @@
               "equals": "application/json"
             }
           ]
+        },
+        {
+          "id": "family-0-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/transactionalDiscovery"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-0-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "family-0-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-1-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/beadCollection"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-1-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "family-1-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-2-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/linkCollection"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-2-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "links/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "family-2-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-3-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/typesInventory"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-3-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "types/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "family-3-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-4-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/task"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-4-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "types/task"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "family-4-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-5-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-5-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "family-5-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-6-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "links"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "family-6-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "links"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "family-6-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
         }
       ]
     },
@@ -901,6 +1825,108 @@
               "allowsAdditional": false
             }
           ],
+          "negativeMethodProbe": true
+        },
+        {
+          "id": "post-0",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 405
+            },
+            {
+              "id": "allow",
+              "kind": "header-tokens",
+              "name": "allow",
+              "includes": ["GET", "HEAD"],
+              "allowsAdditional": false
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "negativeMethodProbe": true
+        },
+        {
+          "id": "post-1",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 405
+            },
+            {
+              "id": "allow",
+              "kind": "header-tokens",
+              "name": "allow",
+              "includes": ["GET", "HEAD"],
+              "allowsAdditional": false
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "negativeMethodProbe": true
+        },
+        {
+          "id": "post-2",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 405
+            },
+            {
+              "id": "allow",
+              "kind": "header-tokens",
+              "name": "allow",
+              "includes": ["GET", "HEAD"],
+              "allowsAdditional": false
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
           "negativeMethodProbe": true
         }
       ]
@@ -1145,6 +2171,134 @@
               "absent": true
             }
           ]
+        },
+        {
+          "id": "private-family-0",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "private-family-1",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "private-family-2",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "private-family-3",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
         }
       ]
     },
@@ -1515,6 +2669,812 @@
               "equals": "unauthenticated"
             }
           ]
+        },
+        {
+          "id": "media-0-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "media-0-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "media-0-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "media-1-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-1-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "media-1-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-2-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-2-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "media-2-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-3-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/plain;q=1, application/json;q=0.5"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-3-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "media-3-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/plain;q=1, application/json;q=0.5"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-4-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json;q=0, */*;q=1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-4-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "media-4-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json;q=0, */*;q=1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-5-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/*;q=0, */*;q=1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-5-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "media-5-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/*;q=0, */*;q=1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-6-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/plain, application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-6-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "media-6-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/plain, application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-7-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json;profile=other"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-7-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "media-7-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json;profile=other"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-8-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            },
+            {
+              "id": "content.type",
+              "kind": "header",
+              "name": "content-type",
+              "equals": "application/json"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "APPLICATION/JSON"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-8-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "media-8-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "APPLICATION/JSON"
+              }
+            ]
+          }
         }
       ]
     },
@@ -1974,6 +3934,1795 @@
               "equals": "unauthenticated"
             }
           ]
+        },
+        {
+          "id": "order-0",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "\"nonmatching\""
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "order-1",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "*"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "order-2",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "order-3",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "\"nonmatching\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "observed-exact",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "headers": {
+            "accept": "application/json",
+            "if-match": {
+              "etagFrom": "baseline",
+              "form": "exact"
+            }
+          }
+        },
+        {
+          "id": "observed-weak-match",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "headers": {
+            "accept": "application/json",
+            "if-match": {
+              "etagFrom": "baseline",
+              "form": "weak"
+            }
+          }
+        },
+        {
+          "id": "observed-list-match",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "headers": {
+            "accept": "application/json",
+            "if-match": {
+              "etagFrom": "baseline",
+              "form": "exact-list"
+            }
+          }
+        },
+        {
+          "id": "observed-weak-none",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "headers": {
+            "accept": "application/json",
+            "if-none-match": {
+              "etagFrom": "baseline",
+              "form": "weak"
+            }
+          }
+        },
+        {
+          "id": "observed-list-none",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "headers": {
+            "accept": "application/json",
+            "if-none-match": {
+              "etagFrom": "baseline",
+              "form": "weak-list"
+            }
+          }
+        },
+        {
+          "id": "observed-different-none",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "headers": {
+            "accept": "application/json",
+            "if-none-match": {
+              "etagFrom": "baseline",
+              "form": "nonmatching"
+            }
+          }
+        },
+        {
+          "id": "absent-0-0",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "\"specific\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-0-1",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-0-2",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-0-3",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "\"specific\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-1-0",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "\"specific\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-1-1",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-1-2",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-1-3",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "\"specific\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-2-0",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/task"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "\"specific\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-2-1",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/task"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-2-2",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/task"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-2-3",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/task"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "\"specific\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-3-0",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "\"specific\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-3-1",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-3-2",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "absent-3-3",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "\"specific\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-0-0",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-modified-since",
+                "value": "Fri, 01 Jan 2100 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-0-1",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-unmodified-since",
+                "value": "Sat, 01 Jan 2000 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-0-2",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-modified-since",
+                "value": "not-a-date"
+              },
+              {
+                "name": "if-unmodified-since",
+                "value": "not-a-date"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-0-3",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "*"
+              },
+              {
+                "name": "if-unmodified-since",
+                "value": "Sat, 01 Jan 2000 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-0-4",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "\"nonmatching\""
+              },
+              {
+                "name": "if-modified-since",
+                "value": "Fri, 01 Jan 2100 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-1-0",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-modified-since",
+                "value": "Fri, 01 Jan 2100 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-1-1",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-unmodified-since",
+                "value": "Sat, 01 Jan 2000 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-1-2",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-modified-since",
+                "value": "not-a-date"
+              },
+              {
+                "name": "if-unmodified-since",
+                "value": "not-a-date"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-1-3",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "*"
+              },
+              {
+                "name": "if-unmodified-since",
+                "value": "Sat, 01 Jan 2000 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-1-4",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "\"nonmatching\""
+              },
+              {
+                "name": "if-modified-since",
+                "value": "Fri, 01 Jan 2100 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-2-0",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-modified-since",
+                "value": "Fri, 01 Jan 2100 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-2-1",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-unmodified-since",
+                "value": "Sat, 01 Jan 2000 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-2-2",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-modified-since",
+                "value": "not-a-date"
+              },
+              {
+                "name": "if-unmodified-since",
+                "value": "not-a-date"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-2-3",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "*"
+              },
+              {
+                "name": "if-unmodified-since",
+                "value": "Sat, 01 Jan 2000 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "date-2-4",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "last.modified",
+              "kind": "header",
+              "name": "last-modified",
+              "absent": true
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "\"nonmatching\""
+              },
+              {
+                "name": "if-modified-since",
+                "value": "Fri, 01 Jan 2100 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "media-before-conditional",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              },
+              {
+                "name": "accept",
+                "value": "text/plain"
+              }
+            ]
+          }
         }
       ]
     },
@@ -2550,6 +6299,390 @@
               "kind": "body-absent"
             }
           ]
+        },
+        {
+          "id": "parity-0-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "\"nonmatching\""
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "parity-0-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "parity-0-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "etag",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "\"nonmatching\""
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "parity-1-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "\"specific\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "parity-1-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "parity-1-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "etag",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-match",
+                "value": "\"specific\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "parity-2-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "parity-2-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "bdp.json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "parity-2-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "etag",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "parity-3-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-modified-since",
+                "value": "Fri, 01 Jan 2100 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "parity-3-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "parity-3-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "etag",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-modified-since",
+                "value": "Fri, 01 Jan 2100 00:00:00 GMT"
+              }
+            ]
+          }
         }
       ]
     },
