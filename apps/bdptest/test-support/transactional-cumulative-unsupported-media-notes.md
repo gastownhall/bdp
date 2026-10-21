@@ -1,0 +1,7 @@
+# Ordinary installed TX unsupported-media boundary
+
+One new case covers the native pre-admission `415 unsupported-media-type` branch with an otherwise valid JSON batch sent as `text/plain`. The exact four-field Problem and pre-owner context omission are checked, followed by unchanged full collection/feed/head and absent Resource. The SAME key and bytes with corrected JSON media then first execute, return the exact same completed receipt on retry/GET, and produce exactly one complete Resource/change group/created Event.
+
+This uses the existing ordinary fixed11Types/3schemas/five-role private bank, installed launcher and raw transport. Execution source/payload are explicitly selected separately from the authored test source. Reused8c/55e packages do not qualify the entire current candidate: the receiving branch and shared test/fixture/schema are literal joined, while later unrelated erasure source changes are not relabeled as executed. No production edits, new fault/provider/control, build/pack or old campaign replay.
+
+The initial brief retained-evidence lookup found no415 among23 historical232/234 campaign files plus the named Accept/IJSON observations; the reviewed TX46 also has no415. Native4f HTTP CI already tests the branch. This is a concrete installed observation, not a new semantic rule, universal status matrix or whole251/profile award. Original90s outer/60s carrier/5s HTTP/10s close and1MiB/N100000/D128 limits remain.
