@@ -1472,9 +1472,9 @@ describe("current Type and incident-Link minimums", () => {
       expect(typeof next).toBe("string");
       const parsed = requestFromUrl(new URL(String(next)), scope);
       if (isReadProblem(parsed)) throw new Error("invalid actual continuation");
-      if (collection === "types")
-        await expect(read.perform(parsed)).rejects.toThrow("outside supported subset");
-      else expect(body(await read.perform(parsed))).toBe(body(await facet.perform(parsed)));
+      const continuation = await read.perform(parsed);
+      expect(body(continuation)).toEqual(body(await facet.perform(parsed)));
+      expect(contexts(continuation).snapshot?.scopePosition).toBe("pos-2");
     }
     // These corruption controls exercise the same independent record oracle.
     const rows = items(await read.perform({ kind: "bead-links", bead: url("beads/a"), limit: 10 }));
