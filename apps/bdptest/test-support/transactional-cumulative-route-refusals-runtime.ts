@@ -1,6 +1,6 @@
 /** NEW finite ordinary TX slice; unchanged installed launcher/HTTP/configuration. */
 import { createHash } from "node:crypto";
-import { readFile, readdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { inspect } from "node:util";
@@ -9,6 +9,11 @@ import { createRawHttpExchangeExecutor, createJsonSchemaValidator } from "@bdp/c
 import schema from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
 import { recordRawSse } from "@bdp/server/testing";
 import { installedTransactionBinding } from "./transactional-execution-binding.js";
+import {
+  loadSelectedTransactionSubject,
+  assertSelectedTransactionPayload,
+  type SelectedTransactionSubject,
+} from "./transactional-selected-subject.js";
 const { launchInstalledTransaction } = await import(
   new URL("../../../scripts/transaction-installed-observation.mjs", import.meta.url).href
 );
@@ -40,6 +45,7 @@ export async function withRouteRefusals(name: string, run: (c: any) => Promise<v
     removed = false;
   let roles: Array<{ ref: string; principal: string; canMutate: boolean; token: string }> = [];
   let modules: unknown;
+  let subject: SelectedTransactionSubject | undefined;
   try {
     roles = JSON.parse(await readFile(bankPath, "utf8"));
     expect(roles.map(({ ref, principal, canMutate }) => ({ ref, principal, canMutate }))).toEqual([
@@ -50,27 +56,8 @@ export async function withRouteRefusals(name: string, run: (c: any) => Promise<v
       { ref: "principal-b", principal: "principal-b", canMutate: true },
     ]);
     expect(new Set(roles.map((r) => r.token)).size).toBe(5);
-    const selected = JSON.parse(await readFile(bindingPath, "utf8")).moduleBindings as Array<{
-      name: string;
-      bytes: number;
-      sha256: string;
-    }>;
-    expect((await readdir(installed)).filter((n) => n.endsWith(".js")).sort()).toEqual(
-      selected
-        .filter((m) => m.name.endsWith(".js"))
-        .map((m) => m.name)
-        .sort(),
-    );
-    for (const m of selected) {
-      const raw = await readFile(
-        m.name.endsWith(".js")
-          ? path.join(installed, m.name)
-          : path.join(installed, "../../protocol/schemas/bdp-v0.schema.json"),
-      );
-      expect(raw.length).toBe(m.bytes);
-      expect(sha(raw)).toBe(m.sha256);
-    }
-    modules = selected;
+    subject = await loadSelectedTransactionSubject(bindingPath, installed);
+    modules = subject.moduleBindings;
     directory = await mkdtemp(path.join(tmpdir(), `bdp-tx-route-refusals-${name}-`));
     child = await launchInstalledTransaction(
       path.join(installed, "transaction-installed-process.js"),
@@ -95,12 +82,13 @@ export async function withRouteRefusals(name: string, run: (c: any) => Promise<v
       owned.child.once("error", reject);
     });
     ready = child.ready;
-    binding = installedTransactionBinding(ready, "5f3a67e89d62a0dcb4e9a7b9a6cb78b2c0a3e50c", {
+    binding = installedTransactionBinding(ready, subject.actualCompiledSource, {
       bytes: fixtureBytes,
     });
     expect(ready.runtimeConfigurationIdentity).toBe(
       "73bdc0e24d65a8ab4444c5698b84d368a39cdcbbe2caad3ef7d913a317b1930b",
     );
+    assertSelectedTransactionPayload(subject, ready.payloadIdentity);
     const address = new URL(ready.listenUrl),
       token = roles.find((r) => r.ref === "operator")?.token;
     if (!token) throw Error("operator missing");
@@ -306,7 +294,8 @@ export async function withRouteRefusals(name: string, run: (c: any) => Promise<v
       {
         case: name,
         passed: errors.length === 0,
-        source: "5f3a67e89d62a0dcb4e9a7b9a6cb78b2c0a3e50c",
+        source: subject?.actualCompiledSource,
+        selectedPayloadIdentity: subject?.payloadIdentity,
         fixtureDigest: sha(fixtureBytes),
         fixtureArtifacts: fixture.artifacts,
         credentialBank: {
