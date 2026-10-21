@@ -21,12 +21,31 @@ const fixtureBytes = await readFile(
     new URL("../test-support/transactional-cumulative-product-fixture.json", import.meta.url),
   ),
   fixture = JSON.parse(fixtureBytes.toString());
+function assertOwnerWaitModuleInventory(
+  buildNames: readonly string[],
+  installedNames: readonly string[],
+) {
+  expect(
+    [...installedNames].sort(),
+    "complete installed/build JavaScript module inventory",
+  ).toEqual([...buildNames].sort());
+}
+it("NEW owner-wait module inventory rejects extra or missing installed modules", () => {
+  expect(() => assertOwnerWaitModuleInventory(["a.js", "b.js"], ["b.js", "a.js"])).not.toThrow();
+  expect(() => assertOwnerWaitModuleInventory(["a.js"], ["a.js", "extra.js"])).toThrow();
+  expect(() => assertOwnerWaitModuleInventory(["a.js", "missing.js"], ["a.js"])).toThrow();
+});
 type Harness = Awaited<ReturnType<typeof start>>;
 async function start(name: string, mode: "deadline" | "retract") {
   if (!entry || !source || !build || !output || !bankPath)
     throw Error("exact installed source/build/output/credentials required");
   const modules: { name: string; bytes: number; sha256: string }[] = [];
-  for (const n of (await readdir(build)).filter((n) => n.endsWith(".js")).sort()) {
+  const buildNames = (await readdir(build)).filter((n) => n.endsWith(".js")).sort();
+  const installedNames = (await readdir(path.dirname(entry)))
+    .filter((n) => n.endsWith(".js"))
+    .sort();
+  assertOwnerWaitModuleInventory(buildNames, installedNames);
+  for (const n of buildNames) {
     const b = await readFile(path.join(path.dirname(entry), n));
     expect(b.equals(await readFile(path.join(build, n))), n).toBe(true);
     modules.push({ name: n, bytes: b.length, sha256: sha(b) });
@@ -430,6 +449,8 @@ for (const mode of ["deadline", "retract"] as const)
         );
         expect(mismatch.status).toBe(409);
         expect(mismatch.value).toMatchObject({ code: "idempotency-conflict" });
+        // Arm completes before this direct request exists. Its first now() sample is
+        // compareAndAdmitTransaction's original deadline start, not a mid-budget tick.
         await h.control("arm");
         let settled = false;
         direct = h.send("operations/create-link", "POST", directBody, "ow-dependent");
