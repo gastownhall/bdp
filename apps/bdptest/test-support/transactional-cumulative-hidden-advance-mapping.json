@@ -1,0 +1,25 @@
+{
+  "predicate": "transactional.changefeed.projection-advance",
+  "completeSelectedClause": "A hidden transaction projects an identifier-free advance",
+  "spec": ["docs/specs/bdp.md:5751-5754", "docs/specs/bdp.md:6132-6175"],
+  "actualMechanism": "existing233 genuine replaceAuthorizationPolicy(empty) affects actual current owner projection; request new-view genesis, never relabel oldcheckpoint",
+  "ordinaryDeployment": false,
+  "ordinaryRuntimeConfigurationIdentity": null,
+  "controlExecuted": "ONE empty-policy command; fixed1000000 trusted clock unchanged; no admin/restore/clockstep",
+  "payload": "34e0966cfd3cb5b8d0cb1d8c685418fadf45dda6bacdca839aa03bb8093ce258",
+  "packSource": "bb13be5206c60f27477e320c7d82db2f53643355",
+  "bounds": {
+    "seconds": 90,
+    "bytes": 4194304,
+    "nodes": 100000,
+    "depth": 128
+  },
+  "notClaimed": [
+    "finegrainedpolicy",
+    "durableconsumer",
+    "oldviewtokencomparisonsemantics",
+    "SSE",
+    "History",
+    "wholeprofile"
+  ]
+}
