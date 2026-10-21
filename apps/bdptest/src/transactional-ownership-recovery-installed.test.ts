@@ -23,6 +23,42 @@ function text(value: unknown): string {
   if (typeof value !== "string" || !value.length) throw new Error("wire identity required");
   return value;
 }
+const contextFields = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
+function responseContext(
+  headers: Readonly<Record<string, string | undefined>>,
+  expectedPosition: string,
+) {
+  const fields = contextFields.map((name) => {
+    const value = headers[name];
+    if (typeof value !== "string" || !/^[A-Za-z0-9_-]{1,256}$/.test(value))
+      throw new Error(`missing or malformed BDP context field: ${name}`);
+    return [name, value] as const;
+  });
+  const context = Object.fromEntries(fields);
+  if (context["bdp-scope-position"] !== expectedPosition)
+    throw new Error("unexpected BDP context position");
+  return Object.freeze(context);
+}
+it("ownership/reopen context oracle rejects omitted, empty and malformed fields before equality", () => {
+  const valid = {
+    "bdp-scope-epoch": "epoch-fixture",
+    "bdp-authorization-view": "view-fixture",
+    "bdp-scope-position": "pos-2",
+  };
+  expect(responseContext(valid, "pos-2")).toEqual(valid);
+  for (const name of contextFields) {
+    const absent: Record<string, string | undefined> = { ...valid };
+    delete absent[name];
+    expect(() => responseContext(absent, "pos-2")).toThrow(
+      "missing or malformed BDP context field",
+    );
+    for (const value of ["", "invalid value"])
+      expect(() => responseContext({ ...valid, [name]: value }, "pos-2")).toThrow(
+        "missing or malformed BDP context field",
+      );
+  }
+  expect(() => responseContext(valid, "pos-3")).toThrow("unexpected BDP context position");
+});
 async function runtimeIdentity() {
   const manifest = process.env.BDP_OWNERSHIP_RECOVERY_RUNTIME_MANIFEST;
   if (process.env.BDP_OWNERSHIP_RECOVERY_ENTRY && !manifest)
@@ -289,6 +325,7 @@ it("ordinary installed TX keeps principal-owned receipts and exact replay across
     await start(true);
     const probe = await send("alice", scope, "GET", undefined, undefined, 204);
     expect(probe.status).toBe(204);
+    responseContext(probe.headers, "pos-0");
     const match = /^<([^>]+)>; rel="service-desc"; type="application\/json"$/.exec(
       probe.headers.link ?? "",
     );
@@ -341,14 +378,14 @@ it("ordinary installed TX keeps principal-owned receipts and exact replay across
       await send(other, text(original.body.id), "HEAD", undefined, undefined, 404);
     }
     const before = await send("alice", scope, "GET", undefined, undefined, 204);
+    const beforeContext = responseContext(before.headers, "pos-2");
     const first = await child?.close();
     child = undefined;
     expect(first).toMatchObject({ code: 0, signal: null, bothEOF: true, directChildReaped: true });
     generations.push(first);
     await start(false);
     const reopened = await send("alice", scope, "GET", undefined, undefined, 204);
-    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-      expect(reopened.headers[name]).toBe(before.headers[name]);
+    expect(responseContext(reopened.headers, "pos-2")).toEqual(beforeContext);
     for (const [owner, other] of [
       ["alice", "bob"],
       ["bob", "alice"],
@@ -378,8 +415,7 @@ it("ordinary installed TX keeps principal-owned receipts and exact replay across
       expect((await send(owner, text(original.body.id))).bodyText).toBe(original.text);
     }
     const after = await send("bob", scope, "GET", undefined, undefined, 204);
-    expect(after.headers["bdp-scope-position"]).toBe(before.headers["bdp-scope-position"]);
-    expect(after.headers["bdp-scope-epoch"]).toBe(before.headers["bdp-scope-epoch"]);
+    expect(responseContext(after.headers, "pos-2")).toEqual(beforeContext);
     complete = true;
   } catch (error) {
     failures.push(error);
