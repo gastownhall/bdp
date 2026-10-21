@@ -1,0 +1,29 @@
+{
+  "ordinaryConfiguration": "73bdc0e24d65a8ab4444c5698b84d368a39cdcbbe2caad3ef7d913a317b1930b",
+  "cases": {
+    "ScopeAggregateRace": "inactive selected optional policy[]; Type max1 race is not409equivalent",
+    "TypeRace": "mixed ownsOutgoing explicit max1, serializable onecompleted/onevalidation-failed422",
+    "DeleteWhere": "complete4 member post-prefix setcanonicalorder; singletonzeromatch noEvent/noPosition",
+    "fanout": "two Links/twoowner sources with actual original attribution; delete mints onlysourceversions",
+    "self": "create/delete2graphlabels, update1incidentfact, noBeadrevisionchange"
+  },
+  "boundedPredicates": [
+    "transactional.set.mutation",
+    "transactional.set.zero-match",
+    "transactional.set.attribution-fanout",
+    "transactional.set.singleton-targets (new delete-where; existing update-where reused only as different provenance scenario)",
+    "transactional.event.self-link"
+  ],
+  "noAutomaticPromotion": [
+    "transactional.batch.aggregate-constraint-race requires active Scopepolicy; selected optional policy[]",
+    "whole251",
+    "all550ordinary"
+  ],
+  "sourceRefs": [
+    "docs/specs/bdp.md:4234-4320,5485-5635",
+    "packages/server/src/transaction-store.ts:822,1961",
+    "packages/server/src/transaction-batch.ts:963-1031",
+    "fixture mixed explicitmax1,onlywildcardmax2"
+  ],
+  "runtimeUnchanged": true
+}
