@@ -122,6 +122,23 @@ function problem(
   if (value.retry === "after-delay") response.headers.set("retry-after", "1");
   return { ...response, status: value.status ?? 500 };
 }
+/** Module-internal shared wire mapping, deliberately absent from package exports. */
+export function transactionMinimumFailureResponse(error: unknown): HttpResponse | undefined {
+  if (!(error instanceof TransactionMinimumFailure) || error.reason === "behind") return undefined;
+  return context(
+    problem(
+      error.reason === "catch-up-timeout"
+        ? {
+            ...readProblem("temporarily-unavailable"),
+            code: "catch-up-timeout",
+            status: 503,
+            retry: "after-delay",
+          }
+        : readProblem(error.reason),
+    ),
+    error.context,
+  );
+}
 export function transactionHttpProblem(
   code: ReadProblemCode,
   observation?: TransactionReadContext,
@@ -675,21 +692,9 @@ export function createTransactionHttpHandler(
         response = await route(request, authorization, received, lastEventIds);
       } catch (error) {
         if (error instanceof ScopeServerOperationAbortedError) throw error;
-        if (error instanceof TransactionMinimumFailure && error.reason !== "behind") {
-          response = context(
-            problem(
-              error.reason === "catch-up-timeout"
-                ? {
-                    ...readProblem("temporarily-unavailable"),
-                    code: "catch-up-timeout",
-                    status: 503,
-                    retry: "after-delay",
-                  }
-                : readProblem(error.reason),
-            ),
-            error.context,
-          );
-        } else if (error instanceof TransactionAuthorizationFailure)
+        const minimumFailure = transactionMinimumFailureResponse(error);
+        if (minimumFailure) response = minimumFailure;
+        else if (error instanceof TransactionAuthorizationFailure)
           response = transactionHttpProblem(error.code, error.context);
         else if (
           error instanceof TransactionEventParameterError ||

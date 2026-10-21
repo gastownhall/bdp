@@ -1,10 +1,13 @@
+import { randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
-import { expect, it } from "vitest";
 import { parseTypeDescriptor } from "@bdp/protocol";
-import { startTransactionRuntime } from "./transaction-runtime.js";
+import { expect, it } from "vitest";
+import {
+  startTransactionRuntime,
+  transactionRuntimeAdministration,
+} from "./transaction-runtime.js";
 
 it("expires ordinary cached collection continuations only at erasure, never re-serving erased rows under current headers", async () => {
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-erasure-pages-"));
@@ -90,7 +93,9 @@ it("expires ordinary cached collection continuations only at erasure, never re-s
     expect(ordinary.status).toBe(200);
     expect(ordinary.value.items[0].revision).toBe(original.revision);
     expect(ordinary.text).toContain("erased-cached-secret");
-    runtime.eraseHistoricalVersions([{ subject: original.id, revision: original.revision }]);
+    transactionRuntimeAdministration(runtime).eraseHistoricalVersions([
+      { subject: original.id, revision: original.revision },
+    ]);
     const erased = await request(next);
     expect(erased.status).toBe(410);
     expect(erased.value.code).toBe("cursor-expired");
@@ -104,3 +109,53 @@ it("expires ordinary cached collection continuations only at erasure, never re-s
     rmSync(directory, { recursive: true, force: true });
   }
 }, 15000);
+
+it("keeps local administration owner-bound without expanding the legacy facade", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-erasure-admin-"));
+  const scope = "https://erasure-admin.test/s/";
+  const runtime = await startTransactionRuntime({
+    directory,
+    scope,
+    port: 0,
+    create: true,
+    types: [
+      parseTypeDescriptor({
+        id: `${scope}types/task`,
+        name: "Task",
+        describes: "bead",
+        conformsTo: [],
+      }),
+    ],
+    credentials: [
+      { token: randomBytes(32).toString("base64url"), principal: "p", canMutate: true },
+    ],
+  });
+  try {
+    expect(Object.keys(runtime).sort()).toEqual([
+      "close",
+      "configurationMetadata",
+      "listenUrl",
+      "replaceAuthorizationPolicy",
+      "scope",
+      "targets",
+    ]);
+    expect(Object.isFrozen(runtime)).toBe(true);
+    expect(runtime).not.toHaveProperty("eraseHistoricalVersions");
+    expect(() => transactionRuntimeAdministration({ ...runtime })).toThrow(
+      "authentic transaction runtime required",
+    );
+    expect(() => transactionRuntimeAdministration({})).toThrow(
+      "authentic transaction runtime required",
+    );
+    const administration = transactionRuntimeAdministration(runtime);
+    expect(Object.isFrozen(administration)).toBe(true);
+    expect(transactionRuntimeAdministration(runtime)).toBe(administration);
+    await runtime.close();
+    expect(() => administration.eraseHistoricalVersions([])).toThrow(
+      "transaction runtime is closing",
+    );
+  } finally {
+    await runtime.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

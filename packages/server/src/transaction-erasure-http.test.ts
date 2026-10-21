@@ -1,11 +1,14 @@
+import { randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
-import { afterEach, expect, it } from "vitest";
 import { parseTypeDescriptor } from "@bdp/protocol";
-import { startTransactionRuntime } from "./transaction-runtime.js";
+import { afterEach, expect, it } from "vitest";
 import { recordRawSse } from "../test-support/raw-sse-recorder.js";
+import {
+  startTransactionRuntime,
+  transactionRuntimeAdministration,
+} from "./transaction-runtime.js";
 
 const scope = "https://erasure-http.test/s/",
   type = `${scope}types/task`;
@@ -119,7 +122,7 @@ it("publishes a complete historical erasure to caught-up SSE, fences finite/reco
   );
   expect(update.status).toBe(200);
   await stream.until(() => stream.frames.some((frame) => frame.includes('"position":"pos-2"')));
-  const result = runtime.eraseHistoricalVersions([
+  const result = transactionRuntimeAdministration(runtime).eraseHistoricalVersions([
     { subject: original.id, revision: original.revision },
   ]);
   await stream.until(() => stream.frames.some((frame) => frame.includes('"position":"pos-3"')));

@@ -479,21 +479,8 @@ const link = () => ({
 const metadataUpdate = () => ({
   operation: "updateLink",
   link: "links/l",
-  metadataChange: [{ op: "add", path: "/note", value: "unresolved" }],
+  metadataChange: [{ op: "add", path: "/note", value: "first" }],
 });
-function causes(error: unknown): unknown[] {
-  const result: unknown[] = [],
-    seen = new Set<unknown>();
-  const visit = (value: unknown) => {
-    if (seen.has(value)) return;
-    seen.add(value);
-    result.push(value);
-    if (value instanceof AggregateError) for (const e of value.errors) visit(e);
-    if (value instanceof Error && value.cause) visit(value.cause);
-  };
-  visit(error);
-  return result;
-}
 it("retained deleted Bead and Link Sources stream while their canonical Resources are absent", async () => {
   const f = await runtimeFixture();
   await f.run([create("a"), create("b"), link()]);
@@ -512,48 +499,64 @@ it("retained deleted Bead and Link Sources stream while their canonical Resource
     await live.close();
   }
 });
-it("an initial metadata-only incident Link gap refuses Bead SSE while Scope and Link remain available", async () => {
+it("metadata-only incident updates preserve finite/SSE initial, live, and reconnect identity", async () => {
   const f = await runtimeFixture();
   await f.run([create("a"), create("b"), link(), metadataUpdate()]);
-  const gap = f.stream("beads/a?view=events");
-  await gap.closed;
-  expect(gap.status).toBe(500);
-  expect(gap.headers["x-bdp-development-limit"]).toBe("incident-link-metadata");
-  expect(gap.body).toBe("");
-  for (const target of ["events/", "links/l?view=events"]) {
+  let revision = 0;
+  for (const target of [
+    "beads/a?view=events",
+    "beads/b?view=events",
+    "events/",
+    "links/l?view=events",
+  ]) {
     const finite = await f.finite(target),
-      live = f.stream(target);
-    await live.until(() => eventFrames(live).length === finite.events.length);
-    expect(eventFrames(live).map(decoded)).toEqual(finite.events);
-    await live.close();
+      stream = f.stream(target);
+    await stream.until(() => eventFrames(stream).length === finite.events.length);
+    expect(stream.status).toBe(200);
+    expect(eventFrames(stream).map(decoded)).toEqual(finite.events);
+    const previous = finite.events.at(-1);
+    if (!previous) throw new Error("expected initial metadata update");
+    expect(previous.data).toHaveProperty("metadataChange");
+    const value = `live-${++revision}`;
+    await f.run([
+      {
+        operation: "updateLink",
+        link: "links/l",
+        propertiesChange: [{ op: "replace", path: "/n", value: 0 }],
+        metadataChange: [{ op: "replace", path: "/note", value }],
+      },
+    ]);
+    await stream.until(() => eventFrames(stream).length === finite.events.length + 1);
+    const all = await f.finite(target);
+    expect(eventFrames(stream).map(decoded)).toEqual(all.events);
+    const latest = all.events.at(-1);
+    if (!latest) throw new Error("expected live metadata update");
+    expect(latest.type).toBe("updated");
+    expect(latest.subject).toBe(`${scope}links/l`);
+    expect(latest.data).toHaveProperty("metadataChange");
+    await f.run([
+      {
+        operation: "updateLink",
+        link: "links/l",
+        propertiesChange: [{ op: "replace", path: "/n", value: 0 }],
+        metadataChange: [{ op: "replace", path: "/note", value }],
+      },
+    ]);
+    await delay(20);
+    expect(eventFrames(stream)).toHaveLength(all.events.length);
+    await stream.close();
+    // Reconnect behind the metadata transition: deliver precisely the retained
+    // successor, then keep following new transitions on the same source.
+    const reconnect = f.stream(target, [["Last-Event-ID", previous.id]]);
+    await reconnect.until(() => eventFrames(reconnect).length === 1);
+    expect(eventFrames(reconnect).map(decoded)).toEqual([latest]);
+    await reconnect.close();
+    const caughtUp = f.stream(target, [["Last-Event-ID", latest.id]]);
+    await caughtUp.ready;
+    await delay(20);
+    expect(eventFrames(caughtUp)).toEqual([]);
+    await caughtUp.close();
   }
-});
-it("a later projection gap closes without a second response and repeat reconnect reaches the same gap", async () => {
-  const f = await runtimeFixture((error) => {
-    expect(
-      causes(error).some((e) => e instanceof Error && e.message === "incident-link-metadata"),
-    ).toBe(true);
-  });
-  await f.run([create("a"), create("b"), link()]);
-  const finite = await f.finite("beads/a?view=events"),
-    last = finite.events.at(-1)!.id;
-  const live = f.stream("beads/a?view=events", [["Last-Event-ID", last]]);
-  await live.ready;
-  expect(live.status).toBe(200);
-  await f.run([metadataUpdate()]);
-  await live.closed;
-  expect(eventFrames(live)).toEqual([]);
-  expect(live.wireBytes.toString().match(/HTTP\/1\.1 /g)).toHaveLength(1);
-  for (let n = 0; n < 2; n++) {
-    const reconnect = f.stream("beads/a?view=events", [["Last-Event-ID", last]]);
-    await reconnect.ready;
-    expect(reconnect.status).toBe(200);
-    await reconnect.closed;
-    expect(eventFrames(reconnect)).toEqual([]);
-  }
-  expect((await f.finite("links/l?view=events")).events.at(-1)!.data).toHaveProperty(
-    "metadataChange",
-  );
 });
 it("a blocked backlog heartbeat prevents the next owner pull until drain or cancellation", async () => {
   const f = ownerFixture();

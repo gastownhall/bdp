@@ -4159,11 +4159,15 @@ it.each([
       undefined,
       control,
     );
-    expect(report.counterfactualApplications).toBe(1);
+    const diagnostic = retainedRetryDiagnostic(report, control);
+    expect(report.counterfactualApplications, diagnostic).toBe(1);
     const row = report.result.scenarios.find((row) => row.id === control.scenario);
-    expect(row?.state).toBe("fail");
+    expect(row?.state, diagnostic).toBe("fail");
     const action = row?.actions?.find((a) => a.action.id === control.action);
-    expect(action?.assertions.filter((a) => !a.passed).map((a) => a.id)).toContain(control.failed);
+    expect(
+      action?.assertions.filter((a) => !a.passed).map((a) => a.id),
+      diagnostic,
+    ).toContain(control.failed);
   },
   30000,
 );

@@ -27,8 +27,25 @@ import {
   type ScenarioRunOptions,
 } from "./runner.js";
 
-const read = (name: string) =>
+const fullRead = (name: string) =>
   readFileSync(new URL(`../test-support/transactional/${name}-v1.json`, import.meta.url));
+// Preserve old historical source/digest controls, not a current coverage claim.
+// New full-current inherited-Read tests use fullRead directly below.
+const read = (name: string) => {
+  const raw = fullRead(name);
+  if (name !== "manifest" && name !== "coverage") return raw;
+  const text = raw.toString(),
+    key = name === "manifest" ? "scenarios" : "rows";
+  const header = `"${key}": [\n`;
+  const start = text.indexOf(header) + header.length;
+  const oldFirst = text.indexOf(
+    '    {\n      "id": "read-update.idempotency.principal-isolation"',
+    start,
+  );
+  if (start < header.length || oldFirst < start)
+    throw new Error("historical partial slice unavailable");
+  return Buffer.from(text.slice(0, start) + text.slice(oldFirst));
+};
 const source = (value: unknown) => ({ bytes: Buffer.from(JSON.stringify(value)) });
 const manifest = JSON.parse(read("manifest").toString());
 const atomicCommit = manifest.scenarios.find(
@@ -3824,4 +3841,53 @@ it("pins partial Transactional conditional actions, full parent bytes and the tw
     "GET scope:beads/missing",
     "HEAD scope:beads/missing",
   ]);
+});
+
+it("inherited Read: full current manifest adds eight partial TX-bound rows without changing the original seventeen", () => {
+  const full = createCumulativeTransactionalArtifactBundle(selected, {
+    manifest: { bytes: fullRead("manifest") },
+    fixture: { bytes: fullRead("fixture") },
+  });
+  const expected = [
+    "read.discovery.scope-service-desc",
+    "read.discovery.canonical-navigation",
+    "read.http.get-head",
+    "read.http.method-405",
+    "read.http.cache-cors",
+    "read.http.accept-negotiation",
+    "read.http.conditional-reads",
+    "read.http.head-conditional-parity",
+  ];
+  expect(selected.required).toHaveLength(251);
+  expect(full.manifest.scenarios).toHaveLength(25);
+  expect(full.manifest.scenarios.slice(0, 8).map((r) => r.id)).toEqual(expected);
+  expect(createHash("sha256").update(read("manifest")).digest("hex")).toBe(
+    "bbb7def1bf11e1d14efbcb369e6a7fae6eb5aff01f483f8e99f7443ce9a6ee73",
+  );
+  expect(createHash("sha256").update(read("coverage")).digest("hex")).toBe(
+    "a2c620ce489257f4cd425207195af89b4e2aac238333cf6e7d21ce629d98a238",
+  );
+  const coverage = JSON.parse(fullRead("coverage").toString());
+  expect(coverage.rows.map((r: { id: string }) => r.id)).toEqual(
+    full.manifest.scenarios.map((r) => r.id),
+  );
+  for (const row of full.manifest.scenarios.slice(0, 8)) {
+    expect(row.requiredProfile).toBe("read");
+    expect(row.setup).toEqual({
+      fixture: "reference-transactional-v1",
+      requires: ["installed-transactional-http"],
+    });
+    expect(row.applicability.requires).toEqual([]);
+    expect(row.actions?.every((a) => a.family === "http")).toBe(true);
+    const c = coverage.rows.find((r: { id: string }) => r.id === row.id);
+    expect(c.wholeContract).toBe(false);
+    expect(c.reason).toContain("Whole contract remains unqualified");
+    expect(c.bindings).toEqual([
+      {
+        scenario: row.id,
+        assertions: row.actions?.flatMap((a) => a.assertions.map((x) => `${a.id}:${x.id}`)),
+      },
+    ]);
+  }
+  expect(full.digests.fixtureDigest).toBe(bundle().digests.fixtureDigest);
 });
