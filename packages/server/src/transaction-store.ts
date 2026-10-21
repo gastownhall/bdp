@@ -35,7 +35,6 @@ import {
   TRANSACTION_EVENT_STREAM,
   TRANSACTION_EVENT_GROUP_BYTES,
   TransactionEventParameterError,
-  TransactionEventProjectionGap,
   transactionEventRequest,
   parseTransactionEventCursor,
   checkTransactionEventCursor,
@@ -763,16 +762,29 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         if (commitTransactionWitnesses(String(row.witnesses), scope) !== row.witnesses)
           throw new Error("uncommitted retained alias witnesses");
       }
-      // Backfill only concrete Resource postimages, not arbitrary property data.
-      for (const row of erasureRows("groups")) {
-        const group = JSON.parse(String(row.body));
-        for (const change of group.changes)
-          if (change.operation === "upsert") retainErasureVersions(db, change.resource);
-      }
-      for (const row of erasureRows("receipts")) {
-        const receipt = JSON.parse(String(row.receipt));
-        for (const result of receipt.results ?? [])
-          if (result.resource) retainErasureVersions(db, result.resource);
+      // One completed backfill per native store. Do not equate fingerprint
+      // migration with this separate retained-postimage migration. The marker
+      // and every backfilled copy commit/rollback together before visibility.
+      const backfill = db
+        .prepare("SELECT value FROM metadata WHERE name='erasureVersionBackfill'")
+        .get();
+      if (backfill && backfill.value !== "retained-postimages-1")
+        throw new Error("unknown erasure version backfill");
+      if (!backfill) {
+        // Only concrete Resource postimages, not arbitrary property data.
+        for (const row of erasureRows("groups")) {
+          const group = JSON.parse(String(row.body));
+          for (const change of group.changes)
+            if (change.operation === "upsert") retainErasureVersions(db, change.resource);
+        }
+        for (const row of erasureRows("receipts")) {
+          const receipt = JSON.parse(String(row.receipt));
+          for (const result of receipt.results ?? [])
+            if (result.resource) retainErasureVersions(db, result.resource);
+        }
+        db.prepare("INSERT INTO metadata VALUES('erasureVersionBackfill',?)").run(
+          "retained-postimages-1",
+        );
       }
       if (options.nativeRestore !== undefined) {
         if (legacyRequestStorage) throw new Error("native restore requires current native format");
@@ -1182,45 +1194,47 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 subject === undefined
                   ? { kind: "scope", url }
                   : { kind: subject.startsWith(`${scope}beads/`) ? "bead" : "link", subject, url };
-              try {
-                // Preserve the actual existing projector's membership, including
-                // its explicitly unsupported incident-metadata subset. No erasure
-                // path silently broadens G2's separately implemented membership.
-                const projected = projectTransactionEventGroup(
-                  group,
-                  {
-                    scopeEpoch: epoch,
-                    authorizationView: INITIAL_TRANSACTION_VIEW,
-                    scopePosition: `pos-${row.position}`,
-                  },
-                  source,
-                  scope,
+              // Preserve the authorized projector's actual endpoint membership
+              // for both property and common-metadata Link updates. The cursor
+              // commitment retains no endpoint or erased content.
+              const projected = projectTransactionEventGroup(
+                group,
+                {
+                  scopeEpoch: epoch,
+                  authorizationView: INITIAL_TRANSACTION_VIEW,
+                  scopePosition: `pos-${row.position}`,
+                },
+                source,
+                scope,
+                Number(row.position),
+              );
+              if (projected.some((item) => item.ordinal === event.ordinal))
+                db.prepare("INSERT OR IGNORE INTO erased_event_cursors VALUES(?,?,?)").run(
                   Number(row.position),
+                  event.ordinal,
+                  erasureSourceTag(url),
                 );
-                if (projected.some((item) => item.ordinal === event.ordinal))
-                  db.prepare("INSERT OR IGNORE INTO erased_event_cursors VALUES(?,?,?)").run(
-                    Number(row.position),
-                    event.ordinal,
-                    erasureSourceTag(url),
-                  );
-              } catch (error) {
-                if (!(error instanceof TransactionEventProjectionGap)) throw error;
-              }
             }
           }
-          group.originalEventCount ??= group.eventCount;
-          group.events = group.events.filter((event) => !removed.includes(event));
-          group.eventCount = group.events.length;
-          group.changes = group.changes.filter(
+          const changes = group.changes.filter(
             (change) =>
               change.operation !== "upsert" ||
               !erased(change.resource.id, change.resource.revision),
           );
-          group.erasurePruned = true;
-          db.prepare("UPDATE groups SET body=? WHERE position=?").run(
-            json(group),
-            Number(row.position),
-          );
+          // Untouched groups keep their original bytes and strict contiguous
+          // framing. A gap marker is evidence of actual removal, not a store-wide
+          // permission to relax every retained group's validation.
+          if (removed.length || changes.length !== group.changes.length) {
+            group.originalEventCount ??= group.eventCount;
+            group.events = group.events.filter((event) => !removed.includes(event));
+            group.eventCount = group.events.length;
+            group.changes = changes;
+            group.erasurePruned = true;
+            db.prepare("UPDATE groups SET body=? WHERE position=?").run(
+              json(group),
+              Number(row.position),
+            );
+          }
         }
         for (const row of erasureRows("receipts")) {
           const receipt = JSON.parse(String(row.receipt)) as TransactionReceipt;
@@ -1305,7 +1319,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         originalEventCount?: number;
         events?: TransactionEvent[];
       };
-      if (value.erasurePruned) {
+      if (value.erasurePruned !== undefined && typeof value.erasurePruned !== "boolean")
+        throw new Error("invalid erasure Event framing");
+      if (value.erasurePruned === true) {
         if (
           !Number.isSafeInteger(value.originalEventCount) ||
           value.originalEventCount! < 0 ||
