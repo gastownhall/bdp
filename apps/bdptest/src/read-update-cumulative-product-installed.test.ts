@@ -84,6 +84,19 @@ function currentCumulativeClient(
     return createCumulativeRUClient(mode, route, observe)(execution);
   };
 }
+function recordCumulativeSession(
+  sessions: Record<string, unknown>[],
+  observations: unknown[],
+  scenario: string,
+  ready: Record<string, unknown>,
+  reopening: boolean,
+) {
+  if (reopening) {
+    observations.push({ scenario, operation: "normal-reopen-ready", ready });
+  } else {
+    sessions.push({ scenario, ...ready });
+  }
+}
 function artifactSet() {
   return createReadUpdateArtifactSet(loadProfileContractSelection("read-update"), {
     index: source(`${base}index.json`),
@@ -411,7 +424,13 @@ it.skipIf(!entry)(
               };
               try {
                 assertSameServedProfileConfiguration(baseline, bind(child.ready));
-                sessions.push({ scenario: scenario.id, ...child.ready });
+                recordCumulativeSession(
+                  sessions,
+                  observations,
+                  scenario.id,
+                  child.ready,
+                  reopening,
+                );
                 if (
                   !reopening &&
                   Array.isArray(fixture.readSeedScenarios) &&
@@ -785,3 +804,195 @@ it("NEW RU carrier client and raw target use current prepared listener after cle
   }
   if (errors.length) throw new AggregateError(errors, "new carrier routing unit failed");
 });
+
+it("NEW RU association collects one initial ready and retains complete reopen ready separately", () => {
+  const sessions: Record<string, unknown>[] = [],
+    observations: unknown[] = [];
+  const initial = { listenUrl: "http://127.0.0.1:10001/", complete: { values: [1, 2] } };
+  const reopened = { listenUrl: "http://127.0.0.1:10002/", complete: { values: [3, 4] } };
+  const before = JSON.stringify({ initial, reopened });
+  recordCumulativeSession(sessions, observations, "read.collections.cursor-errors", initial, false);
+  recordCumulativeSession(sessions, observations, "read.collections.cursor-errors", reopened, true);
+  expect(sessions).toEqual([{ scenario: "read.collections.cursor-errors", ...initial }]);
+  expect(sessions[0]!.complete).toBe(initial.complete);
+  expect(observations).toEqual([
+    {
+      scenario: "read.collections.cursor-errors",
+      operation: "normal-reopen-ready",
+      ready: reopened,
+    },
+  ]);
+  expect((observations[0] as { ready: unknown }).ready).toBe(reopened);
+  expect(JSON.stringify({ initial, reopened })).toBe(before);
+});
+
+it.skipIf(!process.env.BDP_RU_ASSOCIATION_CAPTURE_DIRECTORY)(
+  "NEW RU association preserves initial and reopened ready captures without rerunning scenarios",
+  () => {
+    const captureDirectory = process.env.BDP_RU_ASSOCIATION_CAPTURE_DIRECTORY;
+    const derivedOutput = process.env.BDP_RU_ASSOCIATION_DERIVED_OUTPUT;
+    if (!captureDirectory || !derivedOutput)
+      throw Error("explicit frozen DATA capture/output required");
+    const expected = [
+      {
+        name: "baseline",
+        bytes: 4769485,
+        sha256: "eed9e4db55c782780a1b8e765c83fed8c1b6379381eaa15f539ee7e78edb3905",
+      },
+      {
+        name: "continuation",
+        bytes: 2677606,
+        sha256: "42b6fcde60e3b0c56f92b8040aee092a0efa1759799178d29457daa8a8b6c78e",
+      },
+    ];
+    const original = expected.map((pin) => {
+      const bytes = readFileSync(path.join(captureDirectory, `carrier.json.${pin.name}.json`));
+      expect(bytes.length).toBe(pin.bytes);
+      expect(sha(bytes)).toBe(pin.sha256);
+      return JSON.parse(bytes.toString("utf8")) as Report;
+    });
+    const originalEncoding = original.map((report) => JSON.stringify(report));
+    const options = {
+      credentialHandles: [
+        ...["operator", "restricted", "other"].map((id) => ({
+          id,
+          headerNames: ["authorization"],
+        })),
+        { id: "anonymous", headerNames: [] },
+        { id: "unknown", headerNames: ["authorization"] },
+      ],
+      selectionModes: artifactSet().shards.map((shard) => ({
+        id: shard.id,
+        mode: "owned-exact" as const,
+      })),
+    };
+    // Decoded DATA cannot recover the live factory WeakMap identity. Never mint it.
+    expect(() =>
+      associateArtifactObservations(artifactSet(), original[0]!.sourceCommit, original, options),
+    ).toThrow("factory-bound served configuration required");
+    const derivations = original.map((report) => {
+      const sessions: Record<string, unknown>[] = [],
+        reopenReady: unknown[] = [],
+        seen = new Set<string>();
+      const sessionLocations: {
+        sourceIndex: number;
+        kind: "initial" | "reopen";
+        scenario: string;
+      }[] = [];
+      report.sessions.forEach((ready, sourceIndex) => {
+        if (typeof ready.scenario !== "string") throw Error("captured session scenario missing");
+        const reopening = seen.has(ready.scenario);
+        seen.add(ready.scenario);
+        recordCumulativeSession(sessions, reopenReady, ready.scenario, ready, reopening);
+        sessionLocations.push({
+          sourceIndex,
+          kind: reopening ? "reopen" : "initial",
+          scenario: ready.scenario,
+        });
+      });
+      const retainedReopens = report.observations.filter(
+        (row): row is Record<string, unknown> =>
+          typeof row === "object" &&
+          row !== null &&
+          "operation" in row &&
+          row.operation === "normal-close-and-reopen",
+      );
+      expect(reopenReady.length).toBe(retainedReopens.length);
+      for (const [index, actual] of reopenReady.entries()) {
+        const row = actual as { scenario: string; ready: Record<string, unknown> };
+        const retained = retainedReopens[index]!;
+        expect(row.scenario).toBe(retained.scenario);
+        const ready = retained.ready as Record<string, unknown>;
+        for (const [key, value] of Object.entries(row.ready))
+          if (key !== "scenario") expect(ready[key], key).toEqual(value);
+      }
+      expect(sessions.map((row) => row.scenario)).toEqual(report.plannedIds);
+      return { sessions, reopenReady, sessionLocations };
+    });
+    const derived = original.map((report, index) => ({
+      ...report,
+      sessions: derivations[index]!.sessions,
+      observations: [...report.observations, ...derivations[index]!.reopenReady],
+    }));
+    const set = artifactSet();
+    const associations = derived.map((report, index) => {
+      const shard = set.shards[index]!;
+      expect(report.sourceCommit).toBe("95491151294b9ad7030cbdd2f7c3bacf1beae096");
+      expect(report.configuration.sourceCommit).toBe(report.sourceCommit);
+      expect(report.configuration).toEqual(original[0]!.configuration);
+      expect(report.configuration.fixtureDigest).toBe(set.digests.fixtureDigest);
+      expect(report.configuration.profile).toBe("read-update");
+      expect(report.configuration.history).toBe(false);
+      expect(report.catalogSources).toEqual(set.digests.catalogDigests);
+      expect(report.requiredIds).toEqual(set.requirements.map((row) => row.id));
+      expect(report.plannedIds).toEqual(shard.scenarioIds);
+      expect(report.plannedManifestDigest).toBe(shard.bundle.digests.manifestDigest);
+      expect(report.result.artifacts).toEqual(shard.bundle.digests);
+      expect(report.result.scenarioSelection).toEqual(shard.scenarioIds);
+      expect(report.result.selectedScenarioIds).toEqual(shard.scenarioIds);
+      expect(report.result.scenarios.map((row) => row.id)).toEqual(shard.scenarioIds);
+      expect(report.result.claimEligible).toBe(false);
+      expect(report.result.scenarioFilter).toBeUndefined();
+      expect(report.result.profile).toBe(report.configuration.profile);
+      expect(report.result.scope).toBe(report.configuration.scope);
+      expect(report.result.reportVersion).toBe(4);
+      expect(report.cleanupComplete).toBe(true);
+      for (const row of report.result.scenarios) {
+        expect(row.state, row.id).toBe("pass");
+        expect(row.cleanupError, row.id).toBeUndefined();
+      }
+      expect(report.exactConfiguration.routes).toEqual(
+        artifactRoutes(shard.bundle, report.configuration.scope),
+      );
+      expect(report.exactConfiguration.credentialHandles).toEqual(options.credentialHandles);
+      expect(report.exactConfiguration.maximumRequestHeaderBytes).toBe(16384);
+      expect(report.exactConfiguration.maximumRequestBodyBytes).toBe(131072);
+      // Validate ALL original initial + reopen ready records, not just the reduced association input.
+      for (const ready of [report.baselineReceipt, ...original[index]!.sessions]) {
+        expect(ready.configurationIdentity).toBe(
+          original[0]!.baselineReceipt.configurationIdentity,
+        );
+        expect(ready.scope).toBe(report.configuration.scope);
+        expect(ready.profile).toBe(report.configuration.profile);
+        expect(ready.history).toBe(false);
+        expect(ready.payloadIdentity).toBe(report.configuration.installedPayloadDigest);
+        expect(installedContractsDigest(ready.artifactIdentity)).toBe(
+          report.configuration.installedContractsDigest,
+        );
+        expect(ready.policyIdentity).toBe(report.configuration.policyDigest);
+        expect(ready.authenticationIdentity).toBe(report.configuration.authenticationDigest);
+      }
+      return {
+        shard: shard.id,
+        ids: report.result.scenarios.map((row) => row.id),
+        states: report.result.scenarios.map((row) => row.state),
+        cleanupComplete: report.cleanupComplete,
+      };
+    });
+    expect(associations.flatMap((row) => row.ids)).toHaveLength(104);
+    expect(new Set(associations.flatMap((row) => row.ids)).size).toBe(104);
+    expect(derived.map((report) => report.sessions.length)).toEqual([51, 53]);
+    expect(derivations.map((row) => row.reopenReady.length)).toEqual([0, 2]);
+    expect(original.map((report) => JSON.stringify(report))).toEqual(originalEncoding);
+    expect(derived.every((report, index) => report.result === original[index]!.result)).toBe(true);
+    writeFileSync(
+      derivedOutput,
+      JSON.stringify(
+        {
+          kind: "DERIVED_DATA_ASSOCIATION_NOT_NEW_RUNTIME_RUN",
+          originalSource: original[0]!.sourceCommit,
+          inputPins: expected,
+          resultUnchanged: true,
+          originalFilesUnmodified: true,
+          derivations,
+          associations,
+          liveFactoryAssociationReexecuted: false,
+          nativePidOrStoreAbsenceInferred: false,
+        },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx", mode: 0o600 },
+    );
+  },
+);
