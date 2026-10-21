@@ -1,0 +1,7 @@
+# Private RU cumulative listener adapter
+
+This test-carrier-only successor consumes the existing private launcher's authentic `dialRoute`. Each initial child and clean reopen asks the OS for port0; no released parent port is reused. The raw scenario target snapshots a route during preparation, so clean reopen performs its existing harness cleanup and preparation on the SAME target, with create:false and no fixture reseeding. The programmable client is built lazily per action against the currently prepared route. During close/reopen no route is available.
+
+`BDP_RU_CUMULATIVE_SOURCE` is mandatory: a literal full commit must equal the selected checkout's actual commit, and tracked changes must be absent. The caller still must freeze the reviewed integrated source, clean build, tarballs and full emitted/installed body joins before a campaign. This input never rewrites runtime/configuration identities or relabels the historical5f3/9af run. The final campaign is NOT executed by this preparation.
+
+Two NEW helper-level cases cover explicit source refusal and real local HTTP transport switching across preparation generations, including fail-closed gaps. Those local servers are synthetic test controls, not installed RU qualification. Existing104 ordinary passes and all old split histories remain unchanged; no full104/130 or current profile award follows. No production/shared runner/API/manifest/spec/cap/timing change.
