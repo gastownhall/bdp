@@ -1,9 +1,9 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import { afterEach, expect, it } from "vitest";
 import { parseTypeDescriptor } from "@bdp/protocol";
+import { afterEach, expect, it } from "vitest";
 import { openTransactionStore } from "./transaction-store.js";
 
 const scope = "https://example.test/recovery/",
@@ -13,6 +13,27 @@ const directories: string[] = [];
 afterEach(() => {
   for (const directory of directories.splice(0))
     rmSync(directory, { recursive: true, force: true });
+});
+
+function isDeleteJournalSetup(sql: string): boolean {
+  return sql
+    .split(";")
+    .some((statement) => /^\s*PRAGMA\s+journal_mode\s*=\s*DELETE\s*$/i.test(statement));
+}
+it("recognizes rollback journal setup after secure-delete without matching unrelated pragmas", () => {
+  for (const sql of [
+    "PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL",
+    "PRAGMA secure_delete=ON; PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL",
+    " PRAGMA secure_delete=ON ; pragma JOURNAL_MODE = delete ; ",
+  ])
+    expect(isDeleteJournalSetup(sql)).toBe(true);
+  for (const sql of [
+    "PRAGMA secure_delete=ON",
+    "PRAGMA journal_mode=WAL",
+    "SELECT 'PRAGMA journal_mode=DELETE'",
+    "PRAGMA cache_size=8",
+  ])
+    expect(isDeleteJournalSetup(sql)).toBe(false);
 });
 
 it.each(["before-maintenance-commit", "after-terminal"] as const)(
@@ -29,13 +50,19 @@ it.each(["before-maintenance-commit", "after-terminal"] as const)(
       import { DatabaseSync } from 'node:sqlite';
       import { openTransactionStore } from ${JSON.stringify(store)};
       import { prepareTransaction } from ${JSON.stringify(batch)};
+      const isDeleteJournalSetup = ${isDeleteJournalSetup.toString()};
+      let cacheSetup = null;
       // A small real SQLite cache forces dirty-page spill in the terminal case;
       // maintenance uses the ordinary owner cache and over 3 MiB of receipts.
       if (${JSON.stringify(stage)} === 'after-terminal') {
         const exec = DatabaseSync.prototype.exec;
         DatabaseSync.prototype.exec = function(sql) {
           const result = exec.call(this, sql);
-          if (sql.startsWith('PRAGMA journal_mode')) exec.call(this, 'PRAGMA cache_size=8');
+          if (isDeleteJournalSetup(sql)) {
+            exec.call(this, 'PRAGMA cache_size=8');
+            cacheSetup = { matchedSql: sql, requestedPages: 8, actualPages: this.prepare('PRAGMA cache_size').get().cache_size };
+            if (cacheSetup.actualPages !== 8) throw new Error('hot-journal cache setup did not take effect');
+          }
           return result;
         };
       }
@@ -49,7 +76,8 @@ it.each(["before-maintenance-commit", "after-terminal"] as const)(
         return owner.executeObserved(claim.claim).receipt;
       }
       const receipts=Array.from({length:60},(_,n)=>{const r=submit(n);return {id:r.id,next:r.next};});
-      writeSync(1,JSON.stringify(receipts)); armed=true;
+      if (${JSON.stringify(stage)} === 'after-terminal' && !cacheSetup) throw new Error('hot-journal cache setup not reached');
+      writeSync(1,JSON.stringify({receipts, cacheSetup})); armed=true;
       if(${JSON.stringify(stage)}==='before-maintenance-commit'){now=86401001;owner.maintain();}else submit(60);
       throw new Error('fault did not terminate process');
     `;
@@ -57,10 +85,39 @@ it.each(["before-maintenance-commit", "after-terminal"] as const)(
       encoding: "utf8",
       timeout: 20000,
     });
+    const journal = existsSync(`${file}-journal`) ? readFileSync(`${file}-journal`) : undefined;
+    if (process.env.BDP_HOT_JOURNAL_EVIDENCE)
+      writeFileSync(
+        `${process.env.BDP_HOT_JOURNAL_EVIDENCE}-${stage}.json`,
+        JSON.stringify(
+          {
+            stage,
+            script,
+            child: {
+              status: child.status,
+              signal: child.signal,
+              error: child.error?.message ?? null,
+              stdout: child.stdout,
+              stderr: child.stderr,
+            },
+            journalBytes: journal?.length ?? null,
+            journalHeaderHex: journal?.subarray(0, 8).toString("hex") ?? null,
+          },
+          null,
+          2,
+        ) + "\n",
+      );
     expect(child.error).toBeUndefined();
     expect(child.signal, child.stderr).toBe("SIGKILL");
-    const receipts = JSON.parse(child.stdout) as { id: string; next: string }[];
+    const { receipts, cacheSetup } = JSON.parse(child.stdout) as {
+      receipts: { id: string; next: string }[];
+      cacheSetup: { matchedSql: string; requestedPages: number; actualPages: number } | null;
+    };
     expect(receipts).toHaveLength(60);
+    if (stage === "after-terminal") {
+      expect(cacheSetup).toMatchObject({ requestedPages: 8, actualPages: 8 });
+      expect(isDeleteJournalSetup(cacheSetup?.matchedSql ?? "")).toBe(true);
+    } else expect(cacheSetup).toBeNull();
     // A nonzero rollback-journal header distinguishes an actual recovery case
     // from the harmless postcommit exit covered by the paging smoke.
     expect(readFileSync(`${file}-journal`).subarray(0, 8)).toEqual(
