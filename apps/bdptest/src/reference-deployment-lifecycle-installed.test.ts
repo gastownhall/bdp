@@ -41,6 +41,14 @@ type Session = {
   close: End | null;
   exited: Promise<End>;
   closed: Promise<End>;
+  drained: Promise<void>;
+  channels: {
+    stdoutEof: boolean;
+    stderrEof: boolean;
+    stdoutClosed: boolean;
+    stderrClosed: boolean;
+    ipcDisconnected: boolean;
+  };
   ready: Record<string, unknown> | null;
   messages: unknown[];
   stdout: string;
@@ -185,7 +193,7 @@ async function cohort(
       const cleanup = await Promise.allSettled(
         f.sessions.map(async (session) => {
           try {
-            await limited(Promise.all([session.exited, session.closed]), cleanupEnd);
+            await limited(Promise.all([session.exited, session.drained]), cleanupEnd);
           } catch (error) {
             if (!session.exit) session.child.kill("SIGKILL");
             throw error;
@@ -202,7 +210,7 @@ async function cohort(
         cleanup.every((r) => r.status === "fulfilled") &&
         parentResults.every((r) => r.status === "fulfilled") &&
         f.parentOwnershipKnown() &&
-        f.sessions.every((s) => s.exit !== null && s.close !== null) &&
+        f.sessions.every((s) => s.exit !== null && Object.values(s.channels).every(Boolean)) &&
         f.pending.size === 0;
       for (const socket of f.peers) {
         socket.resume();
@@ -248,6 +256,7 @@ async function cohort(
           ready: s.ready,
           exit: s.exit,
           close: s.close,
+          channels: s.channels,
           outputBytes: s.outputBytes,
         })),
         lifecycle: {
@@ -505,7 +514,18 @@ async function fixture(
       stdio: ipc ? ["ignore", "pipe", "pipe", "ipc"] : ["ignore", "pipe", "pipe"],
     });
     const exit = Promise.withResolvers<End>(),
-      close = Promise.withResolvers<End>();
+      close = Promise.withResolvers<End>(),
+      drained = Promise.withResolvers<void>();
+    const channels = {
+      stdoutEof: false,
+      stderrEof: false,
+      stdoutClosed: false,
+      stderrClosed: false,
+      ipcDisconnected: !ipc,
+    };
+    const observeDrained = () => {
+      if (session.exit !== null && Object.values(channels).every(Boolean)) drained.resolve();
+    };
     const session: Session = {
       child,
       category,
@@ -514,6 +534,8 @@ async function fixture(
       close: null,
       exited: exit.promise,
       closed: close.promise,
+      drained: drained.promise,
+      channels,
       ready: null,
       messages: [],
       stdout: "",
@@ -524,6 +546,7 @@ async function fixture(
     child.once("exit", (code, signal) => {
       session.exit = { code, signal };
       exit.resolve(session.exit);
+      observeDrained();
     });
     child.once("close", (code, signal) => {
       session.close = { code, signal };
@@ -535,6 +558,23 @@ async function fixture(
     child.on("message", (message) => {
       session.messages.push(message);
     });
+    child.once("disconnect", () => {
+      channels.ipcDisconnected = true;
+      observeDrained();
+    });
+    for (const [stream, eof, closed] of [
+      [child.stdout, "stdoutEof", "stdoutClosed"],
+      [child.stderr, "stderrEof", "stderrClosed"],
+    ] as const) {
+      stream?.once("end", () => {
+        channels[eof] = true;
+        observeDrained();
+      });
+      stream?.once("close", () => {
+        channels[closed] = true;
+        observeDrained();
+      });
+    }
     for (const [stream, field] of [
       [child.stdout, "stdout"],
       [child.stderr, "stderr"],
@@ -549,9 +589,9 @@ async function fixture(
       });
     return session;
   }
-  const ends = async (session: Session, bound = 10000) =>
+  const ends = async (session: Session, bound = 10000, disconnected = false) =>
     limited(
-      Promise.all([session.exited, session.closed]),
+      Promise.all([session.exited, disconnected ? session.drained : session.closed]),
       Math.min(started + 45000, performance.now() + bound),
     );
   async function launch(create = true, holdPort = false) {
@@ -620,9 +660,12 @@ async function fixture(
         session.child.disconnect();
       } else expect(session.child.kill(mode)).toBe(true);
     }
-    await ends(session);
+    // Node24 can omit ChildProcess.close after parent.disconnect(). Observe all
+    // actual channel closures independently; never synthesize that native event.
+    await ends(session, 10000, mode === "disconnect");
     expect(session.exit).toEqual({ code: 0, signal: null });
-    expect(session.close).toEqual(session.exit);
+    if (mode === "disconnect") expect(Object.values(session.channels).every(Boolean)).toBe(true);
+    else expect(session.close).toEqual(session.exit);
   }
   async function send(
     label: string,
@@ -961,7 +1004,11 @@ async function fixture(
     const config = path.join(root, "startup.json");
     writeFileSync(
       config,
-      JSON.stringify({ scope: input.scope, server: input.server, bdptest: { deploymentFile } }),
+      JSON.stringify({
+        scope: input.scope,
+        server: input.server,
+        bdptest: { deploymentFile: path.join(root, "missing-deployment.json") },
+      }),
     );
     writeFileSync(deploymentFile, JSON.stringify(document));
     const publicEntry = realpathSync(
@@ -973,7 +1020,8 @@ async function fixture(
     expect(session.exit).toEqual({ code: 2, signal: null });
     expect(session.close).toEqual(session.exit);
     expect(session.messages).toEqual([]);
-    expect(session.stderr).toContain("startup.profile_refused");
+    expect(session.stderr).toContain("startup.reference_refused");
+    expect(session.stderr).not.toContain("server.started");
     expect(
       existsSync(
         path.join(directory, profile === "read-update" ? "reference.sqlite" : "transaction.sqlite"),
@@ -1363,7 +1411,7 @@ it.each([
   60000,
 );
 it(
-  "I20 ordinary RU refusal plus three actual private entry guards",
+  "I20 ordinary RU missing-deployment refusal plus three actual private entry guards",
   async () =>
     cohort(
       "I20",
@@ -1381,7 +1429,7 @@ it(
   60000,
 );
 it(
-  "I21 ordinary TX refusal plus invalid configuration IPC guard",
+  "I21 ordinary TX missing-deployment refusal plus invalid configuration IPC guard",
   async () =>
     cohort(
       "I21",

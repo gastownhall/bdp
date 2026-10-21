@@ -1552,6 +1552,10 @@ describe("G11 source qualification and private containment", () => {
         types: "./dist/reference-deployment.d.ts",
         default: "./dist/reference-deployment.js",
       },
+      "./reference-startup": {
+        types: "./dist/reference-startup.d.ts",
+        default: "./dist/reference-startup.js",
+      },
     });
   });
 });
