@@ -1,0 +1,20 @@
+# Cumulative installed product carrier (WIP)
+
+This is a new replacement carrier on candidate `047682c664f11b65591ff0e309f19f5e0e12ccbc`, with one complete fixed fixture and private credential bank reused across sessions. It does not execute the historical17 test or qualify the complete Transactional profile.
+
+The finite requirements inventory selects exactly251 baseline requirements and13 retirements. Its carrier-unit assignment is work ownership, not a result. Five conditional role populations and two pending semantic intersections remain explicit. The first native bundle contains8 inheritedRead rows. Three additional batch/set positive scenarios are ported from the existing standalone source onto this exact fixture/configuration. No old standalone pass is pooled into this campaign.
+
+Use `BDP_CUMULATIVE_PRODUCT_ENTRY`, `SOURCE`, `BUILD`, `OUTPUT`, and `CREDENTIALS` (each prefixed `BDP_CUMULATIVE_PRODUCT_`) for installed execution. The credentials file is private0600 JSON, never committed; refs/principals/mutation flags are fixed by the composition source. Runtime payload, schema, fixture, authentication and policy identities must match across every session. Individual manifest caps remain1MiB/100000nodes/depth128.
+
+Current validation and all failed attempts are retained under `bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-product`. Source-preflight metadata is preserved beside this note. This checkpoint is deliberately incomplete; final carrier/evidence linkage and additional cohesive assertion ports follow.
+
+## First cohesive ordinary integration tranche
+
+All runtime observations so far bind the exact packed `047682c` payload, fixture SHA256 `12a2edd9c015c681e71527a1689dc10bbf057e80edd8e421b0f08de40a6bcb2b`, one unchanged private credential bank, and observed runtime configuration identity `73bdc0e24d65a8ab4444c5698b84d368a39cdcbbe2caad3ef7d913a317b1930b`. The22 scenario units cover550 successful selected-run HTTP exchanges. Failed authoring runs and an accidental unfiltered repeat of seven newly composed Read rows remain separately retained; the repeat earns no extra coverage.
+
+`transactional-cumulative-product-carrier-plan.json` is the current per-ID carrier scope:26 complete-selected-predicate **proposals**,26 partial mappings,194 unimplemented carriers in this tranche, and5 explicit unselected role populations. It does not promote the finite map. The original requirements JSON preserves the initial normative selection/work assignment; its initial unexecuted state is historical, not a contradictory result declaration. Each251 ID has one responsibility bundle; a source test can exercise more than one predicate. Only the8 Read rows currently have native executable-manifest actions. Direct source assertions are labeled as such, not invented portable-manifest coverage.
+
+The new source ports preserve literal positive assertions from batch/set, key grammar, receipt pages, Snapshot rendezvous, wildcard ownership, Resource/incident directions, alias resolution, and mutation-surface installed tests. They execute on this fixture rather than pooling those standalone tests' old results. Optional History, hidden/rotated policy, genuine administrative clock/restore capabilities and client/replica roles are not manufactured. The private management companion is separately bound and cannot borrow the ordinary runtime identity. A later current-payload programme remains a distinct execution, not relabeled047 evidence.
+
+
+The last applicable Resource carrier adds9 actual exchanges on the same047 configuration: opaque external URN/pin echo, complete Link properties, untouched Bead open properties/common metadata after a real update, retained historical source pin, and no-local-endpoint rejection/no effect. It requires no foreign serving deployment. The earlier542 count was an author arithmetic error: mutation uniqueness has14 rather than15 exchanges, so the earlier tranche was541; the9 new exchanges bring it to550. Old notes remain in their commits and the external progress report records the correction.

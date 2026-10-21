@@ -1,0 +1,224 @@
+{
+  "kind": "TX_CUMULATIVE_PRODUCT_SOURCE_PREFLIGHT_1",
+  "base": "56a7b2432dee15b61a9fe64f50472165104962cd",
+  "worktree": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product",
+  "branch": "codex/vickie-cumulative-installed-product",
+  "taskState": "ACTIVE_IMPLEMENTATION_NOT_COMPLETE",
+  "assessmentInputs": [
+    {
+      "path": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-integration-assessment-final-20261021.md",
+      "bytes": 7301,
+      "sha256": "949b22fa3b3a9b704b92ec6ae8d00d8c611ed36c76a90f5f4a24bfb0b90c80a0"
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-integration-assessment-final-20261021.json",
+      "bytes": 213678,
+      "sha256": "a38325583c6ae8e02c03aa3f3cb0773d42a8a2e477ede96a77d10381eaad90d5"
+    }
+  ],
+  "selection": {
+    "requiredCount": 251,
+    "selectedInheritedRead": 43,
+    "note": "Standalone Read has44; TX explicitly retires read.discovery.document under transactional.discovery.document, so current canonical TX contains43 Read-prefixed rows. Factory loader confirms exact251 selection/13retired IDs.",
+    "retiredIds": [
+      "read-update.discovery.document",
+      "read-update.discovery.limits",
+      "read-update.discovery.operation-directory",
+      "read-update.idempotency.authorization-view",
+      "read-update.idempotency.expired",
+      "read-update.idempotency.expired-failure",
+      "read-update.idempotency.in-progress",
+      "read-update.idempotency.restore",
+      "read-update.idempotency.retention-minimum",
+      "read-update.sequence.internal-fault",
+      "read-update.singleton.idempotent-retry",
+      "read-update.singleton.result-headers",
+      "read.discovery.document"
+    ],
+    "responsibilityUnits": {
+      "read-core": 43,
+      "direct-discovery-http": 51,
+      "alias-owned-numeric": 24,
+      "sequence": 21,
+      "batch-set-idempotency": 43,
+      "retained-snapshot-feed-event": 48,
+      "administration-recovery-companion": 16,
+      "conditional-role": 5
+    },
+    "conditionalRoles": 5,
+    "noGapOverlap": "All251 source responsibility rows exactlyonce;8 current executableRead plans are explicit partial subset; all remaining planned/role/decision branches stay unexecuted, not PASS."
+  },
+  "artifactCosts": [
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/test-support/transactional-cumulative-product-fixture.json",
+      "bytes": 7240,
+      "sha256": "12a2edd9c015c681e71527a1689dc10bbf057e80edd8e421b0f08de40a6bcb2b",
+      "nodes": 98,
+      "depth": 4
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/test-support/transactional-cumulative-product-read-manifest.json",
+      "bytes": 179962,
+      "sha256": "c99d4832382e485eac0984195327774ef5055ff8f5d5ef51462a3e14031c541c",
+      "nodes": 5357,
+      "depth": 8
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/test-support/transactional-cumulative-product-requirements.json",
+      "bytes": 333677,
+      "sha256": "20f5d6f869e2e4055230a694d4c90b29e00bef7e81994776d2c12f06ce2261b3",
+      "nodes": 5560,
+      "depth": 5
+    }
+  ],
+  "unchangedArtifactCaps": {
+    "perArtifactBytes": 1048576,
+    "nodes": 100000,
+    "depth": 128,
+    "RU4MiBBorrowed": false
+  },
+  "singleConfiguration": {
+    "fixtureId": "tx-cumulative-product-v1",
+    "types": 11,
+    "schemas": 3,
+    "policy": "canonical initial all-visible, Historyfalse, no configured CORS; roles explicit in fixture",
+    "credentials": "Actual random tokens generated ONCE per campaign invocation, one immutable bank reused across all sessions/manifests, not yet generated/executed; actual digests must join before credit.",
+    "configurationChanges": "Any fixture/artifact/credential/policy identity change creates new qualification identity, never pooled."
+  },
+  "firstExecutableBundle": {
+    "id": "read-core-0",
+    "rows": 8,
+    "actions": 128,
+    "setupHTTP": 8,
+    "ordinaryPlannedHTTP": 136,
+    "sessions": 9,
+    "state": "Source bundle admitted in focused structural test; no installed HTTP yet; declarations remain partial pending full selected-clause port."
+  },
+  "sourceDonors": [
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-matrix.test.ts",
+      "bytes": 211603,
+      "sha256": "a757384d158bf62189bb144cb8283489309d936f48993105b3d841a64631704b",
+      "positiveAssertionsToPort": "lines4710\u20135427 inheritedRead source only, full existing8 request/conditional/header/body oracles; old17 excluded",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-batch-set-product-installed.test.ts",
+      "bytes": 18091,
+      "sha256": "ba4439df427c716828cf1eb197c1bf00e20ac6843674ca0ab5e2eb65596f61cc",
+      "positiveAssertionsToPort": "literal ordered label/pin postimages, whole rollback+retained failed retry, allno-op/mixed entries/full finite feed, inclusive/outside set cardinality",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-key-grammar-product-installed.test.ts",
+      "bytes": 18435,
+      "sha256": "b5d19e4588b7c2d31b70238308a2a4e42062c108295c2c56b2839805bcdeabed",
+      "positiveAssertionsToPort": "raw key multiplicity/bytes, singleton/batch/bodykey placement, min/max, case, exactretry, no-effects/full feed; source receiving plans",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-snapshot-rendezvous-product-installed.test.ts",
+      "bytes": 18080,
+      "sha256": "a22f2c299c5488f1e660114ceba00e89f8f455348c952ef97c78e5f0bc6b532a",
+      "positiveAssertionsToPort": "one complete67 record Snapshot/savedcheckpoint/exclusive actualsuffix/immutable baseline and complete postimages",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-receipt-pages-product-installed.test.ts",
+      "bytes": 13588,
+      "sha256": "46a82e38ec32683a59d2fdf8e5854b8aa459e7a1735e595e2b4dfaa728baa8e7",
+      "positiveAssertionsToPort": "32+1 receipt boundaries, full ordered postimages, GET/HEAD no-store/validators, foreign principal and ordinary reopen",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-receipt-detail-product-installed.test.ts",
+      "bytes": 17752,
+      "sha256": "5dd6de142ec3f2d5dc260b9def2d51be3e88ac522a449fe3286872a44d39a862",
+      "positiveAssertionsToPort": "genuine installed receipt detail lifetime/expiry branches; must inspect exact ordinary versus clock companion before port",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-wildcard-ownership-installed.test.ts",
+      "bytes": 25343,
+      "sha256": "d0d041bcd15c008cdb6ad1bfcc4997f0cd904fee7efd25ac61d62aaf43cbf5d4",
+      "positiveAssertionsToPort": "explicit/wildcard descriptor/inline/first-class/source revision/no-op/pertype+whole max literal oracles",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-numeric-product-installed.test.ts",
+      "bytes": 15428,
+      "sha256": "50ecc2050d7b1f6a2a4e9dc93a1a549f79a5a6aa1936d8d91858dc92c4f013fc",
+      "positiveAssertionsToPort": "authored literal numeric text/retained values/no-op and refusal controls, never JS-rounded fixture values",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-discovery-installed.test.ts",
+      "bytes": 65414,
+      "sha256": "5b2d59a9f959294a3e9899ec613b3d88073cbbc9da3b22bde069375695516f20",
+      "positiveAssertionsToPort": "complete discovery/operation directory/schema/declared limits from actual configured bank",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-resource-records-installed.test.ts",
+      "bytes": 19958,
+      "sha256": "96078f4a5e8c04bf9448390aa0012107f2c6b15ec89567a2a1c92fbe80f10e6a",
+      "positiveAssertionsToPort": "complete Bead/Link/properties view/no embedding and metadata/pin fields",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-alias-resolution-installed.test.ts",
+      "bytes": 16576,
+      "sha256": "834c1f3b61e4962894b5bc429541501e1783479c7c3605ff910e96f67eda5beb",
+      "positiveAssertionsToPort": "GET/HEAD307, real repoint/unknown alias and narrowly ruled receiving query404",
+      "executionCreditHere": false
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-cumulative-installed-product/apps/bdptest/src/transactional-collection-continuation-installed.test.ts",
+      "bytes": 15893,
+      "sha256": "60fa67114e59ba91ffe28de3a28793688d2bd127a82c30dcdee5f5670e4c6d3d",
+      "positiveAssertionsToPort": "actual full ordinary collection streams, stable continuations/order and fresh current reads",
+      "executionCreditHere": false
+    }
+  ],
+  "nextCohesiveDelta": "One shared installed campaign composition and same credential/config join; port ordinary mutation/Read/resource/alias/owned/numeric/receipt/Snapshot positives into bounded subsequent manifests, preserving literal full actual oracles and TX wire semantics. No new serial singleton PRs and no execution of historical17 test.",
+  "executionPlanBeforeFinalCampaign": {
+    "firstNativeBundleAggregateMs": 60000,
+    "ownerOuterSeconds": 90,
+    "requestMs": 5000,
+    "prepareCleanupMs": 10000,
+    "rawResponseBodyBytes": 1048576,
+    "rawRequestBodyBytes": 65536,
+    "note": "First136 HTTP is source-counted. Counts for subsequent ported manifests and combined action budget must be measured from their completed source before final campaign. No current timing/capacity fit theorem or uncounted whole251 run."
+  },
+  "actualChecks": {
+    "newSourceTestsPassed": 2,
+    "run": {
+      "path": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-product/preflight-unit/receipt.json",
+      "bytes": 2456,
+      "sha256": "d845f027268d1aa68fbd82b4e2a5c1ccea14b09b2ed7028675cb341403c825ae"
+    },
+    "result": {
+      "path": "/Users/dbox/repos/wt/vickie/bdp-integration-logs/bdp-write-product-reset-20261020/cumulative-installed-product/preflight-unit/vitest.json",
+      "bytes": 1428,
+      "sha256": "ca4f235da5aa6fb9544fd15ecd2915e1a095dbcc0c5e7e9a752ffe5a2103f207"
+    },
+    "elapsedSeconds": 1.2550657917745411,
+    "HTTPExecuted": 0,
+    "compiledImportedHistoricalTests": false
+  },
+  "scopeBoundaries": [
+    "No existing historical17 test changed/executed, no old17 result relabel, no first23/exhaustedDATA/proof1/stage24.",
+    "No runtime/schema/catalog/globalmanifest/map/plan/launch/candidate edits; own prefixed source only.",
+    "Pending erased-lineage identity eligibility and foreign-view+expired Snapshot collision remain isolated.",
+    "No claimed persistent consumer/retaining replica or fabricated History endpoint; conditional IDs stay accounted with exact clauses."
+  ],
+  "authoringCorrection": "Initial metadata responsibility routing omitted read-update.discovery.aliases and stopped before selection output; fixed routing to direct-discovery-http, then canonical source test passed. No backend/runtime call.",
+  "preservationCheckpoint": {
+    "status": "WIP carrier implementation, not cumulative qualification",
+    "originalPreflightPayload": "56a7b2432dee15b61a9fe64f50472165104962cd",
+    "actualInstalledPayload": "047682c664f11b65591ff0e309f19f5e0e12ccbc",
+    "currentChanges": "fixed11-Type bank; navigation requests discovered types directory at limit32 with all11 literal IDs; original bound artifact remains historical",
+    "observed": "read cohort8PASS, batch/set3PASS; failed authoring attempts retained; accidental seven-row newRead replay disclosed; no whole-row/profile promotion",
+    "privateCredentials": "one local0600 bank reused, only descriptor/hash published"
+  }
+}
