@@ -352,9 +352,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "read.discovery.scope-service-desc"
-      ],
+      "caseRefs": ["read.discovery.scope-service-desc"],
       "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
     },
     {
@@ -363,9 +361,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "read.discovery.canonical-navigation"
-      ],
+      "caseRefs": ["read.discovery.canonical-navigation"],
       "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
     },
     {
@@ -383,10 +379,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "resource-incident",
-        "external-properties"
-      ],
+      "caseRefs": ["resource-incident", "external-properties"],
       "remaining": null
     },
     {
@@ -395,9 +388,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "resource-incident"
-      ],
+      "caseRefs": ["resource-incident"],
       "remaining": null
     },
     {
@@ -406,11 +397,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "resource-incident",
-        "external-properties",
-        "wildcard"
-      ],
+      "caseRefs": ["resource-incident", "external-properties", "wildcard"],
       "remaining": null
     },
     {
@@ -419,11 +406,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "resource-incident",
-        "external-properties",
-        "wildcard"
-      ],
+      "caseRefs": ["resource-incident", "external-properties", "wildcard"],
       "remaining": null
     },
     {
@@ -432,9 +415,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "resource-incident"
-      ],
+      "caseRefs": ["resource-incident"],
       "remaining": null
     },
     {
@@ -533,9 +514,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "resource-incident"
-      ],
+      "caseRefs": ["resource-incident"],
       "remaining": null
     },
     {
@@ -553,9 +532,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "read.http.get-head"
-      ],
+      "caseRefs": ["read.http.get-head"],
       "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
     },
     {
@@ -564,9 +541,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "read.http.method-405"
-      ],
+      "caseRefs": ["read.http.method-405"],
       "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
     },
     {
@@ -593,9 +568,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "read.http.cache-cors"
-      ],
+      "caseRefs": ["read.http.cache-cors"],
       "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
     },
     {
@@ -622,10 +595,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "alias",
-        "mutation-uniqueness"
-      ],
+      "caseRefs": ["alias", "mutation-uniqueness"],
       "remaining": "Bare GET/HEAD/repoint and owner-observed unknown404; receiving query/fragment404 and optional unadvertised-alias deployment not executed in this configuration."
     },
     {
@@ -634,10 +604,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "alias",
-        "mutation-uniqueness"
-      ],
+      "caseRefs": ["alias", "mutation-uniqueness"],
       "remaining": "Bare GET/HEAD/repoint and owner-observed unknown404; receiving query/fragment404 and optional unadvertised-alias deployment not executed in this configuration."
     },
     {
@@ -691,9 +658,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "wildcard"
-      ],
+      "caseRefs": ["wildcard"],
       "remaining": "Valid mixed/only descriptors, whole/pertype max/noeffect and full inline/current records; invalid descriptor inputs/hidden policy closure not supplied by this all-visible fixture."
     },
     {
@@ -702,9 +667,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "wildcard"
-      ],
+      "caseRefs": ["wildcard"],
       "remaining": "Valid mixed/only descriptors, whole/pertype max/noeffect and full inline/current records; invalid descriptor inputs/hidden policy closure not supplied by this all-visible fixture."
     },
     {
@@ -722,9 +685,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "wildcard"
-      ],
+      "caseRefs": ["wildcard"],
       "remaining": null
     },
     {
@@ -733,9 +694,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "wildcard"
-      ],
+      "caseRefs": ["wildcard"],
       "remaining": "Valid mixed/only descriptors, whole/pertype max/noeffect and full inline/current records; invalid descriptor inputs/hidden policy closure not supplied by this all-visible fixture."
     },
     {
@@ -753,9 +712,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "read.http.accept-negotiation"
-      ],
+      "caseRefs": ["read.http.accept-negotiation"],
       "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
     },
     {
@@ -764,9 +721,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "read.http.conditional-reads"
-      ],
+      "caseRefs": ["read.http.conditional-reads"],
       "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
     },
     {
@@ -775,9 +730,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "read.http.head-conditional-parity"
-      ],
+      "caseRefs": ["read.http.head-conditional-parity"],
       "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
     },
     {
@@ -885,9 +838,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "wildcard"
-      ],
+      "caseRefs": ["wildcard"],
       "remaining": "Actual shared operation semantics through TXbatch; ordinary owned singleton receiving path is not executed by this carrier."
     },
     {
@@ -896,9 +847,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "wildcard"
-      ],
+      "caseRefs": ["wildcard"],
       "remaining": "Actual shared operation semantics through TXbatch; ordinary owned singleton receiving path is not executed by this carrier."
     },
     {
@@ -943,10 +892,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "key-http-fields",
-        "key-sequence-members"
-      ],
+      "caseRefs": ["key-http-fields", "key-sequence-members"],
       "remaining": null
     },
     {
@@ -955,9 +901,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "mutation-anonymous"
-      ],
+      "caseRefs": ["mutation-anonymous"],
       "remaining": null
     },
     {
@@ -984,9 +928,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "mutation-methods"
-      ],
+      "caseRefs": ["mutation-methods"],
       "remaining": null
     },
     {
@@ -1373,9 +1315,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "mutation-uniqueness"
-      ],
+      "caseRefs": ["mutation-uniqueness"],
       "remaining": "Historical deleted identity alias collision plus livealias collision/release, not hidden-resource creation policy variants."
     },
     {
@@ -1438,11 +1378,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "mutation-methods",
-        "mutation-anonymous",
-        "mutation-uniqueness"
-      ],
+      "caseRefs": ["mutation-methods", "mutation-anonymous", "mutation-uniqueness"],
       "remaining": null
     },
     {
@@ -1469,10 +1405,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "batch-labels",
-        "batch-rollback-noop"
-      ],
+      "caseRefs": ["batch-labels", "batch-rollback-noop"],
       "remaining": null
     },
     {
@@ -1481,9 +1414,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "batch-labels"
-      ],
+      "caseRefs": ["batch-labels"],
       "remaining": null
     },
     {
@@ -1492,9 +1423,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "batch-rollback-noop"
-      ],
+      "caseRefs": ["batch-rollback-noop"],
       "remaining": null
     },
     {
@@ -1566,9 +1495,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "batch-rollback-noop"
-      ],
+      "caseRefs": ["batch-rollback-noop"],
       "remaining": null
     },
     {
@@ -1595,11 +1522,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "batch-cardinality",
-        "batch-rollback-noop",
-        "receipt-pages"
-      ],
+      "caseRefs": ["batch-cardinality", "batch-rollback-noop", "receipt-pages"],
       "remaining": "Actual updateWhere/cardinality/postimages/matched facts; omitted selected set variants/deletion and conditional attribution branches remain explicit."
     },
     {
@@ -1608,11 +1531,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "batch-cardinality",
-        "batch-rollback-noop",
-        "receipt-pages"
-      ],
+      "caseRefs": ["batch-cardinality", "batch-rollback-noop", "receipt-pages"],
       "remaining": "Actual updateWhere/cardinality/postimages/matched facts; omitted selected set variants/deletion and conditional attribution branches remain explicit."
     },
     {
@@ -1621,9 +1540,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "batch-cardinality"
-      ],
+      "caseRefs": ["batch-cardinality"],
       "remaining": null
     },
     {
@@ -1641,11 +1558,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "batch-cardinality",
-        "batch-rollback-noop",
-        "receipt-pages"
-      ],
+      "caseRefs": ["batch-cardinality", "batch-rollback-noop", "receipt-pages"],
       "remaining": "Actual updateWhere/cardinality/postimages/matched facts; omitted selected set variants/deletion and conditional attribution branches remain explicit."
     },
     {
@@ -1654,10 +1567,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "mutation-anonymous",
-        "mutation-uniqueness"
-      ],
+      "caseRefs": ["mutation-anonymous", "mutation-uniqueness"],
       "remaining": "Actual create/delete/putAlias/deleteAlias and precise receipts; remaining singleton shapes not all executed here."
     },
     {
@@ -1666,10 +1576,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "mutation-anonymous",
-        "mutation-uniqueness"
-      ],
+      "caseRefs": ["mutation-anonymous", "mutation-uniqueness"],
       "remaining": "Actual create/delete/putAlias/deleteAlias and precise receipts; remaining singleton shapes not all executed here."
     },
     {
@@ -1678,9 +1585,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "receipt-pages"
-      ],
+      "caseRefs": ["receipt-pages"],
       "remaining": null
     },
     {
@@ -1689,9 +1594,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "receipt-pages"
-      ],
+      "caseRefs": ["receipt-pages"],
       "remaining": null
     },
     {
@@ -1709,9 +1612,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "receipt-pages"
-      ],
+      "caseRefs": ["receipt-pages"],
       "remaining": null
     },
     {
@@ -1729,9 +1630,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "receipt-pages"
-      ],
+      "caseRefs": ["receipt-pages"],
       "remaining": "Same-view later current headers versus old body; replacement Authorization View/minimum semantics not selected here."
     },
     {
@@ -1785,9 +1684,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "wildcard"
-      ],
+      "caseRefs": ["wildcard"],
       "remaining": null
     },
     {
@@ -1796,9 +1693,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "wildcard"
-      ],
+      "caseRefs": ["wildcard"],
       "remaining": null
     },
     {
@@ -1897,10 +1792,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "key-http-fields",
-        "key-sequence-members"
-      ],
+      "caseRefs": ["key-http-fields", "key-sequence-members"],
       "remaining": null
     },
     {
@@ -1927,9 +1819,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "batch-rollback-noop"
-      ],
+      "caseRefs": ["batch-rollback-noop"],
       "remaining": "Same failed receipt retry after rolled-back batch; other retained failures/crosscarrier boundaries not generalized."
     },
     {
@@ -2127,9 +2017,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "snapshot-rendezvous"
-      ],
+      "caseRefs": ["snapshot-rendezvous"],
       "remaining": "Actual67baseline, full32+2/32+1, one later pos4 exclusive full3postimage group; only IDs actually in canonical selection are retained below."
     },
     {
@@ -2228,9 +2116,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "snapshot-rendezvous"
-      ],
+      "caseRefs": ["snapshot-rendezvous"],
       "remaining": null
     },
     {
@@ -2239,9 +2125,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "snapshot-rendezvous"
-      ],
+      "caseRefs": ["snapshot-rendezvous"],
       "remaining": "Actual67baseline, full32+2/32+1, one later pos4 exclusive full3postimage group; only IDs actually in canonical selection are retained below."
     },
     {
@@ -2421,9 +2305,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "mutation-methods"
-      ],
+      "caseRefs": ["mutation-methods"],
       "remaining": null
     },
     {
@@ -2612,9 +2494,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "partial",
-      "caseRefs": [
-        "snapshot-rendezvous"
-      ],
+      "caseRefs": ["snapshot-rendezvous"],
       "remaining": "Actual67baseline, full32+2/32+1, one later pos4 exclusive full3postimage group; only IDs actually in canonical selection are retained below."
     },
     {
@@ -2632,9 +2512,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "receipt-pages"
-      ],
+      "caseRefs": ["receipt-pages"],
       "remaining": null
     },
     {
@@ -2652,9 +2530,7 @@
       "conditionalRole": null,
       "pendingSubbranch": null,
       "implementationScope": "complete-selected-predicate-proposed",
-      "caseRefs": [
-        "receipt-pages"
-      ],
+      "caseRefs": ["receipt-pages"],
       "remaining": null
     },
     {
