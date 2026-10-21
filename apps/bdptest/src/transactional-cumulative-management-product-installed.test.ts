@@ -706,9 +706,17 @@ async function erasureRestore(h: Harness) {
   expect(fresh.value.beads.items).toEqual(newSnap.value.beads.items);
   expect(fresh.value.links).toEqual(newSnap.value.links);
   const feed = await h.send("changes/?after=genesis");
-  expect(feed.status).toBe(200);
-  expect(feed.value.groups).toHaveLength(1);
-  expect(feed.value.groups[0]).toMatchObject({
+  // The permanent prefix exists before serving, but genesis is before its
+  // erasure fence. A finite client bootstraps from the complete current ledger.
+  expect(feed.status).toBe(410);
+  expect(feed.value.code).toBe("cursor-expired");
+  const native = restored.result as {
+    history: { groups: ReturnType<typeof JSON.parse>[] };
+    ledger: unknown[];
+  };
+  expect(native.ledger).toEqual(fresh.value.erasures);
+  expect(native.history.groups).toHaveLength(1);
+  expect(native.history.groups[0]).toMatchObject({
     position: "pos-1",
     previousPosition: "pos-0",
     changes: [],
@@ -716,6 +724,10 @@ async function erasureRestore(h: Harness) {
     eventCount: 0,
     erasures: fresh.value.erasures,
   });
+  const caughtUp = await h.send("changes/?after=" + encodeURIComponent(fresh.value.checkpoint));
+  expect(caughtUp.status).toBe(200);
+  expect(caughtUp.value.groups).toEqual([]);
+  expect(caughtUp.value.next).toBeNull();
   for (const target of [
     newSnap.value.id,
     "changes/?after=" + encodeURIComponent(newSnap.value.checkpoint),
