@@ -1,0 +1,9 @@
+# Installed initial Snapshot HEAD
+
+This NEW single case exercises the dedicated initial `/snapshot` HEAD preflight path on the accepted unchanged installed 5f3 payload, ordinary 73bd fixed fixture and private role bank. Five HEAD decisions, including three with seven live retained handles, precede the eighth successful independent GET. The ninth GET and HEAD both refuse at the current native eight-handle boundary; the first manifest and its issued 33rd-Bead cursor remain usable. Complete Resource bodies, original receipt revisions, anchor/expiry, empty Link stream and the two unchanged Scope groups are checked.
+
+The agreed specification says internal allocation is an implementation detail. The eight-slot observation is an implementation regression oracle, not a new universal BDP zero-allocation requirement. HEAD must remain bodyless and expose no usable handle; required cache/context metadata remain present. This case does not select expiry, minimum-position, foreign context, policy rotation, History, SSE or a durable consumer. Existing accepted cases are not replayed.
+
+The existing stream runtime helper is reused unchanged for raw HTTP, source/schema/module/configuration binding, native PID/code/signal/channel EOF/reaping and temporary-store cleanup. It imports source test support but launches the pinned installed process. No server build or pack is selected for this unit.
+
+One NEW case passed on attempt 3 with 23 HTTP exchanges (7 HEAD, 14 GET, 2 POST). The 61 retained observations also include two failed author attempts: first a public problem-body oracle accidentally included source-private fields, then a feed oracle assumed the default page held both groups. Both source snapshots, raw responses, failures and clean native terminals remain retained. Only this failed NEW case was retried. No old passed cohort, server build or package creation ran.

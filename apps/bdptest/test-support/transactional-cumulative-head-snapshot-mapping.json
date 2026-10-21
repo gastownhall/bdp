@@ -1,0 +1,55 @@
+{
+  "kind": "finite-installed-product-observation",
+  "requirement": "transactional.http.head-parity",
+  "sourceBase": "254a4cf6a0693b0a83fc535bb5f77be200d4505f",
+  "runtimeSource": "5f3a67e89d62a0dcb4e9a7b9a6cb78b2c0a3e50c",
+  "configuration": "73bdc0e24d65a8ab4444c5698b84d368a39cdcbbe2caad3ef7d913a317b1930b",
+  "installedPayload": "cf800588db0c63b26c33647717eb44330647d4958fa7b8c6b3b23c0b82495e11",
+  "selectedClauses": [
+    {
+      "source": "docs/specs/bdp.md#conditional-reads-and-head",
+      "text": "HEAD retains the corresponding GET authorization, query, cursor, media negotiation, and precondition decision and MUST send no response body.",
+      "newWitness": "InitialSnapshot creation HEAD dedicated authoritativepreflight path;bodyless200+503,requiredcache/context,previouslyissuedmanifest/pageGETHEAD200 completebodystate retained.",
+      "limits": "This new case alone does not demonstrate authorization/media/preconditions/SSE across other routes; prior accepted reports supply those bounded observations."
+    },
+    {
+      "source": "docs/specs/bdp.md#transactional-conditional-reads",
+      "text": "For acceptable SSE, HEAD returns the response metadata and ends without frames; it MUST NOT remain open merely to stream events.",
+      "newWitness": null,
+      "existingAcceptedWitness": "PR251source4eb69add successfulthreefamilies; not rerun here."
+    }
+  ],
+  "snapshotSpecificRationale": {
+    "specLines": "5902-5911",
+    "required": "No usableHEADhandle/body;requiredmetadata;noexistinghandle renewal;laterGETindependent manifest.",
+    "implementationInvariant": "Currentnative8liveHandles,32pageitems; fiveHEAD do not consume retention slots; eightGETs success,ninth503; retainedfirstmanifestexpiry/bodyandissued33rdBeadpageunchanged.",
+    "notNormative": "Zerointernalallocation is not a public requirement; internalallocation is implementationdetail."
+  },
+  "case": "NEW TX initial Snapshot HEAD preserves native handle capacity and issued page",
+  "latest": {
+    "attempt": "attempt3",
+    "cases": 1,
+    "HTTP": 23,
+    "HEAD": 7,
+    "GET": 14,
+    "POST": 2,
+    "passed": true
+  },
+  "history": {
+    "attempt1": {
+      "HTTP": 16,
+      "failure": "authororacle expected privateproblem title/retryAfter in publicbody; actualpublicprojection readandfixed"
+    },
+    "attempt2": {
+      "HTTP": 22,
+      "failure": "authorfeedoracle assumed default pagecontainedtwogroups; correctedtoexistingnext-followingfeed helper"
+    },
+    "allObservedHTTP": 61,
+    "noPassedOldCohortReplay": true
+  },
+  "residuals": [
+    "No minimum/foreign/expiry/policy/History branch newly selected.",
+    "No full251/profile/stage24 award or owner selfacceptance.",
+    "Other accepted finiteHEAD cases keep original package/configuration identities."
+  ]
+}
