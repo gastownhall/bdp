@@ -16,7 +16,13 @@ async function main() {
   const { createNodeLifecycleScheduler } = await load("sequence-executor.js");
   const { installedPayloadIdentity } = await load("installed-payload.js");
   const native = createNodeLifecycleScheduler();
-  type Turn = { ordinal: number; original: () => void; cancelled: boolean; released: boolean };
+  type Turn = {
+    ordinal: number;
+    original: () => void;
+    cancelled: boolean;
+    released: boolean;
+    cancel?: () => void;
+  };
   const turns: Turn[] = [];
   const notifications: (() => void)[] = [];
   let draining = false;
@@ -33,8 +39,7 @@ async function main() {
             released: draining,
           };
           turns.push(turn);
-          let cancel: (() => void) | undefined;
-          if (draining) cancel = native.turn(original);
+          if (draining) turn.cancel = native.turn(original);
           for (const notify of notifications.splice(0)) notify();
           return () => {
             turn.cancelled = true;
