@@ -179,13 +179,16 @@ it("NEW RU children allocate distinct live listeners in-child, retain canonical 
       throw Error("occupied live child port unexpectedly available");
     } catch (error) {
       const cause = error as Error & { qualification?: unknown; qualificationProcess?: any };
+      expectedRefusal = { qualification: cause.qualification, process: cause.qualificationProcess };
       expect(cause.qualification).toMatchObject({ phase: "candidate-start", code: "EADDRINUSE" });
-      expect(cause.qualificationProcess).toMatchObject({
-        code: 2,
-        signal: null,
-        stdoutEOF: true,
-        stderrEOF: true,
-      });
+      expect(cause.qualificationProcess).toMatchObject({ stdoutEOF: true, stderrEOF: true });
+      // The unchanged launcher kills on a refused ready message. Either the
+      // child's diagnostic exit2 or that explicit SIGKILL can win this race.
+      expect(
+        (cause.qualificationProcess.code === 2 && cause.qualificationProcess.signal === null) ||
+          (cause.qualificationProcess.code === null &&
+            cause.qualificationProcess.signal === "SIGKILL"),
+      ).toBe(true);
       let absent: unknown;
       try {
         process.kill(cause.qualificationProcess.pid, 0);
@@ -193,7 +196,6 @@ it("NEW RU children allocate distinct live listeners in-child, retain canonical 
         absent = error;
       }
       expect(absent).toMatchObject({ code: "ESRCH" });
-      expectedRefusal = { qualification: cause.qualification, process: cause.qualificationProcess };
     }
     await close(first);
     const reopened = await launch({ ...explicit, create: false });

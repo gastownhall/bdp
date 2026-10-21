@@ -4510,7 +4510,7 @@ it.each([
     failed: "properties-0",
   },
 ])(
-  "detects reference post-wire corruption $action",
+  "detects reference post-wire corruption $action ($failed)",
   async (control) => {
     const report = await run(
       undefined,
