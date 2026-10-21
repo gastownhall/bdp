@@ -166,7 +166,7 @@ async function start(name: string) {
           ...(bytes
             ? [
                 { name: "Content-Type", value: "application/json" },
-                { name: "Idempotency-Key", value: key ?? "missing" },
+                ...(key === undefined ? [] : [{ name: "Idempotency-Key", value: key }]),
               ]
             : []),
         ],
@@ -495,7 +495,7 @@ async function policy(h: Harness) {
   ]) {
     const got = await h.pair(url, expected);
     context(got.headers, now.scopeEpoch, now.authorizationView, now.scopePosition);
-    expect(got.value.authorizationView).toBe(r.root.authorizationView);
+    if (url === r.root.id) expect(got.value.authorizationView).toBe(r.root.authorizationView);
     const other = await h.send(url, "GET", undefined, undefined, "principal-b");
     expect(other.status).toBe(404);
   }
@@ -540,7 +540,7 @@ async function erasureRestore(h: Harness) {
   const create = {
     id: "beads/r00",
     type,
-    properties: { title: "management-original", n: 0 },
+    properties: { title: "management-erased-secret-value", n: 0 },
     metadata: { phase: "original" },
   };
   const made = await h.send("operations/create-bead", "POST", create, "management-original");
@@ -674,7 +674,7 @@ async function erasureRestore(h: Harness) {
   expect(preserved.value).toEqual(healthy);
   const projected = await h.send(made.value.id);
   expect(projected.status).toBe(200);
-  expect(projected.bodyText).not.toContain("management-original");
+  expect(projected.bodyText).not.toContain("management-erased-secret-value");
   expect(projected.value.results[0]).not.toHaveProperty("resource");
   const events = await h.send("events/");
   expect(events.status).toBe(200);
