@@ -16,7 +16,6 @@ const build = process.env.BDP_NUMERIC_PRODUCT_BUILD;
 const output = process.env.BDP_NUMERIC_PRODUCT_OUTPUT;
 const scope = "https://reference.invalid/acme/";
 const type = `${scope}types/numeric`;
-const schema = `${scope}schemas/numeric`;
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const { launchInstalledTransaction } = await import(
   new URL("../../../scripts/transaction-installed-observation.mjs", import.meta.url).href
@@ -39,6 +38,10 @@ it.skipIf(!entry)(
     expect(schemaBytes.equals(await readFile(path.join(root, "schemas/bdp-v0.schema.json")))).toBe(
       true,
     );
+    const fixtureBytes = await readFile(
+      new URL("../test-support/transactional-numeric-fixture.json", import.meta.url),
+    );
+    const fixture = JSON.parse(fixtureBytes.toString("utf8"));
     const directory = await mkdtemp(path.join(tmpdir(), "bdp-numeric-product-"));
     const token = randomBytes(32).toString("base64url");
     const configuration = {
@@ -46,41 +49,7 @@ it.skipIf(!entry)(
       directory,
       create: true,
       credentials: [{ token, principal: "numeric-writer", canMutate: true }],
-      artifacts: {
-        descriptors: [
-          {
-            retrievalUri: type,
-            utf8: JSON.stringify({
-              id: type,
-              name: "Numeric",
-              describes: "bead",
-              conformsTo: [],
-              propertiesSchema: schema,
-            }),
-          },
-        ],
-        schemas: [
-          {
-            retrievalUri: schema,
-            utf8: JSON.stringify({
-              $id: schema,
-              type: "object",
-              properties: {
-                n: { type: "number" },
-                z: { type: "number" },
-                nested: {
-                  type: "object",
-                  properties: { values: { type: "array", items: { type: "number" } } },
-                  required: ["values"],
-                  additionalProperties: false,
-                },
-              },
-              required: ["n", "z", "nested"],
-              additionalProperties: false,
-            }),
-          },
-        ],
-      },
+      artifacts: fixture.artifacts,
     };
     const controller = new AbortController();
     const watchdog = setTimeout(() => controller.abort(Error("numeric product deadline")), 20000);
@@ -105,9 +74,7 @@ it.skipIf(!entry)(
         }),
       );
       binding = installedTransactionBinding(child.ready, source, {
-        bytes: await readFile(
-          path.join(root, "packages/conformance/test-support/transactional/fixture-v1.json"),
-        ),
+        bytes: fixtureBytes,
       });
       const address = new URL(String(child.ready.listenUrl));
       let epoch: string | undefined;

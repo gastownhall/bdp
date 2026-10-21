@@ -8,6 +8,11 @@ shared runner. Set all four `BDP_NUMERIC_PRODUCT_*` variables (`ENTRY`, `SOURCE`
 `ENTRY` is the installed server's `transaction-installed-process.js`, `BUILD` is
 the matching clean server `dist` directory, and `SOURCE` identifies that build.
 The test compares every server JS body and the packaged schema before launch.
+Its explicit `transactional-numeric-fixture.json` now supplies the custom numeric
+Type/schema bytes to both the installation configuration and fixture binding.
+The separate `transactional-numeric-fixture.test.ts` validates only metadata;
+with `BDP_NUMERIC_PRIOR_OBSERVATION` it also checks the real binding parser against
+the retained served identity fields, without launching the installed case.
 
 The raw request literals `1`, `1.0`, `1e0`, `-0`, and `0` check exact-decimal
 no-op revision and position behavior. A complete initial nested document also
@@ -35,3 +40,13 @@ external integration logs. No old cohort or proof attempt was selected. The
 20-second fixture watchdog and retained outer runner logs bound the new case;
 cleanup attempts child close, evidence write and temporary-directory removal
 independently, retaining all errors.
+
+The original successful run at `19db784` used the default
+`reference-transactional-v1` fixture label/digest in its conformance binding,
+although the actual installed setup used the custom numeric Type/schema above.
+Its actual `runtimeConfigurationIdentity` still identifies that numeric setup.
+This metadata limitation does not discard or relabel the captured numeric
+behavior: original code, binding, configuration identity and wire evidence remain
+unchanged. The explicit numeric descriptor is a correction for future runs; two
+new pure metadata checks and static checks validate it, with no repeat of the
+passed installed case or claim of a newly observed corrected installed binding.
