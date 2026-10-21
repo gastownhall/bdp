@@ -492,6 +492,14 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       check();
       return owner.tombstoneLiveBeadVersion(...args);
     },
+    correctLiveLinkVersion(...args: Parameters<Owner["correctLiveLinkVersion"]>) {
+      check();
+      return owner.correctLiveLinkVersion(...args);
+    },
+    tombstoneLiveLinkVersion(...args: Parameters<Owner["tombstoneLiveLinkVersion"]>) {
+      check();
+      return owner.tombstoneLiveLinkVersion(...args);
+    },
     assertPublication: owner.assertPublication,
     acquireChangePublication: owner.acquireChangePublication,
     changes(

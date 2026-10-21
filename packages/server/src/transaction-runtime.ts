@@ -106,6 +106,8 @@ type TransactionRuntimeAdministration = Readonly<{
   eraseHistoricalVersions: ReturnType<typeof createTransactionService>["eraseHistoricalVersions"];
   correctLiveBeadVersion: ReturnType<typeof createTransactionService>["correctLiveBeadVersion"];
   tombstoneLiveBeadVersion: ReturnType<typeof createTransactionService>["tombstoneLiveBeadVersion"];
+  correctLiveLinkVersion: ReturnType<typeof createTransactionService>["correctLiveLinkVersion"];
+  tombstoneLiveLinkVersion: ReturnType<typeof createTransactionService>["tombstoneLiveLinkVersion"];
 }>;
 const runtimeAdministrations = new WeakMap<object, TransactionRuntimeAdministration>();
 
@@ -139,6 +141,8 @@ export async function startTransactionRuntime(
       eraseHistoricalVersions: runtime.eraseHistoricalVersions,
       correctLiveBeadVersion: runtime.correctLiveBeadVersion,
       tombstoneLiveBeadVersion: runtime.tombstoneLiveBeadVersion,
+      correctLiveLinkVersion: runtime.correctLiveLinkVersion,
+      tombstoneLiveLinkVersion: runtime.tombstoneLiveLinkVersion,
     }),
   );
   return facade;
@@ -582,6 +586,18 @@ async function startTransactionRuntimeCore(
     ) => {
       if (closing) throw new Error("transaction runtime is closing");
       return service!.tombstoneLiveBeadVersion(...args);
+    },
+    correctLiveLinkVersion: (
+      ...args: Parameters<NonNullable<typeof service>["correctLiveLinkVersion"]>
+    ) => {
+      if (closing) throw new Error("transaction runtime is closing");
+      return service!.correctLiveLinkVersion(...args);
+    },
+    tombstoneLiveLinkVersion: (
+      ...args: Parameters<NonNullable<typeof service>["tombstoneLiveLinkVersion"]>
+    ) => {
+      if (closing) throw new Error("transaction runtime is closing");
+      return service!.tombstoneLiveLinkVersion(...args);
     },
     replaceAuthorizationPolicy: (options: {
       readonly timeoutMs: number;

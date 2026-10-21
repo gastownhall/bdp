@@ -76,6 +76,10 @@ import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
 import type { AuthorityReadReader, OwnerReadEntryResult, ReadPrincipal } from "./authority-read.js";
 import { readStoredResource, type EvaluatorStoredResource } from "./resource-evaluator.js";
 import { validateLiveBeadCorrection, liveCorrectionEvent } from "./transaction-live-correction.js";
+import {
+  validateLiveLinkCorrection,
+  prepareLiveLinkTombstone,
+} from "./transaction-live-link-erasure.js";
 import { prepareLiveBeadTombstone } from "./transaction-live-tombstone.js";
 import {
   TransactionDevelopmentLimitError,
@@ -829,16 +833,34 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     return eraseVersions(requested);
   }
   function correctLiveBeadVersion(subject: string, revision: string, request: PreparedTransaction) {
-    return eraseVersions([{ subject, revision }], { kind: "correction", request });
+    return eraseVersions([{ subject, revision }], {
+      kind: "correction",
+      resourceKind: "bead",
+      request,
+    });
   }
   function tombstoneLiveBeadVersion(subject: string, revision: string) {
-    return eraseVersions([{ subject, revision }], { kind: "tombstone" });
+    return eraseVersions([{ subject, revision }], { kind: "tombstone", resourceKind: "bead" });
+  }
+  function correctLiveLinkVersion(subject: string, revision: string, request: PreparedTransaction) {
+    return eraseVersions([{ subject, revision }], {
+      kind: "correction",
+      resourceKind: "link",
+      request,
+    });
+  }
+  function tombstoneLiveLinkVersion(subject: string, revision: string) {
+    return eraseVersions([{ subject, revision }], { kind: "tombstone", resourceKind: "link" });
   }
   function eraseVersions(
     requested: readonly HistoricalErasureSubject[],
     live?:
-      | { readonly kind: "correction"; readonly request: PreparedTransaction }
-      | { readonly kind: "tombstone" },
+      | {
+          readonly kind: "correction";
+          readonly resourceKind: "bead" | "link";
+          readonly request: PreparedTransaction;
+        }
+      | { readonly kind: "tombstone"; readonly resourceKind: "bead" | "link" },
   ) {
     return enter(() => {
       if (
@@ -865,21 +887,54 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             requested.length !== 1 ||
             !target ||
             typeof target.subject !== "string" ||
-            !target.subject.startsWith(`${scope}beads/`) ||
+            !target.subject.startsWith(
+              `${scope}${live.resourceKind === "link" ? "links" : "beads"}/`,
+            ) ||
             typeof target.revision !== "string" ||
             !target.revision
           )
-            throw new TypeError("one exact current Bead version required");
+            throw new TypeError(
+              `one exact current ${live.resourceKind === "link" ? "Link" : "Bead"} version required`,
+            );
           const stored = resource(target.subject.slice(scope.length));
-          if (!stored || stored.kind !== "bead")
-            throw new Error("current Bead correction unavailable");
+          if (!stored || stored.kind !== live.resourceKind)
+            throw new Error(
+              `current ${live.resourceKind === "link" ? "Link" : "Bead"} correction unavailable`,
+            );
           const before = readStoredResource(stored, scope);
           if (before.id !== target.subject || before.revision !== target.revision)
-            throw new Error("current Bead revision differs");
+            throw new Error(
+              `current ${live.resourceKind === "link" ? "Link" : "Bead"} revision differs`,
+            );
+          if (live.resourceKind === "link") {
+            if (stored.kind !== "link" || !("source" in before))
+              throw new Error("current Link required");
+            const sourceUri = typeof before.source === "string" ? before.source : before.source.uri;
+            if (sourceUri.startsWith(scope)) {
+              const sourceRow = resource(sourceUri.slice(scope.length));
+              if (!sourceRow || sourceRow.kind !== "bead")
+                throw new Error("Link source unavailable");
+              const source = readStoredResource(sourceRow, scope);
+              if ("source" in source) throw new Error("Link source must be a Bead");
+              const descriptor = descriptors.find((item) => item.id === source.type);
+              const ownership =
+                descriptor?.describes === "bead" ? descriptor.ownsOutgoing : undefined;
+              if (
+                (ownership &&
+                  (Object.hasOwn(ownership, before.type) || Object.hasOwn(ownership, "*"))) ||
+                Object.values(source.ownedLinks ?? {}).some((links) => links.length > 0)
+              )
+                throw new Error("live owned-Link administration is unsupported");
+            }
+          }
           const normalized =
-            live.kind === "correction"
-              ? validateLiveBeadCorrection(live.request, scope, before)
-              : prepareLiveBeadTombstone(scope, before);
+            live.resourceKind === "link"
+              ? live.kind === "correction"
+                ? validateLiveLinkCorrection(live.request, scope, before)
+                : prepareLiveLinkTombstone(scope, before)
+              : live.kind === "correction"
+                ? validateLiveBeadCorrection(live.request, scope, before)
+                : prepareLiveBeadTombstone(scope, before);
           const evaluated = evaluateOwnedTransaction(
             normalized,
             transaction,
@@ -900,11 +955,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               evaluated.changes.length !== 1 ||
               !change ||
               change.operation !== "tombstone" ||
-              change.resourceKind !== "bead" ||
+              change.resourceKind !== live.resourceKind ||
               change.resource.id !== before.id ||
               change.resource.type !== before.type ||
               change.resource.revision !== before.revision ||
-              evaluated.events.length !== 1 ||
+              (live.resourceKind === "bead" && evaluated.events.length !== 1) ||
               !event ||
               event.type !== "deleted" ||
               event.subject !== before.id ||
@@ -912,8 +967,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               (event.data as { revision: string }).revision !== before.revision
             )
               throw new Error(
-                "live tombstone requires the exact Bead lineage and ordinary deleted fact",
+                `live tombstone requires the exact ${live.resourceKind === "link" ? "Link" : "Bead"} lineage and ordinary deleted fact`,
               );
+            if (
+              live.resourceKind === "link" &&
+              evaluated.events
+                .slice(1)
+                .some((item) => item.type !== "unlinked" || item.subject !== before.id)
+            )
+              throw new Error("unexpected unowned Link deletion fact");
             correctedChanges = evaluated.changes;
             correctedEvents = [...evaluated.events];
           } else {
@@ -921,7 +983,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               evaluated.changes.length !== 1 ||
               !change ||
               change.operation !== "upsert" ||
-              change.resourceKind !== "bead" ||
+              change.resourceKind !== live.resourceKind ||
               !("properties" in change.resource) ||
               change.resource.id !== target.subject ||
               evaluated.events.length !== 1 ||
@@ -930,8 +992,19 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               event.subject !== target.subject
             )
               throw new Error(
-                "live correction requires a changed unowned Bead; unchanged state needs unsupported tombstone",
+                live.resourceKind === "link"
+                  ? "live Link correction requires changed properties or metadata; deletion requires an explicit tombstone"
+                  : "live correction requires a changed unowned Bead; unchanged state needs unsupported tombstone",
               );
+            if (
+              live.resourceKind === "link" &&
+              (!("source" in before) ||
+                !("source" in change.resource) ||
+                !isDeepStrictEqual(before.source, change.resource.source) ||
+                !isDeepStrictEqual(before.target, change.resource.target) ||
+                before.type !== change.resource.type)
+            )
+              throw new Error("live Link correction changed immutable Link identity/endpoints");
             correctedChanges = evaluated.changes;
             correctedEvents = [liveCorrectionEvent(before, change.resource, event)];
             retainErasureVersions(db, change.resource);
@@ -944,6 +1017,27 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         const erased = (id: unknown, revision: unknown) =>
           selected.has(JSON.stringify([id, revision]));
         const records = plan.map(({ record }) => record);
+        const endpointsGone = new Set<string>();
+        const checkedEndpoints = new Set<string>();
+        for (const { body, record } of plan) {
+          if (body.source === undefined || checkedEndpoints.has(record.subject)) continue;
+          checkedEndpoints.add(record.subject);
+          let retained = false;
+          // A selected plan has at most4096 versions. Stop at the first other
+          // version rather than materializing the subject's complete history.
+          for (const row of db
+            .prepare("SELECT subject,revision FROM retained_versions WHERE subject=?")
+            .iterate(record.subject)) {
+            if (!selected.has(JSON.stringify([row.subject, row.revision]))) {
+              retained = true;
+              break;
+            }
+          }
+          if (!retained) endpointsGone.add(record.subject);
+        }
+        correctedEvents = correctedEvents.filter(
+          (event) => !erasedContentEvent(event, selected, endpointsGone),
+        );
         const group = {
           scopeEpoch: epoch,
           authorizationView: INITIAL_TRANSACTION_VIEW,
@@ -977,15 +1071,6 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             record.revision,
           );
         }
-        const endpointsGone = new Set<string>();
-        for (const { body, record } of plan)
-          if (
-            body.source !== undefined &&
-            !db
-              .prepare("SELECT 1 FROM retained_versions WHERE subject=? LIMIT 1")
-              .get(record.subject)
-          )
-            endpointsGone.add(record.subject);
         for (const row of erasureRows("groups")) {
           const group = JSON.parse(String(row.body)) as {
             changes: {
@@ -2464,6 +2549,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     eraseHistoricalVersions,
     correctLiveBeadVersion,
     tombstoneLiveBeadVersion,
+    correctLiveLinkVersion,
+    tombstoneLiveLinkVersion,
     observeErasures(observer: () => void): () => void {
       return enter(() => {
         if (typeof observer !== "function") throw new TypeError("erasure observer required");
