@@ -5,11 +5,13 @@
   "scope": "https://reference.invalid/acme/",
   "capabilities": ["installed-transactional-http", "transactional-receipt-observation"],
   "bindings": {
-    "subject": "https://reference.invalid/acme/beads/anchor",
+    "subject": "https://reference.invalid/acme/beads/r00",
     "type": "https://reference.invalid/acme/types/accept",
     "schema": "https://reference.invalid/acme/schemas/accept",
     "create-bead": "https://reference.invalid/acme/operations/create-bead",
-    "changes": "https://reference.invalid/acme/changes/"
+    "changes": "https://reference.invalid/acme/changes/",
+    "lastSubject": "https://reference.invalid/acme/beads/r32",
+    "batch": "https://reference.invalid/acme/operations/batch"
   },
   "artifacts": {
     "descriptors": [
