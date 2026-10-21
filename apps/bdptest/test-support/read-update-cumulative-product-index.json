@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "shards": [
+    {
+      "id": "baseline",
+      "source": "matrices/read-update-cumulative-product-baseline.json"
+    },
+    {
+      "id": "continuation",
+      "source": "matrices/read-update-cumulative-product-continuation.json"
+    }
+  ]
+}
