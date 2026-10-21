@@ -104,6 +104,7 @@ function deliver(response: ServerResponse, selected: HttpResponse, raw?: string)
 }
 type TransactionRuntimeAdministration = Readonly<{
   eraseHistoricalVersions: ReturnType<typeof createTransactionService>["eraseHistoricalVersions"];
+  correctLiveBeadVersion: ReturnType<typeof createTransactionService>["correctLiveBeadVersion"];
 }>;
 const runtimeAdministrations = new WeakMap<object, TransactionRuntimeAdministration>();
 
@@ -135,6 +136,7 @@ export async function startTransactionRuntime(
     facade,
     Object.freeze({
       eraseHistoricalVersions: runtime.eraseHistoricalVersions,
+      correctLiveBeadVersion: runtime.correctLiveBeadVersion,
     }),
   );
   return facade;
@@ -566,6 +568,12 @@ async function startTransactionRuntimeCore(
     ) => {
       if (closing) throw new Error("transaction runtime is closing");
       return service!.eraseHistoricalVersions(subjects);
+    },
+    correctLiveBeadVersion: (
+      ...args: Parameters<NonNullable<typeof service>["correctLiveBeadVersion"]>
+    ) => {
+      if (closing) throw new Error("transaction runtime is closing");
+      return service!.correctLiveBeadVersion(...args);
     },
     replaceAuthorizationPolicy: (options: {
       readonly timeoutMs: number;

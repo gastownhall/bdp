@@ -27,7 +27,9 @@ export function validateLiveBeadCorrection(
     throw new TypeError("one prepared updateBead correction required");
   const input = operation.input;
   if (
-    Object.keys(input).some((key) => !["bead", "propertiesChange", "metadataChange"].includes(key))
+    Object.keys(input).some(
+      (key) => !["bead", "expectedRevision", "propertiesChange", "metadataChange"].includes(key),
+    )
   )
     throw new TypeError("live correction supports only properties and metadata");
   for (const name of ["propertiesChange", "metadataChange"] as const) {

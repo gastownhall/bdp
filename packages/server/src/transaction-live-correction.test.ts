@@ -454,3 +454,96 @@ it.each(["before-erasure-commit", "after-erasure-commit"] as const)(
     }
   },
 );
+
+it("refuses correction during pending mutation ownership without consuming that original claim", () => {
+  const f = fixture(),
+    original = f.create().resource;
+  const admission = f.owner.admit(
+    "p",
+    "pending",
+    f.request({
+      bead: original.id,
+      metadataChange: [{ op: "replace", path: "", value: { ordinary: true } }],
+    }),
+  );
+  if (admission.kind !== "owned") throw new Error("expected pending ownership");
+  expect(() =>
+    f.owner.correctLiveBeadVersion(
+      original.id,
+      original.revision,
+      f.request({
+        bead: original.id,
+        propertiesChange: [{ op: "replace", path: "", value: { corrected: true } }],
+      }),
+    ),
+  ).toThrow("drained mutation ownership");
+  expect(f.owner.erasureLedger()).toEqual([]);
+  expect(f.owner.inspect().position).toBe("1");
+  expect(f.owner.execute(admission.claim)).toMatchObject({
+    status: "completed",
+    effectPosition: "pos-2",
+  });
+});
+
+it("fences after a post-commit correction fault and reopens with the complete durable purge", () => {
+  let armed = false;
+  const f = fixture({
+    fault(stage) {
+      if (armed && stage === "after-erasure-commit")
+        throw new Error("new correction committed fault");
+    },
+  });
+  const original = f.create().resource;
+  armed = true;
+  expect(() =>
+    f.owner.correctLiveBeadVersion(
+      original.id,
+      original.revision,
+      f.request({
+        bead: original.id,
+        propertiesChange: [{ op: "replace", path: "", value: { corrected: true } }],
+      }),
+    ),
+  ).toThrow();
+  expect(f.owner.withRead(() => true)).toMatchObject({
+    kind: "entry-refused",
+    reason: "not-accepting",
+  });
+  f.reopen();
+  expect(f.owner.inspect().position).toBe("2");
+  expect(f.owner.erasureLedger()).toHaveLength(1);
+  expect(f.owner.readRetainedVersion(original.id, original.revision).kind).toBe("erased");
+  expect(f.raw()).not.toContain("live-private");
+});
+
+it.each(["current", "stale"] as const)(
+  "preserves an ordinary %s expectedRevision guard in administrative correction",
+  (guard) => {
+    const f = fixture(),
+      original = f.create().resource,
+      before = f.raw();
+    const request = f.request({
+      bead: original.id,
+      expectedRevision: guard === "current" ? original.revision : "stale",
+      propertiesChange: [{ op: "replace", path: "", value: { corrected: true } }],
+    });
+    if (guard === "current") {
+      expect(
+        f.owner.correctLiveBeadVersion(original.id, original.revision, request).group.changes,
+      ).toHaveLength(1);
+      expect(f.owner.readRetainedVersion(original.id, original.revision).kind).toBe("erased");
+    } else {
+      let error: unknown;
+      try {
+        f.owner.correctLiveBeadVersion(original.id, original.revision, request);
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toMatchObject({
+        message: "live correction validation refused",
+        cause: { code: "revision-mismatch", operationIndex: 0 },
+      });
+      expect(f.raw()).toBe(before);
+    }
+  },
+);
