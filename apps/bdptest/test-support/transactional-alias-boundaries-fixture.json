@@ -1,0 +1,42 @@
+{
+  "fixtureVersion": 1,
+  "id": "reference-transactional-alias-boundaries-v1",
+  "seed": 0,
+  "capabilities": ["installed-transactional-http", "transactional-alias-boundaries"],
+  "scope": "https://reference.invalid/acme/",
+  "bindings": {
+    "a": "https://reference.invalid/acme/beads/a",
+    "b": "https://reference.invalid/acme/beads/b",
+    "edge": "https://reference.invalid/acme/links/edge",
+    "alias": "https://reference.invalid/acme/alias/work",
+    "batch": "https://reference.invalid/acme/operations/batch",
+    "put": "https://reference.invalid/acme/operations/put-alias",
+    "delete": "https://reference.invalid/acme/operations/delete-alias",
+    "snapshot": "https://reference.invalid/acme/snapshot",
+    "changes": "https://reference.invalid/acme/changes/",
+    "events": "https://reference.invalid/acme/events/"
+  },
+  "artifacts": {
+    "descriptors": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/alias-boundary",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/alias-boundary\",\"name\":\"alias-boundary\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/alias-boundary\"}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/alias-edge",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/alias-edge\",\"name\":\"alias-edge\",\"describes\":\"link\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/alias-edge\",\"source\":{\"conformsTo\":[\"https://reference.invalid/acme/types/alias-boundary\"],\"external\":\"none\"},\"target\":{\"conformsTo\":[\"https://reference.invalid/acme/types/alias-boundary\"],\"external\":\"none\"}}"
+      }
+    ],
+    "schemas": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/alias-boundary",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/alias-boundary\",\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\"}},\"required\":[\"label\"],\"additionalProperties\":false}"
+      },
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/alias-edge",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/alias-edge\",\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\"}},\"required\":[\"label\"],\"additionalProperties\":false}"
+      }
+    ]
+  },
+  "recipe": "NEW ordinary packed alias admission/replay/conflict/locator-only case; two Beads plus one unowned Link; real Snapshot Bead/Link streams, full finite changefeed and Scope Events before/after; no test seams"
+}
