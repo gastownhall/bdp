@@ -1,3 +1,4 @@
+import type { TransactionErasureRecord } from "./transaction-erasure.js";
 /** Private finite whole-group replication. No Snapshot, SSE, pruning or mutable view. */
 import { createHash } from "node:crypto";
 import { constants } from "node:buffer";
@@ -44,7 +45,7 @@ interface TransactionVisibleChangeGroup {
   readonly projectionAdvance: false;
   readonly transaction: string;
   readonly changes: readonly TransactionStateChange[];
-  readonly erasures: readonly never[];
+  readonly erasures: readonly TransactionErasureRecord[];
   readonly eventCount: number;
   readonly events: readonly TransactionEvent[];
 }
@@ -138,10 +139,20 @@ export function projectTransactionChangeGroup(
     group.previousPosition !== `pos-${position - 1}` ||
     group.projectionAdvance !== false ||
     !Array.isArray(group.erasures) ||
-    group.erasures.length !== 0 ||
+    group.erasures.some(
+      (record) =>
+        !record ||
+        typeof record.subject !== "string" ||
+        !record.subject.startsWith(scope) ||
+        typeof record.revision !== "string" ||
+        !record.revision ||
+        record.digest?.scheme !== "sha-256-jcs" ||
+        !/^[a-f0-9]{64}$/.test(record.digest.value),
+    ) ||
     !Array.isArray(group.changes) ||
     !Array.isArray(group.events) ||
-    group.changes.length + group.events.length === 0
+    (group.changes.length + group.events.length + group.erasures.length === 0 &&
+      !(value as { erasurePruned?: boolean }).erasurePruned)
   )
     throw new Error("invalid retained change group framing");
   const ids = new Set<string>();
@@ -187,7 +198,7 @@ export function projectTransactionChangeGroup(
     projectionAdvance: false,
     transaction: group.transaction,
     changes: group.changes,
-    erasures: [],
+    erasures: group.erasures,
     eventCount: events.length,
     events,
   };

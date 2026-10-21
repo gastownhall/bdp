@@ -1,4 +1,8 @@
 import {
+  TRANSACTION_REQUEST_FINGERPRINT,
+  storedTransactionFingerprint,
+} from "./transaction-request-identity.js";
+import {
   INITIAL_TRANSACTION_VIEW,
   initialTransactionAuthorization,
   emptyTransactionAuthorization,
@@ -31,6 +35,7 @@ import {
   TRANSACTION_EVENT_STREAM,
   TRANSACTION_EVENT_GROUP_BYTES,
   TransactionEventParameterError,
+  TransactionEventProjectionGap,
   transactionEventRequest,
   parseTransactionEventCursor,
   checkTransactionEventCursor,
@@ -41,6 +46,7 @@ import {
   type TransactionEventSource,
 } from "./transaction-events.js";
 import {
+  TransactionMinimumFailure,
   checkCurrentReadMinimum,
   checkTransactionMinimum,
   TransactionMinimumUnsupported,
@@ -50,6 +56,16 @@ import {
 } from "./transaction-consistency.js";
 /** Independent private Transactional owner. Never open this format as a RU store. */
 import { randomUUID } from "node:crypto";
+import {
+  transactionErasureSchema,
+  retainErasureVersions,
+  transactionErasureLedger,
+  planHistoricalErasure,
+  eraseReceiptEntry,
+  erasedContentEvent,
+  erasureSourceTag,
+  type HistoricalErasureSubject,
+} from "./transaction-erasure.js";
 import { closeSync, existsSync, openSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -66,6 +82,8 @@ import {
   assertPreparedTransaction,
   assertPreparedTransactionSequence,
   normalizeTransaction,
+  transactionRequestFingerprint,
+  commitTransactionWitnesses,
   evaluateTransaction,
   transactionStorageText as json,
   type PreparedTransaction,
@@ -108,6 +126,13 @@ export type TransactionReadContext = {
   readonly authorizationView: string;
   readonly scopePosition: string;
 };
+/** Expected erasure publication cancellation, distinct from an owner failure. */
+export class TransactionErasureFence extends Error {}
+export interface TransactionChangePublication {
+  readonly signal: AbortSignal;
+  publish(checkpoint: string, write: () => boolean): boolean;
+  release(): void;
+}
 
 /** Source-private immutable read continuation, authenticated by its owner. */
 declare const eventScanBrand: unique symbol;
@@ -218,7 +243,9 @@ export interface TransactionStoreOptions {
       | "after-snapshot-copy"
       | "after-snapshot-commit"
       | "before-policy-commit"
-      | "after-policy-commit",
+      | "after-policy-commit"
+      | "before-erasure-commit"
+      | "after-erasure-commit",
   ) => void;
 }
 interface Row {
@@ -230,9 +257,10 @@ interface Row {
   receipt: string;
   dependency: string | null;
 }
+const requestFingerprintPolicy = TRANSACTION_REQUEST_FINGERPRINT;
 const day = 86400000;
 export const TRANSACTION_RECEIPT_DETAIL_MS = day;
-const format = "bdp-private-transaction-snapshot-11";
+const format = "bdp-private-transaction-snapshot-12";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
 const identityPolicy = "transaction-revision-provenance-4";
@@ -283,6 +311,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   const revokeLeases = () => {
     for (const lease of leases) lease.abort(new Error("authorization lease ended"));
     leases.clear();
+    for (const state of changePublications.values())
+      state.controller.abort(new Error("owner lease ended"));
+    changePublications.clear();
   };
   if (Buffer.byteLength(json(`${scope}events/`)) > TRANSACTION_RUNTIME_LIMITS.scopeSourceBytes)
     throw new TypeError("transaction Scope exceeds private materialization bound");
@@ -342,6 +373,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         ],
   );
   const legacyBytes = json(Object.fromEntries(legacyEntries));
+  const format11Bytes = json({
+    ...JSON.parse(configuration),
+    format: "bdp-private-transaction-snapshot-11",
+  });
   const clock = options.clock ?? Date.now;
   const maintenanceInterval = options.maintenanceIntervalMs ?? 1000;
   if (
@@ -369,6 +404,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   let maintenanceFailure: { readonly cause: unknown } | undefined;
   let ownerFailure: Error | undefined;
   const eventScans = new WeakMap<TransactionEventScan, EventScanState>();
+  const changePublications = new Map<
+    TransactionChangePublication,
+    {
+      context: TransactionReadContext;
+      after: number;
+      controller: AbortController;
+    }
+  >();
   const claims = new WeakMap<
     TransactionClaim,
     {
@@ -379,6 +422,12 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       creator?: { attempt: string; member: number; operation: string };
     }
   >();
+  const retiredClaims = new WeakSet<TransactionClaim>();
+  const retiredSequences = new WeakSet<TransactionSequenceAdmission>();
+  function retireClaim(claim: TransactionClaim) {
+    claims.delete(claim);
+    retiredClaims.add(claim);
+  }
   const sequenceAdmissions = new WeakMap<
     TransactionSequenceAdmission,
     {
@@ -468,6 +517,20 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     if (typeof row?.value !== "string") throw new Error("missing transaction metadata");
     return row.value;
   }
+  /** Keyset scan: one retained body at a time, with stable row IDs even when
+   * the current row is rewritten. Never copy the whole Scope history into RAM. */
+  function* erasureRows(table: "groups" | "receipts") {
+    const first = db.prepare(`SELECT rowid AS storageRowid,* FROM ${table} ORDER BY rowid LIMIT 1`);
+    const next = db.prepare(
+      `SELECT rowid AS storageRowid,* FROM ${table} WHERE rowid>? ORDER BY rowid LIMIT 1`,
+    );
+    let row = first.get();
+    while (row) {
+      const id = Number(row.storageRowid);
+      yield row;
+      row = next.get(id);
+    }
+  }
   function row(principal: string, key: string): Row | undefined {
     return db.prepare("SELECT * FROM receipts WHERE principal=? AND key=?").get(principal, key) as
       | Row
@@ -506,7 +569,16 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       throw new Error("unsupported retained receipt results");
     const allocated: unknown[] = [];
     for (const result of receipt.results as Record<string, unknown>[]) {
-      if (result.outcome !== "created") continue;
+      if (
+        result.outcome !== "created" &&
+        !(
+          result.outcome === "erased" &&
+          db
+            .prepare("SELECT 1 FROM erased_creation_facts WHERE receipt=? AND operation=?")
+            .get(receipt.id, Number(result.operationIndex))
+        )
+      )
+        continue;
       // Alias creation allocates a locator, not a Resource identity. Its receipt
       // still expires, but its compact allocation list is empty (T49).
       if (typeof result.alias === "string" && typeof result.target === "string") {
@@ -514,7 +586,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           throw new Error("invalid retained alias creation result");
         continue;
       }
-      const resource = result.resource as { id?: unknown; type?: unknown } | undefined;
+      const resource = (result.resource ?? result.erased) as
+        | { id?: unknown; type?: unknown }
+        | undefined;
       if (
         !resource ||
         typeof resource.id !== "string" ||
@@ -556,6 +630,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     scope,
     descriptors,
     () => authorization.readPolicy === "all-visible",
+    (view) => (view === INITIAL_TRANSACTION_VIEW ? transactionErasureLedger(db) : []),
   );
   function sweep(now: number) {
     snapshots.expire(now, readContext());
@@ -578,9 +653,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   let recoveredPending: number;
   // Assigned in the synchronous provisioning transaction before any context use.
   let epoch!: string;
+  let legacyRequestStorage = false;
   try {
     db.exec(
-      "PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; PRAGMA locking_mode=EXCLUSIVE; PRAGMA busy_timeout=0",
+      "PRAGMA secure_delete=ON; PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; PRAGMA locking_mode=EXCLUSIVE; PRAGMA busy_timeout=0",
     );
     recoveredPending = atomic(() => {
       if (options.create) {
@@ -597,8 +673,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           throw new Error(
             "transaction identity policy mismatch; explicit new-store provisioning required",
           );
-        if (storedConfiguration !== configuration && storedConfiguration !== legacyBytes)
+        if (
+          storedConfiguration !== configuration &&
+          storedConfiguration !== legacyBytes &&
+          storedConfiguration !== format11Bytes
+        )
           throw new Error("transaction installation mismatch");
+        legacyRequestStorage = storedConfiguration !== configuration;
         // Exact bytes validate retained capture, including constant witnesses, even
         // if the stored claimed identity was left unchanged by corruption.
         const captureLength = db
@@ -635,6 +716,47 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         db.prepare("DELETE FROM receipts WHERE owner IS NOT NULL").run().changes,
       );
       db.exec("DELETE FROM creator_facts");
+      // Additive, versioned migration after exact installation/capture admission.
+      // Commit normalized Reference leaves, then the exact typed normalization;
+      // never the raw carrier or an alias re-resolved at retry time.
+      db.exec(transactionErasureSchema);
+      const policy = db
+        .prepare("SELECT value FROM metadata WHERE name='requestFingerprintPolicy'")
+        .get();
+      if (policy && policy.value !== requestFingerprintPolicy)
+        throw new Error("unknown request fingerprint policy");
+      if (!policy) {
+        if (!options.create && !legacyRequestStorage)
+          throw new Error("missing request fingerprint policy");
+        for (const row of erasureRows("receipts"))
+          db.prepare("UPDATE receipts SET identity=?,witnesses=? WHERE principal=? AND key=?").run(
+            storedTransactionFingerprint(String(row.identity)),
+            commitTransactionWitnesses(String(row.witnesses), scope),
+            String(row.principal),
+            String(row.key),
+          );
+        db.prepare("INSERT INTO metadata VALUES('requestFingerprintPolicy',?)").run(
+          requestFingerprintPolicy,
+        );
+      }
+      db.prepare("UPDATE metadata SET value=? WHERE name='configuration'").run(configuration);
+      for (const row of erasureRows("receipts")) {
+        if (!new RegExp(`^${requestFingerprintPolicy}:[a-f0-9]{64}$`).test(String(row.identity)))
+          throw new Error("invalid retained request fingerprint");
+        if (commitTransactionWitnesses(String(row.witnesses), scope) !== row.witnesses)
+          throw new Error("uncommitted retained alias witnesses");
+      }
+      // Backfill only concrete Resource postimages, not arbitrary property data.
+      for (const row of erasureRows("groups")) {
+        const group = JSON.parse(String(row.body));
+        for (const change of group.changes)
+          if (change.operation === "upsert") retainErasureVersions(db, change.resource);
+      }
+      for (const row of erasureRows("receipts")) {
+        const receipt = JSON.parse(String(row.receipt));
+        for (const result of receipt.results ?? [])
+          if (result.resource) retainErasureVersions(db, result.resource);
+      }
       sweep(instant());
       return retracted;
     });
@@ -670,8 +792,237 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       scopePosition: `pos-${position}`,
     });
   }
+  function erasureFloor(context: TransactionReadContext): number {
+    if (context.authorizationView !== INITIAL_TRANSACTION_VIEW) return 0;
+    return Number(
+      db.prepare("SELECT coalesce(max(position),0) AS floor FROM erasure_ledger").get()!.floor,
+    );
+  }
+  /** Erased Event IDs remain valid exclusive positions, without retaining the
+   * erased fact or its endpoint References. Only one-way source tags survive. */
+  function withheldCursor(position: number, ordinal: number, source: string): boolean {
+    return (
+      authorization.readPolicy === "all-visible" &&
+      Boolean(
+        db
+          .prepare("SELECT 1 FROM erased_event_cursors WHERE position=? AND ordinal=? AND source=?")
+          .get(position, ordinal, erasureSourceTag(source)),
+      )
+    );
+  }
   /** Prepare once per owner observation, not once per scanned group. The
    * reader remains inside its synchronous entry; no SQLite capability escapes. */
+  /** Called only after the complete purge and ledger commit, in the same
+   * synchronous owner turn as publication eligibility. Never wait for a drain. */
+  function fenceErasurePublications(position: number) {
+    for (const state of changePublications.values())
+      if (
+        state.context.authorizationView === INITIAL_TRANSACTION_VIEW &&
+        state.after < position - 1
+      )
+        state.controller.abort(new TransactionErasureFence("pre-erasure stream is behind"));
+  }
+  function eraseHistoricalVersions(requested: readonly HistoricalErasureSubject[]) {
+    return enter(() => {
+      if (
+        activeSequences.size ||
+        db
+          .prepare(
+            "SELECT 1 FROM receipts WHERE owner IS NOT NULL OR dependency IS NOT NULL LIMIT 1",
+          )
+          .get()
+      )
+        throw new Error("historical erasure requires drained mutation ownership");
+      const result = atomic(() => {
+        const plan = planHistoricalErasure(db, scope, requested);
+        const selected = new Set(
+          plan.map(({ record }) => JSON.stringify([record.subject, record.revision])),
+        );
+        const erased = (id: unknown, revision: unknown) =>
+          selected.has(JSON.stringify([id, revision]));
+        const position = Number(metadata("position")) + 1;
+        if (!Number.isSafeInteger(position)) throw new Error("Scope position exhausted");
+        const records = plan.map(({ record }) => record);
+        const group = {
+          scopeEpoch: epoch,
+          authorizationView: INITIAL_TRANSACTION_VIEW,
+          checkpoint: `pos-${position}`,
+          position: `pos-${position}`,
+          previousPosition: `pos-${position - 1}`,
+          projectionAdvance: false,
+          transaction: randomUUID(),
+          changes: [],
+          erasures: records,
+          eventCount: 0,
+          events: [],
+        };
+        const groupText = json(group);
+        if (Buffer.byteLength(groupText) > TRANSACTION_EVENT_GROUP_BYTES)
+          throw new RangeError("administrative erasure group exceeds owner byte bound");
+        for (const { body, record } of plan) {
+          db.prepare("INSERT INTO erased_version_lineage VALUES(?,?,?)").run(
+            record.subject,
+            record.revision,
+            String(body.type),
+          );
+          db.prepare("INSERT INTO erasure_ledger VALUES(?,?,?,?)").run(
+            record.subject,
+            record.revision,
+            position,
+            json(record),
+          );
+          db.prepare("DELETE FROM retained_versions WHERE subject=? AND revision=?").run(
+            record.subject,
+            record.revision,
+          );
+        }
+        const endpointsGone = new Set<string>();
+        for (const { body, record } of plan)
+          if (
+            body.source !== undefined &&
+            !db
+              .prepare("SELECT 1 FROM retained_versions WHERE subject=? LIMIT 1")
+              .get(record.subject)
+          )
+            endpointsGone.add(record.subject);
+        for (const row of erasureRows("groups")) {
+          const group = JSON.parse(String(row.body)) as {
+            changes: {
+              operation: string;
+              resource: { id: string; revision: string; source?: unknown; target?: unknown };
+            }[];
+            events: TransactionEvent[];
+            eventCount: number;
+            erasurePruned?: boolean;
+            originalEventCount?: number;
+          };
+          const removed = group.events.filter((event) =>
+            erasedContentEvent(event, selected, endpointsGone),
+          );
+          // Record only immutable position/ordinal/source commitments. Endpoints
+          // themselves do not survive even in the exclusive-cursor index.
+          for (const event of removed) {
+            const sources = new Set([`${scope}events/`]);
+            const data = event.data as Record<string, unknown>;
+            if (["created", "updated", "deleted"].includes(event.type))
+              sources.add(`${event.subject}?view=events`);
+            const uri = (value: unknown) =>
+              typeof value === "string"
+                ? value
+                : value && typeof value === "object" && "uri" in value
+                  ? String(value.uri)
+                  : undefined;
+            if (event.type === "linked" || event.type === "unlinked") {
+              const endpoint = uri(data[String(data.endpoint)]);
+              if (endpoint?.startsWith(scope)) sources.add(`${endpoint}?view=events`);
+            } else if (event.type === "updated") {
+              const resource = group.changes.find(
+                (change) => change.resource.id === event.subject,
+              )?.resource;
+              if (resource?.source !== undefined)
+                for (const endpoint of [resource.source, resource.target]) {
+                  const id = uri(endpoint);
+                  if (id?.startsWith(scope)) sources.add(`${id}?view=events`);
+                }
+            }
+            for (const url of sources) {
+              const subject =
+                url === `${scope}events/` ? undefined : url.slice(0, -"?view=events".length);
+              const source: TransactionEventSource =
+                subject === undefined
+                  ? { kind: "scope", url }
+                  : { kind: subject.startsWith(`${scope}beads/`) ? "bead" : "link", subject, url };
+              try {
+                // Preserve the actual existing projector's membership, including
+                // its explicitly unsupported incident-metadata subset. No erasure
+                // path silently broadens G2's separately implemented membership.
+                const projected = projectTransactionEventGroup(
+                  group,
+                  {
+                    scopeEpoch: epoch,
+                    authorizationView: INITIAL_TRANSACTION_VIEW,
+                    scopePosition: `pos-${row.position}`,
+                  },
+                  source,
+                  scope,
+                  Number(row.position),
+                );
+                if (projected.some((item) => item.ordinal === event.ordinal))
+                  db.prepare("INSERT OR IGNORE INTO erased_event_cursors VALUES(?,?,?)").run(
+                    Number(row.position),
+                    event.ordinal,
+                    erasureSourceTag(url),
+                  );
+              } catch (error) {
+                if (!(error instanceof TransactionEventProjectionGap)) throw error;
+              }
+            }
+          }
+          group.originalEventCount ??= group.eventCount;
+          group.events = group.events.filter((event) => !removed.includes(event));
+          group.eventCount = group.events.length;
+          group.changes = group.changes.filter(
+            (change) =>
+              change.operation !== "upsert" ||
+              !erased(change.resource.id, change.resource.revision),
+          );
+          group.erasurePruned = true;
+          db.prepare("UPDATE groups SET body=? WHERE position=?").run(
+            json(group),
+            Number(row.position),
+          );
+        }
+        for (const row of erasureRows("receipts")) {
+          const receipt = JSON.parse(String(row.receipt)) as TransactionReceipt;
+          if (!Array.isArray(receipt.results)) continue;
+          const results = receipt.results.map((entry: Record<string, unknown>) => {
+            const next = eraseReceiptEntry(entry, selected);
+            if (next !== entry && entry.outcome === "created")
+              db.prepare("INSERT OR IGNORE INTO erased_creation_facts VALUES(?,?)").run(
+                receipt.id,
+                Number(entry.operationIndex),
+              );
+            return next;
+          });
+          db.prepare("UPDATE receipts SET receipt=? WHERE principal=? AND key=?").run(
+            json({ ...receipt, results }),
+            String(row.principal),
+            String(row.key),
+          );
+        }
+        const context = readContext();
+        snapshots.invalidateBefore(position, context);
+        db.prepare("INSERT INTO groups VALUES(?,?)").run(position, groupText);
+        db.prepare("UPDATE metadata SET value=? WHERE name='position'").run(String(position));
+        options.fault?.("before-erasure-commit");
+        freezeReceiptValue(group);
+        return Object.freeze({
+          group,
+          context: readContext(),
+          digestAnomalies: Object.freeze(
+            plan.flatMap(({ record, digestAnomaly }) =>
+              digestAnomaly === undefined
+                ? []
+                : [
+                    Object.freeze({
+                      subject: record.subject,
+                      revision: record.revision,
+                      message: digestAnomaly,
+                    }),
+                  ],
+            ),
+          ),
+        });
+      });
+      try {
+        fenceErasurePublications(Number(result.context.scopePosition.slice(4)));
+        options.fault?.("after-erasure-commit");
+      } catch (error) {
+        throw fence(error);
+      }
+      return result;
+    });
+  }
   function retainedGroupReader() {
     const rowAt = db.prepare(
       "SELECT position,length(CAST(body AS BLOB)) AS bytes FROM groups WHERE position>=? AND position<=? ORDER BY position LIMIT 1",
@@ -688,7 +1039,37 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         throw new Error("retained Event group exceeds admitted byte bound");
       const body = bodyAt.get(position)?.body;
       if (typeof body !== "string") throw new Error("invalid retained Event group body");
-      return { position, value: JSON.parse(body) as unknown };
+      const value = JSON.parse(body) as {
+        erasurePruned?: boolean;
+        originalEventCount?: number;
+        events?: TransactionEvent[];
+      };
+      if (value.erasurePruned) {
+        if (
+          !Number.isSafeInteger(value.originalEventCount) ||
+          value.originalEventCount! < 0 ||
+          value.originalEventCount! > TRANSACTION_RUNTIME_LIMITS.inducedEvents ||
+          !Array.isArray(value.events)
+        )
+          throw new Error("invalid erasure Event framing");
+        const ordinals = new Set(value.events.map((event) => event.ordinal));
+        if (
+          ordinals.size !== value.events.length ||
+          [...ordinals].some((ordinal) => ordinal < 0 || ordinal >= value.originalEventCount!)
+        )
+          throw new Error("invalid retained Event ordinal");
+        for (let ordinal = 0; ordinal < value.originalEventCount!; ordinal++)
+          if (
+            !ordinals.has(ordinal) &&
+            !db
+              .prepare(
+                "SELECT 1 FROM erased_event_cursors WHERE position=? AND ordinal=? AND source=?",
+              )
+              .get(position, ordinal, erasureSourceTag(`${scope}events/`))
+          )
+            throw new Error("unproven erasure Event gap");
+      }
+      return { position, value };
     };
   }
   function eventSourceKnown(source: TransactionEventSource): boolean {
@@ -739,7 +1120,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     if (
       cursor &&
       (row.position !== cursor.position ||
-        !projected.some((event) => event.ordinal === cursor.ordinal && event.id === cursor.id))
+        (!projected.some((event) => event.ordinal === cursor.ordinal && event.id === cursor.id) &&
+          !withheldCursor(cursor.position, cursor.ordinal, source.url)))
     )
       throw new TransactionEventParameterError(undefined, context);
     return projected;
@@ -1171,7 +1553,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       : normalizeTransaction(batch, resolveAlias, prior?.witnesses, references);
     if (prior) {
       if (!normalized) throw new Error("existing key cannot acquire a new unresolved template");
-      return prior.identity !== normalized.identity
+      return prior.identity !== transactionRequestFingerprint(normalized)
         ? { kind: "conflict" }
         : { kind: "existing", receipt: parseReceipt(prior.receipt) };
     }
@@ -1206,8 +1588,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     db.prepare("INSERT INTO receipts VALUES(?,?,?,?,?,?,?)").run(
       principal,
       key,
-      normalized?.identity ?? "",
-      normalized?.witnessesJson ?? "",
+      normalized ? transactionRequestFingerprint(normalized) : "",
+      normalized ? commitTransactionWitnesses(normalized.witnessesJson, scope) : "",
       owner,
       json(receipt),
       template ? json(template) : null,
@@ -1223,7 +1605,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   ): TransactionReceipt | TransactionReceiptObservation {
     return enter(() => {
       const owned = claims.get(claim);
-      if (!owned) throw new Error("foreign transaction claim");
+      if (!owned)
+        throw new Error(
+          retiredClaims.has(claim) ? "transaction execution fenced" : "foreign transaction claim",
+        );
       try {
         return atomic(() => {
           const current = row(owned.principal, owned.key);
@@ -1359,6 +1744,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             };
           } else {
             db.exec("RELEASE effects");
+            for (const change of result.changes)
+              if (change.operation === "upsert") retainErasureVersions(db, change.resource);
+            for (const entry of result.results)
+              if (entry && typeof entry === "object" && "resource" in entry)
+                retainErasureVersions(db, entry.resource);
             const group = {
               scopeEpoch: epoch,
               authorizationView: view,
@@ -1419,13 +1809,16 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           });
         });
       } finally {
-        claims.delete(claim);
+        retireClaim(claim);
       }
     });
   }
   function cancelSequence(attempt: TransactionSequenceAdmission): number {
     const state = sequenceAdmissions.get(attempt);
-    if (!state) throw new TypeError("foreign transaction sequence admission");
+    if (!state) {
+      if (retiredSequences.has(attempt)) return 0;
+      throw new TypeError("foreign transaction sequence admission");
+    }
     if (state.busy) throw new Error("transaction sequence reentrant cancellation");
     if (state.cancelled || state.next === state.sequence.members.length) return 0;
     const released = enter(() =>
@@ -1446,7 +1839,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     );
     state.cancelled = true;
     activeSequences.delete(attempt);
-    for (const claim of state.owned.values()) claims.delete(claim);
+    sequenceAdmissions.delete(attempt);
+    retiredSequences.add(attempt);
+    for (const claim of state.owned.values()) retireClaim(claim);
     return released;
   }
   maintenanceTimer = setInterval(() => {
@@ -1542,7 +1937,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               });
             });
           } finally {
-            claims.delete(admission.claim);
+            retireClaim(admission.claim);
           }
         }
       }
@@ -1859,6 +2254,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       after: string,
       supplied?: TransactionMinimum | "unsupported",
       admission?: "finite-start-now" | "current-changefeed",
+      publication?: TransactionChangePublication,
     ):
       | {
           readonly kind: "page";
@@ -1882,6 +2278,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         const context = readContext(),
           head = Number(context.scopePosition.slice(4)),
           start = checkpointPosition(scope, context, after);
+        const stream = publication && changePublications.get(publication);
+        const admitted =
+          stream &&
+          !stream.controller.signal.aborted &&
+          stream.after === start &&
+          stream.context.authorizationView === context.authorizationView &&
+          stream.context.scopeEpoch === context.scopeEpoch;
+        if (start < erasureFloor(context) && !admitted)
+          throw new TransactionMinimumFailure("cursor-expired", context);
         if (start > head) throw new TransactionChangefeedParameterError(undefined, context);
         // Under this no-pruning owner every positive position through head was
         // committed. Its absent row is corruption, not a never-issued cursor.
@@ -1938,6 +2343,92 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           }),
         }),
       ),
+    eraseHistoricalVersions,
+    /** Private retained-version observation, not a new History/HTTP operation. */
+    readRetainedVersion(subject: string, revision: string) {
+      if (typeof subject !== "string" || typeof revision !== "string")
+        throw new TypeError("version identity required");
+      return enter(() => {
+        const context = readContext();
+        if (authorization.readPolicy !== "all-visible")
+          return Object.freeze({ kind: "missing" as const, context });
+        const erased = db
+          .prepare("SELECT type FROM erased_version_lineage WHERE subject=? AND revision=?")
+          .get(subject, revision);
+        if (erased)
+          return Object.freeze({
+            kind: "erased" as const,
+            lineage: Object.freeze({ id: subject, type: String(erased.type), revision }),
+            context,
+          });
+        const retained = db
+          .prepare("SELECT body FROM retained_versions WHERE subject=? AND revision=?")
+          .get(subject, revision);
+        if (!retained) return Object.freeze({ kind: "missing" as const, context });
+        const resource = JSON.parse(String(retained.body)) as unknown;
+        freezeReceiptValue(resource);
+        return Object.freeze({ kind: "retained" as const, resource, context });
+      });
+    },
+    erasureLedgerInEntry() {
+      if (!busy) throw new Error("erasure ledger requires an owner entry");
+      return transactionErasureLedger(db);
+    },
+    erasureLedger() {
+      return enter(() => {
+        const records =
+          authorization.readPolicy === "all-visible" ? transactionErasureLedger(db) : [];
+        freezeReceiptValue(records);
+        return records;
+      });
+    },
+    assertPublication(context: TransactionReadContext) {
+      return enter(() => {
+        if (
+          context.scopeEpoch !== epoch ||
+          context.authorizationView !== authorization.authorizationView ||
+          Number(context.scopePosition.slice(4)) < erasureFloor(readContext())
+        )
+          throw new TransactionErasureFence("response predates erasure publication");
+      });
+    },
+    acquireChangePublication(
+      context: TransactionReadContext,
+      after: string,
+    ): TransactionChangePublication {
+      return enter(() => {
+        const current = readContext(),
+          start = checkpointPosition(scope, current, after);
+        if (
+          context.scopeEpoch !== current.scopeEpoch ||
+          context.authorizationView !== current.authorizationView ||
+          start < erasureFloor(current)
+        )
+          throw new TransactionErasureFence("stream admission predates erasure");
+        const controller = new AbortController();
+        const lease: TransactionChangePublication = Object.freeze({
+          signal: controller.signal,
+          publish(checkpoint: string, write: () => boolean): boolean {
+            return enter(() => {
+              const state = changePublications.get(lease);
+              if (!state || controller.signal.aborted)
+                throw new TransactionErasureFence("stream publication ended");
+              const next = checkpointPosition(scope, readContext(), checkpoint);
+              if (next !== state.after + 1 || next > Number(metadata("position")))
+                throw new Error("noncontiguous stream publication");
+              const accepted = write();
+              state.after = next; // write(false) still hands the WHOLE frame to Node.
+              return accepted;
+            });
+          },
+          release() {
+            changePublications.delete(lease);
+          },
+        });
+        changePublications.set(lease, { context, after: start, controller });
+        return lease;
+      });
+    },
     captureReadAuthorization(reader: AuthorityReadReader, principal: ReadPrincipal) {
       // The reader is a capability for this exact live serialized entry.
       const snapshot = readAuthorizations.get(reader);
@@ -2089,7 +2580,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               });
             });
           } finally {
-            for (const claim of owned.values()) claims.delete(claim);
+            for (const claim of owned.values()) retireClaim(claim);
           }
         }
         activeSequences.add(attempt);
@@ -2107,7 +2598,12 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     },
     nextSequence(attempt: TransactionSequenceAdmission): TransactionSequenceTurn {
       const state = sequenceAdmissions.get(attempt);
-      if (!state) throw new TypeError("foreign transaction sequence admission");
+      if (!state)
+        throw new TypeError(
+          retiredSequences.has(attempt)
+            ? "transaction sequence cancelled, reentrant or complete"
+            : "foreign transaction sequence admission",
+        );
       if (state.cancelled || state.busy || state.next >= state.sequence.members.length)
         throw new Error("transaction sequence cancelled, reentrant or complete");
       state.busy = true;
@@ -2133,7 +2629,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                   owner.key,
                   owner.owner,
                 );
-                if (claim) claims.delete(claim);
+                if (claim) retireClaim(claim);
               }),
             );
           result = { kind: "transient" };
@@ -2163,8 +2659,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                     "UPDATE receipts SET identity=?,witnesses=?,dependency=NULL WHERE principal=? AND key=? AND owner=?",
                   )
                   .run(
-                    normalized.identity,
-                    normalized.witnessesJson,
+                    transactionRequestFingerprint(normalized),
+                    commitTransactionWitnesses(normalized.witnessesJson, scope),
                     owner.principal,
                     owner.key,
                     owner.owner,
@@ -2223,7 +2719,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           );
         state.next++;
         const done = state.next === state.sequence.members.length;
-        if (done) activeSequences.delete(attempt);
+        if (done) {
+          activeSequences.delete(attempt);
+          sequenceAdmissions.delete(attempt);
+          retiredSequences.add(attempt);
+        }
         if (done)
           enter(() =>
             atomic(() => db.prepare("DELETE FROM creator_facts WHERE attempt=?").run(state.id)),
@@ -2245,7 +2745,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       return enter(() => {
         const owned = claims.get(claim);
         if (!owned) return false;
-        return atomic(
+        const removed = atomic(
           () =>
             Number(
               db
@@ -2253,6 +2753,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 .run(owned.principal, owned.key, owned.owner).changes,
             ) === 1,
         );
+        if (removed) retireClaim(claim);
+        return removed;
       });
     },
     receipt(principal: string, id: string): TransactionReceipt | undefined {
