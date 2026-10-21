@@ -6163,8 +6163,14 @@ it.each([
       { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 200 },
     ],
   });
+  // This receipt-authority fixture requires the original mutation scenario,
+  // independent of newly prepended inherited Read rows.
+  const receiptScenario = manifest.scenarios.find(
+    (scenario: { id: string }) => scenario.id === "read-update.idempotency.principal-isolation",
+  );
+  if (!receiptScenario) throw new Error("receipt authority source scenario missing");
   const row = {
-    ...manifest.scenarios[0],
+    ...receiptScenario,
     actions: [
       {
         id: "source",
