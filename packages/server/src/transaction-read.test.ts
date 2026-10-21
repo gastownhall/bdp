@@ -21,7 +21,7 @@ import {
   TransactionMinimumUnproved,
 } from "./transaction-consistency.js";
 import { createTransactionService } from "./transaction-service.js";
-import { createTransactionHttpHandler } from "./transaction-http.js";
+import { createTransactionHttpHandler, transactionHttpSourceContext } from "./transaction-http.js";
 import {
   AuthorityReadError,
   type AuthorityReadDeliveryOptions,
@@ -2950,4 +2950,155 @@ it("drains an admitted unknown minimum to timeout and rejects new reads while cl
   release.resolve();
   await rejected;
   await closing;
+});
+
+it.each(["commit", "rollback", "late-fault"] as const)(
+  "keeps ordinary Read Promise delivery behind the erasure fence (%s)",
+  async (disposition) => {
+    let armed = false;
+    const f = fixture({
+      fault(stage) {
+        if (
+          armed &&
+          ((disposition === "rollback" && stage === "before-erasure-commit") ||
+            (disposition === "late-fault" && stage === "after-erasure-commit"))
+        )
+          throw new Error(`injected ${disposition}`);
+      },
+    });
+    f.write(seed);
+    const { facet } = f.open();
+    const first = body(await facet.perform({ kind: "collection", collection: "beads", limit: 1 }));
+    const original = body(await facet.perform(resource("beads/b")));
+    const next = requestFromUrl(new URL(first.next as string), scope as AbsoluteHttpUrl);
+    if (isReadProblem(next)) throw new Error("invalid continuation");
+    f.write([
+      {
+        operation: "updateBead",
+        bead: "beads/b",
+        propertiesChange: [{ op: "replace", path: "/n", value: 99 }],
+      },
+    ]);
+    // Materialization is synchronous, delivery is deliberately still pending.
+    const pending = facet.perform(next);
+    const assertion =
+      disposition === "rollback"
+        ? expect(pending).resolves.toMatchObject({ kind: "success", body: { items: [original] } })
+        : expect(pending).rejects.toThrow(
+            disposition === "late-fault" ? "owner fenced" : "response predates erasure",
+          );
+    armed = true;
+    const erase = () =>
+      f.store.eraseHistoricalVersions([
+        { subject: String(original.id), revision: String(original.revision) },
+      ]);
+    if (disposition === "commit") erase();
+    else if (disposition === "rollback") expect(erase).toThrow("injected rollback");
+    else {
+      let failure: unknown;
+      try {
+        erase();
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toMatchObject({
+        message: expect.stringContaining("owner fenced"),
+        cause: { message: "injected late-fault" },
+      });
+    }
+    await assertion;
+    if (disposition === "rollback") {
+      expect(f.store.erasureLedger()).toEqual([]);
+      expect(items(await facet.perform(next))).toEqual([original]);
+    } else if (disposition === "commit") {
+      expect(await facet.perform(next)).toMatchObject({
+        kind: "problem",
+        problem: { code: "cursor-expired" },
+      });
+    } else {
+      await expect(facet.perform(next)).rejects.toThrow("closed");
+    }
+  },
+);
+
+it("attempts every composed erasure-cache purge and preserves all failures before fencing delivery", async () => {
+  const f = fixture();
+  f.write(seed);
+  const firstFailure = new Error("first cache refusal"),
+    lastFailure = new Error("last cache refusal");
+  const unsubscribe = f.store.observeErasures(() => {
+    throw firstFailure;
+  });
+  const { facet } = f.open();
+  const original = body(await facet.perform(resource("beads/b")));
+  f.write([
+    {
+      operation: "updateBead",
+      bead: "beads/b",
+      propertiesChange: [{ op: "replace", path: "/n", value: 99 }],
+    },
+  ]);
+  let lastCalled = 0;
+  const unsubscribeLast = f.store.observeErasures(() => {
+    lastCalled++;
+    throw lastFailure;
+  });
+  const pending = facet.perform({ kind: "collection", collection: "beads", limit: 1 });
+  const refused = expect(pending).rejects.toThrow("owner fenced");
+  let failure: unknown;
+  try {
+    f.store.eraseHistoricalVersions([
+      { subject: String(original.id), revision: String(original.revision) },
+    ]);
+  } catch (error) {
+    failure = error;
+  }
+  expect(lastCalled).toBe(1);
+  expect(failure).toMatchObject({
+    cause: { message: "erasure cache purge failed", errors: [firstFailure, lastFailure] },
+  });
+  await refused;
+  unsubscribe();
+  unsubscribeLast();
+});
+
+it("carries immutable page provenance through final HTTP shaping separately from current headers", async () => {
+  const f = fixture();
+  f.write(seed);
+  const service = createTransactionService(f.store, {
+    ownerLifetime: "service",
+    read: {
+      ...f.readOptions,
+      advertisedLimits: {
+        ...f.readOptions.advertisedLimits,
+        page: { defaultItems: 2, maximumItems: 32 },
+      },
+      pagination: { ...f.readOptions.pagination, maxPageItems: 32 },
+    },
+  });
+  cleanup.push(() => service.close());
+  const handler = createTransactionHttpHandler(service, scope);
+  const principal = { kind: "authenticated", principal: "principal", canMutate: true } as const;
+  const first = await handler.handle(new Request(url("beads/?limit=1")), principal);
+  const next = (first.body as { next: string }).next;
+  const original = body(await service.readFor({ kind: "anonymous" }).perform(resource("beads/b")));
+  f.write([
+    {
+      operation: "updateBead",
+      bead: "beads/b",
+      propertiesChange: [{ op: "replace", path: "/n", value: 99 }],
+    },
+  ]);
+  const second = await handler.handle(new Request(next), principal);
+  expect(second.kind).toBe("finite");
+  expect(second.body).toEqual({ items: [original], next: null });
+  expect(second.headers.get("bdp-scope-position")).toBe("pos-2");
+  const source = transactionHttpSourceContext(second);
+  expect(source).toMatchObject({ scopePosition: "pos-1" });
+  expect(Object.keys(second).sort()).toEqual(["body", "headers", "kind", "status"]);
+  if (!source) throw new Error("missing actual body provenance");
+  f.store.eraseHistoricalVersions([
+    { subject: String(original.id), revision: String(original.revision) },
+  ]);
+  expect(() => service.assertPublication(source)).toThrow("response predates erasure");
 });

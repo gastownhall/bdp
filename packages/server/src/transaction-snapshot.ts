@@ -1,3 +1,4 @@
+import type { TransactionErasureRecord } from "./transaction-erasure.js";
 import { jsonValueEqual } from "./json-value-equality.js";
 import { INITIAL_TRANSACTION_VIEW } from "./transaction-authorization.js";
 /** Source-private durable Snapshot owner support. No HTTP route or admission claim. */
@@ -79,7 +80,7 @@ export interface TransactionSnapshotManifest {
   readonly scopePosition: string;
   readonly checkpoint: string;
   readonly expiresAt: string;
-  readonly erasures: readonly never[];
+  readonly erasures: readonly TransactionErasureRecord[];
   readonly beads: TransactionSnapshotPage;
   readonly links: TransactionSnapshotPage;
 }
@@ -170,6 +171,7 @@ export function transactionSnapshotStorage(
   canonicalScope: string,
   types: readonly TypeDescriptor[],
   visible: () => boolean = () => true,
+  erasures: (view: string) => readonly TransactionErasureRecord[] = () => [],
 ) {
   const scope = parseCanonicalScope(canonicalScope),
     limits = TRANSACTION_SNAPSHOT_LIMITS;
@@ -639,7 +641,7 @@ export function transactionSnapshotStorage(
       scopePosition: `pos-${d.position}`,
       checkpoint: transactionCheckpoint(scope, context, d.position),
       expiresAt: new Date(d.expires).toISOString(),
-      erasures: [],
+      erasures: erasures(d.view),
       beads,
       links,
     };
@@ -829,6 +831,20 @@ export function transactionSnapshotStorage(
   }
   return Object.freeze({
     expire,
+    invalidateBefore(position: number, context: TransactionReadContext) {
+      for (const row of statement("SELECT id FROM snapshots").all()) {
+        const id = String(row.id),
+          d = disposition(id, context)!;
+        if (d.view !== INITIAL_TRANSACTION_VIEW || d.position >= position || d.expired) continue;
+        const { binding: _binding, ...unsigned } = d;
+        statement("UPDATE snapshots SET disposition=? WHERE id=?").run(
+          text(sealDisposition(id, { ...unsigned, expired: true })),
+          id,
+        );
+        statement("DELETE FROM snapshot_records WHERE snapshot=?").run(id);
+        statement("DELETE FROM snapshot_pages WHERE snapshot=?").run(id);
+      }
+    },
     manifest,
     page(
       id: string,

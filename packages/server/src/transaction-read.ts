@@ -10,7 +10,7 @@ import {
 } from "./transaction-consistency.js";
 import { isProxy } from "node:util/types";
 import {
-  createAuthorityReadPlane,
+  createContextualAuthorityReadPlane,
   AuthorityReadError,
   type AuthorityReadDeliveryOptions,
   type AuthorityReadOptions,
@@ -23,6 +23,7 @@ import {
 import type { ReadRequest } from "@bdp/protocol";
 import type { TransactionReadContext } from "./transaction-store.js";
 import type { openTransactionStore } from "./transaction-store.js";
+import { INITIAL_TRANSACTION_VIEW } from "./transaction-authorization.js";
 
 export class TransactionMinimumVisibilityGap extends Error {}
 
@@ -199,7 +200,7 @@ export function createTransactionReadPlane(
   options: TransactionReadOptions,
 ) {
   const configuration = owner.readConfiguration();
-  const plane = createAuthorityReadPlane({
+  const plane = createContextualAuthorityReadPlane({
     entry: owner,
     scopeEpoch: configuration.scopeEpoch,
     installedTypes: configuration.installedTypes,
@@ -259,10 +260,16 @@ export function createTransactionReadPlane(
       };
     },
   });
+  const unsubscribeErasure = owner.observeErasures(() =>
+    plane.discardViewSnapshots(INITIAL_TRANSACTION_VIEW),
+  );
   const checked = <Result extends AuthorityReadResult<ReadRequest> | AuthorityAliasResult>(
     result: Result,
   ): Result => {
-    if ("observation" in result) transactionReadContexts(result.observation);
+    if ("observation" in result) {
+      const contexts = transactionReadContexts(result.observation);
+      owner.assertPublication(contexts.snapshot ?? contexts.current);
+    }
     return result;
   };
   const observe = <T>(promise: Promise<T>): Promise<T> => {
@@ -271,7 +278,11 @@ export function createTransactionReadPlane(
   };
   const composed: AuthorityReadPlane = {
     closed: plane.closed,
-    close: () => plane.close(),
+    close: () => {
+      const closed = plane.close();
+      unsubscribeErasure();
+      return closed;
+    },
     readFor(principal) {
       const facet = plane.readFor(principal);
       return {

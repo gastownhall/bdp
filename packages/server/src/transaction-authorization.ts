@@ -79,7 +79,10 @@ export class TransactionAuthorizationFailure extends Error {
 export function projectTransactionEntry(value: unknown, visible: boolean): unknown {
   if (visible || !value || typeof value !== "object" || Array.isArray(value)) return value;
   const entry = value as Record<string, unknown>;
-  if ((entry.outcome !== "created" && entry.outcome !== "updated") || entry.resource === undefined)
+  if (
+    (entry.outcome !== "created" && entry.outcome !== "updated" && entry.outcome !== "erased") ||
+    (entry.resource === undefined && entry.erased === undefined)
+  )
     return value;
   return {
     operationIndex: entry.operationIndex,

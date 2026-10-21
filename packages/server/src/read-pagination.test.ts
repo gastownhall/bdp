@@ -767,3 +767,29 @@ describe("source-private pagination context", () => {
     pagination.close();
   });
 });
+
+it("discards only the erased view's ordinary snapshots and releases their exact capacity", () => {
+  const { pagination } = harness();
+  const first = pagination.firstPageWithContext(firstInput([{ id: "a" }, { id: "b" }], 1), {
+    position: "old",
+  });
+  const other = pagination.firstPageWithContext(
+    { ...firstInput([{ id: "c" }, { id: "d" }], 1), authorizationView: "other-view" },
+    { position: "other" },
+  );
+  expect(pagination.discardView("view-1")).toEqual({ releasedSnapshots: 1, releasedCursors: 1 });
+  expectPaginationError(
+    () => pagination.continuePage({ ...identity, token: tokenFrom(first.next) }),
+    "cursor-expired",
+    "unknown",
+  );
+  expect(
+    pagination.continuePage({
+      ...identity,
+      authorizationView: "other-view",
+      token: tokenFrom(other.next),
+    }).items,
+  ).toEqual([{ id: "d" }]);
+  expect(pagination.discardView("view-1")).toEqual({ releasedSnapshots: 0, releasedCursors: 0 });
+  expect(pagination.close()).toEqual({ releasedSnapshots: 1, releasedCursors: 1 });
+});

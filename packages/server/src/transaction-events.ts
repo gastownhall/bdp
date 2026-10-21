@@ -62,6 +62,8 @@ export interface TransactionEventGroup {
   readonly checkpoint: string;
   readonly transaction: string;
   readonly eventCount: number;
+  /** Owner-private purge marker; never a wire member. */
+  readonly erasurePruned?: boolean;
   readonly events: readonly TransactionEvent[];
   readonly changes: readonly TransactionStateChange[];
 }
@@ -240,7 +242,11 @@ export function projectTransactionEventGroup(
   const result: TransactionEvent[] = [];
   for (const [index, event] of group.events.entries()) {
     if (
-      event.ordinal !== index ||
+      !Number.isSafeInteger(event.ordinal) ||
+      event.ordinal < 0 ||
+      (group.erasurePruned === true
+        ? event.ordinal <= (group.events[index - 1]?.ordinal ?? -1)
+        : event.ordinal !== index) ||
       event.source !== `${scope}events/` ||
       event.transaction !== group.transaction ||
       !["created", "updated", "deleted", "linked", "unlinked"].includes(event.type)
