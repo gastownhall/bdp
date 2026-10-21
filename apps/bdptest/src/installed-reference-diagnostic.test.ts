@@ -107,6 +107,10 @@ it("actual occupied listener reports EADDRINUSE without configuration or credent
       code: "EADDRINUSE",
     });
     expect(diagnostic.message).toContain('"code":"EADDRINUSE"');
+    expect(diagnostic.message).toContain("installed child exited:");
+    expect(diagnostic.message).toContain("installed reference qualification failed");
+    expect(Object.keys(diagnostic)).not.toContain("qualificationProcess");
+    expect(diagnostic.qualificationProcess).toMatchObject({ stdoutEOF: true, stderrEOF: true });
     expect(diagnostic.message).not.toContain("sentinel-secret");
     expect(diagnostic.message).not.toContain(directory);
     if (process.env.BDP_STARTUP_DIAG_OUTPUT)
