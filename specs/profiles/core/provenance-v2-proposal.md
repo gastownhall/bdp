@@ -46,7 +46,8 @@ performed the role. Services may require particular roles under their own policy
 Do not invent participants to fill missing roles.
 
 The role vocabulary is open. Preserve unfamiliar roles without guessing their
-meaning or granting permissions. Initiation does not imply approval of an exact
+meaning or granting permissions. Array position supplies no role priority or
+authentication strength. Initiation does not imply approval of an exact
 change; contribution is a reported participation claim. Delegation, approval and
 authorization are separate concerns.
 
@@ -68,7 +69,15 @@ not whether every attached role claim was verified. The proposed vocabulary is:
 | `channel-authenticated` | The accepting service established the submitting identity from authentication on the communication channel for this submission. |
 
 `channel-authenticated` can come from authenticated request credentials or a
-client certificate. TLS alone does not establish the caller's identity. A native
+client certificate. It identifies the principal associated with the credential
+accepted by the service; it does not identify the physical person or agent
+operating that credential. If an agent uses Donna's credentials, Donna is the
+channel principal and the agent's separately reported participation remains a
+claim. Shared or delegated credential use supplies no proof of the credential
+owner's personal action, initiation, contribution or approval. Do not record
+secret credential material as a principal identifier.
+
+TLS alone does not establish the caller's identity. A native
 caller-provided label cannot establish the accepting service's authentication
 claim. The service records the authority behind its claim; importing that claim
 does not make the destination its issuer or independently prove it.
@@ -86,6 +95,7 @@ admission rules remain part of the schema work, not an already-adopted wire.
 | Donna requests, Polly produces, Polly uses Donna's credentials | Donna | Polly | Donna |
 | Donna requests, Polly produces, CI submits with its own credentials | Donna | Polly | CI service account |
 | Donna edits directly through an authenticated client | May be omitted | Donna | Donna |
+| Human requests, agent produces, controller submits locally | Human | Agent session | Controller, writer-supplied |
 
 In the first case Donna can have one record with initiator and submitter roles,
 and channel-authenticated identity. This does not authenticate the initiator
@@ -94,6 +104,15 @@ claim or prove approval. Polly's identity and participation may be writer-suppli
 Participation describes this write, not everyone who ever helped. Resolve the
 submitter afresh; do not inherit earlier initiators/contributors automatically.
 Earlier participation remains on earlier revisions.
+
+For an embedded write or a shell invocation with no accepting-service
+authentication, `writer-supplied` is the named identity basis; its absence is not
+needed to express lack of authentication. An environment variable, Git user name,
+component label or fallback literal such as `human` does not establish an
+authenticated human. Preserve uncertain historical values without inventing an
+accountable party. Transport locality is separate: a service on the local machine
+can authenticate a request through its own declared mechanism. Core does not add
+a channel-existence field merely to distinguish a shell from HTTP.
 
 ## 3. One mutation-local object
 
@@ -374,3 +393,25 @@ migration are not requirements of this slice.
 6. Prepare the schema/fixture and implementation cohorts, review and qualify
    applicable paths in self-describing PRs under MEM-POL-003. No merge, runtime
    pin, release/default change or capability claim follows from this draft.
+7. Reconcile the merge-scoped OSS vocabulary discussed in Julian's October19
+   [upstream update](https://gascityinc.slack.com/archives/C0BHVRDE6LW/p1792459256307549)
+   (`actors[]`, `effective_at`, `original_committed_at`) with this selected design.
+   That message explicitly limits those choices to the merge effort rather than
+   final proposal judgment. Do not infer a strict-subset mapping, participant
+   roles, array-order meaning or a reserved temporal contract without the exact
+   implemented/adopted source. Preserve source observations and planned changes
+   as separate evidence.
+8. Coordinate Conformance's domain `evidence` property with per-write sources.
+   Current Memory defines free-form claim support; sources describe inputs used
+   by a particular write. Identify any duplicate authority and the intended
+   retained meaning before changing the owned Memory Type or requiring a
+   validator to cite the same run twice. No removal or conversion of that
+   property is selected by this document.
+
+Review context: [October20 #eng feedback](https://gascityinc.slack.com/archives/C0BHVRDE6LW/p1792546221311659).
+Concrete reviewer proposals for `--actor` as contributor plus submitter,
+source-only explicit-declaration minting, URI/URN-only principal identifiers,
+`{ref,note}` withdrawal wrappers, `{basis,authority}` placement and the
+`--message`/`--change-message` spelling are not adopted by these clarifications.
+They remain explicit review choices, not executable contracts inferred from the
+Slack discussion.
