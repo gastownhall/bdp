@@ -265,7 +265,7 @@ it.each([
   expect(f.raw()).toBe(state);
   expect(f.owner.erasureLedger()).toEqual([]);
 });
-it("refuses current owned Links through both APIs and preserves Bead API separation", () => {
+it("preserves Bead API separation for owned Links", () => {
   const f = fixture({
     types: [
       parseTypeDescriptor({
@@ -280,10 +280,6 @@ it("refuses current owned Links through both APIs and preserves Bead API separat
   });
   const old = f.seed().resource;
   const before = f.raw();
-  expect(() => f.owner.correctLiveLinkVersion(old.id, old.revision, f.correction(old))).toThrow(
-    "owned-Link",
-  );
-  expect(() => f.owner.tombstoneLiveLinkVersion(old.id, old.revision)).toThrow("owned-Link");
   expect(() => f.owner.correctLiveBeadVersion(old.id, old.revision, f.correction(old))).toThrow();
   expect(() => f.owner.tombstoneLiveBeadVersion(old.id, old.revision)).toThrow();
   expect(f.raw()).toBe(before);

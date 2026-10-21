@@ -75,6 +75,7 @@ import { assertDevelopmentContracts, type DevelopmentContracts } from "./develop
 import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
 import type { AuthorityReadReader, OwnerReadEntryResult, ReadPrincipal } from "./authority-read.js";
 import { readStoredResource, type EvaluatorStoredResource } from "./resource-evaluator.js";
+import { liveOwnedLinkEvents } from "./transaction-live-owned-link.js";
 import { validateLiveBeadCorrection, liveCorrectionEvent } from "./transaction-live-correction.js";
 import {
   validateLiveLinkCorrection,
@@ -906,6 +907,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             throw new Error(
               `current ${live.resourceKind === "link" ? "Link" : "Bead"} revision differs`,
             );
+          let owningSource: ReturnType<typeof readStoredResource> | undefined;
           if (live.resourceKind === "link") {
             if (stored.kind !== "link" || !("source" in before))
               throw new Error("current Link required");
@@ -920,10 +922,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               const ownership =
                 descriptor?.describes === "bead" ? descriptor.ownsOutgoing : undefined;
               if (
-                (ownership &&
-                  (Object.hasOwn(ownership, before.type) || Object.hasOwn(ownership, "*"))) ||
-                Object.values(source.ownedLinks ?? {}).some((links) => links.length > 0)
+                ownership &&
+                (Object.hasOwn(ownership, before.type) || Object.hasOwn(ownership, "*"))
               )
+                owningSource = source;
+              else if (Object.values(source.ownedLinks ?? {}).some((links) => links.length > 0))
                 throw new Error("live owned-Link administration is unsupported");
             }
           }
@@ -950,7 +953,19 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             );
           const change = evaluated.changes[0],
             event = evaluated.events[0];
-          if (live.kind === "tombstone") {
+          if (owningSource) {
+            correctedEvents = liveOwnedLinkEvents(
+              scope,
+              before,
+              owningSource,
+              evaluated.changes,
+              evaluated.events,
+              live.kind,
+            );
+            correctedChanges = evaluated.changes;
+            for (const item of correctedChanges)
+              if (item.operation === "upsert") retainErasureVersions(db, item.resource);
+          } else if (live.kind === "tombstone") {
             if (
               evaluated.changes.length !== 1 ||
               !change ||
@@ -1035,9 +1050,19 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           }
           if (!retained) endpointsGone.add(record.subject);
         }
-        correctedEvents = correctedEvents.filter(
-          (event) => !erasedContentEvent(event, selected, endpointsGone),
-        );
+        const originalEventCount = correctedEvents.length;
+        correctedEvents = correctedEvents.filter((event) => {
+          if (!erasedContentEvent(event, selected, endpointsGone)) return true;
+          // The new administrative group can itself contain withheld ordinary
+          // facts. Preserve their ordinal gaps with the same content-free
+          // commitments used for older groups, never renumber surviving facts.
+          db.prepare("INSERT OR IGNORE INTO erased_event_cursors VALUES(?,?,?)").run(
+            position,
+            event.ordinal,
+            erasureSourceTag(`${scope}events/`),
+          );
+          return false;
+        });
         const group = {
           scopeEpoch: epoch,
           authorizationView: INITIAL_TRANSACTION_VIEW,
@@ -1050,6 +1075,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           erasures: records,
           eventCount: correctedEvents.length,
           events: correctedEvents,
+          ...(correctedEvents.length < originalEventCount
+            ? { erasurePruned: true, originalEventCount }
+            : {}),
         };
         const groupText = json(group);
         if (Buffer.byteLength(groupText) > TRANSACTION_EVENT_GROUP_BYTES)
