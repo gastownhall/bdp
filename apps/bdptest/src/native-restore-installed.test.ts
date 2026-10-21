@@ -198,6 +198,7 @@ it.skipIf(!entry)(
       async function command(command: string, extra: Record<string, string> = {}) {
         const active = run;
         if (!active) throw Error("missing child");
+        const activeChild = active.child;
         const response = await new Promise<Record<string, any>>((resolve, reject) => {
           const timer = setTimeout(() => {
             activeChild.off("message", accept);
