@@ -1,0 +1,15 @@
+{
+  "id": "transactional.idempotency.unresolved-admission",
+  "selectedClause": "spec3991-4000 failed creator forgotten/key reused while dependent immutable unbound identity remains retained",
+  "sourceBase": "da95a69a7557fda54a90768bc4df41830ca2ad93",
+  "cases": 1,
+  "ordinaryDeployment": false,
+  "runtimeConfigurationIdentity": null,
+  "selectedSeams": ["existing233trustedclock"],
+  "residual": [
+    "in-flight pinned facts through creator forgetting are not paused in this case",
+    "stale ownership/retraction/recovery not selected",
+    "no direct dependent receipt URL exposed by sequence; no key lookup invented",
+    "no whole predicate/profile qualification"
+  ]
+}
