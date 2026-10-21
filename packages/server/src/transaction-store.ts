@@ -76,6 +76,7 @@ import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
 import type { AuthorityReadReader, OwnerReadEntryResult, ReadPrincipal } from "./authority-read.js";
 import { readStoredResource, type EvaluatorStoredResource } from "./resource-evaluator.js";
 import { validateLiveBeadCorrection, liveCorrectionEvent } from "./transaction-live-correction.js";
+import { prepareLiveBeadTombstone } from "./transaction-live-tombstone.js";
 import {
   TransactionDevelopmentLimitError,
   TRANSACTION_RUNTIME_LIMITS,
@@ -828,11 +829,16 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     return eraseVersions(requested);
   }
   function correctLiveBeadVersion(subject: string, revision: string, request: PreparedTransaction) {
-    return eraseVersions([{ subject, revision }], request);
+    return eraseVersions([{ subject, revision }], { kind: "correction", request });
+  }
+  function tombstoneLiveBeadVersion(subject: string, revision: string) {
+    return eraseVersions([{ subject, revision }], { kind: "tombstone" });
   }
   function eraseVersions(
     requested: readonly HistoricalErasureSubject[],
-    correction?: PreparedTransaction,
+    live?:
+      | { readonly kind: "correction"; readonly request: PreparedTransaction }
+      | { readonly kind: "tombstone" },
   ) {
     return enter(() => {
       if (
@@ -853,7 +859,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         let correctedChanges: readonly import("./transaction-batch.js").TransactionStateChange[] =
           [];
         let correctedEvents: TransactionEvent[] = [];
-        if (correction !== undefined) {
+        if (live !== undefined) {
           const target = requested[0];
           if (
             requested.length !== 1 ||
@@ -870,7 +876,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           const before = readStoredResource(stored, scope);
           if (before.id !== target.subject || before.revision !== target.revision)
             throw new Error("current Bead revision differs");
-          const normalized = validateLiveBeadCorrection(correction, scope, before);
+          const normalized =
+            live.kind === "correction"
+              ? validateLiveBeadCorrection(live.request, scope, before)
+              : prepareLiveBeadTombstone(scope, before);
           const evaluated = evaluateOwnedTransaction(
             normalized,
             transaction,
@@ -878,27 +887,55 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             instant(),
           );
           if (!evaluated.ok)
-            throw new Error("live correction validation refused", { cause: evaluated.problem });
+            throw new Error(
+              live.kind === "correction"
+                ? "live correction validation refused"
+                : "live tombstone validation refused",
+              { cause: evaluated.problem },
+            );
           const change = evaluated.changes[0],
             event = evaluated.events[0];
-          if (
-            evaluated.changes.length !== 1 ||
-            !change ||
-            change.operation !== "upsert" ||
-            change.resourceKind !== "bead" ||
-            !("properties" in change.resource) ||
-            change.resource.id !== target.subject ||
-            evaluated.events.length !== 1 ||
-            !event ||
-            event.type !== "updated" ||
-            event.subject !== target.subject
-          )
-            throw new Error(
-              "live correction requires a changed unowned Bead; unchanged state needs unsupported tombstone",
-            );
-          correctedChanges = evaluated.changes;
-          correctedEvents = [liveCorrectionEvent(before, change.resource, event)];
-          retainErasureVersions(db, change.resource);
+          if (live.kind === "tombstone") {
+            if (
+              evaluated.changes.length !== 1 ||
+              !change ||
+              change.operation !== "tombstone" ||
+              change.resourceKind !== "bead" ||
+              change.resource.id !== before.id ||
+              change.resource.type !== before.type ||
+              change.resource.revision !== before.revision ||
+              evaluated.events.length !== 1 ||
+              !event ||
+              event.type !== "deleted" ||
+              event.subject !== before.id ||
+              Object.keys(event.data as object).join(",") !== "revision" ||
+              (event.data as { revision: string }).revision !== before.revision
+            )
+              throw new Error(
+                "live tombstone requires the exact Bead lineage and ordinary deleted fact",
+              );
+            correctedChanges = evaluated.changes;
+            correctedEvents = [...evaluated.events];
+          } else {
+            if (
+              evaluated.changes.length !== 1 ||
+              !change ||
+              change.operation !== "upsert" ||
+              change.resourceKind !== "bead" ||
+              !("properties" in change.resource) ||
+              change.resource.id !== target.subject ||
+              evaluated.events.length !== 1 ||
+              !event ||
+              event.type !== "updated" ||
+              event.subject !== target.subject
+            )
+              throw new Error(
+                "live correction requires a changed unowned Bead; unchanged state needs unsupported tombstone",
+              );
+            correctedChanges = evaluated.changes;
+            correctedEvents = [liveCorrectionEvent(before, change.resource, event)];
+            retainErasureVersions(db, change.resource);
+          }
         }
         const plan = planHistoricalErasure(db, scope, requested);
         const selected = new Set(
@@ -2426,6 +2463,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       ),
     eraseHistoricalVersions,
     correctLiveBeadVersion,
+    tombstoneLiveBeadVersion,
     observeErasures(observer: () => void): () => void {
       return enter(() => {
         if (typeof observer !== "function") throw new TypeError("erasure observer required");
