@@ -7,6 +7,7 @@ import type { PreparedTransactionSequence } from "./transaction-batch.js";
 import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
 import {
   checkCurrentReadMinimum,
+  TransactionMinimumFailure,
   snapshotCurrentReadMinimum,
   snapshotTransactionMinimum,
   type TransactionMinimum,
@@ -436,6 +437,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         if (!(error instanceof TypeError)) throw error;
         captured = { error };
       }
+      const unorderable = "error" in captured;
       let minimum: TransactionMinimum;
       let kind: TransactionSnapshotRequest["kind"];
       if ("error" in captured) {
@@ -447,15 +449,40 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           throw captured.error;
         }
         kind = request.kind;
-        if (kind !== "create" && kind !== "preflight") throw captured.error;
+        if (kind !== "create" && kind !== "preflight" && kind !== "manifest" && kind !== "page")
+          throw captured.error;
       } else {
         minimum = captured.minimum;
         kind = request.kind;
       }
+      const observeRetained = (copied: TransactionSnapshotRequest) =>
+        run(async (): Promise<ReturnType<Owner["observeSnapshot"]>> => {
+          if (!unorderable) return owner.observeSnapshot(copied, minimum);
+          try {
+            return await waitForTransactionMinimum(
+              () => owner.observeSnapshot(copied, minimum),
+              minimumReads,
+              signal,
+            );
+          } catch (error) {
+            // Only this settled retained/unorderable domain uses unavailable.
+            // Resource minimum catch-up and every other failure retain their mapping.
+            if (
+              !(error instanceof TransactionMinimumFailure) ||
+              error.reason !== "catch-up-timeout"
+            )
+              throw error;
+            return Object.freeze({
+              kind: "problem" as const,
+              code: "temporarily-unavailable" as const,
+              context: error.context,
+            });
+          }
+        });
       if (kind === "manifest") {
         const retained = request as Extract<TransactionSnapshotRequest, { kind: "manifest" }>;
         const copied = Object.freeze({ kind, id: retained.id });
-        return run(async () => owner.observeSnapshot(copied, minimum));
+        return observeRetained(copied);
       }
       if (kind === "page") {
         const retained = request as Extract<TransactionSnapshotRequest, { kind: "page" }>;
@@ -465,7 +492,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           stream: retained.stream,
           token: retained.token,
         });
-        return run(async () => owner.observeSnapshot(copied, minimum));
+        return observeRetained(copied);
       }
       // Freeze both controls before the first asynchronous attempt. Each owner
       // entry revalidates the tuple; no SQLite entry survives a finite wait.
