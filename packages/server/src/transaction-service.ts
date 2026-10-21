@@ -1,3 +1,4 @@
+import { eraseReceiptEntry } from "./transaction-erasure.js";
 import { projectTransactionEntry } from "./transaction-authorization.js";
 import { assembleTransactionDiscovery } from "./transaction-discovery.js";
 import { transactionEventRequest, TransactionEventParameterError } from "./transaction-events.js";
@@ -35,6 +36,7 @@ import {
 import type {
   openTransactionStore,
   TransactionReadContext,
+  TransactionChangePublication,
   TransactionEventScan,
   TransactionReceipt,
   TransactionReceiptPage,
@@ -476,11 +478,20 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         ),
       );
     },
+    /** Local administrator only. Mutation ownership is checked again by the
+     * owner; no HTTP route, receipt, or caller-supplied transaction identity. */
+    eraseHistoricalVersions(subjects: Parameters<Owner["eraseHistoricalVersions"]>[0]) {
+      check();
+      return owner.eraseHistoricalVersions(subjects);
+    },
+    assertPublication: owner.assertPublication,
+    acquireChangePublication: owner.acquireChangePublication,
     changes(
       intent: TransactionChangefeedIntent,
       supplied?: TransactionMinimum | "unsupported",
       signal?: AbortSignal,
       admission?: "finite-start-now" | "current-changefeed",
+      publication?: TransactionChangePublication,
     ) {
       // Capture controls before asynchronous retries. start=now observes admission
       // head once; advancing it at every attempt would skip intervening commits.
@@ -509,6 +520,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
                 : finiteStartNow
                   ? "finite-start-now"
                   : undefined,
+              publication,
             ),
           minimumReads,
           signal,
@@ -746,9 +758,17 @@ export function createTransactionService(owner: Owner, options: TransactionServi
             kind: "authenticated",
             principal: { id: principal },
           });
+          const erased = new Set(
+            owner
+              .erasureLedgerInEntry()
+              .map((record) => JSON.stringify([record.subject, record.revision])),
+          );
           const body = {
             results: response.results.map((entry) =>
-              projectTransactionEntry(entry, policy.readPolicy === "all-visible"),
+              projectTransactionEntry(
+                eraseReceiptEntry(entry, erased),
+                policy.readPolicy === "all-visible",
+              ),
             ),
           };
           // Traverse frozen parents too: this observation guarantees every descendant is frozen.

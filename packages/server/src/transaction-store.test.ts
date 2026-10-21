@@ -1,3 +1,4 @@
+import { transactionReferenceCommitment } from "./transaction-request-identity.js";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -1762,7 +1763,7 @@ describe("private atomic transaction owner", () => {
     expect(receipt).toMatchObject({ status: "failed", problem: { code: "resource-not-found" } });
     const saved = savedKey(f, "miss");
     expect(JSON.parse(String(saved.witnesses)).operations[0].aliases).toEqual([
-      { locator: `${scope}alias/missing`, target: null },
+      { locator: transactionReferenceCommitment(`${scope}alias/missing`), target: null },
     ]);
     expect(
       f.store.admit(
@@ -2017,7 +2018,10 @@ describe("private atomic transaction owner", () => {
       try {
         const row = raw.prepare("SELECT witnesses FROM receipts WHERE key='crashed-witness'").get();
         expect(JSON.parse(String(row?.witnesses)).operations[0].aliases).toEqual([
-          { locator: `${scope}alias/work`, target: `${scope}beads/a` },
+          {
+            locator: transactionReferenceCommitment(`${scope}alias/work`),
+            target: transactionReferenceCommitment(`${scope}beads/a`),
+          },
         ]);
       } finally {
         raw.close();
@@ -2084,10 +2088,18 @@ describe("private atomic transaction owner", () => {
       } finally {
         raw.close();
       }
-      f.reopen();
-      expect(() => f.store.admit("principal", "corrupt", request)).toThrow();
-      expect(f.store.receipt("principal", receipt.id)).toEqual(receipt);
-      expect(savedKey(f, "corrupt")).toEqual(corruptRow);
+      // Format 12 validates the complete committed witness envelope before
+      // exposing an owner. Refusal rolls back maintenance/migration writes.
+      expect(() => f.reopen()).toThrow();
+      const refused = new DatabaseSync(f.options.file, { readOnly: true });
+      try {
+        expect(refused.prepare("SELECT * FROM receipts WHERE key='corrupt'").get()).toEqual(
+          corruptRow,
+        );
+        expect(JSON.parse(String(corruptRow?.receipt))).toEqual(receipt);
+      } finally {
+        refused.close();
+      }
     });
 });
 

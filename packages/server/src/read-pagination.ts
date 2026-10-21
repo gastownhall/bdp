@@ -122,6 +122,8 @@ export interface ReadPagination<Item> {
 
 /** Package-private companion used by same-owner authority composition only. */
 export interface ContextualReadPagination<Item> extends ReadPagination<Item> {
+  /** Synchronous owner-only purge; ordinary commits do not call this. */
+  discardView(authorizationView: string): ReadPaginationCleanup;
   firstPageWithContext(
     input: ReadFirstPageInput<Item>,
     context?: ReadSourceContext,
@@ -328,6 +330,20 @@ export function createContextualReadPagination<Item = unknown>(
     sourceContext(page) {
       if (!pageContexts.has(page)) throw localError("invalid-input", "foreign pagination page");
       return pageContexts.get(page);
+    },
+
+    discardView(authorizationView) {
+      requireOpen();
+      identity(authorizationView);
+      let releasedSnapshots = 0,
+        releasedCursors = 0;
+      for (const snapshot of [...snapshots]) {
+        if (snapshot.authorizationView !== authorizationView) continue;
+        releasedCursors += release(snapshot);
+        releasedSnapshots++;
+      }
+      scheduleIdleCleanup();
+      return Object.freeze({ releasedSnapshots, releasedCursors });
     },
 
     validateLimit(limit: number | undefined): number {

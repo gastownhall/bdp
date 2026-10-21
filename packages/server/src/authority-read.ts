@@ -952,6 +952,16 @@ function nativeSignalAborted(signal: AbortSignal | undefined): boolean {
  * Feasible workload qualification remains upstream; no latency bound is implied.
  */
 export function createAuthorityReadPlane(options: AuthorityReadOptions): AuthorityReadPlane {
+  const { readFor, closed, close } = createContextualAuthorityReadPlane(options);
+  return Object.freeze({ readFor, closed, close });
+}
+/** Same-owner composition only. Preserve the original public plane facade. */
+export function createContextualAuthorityReadPlane(
+  options: AuthorityReadOptions,
+): AuthorityReadPlane & {
+  /** Owner-only erasure invalidation, not a public Read operation. */
+  discardViewSnapshots(authorizationView: string): void;
+} {
   const prepared = prepare(options);
   let busy = false;
   let stopped = false;
@@ -1017,7 +1027,11 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
     return finish(prepared, intent, captured);
   };
 
-  const plane: AuthorityReadPlane = {
+  const plane: AuthorityReadPlane & { discardViewSnapshots(authorizationView: string): void } = {
+    discardViewSnapshots(authorizationView) {
+      guard();
+      prepared.pagination.discardView(authorizationView);
+    },
     closed,
     readFor(value): AuthorityReadFacet {
       guard();

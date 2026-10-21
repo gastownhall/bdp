@@ -14,7 +14,11 @@ import type { ContractArtifactLimits } from "./installed-contract-artifact.js";
 import { captureTransactionRuntimeConfiguration } from "./transaction-runtime-configuration.js";
 import type { HttpResponse } from "./index.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
-import { openTransactionStore, type TransactionReadContext } from "./transaction-store.js";
+import {
+  openTransactionStore,
+  TransactionErasureFence,
+  type TransactionReadContext,
+} from "./transaction-store.js";
 import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
 import {
   createTransactionService,
@@ -24,6 +28,7 @@ import {
 import {
   createTransactionHttpHandler,
   transactionHttpProblem,
+  transactionHttpSourceContext,
   TRANSACTION_HTTP_TARGET_BYTES,
   type TransactionReceivedBody,
   type TransactionHttpResult,
@@ -177,8 +182,16 @@ export async function startTransactionRuntime(
         body,
         lastEventIds,
       );
-      if (selected.kind === "finite") deliver(response, selected);
-      else {
+      if (selected.kind === "finite") {
+        const sourceContext = transactionHttpSourceContext(selected);
+        const scopeEpoch = selected.headers.get("bdp-scope-epoch"),
+          authorizationView = selected.headers.get("bdp-authorization-view"),
+          scopePosition = selected.headers.get("bdp-scope-position");
+        if (sourceContext) service!.assertPublication(sourceContext);
+        else if (scopeEpoch && authorizationView && scopePosition)
+          service!.assertPublication({ scopeEpoch, authorizationView, scopePosition });
+        deliver(response, selected);
+      } else {
         if (!captured.liveStreamsAvailable) {
           deliver(response, {
             status: 500,
@@ -193,48 +206,78 @@ export async function startTransactionRuntime(
         streamContext = selected.context;
         await activeService.stream(
           async (streamSignal) => {
+            let erasurePublicationSignal: AbortSignal | undefined;
             try {
               streamSignal.throwIfAborted();
               if (!selected || selected.kind === "finite")
                 throw new Error("missing stream selection");
               response.writeHead(selected.status, Object.fromEntries(selected.headers));
               response.flushHeaders();
-              const pumping =
+              const lease =
                 selected.kind === "changefeed-stream"
-                  ? pumpTransactionChanges(
-                      response,
-                      selected.page,
-                      async (after, nextSignal) => {
-                        const observed = await activeService.changes(
-                          { after },
-                          undefined,
-                          nextSignal,
-                        );
-                        if (observed.kind !== "page")
-                          throw new Error("changefeed stream lost serving entry");
-                        return observed.page;
-                      },
-                      streamSignal,
-                      settings.changefeedStream,
-                    )
-                  : pumpTransactionEvents(
-                      response,
-                      selected.packet,
-                      (scan, nextSignal) => activeService.nextEvents(scan, nextSignal),
-                      streamSignal,
-                      settings.changefeedStream,
-                    );
+                  ? activeService.acquireChangePublication(selected.context, selected.page.after)
+                  : undefined;
+              let eventPublicationContext = selected.context;
+              const publicationSignal = lease
+                ? AbortSignal.any([streamSignal, lease.signal])
+                : streamSignal;
+              erasurePublicationSignal = publicationSignal;
+              try {
+                const pumping =
+                  selected.kind === "changefeed-stream"
+                    ? pumpTransactionChanges(
+                        response,
+                        selected.page,
+                        async (after, nextSignal) => {
+                          const observed = await activeService.changes(
+                            { after },
+                            undefined,
+                            nextSignal,
+                            undefined,
+                            lease,
+                          );
+                          if (observed.kind !== "page")
+                            throw new Error("changefeed stream lost serving entry");
+                          return observed.page;
+                        },
+                        publicationSignal,
+                        settings.changefeedStream,
+                        (group, write) => lease!.publish(group.checkpoint, write),
+                      )
+                    : pumpTransactionEvents(
+                        response,
+                        selected.packet,
+                        async (scan, nextSignal) => {
+                          const packet = await activeService.nextEvents(scan, nextSignal);
+                          eventPublicationContext = packet.context;
+                          return packet;
+                        },
+                        publicationSignal,
+                        settings.changefeedStream,
+                        (_event, write) => {
+                          activeService.assertPublication(eventPublicationContext);
+                          return write();
+                        },
+                      );
+                selected = undefined;
+                await pumping;
+              } finally {
+                lease?.release();
+              }
               // Transfer the initial packet into the pump; do not retain the HTTP
               // result/group body for the lifetime of the live stream.
-              selected = undefined;
-              await pumping;
             } catch (error) {
               // Capture before destroy() turns a genuine fault into a disconnect.
               if (
                 response.headersSent &&
                 !streamSignal.aborted &&
                 !response.destroyed &&
-                !firstStreamFault
+                !firstStreamFault &&
+                !(error instanceof TransactionErasureFence) &&
+                !(
+                  erasurePublicationSignal?.aborted &&
+                  erasurePublicationSignal.reason instanceof TransactionErasureFence
+                )
               )
                 firstStreamFault = { cause: error };
               throw error;
@@ -367,6 +410,9 @@ export async function startTransactionRuntime(
     scope,
     listenUrl,
     configurationMetadata,
+    eraseHistoricalVersions: (
+      subjects: Parameters<NonNullable<typeof service>["eraseHistoricalVersions"]>[0],
+    ) => service!.eraseHistoricalVersions(subjects),
     replaceAuthorizationPolicy: (options: {
       readonly timeoutMs: number;
       readonly signal?: AbortSignal;
