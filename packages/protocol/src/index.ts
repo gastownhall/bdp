@@ -5,6 +5,10 @@ export type {
   PropertyValidator,
 } from "./property-validation.js";
 export { snapshotJsonValue, stringifyJsonValue } from "./json-values.js";
+export {
+  snapshotPositionTooOldProblem,
+  type SnapshotPositionTooOldProblem,
+} from "./transactional-problems.js";
 import { parseHistoryMissing } from "./history-values.js";
 import type { RevisionProvenance, HistoryCapability, HistoryMissing } from "./history-values.js";
 export * from "./history-values.js";
