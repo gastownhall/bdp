@@ -1,0 +1,148 @@
+{
+  "kind": "finite NEW installed witnesses, no map promotion",
+  "base": "14d804d7919bd69cb15372893d4aebedce5a206c",
+  "fixtureConfiguration": "NEW separate15Type6schema config; never pool old11/3 or old73bd bindings",
+  "rows": [
+    {
+      "id": "read-update.singleton.create-bead",
+      "case": "allocation",
+      "status": "demonstrated-selected-predicate-proposal",
+      "wholeContract": false,
+      "selectedCatalogRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#explicit-bead-operations",
+          "selectedText": "If `id` is omitted, the authority allocates one."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "`created` and `updated` carry `resource`, the complete Resource record as a `GET` of its URL would now return it"
+        }
+      ],
+      "demonstrated": "Omitted ID actually allocated as one canonical opaque segment; complete postimage equals full subsequent GET; equal-key replay creates no second group/Event.",
+      "residual": "No allocator exhaustion/concurrency or all identity conflicts."
+    },
+    {
+      "id": "read-update.validation.type-contract",
+      "case": "inherited",
+      "status": "demonstrated-selected-predicate-proposal",
+      "wholeContract": false,
+      "selectedCatalogRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "`validation-failed`: the mutation is well-formed but its result is not admissible"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#descriptor-installation-for-mutation",
+          "selectedText": "A mutation that names an unavailable Type fails as `type-not-installed`; the mutation does not initiate installation."
+        }
+      ],
+      "demonstrated": "Identical properties succeed under child-own-schema-only sibling but fail under inherited child, diagnostic names parent and required keyword; valid conjunction succeeds and rejected attempt changes nothing.",
+      "residual": "Uninstalled Type branch and arbitrary multiple inheritance not exercised here."
+    },
+    {
+      "id": "read-update.validation.diagnostics",
+      "case": "inherited",
+      "status": "demonstrated-selected-predicate-proposal",
+      "wholeContract": false,
+      "selectedCatalogRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "When the failure is an effective Type contract, every entry names the failing effective Type in `type` and the failed keyword in `schemaLocation`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "an authority that omits entries beyond a bound MUST advertise that bound, keeps at least one entry in evaluation order, and sets `diagnosticsTruncated` to `true`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#type-validation-and-diagnostics",
+          "selectedText": "A Resource validation failure returns a bounded diagnostic list identifying the failing effective Type and schema location"
+        }
+      ],
+      "demonstrated": "Identical properties succeed under child-own-schema-only sibling but fail under inherited child, diagnostic names parent and required keyword; valid conjunction succeeds and rejected attempt changes nothing.",
+      "residual": "Uninstalled Type branch and arbitrary multiple inheritance not exercised here."
+    },
+    {
+      "id": "transactional.receipt.problem-shape",
+      "case": "pointer",
+      "status": "demonstrated-selected-predicate-proposal",
+      "wholeContract": false,
+      "selectedCatalogRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "It carries the code's `status` \u2014 the HTTP status the failure would have had as a direct response, required because the enclosing status is `200 OK` \u2014 and `operationIndex`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "the problem carries `pointer`, an RFC 6901 JSON Pointer into the request body as submitted"
+        }
+      ],
+      "demonstrated": "Actual missing-target Property Change in batch UpdateWhere returns exact /operations/1/change/0/path, status422/index1; atomic rollback of earlier tentative creation, retained exact failure replay.",
+      "residual": "Transaction-wide omitted operationIndex and every other request pointer source remain outside this finite case."
+    },
+    {
+      "id": "transactional.receipt.validation-diagnostics",
+      "case": "pointer",
+      "status": "demonstrated-selected-predicate-proposal",
+      "wholeContract": false,
+      "selectedCatalogRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "A `validation-failed` problem carries `diagnostics` and, when it truncated them, `diagnosticsTruncated`"
+        }
+      ],
+      "demonstrated": "Actual missing-target Property Change in batch UpdateWhere returns exact /operations/1/change/0/path, status422/index1; atomic rollback of earlier tentative creation, retained exact failure replay.",
+      "residual": "Transaction-wide omitted operationIndex and every other request pointer source remain outside this finite case."
+    },
+    {
+      "id": "read-update.validation.diagnostics",
+      "case": "truncation",
+      "status": "demonstrated-selected-predicate-proposal",
+      "wholeContract": false,
+      "selectedCatalogRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "When the failure is an effective Type contract, every entry names the failing effective Type in `type` and the failed keyword in `schemaLocation`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "an authority that omits entries beyond a bound MUST advertise that bound, keeps at least one entry in evaluation order, and sets `diagnosticsTruncated` to `true`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#type-validation-and-diagnostics",
+          "selectedText": "A Resource validation failure returns a bounded diagnostic list identifying the failing effective Type and schema location"
+        }
+      ],
+      "demonstrated": "Real 17 invalid integer properties under installed schema yield16 unique type/keyword/instance diagnostics and true truncation, matching actual discovery count16/byte524288; rejected identity absent, valid17-field control succeeds.",
+      "residual": "No diagnostic-byte-overflow threshold or arbitrary validator evaluation-order claim."
+    },
+    {
+      "id": "transactional.receipt.validation-diagnostics",
+      "case": "truncation",
+      "status": "demonstrated-selected-predicate-proposal",
+      "wholeContract": false,
+      "selectedCatalogRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "A `validation-failed` problem carries `diagnostics` and, when it truncated them, `diagnosticsTruncated`"
+        }
+      ],
+      "demonstrated": "Real 17 invalid integer properties under installed schema yield16 unique type/keyword/instance diagnostics and true truncation, matching actual discovery count16/byte524288; rejected identity absent, valid17-field control succeeds.",
+      "residual": "No diagnostic-byte-overflow threshold or arbitrary validator evaluation-order claim."
+    }
+  ],
+  "whole251Claim": false
+}
