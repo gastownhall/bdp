@@ -5,6 +5,12 @@ design question: the base, plus the first three role controls (advertised
 profile, `bdptest` fixture selection, the four conformance runner fields, and
 the binding Read page, Selector, and cursor lifetime limits). Non-normative.
 
+For ordinary trusted reference RU/TX startup through the installed `bdptest`
+command, see [reference-startup.md](reference-startup.md). That explicit
+deployment path creates a non-attesting qualification target (`claimEligible:
+false`); it does not grant cumulative conformance credit. The default Read
+composition and bd-backed adapter retain the admission rules below.
+
 Public server admission is fail-closed. `--serve` is the only CLI action that
 requests a listener; supplying `--config` merely selects configuration and does
 not imply service startup. Before binding, each server requires an explicit
@@ -13,7 +19,8 @@ entire cumulative surface it would advertise. Absent recorded evidence for a
 profile, both executables refuse it—including `read`—with exit code 2 before
 calling `listen`; Read admission is currently backed by the committed
 two-target evidence cohort (see `STATUS.md`), and higher profiles remain
-refused because their cumulative surfaces are not implemented. This
+refused by that Read composition. An explicit trusted reference deployment
+uses the separate preparation/ownership boundary described above. This
 fail-closed design is intentional, not a default-profile substitute.
 
 Four roles need startup configuration: the client (`bdp`), the
@@ -120,6 +127,7 @@ Adding a public capacity control is a change to this document first.
 | `bd.executable` | `BDP_BD_EXECUTABLE` | `bd` adapter | `bd` |
 | `bd.workspace` | `BDP_BD_WORKSPACE` | `bd` adapter | unset |
 | `bdptest.fixture` | `BDP_BDPTEST_FIXTURE` | `bdptest` | unset |
+| `bdptest.deploymentFile` | `BDP_BDPTEST_DEPLOYMENT_FILE` | `bdptest` | unset (absolute trusted reference deployment file; read only with `--serve`) |
 | `conformance.profile` | `BDP_CONFORMANCE_PROFILE` | conformance runner | `read` |
 | `conformance.scenarioFilter` | `BDP_CONFORMANCE_SCENARIO_FILTER` | conformance runner | unset |
 | `conformance.seed` | `BDP_CONFORMANCE_SEED` | conformance runner | `0` |

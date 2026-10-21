@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, symlink, writeFile, realpath } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, it } from "vitest";
@@ -12,6 +12,10 @@ it("pins the root and explicit development facade and refuses missing or broad e
       types: "./dist/reference-deployment.d.ts",
       default: "./dist/reference-deployment.js",
     },
+    "./reference-startup": {
+      types: "./dist/reference-startup.d.ts",
+      default: "./dist/reference-startup.js",
+    },
   };
   expect(() => assertServerExports({ exports })).not.toThrow();
   for (const candidate of [
@@ -19,6 +23,7 @@ it("pins the root and explicit development facade and refuses missing or broad e
     { ...exports, "./dist/*": "./dist/*" },
     { ...exports, "./private": "./dist/installed-schema-evaluator.js" },
     { ...exports, "./reference-configuration": exports["./development"] },
+    { ...exports, "./reference-startup": exports["./development"] },
     ...[
       "installed-reference",
       "transaction-runtime",

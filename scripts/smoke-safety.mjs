@@ -1,6 +1,6 @@
 import { realpath, stat } from "node:fs/promises";
-import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 export function assertServerExports(manifest) {
   const expected = {
@@ -9,6 +9,10 @@ export function assertServerExports(manifest) {
     "./reference-configuration": {
       types: "./dist/reference-deployment.d.ts",
       default: "./dist/reference-deployment.js",
+    },
+    "./reference-startup": {
+      types: "./dist/reference-startup.d.ts",
+      default: "./dist/reference-startup.js",
     },
   };
   if (!isDeepStrictEqual(manifest.exports, expected))
