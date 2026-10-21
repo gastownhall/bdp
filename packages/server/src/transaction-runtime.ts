@@ -7,12 +7,12 @@ import { TransactionAuthorizationFailure } from "./transaction-authorization.js"
 import { createTransactionSchemaHttp } from "./transaction-schema-http.js";
 import { createNodeHttpDisconnectSignal } from "./node-http-disconnect.js";
 import { pumpTransactionChanges, pumpTransactionEvents } from "./transaction-sse.js";
-import { ScopeServerOperationAbortedError } from "./read-request.js";
+import { classifyAliasPath, ScopeServerOperationAbortedError } from "./read-request.js";
 import { createServer, type IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { Socket } from "node:net";
 import { TextDecoder } from "node:util";
-import { stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
+import { parseCanonicalScope, stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
 import type { ContractArtifactLimits } from "./installed-contract-artifact.js";
 import { captureTransactionRuntimeConfiguration } from "./transaction-runtime-configuration.js";
 import type { HttpResponse } from "./index.js";
@@ -155,14 +155,32 @@ async function startTransactionRuntimeCore(
         deliver(response, transactionHttpProblem("request-too-large"));
         return;
       }
+      const fragmentAt = raw.indexOf("#");
+      // The Read receiving classifier already refuses alias queries/fragments
+      // without resolving an alias or observing owner state. Preserve that exact
+      // class for a literal fragment the WHATWG URL bridge would otherwise lose.
+      // All other raw-target/authority checks remain mandatory.
+      const aliasFragment =
+        (request.method === "GET" || request.method === "HEAD") &&
+        fragmentAt !== -1 &&
+        normalizationSafeRawRequestPath(raw.slice(0, fragmentAt)) !== undefined &&
+        (() => {
+          const refusal = classifyAliasPath(new URL(raw, scope), parseCanonicalScope(scope));
+          // An empty fragment has URL.hash === "" but remains a raw fragment.
+          return refusal !== undefined;
+        })();
       if (
-        normalizationSafeRawRequestPath(raw) === undefined ||
+        (normalizationSafeRawRequestPath(raw) === undefined && !aliasFragment) ||
         !raw.startsWith("/") ||
         raw.startsWith("//") ||
         request.headers.host !==
           new URL(captured.authorityMode === "canonical" ? scope : listenUrl).host
       ) {
         deliver(response, transactionHttpProblem("malformed-request"));
+        return;
+      }
+      if (aliasFragment) {
+        deliver(response, transactionHttpProblem("resource-not-found"));
         return;
       }
       const url = new URL(raw, scope);

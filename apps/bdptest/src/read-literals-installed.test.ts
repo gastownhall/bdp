@@ -168,7 +168,7 @@ async function observe(kind: "selector" | "fragment") {
         parsed.origin !== new URL(scope).origin ||
         !parsed.pathname.startsWith("/acme/") ||
         parsed.hash ||
-        wires.length >= 10
+        wires.length >= 13
       )
         throw Error("unbound request");
       const execute = createRawHttpExchangeExecutor(
@@ -320,6 +320,39 @@ async function observe(kind: "selector" | "fragment") {
         expect(fragment.headers[name]).toBeUndefined();
       expect(fragment.bodyText).not.toContain(`${scope}beads/a`);
       expect(fragment.bodyText).not.toContain("opaque");
+      for (const target of ["/acme/alias/work#", "/acme/alias/work?q=1#opaque"]) {
+        const refused = await exchange("alias/work", "GET", undefined, target);
+        expect(refused.status).toBe(404);
+        expect(JSON.parse(refused.bodyText)).toEqual(unknown);
+        expect(refused.headers.location).toBeUndefined();
+        expect(refused.headers["bdp-scope-position"]).toBeUndefined();
+      }
+      const head = await exchange("alias/work", "HEAD", undefined, "/acme/alias/work#opaque");
+      expect(head.status).toBe(404);
+      expect(head.bodyText).toBe("");
+      for (const name of [
+        "location",
+        "etag",
+        "bdp-scope-epoch",
+        "bdp-authorization-view",
+        "bdp-scope-position",
+      ])
+        expect(head.headers[name]).toBeUndefined();
+      // No general fragment/normalization exception: these remain malformed.
+      for (const [method, target] of [
+        ["GET", "/acme/beads/a#opaque"],
+        ["GET", "/acme/alias/../beads/a#opaque"],
+        ["POST", "/acme/alias/work#opaque"],
+      ] as const) {
+        const refused = await exchange("alias/work", method, undefined, target);
+        expect(refused.status).toBe(400);
+        expect(JSON.parse(refused.bodyText)).toMatchObject({
+          code: "malformed-request",
+          retry: "never",
+        });
+        expect(refused.headers.location).toBeUndefined();
+        expect(refused.headers["bdp-scope-position"]).toBeUndefined();
+      }
       const healthy = await exchange("alias/work");
       expect(healthy.status).toBe(307);
       current(healthy);
