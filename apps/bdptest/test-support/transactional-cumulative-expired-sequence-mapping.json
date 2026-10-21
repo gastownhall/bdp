@@ -1,0 +1,22 @@
+{
+  "predicate": "transactional.sequence.expired-projection",
+  "case": "NEW TX expired-sequence",
+  "control": "Existing233 trustedclock1000000\u219287400001, one advance only; no policy/admin/SQL/restore. NONORDINARY identitynull.",
+  "nativeSource": "sequence73-89/projectCurrent51-60; storeexpireRow+creatorFact",
+  "oracles": [
+    "Exact creation allocated{id,type}; update and alias omitallocated",
+    "Genuine new @expiredcreator dependent commits once using retained originalidentity",
+    "Full current Resource/alias and exact original2plusnew1 groups/no reexecution"
+  ],
+  "caps": {
+    "seconds": 90,
+    "bytes": 4194304,
+    "nodes": 100000,
+    "depth": 128,
+    "HTTP": 30
+  },
+  "residuals": [
+    "Withheld/erased/History permission unchanged and unselected",
+    "No allsequence/profile claim"
+  ]
+}
