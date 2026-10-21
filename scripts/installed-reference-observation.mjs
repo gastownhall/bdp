@@ -386,7 +386,7 @@ export async function observeInstalledReference(entry, directory) {
       assert.equal(options.text, "");
     }
     const connect = await new Promise((resolve, reject) => {
-      const socket = createConnection(config.listener.port, config.listener.host);
+      const socket = createConnection(server.dialRoute.port, server.dialRoute.host);
       let raw = "";
       socket.setEncoding("utf8");
       socket.setTimeout(5000, () => socket.destroy(Error("CONNECT response deadline")));
@@ -412,7 +412,7 @@ export async function observeInstalledReference(entry, directory) {
     // The receiver must remain usable after a reset peer.
     for (let attempt = 0; attempt < 4; attempt += 1) {
       await new Promise((resolve, reject) => {
-        const socket = createConnection(config.listener.port, config.listener.host);
+        const socket = createConnection(server.dialRoute.port, server.dialRoute.host);
         socket.setTimeout(5000, () => socket.destroy(Error("CONNECT reset deadline")));
         socket.once("error", reject);
         socket.once("close", resolve);
