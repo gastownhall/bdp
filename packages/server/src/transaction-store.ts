@@ -43,6 +43,7 @@ import {
 import {
   checkCurrentReadMinimum,
   checkTransactionMinimum,
+  TransactionMinimumUnsupported,
   snapshotCurrentReadMinimum,
   snapshotTransactionMinimum,
   type TransactionMinimum,
@@ -1579,12 +1580,21 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           unrecognizedMinimum = true;
         } else minimum = captured.minimum;
       }
-      if (minimum && observedRequest.kind !== "create" && observedRequest.kind !== "preflight")
-        throw new TypeError("minimum Snapshot observation requires fresh creation or preflight");
       return enter(() => {
         const context = readContext(),
           now = instant();
-        if (minimum) {
+        if (
+          minimum &&
+          observedRequest.kind !== "create" &&
+          observedRequest.kind !== "preflight" &&
+          (minimum.scopeEpoch !== context.scopeEpoch ||
+            minimum.authorizationView !== context.authorizationView)
+        )
+          throw new TransactionMinimumUnsupported("retained-snapshot-context");
+        if (
+          minimum &&
+          (observedRequest.kind === "create" || observedRequest.kind === "preflight")
+        ) {
           if (unrecognizedMinimum) checkCurrentReadMinimum(minimum, context, true);
           else checkTransactionMinimum(minimum, context);
         }
@@ -1606,7 +1616,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           if (observedRequest.kind === "manifest")
             return Object.freeze({
               kind: "manifest" as const,
-              body: snapshots.manifest(observedRequest.id, now, context),
+              body: snapshots.manifest(observedRequest.id, now, context, minimum),
               context,
             });
           return Object.freeze({
@@ -1617,6 +1627,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               observedRequest.token,
               now,
               context,
+              minimum,
             ),
             context,
           });
@@ -1631,8 +1642,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         }
       });
     },
-    /** Owner-only compatibility entry. HTTP uses the paired observation above;
-     * supplied retained-minimum controls remain explicitly unsupported. */
+    /** Owner-only compatibility entry. HTTP uses the paired observation above. */
     captureSnapshot() {
       return enter(() => {
         const context = readContext(),

@@ -4120,7 +4120,12 @@
       "additionalProperties": false
     },
     "transactionalOnlyProblemCode": {
-      "enum": ["cardinality-violated", "event-history-expired", "catch-up-timeout"]
+      "enum": [
+        "cardinality-violated",
+        "event-history-expired",
+        "catch-up-timeout",
+        "snapshot-position-too-old"
+      ]
     },
     "transactionalProblemCode": {
       "anyOf": [
@@ -4151,6 +4156,7 @@
         "idempotency-conflict",
         "event-history-expired",
         "catch-up-timeout",
+        "snapshot-position-too-old",
         "revision-unknown",
         "revision-unretained",
         "revision-reorganized",
@@ -4278,6 +4284,31 @@
               },
               "retry": {
                 "const": "after-delay"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "snapshot-position-too-old"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "diagnostics": false,
+              "diagnosticsTruncated": false,
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
               }
             }
           }

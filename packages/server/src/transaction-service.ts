@@ -450,8 +450,21 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         minimum = captured.minimum;
         kind = request.kind;
       }
-      if (kind !== "create" && kind !== "preflight")
-        throw new TypeError("minimum Snapshot observation requires fresh creation or preflight");
+      if (kind === "manifest") {
+        const retained = request as Extract<TransactionSnapshotRequest, { kind: "manifest" }>;
+        const copied = Object.freeze({ kind, id: retained.id });
+        return run(async () => owner.observeSnapshot(copied, minimum));
+      }
+      if (kind === "page") {
+        const retained = request as Extract<TransactionSnapshotRequest, { kind: "page" }>;
+        const copied = Object.freeze({
+          kind,
+          id: retained.id,
+          stream: retained.stream,
+          token: retained.token,
+        });
+        return run(async () => owner.observeSnapshot(copied, minimum));
+      }
       // Freeze both controls before the first asynchronous attempt. Each owner
       // entry revalidates the tuple; no SQLite entry survives a finite wait.
       const copied = Object.freeze({ kind });

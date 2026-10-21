@@ -62,6 +62,7 @@ import type { TransactionReadContext } from "./transaction-store.js";
 import type { TransactionSubmission } from "./transaction-submission.js";
 
 import { TRANSACTION_HTTP_OPERATIONS } from "./transaction-discovery.js";
+import { snapshotPositionTooOldProblem } from "@bdp/protocol";
 export type TransactionHttpAuthorization =
   | { readonly kind: "unauthenticated" }
   | { readonly kind: "authenticated"; readonly principal: string; readonly canMutate: boolean };
@@ -436,15 +437,24 @@ export function createTransactionHttpHandler(
       else if (fields.length === 3 && id && token && (stream === "beads" || stream === "links"))
         target = { kind: "page", id, token, stream: stream === "beads" ? "bead" : "link" };
       else return transactionHttpProblem("invalid-parameter");
-      // Only fresh creation has an unambiguous current observation. Retained
-      // anchors and unsupported tuple shapes keep their explicit private gap.
+      // Retained reads compare known positions against the immutable anchor;
+      // unknown position spellings retain their existing explicit private gap.
       const minimum = hasMinimumControls(request)
         ? currentReadMinimumHeaders(request.headers)
         : undefined;
-      if (hasMinimumControls(request) && (target.kind !== "create" || minimum === undefined))
+      if (
+        hasMinimumControls(request) &&
+        (minimum === undefined ||
+          (target.kind !== "create" && transactionMinimumHeaders(request.headers) === undefined))
+      )
         return developmentGap("minimum-position");
       function snapshotResponse(result: Awaited<ReturnType<Service["snapshot"]>>): HttpResponse {
         if (result.kind === "problem") {
+          if (result.code === "snapshot-position-too-old") {
+            const response = jsonResponse(snapshotPositionTooOldProblem());
+            response.headers.set("content-type", "application/problem+json");
+            return context({ ...response, status: 409 }, result.context);
+          }
           const response = context(transactionHttpProblem(result.code), result.context);
           if (result.retryAfter !== undefined)
             response.headers.set("retry-after", String(result.retryAfter));

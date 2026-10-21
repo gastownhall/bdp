@@ -2902,8 +2902,9 @@ it("serves complete fresh Snapshot minima with exact timeout, foreign and condit
   expect(valid.status).toBe(200);
   const manifest = await body(valid);
   const retained = await f.get(id(manifest), { headers: minimumHeaders(seed) });
-  expect(retained.status).toBe(500);
-  expect(retained.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+  expect(retained.status).toBe(200);
+  expect(retained.headers.get("x-bdp-development-limit")).toBeNull();
+  expect(await body(retained)).toEqual(manifest);
   expect(await body(await f.get(id(manifest)))).toEqual(manifest);
 });
 

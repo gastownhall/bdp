@@ -3,6 +3,7 @@ import { TransactionEventParameterError } from "./transaction-events.js";
 import {
   TransactionMinimumFailure,
   TransactionMinimumUnproved,
+  TransactionMinimumUnsupported,
   type TransactionMinimum,
 } from "./transaction-consistency.js";
 import { ScopeServerOperationAbortedError, requestFromUrl } from "./read-request.js";
@@ -1186,9 +1187,9 @@ describe("fresh Snapshot minimum service", () => {
         context: initial.context,
       });
       expect(wait).toHaveBeenCalled();
-      expect(() => service.snapshot({ kind: "manifest", id: "unknown" }, tuple)).toThrow(
-        "requires fresh creation",
-      );
+      await expect(
+        service.snapshot({ kind: "manifest", id: "unknown" }, tuple),
+      ).rejects.toBeInstanceOf(TransactionMinimumUnsupported);
       expect(
         await service.snapshot({ kind: "create" }, { ...tuple, minimumPosition: "genesis" }),
       ).toMatchObject({
@@ -3462,6 +3463,10 @@ it.each([
     );
   } else if (label === "closed-unknown-fresh") {
     expect(() => f.snapshot(request, minimum)).toThrow("closing or closed");
+  } else if (label === "retained-known") {
+    await expect(f.snapshot(request, minimum)).rejects.toBeInstanceOf(
+      TransactionMinimumUnsupported,
+    );
   } else {
     let error: unknown;
     try {
@@ -3475,14 +3480,10 @@ it.each([
       error = failure;
     }
     expect(error).toBeInstanceOf(TypeError);
-    expect((error as Error).message).toBe(
-      label === "retained-known"
-        ? "minimum Snapshot observation requires fresh creation or preflight"
-        : "unsupported minimum tuple",
-    );
+    expect((error as Error).message).toBe("unsupported minimum tuple");
   }
   expect(f.snapshot).toHaveBeenCalledTimes(2);
-  expect(f.observeSnapshot).not.toHaveBeenCalled();
+  expect(f.observeSnapshot).toHaveBeenCalledTimes(label === "retained-known" ? 1 : 0);
   expect(waits).toBe(0);
   expect(clockCalls).toBe(label === "unknown-preaborted" ? 1 : 0);
   console.log(
