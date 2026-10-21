@@ -441,6 +441,7 @@ async function fixture(
     parentOwners.push({ state, close });
     let result!: R;
     let primary: { cause: unknown } | undefined;
+    let cleanupFailure: { cause: unknown } | undefined;
     try {
       result = await work(value);
     } catch (cause) {
@@ -450,13 +451,16 @@ async function fixture(
         await limited(close(), started + 45000);
       } catch (cleanup) {
         state.uncertain = true; // Sticky even if a late close eventually settles.
-        if (primary)
-          throw new AggregateError(
-            [primary.cause, cleanup],
-            "parent owner operation and close failed",
-          );
-        throw cleanup;
+        cleanupFailure = { cause: cleanup };
       }
+    }
+    if (cleanupFailure) {
+      if (primary)
+        throw new AggregateError(
+          [primary.cause, cleanupFailure.cause],
+          "parent owner operation and close failed",
+        );
+      throw cleanupFailure.cause;
     }
     if (primary) throw primary.cause;
     return result;
