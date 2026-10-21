@@ -339,6 +339,18 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
     return Object.freeze({
       ...(configured === undefined ? forPrincipal(principal) : {}),
       forPrincipal,
+      /** Private bounded owner readback; epoch belongs to this lifecycle, not SQLite. */
+      readConfiguration() {
+        const rows: { readonly id: string; readonly bodyJson: string }[] = [];
+        store.visitInstalledTypes((row) => rows.push(row));
+        return Object.freeze({
+          scope: store.scope,
+          installedTypes: Object.freeze(rows),
+          readLimits,
+          scopeEpoch: epoch,
+          scopeConfiguration: capturedConfiguration(),
+        });
+      },
       close: () => lifecycle.close(),
     });
   } catch (error) {

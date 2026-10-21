@@ -727,14 +727,21 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     ): Promise<TransactionSequenceResponse> {
       return mutate(() => executeSequence(principal, sequence));
     },
-    /** Authenticated exact local schema response; no mutation or minimum wait. */
-    schemaObserved() {
-      return run(async () => {
-        const observed = owner.withRead((_reader, context) => Object.freeze({ context }));
+    /** Authenticated exact local schema response. Capture before asynchronous work;
+     * a minimum wait never retains an owner entry. No-minimum timing is unchanged. */
+    schemaObserved(supplied?: TransactionMinimum, signal?: AbortSignal) {
+      const minimum = supplied === undefined ? undefined : snapshotCurrentReadMinimum(supplied);
+      const observe = () => {
+        const observed = owner.withRead((_reader, context) => {
+          if (minimum !== undefined) checkCurrentReadMinimum(minimum, context, true);
+          return Object.freeze({ context });
+        });
         if (observed.kind === "entry-refused")
           throw new Error("transaction schema observation refused", { cause: observed.cause });
         return observed.value;
-      });
+      };
+      if (minimum === undefined) return run(async () => observe());
+      return run(async () => waitForTransactionMinimum(observe, minimumReads, signal));
     },
     /** Trusted HTTP refusal after carrier/auth checks. Observe without executing
      * members or admitting keys; an unavailable owner remains an internal fault. */
