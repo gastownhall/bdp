@@ -12,7 +12,7 @@
       "residual": "No relabelled oldposition with newview, unknown order, expired/foreign Snapshot or other unresolved collision"
     },
     {
-      "id": "transactional.snapshot.unavailable",
+      "id": "transactional.snapshot.handle-refusal",
       "status": "unexercised existing-seam limit",
       "reason": "TransactionRuntimeTestSeams lacks issued Snapshot body/page invalidation; existing233 controls clock/policy/erasure/restore cannot lose captured page without legitimately changingexpiry/epoch/view/erasure. No SQLtamper/new fault shim or fake503 selected.",
       "source": "transaction-runtime.ts:61-80;transaction-snapshot.ts:520-540 integrity rows/body;retained disposition survives until expiry"
