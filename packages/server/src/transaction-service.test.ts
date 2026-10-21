@@ -3424,7 +3424,7 @@ it.each([
   "malformed-aborted",
   "malformed-invalid-kind",
   "retained-unknown",
-  "retained-known",
+  "retained-unknown-satisfied",
   "closed-malformed",
   "closed-unknown-fresh",
   "unknown-preaborted",
@@ -3451,7 +3451,11 @@ it.each([
   const minimum = {
     scopeEpoch: initial.context.scopeEpoch,
     authorizationView: initial.context.authorizationView,
-    minimumPosition: malformed ? "not a token" : label === "retained-known" ? "genesis" : "opaque",
+    minimumPosition: malformed
+      ? "not a token"
+      : label === "retained-unknown-satisfied"
+        ? "genesis"
+        : "opaque",
   };
   const request: TransactionSnapshotRequest = retained
     ? { kind: "manifest", id: "unused" }
@@ -3463,10 +3467,12 @@ it.each([
     );
   } else if (label === "closed-unknown-fresh") {
     expect(() => f.snapshot(request, minimum)).toThrow("closing or closed");
-  } else if (label === "retained-known") {
-    await expect(f.snapshot(request, minimum)).rejects.toBeInstanceOf(
-      TransactionMinimumUnsupported,
-    );
+  } else if (label === "retained-unknown-satisfied") {
+    await expect(f.snapshot(request, minimum)).resolves.toEqual({
+      kind: "problem",
+      code: "resource-not-found",
+      context: initial.context,
+    });
   } else {
     let error: unknown;
     try {
@@ -3483,7 +3489,7 @@ it.each([
     expect((error as Error).message).toBe("unsupported minimum tuple");
   }
   expect(f.snapshot).toHaveBeenCalledTimes(2);
-  expect(f.observeSnapshot).toHaveBeenCalledTimes(label === "retained-known" ? 1 : 0);
+  expect(f.observeSnapshot).toHaveBeenCalledTimes(label === "retained-unknown-satisfied" ? 1 : 0);
   expect(waits).toBe(0);
   expect(clockCalls).toBe(label === "unknown-preaborted" ? 1 : 0);
   console.log(

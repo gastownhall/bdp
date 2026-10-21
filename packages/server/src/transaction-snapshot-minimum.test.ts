@@ -206,7 +206,7 @@ it("S1 service makes one retained observation and no clock/wait call, with expir
   expect({ observations, clockCalls, waits }).toEqual({ observations: 6, clockCalls: 0, waits: 0 });
 });
 
-it("S1 fences unselected retained identities and foreign contexts instead of choosing a collision diagnosis", () => {
+it("S1 preserves unknown identity404 under satisfied actual minima and fences foreign contexts", () => {
   const f = ownerFixture();
   for (const expired of [false, true]) {
     if (expired) f.setTime(1000000 + TRANSACTION_SNAPSHOT_LIMITS.lifetimeMs + 1);
@@ -225,9 +225,15 @@ it("S1 fences unselected retained identities and foreign contexts instead of cho
         token: "unknown",
       },
     ] as const)
-      expect(() => f.owner.observeSnapshot(request, f.minimum("pos-15"))).toThrow(
-        TransactionMinimumUnsupported,
-      );
+      expect(f.owner.observeSnapshot(request, f.minimum("pos-15"))).toMatchObject({
+        kind: "problem",
+        code: "resource-not-found",
+        context: {
+          scopeEpoch: f.captured.context.scopeEpoch,
+          authorizationView: f.captured.context.authorizationView,
+          scopePosition: "pos-15",
+        },
+      });
   }
 });
 
