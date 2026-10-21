@@ -3467,6 +3467,12 @@ it.each([
     );
   } else if (label === "closed-unknown-fresh") {
     expect(() => f.snapshot(request, minimum)).toThrow("closing or closed");
+  } else if (label === "retained-unknown") {
+    // Lexical controls reach the owner, but an unissued identity cannot prove
+    // membership in the accepted retained domain or enter a retry wait.
+    await expect(f.snapshot(request, minimum)).rejects.toThrow(
+      new TransactionMinimumUnsupported("retained-snapshot-identity"),
+    );
   } else if (label === "retained-unknown-satisfied") {
     await expect(f.snapshot(request, minimum)).resolves.toEqual({
       kind: "problem",
@@ -3489,9 +3495,9 @@ it.each([
     expect((error as Error).message).toBe("unsupported minimum tuple");
   }
   expect(f.snapshot).toHaveBeenCalledTimes(2);
-  expect(f.observeSnapshot).toHaveBeenCalledTimes(label === "retained-unknown-satisfied" ? 1 : 0);
+  expect(f.observeSnapshot).toHaveBeenCalledTimes(label.startsWith("retained-unknown") ? 1 : 0);
   expect(waits).toBe(0);
-  expect(clockCalls).toBe(label === "unknown-preaborted" ? 1 : 0);
+  expect(clockCalls).toBe(label === "unknown-preaborted" || label === "retained-unknown" ? 1 : 0);
   console.log(
     JSON.stringify({
       observation: "fresh-snapshot-opaque-order",

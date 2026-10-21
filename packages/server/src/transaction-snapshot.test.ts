@@ -1499,14 +1499,6 @@ it("gates fresh Snapshot opaque minima before allocation and expiry", () => {
     expect(() => observe({ kind }, { ...minimum, minimumPosition: "pos-2" })).toThrow("behind");
   }
   unproved("create", "pos-01");
-  let preEntryExcludedCalls = 0;
-  for (const request of [
-    { kind: "manifest", id: handle(first.body) },
-    { kind: "page", id: handle(first.body), stream: "bead", token: "unused" },
-  ] as const) {
-    preEntryExcludedCalls++;
-    expect(() => observe(request, minimum)).toThrow("unsupported minimum tuple");
-  }
   // No await: normal background maintenance must not race the advanced clock.
   f.offline((db) => {
     offlineInspections++;
@@ -1514,6 +1506,20 @@ it("gates fresh Snapshot opaque minima before allocation and expiry", () => {
     expect(after).toEqual(baseline);
     expect(JSON.parse(after.disposition).expired).toBe(false);
   });
+  // Only fresh create/preflight refusals above precede expiry maintenance.
+  // Retained reads now establish identity at the owner: matching issued expiry
+  // wins before opaque comparison, while an unissued page remains unsupported.
+  let retainedIdentityChecks = 0;
+  retainedIdentityChecks++;
+  expect(observe({ kind: "manifest", id: handle(first.body) }, minimum)).toEqual({
+    kind: "problem",
+    code: "cursor-expired",
+    context: first.context,
+  });
+  retainedIdentityChecks++;
+  expect(() =>
+    observe({ kind: "page", id: handle(first.body), stream: "bead", token: "unused" }, minimum),
+  ).toThrow(new TransactionMinimumUnsupported("retained-snapshot-identity"));
   // The final helper reopen may maintain the store after this measured comparison.
   expect(
     observe({ kind: "manifest", id: handle(first.body) }, { ...minimum, minimumPosition: "pos-1" }),
@@ -1525,13 +1531,13 @@ it("gates fresh Snapshot opaque minima before allocation and expiry", () => {
     ),
   ).toEqual({ kind: "problem", code: "resource-not-found", context: first.context });
   expect(snapshotCalls).toBe(14);
-  expect(preEntryExcludedCalls).toBe(2);
+  expect(retainedIdentityChecks).toBe(2);
   expect(offlineInspections).toBe(2);
   console.log(
     JSON.stringify({
       observation: "fresh-snapshot-opaque-owner",
       snapshotCalls,
-      preEntryExcludedCalls,
+      retainedIdentityChecks,
       offlineInspections,
       baseline,
       after,
