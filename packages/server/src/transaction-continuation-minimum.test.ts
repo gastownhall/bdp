@@ -18,7 +18,15 @@ const scope = "https://continuation.test/s/",
   link = `${scope}types/link`;
 const clean: (() => unknown)[] = [];
 afterEach(() => {
-  for (const close of clean.splice(0).reverse()) close();
+  const errors: unknown[] = [];
+  for (const close of clean.splice(0).reverse()) {
+    try {
+      close();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length) throw new AggregateError(errors, "Continuation test cleanup failed");
 });
 function setup() {
   const dir = mkdtempSync(path.join(tmpdir(), "bdp-continuation-minimum-"));
