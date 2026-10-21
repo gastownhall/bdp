@@ -686,7 +686,21 @@ async function erasureRestore(h: Harness) {
   expect(fresh.status).toBe(200);
   expect(fresh.value.scopeEpoch).not.toBe(newSnap.value.scopeEpoch);
   expect(fresh.value.scopePosition).toBe("pos-1");
-  expect(fresh.value.erasures).toEqual(newSnap.value.erasures);
+  // Native restore deliberately gives full permanent records new prefix positions
+  // in subject/revision order. Preserve both raw arrays; no record/digest is dropped.
+  const restoredOrder = newSnap.value.erasures.toSorted(
+    (a: { subject: string; revision: string }, b: { subject: string; revision: string }) =>
+      a.subject < b.subject
+        ? -1
+        : a.subject > b.subject
+          ? 1
+          : a.revision < b.revision
+            ? -1
+            : a.revision > b.revision
+              ? 1
+              : 0,
+  );
+  expect(fresh.value.erasures).toEqual(restoredOrder);
   expect((await h.send("beads/r00")).value).toEqual(healthy);
   expect((await h.send("beads/a")).value).toEqual(finalOwner.value);
   expect(fresh.value.beads.items).toEqual(newSnap.value.beads.items);
