@@ -228,6 +228,7 @@ it.skipIf(!entry)(
       terminal: unknown,
       report: unknown,
       failure: unknown;
+    const failures: unknown[] = [];
     try {
       const ready = await run.ready;
       generations.push(ready);
@@ -558,11 +559,15 @@ it.skipIf(!entry)(
       };
     } catch (error) {
       failure = error;
-      throw error;
+      failures.push(error);
     } finally {
       clearTimeout(watchdog);
       try {
         if (stream) await stream.close();
+      } catch (error) {
+        failures.push(error);
+      }
+      try {
         terminal = await run.close();
         terminals.push(terminal);
         expect(terminal).toMatchObject({
@@ -573,50 +578,45 @@ it.skipIf(!entry)(
           stdoutEOF: true,
           stderrEOF: true,
         });
-      } finally {
-        let evidenceFailure: unknown;
-        try {
-          if (evidence)
-            await writeFile(
-              path.join(evidence, "observation.json"),
-              JSON.stringify(
-                {
-                  report,
-                  terminal,
-                  terminals,
-                  generations,
-                  failure: failure === undefined ? null : inspect(failure, { depth: 8 }),
-                  wires,
-                  sse: stream
-                    ? {
-                        wireBase64: stream.wireBytes.toString("base64"),
-                        destroyed: stream.destroyed,
-                        status: stream.status,
-                      }
-                    : null,
-                },
-                null,
-                2,
-              ),
-              { mode: 0o600 },
-            );
-        } catch (error) {
-          evidenceFailure = error;
-          throw error;
-        } finally {
-          try {
-            await rm(directory, { recursive: true, force: true });
-          } catch (cleanupError) {
-            if (evidenceFailure !== undefined)
-              throw new AggregateError(
-                [evidenceFailure, cleanupError],
-                "evidence writing and temporary-store cleanup failed",
-              );
-            throw cleanupError;
-          }
-        }
+      } catch (error) {
+        failures.push(error);
+      }
+      try {
+        if (evidence)
+          await writeFile(
+            path.join(evidence, "observation.json"),
+            JSON.stringify(
+              {
+                report,
+                terminal,
+                terminals,
+                generations,
+                failure: failure === undefined ? null : inspect(failure, { depth: 8 }),
+                wires,
+                sse: stream
+                  ? {
+                      wireBase64: stream.wireBytes.toString("base64"),
+                      destroyed: stream.destroyed,
+                      status: stream.status,
+                    }
+                  : null,
+              },
+              null,
+              2,
+            ),
+            { mode: 0o600 },
+          );
+      } catch (error) {
+        failures.push(error);
+      }
+      try {
+        await rm(directory, { recursive: true, force: true });
+      } catch (error) {
+        failures.push(error);
       }
     }
+    if (failures.length)
+      throw new AggregateError(failures, "installed observation and finalization failed");
   },
   60000,
 );
