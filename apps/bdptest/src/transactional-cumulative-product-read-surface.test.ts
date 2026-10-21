@@ -341,3 +341,131 @@ it.skipIf(!productEntry)(
   },
   70000,
 );
+it.skipIf(!productEntry)(
+  "NEW cumulative opaque external pins and untouched properties after real update",
+  async () => {
+    await withProductCampaign("external-properties", bundle, async (campaign) => {
+      const c = await productSession(campaign, "external-properties");
+      try {
+        const properties = {
+            title: "before",
+            undeclared: { values: [1, null, true] },
+            metadata: { domainProperty: true },
+          },
+          metadata = { kept: true };
+        c.position("pos-1");
+        const seed = await c.batch(
+          [{ operation: "createBead", id: "beads/a", type, properties, metadata }],
+          "external-source",
+        );
+        expect(seed.value.status).toBe("completed");
+        const before = seed.value.results[0].resource;
+        record(
+          before,
+          {
+            id: scope + "beads/a",
+            type,
+            revision: expect.stringMatching(/^[A-Za-z0-9_-]{1,256}$/),
+            properties,
+            metadata,
+          },
+          "bead",
+        );
+        c.position("pos-2");
+        const create = await c.batch(
+          [
+            {
+              operation: "createLink",
+              id: "links/external",
+              type: linkType,
+              source: { uri: "beads/a", revision: before.revision },
+              target: { uri: "urn:resource:opaque-target", revision: "external/β +%" },
+              properties: { title: "external", unknown: [false, 2] },
+              metadata: { link: true },
+            },
+          ],
+          "external-link",
+        );
+        expect(create.value.status).toBe("completed");
+        const link = create.value.results[0].resource;
+        record(
+          link,
+          {
+            id: scope + "links/external",
+            type: linkType,
+            revision: expect.stringMatching(/^[A-Za-z0-9_-]{1,256}$/),
+            source: { uri: scope + "beads/a", revision: before.revision },
+            target: { uri: "urn:resource:opaque-target", revision: "external/β +%" },
+            properties: { title: "external", unknown: [false, 2] },
+            metadata: { link: true },
+          },
+          "link",
+        );
+        const read = await c.exchange("links/external"),
+          view = await c.exchange("links/external?view=properties");
+        expect(read.wire.status).toBe(200);
+        expect(read.value).toEqual(link);
+        expect(view.wire.status).toBe(200);
+        expect(view.value).toEqual({ title: "external", unknown: [false, 2] });
+        expect(view.wire.headers.etag).toBe(JSON.stringify(link.revision));
+        expect(read.wire.headers.etag).toBe(view.wire.headers.etag);
+        c.position("pos-3");
+        const update = await c.batch(
+          [
+            {
+              operation: "updateBead",
+              bead: "beads/a",
+              propertiesChange: [{ op: "replace", path: "/title", value: "after" }],
+            },
+          ],
+          "external-update",
+        );
+        expect(update.value.status).toBe("completed");
+        const after = update.value.results[0].resource;
+        record(
+          after,
+          {
+            ...before,
+            revision: expect.stringMatching(/^[A-Za-z0-9_-]{1,256}$/),
+            properties: { ...properties, title: "after" },
+          },
+          "bead",
+        );
+        expect(after.revision).not.toBe(before.revision);
+        expect((await c.exchange("beads/a")).value).toEqual(after);
+        expect((await c.exchange("links/external")).value).toEqual(link);
+        const refuse = await c.batch(
+          [
+            {
+              operation: "createLink",
+              id: "links/no-local",
+              type: linkType,
+              source: "urn:source",
+              target: "urn:target",
+              properties: { title: "invalid" },
+            },
+          ],
+          "no-local-endpoint",
+        );
+        expect(refuse.value).toMatchObject({
+          status: "failed",
+          requiredPosition: "pos-3",
+          problem: { code: "validation-failed", status: 422, operationIndex: 0 },
+        });
+        expect(refuse.value).not.toHaveProperty("effectPosition");
+        expect(refuse.value).not.toHaveProperty("results");
+        expect((await c.exchange("links/no-local")).wire.status).toBe(404);
+        campaign.results["external-properties"] = {
+          state: "pass",
+          wholeRowsComplete: false,
+          condition:
+            "configuredrelationship external:opaque; actual in-Scope source + URNtarget; no foreign serving deployment invented",
+          sourceOwnedExpectedBodies: true,
+        };
+      } finally {
+        await c.close();
+      }
+    });
+  },
+  70000,
+);
