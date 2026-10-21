@@ -215,7 +215,7 @@ async function start(name: string, mode: "deadline" | "retract") {
   }
   function boundedCapture(value: unknown) {
     const text = JSON.stringify(value, null, 2);
-    if (Buffer.byteLength(text) > 4194304) throw Error("dependent capture exceeds 4MiB");
+    if (Buffer.byteLength(text) > 1048576) throw Error("owner-wait capture exceeds 1MiB");
     const agenda = [{ value, depth: 0 }];
     let count = 0;
     while (agenda.length) {
