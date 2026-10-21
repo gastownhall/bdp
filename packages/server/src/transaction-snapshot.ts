@@ -22,6 +22,7 @@ import { transactionCheckpoint } from "./transaction-changefeed.js";
 import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
 import type { TransactionReadContext } from "./transaction-store.js";
 import {
+  checkCurrentReadMinimum,
   TransactionMinimumUnsupported,
   TransactionMinimumUnproved,
   type TransactionMinimum,
@@ -618,6 +619,19 @@ export function transactionSnapshotStorage(
       )
         unrecognized();
     }
+    // Only an actually issued, unexpired target in the CURRENT context has
+    // no competing identity/expiry/view failure. Reuse the ordinary minimum
+    // context precedence before attempting any minimum position ordering.
+    if (
+      minimum &&
+      d.epoch === context.scopeEpoch &&
+      d.view === context.authorizationView &&
+      !d.expired &&
+      now <= d.expires &&
+      (minimum.scopeEpoch !== context.scopeEpoch ||
+        minimum.authorizationView !== context.authorizationView)
+    )
+      checkCurrentReadMinimum(minimum, context, true);
     // An unexpired, same-epoch foreign-view identity keeps its existing409
     // under the actual current tuple and genesis: no anchor failure competes.
     // All other context/expiry/position collisions remain unselected.
@@ -902,6 +916,20 @@ export function transactionSnapshotStorage(
         statement("DELETE FROM snapshot_records WHERE snapshot=?").run(id);
         statement("DELETE FROM snapshot_pages WHERE snapshot=?").run(id);
       }
+    },
+    // Called only for a foreign minimum tuple. Resolve the actual retained
+    // identity before expiry maintenance: this must refuse, never capture,
+    // renew, or load a successful page. Other collision domains stay closed.
+    rejectForeignMinimumContext(
+      id: string,
+      now: number,
+      context: TransactionReadContext,
+      minimum: TransactionMinimum,
+      kind?: Kind,
+      token?: string,
+    ): never {
+      resolve(id, now, context, kind, token, minimum);
+      throw new TransactionMinimumUnsupported("retained-snapshot-context");
     },
     manifest,
     page(
