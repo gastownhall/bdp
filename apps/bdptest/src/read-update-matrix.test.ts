@@ -1244,6 +1244,7 @@ async function run(
   lifecycle?: {
     launched?(child: ChildProcess): void;
     observed?(): void;
+    preparationFailed?(error: unknown): void;
     returned?(report: ArtifactObservation): void;
     cleaned?(status: "complete" | "failed"): void;
     // Source-test-only fault after the real target has drained; no fake child close.
@@ -1481,7 +1482,20 @@ async function run(
       );
       const captured = configModule.captureInstalledReferenceConfiguration(configuration);
       signal.throwIfAborted();
-      const child = await helpers.launchInstalledReference(entry, configuration);
+      const child = await helpers
+        .launchInstalledReference(entry, configuration)
+        .catch((error: unknown) => {
+          // The runner returns a generic harness-error for an unknown preparation
+          // exception. Retain the actual already-closed helper diagnostic first.
+          try {
+            lifecycle?.preparationFailed?.(error);
+          } catch (diagnostic) {
+            throw new AggregateError([error, diagnostic], "preparation and diagnosis failed", {
+              cause: error,
+            });
+          }
+          throw error;
+        });
       try {
         lifecycle?.launched?.(child.child);
         signal.throwIfAborted();
@@ -4779,15 +4793,52 @@ it.each(["before-continuation", "after-continuation-launch", "during-continuatio
     const set = smallExecutionSet();
     const controller = new AbortController();
     const children: ChildProcess[] = [];
+    const preparationFailures: unknown[] = [];
     const lifecycle = {
       launched(child: ChildProcess) {
         children.push(child);
       },
+      preparationFailed(error: unknown) {
+        const failure = error as Error & {
+          qualification?: unknown;
+          qualificationProcess?: unknown;
+        };
+        preparationFailures.push({
+          name: failure?.name,
+          message: failure?.message,
+          qualification: failure?.qualification,
+          qualificationProcess: failure?.qualificationProcess,
+        });
+      },
     };
     const first = await runShard(set, 0, controller.signal, lifecycle);
-    expect(
-      first.result.scenarios.find((r) => r.id === "read-update.singleton.create-bead")?.state,
-    ).toBe("pass");
+    const firstScenario = first.result.scenarios.find(
+      (row) => row.id === "read-update.singleton.create-bead",
+    );
+    const firstDiagnostic = JSON.stringify(
+      {
+        observation: "segmented-abort-first-shard",
+        when,
+        scenarioSelection: first.result.scenarioSelection,
+        result: firstScenario,
+        cleanupComplete: first.cleanupComplete,
+        preparationFailures,
+        children: children.map((child) => ({
+          pid: child.pid,
+          exitCode: child.exitCode,
+          signalCode: child.signalCode,
+          stdoutEOF: child.stdout?.readableEnded,
+          stderrEOF: child.stderr?.readableEnded,
+        })),
+      },
+      null,
+      2,
+    )
+      .replaceAll(token, "<redacted>")
+      .replaceAll(wrongToken, "<redacted>");
+    expect(Buffer.byteLength(firstDiagnostic)).toBeLessThanOrEqual(262144);
+    console.info(firstDiagnostic);
+    expect(firstScenario?.state, firstDiagnostic).toBe("pass");
     const firstCount = children.length;
     if (when === "before-continuation") controller.abort(Error("bounded test abort"));
     let observations = 0;
@@ -4816,6 +4867,22 @@ it.each(["before-continuation", "after-continuation-launch", "during-continuatio
     );
     for (const child of children)
       expect(child.exitCode === 0 || child.signalCode === "SIGTERM").toBe(true);
+    console.info(
+      JSON.stringify({
+        observation: "segmented-abort-drain",
+        when,
+        firstScenario: firstScenario?.state,
+        firstCleanupComplete: first.cleanupComplete,
+        observations,
+        children: children.map((child) => ({
+          pid: child.pid,
+          exitCode: child.exitCode,
+          signalCode: child.signalCode,
+          stdoutEOF: child.stdout?.readableEnded,
+          stderrEOF: child.stderr?.readableEnded,
+        })),
+      }),
+    );
   },
   30000,
 );
