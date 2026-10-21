@@ -2245,8 +2245,19 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             throw captured.error;
           }
           const kind = request.kind;
-          if (kind !== "create" && kind !== "preflight") throw captured.error;
-          observedRequest = Object.freeze({ kind });
+          if (kind === "create" || kind === "preflight") observedRequest = Object.freeze({ kind });
+          else if (kind === "manifest") {
+            const retained = request as Extract<TransactionSnapshotRequest, { kind: "manifest" }>;
+            observedRequest = Object.freeze({ kind, id: retained.id });
+          } else if (kind === "page") {
+            const retained = request as Extract<TransactionSnapshotRequest, { kind: "page" }>;
+            observedRequest = Object.freeze({
+              kind,
+              id: retained.id,
+              stream: retained.stream,
+              token: retained.token,
+            });
+          } else throw captured.error;
           unrecognizedMinimum = true;
         } else minimum = captured.minimum;
       }

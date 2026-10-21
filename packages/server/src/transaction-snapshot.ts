@@ -23,6 +23,7 @@ import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
 import type { TransactionReadContext } from "./transaction-store.js";
 import {
   TransactionMinimumUnsupported,
+  TransactionMinimumUnproved,
   type TransactionMinimum,
 } from "./transaction-consistency.js";
 
@@ -127,6 +128,14 @@ export class TransactionSnapshotFailure extends Error {
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const text = stringifyJsonValue;
 const bytes = (value: string) => Buffer.byteLength(value);
+/** Same canonical numeric subset as current minimum comparison: do not
+ * normalize lexical-but-unorderable spellings such as pos-01 or xxxx1. */
+function comparableMinimum(value: string): number | undefined {
+  if (value === "genesis") return 0;
+  if (!/^pos-(0|[1-9][0-9]*)$/.test(value)) return undefined;
+  const number = Number(value.slice(4));
+  return Number.isSafeInteger(number) ? number : undefined;
+}
 const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 function pageToken(seed: string, id: string, kind: Kind, ordinal: number): string {
   const tag = createHmac("sha256", Buffer.from(seed, "hex"))
@@ -576,16 +585,14 @@ export function transactionSnapshotStorage(
   ) {
     function unrecognized(): never {
       if (minimum) {
-        const required =
-          minimum.minimumPosition === "genesis" ? 0 : Number(minimum.minimumPosition.slice(4));
+        const required = comparableMinimum(minimum.minimumPosition);
         // A satisfied minimum in the actual current context adds no competing
         // consistency failure to an unknown identity's uniform404. Keep the
         // unselected future/foreign tuple combinations explicitly unsupported.
         if (
           minimum.scopeEpoch !== context.scopeEpoch ||
           minimum.authorizationView !== context.authorizationView ||
-          !Number.isSafeInteger(required) ||
-          required < 0 ||
+          required === undefined ||
           required > Number(context.scopePosition.slice(4))
         )
           throw new TransactionMinimumUnsupported("retained-snapshot-identity");
@@ -635,12 +642,10 @@ export function transactionSnapshotStorage(
     if (d.view !== context.authorizationView) throw new TransactionSnapshotFailure("foreign-view");
     if (d.expired || now > d.expires) throw new TransactionSnapshotFailure("cursor-expired");
     if (minimum) {
-      // Only the captured Snapshot's comparable context is selected by S1.
-      // Foreign tuple/unknown-position semantics are not inferred here.
-      const required =
-        minimum.minimumPosition === "genesis" ? 0 : Number(minimum.minimumPosition.slice(4));
-      if (!Number.isSafeInteger(required) || required < 0)
-        throw new TransactionMinimumUnsupported("retained-snapshot-position");
+      // Identity, matching context and expiry have already been established.
+      // An unorderable minimum requires bounded proof, never a new anchor.
+      const required = comparableMinimum(minimum.minimumPosition);
+      if (required === undefined) throw new TransactionMinimumUnproved(context);
       if (d.position < required) throw new TransactionSnapshotFailure("snapshot-position-too-old");
     }
     return { d, ranges: plan(id, d) };

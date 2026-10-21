@@ -452,16 +452,12 @@ export function createTransactionHttpHandler(
       else if (fields.length === 3 && id && token && (stream === "beads" || stream === "links"))
         target = { kind: "page", id, token, stream: stream === "beads" ? "bead" : "link" };
       else return transactionHttpProblem("invalid-parameter");
-      // Retained reads compare known positions against the immutable anchor;
-      // unknown position spellings retain their existing explicit private gap.
+      // The owner recognizes the retained identity/context/expiry before an
+      // unorderable minimum enters the existing bounded proof lifetime.
       const minimum = hasMinimumControls(request)
         ? currentReadMinimumHeaders(request.headers)
         : undefined;
-      if (
-        hasMinimumControls(request) &&
-        (minimum === undefined ||
-          (target.kind !== "create" && transactionMinimumHeaders(request.headers) === undefined))
-      )
+      if (hasMinimumControls(request) && minimum === undefined)
         return developmentGap("minimum-position");
       function snapshotResponse(result: Awaited<ReturnType<Service["snapshot"]>>): HttpResponse {
         if (result.kind === "problem") {

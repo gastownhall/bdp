@@ -367,7 +367,7 @@ it("S1 public HTTP GET/HEAD uses saved position immediately and preserves expiry
   );
 }, 15000);
 
-it("S1 public HTTP keeps unselected retained collision cases explicitly unsupported", async () => {
+it("S1 public HTTP preserves unselected collisions and expired matching unorderable minimum410", async () => {
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-s1-held-http-"));
   cleanups.push(() => rmSync(directory, { recursive: true, force: true }));
   let now = 1000000;
@@ -411,7 +411,6 @@ it("S1 public HTTP keeps unselected retained collision cases explicitly unsuppor
     for (const [target, headers] of [
       [manifest.id, { ...minimum, "bdp-scope-epoch": "foreign" }],
       [manifest.id, { ...minimum, "bdp-authorization-view": "foreign" }],
-      [manifest.id, { ...minimum, "bdp-minimum-scope-position": "opaque" }],
       [`${scope}snapshot?snapshot=unknown`, minimum],
       [unissuedPage.href, minimum],
     ] as const) {
@@ -421,5 +420,22 @@ it("S1 public HTTP keeps unselected retained collision cases explicitly unsuppor
       expect(response.headers.get("bdp-scope-position")).toBeNull();
       expect(await response.text()).toBe("");
     }
+    const expired = await get(manifest.id, method, {
+      ...minimum,
+      "bdp-minimum-scope-position": "opaque",
+      "if-none-match": "*",
+    });
+    expect(expired.status).toBe(410);
+    expect(expired.headers.get("bdp-scope-epoch")).toBe(manifest.scopeEpoch);
+    expect(expired.headers.get("bdp-authorization-view")).toBe(manifest.authorizationView);
+    expect(expired.headers.get("bdp-scope-position")).toBe(manifest.scopePosition);
+    if (method === "GET")
+      expect(await expired.json()).toEqual({
+        type: "https://github.com/gastownhall/bdp/problems/gone",
+        code: "cursor-expired",
+        status: 410,
+        retry: "after-state-change",
+      });
+    else expect(await expired.text()).toBe("");
   }
 }, 10000);
