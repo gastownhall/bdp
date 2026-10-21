@@ -1,0 +1,29 @@
+{
+  "fixtureVersion": 1,
+  "id": "installed-ijson-receiving-v1",
+  "seed": 0,
+  "scope": "https://reference.invalid/acme/",
+  "capabilities": ["installed-transactional-http", "transactional-receipt-observation"],
+  "bindings": {
+    "subject": "https://reference.invalid/acme/beads/anchor",
+    "type": "https://reference.invalid/acme/types/ijson",
+    "schema": "https://reference.invalid/acme/schemas/ijson",
+    "create-bead": "https://reference.invalid/acme/operations/create-bead",
+    "changes": "https://reference.invalid/acme/changes/"
+  },
+  "artifacts": {
+    "descriptors": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/ijson",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/ijson\",\"name\":\"I-JSON\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/ijson\"}"
+      }
+    ],
+    "schemas": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/ijson",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/ijson\",\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"],\"additionalProperties\":true}"
+      }
+    ]
+  },
+  "description": "Actual custom packed Transactional/Historyfalse I-JSON receiving fixture, string and object carrier syntax only."
+}
