@@ -35,8 +35,10 @@ it("serves atomic unowned-Link correction and tombstone over actual HTTP/SSE, pr
     ],
     credentials: [{ token, principal: "p", canMutate: true }],
   };
-  let runtime = await startTransactionRuntime(options),
-    stream: ReturnType<typeof recordRawSse> | undefined;
+  let runtime!: Awaited<ReturnType<typeof startTransactionRuntime>>;
+  let stream: ReturnType<typeof recordRawSse> | undefined;
+  let failed = false;
+  let failure: unknown;
   async function request(target: string, body?: unknown, key?: string) {
     const url = new URL(target, scope);
     const response = await fetch(new URL(url.pathname + url.search, runtime.listenUrl), {
@@ -69,6 +71,7 @@ it("serves atomic unowned-Link correction and tombstone over actual HTTP/SSE, pr
     };
   }
   try {
+    runtime = await startTransactionRuntime(options);
     expect(Object.keys(runtime).sort()).toEqual([
       "close",
       "configurationMetadata",
@@ -244,13 +247,37 @@ it("serves atomic unowned-Link correction and tombstone over actual HTTP/SSE, pr
       expect(value.headers.get("bdp-authorization-view")).toBe(view);
       expect(value.headers.get("bdp-scope-position")).toBe("pos-3");
     }
+  } catch (error) {
+    failed = true;
+    failure = error;
   } finally {
-    if (stream) await stream.close();
-    await runtime.close();
-    rmSync(directory, { recursive: true, force: true });
+    const errors: unknown[] = failed ? [failure] : [];
+    let runtimeClosed = false;
+    let temporaryStoreRemoved = false;
+    try {
+      if (stream) await stream.close();
+    } catch (error) {
+      errors.push(error);
+    }
+    try {
+      if (runtime) {
+        await runtime.close();
+        runtimeClosed = true;
+      }
+    } catch (error) {
+      errors.push(error);
+    }
+    try {
+      rmSync(directory, { recursive: true, force: true });
+      temporaryStoreRemoved = true;
+    } catch (error) {
+      errors.push(error);
+    }
     console.log(
       "LIVE_LINK_HTTP_CLEANUP " +
-        JSON.stringify({ runtimeClosed: true, temporaryStoreRemoved: true }),
+        JSON.stringify({ runtimeClosed, temporaryStoreRemoved, failureCount: errors.length }),
     );
+    if (errors.length)
+      throw new AggregateError(errors, "Link HTTP fixture body/finalization failed");
   }
 }, 15000);

@@ -29,17 +29,46 @@ const types = [
 ];
 const clean: (() => void)[] = [];
 afterEach(() => {
-  for (const fn of clean.splice(0).reverse()) fn();
+  const errors: unknown[] = [];
+  for (const fn of clean.splice(0).reverse()) {
+    try {
+      fn();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length) throw new AggregateError(errors, "Link fixture finalization failed");
 });
 function fixture(extra: Partial<Parameters<typeof openTransactionStore>[0]> = {}) {
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-live-link-")),
     file = path.join(directory, "owner.sqlite");
   const options = { file, scope, types, create: true, clock: () => 1000, ...extra };
-  let owner = openTransactionStore(options),
-    n = 0;
+  let owner: ReturnType<typeof openTransactionStore>;
+  try {
+    owner = openTransactionStore(options);
+  } catch (error) {
+    const errors: unknown[] = [error];
+    try {
+      rmSync(directory, { recursive: true, force: true });
+    } catch (cleanup) {
+      errors.push(cleanup);
+    }
+    throw new AggregateError(errors, "Link fixture startup failed");
+  }
+  let n = 0;
   clean.push(() => {
-    owner.close();
-    rmSync(directory, { recursive: true, force: true });
+    const errors: unknown[] = [];
+    try {
+      owner.close();
+    } catch (error) {
+      errors.push(error);
+    }
+    try {
+      rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      errors.push(error);
+    }
+    if (errors.length) throw new AggregateError(errors, "Link fixture close/removal failed");
   });
   const request = (operation: Parameters<typeof prepareTransactionSingleton>[1], input: unknown) =>
     prepareTransactionSingleton(scope, operation, JSON.stringify(input));
