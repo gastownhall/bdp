@@ -484,6 +484,10 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       check();
       return owner.eraseHistoricalVersions(subjects);
     },
+    correctLiveBeadVersion(...args: Parameters<Owner["correctLiveBeadVersion"]>) {
+      check();
+      return owner.correctLiveBeadVersion(...args);
+    },
     assertPublication: owner.assertPublication,
     acquireChangePublication: owner.acquireChangePublication,
     changes(
