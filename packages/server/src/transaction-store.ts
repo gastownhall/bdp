@@ -926,8 +926,6 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 (Object.hasOwn(ownership, before.type) || Object.hasOwn(ownership, "*"))
               )
                 owningSource = source;
-              else if (Object.values(source.ownedLinks ?? {}).some((links) => links.length > 0))
-                throw new Error("live owned-Link administration is unsupported");
             }
           }
           const normalized =
