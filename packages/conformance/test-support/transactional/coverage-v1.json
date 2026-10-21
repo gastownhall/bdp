@@ -418,7 +418,7 @@
     {
       "id": "read.http.conditional-reads",
       "wholeContract": false,
-      "reason": "Expanded exact-target inherited Read observations on the same installed TX configuration: required version/navigation, paired HEAD target families, media specificity/q=0, tag and absent-tag conditions, condition precedence, unavailable modification-date behavior, disabled-CORS cache fields, and negative oracles. Whole contract remains unqualified: hidden authorization projections, enabled CORS, all URI/alias/pagination/view families, available modification-date realizations and all lexical header forms are not exhaustively exercised. No History or profile qualification. The mandatory actual-installed companion independently checks every request completion and every ordinary response current context; new actions avoid repeating those fields in the portable manifest to retain the existing1MiB source cap. The pre-owner invalid-query400 context path is named-decision-blocked with unresolvedReconciliation=true; excluded from this bounded active cohort, not qualified or waived.",
+      "reason": "Expanded exact-target inherited Read observations on the same installed TX configuration: required version/navigation, paired HEAD target families, media specificity/q=0, tag and absent-tag conditions, condition precedence, unavailable modification-date behavior, disabled-CORS cache fields, and negative oracles. Whole contract remains unqualified: hidden authorization projections, enabled CORS, all URI/alias/pagination/view families, available modification-date realizations and all lexical header forms are not exhaustively exercised. No History or profile qualification. The mandatory actual-installed companion independently checks every request completion and every ordinary response current context; new actions avoid repeating those fields in the portable manifest to retain the existing1MiB source cap. The exact limit=0 pre-owner parser refusal is now covered under Donna\u2019s narrow clarification: status400 invalid-parameter before conditions, three context fields absent; source-owned receiving-stage classification and negative oracles prevent post-owner400 or stale200 borrowing this exception. No blanket400 exception or Snapshot clarification.",
       "bindings": [
         {
           "scenario": "read.http.conditional-reads",
@@ -605,7 +605,11 @@
             "date-2-4:last.modified",
             "media-before-conditional:status",
             "media-before-conditional:cache.control",
-            "media-before-conditional:empty"
+            "media-before-conditional:empty",
+            "query-before-conditional:status",
+            "query-before-conditional:cache.control",
+            "query-before-conditional:problem",
+            "query-before-conditional:code"
           ]
         }
       ]
@@ -613,7 +617,7 @@
     {
       "id": "read.http.head-conditional-parity",
       "wholeContract": false,
-      "reason": "Expanded exact-target inherited Read observations on the same installed TX configuration: required version/navigation, paired HEAD target families, media specificity/q=0, tag and absent-tag conditions, condition precedence, unavailable modification-date behavior, disabled-CORS cache fields, and negative oracles. Whole contract remains unqualified: hidden authorization projections, enabled CORS, all URI/alias/pagination/view families, available modification-date realizations and all lexical header forms are not exhaustively exercised. No History or profile qualification. The mandatory actual-installed companion independently checks every request completion and every ordinary response current context; new actions avoid repeating those fields in the portable manifest to retain the existing1MiB source cap. The pre-owner invalid-query400 context path is named-decision-blocked with unresolvedReconciliation=true; excluded from this bounded active cohort, not qualified or waived.",
+      "reason": "Expanded exact-target inherited Read observations on the same installed TX configuration: required version/navigation, paired HEAD target families, media specificity/q=0, tag and absent-tag conditions, condition precedence, unavailable modification-date behavior, disabled-CORS cache fields, and negative oracles. Whole contract remains unqualified: hidden authorization projections, enabled CORS, all URI/alias/pagination/view families, available modification-date realizations and all lexical header forms are not exhaustively exercised. No History or profile qualification. The mandatory actual-installed companion independently checks every request completion and every ordinary response current context; new actions avoid repeating those fields in the portable manifest to retain the existing1MiB source cap. The exact limit=0 pre-owner parser refusal is now covered under Donna\u2019s narrow clarification: status400 invalid-parameter before conditions, three context fields absent; source-owned receiving-stage classification and negative oracles prevent post-owner400 or stale200 borrowing this exception. No blanket400 exception or Snapshot clarification.",
       "bindings": [
         {
           "scenario": "read.http.head-conditional-parity",
@@ -713,7 +717,13 @@
             "parity-3-head:status",
             "parity-3-head:cache.control",
             "parity-3-head:empty",
-            "parity-3-head:same.get"
+            "parity-3-head:same.get",
+            "parity-4-get:status",
+            "parity-4-get:cache.control",
+            "parity-4-head:status",
+            "parity-4-head:cache.control",
+            "parity-4-head:empty",
+            "parity-4-head:same.get"
           ]
         }
       ]

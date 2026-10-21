@@ -5723,6 +5723,57 @@
               }
             ]
           }
+        },
+        {
+          "id": "query-before-conditional",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "invalid-parameter"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
         }
       ]
     },
@@ -6680,6 +6731,103 @@
               {
                 "name": "if-modified-since",
                 "value": "Fri, 01 Jan 2100 00:00:00 GMT"
+              }
+            ]
+          }
+        },
+        {
+          "id": "parity-4-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "parity-4-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            },
+            {
+              "id": "cache.control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "same.get",
+              "kind": "response-metadata-equals",
+              "request": "parity-4-get",
+              "headers": [
+                "cache-control",
+                "bdp-scope-epoch",
+                "bdp-authorization-view",
+                "bdp-scope-position",
+                "etag",
+                "content-type",
+                "vary"
+              ],
+              "optionalHeaders": ["content-type", "vary"]
+            }
+          ],
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "if-none-match",
+                "value": "*"
               }
             ]
           }

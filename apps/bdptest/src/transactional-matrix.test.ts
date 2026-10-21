@@ -4840,6 +4840,7 @@ const inheritedRequests: Record<string, readonly (readonly [string, string, numb
     ["GET", "bdp.json", 200],
     ["GET", "bdp.json", 200],
     ["GET", "beads/a", 406],
+    ["GET", "beads/?limit=0", 400],
   ],
   "read.http.head-conditional-parity": [
     ["GET", "beads/a", 200],
@@ -4858,6 +4859,8 @@ const inheritedRequests: Record<string, readonly (readonly [string, string, numb
     ["HEAD", "bdp.json", 304],
     ["GET", "beads/a", 200],
     ["HEAD", "beads/a", 200],
+    ["GET", "beads/?limit=0", 400],
+    ["HEAD", "beads/?limit=0", 400],
   ],
 };
 function inheritedReadContext(headers: Readonly<Record<string, string | undefined>>) {
@@ -4979,6 +4982,116 @@ it("inherited Read: required context and discovery negative oracles reject missi
     expect(
       validator.validate("#/$defs/transactionalDiscovery", { ...value, ...patch }).length,
     ).toBeGreaterThan(0);
+});
+type InheritedReadProbe = {
+  scenario: string;
+  action: string;
+  method: string;
+  url: string;
+  headerLines: readonly { name: string; value: string }[];
+};
+// Source-owned receiving-stage selection: only these exact finite parser probes.
+// Status/code alone never classify an owner-observed response as pre-owner.
+function isPreOwnerInheritedQuery(probe: InheritedReadProbe) {
+  const declared =
+    (probe.scenario === "read.http.conditional-reads" &&
+      probe.action === "query-before-conditional" &&
+      probe.method === "GET") ||
+    (probe.scenario === "read.http.head-conditional-parity" &&
+      ((probe.action === "parity-4-get" && probe.method === "GET") ||
+        (probe.action === "parity-4-head" && probe.method === "HEAD")));
+  return (
+    declared &&
+    probe.url === scope + "beads/?limit=0" &&
+    JSON.stringify(probe.headerLines) ===
+      JSON.stringify([
+        { name: "accept", value: "application/json" },
+        { name: "if-none-match", value: "*" },
+      ])
+  );
+}
+function inheritedResponseContext(
+  probe: InheritedReadProbe,
+  response: {
+    status: number;
+    headers: Readonly<Record<string, string | undefined>>;
+    bodyText: string;
+  },
+  expected: Readonly<Record<string, string | undefined>>,
+) {
+  if (isPreOwnerInheritedQuery(probe)) {
+    expect(response.status).toBe(400);
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(response.headers[name], name).toBeUndefined();
+    expect(response.headers["cache-control"]).toBe("private, no-store");
+    if (probe.method === "HEAD") expect(response.bodyText).toBe("");
+    else {
+      expect(response.headers["content-type"]).toBe("application/problem+json");
+      const problem = JSON.parse(response.bodyText);
+      expect(createJsonSchemaValidator(schema).validate("#/$defs/readProblem", problem)).toEqual(
+        [],
+      );
+      expect(problem.code).toBe("invalid-parameter");
+      expect(problem.status).toBe(400);
+    }
+    return;
+  }
+  if (![401, 403, 405].includes(response.status))
+    expect(inheritedReadContext(response.headers)).toEqual(inheritedReadContext(expected));
+}
+it("inherited Read: pre-owner parser exception cannot mask post-owner400 or stale200", () => {
+  const expected = {
+    "bdp-scope-epoch": "epoch-fixture",
+    "bdp-authorization-view": "view-fixture",
+    "bdp-scope-position": "pos-1",
+  };
+  const probe: InheritedReadProbe = {
+    scenario: "read.http.conditional-reads",
+    action: "query-before-conditional",
+    method: "GET",
+    url: scope + "beads/?limit=0",
+    headerLines: [
+      { name: "accept", value: "application/json" },
+      { name: "if-none-match", value: "*" },
+    ],
+  };
+  const bodyText = JSON.stringify({
+    type: "https://github.com/gastownhall/bdp/problems/request",
+    code: "invalid-parameter",
+    status: 400,
+    retry: "never",
+  });
+  const preOwner = {
+    status: 400,
+    headers: { "cache-control": "private, no-store", "content-type": "application/problem+json" },
+    bodyText,
+  };
+  inheritedResponseContext(probe, preOwner, expected);
+  expect(() => inheritedResponseContext(probe, { ...preOwner, status: 200 }, expected)).toThrow();
+  expect(() =>
+    inheritedResponseContext(
+      probe,
+      { ...preOwner, headers: { ...preOwner.headers, ...expected } },
+      expected,
+    ),
+  ).toThrow();
+  for (const wrong of [
+    { ...probe, action: "owner-observed-query" },
+    { ...probe, scenario: "other-scenario" },
+    { ...probe, url: scope + "beads/?limit=1" },
+    { ...probe, method: "POST" },
+    { ...probe, headerLines: [] },
+  ]) {
+    expect(isPreOwnerInheritedQuery(wrong)).toBe(false);
+    expect(() => inheritedResponseContext(wrong, preOwner, expected)).toThrow(
+      "missing or malformed",
+    );
+    inheritedResponseContext(
+      wrong,
+      { ...preOwner, headers: { ...preOwner.headers, ...expected } },
+      expected,
+    );
+  }
 });
 it("inherited Read: eight partial rows execute on the same installed Transactional configuration", async () => {
   const requested = process.env.BDP_INHERITED_READ_SCENARIOS?.split(",") ?? [...inheritedReadIds];
@@ -5201,11 +5314,19 @@ it("inherited Read: eight partial rows execute on the same installed Transaction
               (h) => h.name.toLowerCase() === name.toLowerCase() && h.value === value,
             ),
           ).toBe(true);
-      if (response.status !== 401 && response.status !== 403 && response.status !== 405) {
-        expect(inheritedReadContext(response.headers)).toEqual(
-          inheritedReadContext(contexts.get(scenario)!),
-        );
-      }
+      const action = full.manifest.scenarios.find((row) => row.id === scenario)?.actions?.[index];
+      if (!action) throw new Error("source-owned HTTP action missing");
+      inheritedResponseContext(
+        {
+          scenario,
+          action: action.id,
+          method: request.method,
+          url: request.url,
+          headerLines: request.raw?.headerLines ?? [],
+        },
+        response,
+        contexts.get(scenario)!,
+      );
       if (request.method === "HEAD" || [204, 304, 405, 406, 412].includes(response.status))
         expect(response.bodyOctets).toBe(0);
       return response;
@@ -5307,7 +5428,3 @@ it("inherited Read: eight partial rows execute on the same installed Transaction
       "inherited Read cohort failed",
     );
 }, 90000);
-
-// Exact failed request/wire and unchanged context expectation are retained in
-// the product evidence. Do not grant this path from the unaffected cohort.
-it.todo("inherited Read: pre-owner parser400 context semantics pending Donna reconciliation");
