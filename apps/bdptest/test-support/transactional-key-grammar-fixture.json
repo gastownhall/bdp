@@ -1,0 +1,31 @@
+{
+  "fixtureVersion": 1,
+  "id": "reference-transactional-key-grammar-v1",
+  "seed": 0,
+  "capabilities": ["installed-transactional-http", "transactional-receipt-observation"],
+  "scope": "https://reference.invalid/acme/",
+  "bindings": {
+    "subject": "https://reference.invalid/acme/beads/a",
+    "target": "https://reference.invalid/acme/beads/b",
+    "type": "https://reference.invalid/acme/types/key-task",
+    "schema": "https://reference.invalid/acme/schemas/key-task",
+    "batch": "https://reference.invalid/acme/operations/batch",
+    "sequence": "https://reference.invalid/acme/operations/sequence",
+    "singleton": "https://reference.invalid/acme/operations/create-bead"
+  },
+  "artifacts": {
+    "descriptors": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/key-task",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/key-task\",\"name\":\"BatchTask\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/key-task\"}"
+      }
+    ],
+    "schemas": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/key-task",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/key-task\",\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\"},\"n\":{\"type\":\"integer\"}},\"required\":[\"label\",\"n\"],\"additionalProperties\":false}"
+      }
+    ]
+  },
+  "recipe": "Each case actual own installed store: raw HTTP field grammar or body member grammar, no clock/limit override; explicit receiving refusal versus observed requests, no broad400 header waiver."
+}
