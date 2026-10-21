@@ -1009,7 +1009,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               throw new Error(
                 live.resourceKind === "link"
                   ? "live Link correction requires changed properties or metadata; deletion requires an explicit tombstone"
-                  : "live correction requires a changed unowned Bead; unchanged state needs unsupported tombstone",
+                  : "live correction requires a changed Bead; unchanged state needs unsupported tombstone",
               );
             if (
               live.resourceKind === "link" &&
@@ -1020,6 +1020,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 before.type !== change.resource.type)
             )
               throw new Error("live Link correction changed immutable Link identity/endpoints");
+            if (
+              live.resourceKind === "bead" &&
+              ("source" in before ||
+                "source" in change.resource ||
+                !isDeepStrictEqual(before.ownedLinks, change.resource.ownedLinks))
+            )
+              throw new Error("direct Bead correction must preserve its complete owned Link set");
             correctedChanges = evaluated.changes;
             correctedEvents = [liveCorrectionEvent(before, change.resource, event)];
             retainErasureVersions(db, change.resource);

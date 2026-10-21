@@ -1,5 +1,5 @@
-/** Local administrative live correction, deliberately limited to Beads with no
- * inline owned Links. No BDP operation, receipt, tombstone or alias resolution. */
+/** Local administrative direct-object Bead correction. Complete existing owned
+ * Links remain unchanged. No BDP operation, receipt, tombstone or alias resolution. */
 import {
   assertPreparedTransaction,
   normalizeTransaction,
@@ -16,11 +16,7 @@ export function validateLiveBeadCorrection(
   before: ResourceRecord,
 ) {
   assertPreparedTransaction(request, scope);
-  if (
-    "source" in before ||
-    Object.values(before.ownedLinks ?? {}).some((links) => links.length > 0)
-  )
-    throw new Error("live correction of Links or nonempty owned sets is unsupported");
+  if ("source" in before) throw new Error("live Bead correction requires a Bead");
   const operations = request.carrier.operations,
     operation = operations[0];
   if (operations.length !== 1 || !operation || operation.operation !== "updateBead")

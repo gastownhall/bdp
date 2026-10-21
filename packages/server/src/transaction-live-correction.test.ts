@@ -343,7 +343,7 @@ it("refuses a schema-invalid corrected successor with its real validator cause a
   expect(f.raw()).toBe(before);
 });
 
-it.each(["Link", "owned Bead"] as const)("refuses live %s correction before any writes", (kind) => {
+it.each(["Link"] as const)("refuses live %s correction before any writes", (kind) => {
   const link = `${scope}types/link`;
   const f = fixture({
     types: [
