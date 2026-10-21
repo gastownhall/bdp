@@ -1,0 +1,30 @@
+{
+  "fixtureVersion": 1,
+  "id": "reference-transactional-numeric-v1",
+  "seed": 0,
+  "capabilities": ["installed-transactional-http", "transactional-receipt-observation"],
+  "bindings": {
+    "subject": "https://reference.invalid/acme/beads/a",
+    "type": "https://reference.invalid/acme/types/numeric",
+    "schema": "https://reference.invalid/acme/schemas/numeric",
+    "create-bead": "https://reference.invalid/acme/operations/create-bead",
+    "update-bead": "https://reference.invalid/acme/operations/update-bead",
+    "changes": "https://reference.invalid/acme/changes/"
+  },
+  "scope": "https://reference.invalid/acme/",
+  "artifacts": {
+    "descriptors": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/numeric",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/numeric\",\"name\":\"Numeric\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/numeric\"}"
+      }
+    ],
+    "schemas": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/numeric",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/numeric\",\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"number\"},\"z\":{\"type\":\"number\"},\"nested\":{\"type\":\"object\",\"properties\":{\"values\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}}},\"required\":[\"values\"],\"additionalProperties\":false}},\"required\":[\"n\",\"z\",\"nested\"],\"additionalProperties\":false}"
+      }
+    ]
+  },
+  "description": "Finite packaged Transactional numeric fixture; custom Type/schema, all-visible writer, History=false; no whole-profile claim."
+}
