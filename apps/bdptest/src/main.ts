@@ -18,6 +18,7 @@ import {
   serveNodeHttpServer,
 } from "@bdp/server";
 import { startReferenceDeployment } from "@bdp/server/reference-startup";
+import { ReferenceDeploymentError } from "@bdp/server/reference-configuration";
 
 import { createConfiguredBdptestReadServer } from "./server-composition.js";
 
@@ -50,8 +51,9 @@ function diagnostic(
   event: string,
   message: string,
   signal?: NodeJS.Signals,
+  code?: ReferenceDeploymentError["code"],
 ): void {
-  process.stderr.write(`${JSON.stringify({ level, event, executable, message, signal })}\n`);
+  process.stderr.write(`${JSON.stringify({ level, event, executable, message, signal, code })}\n`);
 }
 
 function unexpectedErrorSummary(error: unknown): string {
@@ -69,6 +71,7 @@ async function runReferenceServer(config: Parameters<typeof startReferenceDeploy
   process.once("SIGINT", stop);
   let runtime: Awaited<ReturnType<typeof startReferenceDeployment>> | undefined;
   let failed = false;
+  let failureCode: ReferenceDeploymentError["code"] | undefined;
   try {
     runtime = await startReferenceDeployment(config, controller.signal);
     controller.signal.throwIfAborted();
@@ -86,8 +89,9 @@ async function runReferenceServer(config: Parameters<typeof startReferenceDeploy
       })}\n`,
     );
     await Promise.race([stopped.promise, runtime.completion]);
-  } catch {
-    // Configuration contains credentials. Neither the cause nor file digests may escape.
+  } catch (error) {
+    // Configuration contains credentials. Expose only the fixed safe category.
+    if (error instanceof ReferenceDeploymentError) failureCode = error.code;
     failed = true;
   } finally {
     try {
@@ -99,7 +103,13 @@ async function runReferenceServer(config: Parameters<typeof startReferenceDeploy
     process.removeListener("SIGINT", stop);
   }
   if (failed) {
-    diagnostic("error", "startup.reference_refused", "reference deployment startup failed");
+    diagnostic(
+      "error",
+      "startup.reference_refused",
+      "reference deployment startup failed",
+      undefined,
+      failureCode,
+    );
     return 2;
   }
   diagnostic("info", "server.stopped", "bdptest reference qualification server stopped");
