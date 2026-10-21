@@ -18,6 +18,9 @@ waves are internal sequencing labels, not protocol concepts.
 - [Component specifications](component-specifications.md) defines the
   responsibilities and acceptance criteria for `bdp`, `bdptest`, `bdpbd`, and
   the conformance kit.
+- [Memory remote target observation seam](memory-remote-observation-seam.md)
+  retains the local Observation Supports remote Decision revision example and
+  the open shared distinction between expected role and observed target state.
 - [Preview 2 common metadata amendment](preview2-common-metadata-amendment.md)
   prepares the Resource metadata changes needed to align the Graph CLI and BDP
   drafts. Its proposed operation names and wire semantics are not normative
