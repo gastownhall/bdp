@@ -3,15 +3,15 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import {
-  canonicalJson,
-  selectApplicableScenariosForProfile,
   type ConformanceRunResult,
+  canonicalJson,
   type ExactHttpConfiguration,
+  selectApplicableScenariosForProfile,
 } from "@bdp/conformance";
 import {
   assertReadUpdateArtifactSet,
   assertSameServedProfileConfiguration,
-  bindServedProfileConfiguration,
+  type bindServedProfileConfiguration,
   type ReadUpdateArtifactSet,
 } from "@bdp/conformance/testing";
 import { installedContractsDigest } from "./installed-contract-identity.js";
@@ -178,12 +178,71 @@ function requiredObservations(
   };
 }
 
+export interface ArtifactAssociationOptions {
+  readonly credentialHandles?: ExactHttpConfiguration["credentialHandles"];
+  readonly selectionModes?: readonly {
+    readonly id: string;
+    readonly mode: "unfiltered" | "owned-exact";
+  }[];
+}
 export function associateArtifactObservations(
   set: ReadUpdateArtifactSet,
   sourceCommit: string,
   observations: readonly ArtifactObservation[],
+  options: ArtifactAssociationOptions = {},
 ) {
   assertReadUpdateArtifactSet(set);
+  if (Object.keys(options).some((key) => key !== "credentialHandles" && key !== "selectionModes"))
+    throw Error("artifact-set unknown association expectation");
+  const expectedHandles = structuredClone(
+    options.credentialHandles ?? [
+      { id: "operator", headerNames: ["authorization"] },
+      { id: "anonymous", headerNames: [] },
+      { id: "unknown", headerNames: ["authorization"] },
+    ],
+  );
+  if (
+    !Array.isArray(expectedHandles) ||
+    expectedHandles.length === 0 ||
+    new Set(expectedHandles.map((handle) => handle.id)).size !== expectedHandles.length ||
+    expectedHandles.some(
+      (handle) =>
+        typeof handle.id !== "string" ||
+        !/^[a-z][a-z0-9.-]{0,127}$/.test(handle.id) ||
+        Object.keys(handle).sort().join() !== "headerNames,id" ||
+        !Array.isArray(handle.headerNames) ||
+        handle.headerNames.some(
+          (name: unknown) => typeof name !== "string" || !/^[a-z][a-z0-9-]*$/.test(name),
+        ) ||
+        new Set(handle.headerNames).size !== handle.headerNames.length,
+    )
+  )
+    throw Error("artifact-set invalid expected credential handles");
+  equal(
+    expectedHandles.find((handle) => handle.id === "operator")?.headerNames,
+    ["authorization"],
+    "default credential handle",
+  );
+  const selectionModes =
+    options.selectionModes === undefined
+      ? set.shards.map((shard, index) => ({
+          id: shard.id,
+          mode: index === 0 ? ("unfiltered" as const) : ("owned-exact" as const),
+        }))
+      : structuredClone(options.selectionModes);
+  equal(
+    selectionModes.map((row) => row.id),
+    set.shards.map((shard) => shard.id),
+    "selection mode shard IDs",
+  );
+  if (
+    selectionModes.some(
+      (row) =>
+        Object.keys(row).sort().join() !== "id,mode" ||
+        (row.mode !== "unfiltered" && row.mode !== "owned-exact"),
+    )
+  )
+    throw Error("artifact-set invalid selection mode");
   if (observations.length !== set.shards.length)
     throw Error("artifact-set missing or extra report");
   const first = observations[0]!;
@@ -212,13 +271,14 @@ export function associateArtifactObservations(
     equal(result.reportVersion, 4, "report version");
     equal(result.seed, shard.bundle.fixture.seed, "seed");
     equal(result.scenarioFilter, undefined, "filter");
+    const mode = selectionModes[index]!.mode;
     const selected =
-      index === 0
+      mode === "unfiltered"
         ? selectApplicableScenariosForProfile(shard.bundle.catalog, "read-update").map((r) => r.id)
         : shard.scenarioIds;
     equal(
       result.scenarioSelection,
-      index === 0 ? undefined : shard.scenarioIds,
+      mode === "unfiltered" ? undefined : shard.scenarioIds,
       "requested selection",
     );
     equal(result.selectedScenarioIds, selected, "selected IDs");
@@ -243,15 +303,7 @@ export function associateArtifactObservations(
     equal(exact.profile, configuration.profile, "route profile");
     equal(exact.routes, artifactRoutes(shard.bundle, configuration.scope), "routes");
     equal(exact.defaultCredentialRef, "operator", "default credential handle");
-    equal(
-      exact.credentialHandles,
-      [
-        { id: "operator", headerNames: ["authorization"] },
-        { id: "anonymous", headerNames: [] },
-        { id: "unknown", headerNames: ["authorization"] },
-      ],
-      "credential handles",
-    );
+    equal(exact.credentialHandles, expectedHandles, "credential handles");
     equal(exact.maximumRequestHeaderBytes, 16384, "header bound");
     equal(exact.maximumRequestBodyBytes, 131072, "body bound");
     const routeDigest = digest({
@@ -298,7 +350,7 @@ export function associateArtifactObservations(
     return {
       id: shard.id,
       source: shard.source,
-      selectionMode: index === 0 ? "unfiltered" : "owned-exact",
+      selectionMode: mode,
       requestedIds: result.scenarioSelection ?? null,
       selectedIds: result.selectedScenarioIds,
       resultIds: result.scenarios.map((r) => r.id),
