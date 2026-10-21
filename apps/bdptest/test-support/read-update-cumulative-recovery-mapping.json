@@ -1,0 +1,77 @@
+{
+  "profile": "read-update",
+  "ordinaryDeployment": false,
+  "ordinaryRuntimeConfigurationIdentity": null,
+  "productionSource": "5f3a67e89d62a0dcb4e9a7b9a6cb78b2c0a3e50c",
+  "sourceBase": "8480a2c951bd40264845af4c68c9bc8c4aa0b8b5",
+  "bounds": {
+    "bytes": 4194304,
+    "nodes": 100000,
+    "depth": 128,
+    "aggregateSeconds": 90
+  },
+  "rows": [
+    {
+      "id": "read-update.sequence.disconnect",
+      "case": "disconnect",
+      "clause": "docs/specs/bdp.md:2877-2883",
+      "obligations": [
+        "actual client socket closes after real prefix commit/admission",
+        "remaining original members finish while authority remains alive",
+        "exact-key replay recovers lost full results with no second effect"
+      ]
+    },
+    {
+      "id": "read-update.idempotency.crash-mid-sequence",
+      "case": "crash",
+      "clause": "docs/specs/bdp.md:3370-3403",
+      "obligations": [
+        "retained prefix survives SIGKILL",
+        "pending and unstarted claimed keys cleared on actual restart",
+        "no automatic sequence resume",
+        "retry replays first outcome and executes remaining in order"
+      ]
+    },
+    {
+      "id": "read-update.idempotency.durable-boundary",
+      "case": "crash",
+      "status": "bounded-partial",
+      "clause": "docs/specs/bdp.md:3370-3403; catalog6862",
+      "obligations": [
+        "first mutation, allocated identity,semantic identity and full disposition persist after real ownedSIGKILL",
+        "same prefix key replays same full result and revision afterrestart",
+        "abandoned remaining claimedkeys clear without automatic memberexecution, then ordered firstexecutions retain once"
+      ],
+      "limits": "Kill is at observed synchronous member boundary, not inside SQLite COMMIT. This does not independently prove every atomic failure point, failover topology or all mutation kinds."
+    },
+    {
+      "id": "read-update.sequence.internal-fault",
+      "case": "schedule-fault",
+      "clause": "docs/specs/bdp.md:3165-3170",
+      "obligations": [
+        "real scheduler infrastructure fault after prefix",
+        "real bodyless500",
+        "prefix retained/claims cleared/ordered retry"
+      ],
+      "limits": "One actual selected source-private scheduler fault; not every arbitrary internal fault or HTTP Read failure. Scheduling failure fences owner; genuine close refusal/code2 is retained, then same-store reopening precedes ordered client retry. No arbitrary Read fault coverage."
+    },
+    {
+      "id": "read.http.internal-fault",
+      "case": null,
+      "status": "unrepresented",
+      "reason": "No selected genuine Read evaluator/storage fault injection seam; scheduler applies to mutation lifecycle only."
+    }
+  ],
+  "residuals": [
+    "No full130/profile award",
+    "No original store/evaluator code substitution",
+    "No ordinary identity pooling",
+    "No restored Scope/History/clock/policy semantics"
+  ],
+  "attribution": {
+    "cohort1": "Three failed oracle/fixture expectations retained: actual native full outcome envelope omitted, and schedule fault fences Read.",
+    "cohort2": "Crash and disconnect PASS; scheduling fault failed only expected graceful exit0 versus preserved actual close refusal/code1.",
+    "cohort3": "Only failed scheduling-fault case rerun: genuine close failure retained explicitly/code2, then reopen+retry PASS; prior2cases skipped.",
+    "finalAllThreeRun": false
+  }
+}
