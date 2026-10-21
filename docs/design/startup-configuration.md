@@ -716,9 +716,13 @@ this loader is neither a public listener nor evidence of complete Write support.
 
 The private `reference-deployment-runtime` and inherited-IPC
 `reference-deployment-process` modules consume a genuine registered loader handle
-in the same module instance. They are absent from package exports and ordinary
-`bdptest --serve` still requires the existing public Read admission. The public
-loader remains an inert data preparation API. The ready message contains only
+in the same module instance. They are absent from package exports. The default
+Read composition still requires its existing admission; an explicit trusted
+`bdptest.deploymentFile` selects the supported reference startup facade for
+ordinary `bdptest --serve`, as described in [reference-startup.md](reference-startup.md).
+That exception creates a non-attesting RU/TX qualification target, not cumulative
+profile certification. The public loader remains an inert data preparation API.
+The ready message contains only
 Scope, independently observed listen URL, profile, captured history and false
 claim eligibility; no targets, captures, credential or binding digests.
 

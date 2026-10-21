@@ -104,6 +104,45 @@ async function fixture(profile: "read-update" | "transactional") {
   return { directory, scope, token, config, configFile, deploymentFile };
 }
 
+/** Pipe chunks are not diagnostic records. Keep an unfinished suffix buffered. */
+function completeDiagnostics(stderr: string, ended = false): Record<string, unknown>[] {
+  const boundary = stderr.lastIndexOf("\n") + 1;
+  if (ended && boundary !== stderr.length)
+    throw new Error("CLI stderr ended with an incomplete diagnostic record");
+  return stderr
+    .slice(0, boundary)
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
+it("fragmented diagnostic records wait for LF before readiness parsing", () => {
+  const fragments = [
+    '{"event":"startup.config","message":"capt',
+    'ured"}\n{"event":"server.',
+    'started","scope":"http://127.0.0.1:8123/café/"}',
+    "\n",
+  ];
+  let buffered = "";
+  for (const [index, fragment] of fragments.entries()) {
+    buffered += fragment;
+    const records = completeDiagnostics(buffered);
+    expect(records.some((record) => record.event === "server.started")).toBe(index === 3);
+  }
+  expect(completeDiagnostics(buffered, true)).toEqual([
+    { event: "startup.config", message: "captured" },
+    { event: "server.started", scope: "http://127.0.0.1:8123/café/" },
+  ]);
+});
+
+it("fragmented diagnostic records refuse a truncated EOF and malformed complete record", () => {
+  expect(() => completeDiagnostics('{"event":"server.started"}', true)).toThrow(
+    "incomplete diagnostic record",
+  );
+  expect(() => completeDiagnostics('{"event":}\n')).toThrow(SyntaxError);
+  expect(completeDiagnostics("", true)).toEqual([]);
+});
+
 function launch(configFile: string, serve = true) {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.startsWith("BDP_")),
@@ -115,9 +154,11 @@ function launch(configFile: string, serve = true) {
   );
   const output: string[] = ["", ""];
   let overflow = false;
+  let closed = false;
   [child.stdout, child.stderr].forEach((stream, i) => {
+    stream.setEncoding("utf8");
     stream.on("data", (data) => {
-      output[i] += data.toString("utf8");
+      output[i] += data;
       if (Buffer.byteLength(required(output[i])) > 65536) {
         overflow = true;
         child.kill("SIGKILL");
@@ -127,7 +168,10 @@ function launch(configFile: string, serve = true) {
   const done = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
     (resolve, reject) => {
       child.once("error", reject);
-      child.once("close", (code, signal) => resolve({ code, signal }));
+      child.once("close", (code, signal) => {
+        closed = true;
+        resolve({ code, signal });
+      });
     },
   );
   const watchdog = setTimeout(() => child.kill("SIGKILL"), 10000);
@@ -135,12 +179,10 @@ function launch(configFile: string, serve = true) {
   async function waitFor(event: string) {
     const until = performance.now() + 8000;
     while (performance.now() < until) {
-      for (const line of required(output[1]).split("\n").filter(Boolean)) {
-        const value = JSON.parse(line);
+      for (const value of completeDiagnostics(required(output[1]), child.stderr.readableEnded)) {
         if (value.event === event) return value;
       }
-      if (child.exitCode !== null || child.signalCode !== null)
-        throw new Error(`CLI exited before ${event}: ${output[1]}`);
+      if (closed) throw new Error(`CLI exited before ${event}: ${output[1]}`);
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     throw new Error(`CLI readiness deadline for ${event}`);
