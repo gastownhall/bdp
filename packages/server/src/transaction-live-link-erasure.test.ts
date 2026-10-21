@@ -419,9 +419,10 @@ it("preserves the full pinned target on an unowned Link correction", () => {
     target: { uri: b.id, revision: b.revision },
   });
 });
-it("refuses an otherwise unowned Link when its source has a different nonempty owned set", () => {
+function mixedOwnershipFixture(extra: Partial<Parameters<typeof openTransactionStore>[0]> = {}) {
   const other = `${scope}types/owned`;
   const f = fixture({
+    ...extra,
     types: [
       parseTypeDescriptor({
         id: bead,
@@ -441,21 +442,175 @@ it("refuses an otherwise unowned Link when its source has a different nonempty o
       }),
     ],
   });
-  const old = f.seed().resource;
-  f.run("createLink", {
-    id: "links/owned",
-    type: other,
-    source: "beads/a",
-    target: "beads/b",
-    properties: {},
+  f.run("createBead", {
+    id: "beads/a",
+    type: bead,
+    properties: { healthy: "source" },
+    metadata: { stable: true },
   });
-  const before = f.raw();
-  expect(() => f.owner.correctLiveLinkVersion(old.id, old.revision, f.correction(old))).toThrow(
-    "owned-Link",
+  const target = f.run("createBead", {
+    id: "beads/b",
+    type: bead,
+    properties: { healthy: "target" },
+    metadata: {},
+  }).resource;
+  const selected = f.run("createLink", {
+    id: "links/l",
+    type: link,
+    source: "beads/a",
+    target: { uri: target.id, revision: "selected-pin+ %/☃" },
+    properties: { secret: "mixed-selected-private" },
+    metadata: { secret: "mixed-selected-metadata" },
+  });
+  const owned = ["z", "a"].map((id) =>
+    f.run("createLink", {
+      id: `links/owned-${id}`,
+      type: other,
+      source: "beads/a",
+      target: { uri: target.id, revision: `owned-${id}-pin+ %/☃` },
+      properties: { untouched: id },
+      metadata: { untouched: id },
+    }),
   );
-  expect(() => f.owner.tombstoneLiveLinkVersion(old.id, old.revision)).toThrow("owned-Link");
-  expect(f.raw()).toBe(before);
-});
+  function read(id: string) {
+    const result = f.owner.withRead((reader) => {
+      const row = reader.resource(id);
+      return row ? readStoredResource(row, scope) : null;
+    });
+    if (result.kind !== "read") throw Error("source/owned read required");
+    return result.value;
+  }
+  const source = read("beads/a");
+  if (!source || "source" in source) throw Error("owning Bead required");
+  expect(source.ownedLinks).toEqual({ [other]: [owned[1]!.resource, owned[0]!.resource] });
+  return { f, selected, owned, source, target, read };
+}
+
+it.each(["correction", "tombstone"] as const)(
+  "allows mixed-source unowned Link %s without changing its different complete owned set",
+  (kind) => {
+    const { f, selected, owned, source, target, read } = mixedOwnershipFixture();
+    const old = selected.resource,
+      epoch = f.owner.readConfiguration().scopeEpoch;
+    const unrelatedFacts = () =>
+      (f.owner.inspect().groups as { events: { subject: string }[] }[])
+        .flatMap((group) => group.events)
+        .filter((event) => event.subject !== old.id);
+    const priorFacts = unrelatedFacts();
+    const result =
+      kind === "correction"
+        ? f.owner.correctLiveLinkVersion(old.id, old.revision, f.correction(old))
+        : f.owner.tombstoneLiveLinkVersion(old.id, old.revision);
+    expect(result).not.toHaveProperty("receipt");
+    expect(result.context.scopeEpoch).toBe(epoch);
+    expect(result.group.changes).toHaveLength(1);
+    expect(result.group.changes[0]).toMatchObject({
+      resourceKind: "link",
+      resource: { id: old.id, type: old.type },
+    });
+    expect(result.group.erasures).toEqual([
+      {
+        subject: old.id,
+        revision: old.revision,
+        digest: {
+          scheme: "sha-256-jcs",
+          value: createHash("sha256").update(erasureCanonicalJson(old)).digest("hex"),
+        },
+      },
+    ]);
+    expect(f.owner.erasureLedger()).toEqual(result.group.erasures);
+    expect(read("beads/a")).toEqual(source);
+    expect(read("beads/b")).toEqual(target);
+    for (const item of owned) {
+      expect(read(item.resource.id.slice(scope.length))).toEqual(item.resource);
+      expect(f.owner.readRetainedVersion(item.resource.id, item.resource.revision).kind).toBe(
+        "retained",
+      );
+      expect(f.owner.readReceipt("p", item.receipt.id).receipt).toEqual(item.receipt);
+    }
+    expect(f.owner.readRetainedVersion(source.id, source.revision).kind).toBe("retained");
+    expect(f.owner.readRetainedVersion(target.id, target.revision).kind).toBe("retained");
+    expect(f.owner.readRetainedVersion(old.id, old.revision).kind).toBe("erased");
+    expect(f.owner.readReceipt("p", selected.receipt.id).receipt?.results).toEqual([
+      {
+        operationIndex: 0,
+        outcome: "erased",
+        erased: { id: old.id, type: old.type, revision: old.revision },
+      },
+    ]);
+    const replay = f.owner.admit("p", selected.key, selected.prepared);
+    expect(replay.kind).toBe("existing");
+    if (replay.kind !== "existing") throw Error("same-key replay required");
+    expect(replay.receipt).toEqual(f.owner.readReceipt("p", selected.receipt.id).receipt);
+    const next = f.current();
+    if (kind === "correction") {
+      expect(next).toMatchObject({
+        id: old.id,
+        properties: { corrected: true },
+        metadata: { corrected: true },
+      });
+      if (!next || !("source" in old) || !("source" in next))
+        throw Error("Link successor required");
+      expect(next.revision).not.toBe(old.revision);
+      expect(next.source).toEqual(old.source);
+      expect(next.target).toEqual(old.target);
+      expect(result.group.events).toEqual([
+        expect.objectContaining({ type: "updated", subject: old.id }),
+      ]);
+    } else {
+      expect(next).toBeNull();
+      // The selected Link loses its own last endpoint-bearing version. The
+      // different owned Links do not restore that erased subject's graph facts.
+      expect(result.group.events).toEqual([
+        expect.objectContaining({ type: "deleted", data: { revision: old.revision } }),
+      ]);
+    }
+    expect(result.group.events.every((event) => event.subject === old.id)).toBe(true);
+    expect(unrelatedFacts()).toEqual(priorFacts);
+    f.reopen();
+    expect(f.owner.readConfiguration().scopeEpoch).toBe(epoch);
+    expect(f.current()).toEqual(next);
+    expect(read("beads/a")).toEqual(source);
+    expect(read("beads/b")).toEqual(target);
+    for (const item of owned)
+      expect(read(item.resource.id.slice(scope.length))).toEqual(item.resource);
+    expect(f.owner.erasureLedger()).toEqual(result.group.erasures);
+    expect(unrelatedFacts()).toEqual(priorFacts);
+    const raw = f.raw();
+    expect(raw).not.toContain("mixed-selected-private");
+    expect(raw).not.toContain("mixed-selected-metadata");
+  },
+);
+
+it.each(["correction", "tombstone"] as const)(
+  "rolls back mixed-source unowned Link %s with complete owned originals intact",
+  (kind) => {
+    let armed = false;
+    const { f, selected, source, target, owned, read } = mixedOwnershipFixture({
+      fault(stage) {
+        if (armed && stage === "before-erasure-commit") throw Error("mixed-source rollback");
+      },
+    });
+    const before = f.raw();
+    armed = true;
+    expect(() =>
+      kind === "correction"
+        ? f.owner.correctLiveLinkVersion(
+            selected.resource.id,
+            selected.resource.revision,
+            f.correction(selected.resource),
+          )
+        : f.owner.tombstoneLiveLinkVersion(selected.resource.id, selected.resource.revision),
+    ).toThrow("mixed-source rollback");
+    expect(f.raw()).toBe(before);
+    expect(f.current()).toEqual(selected.resource);
+    expect(read("beads/a")).toEqual(source);
+    expect(read("beads/b")).toEqual(target);
+    for (const item of owned)
+      expect(read(item.resource.id.slice(scope.length))).toEqual(item.resource);
+    expect(f.owner.erasureLedger()).toEqual([]);
+  },
+);
 it("uses the actual installed Link property validator without partial erasure writes", () => {
   const schema = `${scope}schemas/link`;
   const artifact = (retrievalUri: string, value: unknown) => ({
