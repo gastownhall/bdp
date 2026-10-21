@@ -1,0 +1,9 @@
+# Cohesive ordinary mutation/receipt/Event follow-up
+
+From frozen793c86d, production5f/e04 unchanged. NEW four installed scenarios reuse frozen232 fixture (11Types/3schemas), five-role private credential bank, launcher/binding/raw transport. Existing Read manifest is artifact configuration only; its8scenarios and all older cases are not run.
+
+Distinct passing installed subjects: patch/guards22HTTP and incident metadata15HTTP in first run; batch deletion28HTTP and owned transitions16HTTP in affected-only successor. Total81successfulHTTP. First run also retained two failed oracle cases (35HTTP) because test wrongly imposed ordering on changes; spec5739–41 explicitly gives its internal order no semantic effect. Exact complete-entry comparison now rejects duplicates and compares canonical ID sets, while every Event ordinal/order/data assertion stays literal. Two NEW pure negative oracle cases passed across separate selected invocations. No final all6inone run claimed. All116observedHTTP/raw failures and exact tested sources retained.
+
+Typecheck initially caught a helper closure-narrowing error before any HTTP; fixed token capture. Format/typecheck/build pass. Source case bodies that had passed initially are literal unchanged; not replayed. Full receipt schemas, complete literal postimages, all actual headers/raw bodies and source/config/package bindings retained. Missing-ID allocation, effective inherited-only counterexample, pointer-bearing failure, diagnostic truncation, live races/pending/duration/fault/expiry/policy branches remain explicit residuals. Metadata incident observations are finite HTTP only, not new SSE credit.
+
+These per-ID links remain proposals, not whole-profile qualification or251campaign. No runtime, schema, catalog, shared helper, globalmanifest or spec change. No old17/proof/first23/exhaustedDATA/stage24 execution. Fresh stores/epochs are individually bound histories; same ready configuration is not one global history.
