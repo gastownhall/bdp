@@ -1,0 +1,27 @@
+{
+  "configuration": "73bdc0e24d65a8ab4444c5698b84d368a39cdcbbe2caad3ef7d913a317b1930b",
+  "spec": [
+    "docs/specs/bdp.md:5874-5884",
+    "docs/specs/bdp.md:6040-6046",
+    "docs/specs/bdp.md:6183-6194"
+  ],
+  "newCases": 2,
+  "branches": [
+    "HEAD acceptable SSE changes/events/resource events finite200",
+    "Scope changefeed served Last-Event-ID overrides conflicting valid after exclusively"
+  ],
+  "excluded": [
+    "durable client consumer",
+    "cross-source cursor equality",
+    "future minimum503",
+    "start=now permutation",
+    "whole251"
+  ],
+  "bounds": {
+    "deadlineSeconds": 90,
+    "evidenceBytes": 4194304,
+    "nodes": 100000,
+    "depth": 128,
+    "maximumRequestsPerCase": 30
+  }
+}

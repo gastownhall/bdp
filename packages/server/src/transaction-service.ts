@@ -1,44 +1,48 @@
-import { projectTransactionEntry } from "./transaction-authorization.js";
-import { assembleTransactionDiscovery } from "./transaction-discovery.js";
-import { transactionEventRequest, TransactionEventParameterError } from "./transaction-events.js";
-import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
-import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
-import {
-  checkCurrentReadMinimum,
-  snapshotTransactionMinimum,
-  snapshotCurrentReadMinimum,
-  waitForTransactionMinimum,
-  type TransactionMinimum,
-  type TransactionMinimumWaitOptions,
-} from "./transaction-consistency.js";
 /** Source-private same-owner lifecycle. No HTTP receiver, directory or profile
  * advertisement. Passing ownerLifetime:"service" transfers owner shutdown to
  * this service after successful construction; callers must stop using the owner.
  * Trusted policy publication drains finite mutations before revoking delivery. */
 import { createNodeLifecycleScheduler, type LifecycleScheduler } from "./sequence-executor.js";
 import type { PreparedTransactionSequence } from "./transaction-batch.js";
+import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
 import {
-  createTransactionSequenceStepper,
-  type TransactionSequenceResponse,
-} from "./transaction-sequence.js";
+  checkCurrentReadMinimum,
+  TransactionMinimumFailure,
+  snapshotCurrentReadMinimum,
+  snapshotTransactionMinimum,
+  type TransactionMinimum,
+  type TransactionMinimumWaitOptions,
+  waitForTransactionMinimum,
+} from "./transaction-consistency.js";
+import { assembleTransactionDiscovery } from "./transaction-discovery.js";
+import { eraseReceiptEntry } from "./transaction-erasure.js";
+import { TransactionEventParameterError, transactionEventRequest } from "./transaction-events.js";
 import {
-  createTransactionReadPlane,
   captureTransactionReadDeliveryOptions,
   captureTransactionReadRequest,
+  createTransactionReadPlane,
+  isRetainedCollectionMinimumRead,
   type TransactionReadOptions,
 } from "./transaction-read.js";
+import {
+  createTransactionSequenceStepper,
+  projectCurrentSequenceEntry,
+  type TransactionSequenceResponse,
+} from "./transaction-sequence.js";
+import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
+import type {
+  openTransactionStore,
+  TransactionChangePublication,
+  TransactionEventScan,
+  TransactionReadContext,
+  TransactionReceipt,
+  TransactionReceiptPage,
+} from "./transaction-store.js";
 import {
   submitTransaction,
   type TransactionSubmission,
   type TransactionSubmissionResult,
 } from "./transaction-submission.js";
-import type {
-  openTransactionStore,
-  TransactionReadContext,
-  TransactionEventScan,
-  TransactionReceipt,
-  TransactionReceiptPage,
-} from "./transaction-store.js";
 
 export class TransactionStreamCapacityError extends Error {}
 
@@ -395,11 +399,10 @@ export function createTransactionService(owner: Owner, options: TransactionServi
               // signal getter or allowing an unconditioned successful fallback.
               return facet.perform(capturedRequest, receiving);
             }
-            return waitForTransactionMinimum(
-              () => facet.perform(capturedRequest, captured),
-              minimumReads,
-              captured?.signal,
-            );
+            const attempt = isRetainedCollectionMinimumRead(capturedRequest)
+              ? read.prepareRetainedMinimumRead(principal, minimum, capturedRequest, captured)
+              : () => facet.perform(capturedRequest, captured);
+            return waitForTransactionMinimum(attempt, minimumReads, captured?.signal);
           }),
         resolveAlias: (url, receiving) =>
           run(() => {
@@ -434,6 +437,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         if (!(error instanceof TypeError)) throw error;
         captured = { error };
       }
+      const unorderable = "error" in captured;
       let minimum: TransactionMinimum;
       let kind: TransactionSnapshotRequest["kind"];
       if ("error" in captured) {
@@ -445,13 +449,51 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           throw captured.error;
         }
         kind = request.kind;
-        if (kind !== "create" && kind !== "preflight") throw captured.error;
+        if (kind !== "create" && kind !== "preflight" && kind !== "manifest" && kind !== "page")
+          throw captured.error;
       } else {
         minimum = captured.minimum;
         kind = request.kind;
       }
-      if (kind !== "create" && kind !== "preflight")
-        throw new TypeError("minimum Snapshot observation requires fresh creation or preflight");
+      const observeRetained = (copied: TransactionSnapshotRequest) =>
+        run(async (): Promise<ReturnType<Owner["observeSnapshot"]>> => {
+          if (!unorderable) return owner.observeSnapshot(copied, minimum);
+          try {
+            return await waitForTransactionMinimum(
+              () => owner.observeSnapshot(copied, minimum),
+              minimumReads,
+              signal,
+            );
+          } catch (error) {
+            // Only this settled retained/unorderable domain uses unavailable.
+            // Resource minimum catch-up and every other failure retain their mapping.
+            if (
+              !(error instanceof TransactionMinimumFailure) ||
+              error.reason !== "catch-up-timeout"
+            )
+              throw error;
+            return Object.freeze({
+              kind: "problem" as const,
+              code: "temporarily-unavailable" as const,
+              context: error.context,
+            });
+          }
+        });
+      if (kind === "manifest") {
+        const retained = request as Extract<TransactionSnapshotRequest, { kind: "manifest" }>;
+        const copied = Object.freeze({ kind, id: retained.id });
+        return observeRetained(copied);
+      }
+      if (kind === "page") {
+        const retained = request as Extract<TransactionSnapshotRequest, { kind: "page" }>;
+        const copied = Object.freeze({
+          kind,
+          id: retained.id,
+          stream: retained.stream,
+          token: retained.token,
+        });
+        return observeRetained(copied);
+      }
       // Freeze both controls before the first asynchronous attempt. Each owner
       // entry revalidates the tuple; no SQLite entry survives a finite wait.
       const copied = Object.freeze({ kind });
@@ -463,11 +505,36 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         ),
       );
     },
+    /** Local administrator only. Mutation ownership is checked again by the
+     * owner; no HTTP route, receipt, or caller-supplied transaction identity. */
+    eraseHistoricalVersions(subjects: Parameters<Owner["eraseHistoricalVersions"]>[0]) {
+      check();
+      return owner.eraseHistoricalVersions(subjects);
+    },
+    correctLiveBeadVersion(...args: Parameters<Owner["correctLiveBeadVersion"]>) {
+      check();
+      return owner.correctLiveBeadVersion(...args);
+    },
+    tombstoneLiveBeadVersion(...args: Parameters<Owner["tombstoneLiveBeadVersion"]>) {
+      check();
+      return owner.tombstoneLiveBeadVersion(...args);
+    },
+    correctLiveLinkVersion(...args: Parameters<Owner["correctLiveLinkVersion"]>) {
+      check();
+      return owner.correctLiveLinkVersion(...args);
+    },
+    tombstoneLiveLinkVersion(...args: Parameters<Owner["tombstoneLiveLinkVersion"]>) {
+      check();
+      return owner.tombstoneLiveLinkVersion(...args);
+    },
+    assertPublication: owner.assertPublication,
+    acquireChangePublication: owner.acquireChangePublication,
     changes(
       intent: TransactionChangefeedIntent,
       supplied?: TransactionMinimum | "unsupported",
       signal?: AbortSignal,
       admission?: "finite-start-now" | "current-changefeed",
+      publication?: TransactionChangePublication,
     ) {
       // Capture controls before asynchronous retries. start=now observes admission
       // head once; advancing it at every attempt would skip intervening commits.
@@ -496,6 +563,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
                 : finiteStartNow
                   ? "finite-start-now"
                   : undefined,
+              publication,
             ),
           minimumReads,
           signal,
@@ -702,14 +770,21 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     ): Promise<TransactionSequenceResponse> {
       return mutate(() => executeSequence(principal, sequence));
     },
-    /** Authenticated exact local schema response; no mutation or minimum wait. */
-    schemaObserved() {
-      return run(async () => {
-        const observed = owner.withRead((_reader, context) => Object.freeze({ context }));
+    /** Authenticated exact local schema response. Capture before asynchronous work;
+     * a minimum wait never retains an owner entry. No-minimum timing is unchanged. */
+    schemaObserved(supplied?: TransactionMinimum, signal?: AbortSignal) {
+      const minimum = supplied === undefined ? undefined : snapshotCurrentReadMinimum(supplied);
+      const observe = () => {
+        const observed = owner.withRead((_reader, context) => {
+          if (minimum !== undefined) checkCurrentReadMinimum(minimum, context, true);
+          return Object.freeze({ context });
+        });
         if (observed.kind === "entry-refused")
           throw new Error("transaction schema observation refused", { cause: observed.cause });
         return observed.value;
-      });
+      };
+      if (minimum === undefined) return run(async () => observe());
+      return run(async () => waitForTransactionMinimum(observe, minimumReads, signal));
     },
     /** Trusted HTTP refusal after carrier/auth checks. Observe without executing
      * members or admitting keys; an unavailable owner remains an internal fault. */
@@ -733,9 +808,14 @@ export function createTransactionService(owner: Owner, options: TransactionServi
             kind: "authenticated",
             principal: { id: principal },
           });
+          const erased = new Set(
+            owner
+              .erasureLedgerInEntry()
+              .map((record) => JSON.stringify([record.subject, record.revision])),
+          );
           const body = {
             results: response.results.map((entry) =>
-              projectTransactionEntry(entry, policy.readPolicy === "all-visible"),
+              projectCurrentSequenceEntry(eraseReceiptEntry(entry, erased), policy.readPolicy),
             ),
           };
           // Traverse frozen parents too: this observation guarantees every descendant is frozen.

@@ -1,0 +1,29 @@
+{
+  "fixtureVersion": 1,
+  "id": "installed-accept-refusal-v1",
+  "seed": 0,
+  "scope": "https://reference.invalid/acme/",
+  "capabilities": ["installed-transactional-http", "transactional-receipt-observation"],
+  "bindings": {
+    "subject": "https://reference.invalid/acme/beads/anchor",
+    "type": "https://reference.invalid/acme/types/accept",
+    "schema": "https://reference.invalid/acme/schemas/accept",
+    "create-bead": "https://reference.invalid/acme/operations/create-bead",
+    "changes": "https://reference.invalid/acme/changes/"
+  },
+  "artifacts": {
+    "descriptors": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/types/accept",
+        "utf8": "{\"id\":\"https://reference.invalid/acme/types/accept\",\"name\":\"Accept\",\"describes\":\"bead\",\"conformsTo\":[],\"propertiesSchema\":\"https://reference.invalid/acme/schemas/accept\"}"
+      }
+    ],
+    "schemas": [
+      {
+        "retrievalUri": "https://reference.invalid/acme/schemas/accept",
+        "utf8": "{\"$id\":\"https://reference.invalid/acme/schemas/accept\",\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"],\"additionalProperties\":true}"
+      }
+    ]
+  },
+  "description": "Actual packed Transactional/Historyfalse Accept refusal fixture, valid JSON mutation carrier only."
+}

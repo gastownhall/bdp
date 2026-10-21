@@ -1,33 +1,39 @@
 /** Explicitly non-attesting, loopback-only mutable development server. */
 import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { TextDecoder } from "node:util";
+import type { Socket } from "node:net";
 import path from "node:path";
+import { isDeepStrictEqual, TextDecoder } from "node:util";
 import {
-  ReadUpdateCarrierError,
-  JsonSyntaxError,
-  stringifyJsonValue,
-  readProblem,
-  parseReadUpdateProblem,
   decodeJsonDocument,
+  JsonSyntaxError,
   parseCanonicalScope,
   parseReadUpdateOperationDirectory,
-  type ReadUpdateOperationDirectory,
+  parseReadUpdateProblem,
   type ReadProblemCode,
+  ReadUpdateCarrierError,
   type ReadUpdateOperation,
+  type ReadUpdateOperationDirectory,
+  readProblem,
+  stringifyJsonValue,
 } from "@bdp/protocol";
-import { applyReadHttpSemantics, resourceRevisionEtag, acceptsJson } from "./read-http.js";
-import { normalizationSafeRawRequestPath } from "./node-http-target.js";
-import type { HttpResponse, HttpHandler } from "./index.js";
+import type { DevelopmentAuthorityConfiguration } from "./development-authority.js";
+import { DEVELOPMENT_LIMITS, openDevelopmentAuthority } from "./development-authority.js";
+import { createDevelopmentComposition } from "./development-composition.js";
 import {
   administrativeArray,
   administrativeData,
-  assertDevelopmentContracts,
   assertDevelopmentAccessPolicy,
+  assertDevelopmentContracts,
   captureDevelopmentAggregatePolicy,
 } from "./development-contracts.js";
-import type { DevelopmentAuthorityConfiguration } from "./development-authority.js";
-import { DEVELOPMENT_LIMITS, openDevelopmentAuthority } from "./development-authority.js";
+import type { HttpHandler, HttpResponse } from "./index.js";
+import type { captureInstalledReferenceConfiguration } from "./installed-reference-configuration.js";
+import { normalizationSafeRawRequestPath } from "./node-http-target.js";
+import { acceptsJson, applyReadHttpSemantics, resourceRevisionEtag } from "./read-http.js";
+import { classifyAliasPath } from "./read-request.js";
+import type { PreparedReferenceDeployment } from "./reference-deployment.js";
+import { referenceDeploymentState } from "./reference-deployment-state.js";
 import type { LifecycleScheduler } from "./sequence-executor.js";
 
 export interface DevelopmentServerOptions {
@@ -61,6 +67,14 @@ export interface DevelopmentHttpComposition {
   ): HttpHandler;
 }
 /** Private installed-candidate transport; never accepted by the development facade. */
+const installedReferenceListeners = new WeakMap<object, string>();
+/** Source-private address observation for the authentic installed factory only.
+ * Public development handles keep their existing scope/close keyset. */
+export function installedReferenceListenUrl(handle: object): string {
+  const value = installedReferenceListeners.get(handle);
+  if (value === undefined) throw new TypeError("authentic installed reference runtime required");
+  return value;
+}
 export interface InstalledReferenceTransport {
   readonly scope: string;
   readonly host: string;
@@ -164,6 +178,51 @@ async function body(request: IncomingMessage): Promise<string> {
   }
 }
 
+type PreparedDevelopment = {
+  readonly handle: PreparedReferenceDeployment;
+  readonly signal?: AbortSignal;
+};
+/** Source-private tuple inspection seam; no capture, compiler, owner or listener. */
+export function assemblePreparedDevelopmentArguments(
+  installed: ReturnType<typeof captureInstalledReferenceConfiguration>,
+  composition: DevelopmentHttpComposition,
+) {
+  const first = installed.credentials[0];
+  if (!first) throw new TypeError("credential required");
+  return [
+    {
+      directory: installed.directory,
+      port: installed.port,
+      create: installed.create,
+      token: first.token,
+    },
+    composition,
+    { configuration: installed.configuration, credentials: installed.credentials },
+    { scope: installed.scope, host: installed.host, schemas: installed.schemas },
+  ] as const;
+}
+export async function startPreparedDevelopmentReferenceRuntime(
+  handle: PreparedReferenceDeployment,
+  signal?: AbortSignal,
+) {
+  const state = referenceDeploymentState(handle);
+  if (state.profile !== "read-update") throw new TypeError("prepared Read/Update required");
+  signal?.throwIfAborted();
+  const composition = createDevelopmentComposition(new URL(state.installed.scope).pathname);
+  const [options, actualComposition, deployment, transport] = assemblePreparedDevelopmentArguments(
+    state.installed,
+    composition,
+  );
+  return startDevelopmentRuntimeCore(
+    options,
+    undefined,
+    undefined,
+    actualComposition,
+    deployment,
+    transport,
+    { handle, ...(signal === undefined ? {} : { signal }) },
+  );
+}
 export async function startDevelopmentReferenceRuntime(
   options: DevelopmentServerOptions,
   scheduler?: LifecycleScheduler,
@@ -171,6 +230,24 @@ export async function startDevelopmentReferenceRuntime(
   composition?: DevelopmentHttpComposition,
   deployment?: DevelopmentDeployment,
   installedTransport?: InstalledReferenceTransport,
+): Promise<Readonly<{ scope: string; close(): Promise<void> }>> {
+  return startDevelopmentRuntimeCore(
+    options,
+    scheduler,
+    clock,
+    composition,
+    deployment,
+    installedTransport,
+  );
+}
+async function startDevelopmentRuntimeCore(
+  options: DevelopmentServerOptions,
+  scheduler?: LifecycleScheduler,
+  clock?: () => number,
+  composition?: DevelopmentHttpComposition,
+  deployment?: DevelopmentDeployment,
+  installedTransport?: InstalledReferenceTransport,
+  prepared?: PreparedDevelopment,
 ) {
   if (!path.isAbsolute(options.directory) || typeof options.create !== "boolean")
     throw new TypeError("explicit absolute store directory and provisioning choice required");
@@ -299,6 +376,7 @@ export async function startDevelopmentReferenceRuntime(
   let serving = false;
   const pending = new Set<Promise<void>>();
   let scope = "";
+  let observedListenUrl = "";
   const handle = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     try {
       if (!serving || closing || !authority) throw new ReceivingError("temporarily-unavailable");
@@ -322,12 +400,27 @@ export async function startDevelopmentReferenceRuntime(
       const origin = header(request, "origin");
       if (transport === undefined && origin !== undefined) throw new ReceivingError("forbidden");
       const rawUrl = request.url ?? "";
+      const fragmentAt = rawUrl.indexOf("#");
+      const fragmentPrefix =
+        fragmentAt === -1
+          ? undefined
+          : normalizationSafeRawRequestPath(rawUrl.slice(0, fragmentAt));
+      // Preserve the existing nonobserving alias refusal before WHATWG URL
+      // conversion loses a literal fragment. Authentication/Host/Origin and
+      // every other normalization check retain their earlier precedence.
+      const aliasFragment =
+        composedRead !== undefined &&
+        (request.method === "GET" || request.method === "HEAD") &&
+        fragmentPrefix !== undefined &&
+        classifyAliasPath(
+          new URL(fragmentPrefix, new URL(scope).origin),
+          parseCanonicalScope(scope),
+        ) !== undefined;
       const pathAndQuery = normalizationSafeRawRequestPath(rawUrl);
-      if (
-        pathAndQuery === undefined ||
-        (transport === undefined && (!rawUrl.startsWith("/") || rawUrl.startsWith("//")))
-      )
+      if (transport === undefined && (!rawUrl.startsWith("/") || rawUrl.startsWith("//")))
         throw new ReceivingError("malformed-request");
+      if (aliasFragment) throw new ReceivingError("resource-not-found");
+      if (pathAndQuery === undefined) throw new ReceivingError("malformed-request");
       // Only configured Scope determines identity, including absolute-form requests.
       const url = new URL(pathAndQuery, new URL(scope).origin);
       const schema = schemaArtifacts.find((entry) => entry.uri === url.href);
@@ -497,26 +590,51 @@ export async function startDevelopmentReferenceRuntime(
   server.timeout = 10_000;
   server.keepAliveTimeout = 1000;
   server.on("timeout", (socket) => socket.destroy());
+  const sockets = new Set<Socket>();
+  if (prepared)
+    server.on("connection", (socket) => {
+      sockets.add(socket);
+      socket.once("close", () => sockets.delete(socket));
+    });
+  const terminal = Promise.withResolvers<void>();
+  void terminal.promise.catch(() => {});
+  let liveFault: { readonly cause: unknown } | undefined;
+  const listenerFaults: unknown[] = [];
+  let rejectListening: ((error: unknown) => void) | undefined;
+  let published = false;
+  let checkedOwner:
+    | ReturnType<Awaited<ReturnType<typeof openDevelopmentAuthority>>["readConfiguration"]>
+    | undefined;
+  const checkPrepared = () => {
+    prepared?.signal?.throwIfAborted();
+    if (liveFault) throw liveFault.cause;
+  };
+  const onListenerError = (error: Error) => {
+    if (!listenerFaults.includes(error)) listenerFaults.push(error);
+    liveFault ??= { cause: error };
+    rejectListening?.(error);
+    terminal.reject(error);
+    if (published) void close().catch(() => {});
+  };
+  const onAbort = () => {
+    if (published) void close().catch(() => {});
+  };
+  if (prepared) {
+    server.on("error", onListenerError);
+    prepared.signal?.addEventListener("abort", onAbort, { once: true });
+  }
   const closeListener = () =>
     new Promise<void>((resolve, reject) => {
-      if (!server.listening) return resolve();
+      if (!server.listening) {
+        if (prepared) for (const socket of sockets) socket.destroy();
+        return resolve();
+      }
       server.close((error) => (error ? reject(error) : resolve()));
       server.closeAllConnections();
+      if (prepared) for (const socket of sockets) socket.destroy();
     });
-  try {
-    await new Promise<void>((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(options.port, (transport?.host as string | undefined) ?? "127.0.0.1", () => {
-        server.removeListener("error", reject);
-        resolve();
-      });
-    });
-    const address = server.address();
-    if (address === null || typeof address === "string") throw new Error("no development address");
-    scope =
-      transport === undefined
-        ? `http://127.0.0.1:${address.port}${scopePath}`
-        : (transport.scope as string);
+  const acquireOwner = async () => {
+    checkPrepared();
     authority = await openDevelopmentAuthority({
       scope,
       directory: options.directory,
@@ -525,12 +643,31 @@ export async function startDevelopmentReferenceRuntime(
       ...(clock === undefined ? {} : { clock }),
       ...(authorityConfiguration === undefined ? {} : { configuration: authorityConfiguration }),
     });
+    if (prepared) {
+      checkPrepared();
+      const state = referenceDeploymentState(prepared.handle);
+      if (state.profile !== "read-update") throw new TypeError("prepared Read/Update required");
+      const actual = authority.readConfiguration();
+      const expectedTypes = Object.entries(state.installed.configuration.contracts.types)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([id, bodyJson]) => ({ id, bodyJson }));
+      if (
+        actual.scope !== state.installed.scope ||
+        !isDeepStrictEqual(
+          [...actual.installedTypes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+          expectedTypes,
+        ) ||
+        !isDeepStrictEqual(actual.readLimits, prepared.handle.preflightReadLimits)
+      )
+        throw new Error("prepared Read/Update owner mismatch");
+      checkedOwner = actual;
+    }
     for (const { principal } of credentials) {
       if (principalViews.has(principal)) continue;
       const view = authority.forPrincipal(Object.freeze({ id: principal }));
-      // Validate the configured principal against the actual authority before serving.
       if ((await view.discover()).kind !== "discovery")
         throw new Error("configured principal Read refused");
+      checkPrepared();
       principalViews.set(principal, view);
       if (createReadRoute !== undefined) {
         const route = createReadRoute(
@@ -547,15 +684,56 @@ export async function startDevelopmentReferenceRuntime(
         composedReads.set(principal, route);
       }
     }
+  };
+  try {
+    if (prepared) {
+      if (prepared.handle.listener.port < 1 || prepared.handle.listener.port !== options.port)
+        throw new TypeError("intended listener required");
+      scope = prepared.handle.canonicalScope;
+      await acquireOwner();
+      checkPrepared();
+    }
+    await new Promise<void>((resolve, reject) => {
+      if (prepared) rejectListening = reject;
+      else server.once("error", reject);
+      server.listen(options.port, (transport?.host as string | undefined) ?? "127.0.0.1", () => {
+        if (!prepared) server.removeListener("error", reject);
+        rejectListening = undefined;
+        resolve();
+      });
+    });
+    const address = server.address();
+    if (address === null || typeof address === "string") throw new Error("no development address");
+    observedListenUrl = `http://${address.family === "IPv6" ? `[${address.address}]` : address.address}:${address.port}/`;
+    scope =
+      transport === undefined
+        ? `http://127.0.0.1:${address.port}${scopePath}`
+        : (transport.scope as string);
+    if (!prepared) await acquireOwner();
+    checkPrepared();
+    if (prepared) {
+      await Promise.resolve();
+      checkPrepared();
+    }
     serving = true;
+    published = true;
   } catch (error) {
-    const cleanup = await Promise.allSettled([
-      ...(server.listening ? [closeListener()] : []),
-      ...(authority === undefined ? [] : [authority.close()]),
-    ]);
-    const failures = cleanup.flatMap((result) =>
-      result.status === "rejected" ? [result.reason] : [],
-    );
+    prepared?.signal?.removeEventListener("abort", onAbort);
+    terminal.reject(error);
+    const cleanup = prepared
+      ? [
+          ...(await Promise.allSettled([closeListener()])),
+          ...(await Promise.allSettled([...pending])),
+          ...(await Promise.allSettled(authority === undefined ? [] : [authority.close()])),
+        ]
+      : await Promise.allSettled([
+          ...(server.listening ? [closeListener()] : []),
+          ...(authority === undefined ? [] : [authority.close()]),
+        ]);
+    const failures = [
+      ...listenerFaults.filter((fault) => fault !== error),
+      ...cleanup.flatMap((result) => (result.status === "rejected" ? [result.reason] : [])),
+    ];
     if (failures.length)
       throw new AggregateError([error, ...failures], "installed startup cleanup failed", {
         cause: error,
@@ -566,28 +744,55 @@ export async function startDevelopmentReferenceRuntime(
   // The owner has a terminal close result. Retry listener cleanup only; never
   // re-invoke owner close or erase its original failure.
   let ownerCompletion: Promise<void> | undefined;
-  return Object.freeze({
-    scope,
-    close(): Promise<void> {
-      if (!completion) {
-        closing = true;
-        serving = false;
-        completion = (async () => {
-          const listener = await Promise.allSettled([closeListener()]);
-          await Promise.allSettled([...pending]);
-          ownerCompletion ??= Promise.resolve().then(() => authority?.close());
-          const owner = await Promise.allSettled([ownerCompletion]);
-          const failures = [...listener, ...owner].flatMap((result) =>
-            result.status === "rejected" ? [result.reason] : [],
-          );
-          if (failures.length)
-            throw new AggregateError(failures, "installed shutdown cleanup failed");
-        })().catch((error) => {
-          completion = undefined;
-          throw error;
+  function close(): Promise<void> {
+    if (!completion) {
+      closing = true;
+      serving = false;
+      completion = (async () => {
+        const listener = await Promise.allSettled([closeListener()]);
+        await Promise.allSettled([...pending]);
+        ownerCompletion ??= Promise.resolve().then(() => authority?.close());
+        const owner = await Promise.allSettled([ownerCompletion]);
+        const failures = [...listener, ...owner].flatMap((result) =>
+          result.status === "rejected" ? [result.reason] : [],
+        );
+        failures.unshift(...listenerFaults);
+        if (failures.length)
+          throw new AggregateError(failures, "installed shutdown cleanup failed");
+      })()
+        .then(
+          () => {
+            terminal.resolve();
+          },
+          (error: unknown) => {
+            terminal.reject(error);
+            if (!prepared) completion = undefined;
+            throw error;
+          },
+        )
+        .finally(() => {
+          prepared?.signal?.removeEventListener("abort", onAbort);
         });
-      }
-      return completion;
-    },
+      void completion.catch(() => {});
+    }
+    return completion;
+  }
+  const legacy = { scope, close };
+  if (!prepared) {
+    if (transport !== undefined) installedReferenceListeners.set(legacy, observedListenUrl);
+    return Object.freeze(legacy);
+  }
+  const address = server.address();
+  // Already checked immediately after listen. No asynchronous work intervenes here.
+  if (!address || typeof address === "string" || !checkedOwner)
+    throw new Error("missing prepared owner");
+  const state = referenceDeploymentState(prepared.handle);
+  if (state.profile !== "read-update") throw new TypeError("prepared Read/Update required");
+  return Object.freeze({
+    ...legacy,
+    listenUrl: `http://${address.family === "IPv6" ? `[${address.address}]` : address.address}:${address.port}/`,
+    history: state.installed.history,
+    completion: terminal.promise,
+    ownerFacts: checkedOwner,
   });
 }

@@ -18,7 +18,9 @@
       "@bdp/protocol": ["./packages/protocol/src/index.ts"],
       "@bdp/server": ["./packages/server/src/index.ts"],
       "@bdp/server/testing": ["./packages/server/test-support/testing.ts"],
-      "@bdp/server/development": ["./packages/server/src/development.ts"]
+      "@bdp/server/development": ["./packages/server/src/development.ts"],
+      "@bdp/server/reference-startup": ["./packages/server/src/reference-startup.ts"],
+      "@bdp/server/reference-configuration": ["./packages/server/src/reference-deployment.ts"]
     }
   },
   "include": [

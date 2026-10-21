@@ -473,8 +473,12 @@ it("observes packed-capable canonical Snapshot streams, retained bytes and chang
       "bdp-authorization-view": snapshot.authorizationView,
       "bdp-minimum-scope-position": "pos-4",
     });
-    expect(retainedMinimum.status).toBe(500);
-    expect(retainedMinimum.headers["x-bdp-development-limit"]).toBe("minimum-position");
+    const retainedPage = json<Page>(retainedMinimum);
+    expect(retainedMinimum.headers["x-bdp-development-limit"]).toBeUndefined();
+    expect(retainedMinimum.headers["bdp-scope-epoch"]).toBe(snapshot.scopeEpoch);
+    expect(retainedMinimum.headers["bdp-authorization-view"]).toBe(snapshot.authorizationView);
+    expect(retainedMinimum.headers["bdp-scope-position"]).toBe("pos-4");
+    expect(retainedPage.items.length).toBeGreaterThan(0);
     const beads = await collect(f, snapshot.beads),
       links = await collect(f, snapshot.links);
     expect(beads.rows.map((r) => r.id)).toEqual(names.map((n) => `${scope}beads/${n}`));
@@ -912,8 +916,10 @@ it("observes fresh Snapshot minima with exact current context and retained gaps 
       }
     }
     const retained = await f.exchange(first.id, "GET", current); // 22
-    expect(retained.status).toBe(500);
-    expect(retained.headers["x-bdp-development-limit"]).toBe("minimum-position");
+    expect(retained.status).toBe(200);
+    expect(retained.headers["x-bdp-development-limit"]).toBeUndefined();
+    exactSnapshotContext(retained, empty, "pos-1");
+    expect(retained.bodyText).toBe(firstWire.bodyText);
     for (const method of ["GET", "HEAD"] as const) {
       // 23–24
       const wire = await f.exchange(first.id, method);

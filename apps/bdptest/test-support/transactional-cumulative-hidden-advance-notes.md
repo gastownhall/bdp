@@ -1,0 +1,3 @@
+# Hidden changefeed advance
+
+One NEW installed management case creates two actual Beads and a Link, observes the complete original visible group, then invokes the existing genuine empty-policy replacement exactly once. A fresh new-view genesis request must return exactly the identifier-free projection advance; its genuine new checkpoint must continue to an empty suffix. Empty Scope Events and Snapshot corroborate the actual projection. Ordinary deployment identity is null; this is private policy-management evidence, not an ordinary policy-config capability or fine-grained authorization claim. Existing fixed trusted clock never advances; no administrative or restore operation executes. The already-packed PR252 payload is reused without rebuild/repack.

@@ -1,0 +1,952 @@
+{
+  "kind": "FIXED_NONORDINARY_MANAGEMENT_COMPANION_SOURCE_SELECTION",
+  "base": "5f3a67e89d62a0dcb4e9a7b9a6cb78b2c0a3e50c",
+  "activeRequiredIds": [
+    "read-update.alias.allocation-avoids-aliases",
+    "read-update.alias.authorization",
+    "read-update.alias.carrier-syntax",
+    "read-update.alias.delete-releases",
+    "read-update.alias.forbidden",
+    "read-update.alias.link-coexistence",
+    "read-update.alias.no-version-minted",
+    "read-update.alias.non-canonical-target",
+    "read-update.alias.put-creates",
+    "read-update.alias.put-repoints",
+    "read-update.alias.reference-idempotency",
+    "read-update.alias.reference-resolution",
+    "read-update.alias.retained-without-reauthorization",
+    "read-update.alias.sequence-binding",
+    "read-update.alias.uniqueness-invariant",
+    "read-update.alias.unknown-subject",
+    "read-update.discovery.aliases",
+    "read-update.http.cache-no-store",
+    "read-update.http.command-minimum-fields",
+    "read-update.http.cors-idempotency-key",
+    "read-update.http.request-too-large",
+    "read-update.idempotency.claim-atomicity",
+    "read-update.idempotency.concurrent-dependent-retry",
+    "read-update.idempotency.crash-mid-sequence",
+    "read-update.idempotency.cross-carrier",
+    "read-update.idempotency.durable-boundary",
+    "read-update.idempotency.forbidden-retained",
+    "read-update.idempotency.key-reservation",
+    "read-update.idempotency.principal-isolation",
+    "read-update.idempotency.semantic-identity",
+    "read-update.idempotency.transient-not-retained",
+    "read-update.numeric-model.nested-refusal",
+    "read-update.numeric-model.round-trip-admission",
+    "read-update.numeric-model.same-value-no-op",
+    "read-update.owned-wildcard.explicit-precedence",
+    "read-update.owned-wildcard.undeclared-type-versions-source",
+    "read-update.problem.table",
+    "read-update.sequence.carrier-rejection",
+    "read-update.sequence.contextual-validation",
+    "read-update.sequence.disconnect",
+    "read-update.sequence.expired-creator-binding",
+    "read-update.sequence.idempotent-retry",
+    "read-update.sequence.interleaving",
+    "read-update.sequence.local-bindings",
+    "read-update.sequence.member-problem-shape",
+    "read-update.sequence.order-and-partial-commit",
+    "read-update.sequence.retained-failure",
+    "read-update.sequence.retry-after-hint",
+    "read-update.sequence.transient-predecessor",
+    "read-update.singleton.attribution",
+    "read-update.singleton.create-bead",
+    "read-update.singleton.create-link",
+    "read-update.singleton.delete-bead",
+    "read-update.singleton.delete-link",
+    "read-update.singleton.document-patch-atomicity",
+    "read-update.singleton.document-patch-merge-replace",
+    "read-update.singleton.document-patch-validation",
+    "read-update.singleton.expected-revision",
+    "read-update.singleton.expected-revision-race",
+    "read-update.singleton.hidden-subject",
+    "read-update.singleton.idempotency-conflict",
+    "read-update.singleton.idempotency-key-required",
+    "read-update.singleton.incident-links-nondisclosure",
+    "read-update.singleton.method-405",
+    "read-update.singleton.no-local-bindings",
+    "read-update.singleton.owned-link-no-op",
+    "read-update.singleton.owned-link-source-revision",
+    "read-update.singleton.unauthenticated",
+    "read-update.singleton.unsupported-media-type",
+    "read-update.singleton.update-bead",
+    "read-update.singleton.update-link",
+    "read-update.validation.aggregate-constraint",
+    "read-update.validation.diagnostics",
+    "read-update.validation.identity-taken",
+    "read-update.validation.type-contract",
+    "read.alias.absent",
+    "read.alias.resolution",
+    "read.attribution.carried",
+    "read.attribution.link",
+    "read.bead-links.directions",
+    "read.bead-links.pagination",
+    "read.collections.beads",
+    "read.collections.cursor-errors",
+    "read.collections.invalid-query",
+    "read.collections.links",
+    "read.collections.pagination-snapshot",
+    "read.collections.selector",
+    "read.collections.structural-predicates",
+    "read.disclosure.gate",
+    "read.disclosure.gone",
+    "read.discovery.canonical-navigation",
+    "read.discovery.optional-limits",
+    "read.discovery.scope-service-desc",
+    "read.http.accept-negotiation",
+    "read.http.cache-cors",
+    "read.http.conditional-reads",
+    "read.http.get-head",
+    "read.http.head-conditional-parity",
+    "read.http.internal-fault",
+    "read.http.method-405",
+    "read.http.problem-table",
+    "read.http.raw-request-targets",
+    "read.numeric-model.declared-token-model",
+    "read.owned-wildcard.closure",
+    "read.owned-wildcard.declaration",
+    "read.owned-wildcard.explicit-max-bounded",
+    "read.owned-wildcard.max-required",
+    "read.owned-wildcard.present-entries",
+    "read.owned.closure",
+    "read.resource.bead-record",
+    "read.resource.default-bounded",
+    "read.resource.external-endpoint",
+    "read.resource.link-record",
+    "read.resource.not-found-nondisclosure",
+    "read.resource.properties-view",
+    "read.scope.restore-identity",
+    "read.types.descriptor",
+    "read.types.inventory",
+    "transactional.alias.locator-only",
+    "transactional.alias.no-batch",
+    "transactional.alias.receipt",
+    "transactional.batch.aggregate-constraint-race",
+    "transactional.batch.atomic-commit",
+    "transactional.batch.deletion-safety",
+    "transactional.batch.duration-limit",
+    "transactional.batch.envelope-errors",
+    "transactional.batch.label-errors",
+    "transactional.batch.local-references",
+    "transactional.batch.no-op-entries",
+    "transactional.batch.owned-link-transitions",
+    "transactional.batch.pre-admission-precedence",
+    "transactional.batch.revision-guard-race",
+    "transactional.batch.rollback",
+    "transactional.batch.transaction-limits",
+    "transactional.changefeed.catch-up-timeout",
+    "transactional.changefeed.consistency-fields",
+    "transactional.changefeed.group",
+    "transactional.changefeed.owned-closure",
+    "transactional.changefeed.owned-link-agreement",
+    "transactional.changefeed.projection-advance",
+    "transactional.changefeed.replay-window",
+    "transactional.changefeed.sse",
+    "transactional.changefeed.sse-reconnect",
+    "transactional.changefeed.start-intent",
+    "transactional.changefeed.wire-form",
+    "transactional.discovery.document",
+    "transactional.discovery.limits",
+    "transactional.discovery.no-idempotency-retention",
+    "transactional.discovery.operation-directory",
+    "transactional.erasure.digest-domain",
+    "transactional.erasure.disconnect-race",
+    "transactional.erasure.epoch-unrotated",
+    "transactional.erasure.event-withholding",
+    "transactional.erasure.graph-facts",
+    "transactional.erasure.historical-version",
+    "transactional.erasure.live-publication",
+    "transactional.erasure.live-successor",
+    "transactional.erasure.live-tombstone",
+    "transactional.erasure.owned-link-cascade",
+    "transactional.erasure.persistent-event-consumer",
+    "transactional.erasure.reads",
+    "transactional.erasure.receipts",
+    "transactional.erasure.record-digest",
+    "transactional.erasure.replication-invalidation",
+    "transactional.erasure.restore",
+    "transactional.erasure.retention-non-propagation",
+    "transactional.erasure.unestablishable-content",
+    "transactional.erasure.view-projection",
+    "transactional.event.cursor-after-withheld",
+    "transactional.event.fact-order",
+    "transactional.event.graph-facts",
+    "transactional.event.history-expired",
+    "transactional.event.no-op-owned-update",
+    "transactional.event.owned-link-deleted-identity",
+    "transactional.event.owned-link-delta",
+    "transactional.event.owned-link-update-delta",
+    "transactional.event.self-link",
+    "transactional.event.set-expansion-order",
+    "transactional.http.accept-refusal",
+    "transactional.http.conditional-reads",
+    "transactional.http.disconnect-admitted",
+    "transactional.http.finite-validator-omission",
+    "transactional.http.head-parity",
+    "transactional.http.ijson-strings-objects",
+    "transactional.http.internal-fault",
+    "transactional.http.method-405",
+    "transactional.http.problem-contexts",
+    "transactional.http.problem-table",
+    "transactional.http.status-matrix",
+    "transactional.http.timestamps",
+    "transactional.http.token-profile",
+    "transactional.idempotency.concurrent-join",
+    "transactional.idempotency.conflict",
+    "transactional.idempotency.cross-carrier",
+    "transactional.idempotency.durable-admission",
+    "transactional.idempotency.expired-detail",
+    "transactional.idempotency.failed-retained",
+    "transactional.idempotency.key-grammar",
+    "transactional.idempotency.one-key-state",
+    "transactional.idempotency.ownership-fencing",
+    "transactional.idempotency.pending-recovery",
+    "transactional.idempotency.retraction-retry",
+    "transactional.idempotency.semantic-identity",
+    "transactional.idempotency.transient-abort",
+    "transactional.idempotency.unresolved-admission",
+    "transactional.idempotency.unresolved-comparison",
+    "transactional.receipt.deleted-identity",
+    "transactional.receipt.expiry-allocated",
+    "transactional.receipt.headers",
+    "transactional.receipt.no-transient-failure",
+    "transactional.receipt.non-record-entries",
+    "transactional.receipt.nondisclosure",
+    "transactional.receipt.owned-link-source",
+    "transactional.receipt.page-expiry",
+    "transactional.receipt.page-restart",
+    "transactional.receipt.pagination",
+    "transactional.receipt.pending-202",
+    "transactional.receipt.problem-shape",
+    "transactional.receipt.readable",
+    "transactional.receipt.reauthorization",
+    "transactional.receipt.reauthorization-paths",
+    "transactional.receipt.retention-minimum",
+    "transactional.receipt.root",
+    "transactional.receipt.transaction-level-failure",
+    "transactional.receipt.validation-diagnostics",
+    "transactional.receipt.validator-omission",
+    "transactional.receipt.whole-withheld",
+    "transactional.restore.epoch-fence",
+    "transactional.restore.key-namespace",
+    "transactional.sequence.completed-projection",
+    "transactional.sequence.expired-projection",
+    "transactional.sequence.failed-creator",
+    "transactional.sequence.in-flight-projection",
+    "transactional.sequence.member-reauthorization",
+    "transactional.sequence.member-transactions",
+    "transactional.sequence.pending-creator",
+    "transactional.sequence.withheld-allocation",
+    "transactional.sequence.withheld-binding",
+    "transactional.set.attribution-fanout",
+    "transactional.set.cardinality",
+    "transactional.set.mutation",
+    "transactional.set.singleton-targets",
+    "transactional.set.zero-match",
+    "transactional.singleton.receipt",
+    "transactional.singleton.semantics",
+    "transactional.snapshot.closed-projection",
+    "transactional.snapshot.erasure-ledger",
+    "transactional.snapshot.expiry",
+    "transactional.snapshot.handle-refusal",
+    "transactional.snapshot.manifest-refetch",
+    "transactional.snapshot.rendezvous"
+  ],
+  "activeCount": 251,
+  "sourceTouchedCount": 42,
+  "sourcePins": [
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-transactional-cumulative-management-product/packages/conformance/catalog/read-v1.json",
+      "bytes": 39021,
+      "sha256": "769ff9f24cfdfe74a47670240b04149b520af23b2c71a431883fd15e988adeb0"
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-transactional-cumulative-management-product/packages/conformance/catalog/read-update-v1.json",
+      "bytes": 85899,
+      "sha256": "73d215813df034a2be0cd15d0caff7cf2c8823a067f271b9140c9cbb90e859c3"
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-transactional-cumulative-management-product/packages/conformance/catalog/transactional-v1.json",
+      "bytes": 94826,
+      "sha256": "c9125f914129c71f01cefc5c54b32db80637d37b57e321571c96e81936c31eb4"
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-transactional-cumulative-management-product/packages/conformance/catalog/numeric-model-v1.json",
+      "bytes": 6508,
+      "sha256": "f4428d53cc1e67beaa146ba9811cd9676e47e84d75a344ba68eb9a24cdc2d0a5"
+    },
+    {
+      "path": "/Users/dbox/repos/wt/vickie/vickie-transactional-cumulative-management-product/packages/conformance/catalog/owned-wildcard-v1.json",
+      "bytes": 9966,
+      "sha256": "6023bff763b7579992fc9092901f2f8ddfc752f264c2a9de6bc0caf0880c5ecd"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "read-update.sequence.expired-creator-binding",
+      "title": "An expired creator still binds its dependent through the tombstone's allocated identity and kind",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "and, for a creation that allocated an identity, that identity and its Resource kind, through which a later `@name` reference still resolves"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "or an `idempotency-expired` disposition, whose tombstone keeps the identity the creation allocated and its Resource kind"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "resolves each `@name` reference to the identity its creating member bound \u2014 taken from that member's fresh, retained, or expired disposition, never from the spelling"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.page-expiry",
+      "title": "A page URL returns 410 cursor-expired after detail expiry, decided after authentication and non-disclosure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "After the receipt's detail expires, a page URL returns `410` `cursor-expired`, decided after authentication and the receipt's non-disclosure rule."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.reauthorization",
+      "title": "A view change withholds record-bearing entries under owned closure without changing the disposition",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Reading the receipt after such a change returns its unchanged identity and disposition, but the detailed `results` and problem information are re-authorized under the caller's current view."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "hiding a Bead hides the entries of every Bead that owns a Link to it and of those Links."
+        }
+      ],
+      "retires": ["read-update.idempotency.authorization-view"]
+    },
+    {
+      "id": "transactional.receipt.reauthorization-paths",
+      "title": "The synchronous response, a duplicate's response, later reads, pages, and sequence projections share one authorization projection",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Every delivery of a receipt \u2014 the synchronous response, the response to a duplicate, a later `GET` or `HEAD`, every page, and the projection of a member's receipt into a sequence response \u2014 is one representation"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.expiry-allocated",
+      "title": "An expired receipt keeps its disposition, positions, and allocated identities and never re-executes",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipts",
+          "selectedText": "A later retry returns an outcome-expired result and never executes the mutation as new."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "An `expired` `completed` receipt therefore carries `allocated`: one entry per creation operation in operation order"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.retention-minimum",
+      "title": "expiresAt is no earlier than the terminal instant plus an advertised retention.receipt",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "when discovery advertises `retention.receipt`, it MUST be no earlier than the terminal instant plus that duration."
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.expired-detail",
+      "title": "A retry after detail expiry receives the expired receipt with 200 and never re-executes",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "An identical retry after expiry returns the `expired` receipt with `200 OK` and never executes the mutation again."
+        }
+      ],
+      "retires": ["read-update.idempotency.expired"]
+    },
+    {
+      "id": "transactional.idempotency.failed-retained",
+      "title": "A failed receipt is retained for at least retention.receipt and a retry returns it; once forgotten, its URL answers 404 and its key executes anew",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A `failed` receipt \u2014 disposition and detail alike \u2014 is retained under its key for at least `retention.receipt` after it becomes terminal"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Once the authority forgets it, its URL answers the uniform `404` as a retracted receipt's does, and its key is unknown"
+        }
+      ],
+      "retires": ["read-update.idempotency.expired-failure"]
+    },
+    {
+      "id": "transactional.sequence.expired-projection",
+      "title": "A member whose receipt detail expired projects idempotency-expired carrying the allocated identity of a creation",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "a receipt whose detail expired projects as an `idempotency-expired` member problem carrying, for a `completed` Resource creation, the extension member `allocated`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.member-reauthorization",
+      "title": "A withheld entry projects as a forbidden member problem and an erased one as resource-erased to an authorized caller",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "an entry the current view withholds projects as the `forbidden` member problem of"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "an entry whose version was erased projects as a `resource-erased` member problem to a caller authorized for the subject's retained history and as `forbidden` to every other caller"
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.history-expired",
+      "title": "event-history-expired is disclosed only to a principal authorized for the subject's retained history",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-after-resource-deletion",
+          "selectedText": "an authority may return `410` `event-history-expired` only to a principal authorized for that subject's retained history and only when its policy permits disclosing that the history elapsed."
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.replay-window",
+      "title": "Late, foreign-epoch, and foreign-view cursors fail explicitly",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#snapshots-and-strict-reads",
+          "selectedText": "A cursor presented too late, from another Scope epoch, or from another Authorization View fails explicitly and never silently skips history."
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.projection-advance",
+      "title": "A hidden transaction projects an identifier-free advance",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#change-groups-and-replication",
+          "selectedText": "For an invisible group, `projectionAdvance` is true, `transaction` is absent, and `changes`, `erasures`, and `events` are empty."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "A projection advance carries `projectionAdvance` `true`, no `transaction`, `eventCount` `0`, and three empty arrays."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.rendezvous",
+      "title": "A snapshot checkpoint continues losslessly into the changefeed",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "`checkpoint` is the opaque, epoch-qualified value that is supplied as the exclusive `after` cursor to the Scope changefeed."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.closed-projection",
+      "title": "A snapshot is a closed projection whose inline and first-class owned-Link records agree; a disagreeing snapshot is rejected",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "a snapshot in which an inline owned Link and its first-class record disagree, or in which a Link's in-Scope endpoint is absent, is invalid, and the replica discards it and fetches a new one rather than choosing an authoritative stream."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.expiry",
+      "title": "A snapshot stays continuable through expiresAt, and a page it cannot serve before then is a service failure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "The authority keeps the snapshot continuable through `expiresAt`. If the authority cannot serve a page before then, that is a service failure, not an expired-cursor result."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.erasure-ledger",
+      "title": "Every snapshot manifest carries the erasure ledger projected for its view",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "Every snapshot manifest carries `erasures`, the ledger projected for the manifest's view \u2014 each record whose subject was observable in that view"
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.record-digest",
+      "title": "Erasure records propagate with a verifiable sha-256-jcs digest",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "An erasure occupies its own Scope position, carried by the Change Group's `erasures` member as an **erasure record**: the subject's canonical Resource URL, the erased `revision`, and a digest of the erased version record taken before erasure"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "BDP v0 defines exactly one scheme, `sha-256-jcs`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.digest-domain",
+      "title": "BDP JSON follows the number model, so every record has one canonical serialization, and digest computation never gates erasure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#bdp-json-and-http-protocol",
+          "selectedText": "Every JSON text BDP admits or emits follows the number model defined under"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "Digest computation never gates erasure"
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.historical-version",
+      "title": "Erasing a historical version commits no state change and induces no Event",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "An erasure-only group, one that erases historical versions and commits nothing, carries empty `changes` and `events`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.live-successor",
+      "title": "A live-version erasure commits its successor in the same group; a property correction carries the content-free root-replace delta, an owned-Link-induced source successor carries only `ownedLink`, and the successor differs in the durable state that determines its revision",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "The correction case commits the erasure record and the successor's `StateChange` in one atomic group at one position."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "The successor MUST differ in the durable state that determines its"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "For the owning Bead's successor induced by an owned Link's correction or deletion, its `updated` fact instead carries only `ownedLink`, never a direct object delta."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.live-tombstone",
+      "title": "A live-version erasure with a tombstone is an administrative deletion under deletion safety, inducing the ordinary facts",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "Erasing a live version with a tombstone is an administrative deletion of the Resource."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.owned-link-cascade",
+      "title": "Erasing an owned Link's version erases every source version that inlined it, one record each",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "the authority emits one erasure record per erased version in the same group, and each is applied on its own."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.event-withholding",
+      "title": "Event Sources withhold every Event whose data carries erased content, leaving ordinal gaps",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "withhold, from every Event Source it serves, every Event whose `data` carries erased content"
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.graph-facts",
+      "title": "Graph facts are withheld exactly when every version of the Link that carried their endpoints is erased; deleted facts never are",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "which is the case exactly when every version of the Link that carried them is erased, since a Link's endpoints are immutable across its versions."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.receipts",
+      "title": "Receipts and pages stop serving an erased postimage at once, serving erased to authorized callers and withheld otherwise",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "an entry whose postimage is an erased version never carries the content again."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "it MUST be applied by every store, cache, and replica holding the version, and the changefeed is the vehicle that carries the obligation."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.replication-invalidation",
+      "title": "An erasure at P expires every checkpoint and snapshot anchored before P in the views that receive it",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "An erasure record committed at position P invalidates, in each view that receives it, every changefeed checkpoint and every snapshot anchored before P"
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.retention-non-propagation",
+      "title": "Retention removals do not propagate; a longer-window replica keeps what the authority dropped, while erasure reaches it",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "a replica with a longer window legitimately keeps what the authority dropped, and retention removals therefore do not propagate."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.restore",
+      "title": "After a restore the ledger is re-emitted at the new epoch's first positions and no prior-epoch group is served",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "After a restore into a new epoch the authority also re-emits the projected ledger as erasure-only groups at the new epoch's first positions, before any other group, and no group of the prior epoch is served under the new one."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.unestablishable-content",
+      "title": "A replica destroys retained content whose erasure status it cannot establish",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "A replica that retains content whose erasure status it cannot establish \u2014 content held under a view or epoch for which it can no longer obtain the ledger \u2014 MUST discard that content."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.view-projection",
+      "title": "An erasure record reaches only views that observed the subject",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "a view receives the record only when the subject Resource was observable in that view."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.reads",
+      "title": "Reads of an erased version disclose resource-erased without a pointer to authorized callers and 404 to everyone else",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#reads-after-deletion",
+          "selectedText": "A `resource-erased` problem carries no condition-specific extension members beyond its ordinary problem members: even a pointer would disclose what erasure exists to remove."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.epoch-unrotated",
+      "title": "An erasure does not rotate the epoch; tokens anchored at or after it stay valid",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "An erasure does not rotate the Scope epoch: every token anchored at or after the erasure position remains exactly as valid as it was"
+        }
+      ]
+    },
+    {
+      "id": "transactional.restore.epoch-fence",
+      "title": "A restore keeps canonical URLs and surviving retained Resource-version addresses; all other prior-epoch token classes retain their individual epoch-fence handling",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-history",
+          "selectedText": "Each Scope history has an opaque,\nunguessable **Scope epoch**. The epoch remains stable across ordinary restart\nand failover that preserve identical committed history. It changes whenever\nrestore, destructive reinitialization, or authority replacement may discard,\nrewrite, or replace history. The epoch is not part of canonical Scope or\nResource identity. Retained Resource-version addresses follow [Revisions](#revisions).\nEvery other history-dependent token remains fenced by that epoch, including\nScope positions, transaction identifiers, snapshots and handles, read and Event\ncursors, changefeed checkpoints, minimum-read barriers, receipts, and the\nidempotency-key namespace and its bound dispositions. Individual token contracts\nstill apply. Cached representations retain their epoch and Authorization View\nbindings under Authorization views. An epoch change in the same logical Scope\npreserves canonical Scope and Resource URLs. Prior-epoch uses retain their own\nhandling: a prior-epoch idempotency key is unbound in the new namespace, so a\nsubmission under the new epoch executes anew rather than replaying its prior\ndisposition. Read/Read+Update do not gain exposed epoch fields."
+        }
+      ]
+    },
+    {
+      "id": "transactional.restore.key-namespace",
+      "title": "A prior-epoch key is unbound under the new epoch and executes anew, never as a replay",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A new epoch is a new namespace: a key first used under a prior epoch is unbound, and a retry under the new epoch executes as a new mutation, which a client that observes a changed `scopeEpoch` MUST treat as a first execution rather than a replay."
+        }
+      ],
+      "retires": ["read-update.idempotency.restore"]
+    },
+    {
+      "id": "transactional.sequence.withheld-allocation",
+      "title": "An expired creation projects the disclosed identity or exactly withheld true",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A completed Resource creation's expired projection MUST carry exactly one of\nthese forms; every other operation's expired projection MUST omit `allocated`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.withheld-binding",
+      "title": "Withheld allocation preserves internal binding and independently authorizes every dependent",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Each dependent still undergoes ordinary\ncurrent authorization independently."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.live-publication",
+      "title": "Only already admitted caught-up streams in views receiving the erasure cross its atomic publication fence",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "Only such caught-up streams in a view receiving the erasure record receive the\ncomplete group at P; their server-side stream position then advances to P."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.disconnect-race",
+      "title": "Reconnect uses the atomically applied durable checkpoint and resnapshots when it precedes erasure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "The client advances its durable checkpoint\nonly after atomically applying the complete group."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.persistent-event-consumer",
+      "title": "Persistent Event consumers claiming protocol-backed erasure handling integrate Scope changefeed and snapshot ledger recovery and cleanup",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#event-replay-and-live-observation",
+          "selectedText": "A persistent Event consumer claiming protocol-backed erasure handling MUST integrate the existing Scope changefeed and snapshot erasure ledger as its supported acquisition and reconciliation route."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#event-replay-and-live-observation",
+          "selectedText": "It applies projected erasure records to its retained copies and, for this changefeed/ledger integration, follows the existing durable-checkpoint, disconnect, replay-expiry, and Authorization View recovery rules, including a fresh snapshot and its ledger when required."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#event-replay-and-live-observation",
+          "selectedText": "This requirement scopes the supported erasure-handling claim; it neither prohibits other storage deployments nor exempts any store, cache, or replica from the every-store erasure duty."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.manifest-refetch",
+      "title": "Snapshot GET/HEAD retrieves the same valid manifest without replacing its anchor or renewing expiry",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "The manifest's `id` MUST support GET and HEAD while the snapshot handle remains valid."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "GET retrieves the same manifest, including its identity, anchor, checkpoint, expiry, erasure ledger, and initial stream pages; it MUST NOT create a replacement snapshot or extend `expiresAt`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.handle-refusal",
+      "title": "Snapshot handle expiry and non-disclosure precede conditionals and never disguise a pre-expiry service failure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "An authorized expired or no-longer-available snapshot handle returns `410 cursor-expired`; an unknown or undisclosable target retains uniform `404 resource-not-found`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "Actual service inability before the promised expiry is a service failure, not an expiration diagnosis"
+        }
+      ]
+    }
+  ],
+  "excludedAsNotAuthorityFixture": [
+    "transactional.event.history-expired",
+    "transactional.erasure.retention-non-propagation",
+    "transactional.erasure.unestablishable-content",
+    "transactional.erasure.persistent-event-consumer",
+    "transactional.erasure.disconnect-race",
+    "transactional.erasure.live-publication"
+  ],
+  "pending": [
+    "erased-identity disclosure without explicit history permission",
+    "foreign-view+expired collision"
+  ],
+  "plannedCases": ["temporal", "policy", "erasure-restore"],
+  "limits": {
+    "manifestBytes": 1048576,
+    "expandedNodes": 100000,
+    "depth": 128,
+    "httpPerCase": 64,
+    "responseBytes": 1048576,
+    "requestBytes": 65536,
+    "caseWatchdogMs": 45000,
+    "outerSeconds": 90
+  },
+  "claimEligible": false,
+  "wholeProfile": false,
+  "ordinaryDeployment": false,
+  "runtimeConfigurationIdentity": null,
+  "qualification": "Per-subclause assertions and remaining gaps will be recorded from actual results; selection does not assert all42 predicates complete.",
+  "configurationJoin": {
+    "ordinaryFixtureCommit": "dd85ddf",
+    "fixtureBytes": 7240,
+    "fixtureSHA256": "12a2edd9c015c681e71527a1689dc10bbf057e80edd8e421b0f08de40a6bcb2b",
+    "method": "Exact11Types/3schemas/role mapping literal copy. Same private bank only from explicit local env path, no token serialization. Management seams and initial clock remain a distinct nonordinary composition."
+  }
+}

@@ -1,7 +1,10 @@
 /** Exact installed candidate factory. Public startup may call this only behind
  * independently verified profile evidence; P1a provides no such admission. */
 import { installedPayloadIdentity } from "./installed-payload.js";
-import { startDevelopmentReferenceRuntime } from "./development-runtime.js";
+import {
+  startDevelopmentReferenceRuntime,
+  installedReferenceListenUrl,
+} from "./development-runtime.js";
 import { createDevelopmentComposition } from "./development-composition.js";
 import { captureInstalledReferenceConfiguration } from "./installed-reference-configuration.js";
 
@@ -21,6 +24,7 @@ export async function startInstalledReferenceCandidate(input: unknown) {
   );
   return Object.freeze({
     ...runtime,
+    listenUrl: installedReferenceListenUrl(runtime),
     configurationIdentity: config.identity,
     artifactIdentity: config.artifactIdentity,
     payloadIdentity,

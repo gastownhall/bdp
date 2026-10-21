@@ -1,0 +1,5 @@
+# Pending sequence precedence and key isolation
+
+One NEW installed nonordinary case holds the original creator after durable admission using the existing247/249 typed scheduler. A competing three-member sequence changes the creator's immutable properties, uses an existing terminal dependent key with conflicting input, and uses one fresh dependent key. All project exact in-progress entries while the original remains held; current records/groups and old receipts stay unchanged. A fresh direct request under the fresh key then commits, proving the transient reservation was released. Releasing the original yields only its own allocated identity and one new group; exact terminal retries preserve all old receipts.
+
+This is genuine authority behavior with the unchanged original callbacks, not ordinary deployment metadata or a client-controlled outcome. Payload bb13/34e and11packs/77bodies are reused after exact production source joins. No new scheduler, fault/clock/policy/admin control, public API, cap, or grammar is selected. No expired/History or whole-profile award follows.

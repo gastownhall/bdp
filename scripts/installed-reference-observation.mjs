@@ -3,9 +3,9 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { createServer, createConnection } from "node:net";
-import { request } from "node:http";
 import { once } from "node:events";
+import { request } from "node:http";
+import { createConnection, createServer } from "node:net";
 import path from "node:path";
 export async function availablePort() {
   const server = createServer();
@@ -15,6 +15,27 @@ export async function availablePort() {
   await new Promise((resolve, reject) => server.close((e) => (e ? reject(e) : resolve())));
   return port;
 }
+/** Dial only the address returned by the exact child after its real listen.
+ * Port zero is an OS allocation request, never an address to probe or retry. */
+export function installedReferenceDialRoute(ready, configuration) {
+  assert.equal(ready.scope, configuration.scope);
+  assert.equal(typeof ready.listenUrl, "string");
+  assert.ok(ready.listenUrl.length <= 512);
+  const address = new URL(ready.listenUrl);
+  const host = configuration.listener.host;
+  assert.ok(host === "127.0.0.1" || host === "::1");
+  assert.equal(address.protocol, "http:");
+  assert.equal(address.hostname, host === "::1" ? "[::1]" : host);
+  assert.equal(address.username, "");
+  assert.equal(address.password, "");
+  assert.equal(address.pathname, "/");
+  assert.equal(address.search, "");
+  assert.equal(address.hash, "");
+  const port = Number(address.port || 80);
+  assert.ok(Number.isSafeInteger(port) && port >= 1 && port <= 65535);
+  assert.ok(configuration.listener.port === 0 || configuration.listener.port === port);
+  return Object.freeze({ transport: "plain", host, port });
+}
 export async function launchInstalledReference(entry, configuration) {
   const child = spawn(process.execPath, [entry], {
     cwd: "/tmp",
@@ -22,6 +43,7 @@ export async function launchInstalledReference(entry, configuration) {
   });
   let stdout = "",
     stderr = "";
+  let qualificationError;
   child.stdout.on("data", (b) => {
     stdout += b;
     if (stdout.length > 65536) child.kill("SIGKILL");
@@ -32,6 +54,9 @@ export async function launchInstalledReference(entry, configuration) {
   });
   const exited = new Promise((resolve) =>
     child.once("exit", (code, signal) => resolve({ code, signal })),
+  );
+  const closed = new Promise((resolve) =>
+    child.once("close", (code, signal) => resolve({ code, signal })),
   );
   const bounded = async (promise) => {
     let timer;
@@ -58,6 +83,52 @@ export async function launchInstalledReference(entry, configuration) {
         child.send({ configuration });
       }),
     );
+    if (ready?.event === "qualification.failed") {
+      const phases = ["configuration", "candidate-start", "serving", "closing"];
+      const classes = [
+        "Error",
+        "TypeError",
+        "RangeError",
+        "SyntaxError",
+        "AggregateError",
+        "unknown",
+      ];
+      const codes = [
+        null,
+        "EADDRINUSE",
+        "EADDRNOTAVAIL",
+        "EACCES",
+        "EPERM",
+        "EMFILE",
+        "ENFILE",
+        "ENOSPC",
+        "ENOENT",
+        "EEXIST",
+        "EIO",
+        "EBUSY",
+        "EROFS",
+        "ERR_SQLITE_ERROR",
+        "ERR_INVALID_ARG_TYPE",
+        "ERR_INVALID_ARG_VALUE",
+        "ERR_OUT_OF_RANGE",
+      ];
+      if (
+        Object.keys(ready).sort().join(",") !== "code,errorClass,event,phase" ||
+        !phases.includes(ready.phase) ||
+        !classes.includes(ready.errorClass) ||
+        !codes.includes(ready.code)
+      )
+        throw Error("invalid installed qualification diagnostic");
+      const diagnostic = Object.freeze({
+        phase: ready.phase,
+        errorClass: ready.errorClass,
+        code: ready.code,
+      });
+      const error = Error(`installed child qualification refused: ${JSON.stringify(diagnostic)}`);
+      error.qualification = diagnostic;
+      qualificationError = error;
+      throw error;
+    }
     assert.equal(ready.event, "qualification.ready");
     assert.equal(ready.claimEligible, false);
     assert.match(ready.configurationIdentity, /^[a-f0-9]{64}$/);
@@ -67,9 +138,11 @@ export async function launchInstalledReference(entry, configuration) {
     assert.match(ready.authenticationIdentity, /^[a-f0-9]{64}$/);
     assert.equal(ready.profile, "read-update");
     assert.equal(ready.history, false);
+    const dialRoute = installedReferenceDialRoute(ready, configuration);
     return {
       child,
       ready,
+      dialRoute,
       exited,
       wait: () => bounded(exited),
       output: () => ({ stdout, stderr }),
@@ -81,6 +154,23 @@ export async function launchInstalledReference(entry, configuration) {
   } catch (error) {
     child.kill("SIGKILL");
     await bounded(exited);
+    const terminal = await bounded(closed);
+    // Preserve the historical failure vocabulary only after the child really
+    // closed. The appended detail is the validated closed diagnostic, never
+    // arbitrary stderr/configuration/exception text.
+    if (error === qualificationError && error instanceof Error)
+      error.message = `installed child exited: installed reference qualification failed; ${error.message}`;
+    if (error instanceof Error)
+      Object.defineProperty(error, "qualificationProcess", {
+        value: Object.freeze({
+          pid: child.pid,
+          ...terminal,
+          stdout,
+          stderr,
+          stdoutEOF: child.stdout.readableEnded,
+          stderrEOF: child.stderr.readableEnded,
+        }),
+      });
     throw error;
   }
 }
@@ -144,14 +234,11 @@ export function requestInstalled(config, token, target, method = "GET", value, k
 }
 export async function observeInstalledReference(entry, directory) {
   const token = randomBytes(32).toString("base64url");
-  const config = referenceConfiguration(
-    path.join(directory, "store"),
-    await availablePort(),
-    token,
-  );
+  const config = referenceConfiguration(path.join(directory, "store"), 0, token);
   let server = await launchInstalledReference(entry, config);
   const first = server.ready;
-  const wire = (url, ...args) => requestInstalled(config, token, url, ...args);
+  const wire = (url, ...args) =>
+    requestInstalled({ ...config, listener: server.dialRoute }, token, url, ...args);
   try {
     const scope = config.scope;
     const probe = await wire(scope, "GET", undefined, undefined, {
@@ -299,7 +386,7 @@ export async function observeInstalledReference(entry, directory) {
       assert.equal(options.text, "");
     }
     const connect = await new Promise((resolve, reject) => {
-      const socket = createConnection(config.listener.port, config.listener.host);
+      const socket = createConnection(server.dialRoute.port, server.dialRoute.host);
       let raw = "";
       socket.setEncoding("utf8");
       socket.setTimeout(5000, () => socket.destroy(Error("CONNECT response deadline")));
@@ -325,7 +412,7 @@ export async function observeInstalledReference(entry, directory) {
     // The receiver must remain usable after a reset peer.
     for (let attempt = 0; attempt < 4; attempt += 1) {
       await new Promise((resolve, reject) => {
-        const socket = createConnection(config.listener.port, config.listener.host);
+        const socket = createConnection(server.dialRoute.port, server.dialRoute.host);
         socket.setTimeout(5000, () => socket.destroy(Error("CONNECT reset deadline")));
         socket.once("error", reject);
         socket.once("close", resolve);
@@ -375,7 +462,7 @@ export async function observeInstalledReference(entry, directory) {
     assert.deepEqual(await server.close(), { code: 0, signal: null });
     assert.deepEqual(server.output(), { stdout: "", stderr: "" });
     config.create = false;
-    config.listener.port = await availablePort();
+    config.listener.port = 0;
     server = await launchInstalledReference(entry, config);
     assert.equal(server.ready.configurationIdentity, first.configurationIdentity);
     assert.equal(server.ready.payloadIdentity, first.payloadIdentity);
@@ -384,7 +471,7 @@ export async function observeInstalledReference(entry, directory) {
     // Parent disappearance closes the owner and listener, allowing a real reopen.
     server.child.disconnect();
     assert.deepEqual(await server.wait(), { code: 0, signal: null });
-    config.listener.port = await availablePort();
+    config.listener.port = 0;
     server = await launchInstalledReference(entry, config);
     assert.deepEqual((await wire(a.id)).value, changed.value.resource);
     return {

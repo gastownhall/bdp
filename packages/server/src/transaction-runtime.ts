@@ -1,20 +1,27 @@
+import { isDeepStrictEqual } from "node:util";
+import { referenceDeploymentState } from "./reference-deployment-state.js";
+import type { PreparedReferenceDeployment } from "./reference-deployment.js";
 import { TransactionAuthorizationFailure } from "./transaction-authorization.js";
 /** Source-private loopback fixture. Never selected by installed config/profile
  * admission. It exposes actual routes, not an incomplete BDP discovery claim. */
 import { createTransactionSchemaHttp } from "./transaction-schema-http.js";
 import { createNodeHttpDisconnectSignal } from "./node-http-disconnect.js";
 import { pumpTransactionChanges, pumpTransactionEvents } from "./transaction-sse.js";
-import { ScopeServerOperationAbortedError } from "./read-request.js";
+import { classifyAliasPath, ScopeServerOperationAbortedError } from "./read-request.js";
 import { createServer, type IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { Socket } from "node:net";
 import { TextDecoder } from "node:util";
-import { stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
+import { parseCanonicalScope, stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
 import type { ContractArtifactLimits } from "./installed-contract-artifact.js";
 import { captureTransactionRuntimeConfiguration } from "./transaction-runtime-configuration.js";
 import type { HttpResponse } from "./index.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
-import { openTransactionStore, type TransactionReadContext } from "./transaction-store.js";
+import {
+  openTransactionStore,
+  TransactionErasureFence,
+  type TransactionReadContext,
+} from "./transaction-store.js";
 import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
 import {
   createTransactionService,
@@ -24,6 +31,7 @@ import {
 import {
   createTransactionHttpHandler,
   transactionHttpProblem,
+  transactionHttpSourceContext,
   TRANSACTION_HTTP_TARGET_BYTES,
   type TransactionReceivedBody,
   type TransactionHttpResult,
@@ -94,11 +102,67 @@ function deliver(response: ServerResponse, selected: HttpResponse, raw?: string)
   response.writeHead(selected.status, Object.fromEntries(selected.headers));
   response.end(response.req.method === "HEAD" ? undefined : bytes);
 }
+type TransactionRuntimeAdministration = Readonly<{
+  eraseHistoricalVersions: ReturnType<typeof createTransactionService>["eraseHistoricalVersions"];
+  correctLiveBeadVersion: ReturnType<typeof createTransactionService>["correctLiveBeadVersion"];
+  tombstoneLiveBeadVersion: ReturnType<typeof createTransactionService>["tombstoneLiveBeadVersion"];
+  correctLiveLinkVersion: ReturnType<typeof createTransactionService>["correctLiveLinkVersion"];
+  tombstoneLiveLinkVersion: ReturnType<typeof createTransactionService>["tombstoneLiveLinkVersion"];
+}>;
+const runtimeAdministrations = new WeakMap<object, TransactionRuntimeAdministration>();
+
+/** Source-private local administration; deliberately absent from public package exports. */
+export function transactionRuntimeAdministration(handle: object): TransactionRuntimeAdministration {
+  const administration = runtimeAdministrations.get(handle);
+  if (!administration) throw new TypeError("authentic transaction runtime required");
+  return administration;
+}
 export async function startTransactionRuntime(
   options: TransactionRuntimeOptions,
   seams: TransactionRuntimeTestSeams = {},
 ) {
-  const captured = captureTransactionRuntimeConfiguration(options, seams);
+  const runtime = await startTransactionRuntimeCore(
+    captureTransactionRuntimeConfiguration(options, seams),
+  );
+  const { scope, listenUrl, configurationMetadata, replaceAuthorizationPolicy, targets, close } =
+    runtime;
+  // Keep the legacy declaration and runtime result restricted to its original six keys.
+  const facade = Object.freeze({
+    scope,
+    listenUrl,
+    configurationMetadata,
+    replaceAuthorizationPolicy,
+    targets,
+    close,
+  });
+  runtimeAdministrations.set(
+    facade,
+    Object.freeze({
+      eraseHistoricalVersions: runtime.eraseHistoricalVersions,
+      correctLiveBeadVersion: runtime.correctLiveBeadVersion,
+      tombstoneLiveBeadVersion: runtime.tombstoneLiveBeadVersion,
+      correctLiveLinkVersion: runtime.correctLiveLinkVersion,
+      tombstoneLiveLinkVersion: runtime.tombstoneLiveLinkVersion,
+    }),
+  );
+  return facade;
+}
+export async function startPreparedTransactionRuntime(
+  handle: PreparedReferenceDeployment,
+  signal?: AbortSignal,
+) {
+  const state = referenceDeploymentState(handle);
+  if (state.profile !== "transactional") throw new TypeError("prepared Transactional required");
+  signal?.throwIfAborted();
+  return startTransactionRuntimeCore(state.preflight, {
+    handle,
+    ...(signal === undefined ? {} : { signal }),
+  });
+}
+async function startTransactionRuntimeCore(
+  captured: ReturnType<typeof captureTransactionRuntimeConfiguration>,
+  prepared?: { readonly handle: PreparedReferenceDeployment; readonly signal?: AbortSignal },
+) {
   const { settings, configuredScope, contracts, types } = captured;
   const capturedSeams = captured.seams;
   let service: ReturnType<typeof createTransactionService> | undefined;
@@ -125,14 +189,32 @@ export async function startTransactionRuntime(
         deliver(response, transactionHttpProblem("request-too-large"));
         return;
       }
+      const fragmentAt = raw.indexOf("#");
+      // The Read receiving classifier already refuses alias queries/fragments
+      // without resolving an alias or observing owner state. Preserve that exact
+      // class for a literal fragment the WHATWG URL bridge would otherwise lose.
+      // All other raw-target/authority checks remain mandatory.
+      const aliasFragment =
+        (request.method === "GET" || request.method === "HEAD") &&
+        fragmentAt !== -1 &&
+        normalizationSafeRawRequestPath(raw.slice(0, fragmentAt)) !== undefined &&
+        (() => {
+          const refusal = classifyAliasPath(new URL(raw, scope), parseCanonicalScope(scope));
+          // An empty fragment has URL.hash === "" but remains a raw fragment.
+          return refusal !== undefined;
+        })();
       if (
-        normalizationSafeRawRequestPath(raw) === undefined ||
+        (normalizationSafeRawRequestPath(raw) === undefined && !aliasFragment) ||
         !raw.startsWith("/") ||
         raw.startsWith("//") ||
         request.headers.host !==
           new URL(captured.authorityMode === "canonical" ? scope : listenUrl).host
       ) {
         deliver(response, transactionHttpProblem("malformed-request"));
+        return;
+      }
+      if (aliasFragment) {
+        deliver(response, transactionHttpProblem("resource-not-found"));
         return;
       }
       const url = new URL(raw, scope);
@@ -177,8 +259,16 @@ export async function startTransactionRuntime(
         body,
         lastEventIds,
       );
-      if (selected.kind === "finite") deliver(response, selected);
-      else {
+      if (selected.kind === "finite") {
+        const sourceContext = transactionHttpSourceContext(selected);
+        const scopeEpoch = selected.headers.get("bdp-scope-epoch"),
+          authorizationView = selected.headers.get("bdp-authorization-view"),
+          scopePosition = selected.headers.get("bdp-scope-position");
+        if (sourceContext) service!.assertPublication(sourceContext);
+        else if (scopeEpoch && authorizationView && scopePosition)
+          service!.assertPublication({ scopeEpoch, authorizationView, scopePosition });
+        deliver(response, selected);
+      } else {
         if (!captured.liveStreamsAvailable) {
           deliver(response, {
             status: 500,
@@ -193,48 +283,78 @@ export async function startTransactionRuntime(
         streamContext = selected.context;
         await activeService.stream(
           async (streamSignal) => {
+            let erasurePublicationSignal: AbortSignal | undefined;
             try {
               streamSignal.throwIfAborted();
               if (!selected || selected.kind === "finite")
                 throw new Error("missing stream selection");
               response.writeHead(selected.status, Object.fromEntries(selected.headers));
               response.flushHeaders();
-              const pumping =
+              const lease =
                 selected.kind === "changefeed-stream"
-                  ? pumpTransactionChanges(
-                      response,
-                      selected.page,
-                      async (after, nextSignal) => {
-                        const observed = await activeService.changes(
-                          { after },
-                          undefined,
-                          nextSignal,
-                        );
-                        if (observed.kind !== "page")
-                          throw new Error("changefeed stream lost serving entry");
-                        return observed.page;
-                      },
-                      streamSignal,
-                      settings.changefeedStream,
-                    )
-                  : pumpTransactionEvents(
-                      response,
-                      selected.packet,
-                      (scan, nextSignal) => activeService.nextEvents(scan, nextSignal),
-                      streamSignal,
-                      settings.changefeedStream,
-                    );
+                  ? activeService.acquireChangePublication(selected.context, selected.page.after)
+                  : undefined;
+              let eventPublicationContext = selected.context;
+              const publicationSignal = lease
+                ? AbortSignal.any([streamSignal, lease.signal])
+                : streamSignal;
+              erasurePublicationSignal = publicationSignal;
+              try {
+                const pumping =
+                  selected.kind === "changefeed-stream"
+                    ? pumpTransactionChanges(
+                        response,
+                        selected.page,
+                        async (after, nextSignal) => {
+                          const observed = await activeService.changes(
+                            { after },
+                            undefined,
+                            nextSignal,
+                            undefined,
+                            lease,
+                          );
+                          if (observed.kind !== "page")
+                            throw new Error("changefeed stream lost serving entry");
+                          return observed.page;
+                        },
+                        publicationSignal,
+                        settings.changefeedStream,
+                        (group, write) => lease!.publish(group.checkpoint, write),
+                      )
+                    : pumpTransactionEvents(
+                        response,
+                        selected.packet,
+                        async (scan, nextSignal) => {
+                          const packet = await activeService.nextEvents(scan, nextSignal);
+                          eventPublicationContext = packet.context;
+                          return packet;
+                        },
+                        publicationSignal,
+                        settings.changefeedStream,
+                        (_event, write) => {
+                          activeService.assertPublication(eventPublicationContext);
+                          return write();
+                        },
+                      );
+                selected = undefined;
+                await pumping;
+              } finally {
+                lease?.release();
+              }
               // Transfer the initial packet into the pump; do not retain the HTTP
               // result/group body for the lifetime of the live stream.
-              selected = undefined;
-              await pumping;
             } catch (error) {
               // Capture before destroy() turns a genuine fault into a disconnect.
               if (
                 response.headersSent &&
                 !streamSignal.aborted &&
                 !response.destroyed &&
-                !firstStreamFault
+                !firstStreamFault &&
+                !(error instanceof TransactionErasureFence) &&
+                !(
+                  erasurePublicationSignal?.aborted &&
+                  erasurePublicationSignal.reason instanceof TransactionErasureFence
+                )
               )
                 firstStreamFault = { cause: error };
               throw error;
@@ -304,25 +424,52 @@ export async function startTransactionRuntime(
     if (Reflect.get(server, key) !== settings.transport[key])
       throw new Error("runtime transport configuration mismatch");
   server.on("timeout", (socket) => socket.destroy());
+  const sockets = new Set<Socket>();
+  if (prepared)
+    server.on("connection", (socket) => {
+      sockets.add(socket);
+      socket.once("close", () => sockets.delete(socket));
+    });
+  const terminal = Promise.withResolvers<void>();
+  void terminal.promise.catch(() => {});
+  let liveFault: { readonly cause: unknown } | undefined;
+  const listenerFaults: unknown[] = [];
+  let rejectListening: ((error: unknown) => void) | undefined;
+  let published = false;
+  let checkedOwner:
+    | ReturnType<ReturnType<typeof openTransactionStore>["readConfiguration"]>
+    | undefined;
+  const checkPrepared = () => {
+    prepared?.signal?.throwIfAborted();
+    if (liveFault) throw liveFault.cause;
+  };
+  const onListenerError = (error: Error) => {
+    if (!listenerFaults.includes(error)) listenerFaults.push(error);
+    liveFault ??= { cause: error };
+    rejectListening?.(error);
+    terminal.reject(error);
+    if (published) void close().catch(() => {});
+  };
+  const onAbort = () => {
+    if (published) void close().catch(() => {});
+  };
+  if (prepared) {
+    server.on("error", onListenerError);
+    prepared.signal?.addEventListener("abort", onAbort, { once: true });
+  }
   const closeListener = () =>
     new Promise<void>((resolve, reject) => {
+      if (prepared && !server.listening) {
+        for (const socket of sockets) socket.destroy();
+        resolve();
+        return;
+      }
       server.close((error) => (error ? reject(error) : resolve()));
       server.closeAllConnections();
+      if (prepared) for (const socket of sockets) socket.destroy();
     });
   let owner: ReturnType<typeof openTransactionStore> | undefined;
-  try {
-    await new Promise<void>((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(captured.port, settings.transport.host, () => {
-        server.removeListener("error", reject);
-        resolve();
-      });
-    });
-    const address = server.address();
-    if (!address || typeof address === "string")
-      throw new Error("missing private transaction address");
-    listenUrl = `http://127.0.0.1:${address.port}/`;
-    scope = configuredScope ?? new URL("acme/", listenUrl).href;
+  const prepareOwner = () => {
     owner = openTransactionStore({
       file: path.join(captured.directory, "transaction.sqlite"),
       scope,
@@ -333,6 +480,22 @@ export async function startTransactionRuntime(
       maintenanceIntervalMs: settings.maintenanceIntervalMs,
       ...(capturedSeams.clock ? { clock: capturedSeams.clock } : {}),
     });
+    if (prepared) {
+      checkPrepared();
+      const actual = owner.readConfiguration();
+      if (
+        actual.receiptMaximumItems !== settings.receiptMaximumItems ||
+        !isDeepStrictEqual(
+          captured.readOptions(scope).advertisedLimits,
+          prepared.handle.preflightReadLimits,
+        )
+      )
+        throw new Error("prepared Transactional read limits mismatch");
+      configurationMetadata = captured.metadata(actual, scope);
+      if (!configurationMetadata || configurationMetadata.authorityMode !== "canonical")
+        throw new Error("prepared Transactional metadata unavailable");
+      checkedOwner = actual;
+    }
     service = createTransactionService(owner, {
       ownerLifetime: "service",
       maximumStreams: settings.changefeedStream.maximumStreams,
@@ -341,17 +504,56 @@ export async function startTransactionRuntime(
       minimumReads: { budgetMs: settings.minimumReadBudgetMs, ...capturedSeams.minimumReads },
       read: captured.readOptions(scope),
     });
-    configurationMetadata = captured.metadata(owner.readConfiguration(), scope);
+    if (!prepared) configurationMetadata = captured.metadata(owner.readConfiguration(), scope);
     schemas = createTransactionSchemaHttp(scope, contracts, service.schemaObserved);
     handler = createTransactionHttpHandler(service, scope, capturedSeams.maximumOperations);
+  };
+  try {
+    if (prepared) {
+      if (prepared.handle.listener.port < 1 || !configuredScope)
+        throw new TypeError("intended listener required");
+      scope = configuredScope;
+      checkPrepared();
+      prepareOwner();
+      await Promise.resolve();
+      checkPrepared();
+    }
+    await new Promise<void>((resolve, reject) => {
+      if (prepared) rejectListening = reject;
+      else server.once("error", reject);
+      server.listen(
+        prepared?.handle.listener.port ?? captured.port,
+        prepared?.handle.listener.host ?? settings.transport.host,
+        () => {
+          if (!prepared) server.removeListener("error", reject);
+          rejectListening = undefined;
+          resolve();
+        },
+      );
+    });
+    const address = server.address();
+    if (!address || typeof address === "string")
+      throw new Error("missing private transaction address");
+    listenUrl = `http://127.0.0.1:${address.port}/`;
+    scope = configuredScope ?? new URL("acme/", listenUrl).href;
+    if (!prepared) prepareOwner();
+    checkPrepared();
+    if (prepared) {
+      await Promise.resolve();
+      checkPrepared();
+    }
+    published = true;
   } catch (error) {
-    const failures: unknown[] = [error];
+    prepared?.signal?.removeEventListener("abort", onAbort);
+    terminal.reject(error);
+    const failures: unknown[] = [error, ...listenerFaults.filter((fault) => fault !== error)];
     if (server.listening)
       try {
         await closeListener();
       } catch (failure) {
         failures.push(failure);
       }
+    if (prepared) await Promise.allSettled([...pending]);
     try {
       if (service) await service.close();
       else owner?.close();
@@ -363,38 +565,95 @@ export async function startTransactionRuntime(
       : new AggregateError(failures, "transaction runtime startup cleanup failed");
   }
   let completion: Promise<void> | undefined;
-  return Object.freeze({
+  const legacy = {
     scope,
     listenUrl,
     configurationMetadata,
+    eraseHistoricalVersions: (
+      subjects: Parameters<NonNullable<typeof service>["eraseHistoricalVersions"]>[0],
+    ) => {
+      if (closing) throw new Error("transaction runtime is closing");
+      return service!.eraseHistoricalVersions(subjects);
+    },
+    correctLiveBeadVersion: (
+      ...args: Parameters<NonNullable<typeof service>["correctLiveBeadVersion"]>
+    ) => {
+      if (closing) throw new Error("transaction runtime is closing");
+      return service!.correctLiveBeadVersion(...args);
+    },
+    tombstoneLiveBeadVersion: (
+      ...args: Parameters<NonNullable<typeof service>["tombstoneLiveBeadVersion"]>
+    ) => {
+      if (closing) throw new Error("transaction runtime is closing");
+      return service!.tombstoneLiveBeadVersion(...args);
+    },
+    correctLiveLinkVersion: (
+      ...args: Parameters<NonNullable<typeof service>["correctLiveLinkVersion"]>
+    ) => {
+      if (closing) throw new Error("transaction runtime is closing");
+      return service!.correctLiveLinkVersion(...args);
+    },
+    tombstoneLiveLinkVersion: (
+      ...args: Parameters<NonNullable<typeof service>["tombstoneLiveLinkVersion"]>
+    ) => {
+      if (closing) throw new Error("transaction runtime is closing");
+      return service!.tombstoneLiveLinkVersion(...args);
+    },
     replaceAuthorizationPolicy: (options: {
       readonly timeoutMs: number;
       readonly signal?: AbortSignal;
     }) => service!.replaceAuthorizationPolicy(options),
-    /** Test-only inventory, not an HTTP Operation Directory. */ targets: handler.targets,
-    close(): Promise<void> {
-      if (!completion) {
-        closing = true;
-        completion = (async () => {
-          const failures: unknown[] = [];
-          try {
-            await closeListener();
-          } catch (error) {
-            failures.push(error);
-          }
-          await Promise.allSettled([...pending]);
-          try {
-            await service?.close();
-          } catch (error) {
-            failures.push(error);
-          }
-          if (firstStreamFault) failures.unshift(firstStreamFault.cause);
-          if (failures.length)
-            throw new AggregateError(failures, "transaction runtime shutdown failed");
-        })();
-        void completion.catch(() => {});
-      }
-      return completion;
-    },
+    /** Test-only inventory, not an HTTP Operation Directory. */ targets: handler!.targets,
+    close,
+  };
+  function close(): Promise<void> {
+    if (!completion) {
+      closing = true;
+      completion = (async () => {
+        const failures: unknown[] = [];
+        try {
+          await closeListener();
+        } catch (error) {
+          failures.push(error);
+        }
+        await Promise.allSettled([...pending]);
+        try {
+          await service?.close();
+        } catch (error) {
+          failures.push(error);
+        }
+        if (firstStreamFault) failures.unshift(firstStreamFault.cause);
+        failures.unshift(...listenerFaults);
+        if (failures.length)
+          throw new AggregateError(failures, "transaction runtime shutdown failed");
+      })()
+        .then(
+          () => {
+            terminal.resolve();
+          },
+          (error: unknown) => {
+            terminal.reject(error);
+            throw error;
+          },
+        )
+        .finally(() => {
+          prepared?.signal?.removeEventListener("abort", onAbort);
+        });
+      void completion.catch(() => {});
+    }
+    return completion;
+  }
+  if (!prepared) return Object.freeze(legacy);
+  if (!checkedOwner || !configurationMetadata) throw new Error("missing prepared owner");
+  return Object.freeze({
+    ...legacy,
+    history: configurationMetadata.history,
+    completion: terminal.promise,
+    ownerFacts: Object.freeze({
+      scope,
+      scopeEpoch: checkedOwner.scopeEpoch,
+      readLimits: captured.readOptions(scope).advertisedLimits,
+      installedTypeIds: Object.freeze(checkedOwner.installedTypes.map((t) => t.id)),
+    }),
   });
 }

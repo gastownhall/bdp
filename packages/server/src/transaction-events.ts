@@ -41,7 +41,6 @@ export const TRANSACTION_EVENT_GROUP_BYTES = Math.min(
 export const TRANSACTION_EVENT_FIRST_PAGE_BYTES = 5 * R + N + A + 1024;
 if (TRANSACTION_EVENT_FIRST_PAGE_BYTES > TRANSACTION_EVENT_PAGE_BYTES)
   throw new Error("transaction tuple cannot support the finite Event page budget");
-export class TransactionEventProjectionGap extends Error {}
 export class TransactionEventParameterError extends Error {
   constructor(
     message?: string,
@@ -62,6 +61,8 @@ export interface TransactionEventGroup {
   readonly checkpoint: string;
   readonly transaction: string;
   readonly eventCount: number;
+  /** Owner-private purge marker; never a wire member. */
+  readonly erasurePruned?: boolean;
   readonly events: readonly TransactionEvent[];
   readonly changes: readonly TransactionStateChange[];
 }
@@ -203,6 +204,7 @@ export function projectTransactionEventGroup(
     group.authorizationView !== (visible ? context.authorizationView : INITIAL_TRANSACTION_VIEW) ||
     group.position !== `pos-${expectedPosition}` ||
     group.checkpoint !== group.position ||
+    (group.erasurePruned !== undefined && typeof group.erasurePruned !== "boolean") ||
     !Array.isArray(group.events) ||
     group.eventCount !== group.events.length ||
     !Array.isArray(group.changes) ||
@@ -240,7 +242,11 @@ export function projectTransactionEventGroup(
   const result: TransactionEvent[] = [];
   for (const [index, event] of group.events.entries()) {
     if (
-      event.ordinal !== index ||
+      !Number.isSafeInteger(event.ordinal) ||
+      event.ordinal < 0 ||
+      (group.erasurePruned === true
+        ? event.ordinal <= (group.events[index - 1]?.ordinal ?? -1)
+        : event.ordinal !== index) ||
       event.source !== `${scope}events/` ||
       event.transaction !== group.transaction ||
       !["created", "updated", "deleted", "linked", "unlinked"].includes(event.type)
@@ -260,10 +266,9 @@ export function projectTransactionEventGroup(
         const pair = endpoints.get(event.subject);
         if (!pair) throw new Error("incident Link update lacks same-group endpoints");
         include = pair.some((endpoint) => reference(endpoint) === source.subject);
-        // Literal incident rule currently mentions properties only. Do not silently
-        // decide metadata-only membership while the spec disposition is pending.
-        if (include && data.change === undefined && data.metadataChange !== undefined)
-          throw new TransactionEventProjectionGap("incident-link-metadata");
+        // The committed updated fact already establishes an effectful properties
+        // or common-metadata transition. Endpoint membership is the same for both;
+        // a supplied properties patch need not itself have changed anything.
       }
     }
     if (visible && include)

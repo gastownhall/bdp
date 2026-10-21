@@ -3,6 +3,7 @@ import { TransactionEventParameterError } from "./transaction-events.js";
 import {
   TransactionMinimumFailure,
   TransactionMinimumUnproved,
+  TransactionMinimumUnsupported,
   type TransactionMinimum,
 } from "./transaction-consistency.js";
 import { ScopeServerOperationAbortedError, requestFromUrl } from "./read-request.js";
@@ -1186,9 +1187,9 @@ describe("fresh Snapshot minimum service", () => {
         context: initial.context,
       });
       expect(wait).toHaveBeenCalled();
-      expect(() => service.snapshot({ kind: "manifest", id: "unknown" }, tuple)).toThrow(
-        "requires fresh creation",
-      );
+      await expect(
+        service.snapshot({ kind: "manifest", id: "unknown" }, tuple),
+      ).rejects.toBeInstanceOf(TransactionMinimumUnsupported);
       expect(
         await service.snapshot({ kind: "create" }, { ...tuple, minimumPosition: "genesis" }),
       ).toMatchObject({
@@ -3423,7 +3424,7 @@ it.each([
   "malformed-aborted",
   "malformed-invalid-kind",
   "retained-unknown",
-  "retained-known",
+  "retained-unknown-satisfied",
   "closed-malformed",
   "closed-unknown-fresh",
   "unknown-preaborted",
@@ -3450,7 +3451,11 @@ it.each([
   const minimum = {
     scopeEpoch: initial.context.scopeEpoch,
     authorizationView: initial.context.authorizationView,
-    minimumPosition: malformed ? "not a token" : label === "retained-known" ? "genesis" : "opaque",
+    minimumPosition: malformed
+      ? "not a token"
+      : label === "retained-unknown-satisfied"
+        ? "genesis"
+        : "opaque",
   };
   const request: TransactionSnapshotRequest = retained
     ? { kind: "manifest", id: "unused" }
@@ -3462,6 +3467,18 @@ it.each([
     );
   } else if (label === "closed-unknown-fresh") {
     expect(() => f.snapshot(request, minimum)).toThrow("closing or closed");
+  } else if (label === "retained-unknown") {
+    // Lexical controls reach the owner, but an unissued identity cannot prove
+    // membership in the accepted retained domain or enter a retry wait.
+    await expect(f.snapshot(request, minimum)).rejects.toThrow(
+      new TransactionMinimumUnsupported("retained-snapshot-identity"),
+    );
+  } else if (label === "retained-unknown-satisfied") {
+    await expect(f.snapshot(request, minimum)).resolves.toEqual({
+      kind: "problem",
+      code: "resource-not-found",
+      context: initial.context,
+    });
   } else {
     let error: unknown;
     try {
@@ -3475,16 +3492,12 @@ it.each([
       error = failure;
     }
     expect(error).toBeInstanceOf(TypeError);
-    expect((error as Error).message).toBe(
-      label === "retained-known"
-        ? "minimum Snapshot observation requires fresh creation or preflight"
-        : "unsupported minimum tuple",
-    );
+    expect((error as Error).message).toBe("unsupported minimum tuple");
   }
   expect(f.snapshot).toHaveBeenCalledTimes(2);
-  expect(f.observeSnapshot).not.toHaveBeenCalled();
+  expect(f.observeSnapshot).toHaveBeenCalledTimes(label.startsWith("retained-unknown") ? 1 : 0);
   expect(waits).toBe(0);
-  expect(clockCalls).toBe(label === "unknown-preaborted" ? 1 : 0);
+  expect(clockCalls).toBe(label === "unknown-preaborted" || label === "retained-unknown" ? 1 : 0);
   console.log(
     JSON.stringify({
       observation: "fresh-snapshot-opaque-order",
@@ -4310,3 +4323,280 @@ it.each(currentObservationSurfaces)(
     if (failures.length) throw new AggregateError(failures, "current observation drain failed");
   },
 );
+
+// G09 selected-schema observations own finite work and close before deleting a store.
+async function g09ServiceCase(
+  id: string,
+  run: (fixture: ReturnType<typeof g09ServiceFixture>) => Promise<void>,
+  policy: NonNullable<TransactionServiceOptions["minimumReads"]> = {},
+) {
+  const f = g09ServiceFixture(policy);
+  const failures: unknown[] = [];
+  let removed = false;
+  try {
+    await g09ServiceBound(run(f), 3000);
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    try {
+      await g09ServiceBound(f.service.close(), 1000);
+      if (f.closed()) {
+        rmSync(path.dirname(f.file), { recursive: true });
+        removed = true;
+      } else {
+        failures.push(new Error("G09 owner close unobserved"));
+      }
+    } catch (error) {
+      failures.push(error);
+    }
+    console.log(
+      JSON.stringify({ observation: id, ...f.counts(), removed, failureCount: failures.length }),
+    );
+  }
+  if (failures.length) throw new AggregateError(failures, "G09 schema service and cleanup failed");
+}
+async function g09ServiceBound<T>(task: Promise<T>, milliseconds: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      task,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error("G09 source lifetime exceeded")), milliseconds);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+function g09ServiceFixture(policy: NonNullable<TransactionServiceOptions["minimumReads"]> = {}) {
+  const boundary = cleanup.length;
+  const f = fixture();
+  const owner = f.owner;
+  let calls = 0,
+    entries = 0,
+    inEntry = false,
+    closeCalls = 0,
+    closed = false;
+  const contexts: unknown[] = [];
+  const initial = owner.withRead((_reader, context) => context);
+  if (initial.kind !== "read") throw new Error("G09 initial context unavailable");
+  const service = createTransactionService(
+    {
+      ...owner,
+      withRead: ((callback: Parameters<typeof owner.withRead>[0]) => {
+        entries++;
+        return owner.withRead((reader, context) => {
+          inEntry = true;
+          contexts.push(context);
+          try {
+            return callback(reader, context);
+          } finally {
+            inEntry = false;
+          }
+        });
+      }) as typeof owner.withRead,
+      close() {
+        closeCalls++;
+        owner.close();
+        closed = true;
+      },
+    },
+    { ownerLifetime: "service", read: f.read, minimumReads: policy },
+  );
+  cleanup.splice(boundary);
+  return {
+    service,
+    owner,
+    file: f.options.file,
+    context: initial.value,
+    invoke(...args: Parameters<typeof service.schemaObserved>) {
+      calls++;
+      return service.schemaObserved(...args);
+    },
+    inEntry: () => inEntry,
+    closed: () => closed,
+    counts: () => ({ calls, entries, contexts, closeCalls, closed }),
+  };
+}
+it("G09-S01 schemaObserved zero-min/current and captured supplied tuple", async () => {
+  let tick = 0,
+    waits = 0,
+    releasedEntryProbes = 0;
+  let active: ReturnType<typeof g09ServiceFixture> | undefined;
+  await g09ServiceCase(
+    "G09-S01",
+    async (f) => {
+      active = f;
+      const aborted = AbortSignal.abort();
+      const first = f.invoke(undefined, aborted);
+      expect(f.counts().entries).toBe(1); // Original no-minimum synchronous observation timing.
+      expect(await first).toEqual({ context: f.context });
+      const supplied = {
+        scopeEpoch: f.context.scopeEpoch,
+        authorizationView: f.context.authorizationView,
+        minimumPosition: "pos-0",
+      };
+      const captured = f.invoke(supplied);
+      supplied.scopeEpoch = "changed-after-invocation";
+      supplied.minimumPosition = "opaque";
+      expect(await captured).toEqual({ context: f.context });
+      expect(
+        await f.invoke({
+          ...supplied,
+          scopeEpoch: f.context.scopeEpoch,
+          minimumPosition: "genesis",
+        }),
+      ).toEqual({ context: f.context });
+      expect(f.counts()).toMatchObject({ calls: 3, entries: 3 });
+      const minimum = {
+        scopeEpoch: f.context.scopeEpoch,
+        authorizationView: f.context.authorizationView,
+        minimumPosition: "pos-1",
+      };
+      const pending = f.invoke(minimum);
+      minimum.scopeEpoch = "foreign";
+      minimum.authorizationView = "foreign";
+      minimum.minimumPosition = "opaque";
+      const nextContext = { ...f.context, scopePosition: "pos-1" };
+      expect(await pending).toEqual({ context: nextContext });
+      expect(f.counts()).toMatchObject({ calls: 4, entries: 5 });
+      expect(f.counts().contexts).toEqual([
+        f.context,
+        f.context,
+        f.context,
+        f.context,
+        nextContext,
+      ]);
+      expect({ waits, tick, releasedEntryProbes }).toEqual({
+        waits: 1,
+        tick: 4,
+        releasedEntryProbes: 1,
+      });
+    },
+    {
+      budgetMs: 2,
+      now: () => tick++,
+      wait: async () => {
+        waits++;
+        if (!active || active.inEntry()) throw new Error("G09 wait retained owner entry");
+        releasedEntryProbes++;
+        expect(active.owner.withRead(() => true)).toEqual({ kind: "read", value: true });
+        await Promise.resolve();
+        const receipt = active.owner.execute(
+          owned(active.owner, batch([create("g09-capture")], "g09-capture")),
+        );
+        expect(receipt.status).toBe("completed");
+        expect(active.owner.inspect().position).toBe("1");
+      },
+    },
+  );
+}, 5000);
+it("G09-S02 schemaObserved epoch and view errors", async () => {
+  let waits = 0;
+  await g09ServiceCase(
+    "G09-S02",
+    async (f) => {
+      const minimum = {
+        scopeEpoch: f.context.scopeEpoch,
+        authorizationView: f.context.authorizationView,
+        minimumPosition: "opaque",
+      };
+      await expect(f.invoke({ ...minimum, scopeEpoch: "foreign" })).rejects.toMatchObject({
+        reason: "cursor-expired",
+        context: f.context,
+      });
+      await expect(f.invoke({ ...minimum, authorizationView: "foreign" })).rejects.toMatchObject({
+        reason: "foreign-view",
+        context: f.context,
+      });
+      expect(f.counts()).toMatchObject({ calls: 2, entries: 2 });
+      expect(waits).toBe(0);
+    },
+    {
+      budgetMs: 2,
+      wait: async () => {
+        waits++;
+      },
+    },
+  );
+}, 5000);
+it("G09-S03 schemaObserved ahead and opaque bounded attempts", async () => {
+  let tick = 0,
+    waits = 0,
+    releasedEntryProbes = 0;
+  let active: ReturnType<typeof g09ServiceFixture> | undefined;
+  const controller = new AbortController();
+  let abortMode = false,
+    closeFinished = false;
+  let closing: Promise<void> | undefined;
+  await g09ServiceCase(
+    "G09-S03",
+    async (f) => {
+      active = f;
+      for (const minimumPosition of ["pos-999", "opaque"]) {
+        await expect(
+          f.invoke({
+            scopeEpoch: f.context.scopeEpoch,
+            authorizationView: f.context.authorizationView,
+            minimumPosition,
+          }),
+        ).rejects.toMatchObject({ reason: "catch-up-timeout", context: f.context });
+      }
+      expect(f.counts()).toMatchObject({ calls: 2, entries: 4 });
+      expect({ waits, tick, releasedEntryProbes }).toEqual({
+        waits: 2,
+        tick: 6,
+        releasedEntryProbes: 2,
+      });
+      abortMode = true;
+      const pending = f.invoke(
+        {
+          scopeEpoch: f.context.scopeEpoch,
+          authorizationView: f.context.authorizationView,
+          minimumPosition: "pos-999",
+        },
+        controller.signal,
+      );
+      await expect(pending).rejects.toBeInstanceOf(ScopeServerOperationAbortedError);
+      expect(f.counts()).toMatchObject({ calls: 3, entries: 5 });
+      expect({ waits, tick, releasedEntryProbes }).toEqual({
+        waits: 3,
+        tick: 8,
+        releasedEntryProbes: 3,
+      });
+      if (!closing) throw new Error("G09 pending close unavailable");
+      await Promise.all([closing, f.service.closed]);
+      expect(f.counts()).toMatchObject({ closeCalls: 1, closed: true });
+      expect(() => f.owner.inspect()).toThrow();
+    },
+    {
+      budgetMs: 2,
+      now: () => tick++,
+      wait: async () => {
+        waits++;
+        if (!active || active.inEntry()) throw new Error("G09 wait retained owner entry");
+        releasedEntryProbes++;
+        expect(active.owner.withRead(() => true)).toEqual({ kind: "read", value: true });
+        await Promise.resolve();
+        if (abortMode) {
+          controller.abort();
+          closing = active.service.close();
+          void closing.then(
+            () => {
+              closeFinished = true;
+            },
+            () => {
+              closeFinished = true;
+            },
+          );
+          expect(active.inEntry()).toBe(false);
+          expect(active.closed()).toBe(false);
+          expect(closeFinished).toBe(false);
+          await Promise.resolve();
+          expect(active.closed()).toBe(false);
+          expect(closeFinished).toBe(false);
+        }
+      },
+    },
+  );
+}, 5000);

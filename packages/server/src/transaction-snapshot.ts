@@ -1,3 +1,4 @@
+import type { TransactionErasureRecord } from "./transaction-erasure.js";
 import { jsonValueEqual } from "./json-value-equality.js";
 import { INITIAL_TRANSACTION_VIEW } from "./transaction-authorization.js";
 /** Source-private durable Snapshot owner support. No HTTP route or admission claim. */
@@ -10,6 +11,7 @@ import {
   parseCanonicalScope,
   referenceUri,
   stringifyJsonValue,
+  snapshotPositionTooOldProblem,
   type BeadRecord,
   type LinkRecord,
   type TypeDescriptor,
@@ -19,6 +21,12 @@ import { validateServerBead, validateServerLink, validateServerEndpoint } from "
 import { transactionCheckpoint } from "./transaction-changefeed.js";
 import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
 import type { TransactionReadContext } from "./transaction-store.js";
+import {
+  checkCurrentReadMinimum,
+  TransactionMinimumUnsupported,
+  TransactionMinimumUnproved,
+  type TransactionMinimum,
+} from "./transaction-consistency.js";
 
 export const TRANSACTION_SNAPSHOT_LIMITS = Object.freeze({
   lifetimeMs: 5 * 60 * 1000,
@@ -35,6 +43,7 @@ export const TRANSACTION_SNAPSHOT_LIMITS = Object.freeze({
 export const TRANSACTION_SNAPSHOT_TOKEN_POLICY = "hmac-sha256-ordinal-1";
 export const transactionSnapshotSchema = `
 CREATE TABLE snapshots(id TEXT PRIMARY KEY, disposition TEXT NOT NULL) STRICT;
+CREATE TABLE snapshot_epoch_fences(epoch TEXT PRIMARY KEY, head INTEGER NOT NULL) STRICT;
 CREATE TABLE snapshot_records(snapshot TEXT NOT NULL, kind TEXT NOT NULL, ordinal INTEGER NOT NULL, id TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(snapshot,kind,ordinal), UNIQUE(snapshot,id)) STRICT;
 CREATE TABLE snapshot_pages(snapshot TEXT NOT NULL, kind TEXT NOT NULL, ordinal INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, start INTEGER NOT NULL, end INTEGER NOT NULL, bytes INTEGER NOT NULL, digest TEXT NOT NULL, PRIMARY KEY(snapshot,kind,ordinal)) STRICT;
 `;
@@ -74,7 +83,7 @@ export interface TransactionSnapshotManifest {
   readonly scopePosition: string;
   readonly checkpoint: string;
   readonly expiresAt: string;
-  readonly erasures: readonly never[];
+  readonly erasures: readonly TransactionErasureRecord[];
   readonly beads: TransactionSnapshotPage;
   readonly links: TransactionSnapshotPage;
 }
@@ -90,11 +99,16 @@ export class TransactionSnapshotFailure extends Error {
       | "resource-not-found"
       | "cursor-expired"
       | "foreign-view"
+      | "snapshot-position-too-old"
       | "limit-exceeded"
       | "temporarily-unavailable",
     readonly retryAfter?: number,
   ) {
     super(`Snapshot ${code}`);
+    if (code === "snapshot-position-too-old") {
+      this.problem = snapshotPositionTooOldProblem();
+      return;
+    }
     const [family, status, retry] = {
       "resource-not-found": ["not-found", 404, "after-state-change"],
       "cursor-expired": ["gone", 410, "after-state-change"],
@@ -115,6 +129,14 @@ export class TransactionSnapshotFailure extends Error {
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const text = stringifyJsonValue;
 const bytes = (value: string) => Buffer.byteLength(value);
+/** Same canonical numeric subset as current minimum comparison: do not
+ * normalize lexical-but-unorderable spellings such as pos-01 or xxxx1. */
+function comparableMinimum(value: string): number | undefined {
+  if (value === "genesis") return 0;
+  if (!/^pos-(0|[1-9][0-9]*)$/.test(value)) return undefined;
+  const number = Number(value.slice(4));
+  return Number.isSafeInteger(number) ? number : undefined;
+}
 const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 function pageToken(seed: string, id: string, kind: Kind, ordinal: number): string {
   const tag = createHmac("sha256", Buffer.from(seed, "hex"))
@@ -160,6 +182,7 @@ export function transactionSnapshotStorage(
   canonicalScope: string,
   types: readonly TypeDescriptor[],
   visible: () => boolean = () => true,
+  erasures: (view: string) => readonly TransactionErasureRecord[] = () => [],
 ) {
   const scope = parseCanonicalScope(canonicalScope),
     limits = TRANSACTION_SNAPSHOT_LIMITS;
@@ -207,15 +230,19 @@ export function transactionSnapshotStorage(
         ),
       "issued page counts",
     );
+    const retired =
+      d.epoch !== context.scopeEpoch && d.expired
+        ? statement("SELECT head FROM snapshot_epoch_fences WHERE epoch=?").get(d.epoch)
+        : undefined;
     integrity(
-      d.epoch === context.scopeEpoch &&
+      (d.epoch === context.scopeEpoch || retired !== undefined) &&
         (d.view === context.authorizationView || d.view === INITIAL_TRANSACTION_VIEW),
       "persisted context mismatch",
     );
     integrity(
       Number.isSafeInteger(d.position) &&
         d.position >= 0 &&
-        d.position <= Number(context.scopePosition.slice(4)),
+        d.position <= (retired ? Number(retired.head) : Number(context.scopePosition.slice(4))),
       "anchor exceeds owner",
     );
     integrity(
@@ -555,11 +582,27 @@ export function transactionSnapshotStorage(
     context: TransactionReadContext,
     kind?: Kind,
     token?: string,
+    minimum?: TransactionMinimum,
   ) {
-    if (typeof id !== "string" || !idPattern.test(id))
+    function unrecognized(): never {
+      if (minimum) {
+        const required = comparableMinimum(minimum.minimumPosition);
+        // A satisfied minimum in the actual current context adds no competing
+        // consistency failure to an unknown identity's uniform404. Keep the
+        // unselected future/foreign tuple combinations explicitly unsupported.
+        if (
+          minimum.scopeEpoch !== context.scopeEpoch ||
+          minimum.authorizationView !== context.authorizationView ||
+          required === undefined ||
+          required > Number(context.scopePosition.slice(4))
+        )
+          throw new TransactionMinimumUnsupported("retained-snapshot-identity");
+      }
       throw new TransactionSnapshotFailure("resource-not-found");
+    }
+    if (typeof id !== "string" || !idPattern.test(id)) unrecognized();
     const d = disposition(id, context);
-    if (!d) throw new TransactionSnapshotFailure("resource-not-found");
+    if (!d) unrecognized();
     // Recognize an actually issued continuation before expiry diagnosis. Retain
     // only bounded counts and a secret seed, not every expired page/range. The
     // authenticated ordinal is an opaque token component, not a client cursor.
@@ -574,12 +617,51 @@ export function transactionSnapshotStorage(
         ordinal >= d.pageCounts[kind === "bead" ? 0 : 1] ||
         !timingSafeEqual(Buffer.from(token!), Buffer.from(pageToken(d.seed, id, kind, ordinal)))
       )
-        throw new TransactionSnapshotFailure("resource-not-found");
+        unrecognized();
     }
+    // Only an actually issued, unexpired target in the CURRENT context has
+    // no competing identity/expiry/view failure. Reuse the ordinary minimum
+    // context precedence before attempting any minimum position ordering.
+    if (
+      minimum &&
+      d.epoch === context.scopeEpoch &&
+      d.view === context.authorizationView &&
+      !d.expired &&
+      now <= d.expires &&
+      (minimum.scopeEpoch !== context.scopeEpoch ||
+        minimum.authorizationView !== context.authorizationView)
+    )
+      checkCurrentReadMinimum(minimum, context, true);
+    // An unexpired, same-epoch foreign-view identity keeps its existing409
+    // under the actual current tuple and genesis: no anchor failure competes.
+    // All other context/expiry/position collisions remain unselected.
+    if (
+      minimum &&
+      (d.view !== context.authorizationView ||
+        minimum.scopeEpoch !== d.epoch ||
+        minimum.authorizationView !== d.view) &&
+      !(
+        d.view !== context.authorizationView &&
+        d.epoch === context.scopeEpoch &&
+        !d.expired &&
+        now <= d.expires &&
+        minimum.scopeEpoch === context.scopeEpoch &&
+        minimum.authorizationView === context.authorizationView &&
+        minimum.minimumPosition === "genesis"
+      )
+    )
+      throw new TransactionMinimumUnsupported("retained-snapshot-context");
     // Qualified witnesses separate unexpired foreign-view and same-view expiry.
     // The simultaneous foreign+expired collision is not an admission claim.
     if (d.view !== context.authorizationView) throw new TransactionSnapshotFailure("foreign-view");
     if (d.expired || now > d.expires) throw new TransactionSnapshotFailure("cursor-expired");
+    if (minimum) {
+      // Identity, matching context and expiry have already been established.
+      // An unorderable minimum requires bounded proof, never a new anchor.
+      const required = comparableMinimum(minimum.minimumPosition);
+      if (required === undefined) throw new TransactionMinimumUnproved(context);
+      if (d.position < required) throw new TransactionSnapshotFailure("snapshot-position-too-old");
+    }
     return { d, ranges: plan(id, d) };
   }
 
@@ -587,8 +669,9 @@ export function transactionSnapshotStorage(
     id: string,
     now: number,
     context: TransactionReadContext,
+    minimum?: TransactionMinimum,
   ): TransactionSnapshotManifest {
-    const { d, ranges } = resolve(id, now, context);
+    const { d, ranges } = resolve(id, now, context, undefined, undefined, minimum);
     return manifestValue(id, d, context, page(id, ranges, "bead"), page(id, ranges, "link"));
   }
   function manifestValue(
@@ -606,7 +689,7 @@ export function transactionSnapshotStorage(
       scopePosition: `pos-${d.position}`,
       checkpoint: transactionCheckpoint(scope, context, d.position),
       expiresAt: new Date(d.expires).toISOString(),
-      erasures: [],
+      erasures: erasures(d.view),
       beads,
       links,
     };
@@ -795,12 +878,71 @@ export function transactionSnapshotStorage(
     return manifestValue(id, d, context, firstPage("bead"), firstPage("link"));
   }
   return Object.freeze({
+    /** Atomic offline retirement: keep actual issued handle/token commitments,
+     * remove all promised body detail, and preserve the original context. */
+    retireEpoch(context: TransactionReadContext) {
+      ledgerBounds();
+      let issuedInEpoch = false;
+      for (const row of statement("SELECT id FROM snapshots").all()) {
+        const id = String(row.id),
+          d = disposition(id, context)!;
+        if (d.epoch !== context.scopeEpoch) continue;
+        issuedInEpoch = true;
+        const { binding: _binding, ...unsigned } = d;
+        statement("UPDATE snapshots SET disposition=? WHERE id=?").run(
+          text(sealDisposition(id, { ...unsigned, expired: true })),
+          id,
+        );
+      }
+      if (issuedInEpoch)
+        statement("INSERT OR IGNORE INTO snapshot_epoch_fences VALUES(?,?)").run(
+          context.scopeEpoch,
+          Number(context.scopePosition.slice(4)),
+        );
+      statement("DELETE FROM snapshot_records").run();
+      statement("DELETE FROM snapshot_pages").run();
+    },
     expire,
+    invalidateBefore(position: number, context: TransactionReadContext) {
+      for (const row of statement("SELECT id FROM snapshots").all()) {
+        const id = String(row.id),
+          d = disposition(id, context)!;
+        if (d.view !== INITIAL_TRANSACTION_VIEW || d.position >= position || d.expired) continue;
+        const { binding: _binding, ...unsigned } = d;
+        statement("UPDATE snapshots SET disposition=? WHERE id=?").run(
+          text(sealDisposition(id, { ...unsigned, expired: true })),
+          id,
+        );
+        statement("DELETE FROM snapshot_records WHERE snapshot=?").run(id);
+        statement("DELETE FROM snapshot_pages WHERE snapshot=?").run(id);
+      }
+    },
+    // Called only for a foreign minimum tuple. Resolve the actual retained
+    // identity before expiry maintenance: this must refuse, never capture,
+    // renew, or load a successful page. Other collision domains stay closed.
+    rejectForeignMinimumContext(
+      id: string,
+      now: number,
+      context: TransactionReadContext,
+      minimum: TransactionMinimum,
+      kind?: Kind,
+      token?: string,
+    ): never {
+      resolve(id, now, context, kind, token, minimum);
+      throw new TransactionMinimumUnsupported("retained-snapshot-context");
+    },
     manifest,
-    page(id: string, kind: Kind, token: string, now: number, context: TransactionReadContext) {
+    page(
+      id: string,
+      kind: Kind,
+      token: string,
+      now: number,
+      context: TransactionReadContext,
+      minimum?: TransactionMinimum,
+    ) {
       if ((kind !== "bead" && kind !== "link") || typeof token !== "string")
         throw new TransactionSnapshotFailure("resource-not-found");
-      const { ranges } = resolve(id, now, context, kind, token);
+      const { ranges } = resolve(id, now, context, kind, token, minimum);
       return page(id, ranges, kind, token);
     },
     preflight(now: number, context: TransactionReadContext): void {

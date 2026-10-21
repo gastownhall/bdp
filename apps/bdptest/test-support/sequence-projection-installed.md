@@ -1,0 +1,7 @@
+# Installed sequence current-view projection
+
+The isolated test imports the actual offline-packed server modules, verifies every emitted server JavaScript file and the protocol schema byte-for-byte, and performs mutations/replays through raw public HTTP. A test-only IPC sidecar supplies a trusted clock, historical-erasure administration on the authentic runtime facade, and the existing all-visible-to-empty policy replacement. It adds no production operation, configuration, export, History grant, or public capability. The clock makes the fixture nonclaiming and distinct from ordinary startup.
+
+An erased creation replays as a current `forbidden` member while its private retained identity still resolves a later dependent. Expired creation allocations disclose exactly `{ id, type }`; update and alias expiry have no allocation. Source-owner tests additionally exercise current empty-policy projection to `{ withheld: true }`. Empty policy sets `canMutate: false` and therefore refuses an installed sequence carrier before retained-member admission; the test reports this as HTTP 403, not as evidence of a reachable withheld member.
+
+The policy has no positive subject-history disclosure grant. `resource-erased` to such a caller remains unsupported; current visibility does not imply that permission. No whole-profile or cumulative qualification is claimed. All previous failed fixture/test attempts remain in the external implementation evidence.

@@ -1,0 +1,3 @@
+# Retained Snapshot identity with a satisfied minimum
+
+NEW actual installed HTTP regression: unknown manifest, unknown continuation, invalid identity and unissued continuation of a real handle must preserve uniform404 on GET/HEAD when the minimum uses the actual current epoch/view and genesis (already satisfied). Each request has a no-minimum control; the valid retained manifest stays identical and the feed empty. This does not select tuple mismatch, unknown position, foreign view or expired combinations. Fixture is ordinary; no clock/admin override. Raw request/response/config/payload and cleanup evidence retained externally.

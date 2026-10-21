@@ -606,7 +606,8 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
         propertiesChange: [{ op: "replace", path: "/title", value: "after_c" }],
       },
     ]);
-    const retained = await f.exchange(page.next),
+    // The saved prefix satisfies the original minimum after the live prefix advances.
+    const retained = await f.exchange(page.next, "GET", minimum(seeded)),
       second = json<Page>(retained);
     expect(second.items).toEqual(expected.beads?.slice(2));
     expect(second.next).toBe(null);
@@ -617,9 +618,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
     );
     expect(current.items[2]?.properties.title).toBe("after_c");
     expect(current.items[2]?.revision).not.toBe(second.items[0]?.revision);
-    const continuationMinimum = await f.exchange(page.next, "GET", minimum(changed));
-    expect(continuationMinimum.status).toBe(500);
-    expect(continuationMinimum.headers["x-bdp-development-limit"]).toBe("minimum-position-route");
+    expect(retained.headers["x-bdp-development-limit"]).toBeUndefined();
   });
 }, 120000);
 

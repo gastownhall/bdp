@@ -1,30 +1,35 @@
 /** Same-owner private Read composition with source conditions for canonical
  * current points, Type inventory and initial Resource/incident-Link reads. The service owns finite
- * waits; continuation minimums, receipt serving and replication Snapshots are
- * separate contracts. */
-import {
-  checkCurrentReadMinimum,
-  snapshotCurrentReadMinimum,
-  TransactionMinimumFailure,
-  type TransactionMinimum,
-} from "./transaction-consistency.js";
+ * waits. Bead/Link/Type inventory and incident-Link continuation minima compare
+ * their actual retained query prefix; History remains unselected. */
+
 import { isProxy } from "node:util/types";
+import type { ReadRequest } from "@bdp/protocol";
 import {
-  createAuthorityReadPlane,
-  AuthorityReadError,
+  type AuthorityAliasResult,
   type AuthorityReadDeliveryOptions,
+  AuthorityReadError,
+  type AuthorityReadFacet,
   type AuthorityReadOptions,
   type AuthorityReadPlane,
-  type AuthorityReadFacet,
   type AuthorityReadResult,
-  type AuthorityAliasResult,
+  createContextualAuthorityReadPlane,
   type ReadObservation,
 } from "./authority-read.js";
-import type { ReadRequest } from "@bdp/protocol";
-import type { TransactionReadContext } from "./transaction-store.js";
-import type { openTransactionStore } from "./transaction-store.js";
+import { INITIAL_TRANSACTION_VIEW } from "./transaction-authorization.js";
+import {
+  checkCurrentReadMinimum,
+  checkTransactionMinimum,
+  snapshotCurrentReadMinimum,
+  snapshotTransactionMinimum,
+  type TransactionMinimum,
+  TransactionMinimumFailure,
+} from "./transaction-consistency.js";
+import type { openTransactionStore, TransactionReadContext } from "./transaction-store.js";
 
 export class TransactionMinimumVisibilityGap extends Error {}
+/** Private unsupported boundary, not a public too-old-cursor diagnosis. */
+export class TransactionContinuationMinimumUnsupported extends Error {}
 
 /** Current private minimum subset; full request validation remains with Read. */
 export function isCurrentTransactionMinimumRead(request: ReadRequest, scope: string): boolean {
@@ -79,6 +84,20 @@ function dataOnlyReadRequest(request: ReadRequest): boolean {
       const field = Object.getOwnPropertyDescriptor(request, key);
       return typeof key === "string" && field !== undefined && "value" in field;
     })
+  );
+}
+
+/** Native ordinary/Type collection and incident-Link continuations share the
+ * same captured query source context. History is not part of this route. */
+export function isRetainedCollectionMinimumRead(request: ReadRequest): boolean {
+  return (
+    dataOnlyReadRequest(request) &&
+    ((request.kind === "collection" &&
+      (request.collection === "beads" ||
+        request.collection === "links" ||
+        request.collection === "types")) ||
+      request.kind === "bead-links") &&
+    typeof request.continuation === "string"
   );
 }
 
@@ -199,7 +218,7 @@ export function createTransactionReadPlane(
   options: TransactionReadOptions,
 ) {
   const configuration = owner.readConfiguration();
-  const plane = createAuthorityReadPlane({
+  const plane = createContextualAuthorityReadPlane({
     entry: owner,
     scopeEpoch: configuration.scopeEpoch,
     installedTypes: configuration.installedTypes,
@@ -259,11 +278,63 @@ export function createTransactionReadPlane(
       };
     },
   });
+  const unsubscribeErasure = owner.observeErasures(() =>
+    plane.discardViewSnapshots(INITIAL_TRANSACTION_VIEW),
+  );
   const checked = <Result extends AuthorityReadResult<ReadRequest> | AuthorityAliasResult>(
     result: Result,
   ): Result => {
-    if ("observation" in result) transactionReadContexts(result.observation);
+    if ("observation" in result) {
+      const contexts = transactionReadContexts(result.observation);
+      owner.assertPublication(contexts.snapshot ?? contexts.current);
+    }
     return result;
+  };
+  // One binding cell per service operation, never shared by facet reuse or
+  // concurrent requests. Every attempt still traverses the ordinary authority.
+  const retainedAttempt = <O extends ReadRequest>(
+    facet: AuthorityReadFacet,
+    minimum: TransactionMinimum,
+    request: O,
+    receiving: AuthorityReadDeliveryOptions | undefined,
+    waitable: boolean,
+  ) => {
+    let bound: TransactionReadContext | undefined;
+    return () =>
+      facet.perform(request, receiving).then((result) => {
+        checked(result);
+        // Only a genuinely validated initial page establishes cursor eligibility.
+        // Once bound, preserve actual native expiry/eviction/projection refusals.
+        if (result.kind !== "success") {
+          if (waitable && bound !== undefined) return result;
+          throw new TransactionContinuationMinimumUnsupported();
+        }
+        const { current, snapshot } = transactionReadContexts(result.observation);
+        if (snapshot === undefined) throw new TransactionContinuationMinimumUnsupported();
+        if (
+          bound !== undefined &&
+          (snapshot.scopeEpoch !== bound.scopeEpoch ||
+            snapshot.authorizationView !== bound.authorizationView ||
+            snapshot.scopePosition !== bound.scopePosition)
+        )
+          throw new TransactionContinuationMinimumUnsupported();
+        try {
+          snapshotTransactionMinimum(minimum);
+          checkTransactionMinimum(minimum, snapshot);
+        } catch (error) {
+          if (waitable && error instanceof TransactionMinimumFailure && error.reason === "behind") {
+            bound ??= snapshot;
+            // The unsatisfied data prefix is the saved one. A timeout's error
+            // headers describe this attempt's CURRENT serving entry, not old rows.
+            throw new TransactionMinimumFailure("behind", current);
+          }
+          if (error instanceof TypeError || error instanceof TransactionMinimumFailure)
+            throw new TransactionContinuationMinimumUnsupported();
+          throw error;
+        }
+        bound ??= snapshot;
+        return result;
+      });
   };
   const observe = <T>(promise: Promise<T>): Promise<T> => {
     void promise.catch(() => {});
@@ -271,7 +342,11 @@ export function createTransactionReadPlane(
   };
   const composed: AuthorityReadPlane = {
     closed: plane.closed,
-    close: () => plane.close(),
+    close: () => {
+      const closed = plane.close();
+      unsubscribeErasure();
+      return closed;
+    },
     readFor(principal) {
       const facet = plane.readFor(principal);
       return {
@@ -304,6 +379,25 @@ export function createTransactionReadPlane(
   };
   return Object.freeze({
     ...composed,
+    /** Source-private per-operation retry closure. The service alone owns the
+     * fixed wait deadline; no cursor is minted, renewed or reanchored here. */
+    prepareRetainedMinimumRead<O extends ReadRequest>(
+      principal: Parameters<AuthorityReadPlane["readFor"]>[0],
+      supplied: TransactionMinimum,
+      request: O,
+      receiving: AuthorityReadDeliveryOptions | undefined,
+    ) {
+      const capturedRequest = captureTransactionReadRequest(request);
+      if (!isRetainedCollectionMinimumRead(capturedRequest))
+        throw new TypeError("retained collection minimum required");
+      return retainedAttempt(
+        plane.readFor(principal),
+        snapshotCurrentReadMinimum(supplied),
+        capturedRequest,
+        captureTransactionReadDeliveryOptions(receiving),
+        true,
+      );
+    },
     minimumFor(
       principal: Parameters<AuthorityReadPlane["readFor"]>[0],
       supplied: TransactionMinimum,
@@ -317,7 +411,8 @@ export function createTransactionReadPlane(
             return observe(
               facet.perform(capturedRequest, options).then((result) => checked(result)),
             );
-          if (!isCurrentTransactionMinimumRead(capturedRequest, owner.scope))
+          const retained = isRetainedCollectionMinimumRead(capturedRequest);
+          if (!retained && !isCurrentTransactionMinimumRead(capturedRequest, owner.scope))
             return Promise.reject(new TypeError("minimum-read route outside supported subset"));
           const condition = minimumCondition(minimum, currentReadMinimumKind(capturedRequest));
           let captured: AuthorityReadDeliveryOptions | undefined;
@@ -330,6 +425,8 @@ export function createTransactionReadPlane(
               facet.perform(capturedRequest, options).then((result) => checked(result)),
             );
           }
+          if (retained)
+            return observe(retainedAttempt(facet, minimum, capturedRequest, captured, false)());
           return observe(
             facet
               .perform(capturedRequest, { ...captured, sourceCondition: condition })

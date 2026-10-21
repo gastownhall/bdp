@@ -1,67 +1,64 @@
-import { TransactionAuthorizationFailure } from "./transaction-authorization.js";
-import type { TransactionEventPacket } from "./transaction-store.js";
-import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
-import {
-  transactionChangefeedRequest,
-  TransactionChangefeedParameterError,
-  type TransactionChangefeedPage,
-} from "./transaction-changefeed.js";
-import {
-  transactionEventRequest,
-  TransactionEventParameterError,
-  TransactionEventProjectionGap,
-} from "./transaction-events.js";
-import {
-  malformedTransactionMinimumHeaders,
-  transactionMinimumHeaders,
-  currentReadMinimumHeaders,
-  TransactionMinimumUnsupported,
-  TransactionMinimumFailure,
-} from "./transaction-consistency.js";
 /** Private Transactional HTTP projection. Discovery is non-attesting; public
  * profile admission and cumulative qualification remain separate. */
 import {
   isReadProblem,
   JsonSyntaxError,
-  ReadUpdateCarrierError,
   parseCanonicalScope,
   parseReadUpdateProblem,
   prepareReadUpdateSequence,
-  readProblem,
   type ReadProblem,
   type ReadProblemCode,
+  ReadUpdateCarrierError,
+  readProblem,
+  snapshotPositionTooOldProblem,
 } from "@bdp/protocol";
-import { createReadHttpRoute, jsonResponse, scopeDataResponse } from "./read-http-routing.js";
+import type { HttpResponse } from "./index.js";
 import {
   acceptsJson,
   applyReadHttpSemantics,
-  selectChangefeedMedia,
   conditionalReadStatus,
+  selectChangefeedMedia,
 } from "./read-http.js";
-import type { HttpResponse } from "./index.js";
-import {
-  type TransactionSingletonOperation,
-  prepareTransactionSequenceForReceiving,
-  TransactionDevelopmentLimitError,
-  TRANSACTION_RUNTIME_LIMITS,
-  TRANSACTION_MAXIMUM_OPERATIONS,
-} from "./transaction-batch.js";
-import type { createTransactionService } from "./transaction-service.js";
+import { createReadHttpRoute, jsonResponse, scopeDataResponse } from "./read-http-routing.js";
 import {
   classifyAliasPath,
   requestFromUrl,
   ScopeServerOperationAbortedError,
 } from "./read-request.js";
+import { TransactionAuthorizationFailure } from "./transaction-authorization.js";
 import {
+  prepareTransactionSequenceForReceiving,
+  TRANSACTION_MAXIMUM_OPERATIONS,
+  TRANSACTION_RUNTIME_LIMITS,
+  TransactionDevelopmentLimitError,
+  type TransactionSingletonOperation,
+} from "./transaction-batch.js";
+import {
+  type TransactionChangefeedPage,
+  TransactionChangefeedParameterError,
+  transactionChangefeedRequest,
+} from "./transaction-changefeed.js";
+import {
+  currentReadMinimumHeaders,
+  malformedTransactionMinimumHeaders,
+  TransactionMinimumFailure,
+  TransactionMinimumUnsupported,
+  transactionMinimumHeaders,
+} from "./transaction-consistency.js";
+import { TRANSACTION_HTTP_OPERATIONS } from "./transaction-discovery.js";
+import { TransactionEventParameterError, transactionEventRequest } from "./transaction-events.js";
+import {
+  currentReadMinimumKind,
+  isCurrentTransactionMinimumRead,
+  isRetainedCollectionMinimumRead,
+  TransactionContinuationMinimumUnsupported,
   TransactionMinimumVisibilityGap,
   transactionReadContexts,
-  isCurrentTransactionMinimumRead,
-  currentReadMinimumKind,
 } from "./transaction-read.js";
-import type { TransactionReadContext } from "./transaction-store.js";
+import type { createTransactionService } from "./transaction-service.js";
+import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
+import type { TransactionEventPacket, TransactionReadContext } from "./transaction-store.js";
 import type { TransactionSubmission } from "./transaction-submission.js";
-
-import { TRANSACTION_HTTP_OPERATIONS } from "./transaction-discovery.js";
 export type TransactionHttpAuthorization =
   | { readonly kind: "unauthenticated" }
   | { readonly kind: "authenticated"; readonly principal: string; readonly canMutate: boolean };
@@ -83,6 +80,15 @@ export type TransactionHttpResult =
   | (HttpResponse & { readonly kind: "finite" })
   | ChangefeedStream
   | EventStream;
+/** Private body provenance survives response shaping but is never a wire header
+ * or a caller-provided context. A continuation's current serving observation
+ * cannot stand in for the older immutable rows it carries. */
+const responseSourceContexts = new WeakMap<HttpResponse, TransactionReadContext>();
+export function transactionHttpSourceContext(
+  response: HttpResponse,
+): TransactionReadContext | undefined {
+  return responseSourceContexts.get(response);
+}
 type Service = ReturnType<typeof createTransactionService>;
 function empty(status: number, allow?: string): HttpResponse {
   return {
@@ -112,6 +118,23 @@ function problem(
   if (value.retry === "after-delay") response.headers.set("retry-after", "1");
   return { ...response, status: value.status ?? 500 };
 }
+/** Module-internal shared wire mapping, deliberately absent from package exports. */
+export function transactionMinimumFailureResponse(error: unknown): HttpResponse | undefined {
+  if (!(error instanceof TransactionMinimumFailure) || error.reason === "behind") return undefined;
+  return context(
+    problem(
+      error.reason === "catch-up-timeout"
+        ? {
+            ...readProblem("temporarily-unavailable"),
+            code: "catch-up-timeout",
+            status: 503,
+            retry: "after-delay",
+          }
+        : readProblem(error.reason),
+    ),
+    error.context,
+  );
+}
 export function transactionHttpProblem(
   code: ReadProblemCode,
   observation?: TransactionReadContext,
@@ -123,6 +146,16 @@ function context(response: HttpResponse, observation: TransactionReadContext): H
   response.headers.set("bdp-scope-epoch", observation.scopeEpoch);
   response.headers.set("bdp-authorization-view", observation.authorizationView);
   response.headers.set("bdp-scope-position", observation.scopePosition);
+  responseSourceContexts.set(response, observation);
+  return response;
+}
+function readContextResponse(
+  response: HttpResponse,
+  observation: Parameters<typeof transactionReadContexts>[0],
+): HttpResponse {
+  const contexts = transactionReadContexts(observation);
+  context(response, contexts.current);
+  responseSourceContexts.set(response, contexts.snapshot ?? contexts.current);
   return response;
 }
 function streamResponse(request: Request, observation: TransactionReadContext): HttpResponse {
@@ -230,9 +263,7 @@ export function createTransactionHttpHandler(
                 "cache-control": "private, no-store",
               }),
             };
-      return "observation" in result
-        ? context(response, transactionReadContexts(result.observation).current)
-        : response;
+      return "observation" in result ? readContextResponse(response, result.observation) : response;
     },
     async perform(parsed, request) {
       const minimum = currentReadMinimumHeaders(request.headers);
@@ -251,9 +282,7 @@ export function createTransactionHttpHandler(
                 ? result.observation.resourceRevision
                 : undefined,
             );
-      return "observation" in result
-        ? context(response, transactionReadContexts(result.observation).current)
-        : response;
+      return "observation" in result ? readContextResponse(response, result.observation) : response;
     },
   });
   // Target shape, never receipt existence or authorization, determines Allow.
@@ -419,15 +448,20 @@ export function createTransactionHttpHandler(
       else if (fields.length === 3 && id && token && (stream === "beads" || stream === "links"))
         target = { kind: "page", id, token, stream: stream === "beads" ? "bead" : "link" };
       else return transactionHttpProblem("invalid-parameter");
-      // Only fresh creation has an unambiguous current observation. Retained
-      // anchors and unsupported tuple shapes keep their explicit private gap.
+      // The owner recognizes the retained identity/context/expiry before an
+      // unorderable minimum enters the existing bounded proof lifetime.
       const minimum = hasMinimumControls(request)
         ? currentReadMinimumHeaders(request.headers)
         : undefined;
-      if (hasMinimumControls(request) && (target.kind !== "create" || minimum === undefined))
+      if (hasMinimumControls(request) && minimum === undefined)
         return developmentGap("minimum-position");
       function snapshotResponse(result: Awaited<ReturnType<Service["snapshot"]>>): HttpResponse {
         if (result.kind === "problem") {
+          if (result.code === "snapshot-position-too-old") {
+            const response = jsonResponse(snapshotPositionTooOldProblem());
+            response.headers.set("content-type", "application/problem+json");
+            return context({ ...response, status: 409 }, result.context);
+          }
           const response = context(transactionHttpProblem(result.code), result.context);
           if (result.retryAfter !== undefined)
             response.headers.set("retry-after", String(result.retryAfter));
@@ -623,7 +657,11 @@ export function createTransactionHttpHandler(
         (isReadProblem(parsed) || currentReadMinimumKind(parsed) === "strict")
       )
         return developmentGap("minimum-position");
-      if (isReadProblem(parsed) || !isCurrentTransactionMinimumRead(parsed, scope))
+      if (
+        isReadProblem(parsed) ||
+        (!isCurrentTransactionMinimumRead(parsed, scope) &&
+          !isRetainedCollectionMinimumRead(parsed))
+      )
         return developmentGap("minimum-position-route");
     }
     return readRoute(request);
@@ -650,29 +688,17 @@ export function createTransactionHttpHandler(
         response = await route(request, authorization, received, lastEventIds);
       } catch (error) {
         if (error instanceof ScopeServerOperationAbortedError) throw error;
-        if (error instanceof TransactionMinimumFailure && error.reason !== "behind") {
-          response = context(
-            problem(
-              error.reason === "catch-up-timeout"
-                ? {
-                    ...readProblem("temporarily-unavailable"),
-                    code: "catch-up-timeout",
-                    status: 503,
-                    retry: "after-delay",
-                  }
-                : readProblem(error.reason),
-            ),
-            error.context,
-          );
-        } else if (error instanceof TransactionAuthorizationFailure)
+        const minimumFailure = transactionMinimumFailureResponse(error);
+        if (minimumFailure) response = minimumFailure;
+        else if (error instanceof TransactionAuthorizationFailure)
           response = transactionHttpProblem(error.code, error.context);
         else if (
           error instanceof TransactionEventParameterError ||
           error instanceof TransactionChangefeedParameterError
         )
           response = transactionHttpProblem("invalid-parameter", error.context);
-        else if (error instanceof TransactionEventProjectionGap)
-          response = developmentGap(error.message);
+        else if (error instanceof TransactionContinuationMinimumUnsupported)
+          response = developmentGap("minimum-position-route");
         else if (error instanceof TransactionMinimumUnsupported)
           response = developmentGap("minimum-position");
         else if (error instanceof TransactionMinimumVisibilityGap)
@@ -688,12 +714,15 @@ export function createTransactionHttpHandler(
         (response.kind === "changefeed-stream" || response.kind === "event-stream")
       )
         return response;
-      return {
+      const finite = {
         ...(request.method === "GET" || request.method === "HEAD"
           ? applyReadHttpSemantics(request, response)
           : response),
-        kind: "finite",
+        kind: "finite" as const,
       };
+      const source = responseSourceContexts.get(response);
+      if (source) responseSourceContexts.set(finite, source);
+      return finite;
     },
   });
 }

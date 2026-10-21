@@ -1,0 +1,75 @@
+{
+  "scope": "Three NEW ordinary RU selected predicate witnesses; no map edit/profile award",
+  "rows": [
+    {
+      "id": "read-update.idempotency.semantic-identity",
+      "case": "identity",
+      "selectedRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "expands creation defaults so omitted `properties` and omitted common `metadata` each compare as `{}`, preserves the order of each change array and every other array, ignores JSON object member order, and excludes `idempotencyKey` and `name`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does; `expectedRevision` and `revisionProvenance` are members of the record and therefore of its identity."
+        }
+      ],
+      "proposal": "demonstrated-selected-current-predicate",
+      "wholeProfile": false,
+      "actual": "Three exact same-key original Link mismatches (target pin, lexical external URI, source pin) and two retained-update mismatches (expectedRevision, carried provenance) refuse409conflict/never; full current Resources remain literal originals, exact original local/canonical replay returns original outcome.",
+      "residual": "No allinput/race/History claim; existing237 defaults/object/array witnesses remain separately attributed."
+    },
+    {
+      "id": "read-update.validation.aggregate-constraint",
+      "case": "aggregate",
+      "selectedRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#aggregate-constraint-enforcement",
+          "selectedText": "Authorities MUST produce serializable outcomes when concurrent mutations could cross a maximum."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "`aggregate-constraint-violation`: the mutation would violate a Scope aggregate policy \u2014 in BDP v0, a maximum endpoint multiplicity."
+        }
+      ],
+      "proposal": "demonstrated-selected-current-predicate",
+      "wholeProfile": false,
+      "actual": "Same17/4 outgoing relates max8: seed7 then two ordinary concurrent complete keyed creates; exactlyone200 plus one409aggregate, both terminal retries exact, losingidentity404 and complete final8Links/2unchangedBeads.",
+      "residual": "One real concurrent serialization witness, not universal schedule theorem; no scheduler injected."
+    },
+    {
+      "id": "read-update.validation.diagnostics",
+      "case": "truncation",
+      "selectedRequirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "When the failure is an effective Type contract, every entry names the failing effective Type in `type` and the failed keyword in `schemaLocation`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "an authority that omits entries beyond a bound MUST advertise that bound, keeps at least one entry in evaluation order, and sets `diagnosticsTruncated` to `true`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#type-validation-and-diagnostics",
+          "selectedText": "A Resource validation failure returns a bounded diagnostic list identifying the failing effective Type and schema location"
+        }
+      ],
+      "proposal": "demonstrated-selected-current-predicate",
+      "wholeProfile": false,
+      "actual": "Source-advertised32diagnostics/524288bytes; one real added33integerproperties schema emits32distinct effectiveType+absolutekeyword+instance diagnostics and truncationtrue, zero failed effects; full valid33property control then GET/collection.",
+      "residual": "Distinct18/5 actualconfig, never relabelled or pooled as original17/4. No diagnostic-byte-overflow or arbitraryschema universe claim."
+    }
+  ],
+  "configs": {
+    "identityAndAggregate": "9af00876e91f71137ff31c226d368590a018ce2367cdb93110ea246dc7420d46",
+    "truncation": "a80953aeb6de8b2560b8b718e0587a0914686c3208dcdf32e504e92fde168564"
+  },
+  "noConfigurationPooling": true
+}

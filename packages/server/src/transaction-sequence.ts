@@ -9,6 +9,7 @@ export interface TransactionSequenceResponse {
   readonly results: readonly Entry[];
 }
 const problems = {
+  forbidden: ["authorization", 403, "after-state-change"],
   "idempotency-conflict": ["conflict", 409, "never"],
   "idempotency-in-progress": ["conflict", 409, "after-delay"],
   "idempotency-expired": ["gone", 410, "never"],
@@ -29,6 +30,37 @@ function record(value: unknown): Record<string, unknown> {
     throw new Error("invalid retained sequence disposition");
   return value as Record<string, unknown>;
 }
+/** Current public presentation only. Visibility is not a subject-history grant:
+ * neither supported policy authorizes disclosure of erased subject history. */
+export function projectCurrentSequenceEntry(
+  value: unknown,
+  readPolicy: "all-visible" | "empty",
+): Entry {
+  const entry = record(value);
+  if (
+    entry.outcome === "withheld" ||
+    entry.outcome === "erased" ||
+    (readPolicy === "empty" && entry.resource !== undefined)
+  ) {
+    return Object.freeze({
+      ...problem("forbidden"),
+      operationIndex: entry.operationIndex,
+      ...(entry.operationName === undefined ? {} : { operationName: entry.operationName }),
+    });
+  }
+  if (entry.code === "idempotency-expired" && entry.allocated !== undefined) {
+    const allocated = record(entry.allocated);
+    return Object.freeze({
+      ...entry,
+      allocated: Object.freeze(
+        readPolicy === "empty" || allocated.withheld === true
+          ? { withheld: true }
+          : { id: allocated.id, type: allocated.type },
+      ),
+    });
+  }
+  return entry;
+}
 function project(sequence: PreparedTransactionSequence, turn: TransactionSequenceTurn): Entry {
   const member = sequence.members[turn.index];
   if (!member) throw new Error("sequence turn outside carrier");
@@ -47,13 +79,17 @@ function project(sequence: PreparedTransactionSequence, turn: TransactionSequenc
         const allocated = record(receipt.allocated[0]);
         if (
           allocated.operationIndex !== 0 ||
-          typeof allocated.id !== "string" ||
-          typeof allocated.type !== "string"
+          (allocated.withheld !== true &&
+            (typeof allocated.id !== "string" || typeof allocated.type !== "string"))
         )
           throw new Error("invalid expired singleton allocation");
-        entry.allocated = { id: allocated.id, type: allocated.type };
+        entry.allocated =
+          allocated.withheld === true
+            ? { withheld: true }
+            : { id: allocated.id, type: allocated.type };
       }
-    } else if (receipt.detail !== "available")
+    } else if (receipt.detail === "withheld") entry = { ...problem("forbidden") };
+    else if (receipt.detail !== "available")
       throw new Error("unsupported private receipt disclosure");
     else if (receipt.status === "failed") entry = { ...record(receipt.problem) };
     else {

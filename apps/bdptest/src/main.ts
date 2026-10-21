@@ -14,9 +14,11 @@ import {
 import {
   isNodeHttpListenerError,
   isReadServerAdmissionError,
-  serveNodeHttpServer,
   type ProtocolProfile,
+  serveNodeHttpServer,
 } from "@bdp/server";
+import { startReferenceDeployment } from "@bdp/server/reference-startup";
+import { ReferenceDeploymentError } from "@bdp/server/reference-configuration";
 
 import { createConfiguredBdptestReadServer } from "./server-composition.js";
 
@@ -29,12 +31,13 @@ const help = `Usage: bdptest --serve [--config <path>]
        bdptest --help
        bdptest --version
 
-Runs lifecycle mode by default; --serve requests a deterministic local BDP
-server from the built-in reference domain and is refused until Read evidence
-exists. The bdptest.fixture selector is not consumed yet.
+Runs lifecycle mode by default. --serve runs the Read fixture, or an explicitly
+configured trusted reference Read+Update/Transactional deployment. Reference
+deployments are non-attesting qualification targets, not conformance claims.
+The bdptest.fixture selector is not consumed yet.
 
 Options:
-  --serve          Request the HTTP Read server (refused until Read evidence exists).
+  --serve          Start the configured HTTP server; profile intent is required.
   --config <path>  Load a JSON startup configuration file from <path>.
   --help           Show this help text.
   --version        Show the executable version.
@@ -48,12 +51,69 @@ function diagnostic(
   event: string,
   message: string,
   signal?: NodeJS.Signals,
+  code?: ReferenceDeploymentError["code"],
 ): void {
-  process.stderr.write(`${JSON.stringify({ level, event, executable, message, signal })}\n`);
+  process.stderr.write(`${JSON.stringify({ level, event, executable, message, signal, code })}\n`);
 }
 
 function unexpectedErrorSummary(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}` : typeof error;
+}
+
+async function runReferenceServer(config: Parameters<typeof startReferenceDeployment>[0]) {
+  const stopped = Promise.withResolvers<void>();
+  const controller = new AbortController();
+  const stop = () => {
+    controller.abort();
+    stopped.resolve();
+  };
+  process.once("SIGTERM", stop);
+  process.once("SIGINT", stop);
+  let runtime: Awaited<ReturnType<typeof startReferenceDeployment>> | undefined;
+  let failed = false;
+  let failureCode: ReferenceDeploymentError["code"] | undefined;
+  try {
+    runtime = await startReferenceDeployment(config, controller.signal);
+    controller.signal.throwIfAborted();
+    process.stderr.write(
+      `${JSON.stringify({
+        level: "info",
+        event: "server.started",
+        executable,
+        message: "bdptest reference qualification server started",
+        scope: runtime.scope,
+        listenUrl: runtime.listenUrl,
+        profile: runtime.profile,
+        history: runtime.history,
+        claimEligible: false,
+      })}\n`,
+    );
+    await Promise.race([stopped.promise, runtime.completion]);
+  } catch (error) {
+    // Configuration contains credentials. Expose only the fixed safe category.
+    if (error instanceof ReferenceDeploymentError) failureCode = error.code;
+    failed = true;
+  } finally {
+    try {
+      await runtime?.close();
+    } catch {
+      failed = true;
+    }
+    process.removeListener("SIGTERM", stop);
+    process.removeListener("SIGINT", stop);
+  }
+  if (failed) {
+    diagnostic(
+      "error",
+      "startup.reference_refused",
+      "reference deployment startup failed",
+      undefined,
+      failureCode,
+    );
+    return 2;
+  }
+  diagnostic("info", "server.stopped", "bdptest reference qualification server stopped");
+  return 0;
 }
 
 async function runServer(config: {
@@ -65,7 +125,16 @@ async function runServer(config: {
     readonly limits: ServerReadLimitsConfig;
     readonly internalFaultResource?: string;
   };
+  readonly bdptest: { readonly fixture?: string; readonly deploymentFile?: string };
 }): Promise<number> {
+  if (config.bdptest.deploymentFile !== undefined) {
+    return runReferenceServer({
+      deploymentFile: config.bdptest.deploymentFile,
+      scope: config.scope,
+      server: config.server,
+      bdptest: config.bdptest,
+    });
+  }
   const readServer = createConfiguredBdptestReadServer(config);
   const stoppedBy = await serveNodeHttpServer(readServer, {
     host: config.server.host,

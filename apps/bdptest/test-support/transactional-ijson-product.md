@@ -1,0 +1,7 @@
+# Packed I-JSON receiving boundaries
+
+Five deliberately authored raw UTF-8 property documents exercise duplicate literal names, escaped-equivalent decoded names, a lone high-surrogate string escape, a lone low-surrogate member-name escape, and a duplicate nested in an array object. These bad inputs are sent as exact bytes, never normalized through JSON.stringify. The recorder retains request bytes/digests and safe body write-state metadata, excluding secret-bearing request headers.
+
+Each400 malformed-request is followed by a complete current Bead collection, missing-target404 and empty exclusive changefeed suffix at the unchanged head. A corrected request using the SAME key must then execute first, producing the independently expected complete literal postimage; exact replay must return the same receipt and produce exactly one new effect group/Event across the two valid requests. Valid UTF-8 emoji values and an escaped surrogate-pair member name provide positive Unicode scalar controls.
+
+The actual fixture bytes supply both the installed binding identity and the configured Type/schema bank. The existing ordinary installed IPC launcher and raw public HTTP transport run fresh offline-packed modules; no clock/admin seam, production hook, new endpoint or policy is introduced. Tests do not infer universal Unicode coverage, invalid UTF-8 transport coverage, all carriers/metadata/patch permutations, History, durable client recovery or whole-profile qualification. No old passed cohort is replayed.

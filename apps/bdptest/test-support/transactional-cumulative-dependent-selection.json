@@ -1,0 +1,197 @@
+{
+  "kind": "finite allocated-creator/dependent TX comparison selection",
+  "baseline251": true,
+  "runtimeSource": "5f3a67e89d62a0dcb4e9a7b9a6cb78b2c0a3e50c",
+  "rows": [
+    {
+      "id": "transactional.idempotency.unresolved-admission",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "When a sequence member depends on an authority-allocated creation whose identity is not yet committed, admission MUST durably reserve that member's key and pending receipt together with all other unknown member keys in the same atomic admission step.",
+          "ordinal": 0
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Its unresolved dependency form pins each reference to the particular creator attempt and operation slot, not merely to a reusable key or the spelling of a label.",
+          "ordinal": 1
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "The authority MUST preserve enough pinned resolution state to resolve or retract every dependent even if the creator's failed receipt is later forgotten and its key reused.",
+          "ordinal": 2
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A terminal dependent's normalized identity is immutable: a later creator attempt cannot rebind it.",
+          "ordinal": 3
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Atomic admission does not combine the sequence's separately committing member executions into one transaction.",
+          "ordinal": 4
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "When its creator commits, the authority atomically records the binding fact with the creator's effects and terminal disposition; a dependent resolves only against that pinned fact.",
+          "ordinal": 5
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "On a later presentation of the dependent, a successful new creator supplies an identity that conflicts with the retained unbound marker; another permanent creator failure normalizes to the same unbound marker when the remaining fields match.",
+          "ordinal": 6
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Binding, retraction, and commit check the same exclusive attempt ownership; a stale execution cannot resolve or commit a replacement attempt's work",
+          "ordinal": 7
+        }
+      ],
+      "catalogOrigins": [
+        {
+          "path": "packages/conformance/catalog/transactional-v1.json",
+          "pointer": "/scenarios/121",
+          "line": 1795
+        }
+      ],
+      "proposedStatus": "partial-demonstrated",
+      "observedSubclauses": [
+        {
+          "ordinal": 0,
+          "status": "demonstrated-bounded-config",
+          "join": "One real sequence with allocated creator and BOTH unknown dependent keys; two genuine direct comparisons remain unresolved/503 while original callback1 held; native atomic admitSequence source joins all pending keys."
+        },
+        {
+          "ordinal": 1,
+          "status": "partial-demonstrated",
+          "join": "Actual deferred @made resolves using creator committed allocated ID; stale/reused creator comparison not exercised."
+        },
+        {
+          "ordinal": 4,
+          "status": "demonstrated-bounded-config",
+          "join": "Each original callback separately commits positions1,2,3 with complete independent postimages."
+        },
+        {
+          "ordinal": 5,
+          "status": "demonstrated-bounded-config",
+          "join": "After creator turn, before dependent turn, actual allocated record resolves each dependent to its pending receipt; original dependent turns commit that exact ID."
+        }
+      ],
+      "unobserved": [
+        "Failed creator receipt forgetting/key reuse (ordinal2)",
+        "Later creator attempt rebinding retained terminal dependent/unbound forms (ordinals3/6)",
+        "Stale replacement execution ownership/retraction (ordinal7)",
+        "No crash/reopen durability witness in this new unit; atomic persisted admission/binding paths are joined to exact installed source."
+      ],
+      "actualCase": "waits at the native comparison deadline then resolves allocated creator dependent identities",
+      "evidence": "attempt3/allocated-dependents.json",
+      "ordinaryDeployment": false,
+      "runtimeConfigurationIdentity": null
+    },
+    {
+      "id": "transactional.idempotency.unresolved-comparison",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A direct singleton or batch that encounters an unresolved reservation MUST reject an already provable semantic mismatch with `409` `idempotency-conflict`.",
+          "ordinal": 0
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Otherwise it MUST wait for comparison to become possible, within one finite authority-selected comparison budget.",
+          "ordinal": 1
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "This budget is separate from `transaction.duration`, which bounds admitted execution;",
+          "ordinal": 2
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Until equality is established, this caller MUST NOT receive the owner's pending receipt, execute a second mutation, or retract the owner's reservation.",
+          "ordinal": 3
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If comparison remains unresolved at the deadline, return direct `503` `temporarily-unavailable` with `retry: after-delay`; the response SHOULD carry `Retry-After` when a useful delay is known.",
+          "ordinal": 4
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Once the reservation resolves, ordinary canonical comparison returns the existing receipt or the conflict.",
+          "ordinal": 5
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting comparison or admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch.",
+          "ordinal": 6
+        }
+      ],
+      "catalogOrigins": [
+        {
+          "path": "packages/conformance/catalog/transactional-v1.json",
+          "pointer": "/scenarios/122",
+          "line": 1843
+        }
+      ],
+      "proposedStatus": "partial-demonstrated",
+      "observedSubclauses": [
+        {
+          "ordinal": 0,
+          "status": "demonstrated-bounded-config",
+          "join": "Changed non-reference propertiesChange99 is provable409 while allocated creator held."
+        },
+        {
+          "ordinal": 1,
+          "status": "demonstrated-bounded-config",
+          "join": "Direct singleton and one-op batch remain unresolved through original1000ms budget; actual1005.47/1005.72ms responses."
+        },
+        {
+          "ordinal": 2,
+          "status": "source-and-observed",
+          "join": "Original native comparison budget1000ms, wall/performance/native-delay sources untouched; no admitted execution duration override."
+        },
+        {
+          "ordinal": 3,
+          "status": "demonstrated-bounded-config",
+          "join": "503 exact Problem/no Location/no receipt; original callback remains held, creator pending receipt unchanged, collection empty; both dependent keys later still pending."
+        },
+        {
+          "ordinal": 4,
+          "status": "demonstrated-bounded-config",
+          "join": "Both original deadlines return503temporarily-unavailable/after-delay. Useful Retry-After delay not asserted or advertised by this response."
+        },
+        {
+          "ordinal": 5,
+          "status": "partial-demonstrated",
+          "join": "Fresh explicit retries after creator resolution return conflict for old placeholder and proven202 for actualallocatedID, followed by SAME terminal receipts. Resolution during the already-waiting original request is not exercised."
+        }
+      ],
+      "unobserved": [
+        "Scope epoch changes while comparison is waiting (ordinal6)",
+        "Resolution/retraction during an already-present comparison wait and unchanged overall deadline",
+        "No claim original direct submission pending202 at synchronous wait bound; these503s are not known-equal pending202."
+      ],
+      "actualCase": "waits at the native comparison deadline then resolves allocated creator dependent identities",
+      "evidence": "attempt3/allocated-dependents.json",
+      "ordinaryDeployment": false,
+      "runtimeConfigurationIdentity": null
+    }
+  ],
+  "wholeProfile": false
+}

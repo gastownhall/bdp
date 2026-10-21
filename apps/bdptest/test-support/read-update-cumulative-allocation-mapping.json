@@ -1,0 +1,34 @@
+{
+  "id": "read-update.alias.allocation-avoids-aliases",
+  "selectedRequirements": [
+    {
+      "source": "docs/specs/bdp.md",
+      "anchor": "#alias-targets",
+      "selectedText": "An authority never allocates a Bead id whose segment is a live alias path."
+    },
+    {
+      "source": "docs/specs/bdp.md",
+      "anchor": "#creation-and-identity-allocation",
+      "selectedText": "An authority-allocated local ID is a single opaque segment, and for a Bead never one that is a live alias path under [Aliases](#aliases)"
+    }
+  ],
+  "base": "8480a2c951bd40264845af4c68c9bc8c4aa0b8b5",
+  "status": "demonstrated-selected-Bead-allocator-livealias-collision-proposal",
+  "wholeContract": false,
+  "ordinaryDeployment": false,
+  "ordinaryRuntimeConfigurationIdentity": null,
+  "actualCase": "skips the exact live alias candidate in the genuine installed native allocator",
+  "HTTP": 12,
+  "closedNativeObservations": 4,
+  "counterTransitions": ["0", "0", "2", "2"],
+  "source": "native RecoveryStore allocateResourceId877-891 unchanged",
+  "rootRestrictionRevision": "ROOT revised earlier agent-only ban on deriving candidates from allocator namespace solely inside this fresh OWN fixture child; no production API or usersemanticchange. Namespace stays entirely childlocal.",
+  "observation": "ReadOnly actualnative namespace+counter computes next2candidates using exactsource expression; rawcounter/identity/alias/resourcefacts +fullsourcepin retained; no namespace/credentials export, no SQLwrite/rewind/reseed.",
+  "actualPredicate": "AliasC1 really live before omittedIDcreate. Actual unchanged native allocator returnsC2 and increments durable counter2, bypassing C1; candidateplanning is no truth callback.",
+  "residuals": [
+    "No ordinary deployment/sameconfiguration award from private planning observation",
+    "No probability-based collision, auth/cursor-derived entropy, monkeypatch or rewritten installed bytes",
+    "No Link-kind allocation/allocator exhaustion/concurrency/fault/History claim",
+    "No full130/profile award; map promotion belongs ROOT"
+  ]
+}

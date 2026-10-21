@@ -11,6 +11,11 @@ import { selectReadResources } from "./read-selector.js";
 import { snapshotReadUpdateRuntimeLimits } from "./read-update-runtime-limits.js";
 import { memberNumericDiagnosticBudget } from "./member-numeric-diagnostics.js";
 import {
+  TRANSACTION_COMMITTED_WITNESSES,
+  transactionReferenceCommitment,
+  storedTransactionFingerprint,
+} from "./transaction-request-identity.js";
+import {
   JsonNumberLiteral,
   admitJsonNumbers,
   compareCanonicalIds,
@@ -372,7 +377,7 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
   const data = object(decodeJsonDocument(text));
   if (
     Object.keys(data).length !== 3 ||
-    data.format !== witnessFormat ||
+    (data.format !== witnessFormat && data.format !== TRANSACTION_COMMITTED_WITNESSES) ||
     data.scope !== scope ||
     !Array.isArray(data.operations) ||
     data.operations.length < 1 ||
@@ -397,14 +402,44 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
     const aliases = entry.aliases.map((value) => {
       const alias = object(value);
       if (Object.keys(alias).length !== 2) throw new TypeError("invalid transaction alias witness");
-      const locator = witnessedReference(scope, alias.locator, "alias");
+      const committed = data.format === TRANSACTION_COMMITTED_WITNESSES;
+      const digest = (value: unknown): string => {
+        if (typeof value !== "string" || !/^[a-f0-9]{64}$/.test(value))
+          throw new TypeError("invalid committed alias witness");
+        return value;
+      };
+      const locator = committed
+        ? digest(alias.locator)
+        : witnessedReference(scope, alias.locator, "alias");
       const target =
-        alias.target === null ? null : witnessedReference(scope, alias.target, "beads");
+        alias.target === null
+          ? null
+          : committed
+            ? digest(alias.target)
+            : witnessedReference(scope, alias.target, "beads");
       if (seen.has(locator)) throw new TypeError("duplicate transaction alias witness");
       seen.add(locator);
       return Object.freeze({ locator, target });
     });
     return Object.freeze({ operation, aliases: Object.freeze(aliases) });
+  });
+}
+/** Convert only validated alias witnesses. No endpoint or locator plaintext is
+ * retained in the versioned commitment envelope. Scope is a lineage namespace. */
+export function commitTransactionWitnesses(text: string, scope: string): string {
+  const operations = parseWitnesses(text, scope);
+  if ((JSON.parse(text) as { format: string }).format === TRANSACTION_COMMITTED_WITNESSES)
+    return text;
+  return JSON.stringify({
+    format: TRANSACTION_COMMITTED_WITNESSES,
+    scope,
+    operations: operations.map((operation) => ({
+      operation: operation.operation,
+      aliases: operation.aliases.map((alias) => ({
+        locator: transactionReferenceCommitment(alias.locator),
+        target: alias.target === null ? null : transactionReferenceCommitment(alias.target),
+      })),
+    })),
   });
 }
 /** Source-private operand inventory; preparation and comparison share the slot grammar. */
@@ -431,6 +466,8 @@ const normalizedState = new WeakMap<
     readonly batch: PreparedTransaction;
     readonly aliases: readonly ReadonlyMap<string, string | null>[];
     readonly references: ReadonlyMap<string, string | typeof UNBOUND_SEMANTIC_REFERENCE>;
+    readonly committedReferences: ReadonlyMap<string, string>;
+    readonly comparisonOnly: boolean;
   }
 >();
 /** Invoke under the owner's admission/comparison transaction after key lookup.
@@ -448,6 +485,11 @@ export function normalizeTransaction(
   const scope = batch.carrier.scope;
   const prior =
     priorWitnessesJson === undefined ? undefined : parseWitnesses(priorWitnessesJson, scope);
+  const priorCommitted =
+    priorWitnessesJson !== undefined &&
+    (JSON.parse(priorWitnessesJson) as { format: string }).format ===
+      TRANSACTION_COMMITTED_WITNESSES;
+  const committedReferences = new Map<string, string>();
   const creators = new Map<string, SemanticValue>();
   const referenceIdentities = new Map<string, string>();
   const identities: SemanticValue[] = [];
@@ -468,6 +510,7 @@ export function normalizeTransaction(
       delete input.revisionProvenance;
     const previous = prior?.[index];
     const aliases = new Map<string, string | null>();
+    const committedAliases = new Map<string, string>();
     for (const field of ["id", "source", "target", "bead", "link", "alias"]) {
       const value = input[field];
       if (value === undefined) continue;
@@ -482,11 +525,26 @@ export function normalizeTransaction(
         if (!aliases.has(locator)) {
           const old =
             previous?.operation === op.operation
-              ? previous.aliases.find((w) => w.locator === locator)
+              ? previous.aliases.find(
+                  (w) =>
+                    w.locator ===
+                    (priorCommitted ? transactionReferenceCommitment(locator) : locator),
+                )
               : undefined;
           const target = old === undefined ? resolveAlias(locator) : old.target;
-          aliases.set(locator, target == null ? null : witnessedReference(scope, target, "beads"));
+          if (old && priorCommitted && target !== null && target !== undefined) {
+            // Comparison-only stand-in; the private side map supplies the exact
+            // historical commitment at fingerprint time. It is never evaluated.
+            aliases.set(locator, `${scope}beads/committed-${target}`);
+            committedAliases.set(locator, target);
+          } else
+            aliases.set(
+              locator,
+              target == null ? null : witnessedReference(scope, target, "beads"),
+            );
         }
+        const committed = committedAliases.get(locator);
+        if (committed !== undefined) committedReferences.set(`${index}/${field}`, committed);
         normalized = aliases.get(locator) ?? { unresolvedAlias: locator };
       } else normalized = uri.startsWith("@") ? creators.get(uri.slice(1)) : locator;
       if (normalized === undefined) throw new TypeError("unknown batch binding");
@@ -515,9 +573,23 @@ export function normalizeTransaction(
     referenceIdentities,
     witnessesJson: JSON.stringify({ format: witnessFormat, scope, operations: witnesses }),
   });
-  normalizedState.set(result, { batch, aliases: captured, references });
+  normalizedState.set(result, {
+    batch,
+    aliases: captured,
+    references,
+    committedReferences,
+    comparisonOnly: priorCommitted,
+  });
   return result;
 }
+/** Storage fingerprint of an authentic normalization, including comparison-only
+ * historical Reference commitments. No placeholder can reach evaluation. */
+export function transactionRequestFingerprint(normalized: NormalizedTransaction): string {
+  const state = normalizedState.get(normalized);
+  if (!state) throw new TypeError("authentic normalized transaction required");
+  return storedTransactionFingerprint(normalized.identity, state.committedReferences);
+}
+
 export interface TransactionEvent {
   readonly id: string;
   readonly ordinal: number;
@@ -647,6 +719,8 @@ export function evaluateTransaction(
       throw new TypeError(`invalid transaction evaluator ${field} bound`);
   }
   const state = normalizedState.get(normalized);
+  if (state?.comparisonOnly)
+    throw new TypeError("committed historical witnesses are comparison-only");
   if (!state || state.batch.carrier.scope !== options.scope)
     throw new TypeError("expected normalized transaction for this Scope");
   const eventMaximum = options.maximumInducedEvents ?? TRANSACTION_RUNTIME_LIMITS.inducedEvents;

@@ -5,6 +5,12 @@ design question: the base, plus the first three role controls (advertised
 profile, `bdptest` fixture selection, the four conformance runner fields, and
 the binding Read page, Selector, and cursor lifetime limits). Non-normative.
 
+For ordinary trusted reference RU/TX startup through the installed `bdptest`
+command, see [reference-startup.md](reference-startup.md). That explicit
+deployment path creates a non-attesting qualification target (`claimEligible:
+false`); it does not grant cumulative conformance credit. The default Read
+composition and bd-backed adapter retain the admission rules below.
+
 Public server admission is fail-closed. `--serve` is the only CLI action that
 requests a listener; supplying `--config` merely selects configuration and does
 not imply service startup. Before binding, each server requires an explicit
@@ -13,7 +19,8 @@ entire cumulative surface it would advertise. Absent recorded evidence for a
 profile, both executables refuse it—including `read`—with exit code 2 before
 calling `listen`; Read admission is currently backed by the committed
 two-target evidence cohort (see `STATUS.md`), and higher profiles remain
-refused because their cumulative surfaces are not implemented. This
+refused by that Read composition. An explicit trusted reference deployment
+uses the separate preparation/ownership boundary described above. This
 fail-closed design is intentional, not a default-profile substitute.
 
 Four roles need startup configuration: the client (`bdp`), the
@@ -120,6 +127,7 @@ Adding a public capacity control is a change to this document first.
 | `bd.executable` | `BDP_BD_EXECUTABLE` | `bd` adapter | `bd` |
 | `bd.workspace` | `BDP_BD_WORKSPACE` | `bd` adapter | unset |
 | `bdptest.fixture` | `BDP_BDPTEST_FIXTURE` | `bdptest` | unset |
+| `bdptest.deploymentFile` | `BDP_BDPTEST_DEPLOYMENT_FILE` | `bdptest` | unset (absolute trusted reference deployment file; read only with `--serve`) |
 | `conformance.profile` | `BDP_CONFORMANCE_PROFILE` | conformance runner | `read` |
 | `conformance.scenarioFilter` | `BDP_CONFORMANCE_SCENARIO_FILTER` | conformance runner | unset |
 | `conformance.seed` | `BDP_CONFORMANCE_SEED` | conformance runner | `0` |
@@ -641,3 +649,121 @@ that response. A mutation client can explicitly accept a complete Problem above
 runner's separate 2,097,152-byte evidence ceiling needs its own reviewed design
 before large complete raw responses can be claimed. No engine or HTTP/auth/profile
 installation is provided by this component.
+
+### Trusted reference deployment preparation
+
+`bdptest.deploymentFile` (environment `BDP_BDPTEST_DEPLOYMENT_FILE`) is an optional,
+nonsecret absolute local file path. Environment overrides the config file; the
+field is absent by default. Its content is validated only for `bdptest` and the
+full no-role view, while unknown field names remain errors for every role. The
+path must be a nonempty well-formed string, without control characters, bounded
+to 16384 UTF8 bytes. Config stores the path and does not open it. Like
+`bd.workspace`, the resolved path appears in `startup.config`, so it must not
+contain secrets. Rejected values, file contents, credentials and parser causes
+never appear in deployment diagnostics. `bdptest.fixture` remains an identifier.
+No-serve startup continues to parse configuration without reading a deployment.
+
+The separate `@bdp/server/reference-configuration` data entry exposes
+`loadReferenceDeployment`. This pure preparation step opens no store or listener
+and grants no profile capability. It accepts an explicit shared Scope, intended
+listener, profile and Read limits plus the deployment path. It refuses Read or
+missing profile, fixture/fault conflicts, port0 and unsupported hosts. RU supports
+loopback `127.0.0.1`/`::1`; TX currently supports `127.0.0.1`. Shared Read settings
+must match the existing capture tuple: RU page20/100, selector4096/32/256,
+cursor60000ms; TX page2/32, selector4096/32/256, cursor1000ms. These differ from the
+ordinary shared Read defaults and must be configured explicitly. The returned
+`preflightReadLimits` proves a code/capture comparison only.
+
+The internal file has exact keys `format`, `profile`, `configuration`, with format
+`bdptest-reference-deployment-1` and profile matching shared intent. RU configuration
+has exact keys `directory`, `create`, `credentials` (token/principal), `policies`
+(principal to create/write/hidden/readOnly), `contracts` (descriptors/schemas), and
+`maximumEndpointMultiplicity`. TX has `directory`, `create`, `credentials`
+(token/principal/canMutate) and `artifacts` (descriptors/schemas). Artifact entries
+are exact retrievalUri/utf8 pairs. Existing installed captures own all inner
+validation and identities: RU empty descriptors select the shipped local closure;
+TX requires descriptors. Tokens must be unique; duplicate principals are allowed.
+No Scope/listener/limits override, code plugin, grant, evidence or wire installation
+operation is accepted in the envelope.
+
+One ordinary-file handle reads at most32MiB+1 and always closes. Fatal UTF8 and the
+existing strict lossless JSON decoder reject malformed text, duplicate decoded
+keys, BOM and unpaired surrogates. The32MiB encoded bound is the sole predecode
+bound on trusted operator input: full lossless-tree allocation/work occurs before
+iterative depth16/node100000 checks. Numbers remain atomic during those checks,
+then numeric admission uses one sanitized diagnostic. This accepted allocation
+risk is not a predecode structural/memory guarantee. Existing inner1MiB/artifact
+and16MiB total bounds remain independent; escaping/overhead can exceed the outer
+ceiling, so no full-inner-budget fit is guaranteed.
+
+The frozen public handle contains only inert summary data and provenance; secret
+inputs and RU/TX captures remain in a private identity registry. Its file digest
+and RU authentication identity commit to secret-containing file and credential
+contents. These digests must not be emitted in diagnostics. Replacing the
+file or mutating caller settings after capture cannot change that state. The
+private registry and runtime factories are unavailable through package exports.
+TX intended listener is retained separately from its existing private port0
+capture; no runtime wiring or live policy/view/runtime metadata is claimed.
+
+A later lifecycle slice must validate actual store existence/format and persisted
+receiptMaximumItems, snapshot limits/token policy, runtime limits, contract
+identity, Scope/Types and current policy/view/recovery **before listen**, closing
+any acquired owner on failure. Ordinary Write startup/admission remains separate;
+this loader is neither a public listener nor evidence of complete Write support.
+
+
+### Private prepared lifecycle (source increment; validation pending)
+
+The private `reference-deployment-runtime` and inherited-IPC
+`reference-deployment-process` modules consume a genuine registered loader handle
+in the same module instance. They are absent from package exports. The default
+Read composition still requires its existing admission; an explicit trusted
+`bdptest.deploymentFile` selects the supported reference startup facade for
+ordinary `bdptest --serve`, as described in [reference-startup.md](reference-startup.md).
+That exception creates a non-attesting RU/TX qualification target, not cumulative
+profile certification. The public loader remains an inert data preparation API.
+The ready message contains only
+Scope, independently observed listen URL, profile, captured history and false
+claim eligibility; no targets, captures, credential or binding digests.
+
+Trusted startup validates the actual owner and current Read limits, composes all
+principal routes, and only then binds the configured nonzero listener. Legacy
+private port-zero startup keeps its original bind-before-preparation/503 behavior,
+result shape and successful-listen error-listener removal. Trusted completion
+observes terminal listener errors and memoizes actual close/drain results. Owner
+ownership transfers to the Transactional service only after its constructor
+returns. Stop/cancellation observes preparation settlement and closes acquired
+owners; it never fabricates cancellation, undoes a committed installation or
+certifies unknown ownership. Read/Update epoch is a process lifecycle token;
+Transactional epoch remains persisted opaque state.
+
+The private bootstrap accepts one ordinary shared configuration envelope with the
+selected top-level deployment path over inherited IPC. Configuration and control
+are capped at 65536 bytes and configuration waits at most ten seconds. The test
+owns Transactional parent-directory provisioning (0700); the loader/bootstrap do
+not provision an absent create:false store. SIGTERM, SIGINT, IPC close and
+disconnect stop the private lifecycle. Refusal prints only the fixed diagnostic
+`reference deployment startup failed` and exits 2.
+
+The new source witnesses are prospective: 51 callbacks, 21 selected persisted
+mismatches and two HTTP mutations. Installed witnesses are 21 separately bounded
+callbacks, 126 finite HTTP requests plus two CONNECT peers, with 32 original
+candidate/public generations and four separately counted entrypoint guard Node
+children (36 total). They retain five-second source/request limits and installed
+45-second work, ten-second cleanup, 60-second callback, with future per-command
+120-second outer/115-second TERM review. No retries or deadline increase is
+implicit. Their named opt-in test entry variables are
+`BDP_REFERENCE_DEPLOYMENT_INSTALLED_ENTRY`,
+`BDP_REFERENCE_DEPLOYMENT_SOURCE_COMMIT`, and
+`BDP_REFERENCE_DEPLOYMENT_PUBLIC_ENTRY`; independent root package/consumer proof
+is required for any installed label. The default public-entry control uses the
+fresh workspace bdptest build and is recorded separately.
+
+This fdd-only basis already serves generic Type records but explicitly lacks the
+Transactional Scope/service descriptor/Directory receiver. All six TX cold
+callbacks (I02/I04/I13/I15/I17/I19) therefore require accepted D3a on a future
+explicit combined source/configuration. They remain complete tests, with no
+skipped navigation, target-map shortcut or fabricated fdd-only pass. Public Write
+admission, capability/effective-policy qualification and complete cumulative
+Write evidence remain separate. Native/actual CODE review and separately released
+validation must precede any execution or completion claim for this increment.

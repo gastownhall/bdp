@@ -1,0 +1,7 @@
+# Explicit RU artifact association expectations
+
+The new fixed RU campaign has three actual authenticated principals (`operator`, `restricted`, `other`), plus anonymous and deliberately unknown credential handles. Its two shards explicitly select their complete authored owner ID lists. The existing metadata association accepted only the old three-handle layout and an unfiltered first shard.
+
+`associateArtifactObservations` now accepts exact expected credential handles and ordered per-shard selection modes. Omitting the options retains the old three handles and unfiltered-first/owned-exact-later behavior. An explicit mode still checks the entire authored owner list against requested IDs, selected IDs and returned IDs; a filter or arbitrary subset cannot stand in for it. The fixed default remains `operator` with exactly the `authorization` header. All source, catalog, fixture, payload, runtime configuration, policy, authentication, route, capacity, outcome, session and cleanup checks remain active.
+
+The new tests use synthetic report metadata and genuinely constructed artifact/configuration bindings. They make no installed-execution, runtime trust, admission, full-clause, elapsed-fit or profile claim. Sixteen distinct option/default tests passed in the first run. Two new impossible-default cases passed separately after the default-binding consistency check; the earlier sixteen were not replayed. Typecheck and formatting were run after the source typing corrections. The unfinished cumulative carrier and its plans are outside this change.

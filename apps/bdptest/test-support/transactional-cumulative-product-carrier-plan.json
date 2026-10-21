@@ -1,0 +1,2619 @@
+{
+  "planVersion": 1,
+  "profile": "transactional",
+  "history": false,
+  "fixtureId": "tx-cumulative-product-v1",
+  "claimEligible": false,
+  "authority": "Source-owned incremental carrier plan, not map promotion or current combined qualification. Complete means the exact selected predicate is proposed for independent review on the configured role/vocabulary, not the broad catalog title.",
+  "requirementsSource": "transactional-cumulative-product-requirements.json",
+  "nativeArtifactBundles": [
+    {
+      "path": "transactional-cumulative-product-read-manifest.json",
+      "selectedIds": [
+        "read.discovery.scope-service-desc",
+        "read.discovery.canonical-navigation",
+        "read.http.get-head",
+        "read.http.method-405",
+        "read.http.cache-cors",
+        "read.http.accept-negotiation",
+        "read.http.conditional-reads",
+        "read.http.head-conditional-parity"
+      ],
+      "execution": "existing runCumulativeTransactionalMatrix, no historical17 scenario"
+    }
+  ],
+  "sourceCarrierFiles": [
+    {
+      "path": "../src/transactional-cumulative-product-batch.test.ts",
+      "kind": "direct installed positive assertions; not falsely labeled portable-manifest actions"
+    },
+    {
+      "path": "../src/transactional-cumulative-product-key.test.ts",
+      "kind": "direct installed positive assertions; not falsely labeled portable-manifest actions"
+    },
+    {
+      "path": "../src/transactional-cumulative-product-receipt.test.ts",
+      "kind": "direct installed positive assertions; not falsely labeled portable-manifest actions"
+    },
+    {
+      "path": "../src/transactional-cumulative-product-snapshot.test.ts",
+      "kind": "direct installed positive assertions; not falsely labeled portable-manifest actions"
+    },
+    {
+      "path": "../src/transactional-cumulative-product-wildcard.test.ts",
+      "kind": "direct installed positive assertions; not falsely labeled portable-manifest actions"
+    },
+    {
+      "path": "../src/transactional-cumulative-product-read-surface.test.ts",
+      "kind": "direct installed positive assertions; not falsely labeled portable-manifest actions"
+    },
+    {
+      "path": "../src/transactional-cumulative-product-mutation.test.ts",
+      "kind": "direct installed positive assertions; not falsely labeled portable-manifest actions"
+    }
+  ],
+  "bundles": [
+    {
+      "id": "read-core",
+      "requirementIds": [
+        "read.discovery.scope-service-desc",
+        "read.discovery.canonical-navigation",
+        "read.discovery.optional-limits",
+        "read.resource.bead-record",
+        "read.resource.link-record",
+        "read.resource.external-endpoint",
+        "read.resource.properties-view",
+        "read.resource.default-bounded",
+        "read.resource.not-found-nondisclosure",
+        "read.types.inventory",
+        "read.types.descriptor",
+        "read.collections.beads",
+        "read.collections.links",
+        "read.collections.structural-predicates",
+        "read.collections.selector",
+        "read.collections.pagination-snapshot",
+        "read.collections.cursor-errors",
+        "read.collections.invalid-query",
+        "read.bead-links.directions",
+        "read.bead-links.pagination",
+        "read.http.get-head",
+        "read.http.method-405",
+        "read.http.problem-table",
+        "read.http.internal-fault",
+        "read.http.cache-cors",
+        "read.http.raw-request-targets",
+        "read.scope.restore-identity",
+        "read.alias.resolution",
+        "read.alias.absent",
+        "read.disclosure.gone",
+        "read.disclosure.gate",
+        "read.owned.closure",
+        "read.attribution.carried",
+        "read.attribution.link",
+        "read.owned-wildcard.declaration",
+        "read.owned-wildcard.max-required",
+        "read.owned-wildcard.explicit-max-bounded",
+        "read.owned-wildcard.present-entries",
+        "read.owned-wildcard.closure",
+        "read.numeric-model.declared-token-model",
+        "read.http.accept-negotiation",
+        "read.http.conditional-reads",
+        "read.http.head-conditional-parity"
+      ]
+    },
+    {
+      "id": "direct-discovery-http",
+      "requirementIds": [
+        "read-update.discovery.aliases",
+        "read-update.singleton.create-bead",
+        "read-update.singleton.update-bead",
+        "read-update.singleton.document-patch-merge-replace",
+        "read-update.singleton.document-patch-atomicity",
+        "read-update.singleton.document-patch-validation",
+        "read-update.singleton.delete-bead",
+        "read-update.singleton.incident-links-nondisclosure",
+        "read-update.singleton.create-link",
+        "read-update.singleton.update-link",
+        "read-update.singleton.delete-link",
+        "read-update.singleton.owned-link-source-revision",
+        "read-update.singleton.owned-link-no-op",
+        "read-update.singleton.attribution",
+        "read-update.singleton.expected-revision",
+        "read-update.singleton.expected-revision-race",
+        "read-update.singleton.hidden-subject",
+        "read-update.singleton.idempotency-key-required",
+        "read-update.singleton.unauthenticated",
+        "read-update.singleton.idempotency-conflict",
+        "read-update.singleton.unsupported-media-type",
+        "read-update.singleton.method-405",
+        "read-update.singleton.no-local-bindings",
+        "read-update.problem.table",
+        "read-update.validation.type-contract",
+        "read-update.validation.diagnostics",
+        "read-update.validation.identity-taken",
+        "read-update.validation.aggregate-constraint",
+        "read-update.http.command-minimum-fields",
+        "read-update.http.request-too-large",
+        "read-update.http.cache-no-store",
+        "read-update.http.cors-idempotency-key",
+        "transactional.discovery.document",
+        "transactional.discovery.operation-directory",
+        "transactional.discovery.limits",
+        "transactional.discovery.no-idempotency-retention",
+        "transactional.singleton.receipt",
+        "transactional.singleton.semantics",
+        "transactional.http.status-matrix",
+        "transactional.http.method-405",
+        "transactional.http.problem-table",
+        "transactional.http.problem-contexts",
+        "transactional.http.internal-fault",
+        "transactional.http.disconnect-admitted",
+        "transactional.http.timestamps",
+        "transactional.http.ijson-strings-objects",
+        "transactional.http.token-profile",
+        "transactional.http.accept-refusal",
+        "transactional.http.finite-validator-omission",
+        "transactional.http.conditional-reads",
+        "transactional.http.head-parity"
+      ]
+    },
+    {
+      "id": "alias-owned-numeric",
+      "requirementIds": [
+        "read-update.alias.put-creates",
+        "read-update.alias.put-repoints",
+        "read-update.alias.delete-releases",
+        "read-update.alias.uniqueness-invariant",
+        "read-update.alias.link-coexistence",
+        "read-update.alias.allocation-avoids-aliases",
+        "read-update.alias.non-canonical-target",
+        "read-update.alias.unknown-subject",
+        "read-update.alias.carrier-syntax",
+        "read-update.alias.authorization",
+        "read-update.alias.forbidden",
+        "read-update.alias.no-version-minted",
+        "read-update.alias.sequence-binding",
+        "read-update.alias.retained-without-reauthorization",
+        "read-update.alias.reference-resolution",
+        "read-update.alias.reference-idempotency",
+        "transactional.alias.receipt",
+        "transactional.alias.locator-only",
+        "transactional.alias.no-batch",
+        "read-update.numeric-model.same-value-no-op",
+        "read-update.numeric-model.round-trip-admission",
+        "read-update.numeric-model.nested-refusal",
+        "read-update.owned-wildcard.explicit-precedence",
+        "read-update.owned-wildcard.undeclared-type-versions-source"
+      ]
+    },
+    {
+      "id": "sequence",
+      "requirementIds": [
+        "read-update.sequence.order-and-partial-commit",
+        "read-update.sequence.local-bindings",
+        "read-update.sequence.transient-predecessor",
+        "read-update.sequence.expired-creator-binding",
+        "read-update.sequence.retained-failure",
+        "read-update.sequence.member-problem-shape",
+        "read-update.sequence.retry-after-hint",
+        "read-update.sequence.carrier-rejection",
+        "read-update.sequence.contextual-validation",
+        "read-update.sequence.idempotent-retry",
+        "read-update.sequence.disconnect",
+        "read-update.sequence.interleaving",
+        "transactional.sequence.member-transactions",
+        "transactional.sequence.completed-projection",
+        "transactional.sequence.in-flight-projection",
+        "transactional.sequence.expired-projection",
+        "transactional.sequence.pending-creator",
+        "transactional.sequence.failed-creator",
+        "transactional.sequence.member-reauthorization",
+        "transactional.sequence.withheld-allocation",
+        "transactional.sequence.withheld-binding"
+      ]
+    },
+    {
+      "id": "batch-set-idempotency",
+      "requirementIds": [
+        "read-update.idempotency.key-reservation",
+        "read-update.idempotency.claim-atomicity",
+        "read-update.idempotency.concurrent-dependent-retry",
+        "read-update.idempotency.transient-not-retained",
+        "read-update.idempotency.semantic-identity",
+        "read-update.idempotency.principal-isolation",
+        "read-update.idempotency.cross-carrier",
+        "read-update.idempotency.forbidden-retained",
+        "read-update.idempotency.durable-boundary",
+        "read-update.idempotency.crash-mid-sequence",
+        "transactional.batch.atomic-commit",
+        "transactional.batch.local-references",
+        "transactional.batch.rollback",
+        "transactional.batch.label-errors",
+        "transactional.batch.envelope-errors",
+        "transactional.batch.pre-admission-precedence",
+        "transactional.batch.transaction-limits",
+        "transactional.batch.duration-limit",
+        "transactional.batch.deletion-safety",
+        "transactional.batch.owned-link-transitions",
+        "transactional.batch.no-op-entries",
+        "transactional.batch.revision-guard-race",
+        "transactional.batch.aggregate-constraint-race",
+        "transactional.set.mutation",
+        "transactional.set.zero-match",
+        "transactional.set.cardinality",
+        "transactional.set.singleton-targets",
+        "transactional.set.attribution-fanout",
+        "transactional.idempotency.concurrent-join",
+        "transactional.idempotency.conflict",
+        "transactional.idempotency.semantic-identity",
+        "transactional.idempotency.cross-carrier",
+        "transactional.idempotency.key-grammar",
+        "transactional.idempotency.expired-detail",
+        "transactional.idempotency.transient-abort",
+        "transactional.idempotency.failed-retained",
+        "transactional.idempotency.durable-admission",
+        "transactional.idempotency.ownership-fencing",
+        "transactional.idempotency.pending-recovery",
+        "transactional.idempotency.one-key-state",
+        "transactional.idempotency.unresolved-admission",
+        "transactional.idempotency.unresolved-comparison",
+        "transactional.idempotency.retraction-retry"
+      ]
+    },
+    {
+      "id": "retained-snapshot-feed-event",
+      "requirementIds": [
+        "transactional.receipt.readable",
+        "transactional.receipt.pagination",
+        "transactional.receipt.page-expiry",
+        "transactional.receipt.nondisclosure",
+        "transactional.receipt.root",
+        "transactional.receipt.headers",
+        "transactional.receipt.reauthorization",
+        "transactional.receipt.reauthorization-paths",
+        "transactional.receipt.non-record-entries",
+        "transactional.receipt.whole-withheld",
+        "transactional.receipt.pending-202",
+        "transactional.receipt.deleted-identity",
+        "transactional.receipt.owned-link-source",
+        "transactional.receipt.problem-shape",
+        "transactional.receipt.transaction-level-failure",
+        "transactional.receipt.validation-diagnostics",
+        "transactional.receipt.no-transient-failure",
+        "transactional.receipt.expiry-allocated",
+        "transactional.receipt.retention-minimum",
+        "transactional.event.owned-link-delta",
+        "transactional.event.owned-link-update-delta",
+        "transactional.event.owned-link-deleted-identity",
+        "transactional.event.fact-order",
+        "transactional.event.no-op-owned-update",
+        "transactional.event.graph-facts",
+        "transactional.event.self-link",
+        "transactional.event.set-expansion-order",
+        "transactional.event.history-expired",
+        "transactional.event.cursor-after-withheld",
+        "transactional.changefeed.group",
+        "transactional.changefeed.wire-form",
+        "transactional.changefeed.sse",
+        "transactional.changefeed.start-intent",
+        "transactional.changefeed.owned-link-agreement",
+        "transactional.changefeed.consistency-fields",
+        "transactional.changefeed.catch-up-timeout",
+        "transactional.changefeed.replay-window",
+        "transactional.changefeed.sse-reconnect",
+        "transactional.changefeed.projection-advance",
+        "transactional.changefeed.owned-closure",
+        "transactional.snapshot.rendezvous",
+        "transactional.snapshot.closed-projection",
+        "transactional.snapshot.expiry",
+        "transactional.snapshot.erasure-ledger",
+        "transactional.snapshot.manifest-refetch",
+        "transactional.snapshot.handle-refusal",
+        "transactional.receipt.page-restart",
+        "transactional.receipt.validator-omission"
+      ]
+    },
+    {
+      "id": "administration-recovery-companion",
+      "requirementIds": [
+        "transactional.erasure.record-digest",
+        "transactional.erasure.digest-domain",
+        "transactional.erasure.historical-version",
+        "transactional.erasure.live-successor",
+        "transactional.erasure.live-tombstone",
+        "transactional.erasure.owned-link-cascade",
+        "transactional.erasure.event-withholding",
+        "transactional.erasure.graph-facts",
+        "transactional.erasure.receipts",
+        "transactional.erasure.replication-invalidation",
+        "transactional.erasure.restore",
+        "transactional.erasure.view-projection",
+        "transactional.erasure.epoch-unrotated",
+        "transactional.restore.epoch-fence",
+        "transactional.restore.key-namespace",
+        "transactional.erasure.live-publication"
+      ]
+    },
+    {
+      "id": "conditional-role",
+      "requirementIds": [
+        "transactional.erasure.retention-non-propagation",
+        "transactional.erasure.unestablishable-content",
+        "transactional.erasure.reads",
+        "transactional.erasure.disconnect-race",
+        "transactional.erasure.persistent-event-consumer"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "read.discovery.scope-service-desc",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["read.discovery.scope-service-desc"],
+      "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
+    },
+    {
+      "id": "read.discovery.canonical-navigation",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["read.discovery.canonical-navigation"],
+      "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
+    },
+    {
+      "id": "read.discovery.optional-limits",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.resource.bead-record",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["resource-incident", "external-properties"],
+      "remaining": null
+    },
+    {
+      "id": "read.resource.link-record",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["resource-incident"],
+      "remaining": null
+    },
+    {
+      "id": "read.resource.external-endpoint",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["resource-incident", "external-properties", "wildcard"],
+      "remaining": null
+    },
+    {
+      "id": "read.resource.properties-view",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["resource-incident", "external-properties", "wildcard"],
+      "remaining": null
+    },
+    {
+      "id": "read.resource.default-bounded",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["resource-incident"],
+      "remaining": null
+    },
+    {
+      "id": "read.resource.not-found-nondisclosure",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.types.inventory",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.types.descriptor",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.collections.beads",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.collections.links",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.collections.structural-predicates",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.collections.selector",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.collections.pagination-snapshot",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.collections.cursor-errors",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.collections.invalid-query",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.bead-links.directions",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["resource-incident"],
+      "remaining": null
+    },
+    {
+      "id": "read.bead-links.pagination",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.http.get-head",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["read.http.get-head"],
+      "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
+    },
+    {
+      "id": "read.http.method-405",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["read.http.method-405"],
+      "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
+    },
+    {
+      "id": "read.http.problem-table",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.http.internal-fault",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.http.cache-cors",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["read.http.cache-cors"],
+      "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
+    },
+    {
+      "id": "read.http.raw-request-targets",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.scope.restore-identity",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.alias.resolution",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["alias", "mutation-uniqueness"],
+      "remaining": "Bare GET/HEAD/repoint and owner-observed unknown404; receiving query/fragment404 and optional unadvertised-alias deployment not executed in this configuration."
+    },
+    {
+      "id": "read.alias.absent",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["alias", "mutation-uniqueness"],
+      "remaining": "Bare GET/HEAD/repoint and owner-observed unknown404; receiving query/fragment404 and optional unadvertised-alias deployment not executed in this configuration."
+    },
+    {
+      "id": "read.disclosure.gone",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.disclosure.gate",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.owned.closure",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.attribution.carried",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.attribution.link",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.owned-wildcard.declaration",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["wildcard"],
+      "remaining": "Valid mixed/only descriptors, whole/pertype max/noeffect and full inline/current records; invalid descriptor inputs/hidden policy closure not supplied by this all-visible fixture."
+    },
+    {
+      "id": "read.owned-wildcard.max-required",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["wildcard"],
+      "remaining": "Valid mixed/only descriptors, whole/pertype max/noeffect and full inline/current records; invalid descriptor inputs/hidden policy closure not supplied by this all-visible fixture."
+    },
+    {
+      "id": "read.owned-wildcard.explicit-max-bounded",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.owned-wildcard.present-entries",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["wildcard"],
+      "remaining": null
+    },
+    {
+      "id": "read.owned-wildcard.closure",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["wildcard"],
+      "remaining": "Valid mixed/only descriptors, whole/pertype max/noeffect and full inline/current records; invalid descriptor inputs/hidden policy closure not supplied by this all-visible fixture."
+    },
+    {
+      "id": "read.numeric-model.declared-token-model",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read.http.accept-negotiation",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["read.http.accept-negotiation"],
+      "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
+    },
+    {
+      "id": "read.http.conditional-reads",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["read.http.conditional-reads"],
+      "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
+    },
+    {
+      "id": "read.http.head-conditional-parity",
+      "bundle": "read-core",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["read.http.head-conditional-parity"],
+      "remaining": "Only authored finite native actions; full selected clauses require reconciliation, not automatic whole-row credit."
+    },
+    {
+      "id": "read-update.discovery.aliases",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.create-bead",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.update-bead",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.document-patch-merge-replace",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.document-patch-atomicity",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.document-patch-validation",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.delete-bead",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.incident-links-nondisclosure",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.create-link",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.update-link",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.delete-link",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.owned-link-source-revision",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["wildcard"],
+      "remaining": "Actual shared operation semantics through TXbatch; ordinary owned singleton receiving path is not executed by this carrier."
+    },
+    {
+      "id": "read-update.singleton.owned-link-no-op",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["wildcard"],
+      "remaining": "Actual shared operation semantics through TXbatch; ordinary owned singleton receiving path is not executed by this carrier."
+    },
+    {
+      "id": "read-update.singleton.attribution",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.expected-revision",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.expected-revision-race",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.hidden-subject",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.idempotency-key-required",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["key-http-fields", "key-sequence-members"],
+      "remaining": null
+    },
+    {
+      "id": "read-update.singleton.unauthenticated",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["mutation-anonymous"],
+      "remaining": null
+    },
+    {
+      "id": "read-update.singleton.idempotency-conflict",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.unsupported-media-type",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.singleton.method-405",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["mutation-methods"],
+      "remaining": null
+    },
+    {
+      "id": "read-update.singleton.no-local-bindings",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.put-creates",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.put-repoints",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.delete-releases",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.uniqueness-invariant",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.link-coexistence",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.allocation-avoids-aliases",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.non-canonical-target",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.unknown-subject",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.carrier-syntax",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.authorization",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.forbidden",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.no-version-minted",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.sequence-binding",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.retained-without-reauthorization",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.reference-resolution",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.alias.reference-idempotency",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.order-and-partial-commit",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.local-bindings",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.transient-predecessor",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.expired-creator-binding",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.retained-failure",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.member-problem-shape",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.retry-after-hint",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.carrier-rejection",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.contextual-validation",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.idempotent-retry",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.disconnect",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.sequence.interleaving",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.idempotency.key-reservation",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.idempotency.claim-atomicity",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.idempotency.concurrent-dependent-retry",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.idempotency.transient-not-retained",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.idempotency.semantic-identity",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.idempotency.principal-isolation",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.idempotency.cross-carrier",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.idempotency.forbidden-retained",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.idempotency.durable-boundary",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.idempotency.crash-mid-sequence",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.problem.table",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.validation.type-contract",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.validation.diagnostics",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.validation.identity-taken",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["mutation-uniqueness"],
+      "remaining": "Historical deleted identity alias collision plus livealias collision/release, not hidden-resource creation policy variants."
+    },
+    {
+      "id": "read-update.validation.aggregate-constraint",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.http.command-minimum-fields",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.http.request-too-large",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.http.cache-no-store",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.http.cors-idempotency-key",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.discovery.document",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.discovery.operation-directory",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["mutation-methods", "mutation-anonymous", "mutation-uniqueness"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.discovery.limits",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.discovery.no-idempotency-retention",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.batch.atomic-commit",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["batch-labels", "batch-rollback-noop"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.batch.local-references",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["batch-labels"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.batch.rollback",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["batch-rollback-noop"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.batch.label-errors",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.batch.envelope-errors",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.batch.pre-admission-precedence",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.batch.transaction-limits",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.batch.duration-limit",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.batch.deletion-safety",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.batch.owned-link-transitions",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.batch.no-op-entries",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["batch-rollback-noop"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.batch.revision-guard-race",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.batch.aggregate-constraint-race",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.set.mutation",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["batch-cardinality", "batch-rollback-noop", "receipt-pages"],
+      "remaining": "Actual updateWhere/cardinality/postimages/matched facts; omitted selected set variants/deletion and conditional attribution branches remain explicit."
+    },
+    {
+      "id": "transactional.set.zero-match",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["batch-cardinality", "batch-rollback-noop", "receipt-pages"],
+      "remaining": "Actual updateWhere/cardinality/postimages/matched facts; omitted selected set variants/deletion and conditional attribution branches remain explicit."
+    },
+    {
+      "id": "transactional.set.cardinality",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["batch-cardinality"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.set.singleton-targets",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.set.attribution-fanout",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["batch-cardinality", "batch-rollback-noop", "receipt-pages"],
+      "remaining": "Actual updateWhere/cardinality/postimages/matched facts; omitted selected set variants/deletion and conditional attribution branches remain explicit."
+    },
+    {
+      "id": "transactional.singleton.receipt",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["mutation-anonymous", "mutation-uniqueness"],
+      "remaining": "Actual create/delete/putAlias/deleteAlias and precise receipts; remaining singleton shapes not all executed here."
+    },
+    {
+      "id": "transactional.singleton.semantics",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["mutation-anonymous", "mutation-uniqueness"],
+      "remaining": "Actual create/delete/putAlias/deleteAlias and precise receipts; remaining singleton shapes not all executed here."
+    },
+    {
+      "id": "transactional.receipt.readable",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["receipt-pages"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.receipt.pagination",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["receipt-pages"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.receipt.page-expiry",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.nondisclosure",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["receipt-pages"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.receipt.root",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.headers",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["receipt-pages"],
+      "remaining": "Same-view later current headers versus old body; replacement Authorization View/minimum semantics not selected here."
+    },
+    {
+      "id": "transactional.receipt.reauthorization",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": "Erased-lineage identity permission subbranch only.",
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.reauthorization-paths",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": "Erased-lineage identity permission subbranch only.",
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.non-record-entries",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.whole-withheld",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.pending-202",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.deleted-identity",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["wildcard"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.receipt.owned-link-source",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["wildcard"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.receipt.problem-shape",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.transaction-level-failure",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.validation-diagnostics",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.no-transient-failure",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.expiry-allocated",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.retention-minimum",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.concurrent-join",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.conflict",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.semantic-identity",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.cross-carrier",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.key-grammar",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["key-http-fields", "key-sequence-members"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.idempotency.expired-detail",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.transient-abort",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.failed-retained",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["batch-rollback-noop"],
+      "remaining": "Same failed receipt retry after rolled-back batch; other retained failures/crosscarrier boundaries not generalized."
+    },
+    {
+      "id": "transactional.idempotency.durable-admission",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.ownership-fencing",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.pending-recovery",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.one-key-state",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.sequence.member-transactions",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.sequence.completed-projection",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": "Erased-lineage identity permission subbranch only.",
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.sequence.in-flight-projection",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.sequence.expired-projection",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.sequence.pending-creator",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.sequence.failed-creator",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.sequence.member-reauthorization",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.event.owned-link-delta",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.event.owned-link-update-delta",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.event.owned-link-deleted-identity",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.event.fact-order",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.event.no-op-owned-update",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.event.graph-facts",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.event.self-link",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.event.set-expansion-order",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.event.history-expired",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.event.cursor-after-withheld",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.changefeed.group",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["snapshot-rendezvous"],
+      "remaining": "Actual67baseline, full32+2/32+1, one later pos4 exclusive full3postimage group; only IDs actually in canonical selection are retained below."
+    },
+    {
+      "id": "transactional.changefeed.wire-form",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.changefeed.sse",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.changefeed.start-intent",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.changefeed.owned-link-agreement",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.changefeed.consistency-fields",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.changefeed.catch-up-timeout",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.changefeed.replay-window",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.changefeed.sse-reconnect",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.changefeed.projection-advance",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.changefeed.owned-closure",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.snapshot.rendezvous",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["snapshot-rendezvous"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.snapshot.closed-projection",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["snapshot-rendezvous"],
+      "remaining": "Actual67baseline, full32+2/32+1, one later pos4 exclusive full3postimage group; only IDs actually in canonical selection are retained below."
+    },
+    {
+      "id": "transactional.snapshot.expiry",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.snapshot.erasure-ledger",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.record-digest",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.digest-domain",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.historical-version",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.live-successor",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.live-tombstone",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.owned-link-cascade",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.event-withholding",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.graph-facts",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.receipts",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": "Erased-lineage identity permission subbranch only.",
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.replication-invalidation",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.retention-non-propagation",
+      "bundle": "conditional-role",
+      "conditionalRole": "Longer-retaining downstream replica; not configured/claimed. Authority retention is not erasure.",
+      "pendingSubbranch": null,
+      "implementationScope": "conditional-role-not-selected",
+      "caseRefs": [],
+      "remaining": "Longer-retaining downstream replica; not configured/claimed. Authority retention is not erasure."
+    },
+    {
+      "id": "transactional.erasure.restore",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.unestablishable-content",
+      "bundle": "conditional-role",
+      "conditionalRole": "Retaining replica/cache/importer uncertain-copy role; not configured/claimed. Authority restore duties retained separately.",
+      "pendingSubbranch": null,
+      "implementationScope": "conditional-role-not-selected",
+      "caseRefs": [],
+      "remaining": "Retaining replica/cache/importer uncertain-copy role; not configured/claimed. Authority restore duties retained separately."
+    },
+    {
+      "id": "transactional.erasure.view-projection",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.reads",
+      "bundle": "conditional-role",
+      "conditionalRole": "Conditional resource-erased problem if emitted to a genuinely authorized retained-history caller. Positive identity permission unresolved; no blanket authority erasure waiver.",
+      "pendingSubbranch": null,
+      "implementationScope": "conditional-role-not-selected",
+      "caseRefs": [],
+      "remaining": "Conditional resource-erased problem if emitted to a genuinely authorized retained-history caller. Positive identity permission unresolved; no blanket authority erasure waiver."
+    },
+    {
+      "id": "transactional.erasure.epoch-unrotated",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.http.status-matrix",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.http.method-405",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["mutation-methods"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.http.problem-table",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.http.problem-contexts",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.http.internal-fault",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.http.disconnect-admitted",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.http.timestamps",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.http.ijson-strings-objects",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.http.token-profile",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.restore.epoch-fence",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.restore.key-namespace",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.alias.receipt",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.alias.locator-only",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.alias.no-batch",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.sequence.withheld-allocation",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.sequence.withheld-binding",
+      "bundle": "sequence",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.live-publication",
+      "bundle": "administration-recovery-companion",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.disconnect-race",
+      "bundle": "conditional-role",
+      "conditionalRole": "Persistent client atomic apply/durable-checkpoint role; not fabricated by server HTTP observation.",
+      "pendingSubbranch": null,
+      "implementationScope": "conditional-role-not-selected",
+      "caseRefs": [],
+      "remaining": "Persistent client atomic apply/durable-checkpoint role; not fabricated by server HTTP observation."
+    },
+    {
+      "id": "transactional.idempotency.unresolved-admission",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.unresolved-comparison",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.idempotency.retraction-retry",
+      "bundle": "batch-set-idempotency",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.erasure.persistent-event-consumer",
+      "bundle": "conditional-role",
+      "conditionalRole": "Persistent protocol-backed Event consumer; no such configured consumer supplied.",
+      "pendingSubbranch": null,
+      "implementationScope": "conditional-role-not-selected",
+      "caseRefs": [],
+      "remaining": "Persistent protocol-backed Event consumer; no such configured consumer supplied."
+    },
+    {
+      "id": "transactional.snapshot.manifest-refetch",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "partial",
+      "caseRefs": ["snapshot-rendezvous"],
+      "remaining": "Actual67baseline, full32+2/32+1, one later pos4 exclusive full3postimage group; only IDs actually in canonical selection are retained below."
+    },
+    {
+      "id": "transactional.snapshot.handle-refusal",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": "Foreign-view plus expired handle collision only; other branches continue.",
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.page-restart",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["receipt-pages"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.http.accept-refusal",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.receipt.validator-omission",
+      "bundle": "retained-snapshot-feed-event",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "complete-selected-predicate-proposed",
+      "caseRefs": ["receipt-pages"],
+      "remaining": null
+    },
+    {
+      "id": "transactional.http.finite-validator-omission",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.http.conditional-reads",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "transactional.http.head-parity",
+      "bundle": "direct-discovery-http",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.numeric-model.same-value-no-op",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.numeric-model.round-trip-admission",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.numeric-model.nested-refusal",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.owned-wildcard.explicit-precedence",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    },
+    {
+      "id": "read-update.owned-wildcard.undeclared-type-versions-source",
+      "bundle": "alias-owned-numeric",
+      "conditionalRole": null,
+      "pendingSubbranch": null,
+      "implementationScope": "not-implemented-in-this-tranche",
+      "caseRefs": [],
+      "remaining": "No assertion-carrier credit assigned from source presence, old standalone passes or a catalog title."
+    }
+  ],
+  "residualRule": "Each251ID occurs exactly once in rows and exactly one responsibility bundle; case references may support multiple predicates. Unimplemented remains honest. Separate management capability is not ordinary configuration identity.",
+  "pendingQuestions": [
+    "erasedidentity permission intersects retained representation only",
+    "foreignview plus expiredSnapshot collision only"
+  ],
+  "originalCaps": {
+    "eachManifestBytes": 1048576,
+    "nodes": 100000,
+    "depth": 128
+  }
+}

@@ -1,0 +1,998 @@
+/** Replacement selected-configuration carrier. No protocol/profile award is made here. */
+import { execFileSync } from "node:child_process";
+import { createServer } from "node:http";
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { inspect } from "node:util";
+import {
+  createJsonSchemaValidator,
+  createRawHttpExchangeExecutor,
+  createRawHttpScenarioTarget,
+  type ExactHttpModeOptions,
+  type RawHttpDialRoute,
+  type ScenarioActionExecutor,
+  runConformanceMatrix,
+} from "@bdp/conformance";
+import {
+  assertSameServedProfileConfiguration,
+  bindServedProfileConfiguration,
+  createReadUpdateArtifactSet,
+  loadProfileContractSelection,
+  planProfileExecution,
+} from "@bdp/conformance/testing";
+import type { TypeDescriptor } from "@bdp/protocol";
+import { expect, it } from "vitest";
+import { installedContractsDigest } from "../test-support/installed-contract-identity.js";
+import {
+  exactNativeReadAdapter,
+  seedInstalledReadFixture,
+} from "../test-support/installed-read-fixture.js";
+import {
+  type ArtifactEvidenceWriter,
+  type ArtifactObservation,
+  artifactRoutes,
+  associateArtifactObservations,
+  createArtifactEvidenceWriter,
+} from "../test-support/read-update-artifact-execution.js";
+import { createCumulativeRUClient } from "../test-support/read-update-cumulative-product-client.js";
+import {
+  cumulativeRUConfiguration,
+  type RUCampaignCredentials,
+} from "../test-support/read-update-cumulative-product-configuration.js";
+import { cumulativeRUObservationSchema } from "../test-support/read-update-cumulative-product-schema.js";
+
+const root = fileURLToPath(new URL("../../../", import.meta.url));
+const entry = process.env.BDP_RU_CUMULATIVE_INSTALLED_ENTRY;
+const build = process.env.BDP_RU_CUMULATIVE_BUILD;
+const evidenceDirectory = process.env.BDP_RU_CUMULATIVE_EVIDENCE;
+const credentialFile = process.env.BDP_RU_CUMULATIVE_CREDENTIALS;
+const targetedFile = process.env.BDP_RU_CUMULATIVE_TARGETED_IDS;
+const declaredSource = process.env.BDP_RU_CUMULATIVE_SOURCE;
+const scope = "https://reference.invalid/acme/";
+const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+const source = (name: string) => ({ bytes: readFileSync(path.join(root, name)) });
+const base = "apps/bdptest/test-support/read-update-cumulative-product-";
+const helpers = await import(
+  new URL("../../../scripts/installed-reference-observation.mjs", import.meta.url).href
+);
+type Serving = Awaited<ReturnType<typeof helpers.launchInstalledReference>>;
+type Binding = ReturnType<typeof bindServedProfileConfiguration>;
+type Report = ArtifactObservation & {
+  observations: unknown[];
+  setupObservations: unknown[];
+  nativeReadObservations: unknown[];
+  processes: Record<string, unknown>[];
+};
+function requireCampaignSource(value: string | undefined, observed: string, trackedDirty: string) {
+  if (!value || !/^[a-f0-9]{40}$/.test(value))
+    throw Error("explicit exact RU campaign source commit required");
+  if (value !== observed || trackedDirty !== "")
+    throw Error("RU campaign source does not match clean selected checkout");
+  return value;
+}
+function currentCumulativeClient(
+  mode: ExactHttpModeOptions,
+  currentRoute: () => RawHttpDialRoute | undefined,
+  observe: (value: unknown) => void,
+): ScenarioActionExecutor {
+  return async (execution) => {
+    const route = currentRoute();
+    if (!route) throw Error("current installed child dial route unavailable");
+    return createCumulativeRUClient(mode, route, observe)(execution);
+  };
+}
+function recordCumulativeSession(
+  sessions: Record<string, unknown>[],
+  observations: unknown[],
+  scenario: string,
+  ready: Record<string, unknown>,
+  reopening: boolean,
+) {
+  if (reopening) {
+    observations.push({ scenario, operation: "normal-reopen-ready", ready });
+  } else {
+    sessions.push({ scenario, ...ready });
+  }
+}
+function artifactSet() {
+  return createReadUpdateArtifactSet(loadProfileContractSelection("read-update"), {
+    index: source(`${base}index.json`),
+    fixture: source(`${base}fixture.json`),
+    coverage: source(`${base}coverage.json`),
+    manifests: {
+      "matrices/read-update-cumulative-product-baseline.json": source(`${base}baseline.json`),
+      "matrices/read-update-cumulative-product-continuation.json": source(
+        `${base}continuation.json`,
+      ),
+    },
+  });
+}
+
+it.skipIf(!entry)(
+  "executes the new two-shard fixed-configuration packed RU carrier",
+  async () => {
+    if (!entry || !build || !evidenceDirectory || !credentialFile)
+      throw Error("explicit packed carrier inputs required");
+    const sourceCommit = requireCampaignSource(
+      declaredSource,
+      execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+      execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
+        cwd: root,
+        encoding: "utf8",
+      }).trim(),
+    );
+    const credentials = JSON.parse(readFileSync(credentialFile, "utf8")) as RUCampaignCredentials;
+    const secrets = Object.values(credentials);
+    if (
+      Object.keys(credentials).sort().join() !== "operator,other,restricted" ||
+      secrets.some((secret) => typeof secret !== "string" || secret.length < 32) ||
+      new Set(secrets).size !== 3
+    )
+      throw Error("three distinct owned campaign credentials required");
+    const started = performance.now();
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(Error("RU aggregate 90000ms budget exceeded")),
+      90000,
+    );
+    const failures: unknown[] = [];
+    let evidence: ArtifactEvidenceWriter | undefined;
+    const reports: Report[] = [];
+    const moduleBindings: { name: string; bytes: number; sha256: string }[] = [];
+    let completed = false;
+    try {
+      const installed = path.dirname(entry);
+      for (const name of readdirSync(build)
+        .filter((name) => name.endsWith(".js"))
+        .sort()) {
+        const actual = readFileSync(path.join(installed, name));
+        expect(actual.equals(readFileSync(path.join(build, name))), name).toBe(true);
+        moduleBindings.push({ name, bytes: actual.length, sha256: sha(actual) });
+      }
+      const schema = readFileSync(
+        path.join(installed, "../../protocol/schemas/bdp-v0.schema.json"),
+      );
+      expect(schema.equals(readFileSync(path.join(root, "schemas/bdp-v0.schema.json")))).toBe(true);
+      moduleBindings.push({
+        name: "@bdp/protocol/schemas/bdp-v0.schema.json",
+        bytes: schema.length,
+        sha256: sha(schema),
+      });
+      const runtime = (await import(
+        pathToFileURL(path.join(installed, "installed-reference-configuration.js")).href
+      )) as {
+        referenceTypeArtifacts(scope: string): TypeDescriptor[];
+        captureInstalledReferenceConfiguration(config: unknown): {
+          identity: string;
+          artifactIdentity: string;
+          policyIdentity: string;
+          authenticationIdentity: string;
+        };
+      };
+      const descriptors = runtime.referenceTypeArtifacts(scope);
+      const set = artifactSet();
+      const targeted: string[] | undefined = targetedFile
+        ? JSON.parse(readFileSync(targetedFile, "utf8"))
+        : undefined;
+      if (
+        targeted &&
+        (!Array.isArray(targeted) ||
+          targeted.length === 0 ||
+          new Set(targeted).size !== targeted.length ||
+          targeted.some(
+            (id) =>
+              typeof id !== "string" || !set.shards.some((shard) => shard.scenarioIds.includes(id)),
+          ))
+      )
+        throw Error("invalid explicit targeted diagnostic selection");
+      evidence = createArtifactEvidenceWriter(
+        set,
+        sourceCommit,
+        path.join(evidenceDirectory, "carrier.json"),
+        secrets,
+      );
+      const validator = createJsonSchemaValidator(cumulativeRUObservationSchema);
+      const timing: Record<string, unknown>[] = [];
+      for (let index = 0; index < set.shards.length; index++) {
+        controller.signal.throwIfAborted();
+        const shard = set.shards[index]!;
+        const selectedIds = targeted
+          ? shard.scenarioIds.filter((id) => targeted.includes(id))
+          : [...shard.scenarioIds];
+        if (selectedIds.length === 0) continue;
+        const begin = performance.now();
+        const remaining = Math.max(0, 90000 - (begin - started));
+        evidence.start(index);
+        evidence.timed(index, {
+          budgetRemainingMsAtStart: remaining,
+          elapsedMs: begin - started,
+          outcome: "running",
+        });
+        const directory = mkdtempSync(path.join(tmpdir(), "bdp-ru-cumulative-carrier-"));
+        const processes: Record<string, unknown>[] = [];
+        const observations: unknown[] = [],
+          setupObservations: unknown[] = [],
+          nativeReadObservations: unknown[] = [];
+        const errors: unknown[] = [];
+        const closers: (() => Promise<void>)[] = [];
+        let report: Report | undefined;
+        let current = "bootstrap";
+        let target: ReturnType<typeof createRawHttpScenarioTarget> | undefined;
+        try {
+          let dialRoute: RawHttpDialRoute | undefined;
+          let currentReady: Record<string, unknown> | undefined;
+          const configuration = (name: string) =>
+            cumulativeRUConfiguration(
+              {
+                scope,
+                directory: path.join(directory, name),
+                create: true,
+                listener: { host: "127.0.0.1", port: 0 },
+              },
+              descriptors,
+              credentials,
+            );
+          const expected = runtime.captureInstalledReferenceConfiguration(
+            configuration("bootstrap"),
+          );
+          const mode: ExactHttpModeOptions = {
+            scope,
+            profile: "read-update",
+            routes: artifactRoutes(shard.bundle, scope),
+            // Only the genuine request-size refusal probes exceed the installed65536 bound.
+            maximumRequestBodyBytes: 131072,
+            maximumRequestHeaderBytes: 16384,
+            defaultCredentialRef: "operator",
+            credentialHandles: [
+              ...["operator", "restricted", "other"].map((id) => ({
+                id,
+                headerNames: ["authorization"],
+              })),
+              { id: "anonymous", headerNames: [] },
+              { id: "unknown", headerNames: ["authorization"] },
+            ],
+            resolveCredentials: ({ credentialRef }) => {
+              if (credentialRef === "anonymous") return {};
+              if (credentialRef === "unknown")
+                return { authorization: "Bearer deliberately-unrecognized-ru-credential" };
+              if (!Object.hasOwn(credentials, credentialRef))
+                throw Error("unselected credential handle");
+              return {
+                authorization: `Bearer ${credentials[credentialRef as keyof RUCampaignCredentials]}`,
+              };
+            },
+          };
+          function bind(ready: Record<string, unknown>): Binding {
+            expect(ready).toMatchObject({
+              scope,
+              profile: "read-update",
+              history: false,
+              configurationIdentity: expected.identity,
+              artifactIdentity: expected.artifactIdentity,
+              policyIdentity: expected.policyIdentity,
+              authenticationIdentity: expected.authenticationIdentity,
+            });
+            return bindServedProfileConfiguration({
+              scope,
+              profile: "read-update",
+              history: false,
+              sourceCommit,
+              installedPayloadDigest: ready.payloadIdentity as string,
+              installedContractsDigest: installedContractsDigest(ready.artifactIdentity),
+              policyDigest: ready.policyIdentity as string,
+              authenticationDigest: ready.authenticationIdentity as string,
+              fixture: source(`${base}fixture.json`),
+            });
+          }
+          function owned(child: Serving, scenario: string) {
+            evidence!.acquired(index);
+            const terminal: Record<string, unknown> = {
+              scenario,
+              pid: child.child.pid,
+              closeObserved: false,
+            };
+            processes.push(terminal);
+            const closed = new Promise<void>((resolve) =>
+              child.child.once("close", (code: number | null, signal: string | null) => {
+                Object.assign(terminal, {
+                  code,
+                  signal,
+                  closeObserved: true,
+                  stdoutEOF: child.child.stdout?.readableEnded,
+                  stderrEOF: child.child.stderr?.readableEnded,
+                });
+                resolve();
+              }),
+            );
+            let finishing: Promise<void> | undefined;
+            const finish = () =>
+              (finishing ??= (async () => {
+                const errors: unknown[] = [];
+                try {
+                  await child.close();
+                } catch (error) {
+                  errors.push(error);
+                  if (child.child.exitCode === null && child.child.signalCode === null) {
+                    terminal.forcedCleanupSignal = "SIGKILL";
+                    child.child.kill("SIGKILL");
+                  }
+                }
+                try {
+                  await Promise.race([
+                    closed,
+                    new Promise<never>((_resolve, reject) => {
+                      const timer = setTimeout(
+                        () => reject(Error("owned child close deadline")),
+                        10000,
+                      );
+                      closed.finally(() => clearTimeout(timer)).catch(() => undefined);
+                    }),
+                  ]);
+                } catch (error) {
+                  errors.push(error);
+                }
+                if (
+                  terminal.closeObserved !== true ||
+                  terminal.stdoutEOF !== true ||
+                  terminal.stderrEOF !== true
+                )
+                  errors.push(Error("owned installed child did not fully close"));
+                if (terminal.code !== 0 || terminal.signal !== null)
+                  errors.push(Error("unexpected installed terminal result"));
+                if (errors.length)
+                  throw new AggregateError(errors, "installed child cleanup failed");
+              })());
+            closers.push(finish);
+            return finish;
+          }
+          const bootstrap = await helpers.launchInstalledReference(
+            entry,
+            configuration("bootstrap"),
+          );
+          const closeBootstrap = owned(bootstrap, "bootstrap");
+          let baseline!: Binding;
+          const baselineReceipt = bootstrap.ready as Record<string, unknown>;
+          const bootstrapErrors: unknown[] = [];
+          try {
+            baseline = bind(baselineReceipt);
+            if (reports[0])
+              assertSameServedProfileConfiguration(reports[0].configuration, baseline);
+          } catch (error) {
+            bootstrapErrors.push(error);
+          }
+          try {
+            await closeBootstrap();
+          } catch (error) {
+            bootstrapErrors.push(error);
+          }
+          if (bootstrapErrors.length) throw new AggregateError(bootstrapErrors, "bootstrap failed");
+          const plan = planProfileExecution(loadProfileContractSelection("read-update"), baseline, {
+            configuration: baseline,
+            manifest: source(`${base}${index === 0 ? "baseline" : "continuation"}.json`),
+          });
+          const sessions: Record<string, unknown>[] = [];
+          let restartCurrent: (() => Promise<unknown>) | undefined;
+          let reopening = false,
+            reopens = 0;
+
+          target = createRawHttpScenarioTarget(
+            async (scenario, _scope, _seed, fixture, signal) => {
+              current = scenario.id;
+              dialRoute = undefined;
+              currentReady = undefined;
+              signal.throwIfAborted();
+              const child = await helpers.launchInstalledReference(entry, {
+                ...configuration(scenario.id),
+                create: !reopening,
+              });
+              const preparedRoute: RawHttpDialRoute = child.dialRoute;
+              dialRoute = preparedRoute;
+              currentReady = child.ready;
+              const close = owned(child, reopening ? `${scenario.id}@reopen` : scenario.id);
+              if (!reopening) reopens = 0;
+              restartCurrent = async () => {
+                if (++reopens !== 1) throw Error("only one declared normal reopen per scenario");
+                controller.signal.throwIfAborted();
+                // The raw target snapshots its route at prepare. Reprepare the
+                // SAME target after cleanup so both HTTP actions and the client
+                // use the newly observed port; never carry a closed listener.
+                dialRoute = undefined;
+                currentReady = undefined;
+                await target!.harness.cleanup!(scenario, scope, controller.signal);
+                reopening = true;
+                try {
+                  await target!.harness.prepare!(
+                    scenario,
+                    scope,
+                    _seed,
+                    fixture,
+                    controller.signal,
+                  );
+                } finally {
+                  reopening = false;
+                }
+                const actual = {
+                  scenario: scenario.id,
+                  operation: "normal-close-and-reopen",
+                  ready: currentReady,
+                };
+                observations.push(actual);
+                return actual;
+              };
+              try {
+                assertSameServedProfileConfiguration(baseline, bind(child.ready));
+                recordCumulativeSession(
+                  sessions,
+                  observations,
+                  scenario.id,
+                  child.ready,
+                  reopening,
+                );
+                if (
+                  !reopening &&
+                  Array.isArray(fixture.readSeedScenarios) &&
+                  fixture.readSeedScenarios.includes(scenario.id)
+                )
+                  await seedInstalledReadFixture(
+                    fixture,
+                    scope,
+                    createRawHttpExchangeExecutor(preparedRoute, { exactMode: mode }),
+                    signal,
+                    (observation) => setupObservations.push({ scenario: current, observation }),
+                  );
+                return {
+                  capabilities: fixture.capabilities,
+                  bindings: fixture.bindings,
+                  dialRoute: preparedRoute,
+                  close: () => {
+                    if (dialRoute === preparedRoute) {
+                      dialRoute = undefined;
+                      currentReady = undefined;
+                    }
+                    return close();
+                  },
+                };
+              } catch (error) {
+                try {
+                  await close();
+                } catch (cleanup) {
+                  throw new AggregateError([error, cleanup], "scenario setup and cleanup failed", {
+                    cause: error,
+                  });
+                }
+                throw error;
+              }
+            },
+            { exactMode: mode, requestTimeoutMs: 5000 },
+          );
+          if (!target.exactConfiguration) throw Error("actual exact configuration missing");
+          const executeClient = currentCumulativeClient(
+            mode,
+            () => dialRoute,
+            (observation) => observations.push({ scenario: current, observation }),
+          );
+          const result = await runConformanceMatrix({
+            scope,
+            profile: "read-update",
+            seed: 0,
+            signal: controller.signal,
+            artifactBundle: shard.bundle,
+            scenarioSelection: selectedIds,
+            execute: exactNativeReadAdapter(target.execute, (observation) =>
+              nativeReadObservations.push({ scenario: current, observation }),
+            ),
+            exactExecution: { execute: target.execute, configuration: target.exactConfiguration },
+            actionExecutor: async (execution) => {
+              if (
+                execution.family === "lifecycle" &&
+                execution.operation === "cumulative.restart"
+              ) {
+                if (
+                  execution.scope !== scope ||
+                  execution.input === null ||
+                  typeof execution.input !== "object" ||
+                  Array.isArray(execution.input) ||
+                  Object.keys(execution.input).length !== 0 ||
+                  !restartCurrent
+                )
+                  throw Error("unbound ordinary reopen request");
+                return restartCurrent();
+              }
+              return executeClient(execution);
+            },
+            harness: target.harness,
+            schemaValidator: validator,
+            declaredTargetLabel: "packed-fixed-configuration-cumulative-ru-candidate",
+          });
+          report = {
+            sourceCommit,
+            configuration: baseline,
+            baselineReceipt,
+            sessions,
+            result,
+            exactConfiguration: target.exactConfiguration,
+            plannedManifestDigest: plan.manifestDigest,
+            catalogSources: loadProfileContractSelection("read-update").catalogDigests,
+            plannedIds: selectedIds,
+            requiredIds: set.requirements.map((row) => row.id),
+            cleanupComplete: false,
+            observations,
+            setupObservations,
+            nativeReadObservations,
+            processes,
+          };
+          evidence.returned(index, report);
+        } catch (error) {
+          errors.push(error);
+        }
+        try {
+          await target?.close();
+        } catch (error) {
+          errors.push(error);
+        }
+        for (const close of closers) {
+          try {
+            await close();
+          } catch (error) {
+            errors.push(error);
+          }
+        }
+        try {
+          rmSync(directory, { recursive: true, force: true });
+        } catch (error) {
+          errors.push(error);
+        }
+        const cleanupComplete =
+          !existsSync(directory) &&
+          processes.every(
+            (row) => row.closeObserved === true && row.stdoutEOF === true && row.stderrEOF === true,
+          ) &&
+          (!report || report.result.scenarios.every((row) => row.cleanupError === undefined));
+        if (report) {
+          report = { ...report, cleanupComplete };
+          evidence.returned(index, report);
+          reports.push(report);
+        }
+        evidence.cleaned(index, cleanupComplete ? "complete" : "failed");
+        const passed =
+          errors.length === 0 &&
+          !!report &&
+          report.result.scenarios.every((row) => row.state === "pass");
+        evidence.timed(index, {
+          budgetRemainingMsAtStart: remaining,
+          elapsedMs: performance.now() - started,
+          outcome: controller.signal.aborted ? "aborted" : passed ? "pass" : "failed",
+        });
+        timing.push({
+          id: shard.id,
+          budgetRemainingMsAtStart: remaining,
+          elapsedMs: performance.now() - begin,
+          passed,
+        });
+        if (errors.length) {
+          evidence.failed(index, controller.signal.aborted);
+          throw new AggregateError(errors, "RU shard execution/cleanup failed");
+        }
+        if (!passed) {
+          evidence.failed(index, controller.signal.aborted);
+          throw Error(`RU shard ${shard.id} did not pass`);
+        }
+      }
+      controller.signal.throwIfAborted();
+      if (!targeted) {
+        const progress = associateArtifactObservations(set, sourceCommit, reports, {
+          credentialHandles: [
+            ...["operator", "restricted", "other"].map((id) => ({
+              id,
+              headerNames: ["authorization"],
+            })),
+            { id: "anonymous", headerNames: [] },
+            { id: "unknown", headerNames: ["authorization"] },
+          ],
+          selectionModes: set.shards.map((shard) => ({
+            id: shard.id,
+            mode: "owned-exact" as const,
+          })),
+        });
+        evidence.succeeded({
+          claimEligible: false,
+          sourceCommit,
+          status: "BOUNDED_INSTALLED_CARRIER_NOT_PROFILE_QUALIFICATION",
+          progress,
+          moduleBindings,
+          timing,
+          aggregateElapsedMs: performance.now() - started,
+          aggregateBudgetMs: 90000,
+          required: set.requirements.length,
+          represented: set.shards.reduce((n, shard) => n + shard.scenarioIds.length, 0),
+          fullClauseReviewStillRequired: true,
+        });
+      } else {
+        writeFileSync(
+          path.join(evidenceDirectory, "targeted-summary.json"),
+          JSON.stringify(
+            {
+              status: "TARGETED_FAILED_OR_UNRUN_REVALIDATION_ONLY",
+              claimEligible: false,
+              targetedFile,
+              requestedIds: targeted,
+              observedIds: reports.flatMap((report) =>
+                report.result.scenarios.map((row) => row.id),
+              ),
+              fullAssociationNotAttempted: true,
+              sourceCommit,
+              elapsedMs: performance.now() - started,
+            },
+            null,
+            2,
+          ) + "\n",
+          { flag: "wx", mode: 0o600 },
+        );
+      }
+      completed = true;
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!completed) {
+      try {
+        evidence?.failedSet();
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    // Persist causes even if qualification result assertions or cleanup fail.
+    const serialized =
+      JSON.stringify(
+        {
+          completed,
+          sourceCommit,
+          moduleBindings,
+          failures: failures.map((error) => inspect(error, { depth: 12 })),
+          elapsedMs: performance.now() - started,
+          aborted: controller.signal.aborted,
+        },
+        null,
+        2,
+      ) + "\n";
+    let redacted = serialized;
+    for (const secret of secrets)
+      redacted = redacted.replaceAll(secret, "[REDACTED-owned-credential]");
+    if (redacted !== serialized)
+      writeFileSync(path.join(evidenceDirectory, "completion.private.json"), serialized, {
+        flag: "wx",
+        mode: 0o600,
+      });
+    writeFileSync(path.join(evidenceDirectory, "completion.json"), redacted, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    if (failures.length) throw new AggregateError(failures, "new RU cumulative carrier failed");
+  },
+  120000,
+);
+
+it("NEW RU carrier source input refuses missing malformed dirty or differently pinned checkout", () => {
+  const selected = "1".repeat(40);
+  expect(requireCampaignSource(selected, selected, "")).toBe(selected);
+  for (const input of [undefined, "HEAD", "1".repeat(39), "A".repeat(40)])
+    expect(() => requireCampaignSource(input, selected, "")).toThrow("explicit exact");
+  expect(() => requireCampaignSource(selected, "2".repeat(40), "")).toThrow("clean selected");
+  expect(() => requireCampaignSource(selected, selected, " M tracked.ts")).toThrow(
+    "clean selected",
+  );
+});
+
+it("NEW RU carrier client and raw target use current prepared listener after clean reprepare", async () => {
+  const errors: unknown[] = [],
+    requests: unknown[] = [],
+    closes: number[] = [];
+  const servers = [1, 2].map((generation) =>
+    createServer((request, response) => {
+      requests.push({ generation, url: request.url, host: request.headers.host });
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ generation }));
+    }),
+  );
+  let target: ReturnType<typeof createRawHttpScenarioTarget> | undefined;
+  let route: RawHttpDialRoute | undefined;
+  let generation = 0;
+  const signal = AbortSignal.timeout(5000),
+    url = scope + "beads/carrier-unit";
+  const mode: ExactHttpModeOptions = {
+    scope,
+    profile: "read-update",
+    routes: [{ method: "GET", url }],
+    maximumRequestHeaderBytes: 16384,
+    maximumRequestBodyBytes: 65536,
+    defaultCredentialRef: "operator",
+    credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
+    resolveCredentials: () => ({ authorization: "Bearer synthetic-carrier-unit" }),
+  };
+  const client = currentCumulativeClient(
+    mode,
+    () => route,
+    () => {},
+  );
+  const execution = {
+    family: "client" as const,
+    operation: "installed.exact-request",
+    scope,
+    bindings: { subject: url },
+    input: { targetBinding: "subject", method: "GET", credentialRef: "operator" },
+    signal,
+  };
+  try {
+    await expect(client(execution)).rejects.toThrow("dial route unavailable");
+    const routes: RawHttpDialRoute[] = [];
+    for (const server of servers) {
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(0, "127.0.0.1", resolve);
+      });
+      const address = server.address();
+      if (!address || typeof address === "string") throw Error("real local test listener absent");
+      routes.push({ transport: "plain", host: "127.0.0.1", port: address.port });
+    }
+    target = createRawHttpScenarioTarget(
+      async () => {
+        const current = generation++,
+          observed = routes[current];
+        if (!observed) throw Error("undeclared unit generation");
+        route = observed;
+        return {
+          capabilities: [],
+          bindings: {},
+          dialRoute: observed,
+          async close() {
+            closes.push(current);
+            route = undefined;
+          },
+        };
+      },
+      { exactMode: mode, requestTimeoutMs: 5000 },
+    );
+    const scenario = {} as Parameters<typeof target.harness.prepare>[0];
+    const fixture = {} as Parameters<typeof target.harness.prepare>[3];
+    for (const expected of [1, 2]) {
+      await target.harness.prepare!(scenario, scope, 0, fixture, signal);
+      const raw = await target.execute({
+        method: "GET",
+        url,
+        signal,
+        credentialRef: "operator",
+        raw: { headerLines: [] },
+      });
+      expect(JSON.parse(raw.bodyText)).toEqual({ generation: expected });
+      expect(await client(execution)).toMatchObject({
+        status: 200,
+        body: { generation: expected },
+      });
+      await target.harness.cleanup!(scenario, scope, signal);
+      await expect(client(execution)).rejects.toThrow("dial route unavailable");
+    }
+    expect(requests).toEqual(
+      [1, 1, 2, 2].map((generation) => ({
+        generation,
+        url: "/acme/beads/carrier-unit",
+        host: "reference.invalid",
+      })),
+    );
+    expect(closes).toEqual([0, 1]);
+  } catch (error) {
+    errors.push(error);
+  } finally {
+    try {
+      await target?.close();
+    } catch (error) {
+      errors.push(error);
+    }
+    for (const server of servers) {
+      try {
+        if (server.listening)
+          await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve())),
+          );
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+  }
+  if (errors.length) throw new AggregateError(errors, "new carrier routing unit failed");
+});
+
+it("NEW RU association collects one initial ready and retains complete reopen ready separately", () => {
+  const sessions: Record<string, unknown>[] = [],
+    observations: unknown[] = [];
+  const initial = { listenUrl: "http://127.0.0.1:10001/", complete: { values: [1, 2] } };
+  const reopened = { listenUrl: "http://127.0.0.1:10002/", complete: { values: [3, 4] } };
+  const before = JSON.stringify({ initial, reopened });
+  recordCumulativeSession(sessions, observations, "read.collections.cursor-errors", initial, false);
+  recordCumulativeSession(sessions, observations, "read.collections.cursor-errors", reopened, true);
+  expect(sessions).toEqual([{ scenario: "read.collections.cursor-errors", ...initial }]);
+  expect(sessions[0]!.complete).toBe(initial.complete);
+  expect(observations).toEqual([
+    {
+      scenario: "read.collections.cursor-errors",
+      operation: "normal-reopen-ready",
+      ready: reopened,
+    },
+  ]);
+  expect((observations[0] as { ready: unknown }).ready).toBe(reopened);
+  expect(JSON.stringify({ initial, reopened })).toBe(before);
+});
+
+it.skipIf(!process.env.BDP_RU_ASSOCIATION_CAPTURE_DIRECTORY)(
+  "NEW RU association preserves initial and reopened ready captures without rerunning scenarios",
+  () => {
+    const captureDirectory = process.env.BDP_RU_ASSOCIATION_CAPTURE_DIRECTORY;
+    const derivedOutput = process.env.BDP_RU_ASSOCIATION_DERIVED_OUTPUT;
+    if (!captureDirectory || !derivedOutput)
+      throw Error("explicit frozen DATA capture/output required");
+    const expected = [
+      {
+        name: "baseline",
+        bytes: 4769485,
+        sha256: "eed9e4db55c782780a1b8e765c83fed8c1b6379381eaa15f539ee7e78edb3905",
+      },
+      {
+        name: "continuation",
+        bytes: 2677606,
+        sha256: "42b6fcde60e3b0c56f92b8040aee092a0efa1759799178d29457daa8a8b6c78e",
+      },
+    ];
+    const original = expected.map((pin) => {
+      const bytes = readFileSync(path.join(captureDirectory, `carrier.json.${pin.name}.json`));
+      expect(bytes.length).toBe(pin.bytes);
+      expect(sha(bytes)).toBe(pin.sha256);
+      return JSON.parse(bytes.toString("utf8")) as Report;
+    });
+    const originalEncoding = original.map((report) => JSON.stringify(report));
+    const options = {
+      credentialHandles: [
+        ...["operator", "restricted", "other"].map((id) => ({
+          id,
+          headerNames: ["authorization"],
+        })),
+        { id: "anonymous", headerNames: [] },
+        { id: "unknown", headerNames: ["authorization"] },
+      ],
+      selectionModes: artifactSet().shards.map((shard) => ({
+        id: shard.id,
+        mode: "owned-exact" as const,
+      })),
+    };
+    // Decoded DATA cannot recover the live factory WeakMap identity. Never mint it.
+    expect(() =>
+      associateArtifactObservations(artifactSet(), original[0]!.sourceCommit, original, options),
+    ).toThrow("factory-bound served configuration required");
+    const derivations = original.map((report) => {
+      const sessions: Record<string, unknown>[] = [],
+        reopenReady: unknown[] = [],
+        seen = new Set<string>();
+      const sessionLocations: {
+        sourceIndex: number;
+        kind: "initial" | "reopen";
+        scenario: string;
+      }[] = [];
+      report.sessions.forEach((ready, sourceIndex) => {
+        if (typeof ready.scenario !== "string") throw Error("captured session scenario missing");
+        const reopening = seen.has(ready.scenario);
+        seen.add(ready.scenario);
+        recordCumulativeSession(sessions, reopenReady, ready.scenario, ready, reopening);
+        sessionLocations.push({
+          sourceIndex,
+          kind: reopening ? "reopen" : "initial",
+          scenario: ready.scenario,
+        });
+      });
+      const retainedReopens = report.observations.filter(
+        (row): row is Record<string, unknown> =>
+          typeof row === "object" &&
+          row !== null &&
+          "operation" in row &&
+          row.operation === "normal-close-and-reopen",
+      );
+      expect(reopenReady.length).toBe(retainedReopens.length);
+      for (const [index, actual] of reopenReady.entries()) {
+        const row = actual as { scenario: string; ready: Record<string, unknown> };
+        const retained = retainedReopens[index]!;
+        expect(row.scenario).toBe(retained.scenario);
+        const ready = retained.ready as Record<string, unknown>;
+        for (const [key, value] of Object.entries(row.ready))
+          if (key !== "scenario") expect(ready[key], key).toEqual(value);
+      }
+      expect(sessions.map((row) => row.scenario)).toEqual(report.plannedIds);
+      return { sessions, reopenReady, sessionLocations };
+    });
+    const derived = original.map((report, index) => ({
+      ...report,
+      sessions: derivations[index]!.sessions,
+      observations: [...report.observations, ...derivations[index]!.reopenReady],
+    }));
+    const set = artifactSet();
+    const associations = derived.map((report, index) => {
+      const shard = set.shards[index]!;
+      expect(report.sourceCommit).toBe("95491151294b9ad7030cbdd2f7c3bacf1beae096");
+      expect(report.configuration.sourceCommit).toBe(report.sourceCommit);
+      expect(report.configuration).toEqual(original[0]!.configuration);
+      expect(report.configuration.fixtureDigest).toBe(set.digests.fixtureDigest);
+      expect(report.configuration.profile).toBe("read-update");
+      expect(report.configuration.history).toBe(false);
+      expect(report.catalogSources).toEqual(set.digests.catalogDigests);
+      expect(report.requiredIds).toEqual(set.requirements.map((row) => row.id));
+      expect(report.plannedIds).toEqual(shard.scenarioIds);
+      expect(report.plannedManifestDigest).toBe(shard.bundle.digests.manifestDigest);
+      expect(report.result.artifacts).toEqual(shard.bundle.digests);
+      expect(report.result.scenarioSelection).toEqual(shard.scenarioIds);
+      expect(report.result.selectedScenarioIds).toEqual(shard.scenarioIds);
+      expect(report.result.scenarios.map((row) => row.id)).toEqual(shard.scenarioIds);
+      expect(report.result.claimEligible).toBe(false);
+      expect(report.result.scenarioFilter).toBeUndefined();
+      expect(report.result.profile).toBe(report.configuration.profile);
+      expect(report.result.scope).toBe(report.configuration.scope);
+      expect(report.result.reportVersion).toBe(4);
+      expect(report.cleanupComplete).toBe(true);
+      for (const row of report.result.scenarios) {
+        expect(row.state, row.id).toBe("pass");
+        expect(row.cleanupError, row.id).toBeUndefined();
+      }
+      expect(report.exactConfiguration.routes).toEqual(
+        artifactRoutes(shard.bundle, report.configuration.scope),
+      );
+      expect(report.exactConfiguration.credentialHandles).toEqual(options.credentialHandles);
+      expect(report.exactConfiguration.maximumRequestHeaderBytes).toBe(16384);
+      expect(report.exactConfiguration.maximumRequestBodyBytes).toBe(131072);
+      // Validate ALL original initial + reopen ready records, not just the reduced association input.
+      for (const ready of [report.baselineReceipt, ...original[index]!.sessions]) {
+        expect(ready.configurationIdentity).toBe(
+          original[0]!.baselineReceipt.configurationIdentity,
+        );
+        expect(ready.scope).toBe(report.configuration.scope);
+        expect(ready.profile).toBe(report.configuration.profile);
+        expect(ready.history).toBe(false);
+        expect(ready.payloadIdentity).toBe(report.configuration.installedPayloadDigest);
+        expect(installedContractsDigest(ready.artifactIdentity)).toBe(
+          report.configuration.installedContractsDigest,
+        );
+        expect(ready.policyIdentity).toBe(report.configuration.policyDigest);
+        expect(ready.authenticationIdentity).toBe(report.configuration.authenticationDigest);
+      }
+      return {
+        shard: shard.id,
+        ids: report.result.scenarios.map((row) => row.id),
+        states: report.result.scenarios.map((row) => row.state),
+        cleanupComplete: report.cleanupComplete,
+      };
+    });
+    expect(associations.flatMap((row) => row.ids)).toHaveLength(104);
+    expect(new Set(associations.flatMap((row) => row.ids)).size).toBe(104);
+    expect(derived.map((report) => report.sessions.length)).toEqual([51, 53]);
+    expect(derivations.map((row) => row.reopenReady.length)).toEqual([0, 2]);
+    expect(original.map((report) => JSON.stringify(report))).toEqual(originalEncoding);
+    expect(derived.every((report, index) => report.result === original[index]!.result)).toBe(true);
+    writeFileSync(
+      derivedOutput,
+      JSON.stringify(
+        {
+          kind: "DERIVED_DATA_ASSOCIATION_NOT_NEW_RUNTIME_RUN",
+          originalSource: original[0]!.sourceCommit,
+          inputPins: expected,
+          resultUnchanged: true,
+          originalFilesUnmodified: true,
+          derivations,
+          associations,
+          liveFactoryAssociationReexecuted: false,
+          nativePidOrStoreAbsenceInferred: false,
+        },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx", mode: 0o600 },
+    );
+  },
+);

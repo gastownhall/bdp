@@ -2902,8 +2902,9 @@ it("serves complete fresh Snapshot minima with exact timeout, foreign and condit
   expect(valid.status).toBe(200);
   const manifest = await body(valid);
   const retained = await f.get(id(manifest), { headers: minimumHeaders(seed) });
-  expect(retained.status).toBe(500);
-  expect(retained.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+  expect(retained.status).toBe(200);
+  expect(retained.headers.get("x-bdp-development-limit")).toBeNull();
+  expect(await body(retained)).toEqual(manifest);
   expect(await body(await f.get(id(manifest)))).toEqual(manifest);
 });
 
@@ -5516,7 +5517,7 @@ async function withParserRefusalOwner(
       headers: Record<string, string>,
       code?: "invalid-parameter" | "malformed-request" | "unauthenticated",
     ): Promise<void>;
-    gapPair(suffix: string): Promise<void>;
+    gapPair(suffix: string, retainedIdentityCheck?: true): Promise<void>;
   }) => Promise<void>,
 ): Promise<void> {
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-parser-refusal-"));
@@ -5607,8 +5608,11 @@ async function withParserRefusalOwner(
     const setupWaits = waits,
       setupTokens = tokens;
     entries.length = 0;
+    const retainedIdentityEntries: string[] = [];
     function unobserved() {
-      expect(entries, "refusal must not enter the owner").toStrictEqual([]);
+      expect(entries, "parser refusal must not add owner entries").toStrictEqual(
+        retainedIdentityEntries,
+      );
       expect(waits, "refusal must not wait").toBe(setupWaits);
       expect(tokens, "refusal must not allocate a continuation").toBe(setupTokens);
     }
@@ -5659,7 +5663,7 @@ async function withParserRefusalOwner(
           unobserved();
         }
       },
-      async gapPair(suffix) {
+      async gapPair(suffix, retainedIdentityCheck) {
         for (const method of ["GET", "HEAD"]) {
           const response = await handler.handle(
             new Request(new URL(suffix, scope), { method, headers: opaque }),
@@ -5671,6 +5675,7 @@ async function withParserRefusalOwner(
           expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
           expect(response.body).toBeUndefined();
           expect(response.headers.get("content-length")).toBe("0");
+          if (retainedIdentityCheck) retainedIdentityEntries.push("observeSnapshot");
           for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
             expect(response.headers.has(name)).toBe(false);
           unobserved();
@@ -5751,10 +5756,11 @@ it("preserves receiving and HTTP error precedence for parser refusals", async ()
       { accept: "image/png" },
     ];
     for (const overlay of overlays) await f.problemPair(suffix, { ...f.opaque, ...overlay });
-    // Strict continuation and retained Snapshot gates stay pre-owner private refusals.
-    // The parser404 residue preserves its existing route fence.
-    for (const excluded of ["beads/?cursor=missing", "snapshot?snapshot=unissued", "beads/a/"])
-      await f.gapPair(excluded);
+    // Strict continuation and parser404 residue retain their pre-owner fences.
+    for (const excluded of ["beads/?cursor=missing", "beads/a/"]) await f.gapPair(excluded);
+    // Lexical opaque Snapshot controls now reach the owner to establish identity.
+    // This unissued identity remains unsupported: one observation, no proof wait.
+    await f.gapPair("snapshot?snapshot=unissued", true);
   });
 });
 
@@ -5861,13 +5867,30 @@ it("serves fresh Snapshot opaque minima with terminal preflight and retained fen
     const page = new URL(retainedUrl);
     page.searchParams.set("stream", "beads");
     page.searchParams.set("page", "unused");
-    for (const target of [retainedUrl, page.href]) {
-      for (const method of ["GET", "HEAD"] as const) {
-        const result = await get(target, method, minimum);
-        expect(result.response.status).toBe(500);
-        expect(result.response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
-        if (method === "HEAD") expect(result.text).toBe("");
-      }
+    // The genuine retained manifest is in the accepted matching/unexpired domain.
+    for (const method of ["GET", "HEAD"] as const) {
+      const result = await get(retainedUrl, method, minimum);
+      expect(result.response.status).toBe(503);
+      expect(result.response.headers.get("x-bdp-development-limit")).toBeNull();
+      expect(result.response.headers.get("retry-after")).toBe("1");
+      expect(result.response.headers.get("cache-control")).toBe("private, no-store");
+      for (const [name, value] of Object.entries(current))
+        expect(result.response.headers.get(name)).toBe(value);
+      if (method === "HEAD") expect(result.text).toBe("");
+      else
+        expect(checkedProblem(record(JSON.parse(result.text)))).toEqual({
+          type: "https://github.com/gastownhall/bdp/problems/unavailable",
+          code: "temporarily-unavailable",
+          status: 503,
+          retry: "after-delay",
+        });
+    }
+    // The unused continuation is not a known issued page; no new rule applies.
+    for (const method of ["GET", "HEAD"] as const) {
+      const result = await get(page.href, method, minimum);
+      expect(result.response.status).toBe(500);
+      expect(result.response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+      if (method === "HEAD") expect(result.text).toBe("");
     }
     for (const method of ["GET", "HEAD"] as const) {
       const result = await get(retainedUrl, method, {});
@@ -5888,14 +5911,14 @@ it("serves fresh Snapshot opaque minima with terminal preflight and retained fen
       if (method === "HEAD") expect(result.text).toBe("");
     }
     expect(responses).toHaveLength(27);
-    expect(waits).toBe(8);
+    expect(waits).toBe(10);
     const statusCounts = Object.fromEntries(
       [200, 503, 500, 400, 401, 409, 410].map((status) => [
         status,
         responses.filter((response) => response.status === status).length,
       ]),
     );
-    expect(statusCounts).toEqual({ 200: 5, 503: 8, 500: 4, 400: 4, 401: 2, 409: 2, 410: 2 });
+    expect(statusCounts).toEqual({ 200: 5, 503: 10, 500: 2, 400: 4, 401: 2, 409: 2, 410: 2 });
     await f.runtime.close();
     console.log(
       JSON.stringify({

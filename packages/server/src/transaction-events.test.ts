@@ -20,7 +20,6 @@ import {
   TRANSACTION_EVENT_GROUP_BYTES,
   TRANSACTION_EVENT_FIRST_PAGE_BYTES,
   TransactionEventParameterError,
-  TransactionEventProjectionGap,
   renderTransactionEvent,
   transactionEventRequest,
   type TransactionEventPage,
@@ -337,38 +336,85 @@ it("does not emit failed/no-op transactions and does not expire Events with rece
   expect(f.owner.receipt("p", committed.id)?.detail).toBe("expired");
   expect(collect(f.owner, `${scope}events/`)).toEqual(before);
 });
-it("isolates unresolved metadata-only incident membership while Scope/Link sources remain available", () => {
+it.each([false, true])(
+  "projects metadata-only incident updates at both endpoints without changing Scope/Link/owned facts (owned=%s)",
+  (owned) => {
+    const f = fixture(scope, owned, 1);
+    f.run([bead("a"), bead("b"), link()]);
+    const metadataChange = [{ op: "add", path: "/note", value: "first" }];
+    expect(f.run([{ operation: "updateLink", link: "links/l", metadataChange }]).status).toBe(
+      "completed",
+    );
+    // A supplied equal properties patch is still a metadata-only effect.
+    const equal = [{ op: "replace", path: "/n", value: 0 }];
+    const nextMetadata = [{ op: "replace", path: "/note", value: "second" }];
+    f.run([
+      {
+        operation: "updateLink",
+        link: "links/l",
+        propertiesChange: equal,
+        metadataChange: nextMetadata,
+      },
+    ]);
+    f.run([{ ...patch, metadataChange: [{ op: "replace", path: "/note", value: "third" }] }]);
+    const scopeEvents = collect(f.owner, `${scope}events/`);
+    const linkEvents = collect(f.owner, `${scope}links/l?view=events`).events;
+    const updates = linkEvents.filter((e) => e.type === "updated");
+    expect(updates).toHaveLength(3);
+    const first = updates[0],
+      second = updates[1];
+    if (!first || !second) throw new Error("expected metadata update facts");
+    expect(first.data).toMatchObject({ metadataChange });
+    expect(first.data).not.toHaveProperty("change");
+    expect(second.data).toMatchObject({ change: equal, metadataChange: nextMetadata });
+    for (const id of ["a", "b"]) {
+      const projected = collect(f.owner, `${scope}beads/${id}?view=events`);
+      expect(projected.pages.length).toBeGreaterThan(1);
+      const incident = projected.events.filter(
+        (e) => e.subject === `${scope}links/l` && e.type === "updated",
+      );
+      expect(incident.map((e) => [e.transaction, e.ordinal, e.data])).toEqual(
+        updates.map((e) => [e.transaction, e.ordinal, e.data]),
+      );
+      expect(new Set(incident.map((e) => e.id)).size).toBe(3);
+      if (id === "a")
+        expect(
+          projected.events.filter((e) => e.subject === `${scope}beads/a` && e.type === "updated"),
+        ).toHaveLength(owned ? 4 : 0);
+    }
+    // Both fields equal: no new committed fact, checkpoint, or projected Event.
+    f.run([{ ...patch, metadataChange: [{ op: "replace", path: "/note", value: "third" }] }]);
+    expect(collect(f.owner, `${scope}events/`)).toEqual(scopeEvents);
+    const a = collect(f.owner, `${scope}beads/a?view=events`);
+    f.reopen();
+    expect(collect(f.owner, `${scope}beads/a?view=events`)).toEqual(a);
+    expect(collect(f.owner, `${scope}links/l?view=events`).events).toEqual(linkEvents);
+  },
+);
+it("deduplicates self-Link metadata updates and excludes external endpoints", () => {
   const f = fixture();
-  f.run([bead("a"), bead("b"), link()]);
-  const metadataChange = [{ op: "add", path: "/note", value: "own" }];
-  expect(f.run([{ operation: "updateBead", bead: "beads/a", metadataChange }]).status).toBe(
-    "completed",
-  );
-  expect(collect(f.owner, `${scope}beads/a?view=events`).events.at(-1)).toMatchObject({
-    subject: `${scope}beads/a`,
-    type: "updated",
-    data: { metadataChange },
-  });
-  expect(f.run([{ ...patch, metadataChange }]).status).toBe("completed");
-  expect(collect(f.owner, `${scope}beads/a?view=events`).events.at(-1)).toMatchObject({
-    subject: `${scope}links/l`,
-    type: "updated",
-    data: { change: patch.propertiesChange, metadataChange },
-  });
   f.run([
-    {
-      operation: "updateLink",
-      link: "links/l",
-      metadataChange: [{ op: "add", path: "/n", value: 1 }],
-    },
+    bead("a"),
+    bead("b"),
+    link("self", "beads/a", "beads/a"),
+    link("external", "beads/a", { uri: "https://outside.invalid/beads/x", revision: "r-external" }),
   ]);
-  expect(collect(f.owner, `${scope}links/l?view=events`).events.at(-1)?.data).toHaveProperty(
-    "metadataChange",
+  for (const id of ["self", "external"])
+    f.run([
+      {
+        operation: "updateLink",
+        link: `links/${id}`,
+        metadataChange: [{ op: "add", path: "/note", value: id }],
+      },
+    ]);
+  const updates = collect(f.owner, `${scope}beads/a?view=events`).events.filter(
+    (e) => e.type === "updated",
   );
-  expect(collect(f.owner, `${scope}events/`).events.at(-1)?.data).toHaveProperty("metadataChange");
-  expect(() => collect(f.owner, `${scope}beads/a?view=events`)).toThrow(
-    TransactionEventProjectionGap,
-  );
+  expect(updates.map((e) => e.subject)).toEqual([`${scope}links/self`, `${scope}links/external`]);
+  expect(collect(f.owner, `${scope}beads/b?view=events`).events.map((e) => e.type)).toEqual([
+    "created",
+  ]);
+  expect(new Set(updates.map((e) => e.id)).size).toBe(2);
 });
 it("bounds actual finite page bytes with long canonical sources and emits no partial Event", () => {
   const s = `https://example.test/${"s".repeat(60000)}/`,
@@ -560,19 +606,29 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
             {
               operation: "updateLink",
               link: "links/metadata",
-              metadataChange: [{ op: "add", path: "/note", value: "pending-ruling" }],
+              metadataChange: [{ op: "add", path: "/note", value: "metadata-parity" }],
             },
           ],
           "metadata-update",
         )
       ).status,
     ).toBe(200);
-    for (const method of ["GET", "HEAD"]) {
-      const gap = await get("beads/c?view=events", {}, method);
-      expect(gap.status).toBe(500);
-      expect(gap.headers.get("x-bdp-development-limit")).toBe("incident-link-metadata");
-      expect(gap.headers.get("x-bdp-development")).toBe("non-attesting");
-      expect(await gap.text()).toBe("");
+    for (const id of ["c", "d"]) {
+      for (const method of ["GET", "HEAD"]) {
+        const response = await get(`beads/${id}?view=events`, {}, method);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("x-bdp-development-limit")).toBeNull();
+        expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
+        if (method === "HEAD") expect(await response.text()).toBe("");
+        else {
+          const page = (await response.json()) as TransactionEventPage;
+          expect(page.events.at(-1)).toMatchObject({
+            subject: `${scope}links/metadata`,
+            type: "updated",
+            data: { metadataChange: [{ op: "add", path: "/note", value: "metadata-parity" }] },
+          });
+        }
+      }
     }
     expect((await get("links/metadata?view=events")).status).toBe(200);
     expect((await get("events/")).status).toBe(200);

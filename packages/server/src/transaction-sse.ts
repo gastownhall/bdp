@@ -56,10 +56,15 @@ interface Sink {
 }
 /** write(false) accepted this frame into Node, but permits no subsequent owner
  * read/comment until drain. It is not a client replica acknowledgement. */
-async function write(sink: Sink, value: string, signal: AbortSignal): Promise<void> {
+async function write(
+  sink: Sink,
+  value: string,
+  signal: AbortSignal,
+  publish?: (write: () => boolean) => boolean,
+): Promise<void> {
   signal.throwIfAborted();
   if (sink.destroyed) throw new Error("stream transport closed");
-  if (sink.write(value)) return;
+  if (publish ? publish(() => sink.write(value)) : sink.write(value)) return;
   await new Promise<void>((resolve, reject) => {
     const clean = () => {
       sink.removeListener("drain", drained);
@@ -101,6 +106,7 @@ async function pump<Item, Cursor>(
   frame: (item: Item) => string,
   signal: AbortSignal,
   settings: Timers,
+  publish?: (item: Item, write: () => boolean) => boolean,
 ): Promise<void> {
   validateTransactionStreamTimers(settings);
   let packet = initial;
@@ -108,7 +114,7 @@ async function pump<Item, Cursor>(
   let lastWrite = performance.now();
   while (packet && !signal.aborted) {
     for (const item of packet.items) {
-      await write(sink, frame(item), signal);
+      await write(sink, frame(item), signal, publish && ((write) => publish(item, write)));
       lastWrite = performance.now();
     }
     const continuation = packet.continuation,
@@ -142,6 +148,7 @@ export function pumpTransactionChanges(
   next: (after: string, signal: AbortSignal) => Promise<TransactionChangefeedPage>,
   signal: AbortSignal,
   settings: Timers = TRANSACTION_SSE_DEFAULTS,
+  publish?: (item: TransactionChangefeedPage["groups"][number], write: () => boolean) => boolean,
 ): Promise<void> {
   return pump(
     sink,
@@ -150,6 +157,7 @@ export function pumpTransactionChanges(
     transactionChangeFrame,
     signal,
     settings,
+    publish,
   );
 }
 export function pumpTransactionEvents(
@@ -158,6 +166,7 @@ export function pumpTransactionEvents(
   next: (scan: TransactionEventScan, signal: AbortSignal) => Promise<TransactionEventPacket>,
   signal: AbortSignal,
   settings: Timers = TRANSACTION_SSE_DEFAULTS,
+  publish?: (event: TransactionEvent, write: () => boolean) => boolean,
 ): Promise<void> {
   return pump(
     sink,
@@ -166,5 +175,6 @@ export function pumpTransactionEvents(
     transactionEventFrame,
     signal,
     settings,
+    publish,
   );
 }

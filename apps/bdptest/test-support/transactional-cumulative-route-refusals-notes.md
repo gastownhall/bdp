@@ -1,0 +1,3 @@
+# Finite ordinary route refusals
+
+Two NEW cases use already-packed exact5f3 modules and fixed ordinary73bd artifacts. The advertised receipts root cannot list or recover a receipt, even carrying its known key; retrying the original mutation recovers the complete same receipt. Missing changefeed starting intent is a nonobserving invalid-parameter refusal; explicit start=now remains mandatory URL grammar, but a genuinely served Scope Last-Event-ID governs replay. This controlled SSE reconnect is not durable client application or Resource Event cursor qualification. No minimum collision, optional History, clock, runtime or caps are changed.

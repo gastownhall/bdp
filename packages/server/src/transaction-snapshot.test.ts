@@ -14,7 +14,10 @@ import {
   stringifyJsonValue,
 } from "@bdp/protocol";
 import { openTransactionStore, type TransactionStoreOptions } from "./transaction-store.js";
-import { TransactionMinimumUnproved } from "./transaction-consistency.js";
+import {
+  TransactionMinimumUnproved,
+  TransactionMinimumUnsupported,
+} from "./transaction-consistency.js";
 import { prepareTransactionSetCore } from "./transaction-batch.js";
 import {
   TRANSACTION_SNAPSHOT_LIMITS as limits,
@@ -674,8 +677,18 @@ it("independent expected inventory rejects coherent omissions and early terminat
 });
 it("new private Snapshot entry points do not escape package public exports", () => {
   const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-  expect(Object.keys(manifest.exports).sort()).toEqual([".", "./development"]);
-  for (const file of ["index.ts", "development.ts"])
+  expect(Object.keys(manifest.exports).sort()).toEqual([
+    ".",
+    "./development",
+    "./reference-configuration",
+    "./reference-startup",
+  ]);
+  for (const file of [
+    "index.ts",
+    "development.ts",
+    "reference-deployment.ts",
+    "reference-startup.ts",
+  ])
     for (const privateModule of ["transaction-snapshot", "json-value-equality"])
       expect(readFileSync(new URL(file, import.meta.url), "utf8")).not.toContain(privateModule);
 });
@@ -1255,11 +1268,15 @@ it("checks each fresh Snapshot minimum before any handle, record, page or expiry
   expect(captured).toMatchObject({ kind: "manifest", context });
   if (captured.kind !== "manifest") throw new Error("expected manifest");
   expect(captured.body.beads.items.map((row) => row.id)).toEqual([`${scope}beads/a`]);
-  for (const request of [
-    { kind: "manifest", id: handle(captured.body) },
-    { kind: "page", id: handle(captured.body), stream: "bead", token: "unknown" },
-  ] as const)
-    expect(() => f.owner.observeSnapshot(request, tuple)).toThrow("requires fresh creation");
+  expect(
+    f.owner.observeSnapshot({ kind: "manifest", id: handle(captured.body) }, tuple),
+  ).toMatchObject({ kind: "problem", code: "snapshot-position-too-old" });
+  expect(() =>
+    f.owner.observeSnapshot(
+      { kind: "page", id: handle(captured.body), stream: "bead", token: "unknown" },
+      tuple,
+    ),
+  ).toThrow(TransactionMinimumUnsupported);
   expect(f.owner.observeSnapshot({ kind: "manifest", id: handle(captured.body) })).toMatchObject({
     kind: "manifest",
     body: captured.body,
@@ -1482,18 +1499,6 @@ it("gates fresh Snapshot opaque minima before allocation and expiry", () => {
     expect(() => observe({ kind }, { ...minimum, minimumPosition: "pos-2" })).toThrow("behind");
   }
   unproved("create", "pos-01");
-  let preEntryExcludedCalls = 0;
-  for (const request of [
-    { kind: "manifest", id: handle(first.body) },
-    { kind: "page", id: handle(first.body), stream: "bead", token: "unused" },
-  ] as const) {
-    preEntryExcludedCalls++;
-    expect(() => observe(request, minimum)).toThrow("unsupported minimum tuple");
-    preEntryExcludedCalls++;
-    expect(() => observe(request, { ...minimum, minimumPosition: "pos-1" })).toThrow(
-      "requires fresh creation",
-    );
-  }
   // No await: normal background maintenance must not race the advanced clock.
   f.offline((db) => {
     offlineInspections++;
@@ -1501,15 +1506,38 @@ it("gates fresh Snapshot opaque minima before allocation and expiry", () => {
     expect(after).toEqual(baseline);
     expect(JSON.parse(after.disposition).expired).toBe(false);
   });
+  // Only fresh create/preflight refusals above precede expiry maintenance.
+  // Retained reads now establish identity at the owner: matching issued expiry
+  // wins before opaque comparison, while an unissued page remains unsupported.
+  let retainedIdentityChecks = 0;
+  retainedIdentityChecks++;
+  expect(observe({ kind: "manifest", id: handle(first.body) }, minimum)).toEqual({
+    kind: "problem",
+    code: "cursor-expired",
+    context: first.context,
+  });
+  retainedIdentityChecks++;
+  expect(() =>
+    observe({ kind: "page", id: handle(first.body), stream: "bead", token: "unused" }, minimum),
+  ).toThrow(new TransactionMinimumUnsupported("retained-snapshot-identity"));
   // The final helper reopen may maintain the store after this measured comparison.
+  expect(
+    observe({ kind: "manifest", id: handle(first.body) }, { ...minimum, minimumPosition: "pos-1" }),
+  ).toMatchObject({ kind: "problem", code: "cursor-expired" });
+  expect(
+    observe(
+      { kind: "page", id: handle(first.body), stream: "bead", token: "unused" },
+      { ...minimum, minimumPosition: "pos-1" },
+    ),
+  ).toEqual({ kind: "problem", code: "resource-not-found", context: first.context });
   expect(snapshotCalls).toBe(14);
-  expect(preEntryExcludedCalls).toBe(4);
+  expect(retainedIdentityChecks).toBe(2);
   expect(offlineInspections).toBe(2);
   console.log(
     JSON.stringify({
       observation: "fresh-snapshot-opaque-owner",
       snapshotCalls,
-      preEntryExcludedCalls,
+      retainedIdentityChecks,
       offlineInspections,
       baseline,
       after,
