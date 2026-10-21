@@ -39,6 +39,7 @@ it("serves atomic unowned-Link correction and tombstone over actual HTTP/SSE, pr
   let stream: ReturnType<typeof recordRawSse> | undefined;
   let failed = false;
   let failure: unknown;
+  const errors: unknown[] = [];
   async function request(target: string, body?: unknown, key?: string) {
     const url = new URL(target, scope);
     const response = await fetch(new URL(url.pathname + url.search, runtime.listenUrl), {
@@ -251,7 +252,7 @@ it("serves atomic unowned-Link correction and tombstone over actual HTTP/SSE, pr
     failed = true;
     failure = error;
   } finally {
-    const errors: unknown[] = failed ? [failure] : [];
+    if (failed) errors.push(failure);
     let runtimeClosed = false;
     let temporaryStoreRemoved = false;
     try {
@@ -277,7 +278,6 @@ it("serves atomic unowned-Link correction and tombstone over actual HTTP/SSE, pr
       "LIVE_LINK_HTTP_CLEANUP " +
         JSON.stringify({ runtimeClosed, temporaryStoreRemoved, failureCount: errors.length }),
     );
-    if (errors.length)
-      throw new AggregateError(errors, "Link HTTP fixture body/finalization failed");
   }
+  if (errors.length) throw new AggregateError(errors, "Link HTTP fixture body/finalization failed");
 }, 15000);
