@@ -102,14 +102,28 @@ function deliver(response: ServerResponse, selected: HttpResponse, raw?: string)
   response.writeHead(selected.status, Object.fromEntries(selected.headers));
   response.end(response.req.method === "HEAD" ? undefined : bytes);
 }
+type TransactionRuntimeAdministration = Readonly<{
+  eraseHistoricalVersions: ReturnType<typeof createTransactionService>["eraseHistoricalVersions"];
+}>;
+const runtimeAdministrations = new WeakMap<object, TransactionRuntimeAdministration>();
+
+/** Source-private local administration; deliberately absent from public package exports. */
+export function transactionRuntimeAdministration(handle: object): TransactionRuntimeAdministration {
+  const administration = runtimeAdministrations.get(handle);
+  if (!administration) throw new TypeError("authentic transaction runtime required");
+  return administration;
+}
 export async function startTransactionRuntime(
   options: TransactionRuntimeOptions,
   seams: TransactionRuntimeTestSeams = {},
 ) {
+  const runtime = await startTransactionRuntimeCore(
+    captureTransactionRuntimeConfiguration(options, seams),
+  );
   const { scope, listenUrl, configurationMetadata, replaceAuthorizationPolicy, targets, close } =
-    await startTransactionRuntimeCore(captureTransactionRuntimeConfiguration(options, seams));
+    runtime;
   // Keep the legacy declaration and runtime result restricted to its original six keys.
-  return Object.freeze({
+  const facade = Object.freeze({
     scope,
     listenUrl,
     configurationMetadata,
@@ -117,6 +131,13 @@ export async function startTransactionRuntime(
     targets,
     close,
   });
+  runtimeAdministrations.set(
+    facade,
+    Object.freeze({
+      eraseHistoricalVersions: runtime.eraseHistoricalVersions,
+    }),
+  );
+  return facade;
 }
 export async function startPreparedTransactionRuntime(
   handle: PreparedReferenceDeployment,
@@ -542,7 +563,10 @@ async function startTransactionRuntimeCore(
     configurationMetadata,
     eraseHistoricalVersions: (
       subjects: Parameters<NonNullable<typeof service>["eraseHistoricalVersions"]>[0],
-    ) => service!.eraseHistoricalVersions(subjects),
+    ) => {
+      if (closing) throw new Error("transaction runtime is closing");
+      return service!.eraseHistoricalVersions(subjects);
+    },
     replaceAuthorizationPolicy: (options: {
       readonly timeoutMs: number;
       readonly signal?: AbortSignal;
