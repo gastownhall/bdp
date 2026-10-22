@@ -92,6 +92,12 @@ share one nominal bucket; a refinement has its own bucket. A new empty owned set
 is `{}` without empty selector/wildcard buckets. Earlier snapshots keep their
 recorded shape. See the [candidate postimages](../../fixtures/affiliations/candidate.json).
 
+Mutation results preserve the native `source`/`sourceRevision` pair when the Link
+is effectively owned before or after the operation. Leaving ownership still reports
+the induced source revision despite an unowned postimage Type; unrelated unowned
+operations omit the pair and owned-Link no-ops report the unchanged source revision.
+The CLI does not infer these fields from the resulting Type.
+
 Retyping a Link into/out of ownership changes its source atomically; retyping the
 source recomputes membership without inventing Link edits. Endpoints stay literal,
 including a source pin older than the new owning capture. These are provider rules,

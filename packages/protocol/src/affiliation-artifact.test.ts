@@ -97,6 +97,26 @@ describe("v0.1 affiliation artifact, without claiming stateful or CLI execution"
     expect(valid("beadRecord", semanticallyWrongBucket)).toBe(true);
   });
 
+  it("carries ownership-exit source metadata without tying it to the postimage Type", () => {
+    const results = cases.nativeLinkResults;
+    for (const value of Object.values(results)) {
+      expect(valid("mutationResult", value)).toBe(true);
+      expect(valid("receiptResult", { operationIndex: 0, ...(value as object) })).toBe(true);
+    }
+    expect(results.leavingOwnership.resource.type.uri).toBe(`${cases.commandScope}UnownedRelation`);
+    expect(results.leavingOwnership.sourceRevision).toBe("owner-r10");
+    expect(results.unrelatedUnowned).not.toHaveProperty("source");
+    expect(results.unrelatedUnowned).not.toHaveProperty("sourceRevision");
+    expect(results.ownedNoOp.sourceRevision).toBe("owner-r9");
+    for (const missing of ["source", "sourceRevision"]) {
+      const incomplete = { ...results.leavingOwnership };
+      delete incomplete[missing];
+      expect(valid("mutationResult", incomplete)).toBe(false);
+      expect(valid("receiptResult", { operationIndex: 0, ...incomplete })).toBe(false);
+    }
+    // Grammar carries a truthful pair; actual pre/post membership remains a semantic case.
+  });
+
   it("preserves nominal identity and endpoint domains independently of Type carriers", () => {
     expect(valid("typeIdArray", [uri])).toBe(true);
     expect(valid("typeIdArray", [exact])).toBe(false);

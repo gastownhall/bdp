@@ -81,6 +81,8 @@ Failure rolls back the whole atomic operation, including induced owner effects.
 
 ## Revisions, no-ops, history and retry identity
 
+These rules apply at the primary Write [mutation revisions and guards](../write/write.md#mutation-revisions-and-guards) seam, not only in this amendment.
+
 Revision-covered state includes the complete affiliation, properties, metadata
 and, for an owner, its captured owned-Link state. A nominal Type or definition-pin
 change is an effect even without object edits. The same resolved affiliation with

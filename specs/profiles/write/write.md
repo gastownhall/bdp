@@ -149,15 +149,22 @@ an identity the creator did not write.
 
 ### Mutation revisions and guards
 
-Every successful create — and every update that changes `properties`,
-common `metadata`, or, for a Bead whose Type owns outgoing Link Types,
-its owned Links —
-produces a fresh opaque Resource revision. A client compares revisions only for
-equality and must not derive meaning from their spelling. If applying an
-update leaves both `properties` and common `metadata` equal, under the JSON
-value-comparison rules of RFC 6902 Section 4.6, to their values immediately
-before that operation, then the operation retains the existing revision. A change to either value is one Resource
-transition, with one new revision.
+Every successful create produces a fresh opaque Resource revision. Under the
+selected v0.1 amendment, every update that changes the complete Type affiliation,
+`properties`, common `metadata` or applicable captured owned-Link state produces
+a fresh Resource revision. A client compares revisions only for equality and
+must not derive meaning from their spelling.
+
+After applicable admission and validation, an update retains the existing revision
+only when the complete affiliation and applicable captured owned state are unchanged
+and both `properties` and common `metadata` equal their respective values immediately
+before the operation under RFC 6902 Section 4.6 JSON value comparison. A changed
+nominal Type or definition pin is an effect even with unchanged objects or supplied
+empty patch arrays. The same resolved affiliation with unchanged remaining state is
+a genuine no-op; ordinary optional revision guards still apply. An effectful explicit
+update is one Resource transition with one new revision. Atomic induced-owner effects
+and operation-local comparisons follow the [common affiliation rules](../core/affiliations.md#revisions-no-ops-history-and-retry-identity);
+this does not select exact owner revision counts for multi-operation batches.
 
 An explicit update or deletion may supply `expectedRevision`: the revision
 observed by an earlier read or mutation result. The authority applies the
@@ -950,12 +957,17 @@ the removed Resource, and no Resource record: `resourceKind`, `bead` or
 mints no version: the identity's `revision` is the revision the Resource had when it
 was deleted, never a newly minted one, The bundle defines the identity record
 as `deletedIdentity`, over `resourceKind` and `resourceIdentity`. When the
-mutated Link's type is owned by its source Bead's declared Type, the result
-additionally carries `source`, the source Bead's absolute canonical URL, and
+mutated Link belongs to its source Bead's effective owned set immediately
+before OR after the operation, the result additionally carries `source`, the
+source Bead's absolute canonical URL, and
 `sourceRevision`, the source Bead's resulting revision, on creation, update,
 and deletion alike; a deletion returns the Link's identity and no Link
 record, so `source` is the only member that names the source Bead whose
-revision `sourceRevision` reports. On a semantic no-op update
+revision `sourceRevision` reports. Membership uses the applicable accepted
+exact Type authority in each state, not only the resulting nominal Type. Thus a
+Link leaving ownership reports the actual induced source revision even though
+its postimage Type is unowned; unrelated operations unowned on both sides carry
+neither field. On a semantic no-op update
 `sourceRevision` is the source's unchanged current revision. The source's
 full postimage is available at its own URL. `source` and `sourceRevision` are
 absent from every other result, and each is present exactly when the other
@@ -3250,11 +3262,12 @@ or `deleted`, carrying `deleted`, the deleted Resource's identity record —
 under [Revisions](../core/core.md#revisions), produces an `updated` entry carrying the
 postimage at the retained revision, and a transaction all of whose
 operations are no-ops is an admitted no-effect mutation: it completes,
-produces no group, and its receipt omits `effectPosition`. An entry for an
-operation on an owned Link additionally carries `source`, the source Bead's
-canonical URL, and `sourceRevision`, the source Bead's resulting revision,
-on creation, update, and deletion alike; on a no-op update
-`sourceRevision` is the source's unchanged revision. A set operation
+produces no group, and its receipt omits `effectPosition`. An entry for a
+Link operation carries `source` and `sourceRevision` under the common
+[Mutation results](#mutation-results) rule: effective ownership immediately
+before OR after, including a Link leaving ownership. The fields report that
+operation's actual source revision; an owned-Link no-op reports the unchanged
+current source revision. A set operation
 produces one `matched` entry carrying `count`, the number of Resources it
 selected, followed by one `updated` or `deleted` entry per selected
 Resource in ascending code-unit order of their canonical `id`s, the order
@@ -3323,7 +3336,9 @@ subject's retained history — the one authorization that gates the
 `resource-erased` disclosure under [Reads after deletion](../core/core.md#reads-after-deletion)
 — the entry is served as `erased`: `operationIndex`, `operationName` when
 present, `erased`, the version's lineage marker `{ id, type, revision }`,
-and `source` and `sourceRevision` when the operation was on an owned Link.
+and the recorded `source` and `sourceRevision` pair when present in the original
+result under [Mutation results](#mutation-results); current Type membership does
+not erase the recorded pair.
 To every other caller it is the uniform `withheld` entry, so that a receipt
 is no more an erasure oracle than a read is.
 

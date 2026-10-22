@@ -179,13 +179,15 @@
       "id": "same-affiliation",
       "given": "Explicit exact T@r1 equals existing affiliation; remaining state unchanged.",
       "expected": "After all checks, return genuine no-op; no new revision/provenance/Event.",
-      "execution": "not run"
+      "execution": "not run",
+      "source": "specs/profiles/write/write.md#mutation-revisions-and-guards"
     },
     {
       "id": "pin-only",
       "given": "T@r1 to T@r2 without object edits.",
       "expected": "Validate and commit Resource revision effect; truthful Event required, encoding still open.",
-      "execution": "not run"
+      "execution": "not run",
+      "source": "specs/profiles/write/write.md#mutation-revisions-and-guards"
     },
     {
       "id": "nominal-retype",
@@ -197,7 +199,8 @@
       "id": "empty-patches-with-retype",
       "given": "Empty ordinary patches plus changed Type.",
       "expected": "Zero patch operations; still affiliation effect.",
-      "execution": "not run"
+      "execution": "not run",
+      "source": "specs/profiles/write/write.md#mutation-revisions-and-guards"
     },
     {
       "id": "guarded-no-op",
@@ -298,8 +301,9 @@
     {
       "id": "leave-owner",
       "given": "Link affiliation change leaves source owned set.",
-      "expected": "Compare pre/post membership; atomic Link/source effects, remove from capture.",
-      "execution": "not run"
+      "expected": "Compare pre/post membership; atomic Link/source effects, remove from capture. Report source/sourceRevision even though the resulting Type is unowned; the native leavingOwnership sample illustrates the pair.",
+      "execution": "not run",
+      "source": "specs/profiles/write/write.md#mutation-results"
     },
     {
       "id": "pin-changes-membership",
@@ -331,5 +335,56 @@
       "expected": "Required Event still needs coordinated encoding; no fake patch or silent omission, D1/D2 unanswered.",
       "execution": "not run"
     }
-  ]
+  ],
+  "nativeLinkResults": {
+    "leavingOwnership": {
+      "outcome": "updated",
+      "resource": {
+        "id": "https://work.example/acme/relation-a",
+        "type": {
+          "uri": "https://work.example/acme/UnownedRelation",
+          "revision": "unowned-type-r1"
+        },
+        "revision": "link-r2",
+        "source": "https://work.example/acme/owner",
+        "target": "https://work.example/acme/target",
+        "properties": {},
+        "metadata": {}
+      },
+      "source": "https://work.example/acme/owner",
+      "sourceRevision": "owner-r10"
+    },
+    "unrelatedUnowned": {
+      "outcome": "updated",
+      "resource": {
+        "id": "https://work.example/acme/unrelated-relation",
+        "type": {
+          "uri": "https://work.example/acme/UnownedRelation",
+          "revision": "unowned-type-r1"
+        },
+        "revision": "link-r2",
+        "source": "https://work.example/acme/owner",
+        "target": "https://work.example/acme/target",
+        "properties": {},
+        "metadata": {}
+      }
+    },
+    "ownedNoOp": {
+      "outcome": "updated",
+      "resource": {
+        "id": "https://work.example/acme/relation-a",
+        "type": {
+          "uri": "https://work.example/acme/Association",
+          "revision": "association-r1"
+        },
+        "revision": "link-r1",
+        "source": "https://work.example/acme/owner",
+        "target": "https://work.example/acme/target",
+        "properties": {},
+        "metadata": {}
+      },
+      "source": "https://work.example/acme/owner",
+      "sourceRevision": "owner-r9"
+    }
+  }
 }

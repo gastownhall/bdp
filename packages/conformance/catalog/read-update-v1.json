@@ -272,7 +272,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-revisions-and-guards",
-          "selectedText": "Every successful create — and every update that changes `properties`, common `metadata`, or, for a Bead whose Type owns outgoing Link Types, its owned Links — produces a fresh opaque Resource revision."
+          "selectedText": "Under the selected v0.1 amendment, every update that changes the complete Type affiliation, `properties`, common `metadata` or applicable captured owned-Link state produces a fresh Resource revision."
         }
       ]
     },
@@ -341,7 +341,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-revisions-and-guards",
-          "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision."
+          "selectedText": "After applicable admission and validation, an update retains the existing revision only when the complete affiliation and applicable captured owned state are unchanged and both `properties` and common `metadata` equal their respective values immediately before the operation under RFC 6902 Section 4.6 JSON value comparison."
         },
         {
           "source": "docs/specs/bdp.md",

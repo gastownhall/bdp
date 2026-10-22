@@ -90,7 +90,7 @@ behavior fixtures, Types/PR284 and previous run/report identities remain untouch
 No provider/build campaign is needed to prove this source/artifact boundary.
 
 The active catalog reader assembles **current** Core/Write/conformance source.
-Ten now-stale quotations in three catalogs and the two identical companion-row
+Fourteen now-stale quotations in five catalogs and the two identical companion-row
 titles are updated to that actual source. IDs, ordering, profiles, sources,
 anchors, row counts and retirement/selection edges remain unchanged. No new file
 is added inside the sealed active catalog directory. An old PASS cannot be inherited
@@ -124,7 +124,7 @@ Fresh strict-Ajv/full-format carrier checks pass **408/408**, with exactly ten
 changed/two new definitions in the new slot, byte-identical distribution mirror,
 and all 163 candidate definitions compiled by the binding tests. The held v0
 schema remains SHA256 `15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327`.
-All twelve new artifact tests passed in the original nine-file run: **436 passed,
+All twelve initial artifact tests passed in the original nine-file run: **436 passed,
 one failed, zero skipped** (Vitest4.1.10, Node24.19.0). The failure was the stale
 `read-update-wire.test.ts:414` expectation that `[]` is invalid. It reproduced on
 clean parent PR287@5c3f909 in a one-test diagnostic (137 other tests filtered);
@@ -147,8 +147,35 @@ this new run qualifies the corrected assertion at its new source.
 
 After final prose-only wrapping/clarification, fresh carrier/source checks confirm
 569 live quotations resolve across six catalogs, companion metadata is identical,
-36 JSON fences parse, 68 local file links resolve, eight changed code/JSON files
+36 JSON fences parse, 71 local file links resolve, ten changed code/JSON files
 pass Biome and whitespace checks pass. The candidate has 29 unexecuted semantic
 scenarios and six paired CLI/operation samples; these are not parser or provider
 execution. Original PR284/Types/runtime/behavior fixtures stay held. No hosted,
 installed, HTTP/CLI or full provider qualification is claimed.
+
+## Primary revision and result rule alignment
+
+Parent source review caught one remaining unconditional properties/metadata-only
+no-op predicate in Write [Mutation revisions and guards](../../specs/profiles/write/write.md#mutation-revisions-and-guards).
+That operative rule now includes the complete affiliation and applicable captured
+owned state, while retaining ordinary optional guards. The existing `pin-only`,
+`same-affiliation` and `empty-patches-with-retype` semantic cases link directly to
+that rule: changed pin is an effect, equal full state is a no-op after checks,
+and empty patches do not erase a changed affiliation. This corrects the actual
+rule without selecting an Event payload or changing runtime/schema behavior.
+
+The result rule also uses effective ownership before **or** after the operation,
+so a Link leaving ownership still reports the actual induced `source`/`sourceRevision`
+pair with its unowned postimage. Ordered results refer to that common rule; retained
+results keep the original recorded pair. Existing owned-Link no-op and unrelated
+unowned results retain their respective unchanged-pair/source-less behavior. Three
+native samples and paired-field refusal checks cover the existing schema carrier;
+pre/post membership execution remains an explicitly unexecuted semantic case.
+
+After both operative-source repairs, the same nine-file slice passes **438/438**,
+zero failed or skipped, including thirteen affiliation-artifact tests. The added
+test validates native/ordered Link result carriers and rejects incomplete secondary
+revision pairs; it does not claim ownership execution. Fresh quotation checks
+include the three revised primary-rule citations and one ordered-result citation,
+for fourteen changes across five catalogs. The original failure, clean-parent
+reproduction and earlier passing repair runs remain distinct evidence.
