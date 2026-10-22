@@ -1,0 +1,213 @@
+{
+  "artifact": "Scope namespace paired author cases",
+  "status": "paper expectations; not parser/HTTP/provider acceptance evidence",
+  "executed": false,
+  "sourceBaseline": "050cb3b1e5550ba25d8ee51429a3f675b01e86d4",
+  "grammarScope": "Inherited schema structure only. bdpVersion:0 samples demonstrate existing grammar admission, NOT permission to advertise changed namespace/collision semantics as unchanged v0. Selected v0.1 contract/media binding remains composition work.",
+  "schemaGrammarSamples": [
+    {
+      "id": "arbitrary-inventories",
+      "definition": "readDiscovery",
+      "value": {
+        "bdpVersion": "0",
+        "profile": "read",
+        "scope": "https://work.example/acme/",
+        "beads": "https://work.example/acme/inventory/items",
+        "links": "https://work.example/acme/inventory/relations",
+        "types": "https://work.example/acme/catalog",
+        "aliases": "https://work.example/acme/"
+      },
+      "expectedValid": true
+    },
+    {
+      "id": "bead-id-looks-like-link",
+      "definition": "createBeadRequest",
+      "value": {
+        "id": "links/81",
+        "type": "https://work.example/acme/Task"
+      },
+      "expectedValid": true
+    },
+    {
+      "id": "link-id-looks-like-bead",
+      "definition": "createLinkRequest",
+      "value": {
+        "id": "task-42",
+        "type": "https://work.example/acme/Relates",
+        "source": "links/81",
+        "target": "task-17"
+      },
+      "expectedValid": true
+    },
+    {
+      "id": "alias-has-no-fixed-prefix",
+      "definition": "putAliasRequest",
+      "value": {
+        "alias": "current-plan",
+        "target": "task-17"
+      },
+      "expectedValid": true
+    },
+    {
+      "id": "bead-native-record",
+      "definition": "beadRecord",
+      "value": {
+        "id": "https://work.example/acme/links/81",
+        "type": "https://work.example/acme/Task",
+        "revision": "b-r1",
+        "properties": {}
+      },
+      "expectedValid": true
+    },
+    {
+      "id": "link-native-record",
+      "definition": "linkRecord",
+      "value": {
+        "id": "https://work.example/acme/task-42",
+        "type": "https://work.example/acme/Relates",
+        "revision": "l-r1",
+        "source": "https://work.example/acme/links/81",
+        "target": "urn:external:item",
+        "properties": {}
+      },
+      "expectedValid": true
+    },
+    {
+      "id": "literal-external-pin",
+      "definition": "reference",
+      "value": {
+        "uri": "https://remote.example/catalog/item",
+        "revision": "remote-r1"
+      },
+      "expectedValid": true
+    },
+    {
+      "id": "bad-navigation-scheme",
+      "definition": "absoluteHttpUrl",
+      "value": "urn:inventory:items",
+      "expectedValid": false
+    },
+    {
+      "id": "empty-revision",
+      "definition": "reference",
+      "value": {
+        "uri": "https://remote.example/item",
+        "revision": ""
+      },
+      "expectedValid": false
+    },
+    {
+      "id": "unknown-update-field",
+      "definition": "updateBeadRequest",
+      "value": {
+        "target": "item",
+        "propertiesChange": []
+      },
+      "expectedValid": false
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "arbitrary-identifiers",
+      "condition": "Bead links/81 and Link task-42 exist in one Scope.",
+      "expected": "Resolve exact complete IDs; operation/result kind comes from actual Resource, never path."
+    },
+    {
+      "id": "independent-inventory-paths",
+      "condition": "Beads inventory is /inventory/items, Link inventory /inventory/relations, Type inventory /catalog.",
+      "expected": "Discovery is authoritative; an item /task-42 is not relocated under its inventory URL."
+    },
+    {
+      "id": "point-kind-on-views",
+      "condition": "Read a Link properties view whose properties contain a user key named source.",
+      "expected": "BDP-Resource-Kind is link; do not treat user data as kind. Include owning Scope service-desc. Cross-origin policy exposes BDP-Resource-Kind and Link when applicable, after ordinary authorization."
+    },
+    {
+      "id": "head-and-304-kind",
+      "condition": "An authorized Link HEAD or valid conditional304 returns no Resource body.",
+      "expected": "Kind and owning-Scope metadata still identify subject; hidden/missing subjects follow existing non-disclosure first."
+    },
+    {
+      "id": "incident-subject-kind",
+      "condition": "An incident view on a Bead returns Link items.",
+      "expected": "BDP-Resource-Kind is bead for the subject, independent of Link item kind."
+    },
+    {
+      "id": "absolute-read-no-default",
+      "condition": "No environment/config Scope; caller supplies canonical absolute Resource URL.",
+      "expected": "Direct read works without stripping paths, namespace probes or an inventory scan."
+    },
+    {
+      "id": "absolute-write-owner-binding",
+      "condition": "Ambient default is an unrelated Scope; Resource service-desc identifies the actual owner and operation directory.",
+      "expected": "Bind to verified owner, preserve absolute target and authored guard; do not redirect the edit to ambient default."
+    },
+    {
+      "id": "explicit-binding-conflict",
+      "condition": "Explicit Scope contradicts the absolute target owning binding.",
+      "expected": "Refuse before mutation; a discovery read reserves no state or guard success."
+    },
+    {
+      "id": "retained-local-normalization",
+      "condition": "Local name contains encoded separators, empty segments or noncanonical creation spelling.",
+      "expected": "Existing normalization/admission refusal remains; removing prefixes does not normalize a new identity into existence."
+    },
+    {
+      "id": "alias-live-blocks-both-kinds",
+      "condition": "A live alias occupies Scope/current-plan.",
+      "expected": "Creating either a Bead or Link at that complete URL fails alias-path-taken; a later new request can succeed after alias removal if no canonical identity was committed."
+    },
+    {
+      "id": "canonical-link-blocks-alias",
+      "condition": "A Link at Scope/current-plan was ever committed and is now deleted; aliases base is Scope.",
+      "expected": "Alias put there fails identity-taken; canonical deletion releases nothing."
+    },
+    {
+      "id": "different-paths-equal-tail",
+      "condition": "Canonical Resource Scope/records/foo and alias Scope/names/foo are distinct full URLs.",
+      "expected": "No collision is implied by foo alone; no stripped-tail key equivalence is a protocol rule."
+    },
+    {
+      "id": "external-bead-url-not-proof",
+      "condition": "Descriptor external:bead; authored endpoint is https://remote.example/item without any beads/ path.",
+      "expected": "Admit URL syntax/declared intent under ordinary rules; perform no mandatory remote fetch or verified-kind/lifetime claim."
+    },
+    {
+      "id": "external-bead-intent-rejects-urn",
+      "condition": "Descriptor external:bead; authored external endpoint is urn:item:1.",
+      "expected": "HTTP(S) syntax requirement refuses. external:opaque remains a different policy."
+    },
+    {
+      "id": "identity-reuse-and-retry",
+      "condition": "A prefix-free canonical ID was committed, deleted, and the authority later restarted/restored.",
+      "expected": "No unrelated Resource reuses the canonical URL. Retained retry/resolution witness cannot be replaced by a fresh alias target or key."
+    }
+  ],
+  "olderEvidenceDisposition": [
+    {
+      "artifact": "packages/conformance/catalog/read-v1.json:read.discovery.canonical-navigation",
+      "status": "Active metadata now cites CURRENT Scope-defined navigation under the same stable row ID. Prior fixed-root metadata/evidence remains immutable at sourceBaseline and its original catalog digest; do not inherit its PASS for the new contract."
+    },
+    {
+      "artifact": "fixtures/read-update/aliases.json:create-bead-on-a-live-alias-path",
+      "status": "old alias/ vs beads/ stripped-tail collision; new target needs the same complete URL, as alias-live-blocks-both-kinds above"
+    },
+    {
+      "artifact": "fixtures/read-update/aliases.json:put-alias-on-a-committed-bead-path",
+      "status": "old tail equivalence; new target checks ever-committed complete Resource URL across both kinds"
+    },
+    {
+      "artifact": "fixtures/read-update/aliases.json:put-alias-wrong-root-alias-is-resource-not-found",
+      "status": "old prefix classification; new target checks advertised alias base/binding, not the word beads"
+    },
+    {
+      "artifact": "fixtures/read-update/aliases.json:create-link-at-a-path-beside-an-alias",
+      "status": "chosen distinct full paths can still coexist; does not prove a Link can occupy the identical live alias URL"
+    },
+    {
+      "artifact": "all existing runtime runs",
+      "status": "retain exact old source pins; no new target qualification or implementation thaw inferred"
+    }
+  ],
+  "metadataBoundary": "Proposed additional source rows are fixtures/scope-namespace/source-rows.json outside the sealed six-file active catalog directory. Two active catalog files update17 affected CURRENT-source quotations and3 titles, preserving row identities/profiles/retirements. No old run/report/digest or existing narrative fixture is rewritten into passing new-target evidence."
+}

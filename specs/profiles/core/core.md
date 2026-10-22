@@ -19,6 +19,8 @@ Scope's advertised profile. Core is a document name, not a new discovery value.
 
 ## Status and conformance
 
+**Consolidation notice:** the [selected v0.1 contract/JSON binding](contract-binding.md) and separately named [v0.1 candidate schema](bdp-v0.1.schema.json) are staged source. The inherited v0 profile/HTTP examples below do not authorize advertising retained amendments as unchanged version0. Profile/Type/Event composition and section-by-section example retargeting remain adoption gates. Existing v0 schema/runtime slots stay explicit and unchanged; the candidate is not implemented merely because its JSON artifact is present.
+
 The Core/Read and Write documents and shared conformance index form a single
 draft with one status. Its Data Model,
 JSON representations, HTTP interface, Event model, examples, and schemas are
@@ -114,7 +116,7 @@ requirement to Read. Its obligations apply only when advertised.
 The minimum Read profile consists of:
 
 - the canonical Scope response and its `service-desc` discovery document;
-- the discovered `beads/`, `links/`, and `types/` inventories;
+- the Bead, Link and Type inventories at their discovered navigation URLs;
 - individual canonical Bead and Link Resource reads;
 - paginated Bead and Link collection retrieval with the structural predicates
   and bounded Selector defined below;
@@ -237,44 +239,52 @@ belongs to exactly one Scope. URI path hierarchy does not create
 nested Scopes. A Scope exists only when it is identified by its own root BDP
 description, and the URI spaces owned by different Scopes do not overlap.
 
-A local Bead ID begins with the fixed `beads/` segment, and a local Link ID
-begins with the fixed `links/` segment. Each then contains one or more safe
-URI-path segments that form opaque identity within its Scope. Protocol
-resolution against the canonical Scope URL produces one absolute canonical
-Resource URL. That URL is immutable. Once committed, it is never reassigned
-to an unrelated Resource in the lifetime of the logical Scope, including
-after deletion or replacement of the serving authority. To back that up, an implementation
-preserves a compact identity tombstone, a durable allocation record, or an
-equivalent non-reuse guarantee. A restore that cannot preserve that guarantee
-creates a different logical Scope and therefore uses a different canonical
-Scope URL.
+A local Resource ID consists of one or more safe URI-path segments forming
+opaque identity within its Scope. The namespace is Scope-defined: BDP reserves
+no `beads/`, `links/` or `types/` prefix for Resource identity. A Scope MAY
+choose those spellings, put both kinds beneath one path, or use unrelated
+paths. A client MUST NOT prepend a kind segment or infer Resource kind from
+an identifier's path. The operation and resolved Resource determine kind.
 
-At a protocol boundary, BDP v0 assigns Beads and Links to exactly those two
-fixed top-level paths. The segments following `beads/` or `links/` are
-identity. They do not imply containment, collection membership, or a child
-Scope: `beads/foo/bar` implies nothing at `beads/foo`, and both may exist as
-unrelated Beads. No other Scope-relative path acquires Bead or Link
-semantics, except the alias root defined below. Multiple roots of either
-kind, and a root that mixes Beads and Links, are deferred beyond v0. The
-protocol accepts documented local reference spellings as input, but it
-emits absolute canonical Resource URLs.
+Resolution against the canonical Scope URL produces one absolute canonical
+Resource URL. That URL is immutable. Once committed for either kind, it is
+never reassigned to an unrelated Resource in the lifetime of the logical
+Scope, including after deletion or replacement of the serving authority.
+An implementation preserves a compact identity tombstone, durable allocation
+record or equivalent non-reuse guarantee. A restore that cannot preserve
+that guarantee creates a different logical Scope and therefore uses a different canonical
+Scope URL. Removing kind prefixes changes none of these identity obligations.
+
+Segments imply neither containment nor a child Scope: `projects/alpha/task-42`
+implies nothing at `projects/alpha`. Collection and operation URLs are
+advertised navigation, not Resource-ID prefixes. The authority MUST keep
+protocol navigation addresses from being assigned as canonical Resource or
+alias URLs with a conflicting interpretation. Different Scopes' URI spaces
+remain disjoint. BDP emits absolute canonical Resource URLs.
 
 #### Aliases
 
-An **alias** is a repointable name for one in-Scope Bead, beneath the fixed
-`alias/` root: one or more safe segments under the same grammar as local
-IDs, so whether a URI names canonical identity or an alias is decidable
-from its spelling alone. An alias is not a Resource: it has no
-representation, no revision, and no collection membership. It targets a
-canonical Bead URL only — an alias MUST NOT target another alias, so
-resolution is always exactly one step. Unlike canonical segments, alias
-paths are repointable and, after deletion, reusable: an alias is a locator
-and carries no identity promise.
+An **alias** is a repointable locator for one in-Scope Bead, beneath the
+advertised `aliases` base. The authority chooses that base; it MAY be the
+canonical Scope URL itself. BDP reserves no `alias/` spelling. A local alias
+operand is a complete Scope-relative path, resolved against `scope`, not an
+instruction to prepend the advertised base or strip a matching tail.
+Membership in the advertised alias namespace and an actual alias binding are
+established by the authority, not inferred from a path word. An alias is not
+a Resource: it has no representation, no revision, and no collection membership.
+It targets a canonical Bead URL only, never another alias; resolution is
+one step. Unlike canonical segments, alias paths are repointable and, after
+deletion, reusable: an alias is a locator and carries no identity promise.
 
-Alias paths and canonical Bead segments share one uniqueness namespace in the
-Scope. An alias is not part of a Bead record or its `properties`, and changing
-an alias changes no Bead revision. Serving alias resolution is Read surface,
-advertised through the `aliases` discovery member.
+Collision checks compare complete canonical URLs in the Scope's shared
+namespace, across both Resource kinds. An alias MUST NOT occupy any URL ever
+committed as a canonical Bead or Link identity, including a deleted identity.
+A Resource creation MUST NOT occupy a live alias URL. Removing an alias can
+release its locator; deleting a Resource never releases its canonical identity.
+Equal final segments under different complete paths do not collide merely
+because an implementation formerly removed kind prefixes before comparison.
+An alias is not part of a Bead record or its `properties`; changing it changes
+no Bead revision. Serving alias resolution is advertised through `aliases`.
 
 Beads and Links are both **Resources**: each has identity, a representation,
 and uniform operations. Authorization is separate from identity and typing.
@@ -625,15 +635,16 @@ Union constraints are not part of the v0 baseline. An out-of-Scope endpoint
 is opaque and neither satisfies nor fails `conformsTo` requirements.
 
 Each endpoint constraint additionally declares its **external-endpoint
-policy** through the optional `external` member: `none` rejects an
-out-of-Scope reference at that endpoint when the Link is created, `opaque`
-admits any external URI, and `bead` admits an external URI only when it is
-bead-shaped — a canonical HTTP(S) URL whose path contains a `beads/{id}`
-tail. An absent member means `opaque`. The `bead` policy is validated,
-declared intent about creation time, not an ongoing guarantee: the external
-target can stop being a Bead through exogenous means, and the authority
-never dereferences it to find out. A reference remains a claim about the
-time it was written.
+policy** through optional `external`: `none` rejects an out-of-Scope reference
+at creation, `opaque` admits any external URI, and `bead` expresses the
+author's intent to cite an external Bead and requires an admitted absolute
+HTTP(S) URL. An absent member means `opaque`. No path spelling, including
+`beads/`, proves that an external target is a Bead. For `bead`, the authority
+validates the HTTP(S) URL requirement, not the remote Resource's actual kind,
+Type, existence or continuing availability; it MUST NOT claim such verification
+from a URL shape. No remote fetch is required or implied. This remains declared
+creation-time intent, not a cross-Scope integrity or lifecycle guarantee.
+Opaque external equality and Reference pin handling remain unchanged.
 
 Maximum endpoint multiplicity is different: it is a Scope-owned aggregate
 policy, because checking it means inspecting other Links. [Scope aggregate constraints](#scope-aggregate-constraints) defines its
@@ -963,16 +974,16 @@ serves alias resolution; a client MUST NOT construct alias URLs otherwise.
 An omitted `order` means `canonical-uri`. These are the only members admitted
 by the closed `readDiscovery` definition.
 
-A minimum Read discovery representation is:
+A minimum Read discovery representation may use arbitrary inventory paths:
 
 ```json
 {
   "bdpVersion": "0",
   "profile": "read",
   "scope": "https://beads.example/acme/",
-  "beads": "https://beads.example/acme/beads/",
-  "links": "https://beads.example/acme/links/",
-  "types": "https://beads.example/acme/types/"
+  "beads": "https://beads.example/acme/inventory/items",
+  "links": "https://beads.example/acme/inventory/relations",
+  "types": "https://beads.example/acme/catalog"
 }
 ```
 
@@ -983,42 +994,70 @@ compatibility. `profile` is required and is exactly `"read"`,
 `"read-update"`, or `"transactional"`. It advertises the Scope's highest
 supported cumulative profile. It is a single value rather than an array
 because each higher profile claims every lower profile.
-BDP v0 fixes one Bead root and one Link root per Scope. The `beads` and
-`links` members are absolute HTTP(S) navigation URLs for those roots. In
-canonical local IDs, the fixed roots are still exactly `beads/` and `links/`.
-The advertised URLs are the collection URLs that correspond to those roots,
-and they are the only top-level paths under which this Scope assigns Bead and
-Link semantics. The collection URL itself is a Resource. A service MUST NOT
-advertise an additional Bead or Link root, mix both Resource kinds beneath
-one root, or let the fixed roots of separately described Scopes overlap.
-For the canonical Scope URL `S`, `beads` MUST equal the URL produced by
-resolving `beads/` against `S`, `links` MUST equal `links/` resolved against
-`S`, and `types` MUST equal `types/` resolved against `S`. When present,
-`aliases` MUST equal `alias/` resolved against `S`.
+The `beads`, `links` and `types` members are absolute HTTP(S) navigation
+URLs for their inventories. They MUST be beneath the canonical Scope URL,
+but need not equal any fixed suffix. Inventory membership does not derive
+from an item's URL prefix. `aliases`, when present, names an in-Scope alias
+base, which may equal `scope`; it does not grant arbitrary paths alias
+semantics without a binding. The operation directory is likewise discovered.
+Clients MUST NOT synthesize these URLs from the Scope or a Resource path.
 
-A local Bead ID has the form `beads/{id-path}`, and a local Link ID has the
-form `links/{id-path}`. In both, `{id-path}` contains one or more nonempty
-segments. Those segments are opaque identity: they do not define containment
-or child Scopes. Empty, `.`, and `..` segments, controls, backslashes,
-queries, fragments, scheme-relative references, and encoded `/` or `\`
-separators are invalid. A service decodes percent escapes exactly once and
-rejects invalid UTF-8. It emits unreserved characters literally, and emits
-all required percent escapes with uppercase hexadecimal digits. It compares
-decoded segments exactly, without Unicode normalization.
+Local Bead, Link and alias spellings contain one or more nonempty safe
+segments. Empty, `.`, and `..` segments, controls, backslashes, queries,
+fragments, scheme-relative references, and encoded `/` or `\` separators
+are invalid. A service decodes percent escapes exactly once and rejects
+invalid UTF-8. It emits unreserved characters literally and required percent
+escapes with uppercase hexadecimal digits. Comparison is exact on decoded
+segments, without Unicode normalization. Prefix removal relaxes none of this
+retained normalization or creation-spelling discipline.
 
-For example, both `beads/task-42` and
-`beads/projects/alpha/tasks/task-42` are valid local Bead IDs. The second
-form does not imply that `projects`, `alpha`, or `tasks` is a container or
-Scope. A Link ID follows the same rule beneath `links/`, such as
-`links/assigned-to/81`.
+For example, `task-42`, `projects/alpha/task-42` and `relations/81` can be
+Resource IDs. Their kind is not implied by these choices. A Scope may also
+choose `beads/task-42` or `links/81` as ordinary IDs. The authority resolves
+local references against `scope` and performs kind checks on the resolved
+Resource, not its first path segment. A relative endpoint must still identify
+a live in-Scope Bead; an absolute out-of-Scope endpoint remains opaque.
+Resolution never mutates an endpoint Bead.
 
-An input Resource reference may use that canonical local spelling or the
-absolute canonical URL. The authority resolves a local reference against
-`scope` and canonicalizes it. Before lookup, it verifies that the first
-segment is the fixed root for the required Resource kind. A relative endpoint
-reference therefore must identify a live Bead in this Scope. An absolute
-endpoint reference outside `scope` remains opaque. Resolution never mutates
-an endpoint Bead.
+#### Point-read kind and owning-Scope navigation
+
+A successful current or retained Bead/Link point read MUST include
+`BDP-Resource-Kind: bead` or `BDP-Resource-Kind: link`, identifying the actual
+Resource kind. The field has exactly one lowercase token value, not a list.
+This applies to the full record, properties view, incident view
+or aggregate, and to corresponding HEAD and 304 responses. In an incident
+view it identifies the Bead subject, not the Link items. The field agrees
+with the full native record shape when a record is returned; it is not derived
+from the URL or authored Type. A Problem, alias redirect or inventory response
+does not acquire a Resource kind merely because it uses a similar path.
+Authorization and non-disclosure checks precede this metadata as for the read.
+
+Those successful point-read responses MUST also carry a `service-desc` Link
+to the owning Scope's machine discovery document. This is the same registered
+relation used on the Scope response, not a new descriptor representation.
+The descriptor's `scope` and operation navigation establish the binding for
+an absolute-URL mutation. A client MUST NOT find it by stripping path segments
+or adopting an unrelated configured default. An explicitly supplied Scope may
+instead bind the operation; the authority still checks the target's membership
+and kind. Reading an absolute URL needs no configured Scope or preliminary
+inventory scan. Following navigation supplies no authorization grant and does
+not authorize forwarding credentials to a different authority.
+
+```http
+GET /acme/task-42?view=properties HTTP/1.1
+Host: beads.example
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+BDP-Resource-Kind: bead
+Link: <https://beads.example/acme/bdp.json>; rel="service-desc"; type="application/json"
+
+{"title":"Review BDP"}
+```
+
+These are transport metadata, not new fields in Resource/property JSON.
+Header-only and properties-only consumers can therefore assert kind without
+fetching a full Resource or treating user properties as a discriminator.
 
 Discovery-document members defined by this specification are fixed BDP
 vocabulary. Scope, Resource, Type, schema,
@@ -1032,6 +1071,8 @@ entry relation. Optional `service-doc` and `describedby` uses keep their
 registered Web meanings.
 
 ### Normative schema bundle
+
+The artifact references in this inherited section describe the existing v0 slot. The [v0.1 binding](contract-binding.md) identifies the separately named target artifact and its staging/adoption boundary; it does not silently change what an existing v0 validator loads.
 
 BDP v0 publishes one normative JSON Schema 2020-12 bundle at
 `specs/profiles/core/bdp-v0.schema.json`. Every public discovery, request, success, Resource, collection and problem envelope is a named entry beneath that bundle's
@@ -1099,8 +1140,8 @@ For example:
 
 ### Types and Type Descriptors
 
-The discovered `types/` Resource is an inventory of the Bead and Link Type
-Descriptors that the Scope advertises as known. It supports generic tooling,
+The discovered `types` navigation URL serves an inventory of the Bead and
+Link Type Descriptors that the Scope advertises as known. It supports generic tooling,
 lets clients preload schemas, and reveals which contracts the service can
 validate. It is not a closed-world claim: it does not assert that no other
 Type exists.
@@ -1432,7 +1473,7 @@ an error, not an instruction to ignore that parameter.
 ### Alias resolution
 
 When discovery advertises `aliases`, a `GET` or `HEAD` of an alias URL —
-`alias/{alias-path}` resolved against the canonical Scope URL — returns
+an admitted alias path resolved against the canonical Scope URL — returns
 `307 Temporary Redirect` with `Location` set to the target's absolute
 canonical Bead URL and no body. Resolution is redirect-only: an authority
 MUST NOT serve a Resource representation at an alias URL, which would give
@@ -1519,8 +1560,8 @@ Link view is only a derived read.
 ### Collection retrieval and selection
 
 An ordinary `GET` of a discovered collection returns a paginated `items` array
-and a `next` URL. The `beads/` and `links/` collections return complete
-Resource records; the `types/` collection returns Type summaries.
+and a `next` URL. The discovered Bead and Link inventories return complete
+Resource records; the Type inventory returns Type summaries.
 
 Every collection response — filtered or not, including the Bead `links`
 view — is produced in one total order over the selected set, stable across
@@ -1537,7 +1578,7 @@ Two conformant authorities serving the same selected set under the same
 advertised order return the same item sequence. The
 collections accept these structural predicates:
 
-| Parameter | `beads/` | `links/` | `types/` | Meaning |
+| Parameter | Beads | Links | Types | Meaning |
 | --- | --- | --- | --- | --- |
 | `type` | yes | yes | no | Exact Type ID |
 | `conformsTo` | yes | yes | no | Effective conformance to the named Type ID |
@@ -1599,8 +1640,8 @@ spelling aliases.
 Collection responses do not accept Resource `view` or `include` parameters.
 Their `items` are always complete Resource records. In particular, a Bead
 collection cannot embed each Bead's incident Links. Clients select Links from
-`links/` or use the Link view on one Bead. Services may advertise a maximum
-encoded request-target length and Selector complexity, but must not silently
+the discovered Link inventory or use the Link view on one Bead. Services may
+advertise a maximum encoded request-target length and Selector complexity, but must not silently
 interpret a truncated Selector. Ordinary `GET` semantics make simple
 selections browser-debuggable and compatible with conditional requests without
 requiring the newer `QUERY` method or a request body on `GET`. The
@@ -1980,7 +2021,8 @@ cross-origin BDP access, its CORS policy MUST allow every BDP-defined
 non-safelisted request field used by its advertised profile. It MUST also allow the applicable HTTP conditional
 request fields: `If-Match`, `If-None-Match`, `If-Modified-Since`, and
 `If-Unmodified-Since`. It MUST expose `Link`, `ETag`, `Retry-After`,
-and `Cache-Control` when applicable. History response-field exposure is defined
+and `Cache-Control` when applicable. It MUST also expose `BDP-Resource-Kind`
+when that response field applies. History response-field exposure is defined
 under [Historical HTTP metadata](#historical-http-metadata). Ordinary CORS
 rules still govern `Accept` and `Content-Type` values. Type Descriptors hosted outside a Scope keep ordinary HTTP caching
 semantics.

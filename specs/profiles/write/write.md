@@ -12,6 +12,8 @@ It preserves the existing Read+Update and Transactional profiles: Write is a
 document name, not a new advertised profile. `sequence` remains non-atomic;
 `batch` remains atomic. The [conformance index](../../conformance.md) is shared.
 
+The [v0.1 selected-contract binding](../core/contract-binding.md) stages distinct discovery/media/schema identity for the retained target. Inherited v0 HTTP examples and profile vocabulary in this source are not a claim that the new binding/profile composition is complete or that changed semantics can be advertised as unchanged0. Existing v0 implementations remain held at their actual contract.
+
 <!-- protocol-text -->
 
 <a id="part-ii--readupdate"></a>
@@ -35,18 +37,18 @@ optional History capability. Its discovery schema is the closed
 under their inherited contracts. These are the only admitted members.
 
 A minimum Read+Update discovery representation adds its Operation
-Directory and its alias root:
+Directory and its Scope-selected alias base:
 
 ```json
 {
   "bdpVersion": "0",
   "profile": "read-update",
   "scope": "https://beads.example/acme/",
-  "beads": "https://beads.example/acme/beads/",
-  "links": "https://beads.example/acme/links/",
-  "types": "https://beads.example/acme/types/",
-  "operations": "https://beads.example/acme/operations/",
-  "aliases": "https://beads.example/acme/alias/"
+  "beads": "https://beads.example/acme/inventory/items",
+  "links": "https://beads.example/acme/inventory/relations",
+  "types": "https://beads.example/acme/catalog",
+  "operations": "https://beads.example/acme/commands/",
+  "aliases": "https://beads.example/acme/"
 }
 ```
 
@@ -131,7 +133,7 @@ A Resource's canonical ID is established at creation and never changes. A
 creator MAY supply the local ID — one or more safe segments, so a memorable
 or hierarchical name is identity from birth — or omit it, in which case the
 authority allocates one. An authority-allocated local ID is a single opaque
-segment, and for a Bead never one that is a live alias path under
+segment, and for either Resource kind never a live alias URL under
 [Aliases](../core/core.md#aliases): hierarchy is a
 creator affordance, and an authority MUST NOT encode
 meaning into segments it mints. A supplied spelling that is not already
@@ -378,12 +380,10 @@ defines the two alias targets, `put-alias` and `delete-alias`, under
 [Alias targets](#alias-targets), and the Transactional profile inherits
 them. A put creates the alias or repoints an existing
 one to exactly one canonical in-Scope Bead URL; a delete removes it, and
-the path is reusable afterwards. Alias paths and canonical Bead segments
-share one uniqueness namespace in the Scope. They share it because the
-realizations the alias root fronts share one — in the beads realization,
-keys and aliases occupy one project-wide namespace — so the invariant is
-imported from the store rather than required by resolution, which
-spelling alone decides.
+the locator is reusable afterwards. Collision rules compare complete canonical
+URLs across Beads, Links and aliases, as defined by Core's
+[Aliases](../core/core.md#aliases). No storage-specific removal of a path prefix
+or equality of suffixes changes protocol identity or collision behavior.
 Putting or deleting an alias
 mints no version of any Bead: an alias is a locator, not part of the
 target's durable state, and it is not a member of the Bead record or of
@@ -405,7 +405,8 @@ DeleteAlias(
 ) -> AliasDeletionResult
 ```
 
-`alias` is an alias path beneath the `alias/` root under
+`alias` is a complete Scope-relative path or absolute URL in the advertised
+alias base under
 [Aliases](../core/core.md#aliases); `target` is a canonical in-Scope Bead reference or,
 in a sequence, a local reference bound by an
 earlier Bead creation. Alias operations are protocol-level operations on
@@ -460,9 +461,9 @@ revisions, properties, timestamps, query results, and other operation-result
 data are not.
 
 A durable relative reference is resolved against the canonical Scope URL and
-normalized to an absolute canonical URL before use. It must remain beneath
-the fixed `beads/` or `links/` root required by the reference's Resource
-kind. An endpoint reference that is relative therefore always denotes an in-Scope
+normalized to an absolute canonical URL before use. It must belong to the
+operation's Scope; required kind is checked against the resolved Resource,
+not any path prefix. An endpoint reference that is relative therefore denotes an in-Scope
 endpoint and must identify a live Bead. An endpoint reference that is an
 absolute URI outside the canonical Scope is handled as opaque.
 
@@ -951,7 +952,7 @@ targets](#operation-directory-and-singleton-targets).
 #### Alias targets
 
 The Read+Update profile defines two alias targets, `put-alias` and
-`delete-alias`, keyed by alias path beneath the fixed `alias/` root defined
+`delete-alias`, addressed by alias path in the advertised alias base defined
 under [Aliases](../core/core.md#aliases); the Transactional profile inherits both.
 Each is a singleton target under
 [Operation Directory and singleton targets](#operation-directory-and-singleton-targets)
@@ -960,8 +961,8 @@ discriminators are `putAlias` and `deleteAlias`.
 
 A **put** creates an alias or repoints an existing one to exactly one
 canonical in-Scope Bead URL; repointing is the same operation, not a second
-one. Its record carries `alias`, the alias named by its local spelling
-`alias/{alias-path}` or by its absolute alias URL, and `target`, one
+one. Its record carries `alias`, a complete Scope-relative alias path or its
+absolute URL, and `target`, one
 canonical in-Scope Bead reference — a durable local ID, an absolute canonical
 Bead URL, or, in a sequence, a `@name` bound by an earlier creation of a Bead
 in the same sequence. A **delete** removes the alias; its record carries
@@ -973,30 +974,26 @@ Resource.
 
 ```json
 {
-  "alias": "alias/adr/sequence-envelopes",
-  "target": "beads/decision-7"
+  "alias": "decisions/latest",
+  "target": "decision-7"
 }
 ```
 
-The alias path uses the local-ID grammar: one or more safe segments,
-compared exactly as local-ID segments are. `alias` is resolved against the
-canonical Scope URL like a durable reference, and it never accepts
-`@name`; a spelling that violates the grammar is carrier syntax rejected
-before execution with `malformed-request`, and a well-formed spelling
-that is not beneath the `alias/` root names no alias and fails with
-`resource-not-found` when the member is reached, as a wrong-root subject
-reference does under [Read+Update problem details](#readupdate-problem-details). Canonical Bead
-segments and alias paths share one
-uniqueness namespace in the Scope, a store invariant the authority
-enforces when the member is reached: a put whose alias path is the
-`{id-path}` of a canonical Bead URL ever committed in the logical Scope —
-a deleted one included, since canonical segments are never released —
-fails with `identity-taken`, and a Bead creation that supplies an `id`
-whose `{id-path}` is a live alias path fails with `alias-path-taken`, a
-condition that clears when the alias is deleted. An authority never
-allocates a Bead id whose segment is a live alias path. Link segments and
-alias paths coexist: `links/foo` and `alias/foo` do not collide, and a
-Link creation may supply an `id` whose `{id-path}` is a live alias path.
+The alias operand uses the retained local-ID grammar and normalization.
+Resolve a relative operand against `scope`; do not prepend `aliases` or drop
+an apparent kind segment. It never accepts `@name`. Malformed reference syntax
+is rejected before execution with `malformed-request`. A well-formed URL outside
+the advertised alias base names no admitted alias and fails with
+`resource-not-found`; no fixed word such as `alias/` determines that result.
+
+Within the admitted alias namespace, a put whose complete canonical URL was
+ever committed for a Bead or Link, including a deleted identity, fails with
+`identity-taken`. A Bead or Link creation at a live alias URL fails with
+`alias-path-taken`; that condition clears when the alias is removed. An allocator
+avoids live aliases for both kinds. Distinct URLs such as `relations/foo` and
+`names/foo` do not collide merely because their final segments agree. This
+replaces the old fixed-root tail comparison; Resource non-reuse still applies
+across kind and authority changes.
 An alias path in use as an alias is not taken for a put, which repoints
 it. Alias operations follow the model's check order under
 [Explicit alias operations](#explicit-alias-operations), identifier
@@ -1041,8 +1038,8 @@ AliasResult {
 A put reports `created` when the alias path was not in use as an alias and
 `updated` when it repointed an existing alias — including a put whose
 `target` the alias already had, which changes nothing and reports
-`updated`; both carry `alias`, the absolute alias URL, `alias/{alias-path}`
-resolved against the canonical Scope URL, and `target`, the absolute
+`updated`; both carry `alias`, the absolute alias URL produced by resolving
+the admitted alias path against the canonical Scope URL, and `target`, the absolute
 canonical Bead URL the alias now resolves to. A delete reports `deleted`
 with `alias` and no `target`. The outcome vocabulary is the mutation
 result's own. A singleton alias target returns the alias result as the
@@ -1079,7 +1076,7 @@ Read+Update and Transactional discovery documents under
 [Scope discovery and human documentation](../core/core.md#scope-discovery-and-human-documentation),
 and the bundle's `readUpdateDiscovery` requires it.
 
-An alias spelling — `alias/{alias-path}` or the absolute alias URL — is
+An alias spelling — an admitted Scope-relative alias path or absolute URL — is
 admitted wherever a canonical in-Scope Bead reference is: as the `bead`
 subject of an update or a deletion and as a Link endpoint `source` or
 `target`, bare or as the `uri` of a Pinned Reference, in a singleton and
@@ -1494,25 +1491,23 @@ The Read+Update rows mean:
 - `type-not-installed`: the declared Type's contract closure is not
   installed, under
   [Descriptor resolution and installation](../core/core.md#descriptor-resolution-and-installation).
-- `identity-taken`: a supplied `id` whose canonical Resource URL was ever
-  committed in the logical Scope, including a deleted one. Canonical Bead
-  segments and alias paths share one uniqueness namespace under
-  [Alias targets](#alias-targets): an alias put whose path is the
-  `{id-path}` of a canonical Bead URL ever committed in the logical Scope,
-  a deleted one included, fails the same way, while a Bead creation whose
-  supplied `id` has the `{id-path}` of a live alias is `alias-path-taken`. This is
-  inherently an existence signal for the identity the creator chose, hidden
-  or deleted alike: the non-reuse guarantee cannot be non-disclosing for a
-  supplied spelling, and BDP accepts that one exception to its
-  no-enumeration-oracle posture rather than allocate a second identity. An
-  alias put is a cheaper existence probe than a creation — it allocates no
-  Resource, mints no version, and is deletable — gated only by permission
-  to put aliases, which is therefore what that permission grants.
-- `alias-path-taken`: a Bead creation whose supplied `id` has the
-  `{id-path}` of a live alias, under [Alias targets](#alias-targets). The
-  path is held by an alias rather than by a committed identity, so the
-  condition clears when the alias is deleted and the retry disposition is
-  `after-state-change`, where `identity-taken`'s is `never`.
+- `identity-taken`: a supplied `id` whose complete canonical Resource URL
+  was ever committed in the logical Scope, for either Resource kind, including
+  a deleted identity. Within the admitted alias namespace, an alias put at
+  such a URL fails the same way under [Alias targets](#alias-targets).
+  This is inherently an existence signal for the identity the creator chose, hidden
+  or deleted alike; the non-reuse guarantee cannot hide it by allocating a
+  replacement identity. An alias put is a cheaper existence probe than a creation
+  — it allocates no Resource, mints no version, and is deletable — gated only by
+  permission to put aliases, which is therefore what that permission grants.
+  This collision signal applies within the admitted alias namespace across both
+  Resource kinds. Comparing only
+  a suffix after stripping an old kind/root segment is not permitted.
+- `alias-path-taken`: a Bead or Link creation whose complete canonical URL
+  is a live alias under [Alias targets](#alias-targets). The locator is held
+  by an alias, not a committed Resource identity; removing the alias clears
+  the condition. Its retry disposition is `after-state-change`, whereas an
+  ever-committed canonical identity remains `identity-taken` with `never`.
 - `revision-mismatch`: the member's `expectedRevision` is not the Resource's
   current revision.
 - `revision-allocation-unsafe`: a positively established persistent,
@@ -1543,10 +1538,10 @@ names a Bead that does not exist or is not visible, and an alias delete
 whose alias is unknown, fail the same way: aliases are not an enumeration
 oracle. Which code a reference fault takes follows from what the
 reference is: a subject reference — `bead`, `link`, or the `alias` member
-of an alias record — whose spelling has the wrong root is
-`resource-not-found`, since the subject does not exist as the required
-kind; an endpoint or target reference of the wrong category — an alias, a
-Link, or an external URI as an alias put's `target`, or a Link path as a
+of an alias record — that resolves to no admissible subject of the required
+kind is `resource-not-found`; URL prefix spelling does not decide kind.
+An endpoint or target reference of the wrong category — an alias, a Link, or
+an external URI as an alias put's `target`, or a resolved Link Resource as a
 Link endpoint — is `validation-failed`; and a value that is not a
 reference shape at all — neither a relative path nor an absolute URL
 under the local-ID grammar, or a `@name` where none is admitted — is
@@ -2539,7 +2534,7 @@ and a request that fails one step never reaches the next:
    unpaired surrogate, duplicate member names after escape decoding, an absent, repeated, or invalid `Idempotency-Key`, a body outside
    `batchRequest`, a forward, unknown, or duplicate label, a label used
    where the other Resource kind is required, a noncanonical local ID
-   spelling, or a supplied `id` beneath the wrong fixed root is `400`
+   spelling is `400`
    `malformed-request`. Invalid complete grammar of an embedded Selector is
    also `400` `malformed-request` before key lookup. Its problem carries the
    original Selector member's `pointer`; other syntax problems SHOULD carry
