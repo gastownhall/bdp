@@ -22,6 +22,9 @@ package, or implementation qualification. Schema IDs under
 | [dependency.properties.schema.json](../../types/issue/dependency.properties.schema.json) | Dependency instance properties | Base review fragment; child-specific workflow fields remain open |
 | [domain-property-cases.json](../../../fixtures/specs/issue/domain-property-cases.json) | Illustrative Issue/Dependency properties | Shape-test inputs, not a domain specification |
 | [definitions.json](definitions.json) | Eight definition Beads and four owned declarations | Literal final graph, not creation/import syntax |
+| [exact-definition-read.md](exact-definition-read.md) | Narrow exact definition lookup | Candidate binding, not general History or public Type lifecycle |
+| [exact-definition-read.schema.json](exact-definition-read.schema.json) | Query/detail/wrapper/Problem grammar | References fixed unmerged common source; no provider semantics |
+| [exact-definition-read-cases.json](exact-definition-read-cases.json) | Exact query and copied full record; six semantic cases | Grammar/example evidence only; semantics unexecuted |
 
 ## Source and status
 
@@ -107,6 +110,17 @@ The checker enables Python `FormatChecker` for its illustrative URI/date cases;
 that setting alone proves neither coverage of every standard format nor admission
 refusal for unknown formats. It does not implement general required-vocabulary
 negotiation or prove arbitrary schema satisfiability.
+
+The later Types-local [exact lookup candidate](exact-definition-read.md) makes the
+complete-read obligation concrete without changing descriptor fields. Common-source
+author feedback supports the direction, not adoption. Shared Core/error/discovery
+propagation is separately owned; ordinary point ownership metadata must not be
+misapplied to a retained foreign definition. Its grammar uses exact PR292 common
+source as a separately recorded validation input; no canonical bundle/runtime copy
+is adopted here. The original checker below does not automatically cover that new
+binding. Read-specific grammar/source/negative cases have their own exact evidence;
+six service scenarios remain unexecuted. No new validation framework or runtime is
+introduced.
 
 ## Changes from the current descriptor
 

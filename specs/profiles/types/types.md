@@ -978,9 +978,11 @@ inserting retained foreign copies into ordinary local graph inventory. Readabili
 alone grants neither creation/affiliation permission nor a promise of inclusion in
 ordinary product Type lists. Category, abstractness and authorization rules still
 apply; BeadType and LinkType remain usable metatypes under §2.1.
-The local/foreign lookup binding, discovery and error spelling require coordinated
-Core correspondence; this section does not invent an endpoint or adopt History
-for every Resource. A lookup miss does not authorize fetch-and-register.
+The [Types-local exact lookup candidate](exact-definition-read.md) now makes the
+local/foreign binding, wrapper and narrow error reuse concrete for shared review.
+It is not adopted transport: Core/discovery/error/schema correspondence and
+qualification remain necessary. This section does not adopt History for every
+Resource. A lookup miss does not authorize fetch-and-register.
 
 Current authorization applies. Missing, unavailable or undisclosable required exact
 state cannot be represented as a successful complete contract, replaced with current
