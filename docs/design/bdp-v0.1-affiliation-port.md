@@ -124,19 +124,30 @@ Fresh strict-Ajv/full-format carrier checks pass **408/408**, with exactly ten
 changed/two new definitions in the new slot, byte-identical distribution mirror,
 and all 163 candidate definitions compiled by the binding tests. The held v0
 schema remains SHA256 `15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327`.
-All twelve new artifact tests pass; the nine-file check totals **436 passed,
-one failed, zero skipped** (Vitest4.1.10, Node24.19.0). The one failure is the
-unchanged `read-update-wire.test.ts:414` expectation that `[]` is invalid,
-contradicting the held ordinary-update schema. It reproduces on clean parent
-PR287@5c3f909 in a one-test diagnostic (137 other tests filtered). Neither that
-test nor the v0 schema is changed or weakened here. The initial new illustrative
-schema strictRequired failure was corrected by declaring each required branch
-member, preserving strict validation; that test now passes. There is no blanket
-green-suite claim. Parent integration owns disposition of the pre-existing test.
+All twelve new artifact tests passed in the original nine-file run: **436 passed,
+one failed, zero skipped** (Vitest4.1.10, Node24.19.0). The failure was the stale
+`read-update-wire.test.ts:414` expectation that `[]` is invalid. It reproduced on
+clean parent PR287@5c3f909 in a one-test diagnostic (137 other tests filtered);
+both original failure logs and that reproduction are preserved. The initial new
+illustrative schema strictRequired failure was corrected in source while retaining
+strict validation, and that test passed.
+
+Trish confirmed that [#281](https://github.com/gastownhall/bdp/pull/281) / `365f337`
+already integrated supplied-empty ordinary patches. The bounded author repair
+therefore aligns this one old test with that existing rule: empty patches are
+valid for both Resource kinds and both object planes; root replacements stay
+valid; malformed patches, omitted-all edits and guard-only updates are rejected.
+This is the explicit held-boundary exception, not a v0 schema/runtime/behavior-fixture
+upgrade or a skipped/weakened malformed-input rule. It remains in this isolated
+[#279](https://github.com/gastownhall/bdp/issues/279) lane under the existing
+[#59](https://github.com/gastownhall/bdp/issues/59) plan. The same nine-file slice
+now passes **437/437 tests across nine files, zero failed or skipped** after the
+test/source-evidence update. The original failure is not rewritten into a PASS;
+this new run qualifies the corrected assertion at its new source.
 
 After final prose-only wrapping/clarification, fresh carrier/source checks confirm
 569 live quotations resolve across six catalogs, companion metadata is identical,
-36 JSON fences parse, 68 local file links resolve, seven changed code/JSON files
+36 JSON fences parse, 68 local file links resolve, eight changed code/JSON files
 pass Biome and whitespace checks pass. The candidate has 29 unexecuted semantic
 scenarios and six paired CLI/operation samples; these are not parser or provider
 execution. Original PR284/Types/runtime/behavior fixtures stay held. No hosted,
