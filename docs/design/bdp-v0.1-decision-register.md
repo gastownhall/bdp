@@ -118,6 +118,18 @@ positional URI grammar remain proposals. Product Issue-family defaults and
 a special full-URI `/any` exception. Preserve the relevant product owner record
 without adopting those broader meanings here.
 
+### Later candidate source pointers; decision dispositions unchanged
+
+Draft [PR286](https://github.com/gastownhall/bdp/pull/286) at `453a37ac` and
+draft [PR287](https://github.com/gastownhall/bdp/pull/287) at `5c3f9090` now pair
+the relevant CLI subsets with namespace and contract-binding source. The
+[front-door candidate section](../../specs/README.md#unmerged-candidate-sources-after-the-reviewed-snapshot)
+records exact heads, paired files and staged schema artifacts. Both remain
+unmerged and incomplete; PR287 includes PR286 ancestry. These are later source
+pointers, not new rulings, incorporation or adoption. All 29 original rows,
+dispositions and resolution drivers retain their reviewed snapshot. Actual v0
+runtime/evidence pins, remaining composition gaps and existing holds remain.
+
 ## Genuine unresolved work and deliberate exclusions
 
 Trish/Sybil should derive settled cases before sending another question to
