@@ -130,6 +130,15 @@ pointers, not new rulings, incorporation or adoption. All 29 original rows,
 dispositions and resolution drivers retain their reviewed snapshot. Actual v0
 runtime/evidence pins, remaining composition gaps and existing holds remain.
 
+The later batch adds draft [PR289](https://github.com/gastownhall/bdp/pull/289)
+at `253bda93` (semantic repairs reviewed at `3540595d`) and draft
+[PR290](https://github.com/gastownhall/bdp/pull/290) at `dc331c53` to that same
+candidate section. Affiliation/owned-state and ordinary object-edit source has
+advanced; [issue279](https://github.com/gastownhall/bdp/issues/279) remains open
+for genuine composition. The original PR284/Types inputs and all 29 decision
+rows retain their authority/status; source review is not semantic execution or
+incorporation. This adds no owner recount or changed implementation pin.
+
 ## Genuine unresolved work and deliberate exclusions
 
 Trish/Sybil should derive settled cases before sending another question to
