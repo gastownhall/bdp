@@ -771,6 +771,33 @@
       "type": "object",
       "additionalProperties": true
     },
+    "typeReference": {
+      "description": "A Type affiliation: an absolute HTTP(S) nominal Type identity, optionally pinned to an exact opaque definition revision. Local paths and creation bindings are not admitted. Types-profile stored/output affiliations require the pinned form; Core alone does not interpret definitions.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        {
+          "$ref": "#/$defs/pinnedTypeReference"
+        }
+      ]
+    },
+    "pinnedTypeReference": {
+      "description": "The common closed pinned Reference shape, restricted to the admitted absolute HTTP(S) Type identity domain. This does not impose Link endpoint or source-pin semantics.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/pinnedReference"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "uri": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            }
+          }
+        }
+      ]
+    },
     "beadRecord": {
       "type": "object",
       "required": ["id", "type", "revision", "properties"],
@@ -779,7 +806,7 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/typeReference"
         },
         "revision": {
           "type": "string",
@@ -820,7 +847,7 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/typeReference"
         },
         "revision": {
           "type": "string",
@@ -1341,7 +1368,7 @@
           "$ref": "#/$defs/durableResourceReference"
         },
         "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/typeReference"
         },
         "properties": {
           "$ref": "#/$defs/properties"
@@ -1359,6 +1386,12 @@
       "required": ["bead"],
       "anyOf": [
         {
+          "required": ["type"],
+          "properties": {
+            "type": true
+          }
+        },
+        {
           "required": ["propertiesChange"],
           "properties": {
             "propertiesChange": true
@@ -1374,6 +1407,9 @@
       "properties": {
         "bead": {
           "$ref": "#/$defs/resourceReference"
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference"
         },
         "propertiesChange": {
           "$ref": "#/$defs/ordinaryUpdateChange"
@@ -1409,7 +1445,7 @@
           "$ref": "#/$defs/durableResourceReference"
         },
         "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/typeReference"
         },
         "source": {
           "$ref": "#/$defs/inputReference"
@@ -1433,6 +1469,12 @@
       "required": ["link"],
       "anyOf": [
         {
+          "required": ["type"],
+          "properties": {
+            "type": true
+          }
+        },
+        {
           "required": ["propertiesChange"],
           "properties": {
             "propertiesChange": true
@@ -1448,6 +1490,9 @@
       "properties": {
         "link": {
           "$ref": "#/$defs/resourceReference"
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference"
         },
         "propertiesChange": {
           "$ref": "#/$defs/ordinaryUpdateChange"
@@ -1811,7 +1856,7 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/typeReference"
         },
         "revision": {
           "type": "string",
@@ -2847,7 +2892,7 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/typeReference"
         }
       },
       "additionalProperties": false
@@ -2889,7 +2934,7 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/typeReference"
         },
         "previousRevision": {
           "$ref": "#/$defs/revision"
@@ -3111,7 +3156,7 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "subjectType": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/typeReference"
         },
         "transaction": {
           "$ref": "#/$defs/wireToken"
