@@ -16,6 +16,12 @@ The [v0.1 selected-contract binding](../core/contract-binding.md) stages distinc
 
 <!-- protocol-text -->
 
+The selected v0.1 [common affiliation amendment](../core/affiliations.md) governs
+Type Reference inputs, omission/replacement, no-ops, retries and recorded ownership.
+The paired [CLI source](../../../docs/cli-design/affiliations-and-owned-state.md)
+uses the same operation fields. Inherited profile/HTTP/Event examples remain
+staging input; this common amendment does not finish profile or Event composition.
+
 <a id="part-ii--readupdate"></a>
 
 ## Part III — Read+Update
@@ -192,9 +198,9 @@ Link versions both the Link and its source, and both carry it; deleting an
 owned Link mints no Link version (deletion never does) and versions only the
 source, which carries it. It is outside `properties`, never part of the
 `properties` view, and takes no part in the semantic no-op comparison: a
-write whose `properties` and common `metadata` changes are both no-ops mints
-no revision and records no new provenance and retains the existing version’s
-entire envelope.
+write whose affiliation, `properties`, common `metadata` and captured owned state
+are all unchanged mints no revision and records no new provenance and retains
+the existing version’s entire envelope.
 
 ### Property changes
 
@@ -212,8 +218,9 @@ Assigning JSON `null` and removing a member are distinct operations. The
 patch must yield a JSON object. The authority validates the complete
 `properties` result — not merely its changed members — against every effective
 Type contract; `metadata` has no Type schema. An update that leaves both
-objects unchanged is a no-op. Advertised limits bound the combined patch
-operation count, the path size and depth, and the resulting representation
+objects unchanged is a no-op only if affiliation and captured owned state are
+also unchanged under the selected v0.1 amendment. Advertised limits bound the
+combined patch operation count, the path size and depth, and the resulting representation
 size.
 
 ### Property-change values
@@ -222,11 +229,11 @@ BDP represents each change as a bounded
 [RFC 6902 JSON Patch](https://www.rfc-editor.org/rfc/rfc6902.html) applied to
 one Resource object. `propertiesChange` targets `properties` and
 `metadataChange` targets common `metadata`; each JSON Pointer is relative to
-its own complete object. A Resource update supplies at least one of these
-arrays and may supply both in the same atomic operation. An omitted array
-leaves its object unchanged. For ordinary `UpdateBead` and `UpdateLink`, a
+its own complete object. Under v0.1 a Resource update supplies at least one of
+`type`, `propertiesChange` or `metadataChange`, and may combine them atomically.
+An omitted array leaves its object unchanged. For ordinary `UpdateBead` and `UpdateLink`, a
 supplied array may be empty (`[]`), contributing no patch operations; at least
-one of the two array members must still be present. This also applies to
+one of the three mutation members must still be present. This also applies to
 ordinary updates within a sequence or atomic batch. `updateWhere.change` and
 emitted change deltas retain their nonempty-array requirement. When an update
 changes the other object, an empty input array is omitted from the emitted
@@ -235,7 +242,8 @@ change deltas.
 Empty arrays do not bypass authorization, target existence and liveness,
 applicable revision guards, or complete final-state validation. The authority
 processes the update under the usual idempotency rules and returns the ordinary
-authoritative `updated` result even when neither object changes. A genuine
+authoritative `updated` result even when neither object changes. Affiliation and
+captured owned state still participate in whole-operation no-op detection. A genuine
 no-op creates no Resource revision, owned-state change, or Event. Clients must
 not skip an update merely because its supplied arrays are empty.
 
@@ -277,8 +285,8 @@ This distinguishes assigning JSON `null` from removing a member. Applying the
 properties patch must yield a JSON object satisfying every effective Type
 schema. The metadata patch must yield a JSON object. If both results equal
 their respective preceding objects under RFC 6902 Section 4.6 JSON
-comparison, the operation is a no-op. It preserves the
-Resource revision. Type validation occurs after the complete patch, not after
+comparison, and affiliation/captured owned state are unchanged, the operation is
+a no-op. It preserves the Resource revision. Type validation occurs after the complete patch, not after
 each intermediate operation. For example, `add` of `null` at a top-level key
 followed by `remove` of that key in the same update implements tolerant removal:
 an absent key leaves the final object unchanged. This composition neither
@@ -306,8 +314,9 @@ Resource in the logical Scope. Deletion does not make it available again.
 ```text
 UpdateBead(
   bead,
+  type?,              // whole affiliation replacement; omission preserves it
   propertiesChange?,
-  metadataChange?,  // at least one array member is required; [] is allowed
+  metadataChange?,    // type or at least one array required; [] is allowed
   expectedRevision?,
   revisionProvenance?
 ) -> BeadState
@@ -351,8 +360,9 @@ pinned; whether an endpoint is in-Scope or out-of-Scope derives from its
 ```text
 UpdateLink(
   link,
+  type?,              // whole affiliation replacement; omission preserves it
   propertiesChange?,
-  metadataChange?,  // at least one array member is required; [] is allowed
+  metadataChange?,    // type or at least one array required; [] is allowed
   expectedRevision?,
   revisionProvenance?
 ) -> LinkState
@@ -502,10 +512,12 @@ singleton request and sequence definitions. The request entry points are
 `putAliasRequest` and `deleteAliasRequest`. Sequence entry points and examples
 are defined under [Sequence request envelope](#sequence-request-envelope).
 
-`id` appears on both creation records because identity and Type are both
-immutable. Omitting `id` asks the authority to allocate it. Omitting `type` is
-never permitted. `properties` and common `metadata` each default to an empty
-object when omitted at creation; the resulting record exposes both.
+`id` appears on creation records because Resource identity is immutable.
+Omitting `id` asks the authority to allocate it. Creation requires `type`; ordinary
+updates MAY replace it wholly under the [v0.1 affiliation rules](../core/affiliations.md).
+Omission on update preserves the exact affiliation. A Type-only input needs no
+dummy patch, and nominal identity or definition-pin changes are revision effects.
+`properties` and common `metadata` each default to an empty object when omitted at creation; the resulting record exposes both.
 
 `bead` and `link` contain a durable local ID, an absolute canonical Resource
 URL, or, in a sequence, an `@label` of the required Resource kind. `source`
@@ -551,6 +563,12 @@ mutation targets, so that refusal is a mutation-profile obligation defined
 with those profiles.
 
 ### Installed Type contracts
+
+This descriptor installation model is inherited v0 staging input. Core-only
+v0.1 carrying does not require Types interpretation. The selected common
+[default/resolution and retry rules](../core/affiliations.md) compose with Types'
+registered exact authority; they do not permit mutation-time acquisition or
+silently substituting today's definition for a stored affiliation.
 
 Before an authority uses a Type to
 validate a mutation, it MUST retain a pinned local copy of the descriptor
@@ -927,9 +945,9 @@ defined under [Mutation revisions and
 guards](#mutation-revisions-and-guards), succeeds with outcome `updated` and
 the retained revision. `deleted` carries `deleted`, the identity record of
 the removed Resource, and no Resource record: `resourceKind`, `bead` or
-`link`, and `resource`, holding the absolute canonical `id`, the immutable
-`type`, and `revision`, the Resource's final live revision. Deletion mints no
-version: the identity's `revision` is the revision the Resource had when it
+`link`, and `resource`, holding the absolute canonical `id`, the recorded
+`type` affiliation, and `revision`, the Resource's final live revision. Deletion
+mints no version: the identity's `revision` is the revision the Resource had when it
 was deleted, never a newly minted one, The bundle defines the identity record
 as `deletedIdentity`, over `resourceKind` and `resourceIdentity`. When the
 mutated Link's type is owned by its source Bead's declared Type, the result
@@ -2692,8 +2710,10 @@ Every object in a batch conforms to the bundle's operation definition. The
 bundle's `batchOperation` definition is the normative eight-record union,
 composed from the same `<operation>Members` definitions the Read+Update
 singleton and sequence records use; the sketch below is a non-normative
-preview of it and carries no independent `$id`. The `operation`
-discriminator selects one of the eight generic operation records:
+preview of it and carries no independent `$id`. Its common `type` fields below
+are retargeted to the v0.1 carrier; the eight-record union, set operations and
+profile assignment remain inherited staging input, not a retained-surface decision.
+The `operation` discriminator selects one of the eight generic operation records:
 
 ```json
 {
@@ -2753,6 +2773,20 @@ discriminator selects one of the eight generic operation records:
     "typeId": {
       "type": "string",
       "format": "uri"
+    },
+    "typeReference": {
+      "oneOf": [
+        { "type": "string", "format": "uri", "pattern": "^https?://" },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/pinnedReference" },
+            {
+              "type": "object",
+              "properties": { "uri": { "type": "string", "format": "uri", "pattern": "^https?://" } }
+            }
+          ]
+        }
+      ]
     },
     "properties": {
       "type": "object"
@@ -2815,7 +2849,7 @@ discriminator selects one of the eight generic operation records:
         "operation": { "const": "createBead" },
         "name": { "$ref": "#/$defs/name" },
         "id": { "$ref": "#/$defs/resourceReference" },
-        "type": { "$ref": "#/$defs/typeId" },
+        "type": { "$ref": "#/$defs/typeReference" },
         "properties": { "$ref": "#/$defs/properties" },
         "metadata": { "$ref": "#/$defs/metadata" },
         "revisionProvenance": { "$ref": "#/$defs/revisionProvenanceInput" }
@@ -2825,10 +2859,15 @@ discriminator selects one of the eight generic operation records:
     "updateBead": {
       "type": "object",
       "required": ["operation", "bead"],
-      "anyOf": [{ "required": ["propertiesChange"] }, { "required": ["metadataChange"] }],
+      "anyOf": [
+        { "required": ["type"], "properties": { "type": true } },
+        { "required": ["propertiesChange"], "properties": { "propertiesChange": true } },
+        { "required": ["metadataChange"], "properties": { "metadataChange": true } }
+      ],
       "properties": {
         "operation": { "const": "updateBead" },
         "bead": { "$ref": "#/$defs/resourceReference" },
+        "type": { "$ref": "#/$defs/typeReference" },
         "propertiesChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
         "metadataChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
@@ -2853,7 +2892,7 @@ discriminator selects one of the eight generic operation records:
         "operation": { "const": "createLink" },
         "name": { "$ref": "#/$defs/name" },
         "id": { "$ref": "#/$defs/resourceReference" },
-        "type": { "$ref": "#/$defs/typeId" },
+        "type": { "$ref": "#/$defs/typeReference" },
         "source": { "$ref": "#/$defs/reference" },
         "target": { "$ref": "#/$defs/reference" },
         "properties": { "$ref": "#/$defs/properties" },
@@ -2865,10 +2904,15 @@ discriminator selects one of the eight generic operation records:
     "updateLink": {
       "type": "object",
       "required": ["operation", "link"],
-      "anyOf": [{ "required": ["propertiesChange"] }, { "required": ["metadataChange"] }],
+      "anyOf": [
+        { "required": ["type"], "properties": { "type": true } },
+        { "required": ["propertiesChange"], "properties": { "propertiesChange": true } },
+        { "required": ["metadataChange"], "properties": { "metadataChange": true } }
+      ],
       "properties": {
         "operation": { "const": "updateLink" },
         "link": { "$ref": "#/$defs/resourceReference" },
+        "type": { "$ref": "#/$defs/typeReference" },
         "propertiesChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
         "metadataChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
@@ -3408,6 +3452,12 @@ distinct from response negotiation.
 > below are required only by the Transactional profile. Read and Read+Update do
 > not publish or expose BDP Events.
 
+**v0.1 composition hold:** the delta model and reconstruction algorithm below
+are inherited v0 input. Widening `subjectType` does not encode Type-only effects
+or ownership bucket entry/exit. Required Events, their selected baseline payload
+and read-only coverage must compose before v0.1 adoption; no delta/postimage
+choice follows from these inherited examples.
+
 An **Event** is an immutable authority-generated record of a committed fact.
 Each Event has an immutable ID that is unique within exactly one **Event
 Source**. An Event is not required to be an independently addressable
@@ -3659,6 +3709,10 @@ deleted identities, aliases, References or properties views. These metadata
 requirements do not establish full Memory compatibility.
 
 ### Transactional revision and History extensions
+
+This inherited Event contract is not yet the complete v0.1 Event amendment.
+Affiliation-only updates are effects and need truthful facts, but the inherited
+payload cannot yet encode them; see the [explicit Event gap](../core/affiliations.md#required-events-explicit-remaining-gap).
 
 A semantic no-op emits no `updated` Event. A change to properties or common
 metadata is one Resource transition with one new revision and one `updated`

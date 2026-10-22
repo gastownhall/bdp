@@ -23,9 +23,7 @@
           "selectedText": "An omitted `order` means `canonical-uri`."
         }
       ],
-      "retires": [
-        "read.discovery.document"
-      ]
+      "retires": ["read.discovery.document"]
     },
     {
       "id": "read-update.discovery.aliases",
@@ -164,12 +162,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#property-change-values",
-          "selectedText": "If both results equal their respective preceding objects under RFC 6902 Section 4.6 JSON comparison, the operation is a no-op."
+          "selectedText": "If both results equal their respective preceding objects under RFC 6902 Section 4.6 JSON comparison, and affiliation/captured owned state are unchanged, the operation is a no-op."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#attribution-on-mutations",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
+          "selectedText": "a write whose affiliation, `properties`, common `metadata` and captured owned state are all unchanged mints no revision and records no new provenance and retains the existing version’s entire envelope."
         }
       ]
     },
@@ -200,7 +198,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-results",
-          "selectedText": "`deleted` carries `deleted`, the identity record of the removed Resource, and no Resource record: `resourceKind`, `bead` or `link`, and `resource`, holding the absolute canonical `id`, the immutable `type`, and `revision`, the Resource's final live revision."
+          "selectedText": "`deleted` carries `deleted`, the identity record of the removed Resource, and no Resource record: `resourceKind`, `bead` or `link`, and `resource`, holding the absolute canonical `id`, the recorded `type` affiliation, and `revision`, the Resource's final live revision."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -287,7 +285,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-results",
-          "selectedText": "`deleted` carries `deleted`, the identity record of the removed Resource, and no Resource record: `resourceKind`, `bead` or `link`, and `resource`, holding the absolute canonical `id`, the immutable `type`, and `revision`, the Resource's final live revision."
+          "selectedText": "`deleted` carries `deleted`, the identity record of the removed Resource, and no Resource record: `resourceKind`, `bead` or `link`, and `resource`, holding the absolute canonical `id`, the recorded `type` affiliation, and `revision`, the Resource's final live revision."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -348,7 +346,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#attribution-on-mutations",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
+          "selectedText": "a write whose affiliation, `properties`, common `metadata` and captured owned state are all unchanged mints no revision and records no new provenance and retains the existing version’s entire envelope."
         }
       ]
     },
@@ -366,7 +364,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#attribution-on-mutations",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
+          "selectedText": "a write whose affiliation, `properties`, common `metadata` and captured owned state are all unchanged mints no revision and records no new provenance and retains the existing version’s entire envelope."
         },
         {
           "source": "docs/specs/bdp.md",

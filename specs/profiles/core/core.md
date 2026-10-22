@@ -317,7 +317,7 @@ A **Bead** is a node in a Beads graph:
 ```text
 Bead {
   id: BeadId
-  type: BeadTypeId
+  type: TypeReference  // URI or {uri, revision}; see the v0.1 affiliation amendment
   properties: JsonObject
   metadata: JsonObject  // common, Type-independent; {} when empty
   revisionProvenance?  // carried per version; data, not evidence
@@ -331,7 +331,7 @@ A **Link** is a first-class directed relationship whose `source` and
 ```text
 Link {
   id: LinkId
-  type: LinkTypeId
+  type: TypeReference  // URI or {uri, revision}; see the v0.1 affiliation amendment
   source: Reference
   target: Reference
   properties: JsonObject
@@ -340,14 +340,14 @@ Link {
 }
 ```
 
-For a Bead, `id` and `type` are immutable. For a Link, `id`, `type`,
-`source`, and `target` are immutable. `properties` and common `metadata` may be updated, and a
-Bead's `ownedLinks` plane changes only through its owned Links.
-Assigning a new value to an immutable member is not an update. Because a
-Link's endpoints are immutable, repointing or re-pinning an owned
-Link is a delete-and-create pair, each of which versions the source.
-Deleting a Resource and creating another Resource are distinct
-operations.
+For a Bead, `id` is immutable. For a Link, `id`, `source` and `target`
+(including endpoint pins) are immutable. Under the selected v0.1 amendment,
+`type` is replaceable as a whole, alongside explicit `properties` and common
+`metadata` edits; the [common affiliation rules](affiliations.md) define omission,
+validation, revision and retry behavior. Derived `ownedLinks` can change through
+owned-Link effects or source-Bead retyping, never by direct assignment. Repointing
+or re-pinning a Link remains delete-and-create. Deleting and creating Resources
+are distinct operations. The held v0 artifact/runtime retains its actual contract.
 
 Every Link has independent Resource identity. Its `type`, `source`, and
 `target` describe it but do not identify it. BDP v0 permits multiple Links
@@ -469,16 +469,16 @@ Bead Types may own, every mutation of an owned Link versions the source,
 an incoming Link never versions its target, and `label` never appears in
 a record.
 
-Every mutation of an owned Link versions the source Bead. Because a
-Link's `id`, `type`, `source`, `target`, and pin are immutable, the only
-mutations that exist are creation, deletion, and property update;
-repointing or re-pinning an owned Link remains a delete-and-create pair,
-each of which versions the source. An incoming Link never versions its
+Every mutation of an owned Link versions the source Bead. Only effectful
+transitions are mutations; entry into and exit from ownership count under the
+selected v0.1 affiliation rules. A Link's identity and endpoints/pins stay immutable, while affiliation, properties and
+metadata can change. An incoming Link never versions its
 target, whatever its type, so reverse projections such as cited-by remain
 computed views. An owned Link remains a first-class Link with its own URL
 and its own revision: a caller addresses, reads, and updates it there
-like any other Link. Its entire state — target, pin, and properties — is
-covered by the source's revision as well. That is what ownership means.
+like any other Link. Its complete captured state is covered by the source's
+revision. Source-Bead retyping recomputes the owned set without inventing edits to the Links. No new endpoint
+movement, pin-policy or revision-allocation mechanism is selected here.
 
 To say it as plainly as possible: there is no reference entity in the
 model, and no second graph. An owned Link is an ordinary first-class
@@ -490,24 +490,25 @@ Link. The `ownedLinks` member defined below inlines those same Links: it
 is derived data, never writable directly and never a rival edge set —
 create, delete, or update the owned Links, and the member follows.
 
-A Bead whose Type owns outgoing Link Types carries an **ownedLinks**
-member in its record: entries keyed by Link Type URL, each valued by the
-array of that Link Type's owned Links' complete records — for each owned
-Link, exactly the record it serves at its own URL, its `type` equal to
-the entry's key and its `source` equal to the containing Bead — in
-ascending code-unit order of the Links' canonical `id`s. The member
-carries one entry for each owned Link Type actually present on the Bead
-— at least one owned Link of that type exists — plus an entry, possibly
-empty, for each explicitly declared Link Type; a Link Type owned only
-through the wildcard has an entry exactly when an owned Link of that
-type is present. The wildcard `"*"` is never a key: the member is keyed
-by Link Type URL alone. The member is present, possibly empty, for every
-Bead whose Type carries `ownsOutgoing`, and absent for Beads whose Type
-owns nothing. The record
-read always serves the member, because the Bead's revision covers it: a
-reader holding a revision can always see everything that revision
-covers, owned-Link properties included. The `properties` view remains
-the authored JSON document alone.
+A Bead whose Type owns outgoing Link Types carries an **ownedLinks** member.
+For new v0.1 captures, take the union of effective ownership matches, deduplicate
+Links and group complete Link records by their actual nominal Link Type URI,
+extracting `type.uri` for an exact affiliation. Each Link occurs once in its own
+nominal bucket, in ascending code-unit order of canonical `id`. Different definition
+pins share a bucket; a refinement is not duplicated in an ancestor bucket. Its
+source URI identifies the containing Bead; a literal source pin need not equal the
+new owning revision. The [affiliation amendment](affiliations.md#new-owned-state-captures)
+defines atomic membership effects and the retained literal-pin law.
+
+Each newly captured bucket is nonempty. There are no empty explicit-selector or
+wildcard buckets: a new empty owned set is `ownedLinks:{}`. The wildcard `"*"`
+is never a key: the member is keyed by Link Type URL alone. The member is
+present, possibly empty, for every Bead whose Type carries `ownsOutgoing`,
+and absent for Beads whose Type owns nothing. Historical snapshots retain their
+recorded affiliations, buckets and Links, including older empty buckets; returning an unchanged retained revision
+never rewrites it. The member is derived, never caller-writable, and the record
+read always serves its captured state because the revision covers it. The
+`properties` view remains the authored JSON document alone.
 
 Because the member is covered, it is never authorization-filtered. An
 Authorization View that projects a Bead projects its owned Links and
@@ -527,9 +528,16 @@ nothing.
 
 ### Types
 
-Every Bead and Link has exactly one immutable **declared Type**. The Type ID
-identifies a **Type Descriptor** Resource. A Type Descriptor describes
-either Beads or Links. One Type cannot describe both.
+Every Bead and Link has exactly one **declared Type affiliation**. The selected
+v0.1 common carrier is a Type Reference, replaceable through ordinary updates;
+Core-only providers need not interpret a definition language. Under Types, an
+exact affiliation binds the accepted definition revision and its recorded closure.
+See [common affiliations](affiliations.md) and the separately integrated Types source.
+
+The descriptor, effective-contract and installation model below is inherited v0
+input, not a requirement that Core-only v0.1 providers implement Types. Its complete
+extraction/profile composition remains a gate. In that inherited model, a Type ID
+identifies a Type Descriptor describing either Beads or Links, never both.
 
 A Type Descriptor identifies a JSON Schema for the Resource's `properties`
 record. The generic Bead or Link structure is BDP law; it is not redeclared
@@ -561,9 +569,9 @@ contracts. A contradictory combination accepts no Resource rather than
 selecting a winning parent.
 
 Type identity, conformance, and descriptor publication are separate
-concerns. The Type ID on a Bead or Link is immutable and identifies one
-immutable semantic contract. Changing its Resource category, conformance
-graph, properties constraints, or Link endpoint constraints requires a new
+concerns. In the inherited v0 descriptor model, a Type ID identifies one
+immutable semantic contract; this is not an immutable v0.1 instance affiliation.
+Changing its Resource category, conformance graph, properties constraints, or Link endpoint constraints requires a new
 Type ID. Referenced schemas and Types are part of that semantic contract and
 must preserve their meaning at their existing IDs. Human-readable
 documentation may improve without changing the contract.
@@ -714,8 +722,9 @@ graph policies are deferred.
 
 A Resource revision is an opaque token for one version of that Resource.
 Clients compare revisions only for equality and must not derive meaning from
-their spelling. A revision covers its properties and metadata and, for an
-owning Bead, its owned-Link state. HTTP entity tags may represent revisions.
+their spelling. A revision covers its complete Type affiliation, properties and
+metadata and, for an owning Bead, its captured owned-Link state under the selected
+v0.1 amendment. HTTP entity tags may represent revisions.
 
 JSON value comparison is over **exact decimal values**. Two JSON numbers are the
 same value if and only if the decimal values their literals denote are
@@ -1140,6 +1149,10 @@ For example:
 
 ### Types and Type Descriptors
 
+The following descriptor/HTTP examples are inherited v0 staging input. The
+selected v0.1 [common affiliation](affiliations.md) does not require Core-only
+definition interpretation; Types extraction/transport remains coordinated work.
+
 The discovered `types` navigation URL serves an inventory of the Bead and
 Link Type Descriptors that the Scope advertises as known. It supports generic tooling,
 lets clients preload schemas, and reveals which contracts the service can
@@ -1333,13 +1346,12 @@ A Link record is:
 }
 ```
 
-`id` and `type` are always absolute canonical URLs in responses. A Bead whose
-Type owns outgoing Link Types additionally carries its `ownedLinks` member —
-one entry per owned Link Type present on the Bead and one, possibly empty,
-per explicitly declared Link Type, keyed by the Link Type URL and never by
-the wildcard `"*"`, valued by the owned Links' complete records in ascending
-code-unit order of their canonical `id`s — on every record read; the member
-is absent for Beads whose Type owns nothing. Link `source` and `target` are
+`id` is an absolute canonical Resource URL. Under v0.1, `type` is the common
+Type Reference; Types output is exact. A Bead whose Type owns outgoing Links
+carries its recorded `ownedLinks` member on every record read. Newly captured
+members use nonempty nominal-Type buckets with full exact Link affiliations;
+older retained captures keep their recorded shape. See [Owned Links](#owned-links).
+The member is absent for Beads whose Type owns nothing. Link `source` and `target` are
 References as defined under [Beads and Links](#beads-and-links): an in-Scope
 endpoint's `uri` is the Bead's absolute canonical URL, an out-of-Scope
 endpoint's `uri` is its opaque absolute URI, and either may be a Pinned
@@ -1580,7 +1592,7 @@ collections accept these structural predicates:
 
 | Parameter | Beads | Links | Types | Meaning |
 | --- | --- | --- | --- | --- |
-| `type` | yes | yes | no | Exact Type ID |
+| `type` | yes | yes | no | Exact nominal Type identity, ignoring definition pin |
 | `conformsTo` | yes | yes | no | Effective conformance to the named Type ID |
 | `source` | no | yes | no | Exact source reference URI |
 | `target` | no | yes | no | Exact target reference URI |
@@ -1596,7 +1608,11 @@ are absolute URLs. The structural `source`, `target`, and `endpoint`
 parameters may use a canonical local Bead ID, its absolute canonical URL, or
 an absolute out-of-Scope URI. The authority normalizes local Bead references
 before comparison. External URI comparison is exact. This convenience does not
-apply inside a Selector string.
+apply inside a Selector string. Under v0.1, structural `type` compares the nominal
+URI extracted from either affiliation form; `conformsTo` uses recorded exact Types
+authority and refuses if unavailable. Filter Type operands are unpinned. Raw
+Selectors see the actual Reference union without rewriting or virtual projection;
+see [affiliation selection](affiliations.md#selection).
 
 An unsupported collection query parameter or any repeated collection query
 parameter returns the `invalid-parameter` Problem: family `request`, HTTP
