@@ -77,6 +77,32 @@ has no independent authority; coordinated schema changes maintain correspondence
 The Types definition graph is illustrative, not a production bootstrap or an
 installable package. Draft residence under `specs/` does not imply adoption.
 
+## Unmerged candidate sources after the reviewed snapshot
+
+This additive pointer update starts from published POR
+[`050cb3b1e5550ba25d8ee51429a3f675b01e86d4`](https://github.com/gastownhall/bdp/commit/050cb3b1e5550ba25d8ee51429a3f675b01e86d4).
+The curation table above and original 29 register rows retain their reviewed
+snapshot. The following drafts have bounded parent source reviews; they remain
+**unmerged, incomplete and unadopted**. Their author choices are not new human
+rulings or incorporated protocol changes.
+
+| Candidate | Exact source pointers | Current boundary |
+| --- | --- | --- |
+| [PR286](https://github.com/gastownhall/bdp/pull/286), namespace pair | At `453a37ac8031c77e76dc1a6ef16d3d05850de82a`: [CLI Scope/reference subset](https://github.com/gastownhall/bdp/blob/453a37ac8031c77e76dc1a6ef16d3d05850de82a/docs/cli-design/scope-and-references.md), [Core](https://github.com/gastownhall/bdp/blob/453a37ac8031c77e76dc1a6ef16d3d05850de82a/specs/profiles/core/core.md), [Write](https://github.com/gastownhall/bdp/blob/453a37ac8031c77e76dc1a6ef16d3d05850de82a/specs/profiles/write/write.md), [correspondence](https://github.com/gastownhall/bdp/blob/453a37ac8031c77e76dc1a6ef16d3d05850de82a/docs/design/bdp-v0.1-scope-namespace-correspondence.md) | Draft propagation of accepted Scope-defined paths: actual kind metadata, owning-Scope discovery and alias/reference correspondence. A paired CLI subset, not the complete CLI or a product namespace migration. |
+| [PR287](https://github.com/gastownhall/bdp/pull/287), contract-binding pair | At `5c3f9090cc53470c62a55d6675e31b72175f015f`: [CLI binding](https://github.com/gastownhall/bdp/blob/5c3f9090cc53470c62a55d6675e31b72175f015f/docs/cli-design/contract-binding.md), [protocol binding](https://github.com/gastownhall/bdp/blob/5c3f9090cc53470c62a55d6675e31b72175f015f/specs/profiles/core/contract-binding.md), [candidate canonical schema](https://github.com/gastownhall/bdp/blob/5c3f9090cc53470c62a55d6675e31b72175f015f/specs/profiles/core/bdp-v0.1.schema.json), [distribution copy](https://github.com/gastownhall/bdp/blob/5c3f9090cc53470c62a55d6675e31b72175f015f/packages/protocol/schemas/bdp-v0.1.schema.json), [correspondence](https://github.com/gastownhall/bdp/blob/5c3f9090cc53470c62a55d6675e31b72175f015f/docs/design/bdp-v0.1-contract-binding-correspondence.md) | Includes unmerged PR286 ancestry. Proposes discovery `0.1`, version-specific JSON media, CLI contract identity and optional capability-version maps. Separately named artifacts and a JSON export do not upgrade v0 runtime/parser/provider support. |
+
+The new schema's inherited profile, Type, Event and advanced grammar remains
+**staging input**, not a retained-surface or implementation promise. The
+candidate specification/schema URI is an identifier; no deployed endpoint or
+dereference obligation is claimed. Retained profile/Type/affiliation/Event
+composition, including the pending Event D1/D2 choices, still gates adoption.
+The existing v0 schema/distribution links above and each implementation's actual
+runtime/artifact/evidence pins remain in force; no old result becomes a v0.1 PASS.
+Bounded source/artifact checks and parent review do not establish provider
+qualification or hosted green. Existing implementation/serve/budget/release/pin
+and Experimental holds remain. Trish owns integration and status through #59 and
+the concrete issues; this section changes no decision disposition.
+
 ## Operating procedure after the front-door baseline
 
 1. **Engage against the working POR:** continue already-authorized work using
