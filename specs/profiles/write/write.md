@@ -211,6 +211,10 @@ the existing version’s entire envelope.
 
 ### Property changes
 
+The selected v0.1 [ordinary object-edit contract](object-edits.md) adds distinct
+properties/metadata replacement inputs. The patch rules here retain their literal
+meaning; a root patch is not silently reinterpreted as writable-set replacement.
+
 A **Property Change** is an ordered
 [RFC 6902 JSON Patch](https://www.rfc-editor.org/rfc/rfc6902.html) applied to
 one JSON object. A Resource update can apply one to `properties`, one to
@@ -237,10 +241,12 @@ BDP represents each change as a bounded
 one Resource object. `propertiesChange` targets `properties` and
 `metadataChange` targets common `metadata`; each JSON Pointer is relative to
 its own complete object. Under v0.1 a Resource update supplies at least one of
-`type`, `propertiesChange` or `metadataChange`, and may combine them atomically.
-An omitted array leaves its object unchanged. For ordinary `UpdateBead` and `UpdateLink`, a
+`type`, `properties`, `propertiesChange`, `metadata` or `metadataChange`. Each
+object's replacement and patch members are mutually exclusive; modes for different
+objects may combine atomically. Omitting both members preserves that object under
+the [object-edit rules](object-edits.md). For ordinary `UpdateBead` and `UpdateLink`, a
 supplied array may be empty (`[]`), contributing no patch operations; at least
-one of the three mutation members must still be present. This also applies to
+one of the five mutation members must still be present. This also applies to
 ordinary updates within a sequence or atomic batch. `updateWhere.change` and
 emitted change deltas retain their nonempty-array requirement. When an update
 changes the other object, an empty input array is omitted from the emitted
@@ -322,8 +328,10 @@ Resource in the logical Scope. Deletion does not make it available again.
 UpdateBead(
   bead,
   type?,              // whole affiliation replacement; omission preserves it
+  properties?,        // exclusive with propertiesChange
   propertiesChange?,
-  metadataChange?,    // type or at least one array required; [] is allowed
+  metadata?,          // exclusive with metadataChange
+  metadataChange?,    // at least one mutation member; empty patch arrays allowed
   expectedRevision?,
   revisionProvenance?
 ) -> BeadState
@@ -368,8 +376,10 @@ pinned; whether an endpoint is in-Scope or out-of-Scope derives from its
 UpdateLink(
   link,
   type?,              // whole affiliation replacement; omission preserves it
+  properties?,        // exclusive with propertiesChange
   propertiesChange?,
-  metadataChange?,    // type or at least one array required; [] is allowed
+  metadata?,          // exclusive with metadataChange
+  metadataChange?,    // at least one mutation member; empty patch arrays allowed
   expectedRevision?,
   revisionProvenance?
 ) -> LinkState
@@ -2874,12 +2884,20 @@ The `operation` discriminator selects one of the eight generic operation records
       "anyOf": [
         { "required": ["type"], "properties": { "type": true } },
         { "required": ["propertiesChange"], "properties": { "propertiesChange": true } },
-        { "required": ["metadataChange"], "properties": { "metadataChange": true } }
+        { "required": ["metadataChange"], "properties": { "metadataChange": true } },
+        { "required": ["properties"], "properties": { "properties": true } },
+        { "required": ["metadata"], "properties": { "metadata": true } }
+      ],
+      "allOf": [
+        { "not": { "required": ["properties", "propertiesChange"], "properties": { "properties": true, "propertiesChange": true } } },
+        { "not": { "required": ["metadata", "metadataChange"], "properties": { "metadata": true, "metadataChange": true } } }
       ],
       "properties": {
         "operation": { "const": "updateBead" },
         "bead": { "$ref": "#/$defs/resourceReference" },
         "type": { "$ref": "#/$defs/typeReference" },
+        "properties": { "$ref": "#/$defs/properties" },
+        "metadata": { "$ref": "#/$defs/metadata" },
         "propertiesChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
         "metadataChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
@@ -2919,12 +2937,20 @@ The `operation` discriminator selects one of the eight generic operation records
       "anyOf": [
         { "required": ["type"], "properties": { "type": true } },
         { "required": ["propertiesChange"], "properties": { "propertiesChange": true } },
-        { "required": ["metadataChange"], "properties": { "metadataChange": true } }
+        { "required": ["metadataChange"], "properties": { "metadataChange": true } },
+        { "required": ["properties"], "properties": { "properties": true } },
+        { "required": ["metadata"], "properties": { "metadata": true } }
+      ],
+      "allOf": [
+        { "not": { "required": ["properties", "propertiesChange"], "properties": { "properties": true, "propertiesChange": true } } },
+        { "not": { "required": ["metadata", "metadataChange"], "properties": { "metadata": true, "metadataChange": true } } }
       ],
       "properties": {
         "operation": { "const": "updateLink" },
         "link": { "$ref": "#/$defs/resourceReference" },
         "type": { "$ref": "#/$defs/typeReference" },
+        "properties": { "$ref": "#/$defs/properties" },
+        "metadata": { "$ref": "#/$defs/metadata" },
         "propertiesChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
         "metadataChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },

@@ -1378,6 +1378,18 @@
           "properties": {
             "metadataChange": true
           }
+        },
+        {
+          "required": ["properties"],
+          "properties": {
+            "properties": true
+          }
+        },
+        {
+          "required": ["metadata"],
+          "properties": {
+            "metadata": true
+          }
         }
       ],
       "properties": {
@@ -1398,8 +1410,34 @@
         },
         "revisionProvenance": {
           "$ref": "#/$defs/revisionProvenanceInput"
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
         }
-      }
+      },
+      "allOf": [
+        {
+          "not": {
+            "required": ["properties", "propertiesChange"],
+            "properties": {
+              "properties": true,
+              "propertiesChange": true
+            }
+          }
+        },
+        {
+          "not": {
+            "required": ["metadata", "metadataChange"],
+            "properties": {
+              "metadata": true,
+              "metadataChange": true
+            }
+          }
+        }
+      ]
     },
     "deleteBeadMembers": {
       "type": "object",
@@ -1461,6 +1499,18 @@
           "properties": {
             "metadataChange": true
           }
+        },
+        {
+          "required": ["properties"],
+          "properties": {
+            "properties": true
+          }
+        },
+        {
+          "required": ["metadata"],
+          "properties": {
+            "metadata": true
+          }
         }
       ],
       "properties": {
@@ -1481,8 +1531,34 @@
         },
         "revisionProvenance": {
           "$ref": "#/$defs/revisionProvenanceInput"
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
         }
-      }
+      },
+      "allOf": [
+        {
+          "not": {
+            "required": ["properties", "propertiesChange"],
+            "properties": {
+              "properties": true,
+              "propertiesChange": true
+            }
+          }
+        },
+        {
+          "not": {
+            "required": ["metadata", "metadataChange"],
+            "properties": {
+              "metadata": true,
+              "metadataChange": true
+            }
+          }
+        }
+      ]
     },
     "deleteLinkMembers": {
       "type": "object",

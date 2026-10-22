@@ -42,8 +42,9 @@ map keys remain URI strings; they are not affiliations.
 ## Create, update and exact default resolution
 
 Creation requires `type`. An ordinary Bead or Link update MAY supply `type`,
-`propertiesChange`, `metadataChange`, or any combination, with at least one
-present. An explicit `type` replaces the whole affiliation; it is not a partial
+`properties`, `propertiesChange`, `metadata` or `metadataChange`, with at least one
+present. Each object's replacement and patch members are mutually exclusive under
+[ordinary object edits](../write/object-edits.md). An explicit `type` replaces the whole affiliation; it is not a partial
 object merge. Omitting `type` MUST preserve the complete preceding affiliation,
 including its definition pin, regardless of newly installed definitions/defaults.
 Identity, Resource kind and Link endpoints/pins do not change in an update.
