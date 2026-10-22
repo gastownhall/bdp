@@ -28,7 +28,7 @@ describe("ordinary object-edit input artifact, without provider or CLI execution
         const body = { [field]: "item", ...sample.fields };
         expect(valid(`${operation}Request`, body), `${sample.id}/singleton`).toBe(sample.valid);
         expect(
-          valid("batchRequest", { operations: [{ operation, ...body }] }),
+          valid("batchRequest", { capabilityVersion: "1", operations: [{ operation, ...body }] }),
           `${sample.id}/batch`,
         ).toBe(sample.valid);
         expect(
@@ -104,7 +104,10 @@ describe("ordinary object-edit input artifact, without provider or CLI execution
     for (const sample of cases.cliPairs) {
       const { operation, ...body } = sample.operation;
       expect(valid(`${operation}Request`, body), sample.id).toBe(true);
-      expect(valid("batchRequest", { operations: [sample.operation] }), sample.id).toBe(true);
+      expect(
+        valid("batchRequest", { capabilityVersion: "1", operations: [sample.operation] }),
+        sample.id,
+      ).toBe(true);
     }
     const replacement = cases.cliPairs.find(
       (sample: { id: string }) => sample.id === "replacement",

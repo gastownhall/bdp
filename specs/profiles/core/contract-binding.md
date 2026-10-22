@@ -67,8 +67,9 @@ snapshot**: 159 inherited definitions, four amended definitions (`bdpVersion` an
 the capability-map property on three discovery definitions), and two capability
 helpers, for 161. Those statistics describe that source slice, not the composed
 artifact forever. The subsequent [#279 common affiliation/ownership amendment](affiliations.md)
-ports ten carrier amendments and two more helpers into the new slot; the composed
-candidate now contains **163 definitions**. See its [paired source record](../../../docs/design/bdp-v0.1-affiliation-port.md).
+ports ten carrier amendments and two more helpers into the new slot; the PR289 carrier-port
+snapshot contains **163 definitions**. Later paired amendments can extend that
+artifact; this source-slice count is not a permanent definition count. See its [paired source record](../../../docs/design/bdp-v0.1-affiliation-port.md).
 
 Unreplaced native payload, profile-token and advanced definitions remain inherited
 **staging inputs**, not a decision to retain them. Retained Core/Write factoring,

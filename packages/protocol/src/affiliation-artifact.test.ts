@@ -71,7 +71,10 @@ describe("v0.1 affiliation artifact, without claiming stateful or CLI execution"
     for (const sample of cases.cliOperations) {
       const { operation, ...body } = sample.operation;
       expect(valid(`${operation}Request`, body), sample.id).toBe(true);
-      expect(valid("batchRequest", { operations: [sample.operation] }), sample.id).toBe(true);
+      expect(
+        valid("batchRequest", { capabilityVersion: "1", operations: [sample.operation] }),
+        sample.id,
+      ).toBe(true);
     }
     // These are paired paper inputs; no parser, compiler or default resolution ran.
     expect(cases.cliOperations[0].operation).not.toHaveProperty("type");
@@ -101,18 +104,35 @@ describe("v0.1 affiliation artifact, without claiming stateful or CLI execution"
     const results = cases.nativeLinkResults;
     for (const value of Object.values(results)) {
       expect(valid("mutationResult", value)).toBe(true);
-      expect(valid("receiptResult", { operationIndex: 0, ...(value as object) })).toBe(true);
+      expect(
+        valid("atomicBatchResultEntry", {
+          operationIndex: 0,
+          operation: "updateLink",
+          ...(value as object),
+        }),
+      ).toBe(true);
     }
     expect(results.leavingOwnership.resource.type.uri).toBe(`${cases.commandScope}UnownedRelation`);
     expect(results.leavingOwnership.sourceRevision).toBe("owner-r10");
     expect(results.unrelatedUnowned).not.toHaveProperty("source");
     expect(results.unrelatedUnowned).not.toHaveProperty("sourceRevision");
     expect(results.ownedNoOp.sourceRevision).toBe("owner-r9");
+    const { changed: _changed, ...inheritedReceipt } = results.leavingOwnership;
+    expect(valid("receiptResult", { operationIndex: 0, ...inheritedReceipt })).toBe(true);
+    expect(valid("receiptResult", { operationIndex: 0, ...results.leavingOwnership })).toBe(false);
+    // Inherited receipt grammar stays separate; selected batch entries carry changed.
+
     for (const missing of ["source", "sourceRevision"]) {
       const incomplete = { ...results.leavingOwnership };
       delete incomplete[missing];
       expect(valid("mutationResult", incomplete)).toBe(false);
-      expect(valid("receiptResult", { operationIndex: 0, ...incomplete })).toBe(false);
+      expect(
+        valid("atomicBatchResultEntry", {
+          operationIndex: 0,
+          operation: "updateLink",
+          ...incomplete,
+        }),
+      ).toBe(false);
     }
     // Grammar carries a truthful pair; actual pre/post membership remains a semantic case.
   });

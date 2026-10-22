@@ -1932,7 +1932,7 @@
     },
     "mutationResultMembers": {
       "type": "object",
-      "required": ["outcome"],
+      "required": ["outcome", "changed"],
       "properties": {
         "outcome": {
           "$ref": "#/$defs/mutationOutcome"
@@ -1956,6 +1956,9 @@
         "sourceRevision": {
           "type": "string",
           "minLength": 1
+        },
+        "changed": {
+          "type": "boolean"
         }
       },
       "allOf": [
@@ -2029,6 +2032,23 @@
             "properties": {
               "source": false,
               "sourceRevision": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["outcome"],
+            "properties": {
+              "outcome": {
+                "enum": ["created", "deleted"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "changed": {
+                "const": true
+              }
             }
           }
         }
@@ -3545,19 +3565,13 @@
         },
         {
           "$ref": "#/$defs/deleteLinkOperation"
-        },
-        {
-          "$ref": "#/$defs/updateWhereOperation"
-        },
-        {
-          "$ref": "#/$defs/deleteWhereOperation"
         }
       ]
     },
     "batchRequest": {
-      "title": "BDP Transactional batch request",
+      "title": "BDP optional atomic batch version 1 request",
       "type": "object",
-      "required": ["operations"],
+      "required": ["capabilityVersion", "operations"],
       "properties": {
         "operations": {
           "type": "array",
@@ -3565,6 +3579,9 @@
           "items": {
             "$ref": "#/$defs/batchOperation"
           }
+        },
+        "capabilityVersion": {
+          "const": "1"
         }
       },
       "additionalProperties": false
@@ -5703,6 +5720,23 @@
       },
       "additionalProperties": {
         "$ref": "#/$defs/capabilityVersionAdvertisements"
+      },
+      "properties": {
+        "https://github.com/gastownhall/bdp/capabilities/atomic-batch": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/capabilityVersionAdvertisements"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "1": {
+                  "$ref": "#/$defs/atomicBatchCapabilityV1"
+                }
+              }
+            }
+          ]
+        }
       }
     },
     "capabilityVersionAdvertisements": {
@@ -5740,6 +5774,339 @@
               "$ref": "#/$defs/absoluteHttpUrl"
             }
           }
+        }
+      ]
+    },
+    "atomicBatchOperationName": {
+      "enum": ["createBead", "updateBead", "deleteBead", "createLink", "updateLink", "deleteLink"]
+    },
+    "atomicBatchCapabilityV1": {
+      "type": "object",
+      "required": ["operation", "operations"],
+      "properties": {
+        "operation": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/atomicBatchOperationName"
+          }
+        },
+        "maximumOperations": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maximumResultBytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "atomicBatchSelection": {
+      "description": "Prefix selection only, not admission as a complete request. Unknown well-formed versions refuse without interpreting their body.",
+      "type": "object",
+      "required": ["capabilityVersion"],
+      "properties": {
+        "capabilityVersion": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "atomicBatchResultEntry": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/mutationResultMembers"
+        }
+      ],
+      "required": ["operationIndex", "operation"],
+      "properties": {
+        "operationIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operation": {
+          "$ref": "#/$defs/atomicBatchOperationName"
+        },
+        "operationName": {
+          "$ref": "#/$defs/localName"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "operation": {
+              "const": "createBead"
+            },
+            "outcome": {
+              "const": "created"
+            },
+            "resource": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/beadRecord"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "links": false
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "operation": {
+              "const": "updateBead"
+            },
+            "outcome": {
+              "const": "updated"
+            },
+            "resource": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/beadRecord"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "links": false
+                  }
+                }
+              ]
+            },
+            "operationName": false
+          }
+        },
+        {
+          "properties": {
+            "operation": {
+              "const": "deleteBead"
+            },
+            "outcome": {
+              "const": "deleted"
+            },
+            "deleted": {
+              "type": "object",
+              "properties": {
+                "resourceKind": {
+                  "const": "bead"
+                }
+              }
+            },
+            "operationName": false
+          }
+        },
+        {
+          "properties": {
+            "operation": {
+              "const": "createLink"
+            },
+            "outcome": {
+              "const": "created"
+            },
+            "resource": {
+              "$ref": "#/$defs/linkRecord"
+            }
+          }
+        },
+        {
+          "properties": {
+            "operation": {
+              "const": "updateLink"
+            },
+            "outcome": {
+              "const": "updated"
+            },
+            "resource": {
+              "$ref": "#/$defs/linkRecord"
+            },
+            "operationName": false
+          }
+        },
+        {
+          "properties": {
+            "operation": {
+              "const": "deleteLink"
+            },
+            "outcome": {
+              "const": "deleted"
+            },
+            "deleted": {
+              "type": "object",
+              "properties": {
+                "resourceKind": {
+                  "const": "link"
+                }
+              }
+            },
+            "operationName": false
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "atomicBatchResult": {
+      "type": "object",
+      "required": ["capabilityVersion", "changed", "results"],
+      "properties": {
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "transaction": {
+          "type": "string",
+          "minLength": 1
+        },
+        "results": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/atomicBatchResultEntry"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["changed"],
+            "properties": {
+              "changed": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "transaction": false,
+              "results": {
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "changed": {
+                      "const": false
+                    }
+                  }
+                },
+                "type": "array"
+              }
+            }
+          },
+          "else": {
+            "required": ["transaction"],
+            "properties": {
+              "results": {
+                "contains": {
+                  "type": "object",
+                  "required": ["changed"],
+                  "properties": {
+                    "changed": {
+                      "const": true
+                    }
+                  }
+                },
+                "type": "array"
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "atomicBatchCapabilityProblem": {
+      "type": "object",
+      "required": ["type", "status", "code", "retry", "capability", "capabilityVersion", "pointer"],
+      "properties": {
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request"
+        },
+        "status": {
+          "const": 422
+        },
+        "retry": {
+          "const": "after-state-change"
+        },
+        "title": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "#/$defs/absoluteUri"
+        },
+        "code": {
+          "const": "capability-not-supported"
+        },
+        "capability": {
+          "const": "https://github.com/gastownhall/bdp/capabilities/atomic-batch"
+        },
+        "capabilityVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pointer": {
+          "const": "/capabilityVersion"
+        }
+      },
+      "additionalProperties": false
+    },
+    "atomicBatchOperationProblem": {
+      "type": "object",
+      "required": ["type", "status", "code", "retry", "operation", "pointer"],
+      "properties": {
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request"
+        },
+        "status": {
+          "const": 422
+        },
+        "retry": {
+          "const": "after-state-change"
+        },
+        "title": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "#/$defs/absoluteUri"
+        },
+        "code": {
+          "const": "operation-not-supported"
+        },
+        "operation": {
+          "$ref": "#/$defs/atomicBatchOperationName"
+        },
+        "pointer": {
+          "type": "string",
+          "pattern": "^/operations/(0|[1-9][0-9]*)/operation$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "atomicBatchProblem": {
+      "description": "Existing ordinary Write Problems or the two feature-specific refusal forms; no public receipt failure carrier.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/readUpdateProblem"
+        },
+        {
+          "$ref": "#/$defs/atomicBatchCapabilityProblem"
+        },
+        {
+          "$ref": "#/$defs/atomicBatchOperationProblem"
         }
       ]
     }

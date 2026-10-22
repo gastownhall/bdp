@@ -149,6 +149,11 @@ an identity the creator did not write.
 
 ### Mutation revisions and guards
 
+The retained v0.1 [atomic batch capability](atomic-batch.md) is independently
+optional and carries the same six ordinary CRUD records. Its complete inline
+result/recovery contract does not require the inherited Transactional receipt
+or replica facilities below.
+
 Every successful create produces a fresh opaque Resource revision. Under the
 selected v0.1 amendment, every update that changes the complete Type affiliation,
 `properties`, common `metadata` or applicable captured owned-Link state produces
@@ -947,12 +952,20 @@ instead:
 ```text
 MutationResult {
   outcome: created | updated | deleted
+  changed: boolean  // selected v0.1 Resource CRUD, authoritative effect flag
   resource?         // created, updated: the complete Resource postimage
   deleted?          // deleted: { resourceKind, resource: { id, type, revision } }
   source?           // owned-Link mutations: the source Bead's canonical URL
   sourceRevision?   // owned-Link mutations: the source Bead's resulting revision
 }
 ```
+
+Under retained v0.1, Resource CRUD results require `changed`: true for successful
+creation/deletion and true exactly for an effectful update after ordinary checks.
+A genuine no-op reports false without new revision/provenance. This does not add
+that field to alias results or the inherited unselected receipt carrier. The
+[atomic batch result](atomic-batch.md#inline-results-and-changed-facts) reuses these
+members with operation/index/name context and one aggregate decision.
 
 `created` and `updated` carry `resource`, the complete Resource record as a
 `GET` of its URL would now return it: `id`, `type`, `revision`, the version's
@@ -1702,6 +1715,12 @@ case identifiers. Its later-profile rows add no requirement to Read+Update.
 
 ## Part IV — Transactional
 
+This is inherited v0 Transactional source, not the retained v0.1 Write feature set.
+The [optional atomic batch](atomic-batch.md) has independent discovery, a versioned
+six-CRUD request and complete inline outcomes. It requires neither these public
+receipts nor replica machinery. Version-specific key/result differences below do
+not override that selected capability; full profile factoring remains an adoption gate.
+
 Part IV inherits the Data Model, Read and Read+Update and adds atomic
 multi-operation mutation and replication. It defines exposed history fences,
 durable receipts and complete committed change groups. The operation
@@ -1981,9 +2000,12 @@ identity's canonical URL when it does — never to the label's spelling, so
 renaming a label is not a semantic change, and never to an allocated
 identity, which does not exist before commit. In a sequence, a `@name`
 reference is normalized to the identity its creating member bound, as in
-Read+Update. A one-operation batch, the equivalent singleton request, and the
-equivalent sequence member therefore present one semantic request, and any of
-them retrieves the receipt the others created.
+Read+Update. In this inherited v0 Transactional contract, a one-operation batch,
+the equivalent singleton request, and the equivalent sequence member therefore
+present one semantic request, and any of them retrieves the receipt the others
+created. Retained v0.1 atomic batch version 1 instead binds its selected capability
+context into identity: switching singleton/batch with an existing key conflicts,
+without creating a new key namespace or executing again. See [batch request identity](atomic-batch.md#request-identity-and-durable-recovery).
 
 Concurrent identical requests join one execution and receive the same
 receipt identity, pending or terminal. Read+Update refuses a concurrent
@@ -2441,7 +2463,7 @@ Scope history or replicated alias state.
 Transactional singleton requests require
 `Idempotency-Key` and cannot use `@label` references.
 
-Within the Transactional profile, the singleton and batch forms have identical
+Within the inherited v0 Transactional profile, the singleton and batch forms have identical
 allocation, patch, validation, authorization, idempotency, concurrency, event,
 and deletion semantics. The Read+Update profile preserves the existing
 `create-bead`, `update-bead`, `delete-bead`, `create-link`,
@@ -2721,21 +2743,23 @@ singleton, sequence, set and batch compositions, never carrier-wide context.
 
 > **Transactional/Replication constructs within this section.**
 >
-> The batch wrapper, `updateWhere`, and `deleteWhere` definitions apply only to
-> Transactional. Read+Update `sequence` uses the `operation` discriminator,
+> The inherited v0 wrapper/receipt and `updateWhere`/`deleteWhere` definitions
+> belong to old Transactional. The selected v0.1 six-CRUD batch wrapper is specified
+> separately in [atomic batch](atomic-batch.md), without those prerequisites. Read+Update `sequence` uses the `operation` discriminator,
 > optional create-member `name`, per-member `idempotencyKey`, the six
 > single-Resource definitions, and the two alias definitions under
 > [Alias targets](#alias-targets). Singleton targets remove `operation`,
 > `name`, and body-level `idempotencyKey` as described below.
 
 Every object in a batch conforms to the bundle's operation definition. The
-bundle's `batchOperation` definition is the normative eight-record union,
-composed from the same `<operation>Members` definitions the Read+Update
-singleton and sequence records use; the sketch below is a non-normative
+new v0.1 bundle's `batchOperation` is the selected six-CRUD union under
+[optional atomic batch](atomic-batch.md), composed from the same
+`<operation>Members` definitions ordinary singleton records use; the sketch below is a non-normative
 preview of it and carries no independent `$id`. Its common `type` fields below
-are retargeted to the v0.1 carrier; the eight-record union, set operations and
-profile assignment remain inherited staging input, not a retained-surface decision.
-The `operation` discriminator selects one of the eight generic operation records:
+are retargeted to the v0.1 carrier and six-CRUD union. The unused set-operation
+helper sketches and old Transactional profile/receipt assignment below remain
+inherited staging input, not a retained-surface decision.
+The `operation` discriminator selects one of the six ordinary Resource operation records:
 
 ```json
 {
@@ -2746,9 +2770,7 @@ The `operation` discriminator selects one of the eight generic operation records
     { "$ref": "#/$defs/deleteBead" },
     { "$ref": "#/$defs/createLink" },
     { "$ref": "#/$defs/updateLink" },
-    { "$ref": "#/$defs/deleteLink" },
-    { "$ref": "#/$defs/updateWhere" },
-    { "$ref": "#/$defs/deleteWhere" }
+    { "$ref": "#/$defs/deleteLink" }
   ],
   "$defs": {
     "name": {

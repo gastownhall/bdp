@@ -392,14 +392,14 @@
     },
     {
       "id": "transactional.singleton.semantics",
-      "title": "A singleton and the equivalent one-operation batch have identical allocation, validation, idempotency, and Event semantics",
+      "title": "Inherited v0 Transactional singleton and batch forms have identical operation semantics",
       "kind": "normative",
       "requiredProfile": "transactional",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#transactional-operation-directory-and-singletons",
-          "selectedText": "Within the Transactional profile, the singleton and batch forms have identical allocation, patch, validation, authorization, idempotency, concurrency, event, and deletion semantics."
+          "selectedText": "Within the inherited v0 Transactional profile, the singleton and batch forms have identical allocation, patch, validation, authorization, idempotency, concurrency, event, and deletion semantics."
         }
       ]
     },
@@ -733,14 +733,14 @@
     },
     {
       "id": "transactional.idempotency.cross-carrier",
-      "title": "A one-operation batch, the equivalent singleton, and the equivalent sequence member present one semantic request and share one receipt",
+      "title": "Inherited v0 Transactional equivalent carriers share semantic request and receipt",
       "kind": "normative",
       "requiredProfile": "transactional",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
-          "selectedText": "A one-operation batch, the equivalent singleton request, and the equivalent sequence member therefore present one semantic request, and any of them retrieves the receipt the others created."
+          "selectedText": "In this inherited v0 Transactional contract, a one-operation batch, the equivalent singleton request, and the equivalent sequence member therefore present one semantic request, and any of them retrieves the receipt the others created."
         }
       ],
       "retires": ["read-update.singleton.idempotent-retry"]
