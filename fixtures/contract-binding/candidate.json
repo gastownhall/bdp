@@ -1,0 +1,84 @@
+{
+  "artifact": "Selected-contract binding author cases",
+  "status": "paper expectations; not provider/CLI execution or adoption",
+  "executed": false,
+  "baseline": "453a37ac8031c77e76dc1a6ef16d3d05850de82a",
+  "binding": {
+    "bdpVersion": "0.1",
+    "specification": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+    "jsonMediaType": "application/vnd.bdp.v0.1+json"
+  },
+  "grammarScope": "The discovery examples retain staged inherited profile vocabulary only to exercise binding/extension structure; no final retained profile/Type/Event/advanced surface is selected by these examples.",
+  "legacyDiscovery": {
+    "bdpVersion": "0",
+    "profile": "read",
+    "scope": "https://example.test/acme/",
+    "beads": "https://example.test/acme/beads/",
+    "links": "https://example.test/acme/links/",
+    "types": "https://example.test/acme/types/"
+  },
+  "candidateDiscovery": {
+    "bdpVersion": "0.1",
+    "profile": "read",
+    "scope": "https://example.test/acme/",
+    "beads": "https://example.test/acme/beads/",
+    "links": "https://example.test/acme/links/",
+    "types": "https://example.test/acme/types/",
+    "capabilities": {
+      "https://example.test/capabilities/future-feature": {
+        "1": {
+          "maximumItems": 20
+        },
+        "2": {
+          "maximumItems": 40
+        }
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "id": "no-user-version-flag",
+      "expected": "An ordinary command selects an actually implemented contract from discovery; user Resource revision flags retain their separate meaning."
+    },
+    {
+      "id": "distinct-json-subtype",
+      "expected": "New-version request uses application/vnd.bdp.v0.1+json. Do not encode version only as an application/json parameter that an old endpoint can ignore."
+    },
+    {
+      "id": "unsupported-body-refusal",
+      "expected": "An endpoint lacking the selected JSON request type refuses415 before payload interpretation/key claim/effects; client does not retry using generic JSON."
+    },
+    {
+      "id": "read-negotiation-refusal",
+      "expected": "An otherwise valid read accepting no supported representation gets bodyless406; client does not treat it as a successful empty result."
+    },
+    {
+      "id": "truthful-cli-identity",
+      "expected": "CLI bdp_spec equals the actual selected specification/schema URI independently of CLI schema_version2, executable version or mutable capability list."
+    },
+    {
+      "id": "base-client-unknown-capability",
+      "expected": "A base client can ignore an unknown capability/version entry; it does not interpret feature-owned details or lose supported base behavior."
+    },
+    {
+      "id": "capability-version-coexistence",
+      "expected": "Advertising a newer capability version alongside an older one preserves explicit selection of the older version; strings compare exactly, not by inferred order/range."
+    },
+    {
+      "id": "feature-required-refusal",
+      "expected": "A required unsupported feature refuses before new mutation effects instead of narrowing predicates, dropping pins or splitting atomic batch."
+    },
+    {
+      "id": "frozen-retry-binding",
+      "expected": "Uncertain recovery preserves original contract/media/Scope/inputs/key; a changed contract is not permission to reexecute or replace the key."
+    },
+    {
+      "id": "cursor-and-stream-context",
+      "expected": "Read/Event continuation cannot be silently reinterpreted under a different contract or representation. Non-JSON Event transport binding still needs actual #153 composition."
+    },
+    {
+      "id": "old-artifact-isolation",
+      "expected": "The existing v0 schema/runtime/fixtures remain at actual old identity and bytes; a new exported JSON artifact neither upgrades SDK parsing nor qualifies old evidence as v0.1."
+    }
+  ]
+}

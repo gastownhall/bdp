@@ -19,6 +19,8 @@ Scope's advertised profile. Core is a document name, not a new discovery value.
 
 ## Status and conformance
 
+**Consolidation notice:** the [selected v0.1 contract/JSON binding](contract-binding.md) and separately named [v0.1 candidate schema](bdp-v0.1.schema.json) are staged source. The inherited v0 profile/HTTP examples below do not authorize advertising retained amendments as unchanged version0. Profile/Type/Event composition and section-by-section example retargeting remain adoption gates. Existing v0 schema/runtime slots stay explicit and unchanged; the candidate is not implemented merely because its JSON artifact is present.
+
 The Core/Read and Write documents and shared conformance index form a single
 draft with one status. Its Data Model,
 JSON representations, HTTP interface, Event model, examples, and schemas are
@@ -1069,6 +1071,8 @@ entry relation. Optional `service-doc` and `describedby` uses keep their
 registered Web meanings.
 
 ### Normative schema bundle
+
+The artifact references in this inherited section describe the existing v0 slot. The [v0.1 binding](contract-binding.md) identifies the separately named target artifact and its staging/adoption boundary; it does not silently change what an existing v0 validator loads.
 
 BDP v0 publishes one normative JSON Schema 2020-12 bundle at
 `specs/profiles/core/bdp-v0.schema.json`. Every public discovery, request, success, Resource, collection and problem envelope is a named entry beneath that bundle's

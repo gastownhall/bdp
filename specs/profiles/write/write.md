@@ -12,6 +12,8 @@ It preserves the existing Read+Update and Transactional profiles: Write is a
 document name, not a new advertised profile. `sequence` remains non-atomic;
 `batch` remains atomic. The [conformance index](../../conformance.md) is shared.
 
+The [v0.1 selected-contract binding](../core/contract-binding.md) stages distinct discovery/media/schema identity for the retained target. Inherited v0 HTTP examples and profile vocabulary in this source are not a claim that the new binding/profile composition is complete or that changed semantics can be advertised as unchanged0. Existing v0 implementations remain held at their actual contract.
+
 <!-- protocol-text -->
 
 <a id="part-ii--readupdate"></a>
