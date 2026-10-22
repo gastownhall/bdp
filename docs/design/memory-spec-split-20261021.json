@@ -1,0 +1,20 @@
+{
+  "result": "PASS",
+  "memory_bead_types": 8,
+  "memory_link_types": 5,
+  "assessment_bead_types": 1,
+  "assessment_link_types": 4,
+  "zero_assessment_mentions_in_memory": true,
+  "type_property_shapes_preserved": 13,
+  "assessment_definitions_preserved": 5,
+  "relative_links_checked": 48,
+  "schema_or_runtime_checks": false,
+  "authoring_commit": "52334fa",
+  "previous_public_commit": "fec389dd370e85bae18dd44dc09eff29b5b2bf6b",
+  "memory_path": "specs/types/memory/memory.md",
+  "assessment_path": "specs/types/assessment/assessment.md",
+  "memory_sha256": "4150441705b45853a96bc2f8ecf28ed92833ed4d964ffe6c78c5d6369de8743f",
+  "assessment_sha256": "fc1e92f82bdd3a6391e139adae06d9c9893cefce92d1ff9d6d6b01a911a05402",
+  "direction": "Assessment depends on Memory; Memory has no reverse mention or link.",
+  "runtime_or_pin_changes": false
+}
