@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bdp:wip:batch-support-scenarios:1",
+  "$comment": "WIP/proposed review artifact. Not adopted BDP wire format or runtime capability.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["name", "request", "expected"],
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1
+      },
+      "request": {
+        "type": "object"
+      },
+      "expected": {
+        "type": "object",
+        "required": ["classification"],
+        "properties": {
+          "classification": {
+            "enum": ["supported-shape", "unsupported", "malformed"]
+          },
+          "pointer": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  }
+}
