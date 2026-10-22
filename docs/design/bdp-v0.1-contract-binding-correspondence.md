@@ -8,7 +8,13 @@ Discovery `"0.1"`, `application/vnd.bdp.v0.1+json` and specification/schema URI 
 
 The new canonical/distribution artifacts are separately named. Among the 159 inherited definitions, exactly four change: `bdpVersion`, and the optional `capabilities` property on `readDiscovery`, `readUpdateDiscovery`, `transactionalDiscovery`. Two map helper definitions are added, for 161 total. Capability identity maps to exact version strings, each owning a detail object; multiple versions coexist. This permits an older base client to ignore an unknown optional entry without changing base guarantees. It is not an executable extension/template framework.
 
-All other inherited definitions, including pending profile and advanced grammar, are staged inputs unchanged by this slice. Their presence is explicitly not a retained-surface decision. Profile factoring, #279 carrier/nominal ownership projection, Trish's Types and required Events must compose before any service advertises v0.1. Event transport cannot infer its contract from unversioned SSE; #153 composition remains explicit. There is no new descriptor service or legacy endpoint obligation.
+The preceding 159→161 statistics are the original PR287 binding-slice snapshot.
+The subsequent [#279 source](bdp-v0.1-affiliation-port.md) adds two affiliation
+helpers and amends ten carrier definitions in the same new slot, for a composed
+candidate of 163 definitions. The four binding changes/two capability helpers are
+not a timeless complete diff of that later artifact.
+
+All other inherited definitions, including pending profile and advanced grammar, are staged inputs unchanged by this original binding slice. Their presence is explicitly not a retained-surface decision. Profile factoring, #279 carrier/nominal ownership projection, Trish's Types and required Events must compose before any service advertises v0.1. Event transport cannot infer its contract from unversioned SSE; #153 composition remains explicit. There is no new descriptor service or legacy endpoint obligation.
 
 The old v0 schema bytes, runtime version constant/parsers, existing fixtures, loader guards, catalog IDs and previous evidence identities remain unchanged. The package adds a JSON artifact export, not runtime support for 0.1. PR284 is preserved as the selected carrier input; its changes should port to the new target artifact rather than silently advancing the held v0 slot. The private complete C1 and its Event questions remain distinct from this paired subset.
 

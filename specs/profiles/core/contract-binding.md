@@ -62,6 +62,18 @@ Continuations, conditional-read context and Event resume context remain bound to
 
 ## Staging and adoption boundary
 
-The v0.1 schema is a separately named candidate, mechanically derived from the 159-definition inherited grammar. Only `bdpVersion` and the optional capability-map property on the three discovery definitions change; two capability helper definitions are added. Native payload, profile-token and advanced definitions are still inherited **staging inputs**, not a decision to retain them. Core/Write factoring, #279 affiliation/ownership projection, Trish's Types and the required Event contract must be composed before v0.1 is advertised. Copying inherited grammar does not revive Experimental facilities or make a staged bundle independently adoptable.
+The separately named v0.1 schema began with the **original PR287 binding-slice
+snapshot**: 159 inherited definitions, four amended definitions (`bdpVersion` and
+the capability-map property on three discovery definitions), and two capability
+helpers, for 161. Those statistics describe that source slice, not the composed
+artifact forever. The subsequent [#279 common affiliation/ownership amendment](affiliations.md)
+ports ten carrier amendments and two more helpers into the new slot; the composed
+candidate now contains **163 definitions**. See its [paired source record](../../../docs/design/bdp-v0.1-affiliation-port.md).
 
+Unreplaced native payload, profile-token and advanced definitions remain inherited
+**staging inputs**, not a decision to retain them. Retained Core/Write factoring,
+actual Types composition and the required Event contract remain adoption gates;
+the common affiliation port does not close every #279 seam. Copying inherited
+grammar does not revive Experimental facilities or make a staged bundle independently
+adoptable.
 The old [v0 artifact](bdp-v0.schema.json), its distribution copy and existing parsers remain byte-bound to their old contract. This is artifact isolation, not an additional implementation or compatibility campaign. New source/schema work targets the v0.1 artifact; PR284 is preserved as the accepted carrier input for that port, without silently upgrading v0 validators. Inherited v0 HTTP examples in Core/Write remain explicitly inherited until their corresponding retained sections are retargeted. No old test/report/catalog digest becomes a v0.1 PASS from these source changes.
