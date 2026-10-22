@@ -222,7 +222,22 @@ one Resource object. `propertiesChange` targets `properties` and
 `metadataChange` targets common `metadata`; each JSON Pointer is relative to
 its own complete object. A Resource update supplies at least one of these
 arrays and may supply both in the same atomic operation. An omitted array
-leaves its object unchanged. A change admits only `add`, `replace`, and
+leaves its object unchanged. For ordinary `UpdateBead` and `UpdateLink`, a
+supplied array may be empty (`[]`), contributing no patch operations; at least
+one of the two array members must still be present. This also applies to
+ordinary updates within a sequence or atomic batch. `updateWhere.change` and
+emitted change deltas retain their nonempty-array requirement. When an update
+changes the other object, an empty input array is omitted from the emitted
+change deltas.
+
+Empty arrays do not bypass authorization, target existence and liveness,
+applicable revision guards, or complete final-state validation. The authority
+processes the update under the usual idempotency rules and returns the ordinary
+authoritative `updated` result even when neither object changes. A genuine
+no-op creates no Resource revision, owned-state change, or Event. Clients must
+not skip an update merely because its supplied arrays are empty.
+
+A change admits only `add`, `replace`, and
 `remove`. The other patch operations — `move`, `copy`, and `test` — are
 excluded from BDP v0. Operations execute in array order. `add` has RFC 6902
 object replacement and array insertion/append semantics. `replace` and
@@ -261,7 +276,12 @@ properties patch must yield a JSON object satisfying every effective Type
 schema. The metadata patch must yield a JSON object. If both results equal
 their respective preceding objects under RFC 6902 Section 4.6 JSON
 comparison, the operation is a no-op. It preserves the
-Resource revision. Number equality in that
+Resource revision. Type validation occurs after the complete patch, not after
+each intermediate operation. For example, `add` of `null` at a top-level key
+followed by `remove` of that key in the same update implements tolerant removal:
+an absent key leaves the final object unchanged. This composition neither
+relaxes strict `remove` semantics nor permits an invalid final object; splitting
+it into separate updates is not equivalent. Number equality in that
 comparison, and the admissibility of every number literal a change carries,
 are defined under [Revisions](../core/core.md#revisions).
 
@@ -285,7 +305,7 @@ Resource in the logical Scope. Deletion does not make it available again.
 UpdateBead(
   bead,
   propertiesChange?,
-  metadataChange?,  // at least one change array is required
+  metadataChange?,  // at least one array member is required; [] is allowed
   expectedRevision?,
   revisionProvenance?
 ) -> BeadState
@@ -330,7 +350,7 @@ pinned; whether an endpoint is in-Scope or out-of-Scope derives from its
 UpdateLink(
   link,
   propertiesChange?,
-  metadataChange?,  // at least one change array is required
+  metadataChange?,  // at least one array member is required; [] is allowed
   expectedRevision?,
   revisionProvenance?
 ) -> LinkState
@@ -2776,6 +2796,10 @@ discriminator selects one of the eight generic operation records:
         ]
       }
     },
+    "ordinaryUpdateChange": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/change/items" }
+    },
     "selector": {
       "type": "string",
       "minLength": 1
@@ -2810,8 +2834,8 @@ discriminator selects one of the eight generic operation records:
       "properties": {
         "operation": { "const": "updateBead" },
         "bead": { "$ref": "#/$defs/resourceReference" },
-        "propertiesChange": { "$ref": "#/$defs/change" },
-        "metadataChange": { "$ref": "#/$defs/change" },
+        "propertiesChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
+        "metadataChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
         "revisionProvenance": { "$ref": "#/$defs/revisionProvenanceInput" }
       },
@@ -2850,8 +2874,8 @@ discriminator selects one of the eight generic operation records:
       "properties": {
         "operation": { "const": "updateLink" },
         "link": { "$ref": "#/$defs/resourceReference" },
-        "propertiesChange": { "$ref": "#/$defs/change" },
-        "metadataChange": { "$ref": "#/$defs/change" },
+        "propertiesChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
+        "metadataChange": { "$ref": "#/$defs/ordinaryUpdateChange" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
         "revisionProvenance": { "$ref": "#/$defs/revisionProvenanceInput" }
       },
