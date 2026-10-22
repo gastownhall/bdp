@@ -41,6 +41,28 @@ The decision and coverage categories are normative. The matrix, fixtures, and
 expected results must exist in the repository for an implementation to claim
 complete acceptance evidence.
 
+#### Scope-defined namespace candidate rows
+
+The paired #280 amendment binds these source obligations to
+`packages/conformance/catalog/scope-namespace-v01.json` and the paper cases in
+`fixtures/scope-namespace/candidate.json`. They remain unexecuted expectations;
+metadata is not provider qualification. Older fixed-root catalogs/fixtures and
+recorded runs retain their original v0 source meaning, including the old
+stripped-tail alias collisions. They are not acceptance evidence for this
+changed contract. Complete contract/version selection and runtime qualification
+remain required before adoption.
+
+| Row | Obligation |
+| --- | --- |
+| `read.namespace.scope-defined-ids` | Resolve whole safe Scope-relative paths without reserved kind prefixes or prefix-based kind inference; Scope URI spaces, canonical identity and normalization remain binding |
+| `read.namespace.discovered-navigation` | Follow advertised inventories; paths need not equal fixed suffixes and item IDs need not sit beneath an inventory URL |
+| `read.namespace.point-kind` | Successful full/properties/incident/aggregate point reads, HEAD and304 carry actual subject kind agreeing with native Resource shape, with authorization first |
+| `read.namespace.owner-navigation` | Successful point reads expose owning Scope service-desc; absolute reads need no default, absolute writes use verified binding, and clients never strip paths to guess it |
+| `read.namespace.external-bead-intent` | External bead intent requires an admitted HTTP(S) URL without a beads/ tail or remote-kind proof; opaque Reference/lifecycle rules remain |
+| `read-update.namespace.kind-lookup` | Required kind is checked on the resolved Resource; a Bead named links/81 and a Link named task-42 do not change kind through spelling |
+| `read-update.namespace.full-url-collisions` | Either kind of creation is blocked by a live alias at the same URL; an ever-committed Resource URL blocks alias occupation; different full paths sharing a tail do not collide |
+| `read-update.namespace.identity-preserved` | Deletion, restore or prefix removal never reassigns an old canonical identity; aliases release only their locator and retries retain original resolution witnesses |
+
 #### Owned-Link wildcard conformance rows
 
 These rows name the Owned-Link wildcard obligations.
@@ -167,11 +189,11 @@ Read+Update discovery row does not restore the Read-only shape.
 | `read-update.alias.put-creates` | `put-alias` creates an alias to exactly one canonical in-Scope Bead and reports the absolute alias URL and the canonical target with outcome `created` |
 | `read-update.alias.put-repoints` | `put-alias` on an existing alias repoints it as the same operation and reports `updated`, a put to the target the alias already has included; resolution then follows the new target |
 | `read-update.alias.delete-releases` | `delete-alias` removes the alias and reports `deleted` with no `target`; the alias then resolves as `404`, and the path is reusable by a later put |
-| `read-update.alias.uniqueness-invariant` | Alias paths and canonical Bead segments share one uniqueness namespace, checked first: a put on a committed Bead's path, a deleted one included, fails with `identity-taken`, and a Bead creation on a live alias path fails with `alias-path-taken`, a condition that clears when the alias is deleted |
-| `read-update.alias.link-coexistence` | Link segments and alias paths coexist: a Link created at `links/foo` beside a live `alias/foo` collides with nothing |
-| `read-update.alias.allocation-avoids-aliases` | An authority-allocated Bead id is never a live alias path |
+| `read-update.alias.uniqueness-invariant` | Complete canonical URLs share one namespace across Beads, Links and aliases: a put at an ever-committed Resource URL fails with `identity-taken`, while creation of either kind at a live alias URL fails with `alias-path-taken`, cleared only by alias removal |
+| `read-update.alias.link-coexistence` | Distinct full paths coexist: a Link at `links/foo` and alias at `alias/foo` do not collide merely because their suffixes agree |
+| `read-update.alias.allocation-avoids-aliases` | An authority-allocated canonical ID of either Resource kind is never a live alias URL |
 | `read-update.alias.non-canonical-target` | A put whose `target` is an alias, a Link, or an external URI fails with `validation-failed`, carrying one diagnostic that names the cause |
-| `read-update.alias.unknown-subject` | An unknown or invisible target, an unknown alias on delete, and an `alias` member beneath the wrong root fail with `resource-not-found`: aliases are not an enumeration oracle |
+| `read-update.alias.unknown-subject` | An unknown or invisible target, an unknown alias on delete, and an `alias` member outside the advertised alias base fail with `resource-not-found`: aliases are not an enumeration oracle |
 | `read-update.alias.carrier-syntax` | An `alias` value that violates the grammar or is no reference shape at all is carrier syntax: the sequence is rejected whole with `malformed-request` before any member executes, while a well-formed inadmissible target fails only its member |
 | `read-update.alias.authorization` | Alias operations are authorized as mutations of the Beads they touch: a put requires write on the proposed target, a repoint or delete also on the current target, and an invisible current target makes the alias `resource-not-found` |
 | `read-update.alias.forbidden` | A put or delete the principal may not perform fails with `forbidden` |
