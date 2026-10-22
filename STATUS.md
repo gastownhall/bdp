@@ -458,3 +458,10 @@ verification. The 2,322-row schema corpus is byte-identical to the preceding fin
 corpus. All 89 Read pass rows, nine N/A slots, eight qualifications and the existing
 self-certification distinction remain intact. These remain Read observations and
 do not grant History or write-profile conformance.
+
+## Proposed lifecycle events amendment
+
+[lifecycle-events](specs/proposals/lifecycle-events/lifecycle-events.md) is WIP/proposed material on
+an isolated branch from PR159 `d7197e97a29bff8f075028419afad05388e2e655`. Offline review-artifact checks do not
+implement or qualify a runtime, amend the current bundle, lift #59/Donna landing
+holds, or change any existing status row. Open decisions remain explicit.
