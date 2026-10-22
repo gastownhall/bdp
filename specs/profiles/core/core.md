@@ -2025,3 +2025,77 @@ limits and non-disclosure. Optional History obligations apply only when that
 complete capability is advertised. The shared conformance index records
 case identifiers and evidence requirements; profile tags select only Read
 obligations for a Read implementation.
+
+
+## Historical-base Update amendment (draft)
+
+This proposed amendment records the approved historical-base Update and
+same-identity Bead recovery semantics in
+[Beads #7719](https://github.com/gastownhall/beads/issues/7719).
+It is not an advertisement of an implemented capability. The concrete carrier
+proposal and closed-schema/SDK crosswalk are in
+[the amendment packet](../../../docs/design/historical-update-amendment.md).
+The existing schema bundle and parser behavior are unchanged by this prose PR;
+implementation must not claim admission or conformance from this section alone.
+
+### Identity, current state and historical content
+
+A historical source is an exact retained live version of the same Bead identity.
+It supplies only the editable content selected by the Write field policy. It
+is neither the current state nor an optimistic concurrency guard. After
+payload deletion, recovery also requires sufficient authorized retained
+identity/last-current facts to establish the current Type, selected definition
+and required protected/initialization-only values. The adapter identifies
+this authoritative baseline independently of the editable source and the
+terminal guard; it preserves or reconstructs facts only under existing
+authority policy, regenerates service-managed values only where current rules
+permit, and refuses atomically if required facts cannot be established. A
+terminal's predecessor reference does not guarantee those facts remain
+available, and source content must not substitute for them. Recovery
+changes the presence of an already allocated identity; it does not allocate,
+reuse, alias, or upsert an unknown identity. Deletion and earlier retained
+history remain recorded. An erased identity or unavailable source cannot be
+recovered by substituting another version.
+
+Ordinary deleted-object GET behavior is unchanged. An authorized History
+carrier exposes an actually recorded current deletion revision independently
+of a selected historical source. It must not report the last live revision as
+the current deletion revision, infer a deletion revision from token spelling,
+or manufacture one from a local ordinal or timestamp. The current-state
+observation is authorization-relative and can become stale; the ordinary
+optional current revision guard detects that race at mutation time.
+
+Subject-history authorization and permission to disclose the actual terminal
+state govern this carrier. Permission to read one historical body does not by
+itself grant permission to learn current deleted state. Uniform unauthorized
+refusals and erasure protections remain applicable. A terminal descriptor
+contains no live properties, endpoints or owned-Link snapshot and is not a
+successful current Resource GET. Historical terminal evidence remains distinct
+from the complete retained live body used as an Update content source.
+
+### Historical-source admission and immutable facts
+
+Source acquisition must establish exact identity, exact token, current
+permission and retained editable content, subject to retention and erasure
+through commit. No latest, nearest or default-last-live fallback is permitted.
+A projection or incomplete historical record is not a complete editable source.
+Current authorization, optional guards and final validation still run for a
+request whose eventual content equals current content.
+
+A new live result records the current write's actual context. Its historical
+content source and actual current predecessor are separate facts: sourcing R1
+while replacing R7 must never describe R1 as the predecessor. Recovery after
+terminal D records D as predecessor, not the final live revision preceding D.
+Earlier version envelopes remain immutable. A live semantic no-op retains the
+existing revision and its entire envelope; it does not append a source-only
+History fact. This includes any historical-source context already stored on
+that revision: a later historical or ordinary no-op neither removes nor
+replaces it. Live-to-live sourcing preserves current-presence Inception;
+deleted-to-live recovery records `revert`, as approved in
+[the Inception decision](https://github.com/gastownhall/beads/issues/7510#issuecomment-6242419971).
+
+The proposed terminal, historical-source and Inception encodings are narrowly
+identified in the packet. Their schema/SDK/implementation changes require
+review and coordinated qualification; this amendment does not adopt the broader
+sources/completeness proposal or change existing legacy absence into invented
+actor, timestamp or source facts.
