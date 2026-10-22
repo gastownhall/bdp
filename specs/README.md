@@ -1,14 +1,18 @@
-# BDP working plan of record — curation candidate
+# BDP working plan of record
 
-> **CURATION CANDIDATE—DONNA BASELINE REVIEW PENDING**
+> **WORKING-POR BASELINE REVIEWED—ENGAGEMENT APPROVED**
 >
-> This front door is not yet baselined or open for business. Donna and Trish
-> must personally review the candidate and Donna must explicitly ACK the exact
-> baseline before an adoption announcement or owner-impact request. A draft PR,
-> merge, source check or acknowledgment of the interim notice does not replace
-> that ACK.
+> On October22, Donna reviewed this front door and decision register at
+> [`2265a640ec594235334752244d8a799f93f12ece`](https://github.com/gastownhall/bdp/commit/2265a640ec594235334752244d8a799f93f12ece)
+> and [approved engagement through Trish](https://github.com/gastownhall/bdp/pull/285#issuecomment-6349188134).
+> Her two inline editorial comments are
+> resolved in the editorial successor. This records approval of the working POR
+> and process, **not adoption of the remaining semantic drafts or implementation
+> support**. No editorial pass on every linked draft is a prerequisite to the
+> already-authorized work; existing implementation holds remain.
 
-Start with the [stage-1 notice, October 22, 2026](https://github.com/gastownhall/bdp/issues/59#issuecomment-6347674001).
+The [stage-1 notice, October 22, 2026](https://github.com/gastownhall/bdp/issues/59#issuecomment-6347674001)
+records the interim state before Donna's baseline review.
 [BDP#59](https://github.com/gastownhall/bdp/issues/59) is the sole shared
 consolidation plan; `codex/bdp-v0.1` is the sole consolidation branch. Trish
 owns integration and communication, Sybil Core/Write/canonical CLI and Molly
@@ -22,7 +26,7 @@ to original human rulings.
 | --- | --- | --- |
 | Decision | An identified human ruling, with its source and scope | That prose, schemas or implementations already incorporate it |
 | Specification propagation | The exact integrated amendment and its remaining composition gaps | Adoption of a coherent contract or runtime conformance |
-| Communication | Stage-1 receipt now; explicit baseline adoption ACK and impact response later | Approval inferred from silence, a delivery receipt or a copied proposal |
+| Communication | Donna's reviewed POR baseline; Trish-owned rollout and explicit owner acknowledgment/impact records | Owner adoption inferred from silence, a stage-1 receipt or a copied proposal |
 | Implementation | An exact build and pinned contract, capability/delta statement and applicable evidence | Support for every accepted future direction or draft on this branch |
 
 **Prefix removal is accepted.** The working target has Scope-defined Resource
@@ -43,14 +47,16 @@ the next-design authority.
 
 ## Exact curation source and current amendment boundaries
 
-This candidate is curated from remote `codex/bdp-v0.1` at
+The reviewed front door was curated from remote `codex/bdp-v0.1` at
 [`365f337fd161e0c888b0ab6dc3a632bfbcb28581`](https://github.com/gastownhall/bdp/commit/365f337fd161e0c888b0ab6dc3a632bfbcb28581),
 following starting source
 [`37d6622f95e71cac022478cfbcb3e8f2d6bdf444`](https://github.com/gastownhall/bdp/commit/37d6622f95e71cac022478cfbcb3e8f2d6bdf444).
-These are source identities, **not Donna's reviewed POR baseline**. The eventual
-announcement must name the exact reviewed candidate revision and the adopted
-specification/capability scope. Consult the linked issues for live amendment
-status; this is the bounded October22 curation snapshot.
+These are source identities, **not the reviewed POR revision**. Donna reviewed
+the front door/register at
+`2265a640`; this editorial successor records that approval and clarifies her
+comments. Trish's rollout must identify both the reviewed baseline and the
+editorial successor and state the still-unadopted specification/capability scope.
+Consult the linked issues for live amendment status; this is the bounded October22 curation snapshot.
 
 | Surface | Read here | Disposition at the curation source |
 | --- | --- | --- |
@@ -71,31 +77,33 @@ has no independent authority; coordinated schema changes maintain correspondence
 The Types definition graph is illustrative, not a production bootstrap or an
 installable package. Draft residence under `specs/` does not imply adoption.
 
-## Interim operating procedure and later baseline
+## Operating procedure after the front-door baseline
 
-1. **Until Donna's explicit ACK:** continue only already-authorized independent
-   work against its exact actual contract and existing holds. Vickie, `bd serve`
-   and runtime adoption stay held. Do not start a routing migration, new
-   implementation/validation/review campaign or v0.1 conformance claim.
-2. **Curate and review:** Trish owns communication/integration; Molly owns this
-   index and bounded affected-owner coverage; Sybil supplies read-only
-   Core/Write/CLI review. Resolve concrete inconsistencies in existing issues.
-   Accepted rulings need propagation; unresolved proposals need an explicit
-   decision, not adoption by example. No second umbrella tracker.
-3. **Donna and Trish baseline together:** record the exact reviewed revision,
-   incorporated amendments, accepted-unincorporated changes, open questions and
-   declared exclusions. Keep this candidate gate until Donna explicitly ACKs.
-4. **Only then, Trish announces open for business:** include the exact reviewed
-   POR revision and the changes-since-notice bulletin below. Obtain each affected
-   owner's explicit baseline acknowledgment and implementation-impact response.
-   Record received, pending, no-impact and held work separately. An interim ACK
-   is not an adoption ACK; silence is not approval.
-5. **After baseline, every change uses a concrete BDP issue:** capture the ruling
-   source and scope, amendment/disposition, exact incorporated commit, affected
-   owners and communication/implementation status. Trish coordinates the
-   corresponding change bulletin and impact follow-up; no silent release pin,
-   catalog, schema or runtime adoption. Do not declare this initial candidate an
-   already-approved permanent procedure.
+1. **Engage against the working POR:** continue already-authorized work using
+   this front door and the named resolution drivers in the register. State each
+   implementation's exact actual contract and discrepancies. Vickie, `bd serve`
+   and runtime adoption stay held; no routing migration, new implementation or
+   validation/review campaign, or v0.1 conformance claim follows from engagement.
+2. **Resolve the assigned source work:** Trish owns integration/communication;
+   Molly owns curation/status/consumer coverage; Sybil owns Core/Write/CLI;
+   Trish owns Types; Olivia owns proposal exploration only. Accepted rulings need
+   propagation; open proposals need a scoped decision rather than adoption by
+   example. Closed and deferred rows create no new assignment or restart.
+3. **Hand completed changes to Trish:** each resolution driver links the concrete
+   BDP issue, ruling or unresolved question, exact amendment revision, relevant
+   evidence and remaining implementation delta. Trish composes/lands the source
+   on `codex/bdp-v0.1` under its existing gates and records the resulting status.
+   This source handoff is separate from product qualification or runtime adoption.
+4. **Trish owns phase3 rollout:** report the exact reviewed POR baseline and
+   editorial successor, the changes-since-notice bulletin below, and continuing
+   holds. Obtain each affected owner's explicit acknowledgment and implementation
+   impact. Track received, pending, no-impact and held work separately. A
+   stage-1 receipt is not an owner adoption ACK; silence is not approval.
+5. **Subsequent changes use concrete BDP issues:** capture the human ruling and
+   scope, resolution driver, source disposition, incorporated commit, affected
+   owners and communication/implementation status. Trish coordinates the change
+   bulletin and impact follow-up. No second umbrella tracker, silent pin/catalog/
+   schema/runtime adoption or fresh blanket approval queue is introduced.
 
 Experimental documents must retain their strong non-normative, non-POR,
 non-product-commitment, non-conformance-obligation and no-promised-implementation
@@ -103,17 +111,28 @@ notices. Olivia's ownership/pinning sidebar is exploration, not an adopted
 replacement or a hold on independent consolidation. Existing ownership/history
 and Memory requirements remain recorded unless Donna explicitly revises them.
 
-## Changes since the stage-1 notice — bulletin pending
+## Changes since the stage-1 notice
 
-**No baseline-adoption bulletin has been issued by this candidate.**
 Stage1 is anchored at
 [October22 18:01:59 UTC](https://github.com/gastownhall/bdp/issues/59#issuecomment-6347674001).
-This candidate adds navigation, status/decision coverage and proposed owner
-coverage only; it changes no protocol semantics or implementation.
+The changes since that notice are:
 
-Before stage3, Trish will fill this section with the exact reviewed POR revision
-and changes from that notice: which decisions were newly made, which accepted
-ones were incorporated or remain pending, affected implementation pins/work,
-continuing holds and exclusions, and requested owner ACK/impact responses.
-The [register's owner table](../docs/design/bdp-v0.1-decision-register.md#bounded-affected-owner-coverage)
-is the proposed initial recipient set, not a completed impact audit.
+- **Curation/process:** the existing front door now links the29 recovered
+  decision groups, accepted-unincorporated changes, existing amendment issues,
+  exact source identities and separate decision/specification/communication/
+  implementation states. Experimental and implementation holds remain explicit.
+- **Review/engagement:** Donna reviewed baseline `2265a640` and approved use of
+  the working POR; Trish owns the phase3 acknowledgment/impact rollout. Linked
+  semantic drafts still require their own resolution and coherent propagation.
+- **Editorial clarity:** retyping is explained as changing a Bead's or Link's
+  Type without changing its ID, while earlier revisions retain the former Type.
+  Each register row names the existing resolution driver and handoff to Trish;
+  closed/deferred rows do not silently assign new work.
+
+**No new protocol semantics, namespace migration, product change or hold release
+is introduced by this curation/editorial update.** Prefix removal and mutable
+Types were already accepted; the carrier and empty-array decisions remain as
+recorded. This bulletin is content for Trish's rollout, not a claim that every
+owner has acknowledged or that an impact audit is complete. The
+[owner table](../docs/design/bdp-v0.1-decision-register.md#bounded-affected-owner-coverage)
+retains known-work pointers and separates the later owner responses.
