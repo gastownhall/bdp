@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bdp:wip:transfer-framing:1",
+  "$comment": "WIP framing scaffold/current-Core carrier only; not accepted Memory V2 wire or a complete importer.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/manifest"
+    },
+    {
+      "$ref": "#/$defs/version"
+    },
+    {
+      "$ref": "#/$defs/complete"
+    }
+  ],
+  "$defs": {
+    "manifest": {
+      "type": "object",
+      "required": [
+        "record",
+        "format",
+        "formatVersion",
+        "resourceContract",
+        "sourceScope",
+        "idEncoding",
+        "selection"
+      ],
+      "properties": {
+        "record": {
+          "const": "manifest"
+        },
+        "format": {
+          "const": "bdp-transfer"
+        },
+        "formatVersion": {
+          "const": 1
+        },
+        "resourceContract": {
+          "const": "urn:bdp:wip:core-carrier:d7197e97a29bff8f075028419afad05388e2e655"
+        },
+        "sourceScope": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://[^?#]*/$"
+        },
+        "idEncoding": {
+          "const": "absolute"
+        },
+        "selection": {
+          "type": "object",
+          "required": ["state", "history", "memoryBodies"],
+          "properties": {
+            "state": {
+              "const": "current"
+            },
+            "history": {
+              "const": "required-pins"
+            },
+            "memoryBodies": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "version": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["record", "resourceKind", "head", "resource"],
+          "properties": {
+            "record": {
+              "const": "version"
+            },
+            "resourceKind": {
+              "const": "bead"
+            },
+            "head": {
+              "type": "boolean"
+            },
+            "resource": {
+              "allOf": [
+                {
+                  "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json#/$defs/beadRecord"
+                },
+                {
+                  "type": "object",
+                  "required": ["metadata"],
+                  "properties": {
+                    "links": false
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["record", "resourceKind", "head", "resource"],
+          "properties": {
+            "record": {
+              "const": "version"
+            },
+            "resourceKind": {
+              "const": "link"
+            },
+            "head": {
+              "type": "boolean"
+            },
+            "resource": {
+              "allOf": [
+                {
+                  "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json#/$defs/linkRecord"
+                },
+                {
+                  "type": "object",
+                  "required": ["metadata"],
+                  "properties": {
+                    "links": false
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "complete": {
+      "type": "object",
+      "required": ["record", "resources", "versions", "sha256"],
+      "properties": {
+        "record": {
+          "const": "complete"
+        },
+        "resources": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "versions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

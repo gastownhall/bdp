@@ -458,3 +458,13 @@ verification. The 2,322-row schema corpus is byte-identical to the preceding fin
 corpus. All 89 Read pass rows, nine N/A slots, eight qualifications and the existing
 self-certification distinction remain intact. These remain Read observations and
 do not grant History or write-profile conformance.
+
+## Proposed Memory V2 interchange
+
+[Interchange](specs/proposals/interchange/interchange.md) is WIP/proposed contract
+material from PR159 d7197e97a29bff8f075028419afad05388e2e655. Its current-Core
+framing scaffold and offline synthetic vectors do not qualify Memory Types,
+provenance, atomic import, export snapshots, either installed engine or independent
+Go/Rust interoperability. No current profile/capability/evidence row changes.
+Go implementation and semantic/main-landing holds remain; Memory PR143 is a separate
+candidate, not implicitly adopted by this draft.

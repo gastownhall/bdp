@@ -13,6 +13,7 @@ outside this directory are non-normative and may be stale.
 | Conformance index | [conformance.md](conformance.md) | Shared current-v0 requirement/case index; applicability remains profile-specific |
 | Types profile | [types.md](profiles/types/types.md) | WIP next design; does not yet replace Core's existing Type contract |
 | Issue/Dependency library | [issue.md](types/issue/issue.md) | WIP domain design using the proposed Types profile; historical implementation evidence is labeled |
+| Interchange | [interchange.md](proposals/interchange/interchange.md) | WIP proposed JSONL contract/scaffold; no runtime or accepted V2 Resource-contract claim |
 | Memory library | [PR143](https://github.com/gastownhall/bdp/pull/143) | WIP on its own branch at `specs/types/memory/memory.md`; not yet adopted or merged |
 
 The Issue draft links its source audit at an immutable authoring commit. That
@@ -41,7 +42,11 @@ normative authority.
 The Types [schema notes](profiles/types/README.md) explain the candidate artifacts.
 `profiles/types/definitions.json` is an illustrative foundation graph, including
 Issue examples, not production bootstrap IDs or an installable package. Test
-checkers live in `scripts/` and test datasets in `fixtures/specs/`.
+checkers live in `scripts/` and supporting test datasets in `fixtures/specs/`.
+The `proposals/` tree holds explicitly WIP proposed amendments: owning prose,
+review schemas and illustrative examples stay together, while scenario vectors
+and synthetic classification facts live under `fixtures/specs/`. Placement does
+not adopt a proposal or change the current profiles.
 
 Legacy document links lead to a navigation-only page. Sealed catalogs retain
 historical source names and hashes; citation tests assemble the current files in
