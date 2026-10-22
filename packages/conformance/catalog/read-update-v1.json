@@ -23,7 +23,9 @@
           "selectedText": "An omitted `order` means `canonical-uri`."
         }
       ],
-      "retires": ["read.discovery.document"]
+      "retires": [
+        "read.discovery.document"
+      ]
     },
     {
       "id": "read-update.discovery.aliases",
@@ -565,7 +567,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "both carry `alias`, the absolute alias URL, `alias/{alias-path}` resolved against the canonical Scope URL, and `target`, the absolute canonical Bead URL the alias now resolves to."
+          "selectedText": "both carry `alias`, the absolute alias URL produced by resolving the admitted alias path against the canonical Scope URL, and `target`, the absolute canonical Bead URL the alias now resolves to."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -622,14 +624,14 @@
     },
     {
       "id": "read-update.alias.uniqueness-invariant",
-      "title": "Alias paths and canonical Bead segments share one uniqueness namespace, checked first: a put on a committed Bead path is identity-taken and a Bead creation on a live alias path is alias-path-taken",
+      "title": "Full canonical URLs share Resource and alias collision rules",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "Canonical Bead segments and alias paths share one uniqueness namespace in the Scope, a store invariant the authority enforces when the member is reached: a put whose alias path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope — a deleted one included, since canonical segments are never released — fails with `identity-taken`, and a Bead creation that supplies an `id` whose `{id-path}` is a live alias path fails with `alias-path-taken`, a condition that clears when the alias is deleted."
+          "selectedText": "Within the admitted alias namespace, a put whose complete canonical URL was ever committed for a Bead or Link, including a deleted identity, fails with `identity-taken`. A Bead or Link creation at a live alias URL fails with `alias-path-taken`; that condition clears when the alias is removed."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -649,48 +651,48 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "an alias put whose path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope, a deleted one included, fails the same way, while a Bead creation whose supplied `id` has the `{id-path}` of a live alias is `alias-path-taken`"
+          "selectedText": "Within the admitted alias namespace, an alias put at such a URL fails the same way under [Alias targets](#alias-targets)."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "`alias-path-taken`: a Bead creation whose supplied `id` has the `{id-path}` of a live alias, under [Alias targets](#alias-targets). The path is held by an alias rather than by a committed identity, so the condition clears when the alias is deleted and the retry disposition is `after-state-change`, where `identity-taken`'s is `never`."
+          "selectedText": "`alias-path-taken`: a Bead or Link creation whose complete canonical URL is a live alias under [Alias targets](#alias-targets). The locator is held by an alias, not a committed Resource identity; removing the alias clears the condition. Its retry disposition is `after-state-change`, whereas an ever-committed canonical identity remains `identity-taken` with `never`."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-mutation-model",
-          "selectedText": "They share it because the realizations the alias root fronts share one — in the beads realization, keys and aliases occupy one project-wide namespace — so the invariant is imported from the store rather than required by resolution, which spelling alone decides."
+          "selectedText": "Collision rules compare complete canonical URLs across Beads, Links and aliases, as defined by Core's [Aliases](#aliases). No storage-specific removal of a path prefix or equality of suffixes changes protocol identity or collision behavior."
         }
       ]
     },
     {
       "id": "read-update.alias.link-coexistence",
-      "title": "Link segments and alias paths coexist: a Link created at links/foo beside a live alias/foo collides with nothing",
+      "title": "Distinct complete Link and alias URLs may coexist",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "Link segments and alias paths coexist: `links/foo` and `alias/foo` do not collide, and a Link creation may supply an `id` whose `{id-path}` is a live alias path."
+          "selectedText": "Distinct URLs such as `relations/foo` and `names/foo` do not collide merely because their final segments agree."
         }
       ]
     },
     {
       "id": "read-update.alias.allocation-avoids-aliases",
-      "title": "An authority-allocated Bead id is never a live alias path",
+      "title": "Allocation of either Resource kind avoids live aliases",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "An authority never allocates a Bead id whose segment is a live alias path."
+          "selectedText": "An allocator avoids live aliases for both kinds."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#creation-and-identity-allocation",
-          "selectedText": "An authority-allocated local ID is a single opaque segment, and for a Bead never one that is a live alias path under [Aliases](#aliases)"
+          "selectedText": "An authority-allocated local ID is a single opaque segment, and for either Resource kind never a live alias URL under [Aliases](#aliases)"
         }
       ]
     },
@@ -713,7 +715,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "an endpoint or target reference of the wrong category — an alias, a Link, or an external URI as an alias put's `target`, or a Link path as a Link endpoint — is `validation-failed`"
+          "selectedText": "An endpoint or target reference of the wrong category — an alias, a Link, or an external URI as an alias put's `target`, or a resolved Link Resource as a Link endpoint — is `validation-failed`"
         }
       ]
     },
@@ -731,12 +733,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "a well-formed spelling that is not beneath the `alias/` root names no alias and fails with `resource-not-found` when the member is reached, as a wrong-root subject reference does under [Read+Update problem details](#readupdate-problem-details)"
+          "selectedText": "A well-formed URL outside the advertised alias base names no admitted alias and fails with `resource-not-found`; no fixed word such as `alias/` determines that result."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "a subject reference — `bead`, `link`, or the `alias` member of an alias record — whose spelling has the wrong root is `resource-not-found`, since the subject does not exist as the required kind"
+          "selectedText": "a subject reference — `bead`, `link`, or the `alias` member of an alias record — that resolves to no admissible subject of the required kind is `resource-not-found`"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -754,7 +756,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "a spelling that violates the grammar is carrier syntax rejected before execution with `malformed-request`"
+          "selectedText": "Malformed reference syntax is rejected before execution with `malformed-request`."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -892,7 +894,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "An alias spelling — `alias/{alias-path}` or the absolute alias URL — is admitted wherever a canonical in-Scope Bead reference is: as the `bead` subject of an update or a deletion and as a Link endpoint `source` or `target`, bare or as the `uri` of a Pinned Reference, in a singleton and in a sequence member alike."
+          "selectedText": "An alias spelling — an admitted Scope-relative alias path or absolute URL — is admitted wherever a canonical in-Scope Bead reference is: as the `bead` subject of an update or a deletion and as a Link endpoint `source` or `target`, bare or as the `uri` of a Pinned Reference, in a singleton and in a sequence member alike."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1584,7 +1586,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "`identity-taken`: a supplied `id` whose canonical Resource URL was ever committed in the logical Scope, including a deleted one."
+          "selectedText": "`identity-taken`: a supplied `id` whose complete canonical Resource URL was ever committed in the logical Scope, for either Resource kind, including a deleted identity."
         },
         {
           "source": "docs/specs/bdp.md",

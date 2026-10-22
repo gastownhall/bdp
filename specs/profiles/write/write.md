@@ -1493,10 +1493,13 @@ The Read+Update rows mean:
   was ever committed in the logical Scope, for either Resource kind, including
   a deleted identity. Within the admitted alias namespace, an alias put at
   such a URL fails the same way under [Alias targets](#alias-targets).
-  This is the existing inherent existence signal for an explicitly chosen
-  identity, hidden or deleted alike; the non-reuse guarantee cannot hide it
-  by allocating a replacement identity. Alias permission consequently grants
-  this collision signal within the advertised alias namespace. Comparing only
+  This is inherently an existence signal for the identity the creator chose, hidden
+  or deleted alike; the non-reuse guarantee cannot hide it by allocating a
+  replacement identity. An alias put is a cheaper existence probe than a creation
+  — it allocates no Resource, mints no version, and is deletable — gated only by
+  permission to put aliases, which is therefore what that permission grants.
+  This collision signal applies within the admitted alias namespace across both
+  Resource kinds. Comparing only
   a suffix after stripping an old kind/root segment is not permitted.
 - `alias-path-taken`: a Bead or Link creation whose complete canonical URL
   is a live alias under [Alias targets](#alias-targets). The locator is held

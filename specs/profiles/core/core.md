@@ -250,7 +250,7 @@ never reassigned to an unrelated Resource in the lifetime of the logical
 Scope, including after deletion or replacement of the serving authority.
 An implementation preserves a compact identity tombstone, durable allocation
 record or equivalent non-reuse guarantee. A restore that cannot preserve
-that guarantee creates a different logical Scope with a different canonical
+that guarantee creates a different logical Scope and therefore uses a different canonical
 Scope URL. Removing kind prefixes changes none of these identity obligations.
 
 Segments imply neither containment nor a child Scope: `projects/alpha/task-42`
@@ -269,9 +269,10 @@ operand is a complete Scope-relative path, resolved against `scope`, not an
 instruction to prepend the advertised base or strip a matching tail.
 Membership in the advertised alias namespace and an actual alias binding are
 established by the authority, not inferred from a path word. An alias is not
-a Resource: it has no representation, revision or collection membership.
+a Resource: it has no representation, no revision, and no collection membership.
 It targets a canonical Bead URL only, never another alias; resolution is
-one step. Alias locators may be repointed and reused after deletion.
+one step. Unlike canonical segments, alias paths are repointable and, after
+deletion, reusable: an alias is a locator and carries no identity promise.
 
 Collision checks compare complete canonical URLs in the Scope's shared
 namespace, across both Resource kinds. An alias MUST NOT occupy any URL ever
@@ -1001,7 +1002,7 @@ Clients MUST NOT synthesize these URLs from the Scope or a Resource path.
 
 Local Bead, Link and alias spellings contain one or more nonempty safe
 segments. Empty, `.`, and `..` segments, controls, backslashes, queries,
-fragments, scheme-relative references and encoded `/` or `\` separators
+fragments, scheme-relative references, and encoded `/` or `\` separators
 are invalid. A service decodes percent escapes exactly once and rejects
 invalid UTF-8. It emits unreserved characters literally and required percent
 escapes with uppercase hexadecimal digits. Comparison is exact on decoded
@@ -2015,8 +2016,9 @@ Scope-bounded representations that depend on authorization use
 cross-origin BDP access, its CORS policy MUST allow every BDP-defined
 non-safelisted request field used by its advertised profile. It MUST also allow the applicable HTTP conditional
 request fields: `If-Match`, `If-None-Match`, `If-Modified-Since`, and
-`If-Unmodified-Since`. It MUST expose `Link`, `BDP-Resource-Kind`, `ETag`, `Retry-After`,
-and `Cache-Control` when applicable. History response-field exposure is defined
+`If-Unmodified-Since`. It MUST expose `Link`, `ETag`, `Retry-After`,
+and `Cache-Control` when applicable. It MUST also expose `BDP-Resource-Kind`
+when that response field applies. History response-field exposure is defined
 under [Historical HTTP metadata](#historical-http-metadata). Ordinary CORS
 rules still govern `Accept` and `Content-Type` values. Type Descriptors hosted outside a Scope keep ordinary HTTP caching
 semantics.

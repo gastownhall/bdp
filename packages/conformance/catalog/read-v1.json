@@ -41,7 +41,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-discovery-and-human-documentation",
-          "selectedText": "For the canonical Scope URL `S`, `beads` MUST equal the URL produced by resolving `beads/` against `S`, `links` MUST equal `links/` resolved against `S`, and `types` MUST equal `types/` resolved against `S`."
+          "selectedText": "The `beads`, `links` and `types` members are absolute HTTP(S) navigation URLs for their inventories. They MUST be beneath the canonical Scope URL, but need not equal any fixed suffix. Inventory membership does not derive from an item's URL prefix."
         }
       ]
     },
@@ -240,7 +240,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#collection-retrieval-and-selection",
-          "selectedText": "The `beads/` and `links/` collections return complete Resource records; the `types/` collection returns Type summaries."
+          "selectedText": "The discovered Bead and Link inventories return complete Resource records; the Type inventory returns Type summaries."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -499,7 +499,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-resolution",
-          "selectedText": "a `GET` or `HEAD` of an alias URL —\n`alias/{alias-path}` resolved against the canonical Scope URL — returns\n`307 Temporary Redirect` with `Location` set to the target's absolute\ncanonical Bead URL and no body."
+          "selectedText": "a `GET` or `HEAD` of an alias URL — an admitted alias path resolved against the canonical Scope URL — returns `307 Temporary Redirect` with `Location` set to the target's absolute canonical Bead URL and no body."
         },
         {
           "source": "docs/specs/bdp.md",

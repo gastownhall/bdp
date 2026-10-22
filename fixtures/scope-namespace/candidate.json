@@ -186,7 +186,7 @@
   "olderEvidenceDisposition": [
     {
       "artifact": "packages/conformance/catalog/read-v1.json:read.discovery.canonical-navigation",
-      "status": "historical v0 fixed-root rule; replaced for new target by read.namespace.discovered-navigation"
+      "status": "Active metadata now cites CURRENT Scope-defined navigation under the same stable row ID. Prior fixed-root metadata/evidence remains immutable at sourceBaseline and its original catalog digest; do not inherit its PASS for the new contract."
     },
     {
       "artifact": "fixtures/read-update/aliases.json:create-bead-on-a-live-alias-path",
@@ -208,5 +208,6 @@
       "artifact": "all existing runtime runs",
       "status": "retain exact old source pins; no new target qualification or implementation thaw inferred"
     }
-  ]
+  ],
+  "metadataBoundary": "Proposed additional source rows are fixtures/scope-namespace/source-rows.json outside the sealed six-file active catalog directory. Two active catalog files update17 affected CURRENT-source quotations and3 titles, preserving row identities/profiles/retirements. No old run/report/digest or existing narrative fixture is rewritten into passing new-target evidence."
 }

@@ -44,13 +44,16 @@ complete acceptance evidence.
 #### Scope-defined namespace candidate rows
 
 The paired #280 amendment binds these source obligations to
-`packages/conformance/catalog/scope-namespace-v01.json` and the paper cases in
+`fixtures/scope-namespace/source-rows.json` and the paper cases in
 `fixtures/scope-namespace/candidate.json`. They remain unexecuted expectations;
-metadata is not provider qualification. Older fixed-root catalogs/fixtures and
-recorded runs retain their original v0 source meaning, including the old
-stripped-tail alias collisions. They are not acceptance evidence for this
-changed contract. Complete contract/version selection and runtime qualification
-remain required before adoption.
+metadata is not provider qualification. These proposed rows live outside the
+sealed active catalog directory. Active Read/Read+Update metadata quotations
+bind the CURRENT assembled Core/Write text; their affected clauses are updated
+with this amendment. Prior catalog/run artifacts retain their immutable bytes
+and source digests, including old stripped-tail alias collision meaning; they
+are not inherited acceptance evidence for the changed contract. Older narrative
+fixtures have explicit dispositions in the new cases. Complete contract/version
+selection and runtime qualification remain required before adoption.
 
 | Row | Obligation |
 | --- | --- |
