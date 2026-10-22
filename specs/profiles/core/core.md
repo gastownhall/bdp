@@ -891,11 +891,13 @@ selects complete top-level Resources.
 For example:
 
 ```text
-$[?@.type == "https://work.example/types/task" && @.properties.status == "closed"]
+$[?@.properties.status == "closed"]
 ```
 
-The identity-bearing candidate members `id` and `type` contain absolute
-canonical URLs. `source` and `target` are References: a local
+The identity-bearing candidate member `id` contains an absolute canonical URL.
+In inherited v0, `type` is an absolute Type URL; under the selected v0.1
+[affiliation contract](affiliations.md), it is the actual URI-or-exact-Reference
+union. Raw Selectors do not flatten that union. `source` and `target` are References: a local
 canonical Bead URL, an opaque external URI, or a Pinned Reference.
 A Selector compares stored values exactly. BDP does not reinterpret or
 normalize arbitrary JSONPath string literals as identifiers, so callers use
@@ -1561,6 +1563,13 @@ snapshot and an expired cursor is an error rather than a silent restart
 against newer state. Only an in-Scope Bead has this view. An opaque
 out-of-Scope endpoint does not.
 
+Under selected v0.1, the incident population also admits the Link structural
+predicates `type`, `conformsTo`, `source`, `target`, `endpoint`, and `selector`.
+Direction/incidence establish the population; the predicates combine with AND
+before snapshot pagination. A self-Link appears once. This does not add those
+filters to the optional `include=links` aggregate. Collection-kind metadata and
+continuation resizing follow [ordinary read delivery](read-delivery.md).
+
 BDP does not append `/links` to the Bead URL. Local IDs may contain multiple
 path segments, so `beads/task-42/links` could already be the ID of a different
 Bead. A suffix subpath would require BDP to reserve and visibly mangle a
@@ -1652,6 +1661,14 @@ as responses. BDP does not parse or rewrite JSONPath string literals that
 happen to look like local identifiers. That means JSONPath equality is
 ordinary string equality, and selector behavior stays independent of request
 spelling aliases.
+
+Under selected v0.1, top-level Bead/Link collections MUST identify their item
+kind with `BDP-Collection-Kind` and their owning machine discovery with a
+`service-desc` Link, including continuations, HEAD and 304. Clients can change
+only the per-page `limit` on an issued ordinary continuation while preserving
+the selected snapshot/context. The exact obligations and subject-versus-item
+distinction are in [ordinary read delivery](read-delivery.md). These amendments
+do not silently extend Type inventory, History or Event cursor contracts.
 
 Collection responses do not accept Resource `view` or `include` parameters.
 Their `items` are always complete Resource records. In particular, a Bead
@@ -2038,7 +2055,9 @@ non-safelisted request field used by its advertised profile. It MUST also allow 
 request fields: `If-Match`, `If-None-Match`, `If-Modified-Since`, and
 `If-Unmodified-Since`. It MUST expose `Link`, `ETag`, `Retry-After`,
 and `Cache-Control` when applicable. It MUST also expose `BDP-Resource-Kind`
-when that response field applies. History response-field exposure is defined
+when that response field applies. Under selected v0.1, it MUST also expose
+`BDP-Collection-Kind` when applicable; see [ordinary read delivery](read-delivery.md).
+History response-field exposure is defined
 under [Historical HTTP metadata](#historical-http-metadata). Ordinary CORS
 rules still govern `Accept` and `Content-Type` values. Type Descriptors hosted outside a Scope keep ordinary HTTP caching
 semantics.

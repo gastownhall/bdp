@@ -68,8 +68,11 @@ optional guards, property-access policy, final validation and retry rules remain
 `bdp list --exact-type Task` lowers to structural `type=<absolute URI>`: nominal
 Type exactly, regardless of definition pin. `bdp list --type Task` lowers to
 `conformsTo=<absolute URI>`: that Type and refinements under recorded exact
-Types authority. The same flags apply under `bdp link list`. They conflict;
-filter operands accept identity only, so pin suffixes/objects refuse. Bare
+Types authority. The same flags apply under `bdp link list`. They may combine
+with AND: exact nominal affiliation and recorded family membership are independent
+predicates. This refines C1's earlier mutual exclusion to preserve wire coverage; see
+[read selection](reads-and-paging.md). Filter operands accept identity only, so pin
+suffixes/objects refuse. Bare
 `--type any` means no restriction in the full CLI design; `--exact-type any`
 refuses. Family support unavailable means refusal, never exact-only fallback.
 
