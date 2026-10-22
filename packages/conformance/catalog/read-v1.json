@@ -41,7 +41,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-discovery-and-human-documentation",
-          "selectedText": "For the canonical Scope URL `S`, `beads` MUST equal the URL produced by resolving `beads/` against `S`, `links` MUST equal `links/` resolved against `S`, and `types` MUST equal `types/` resolved against `S`."
+          "selectedText": "The `beads`, `links` and `types` members are absolute HTTP(S) navigation URLs for their inventories. They MUST be beneath the canonical Scope URL, but need not equal any fixed suffix. Inventory membership does not derive from an item's URL prefix."
         }
       ]
     },
@@ -240,7 +240,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#collection-retrieval-and-selection",
-          "selectedText": "The `beads/` and `links/` collections return complete Resource records; the `types/` collection returns Type summaries."
+          "selectedText": "The discovered Bead and Link inventories return complete Resource records; the Type inventory returns Type summaries."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -499,7 +499,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-resolution",
-          "selectedText": "a `GET` or `HEAD` of an alias URL —\n`alias/{alias-path}` resolved against the canonical Scope URL — returns\n`307 Temporary Redirect` with `Location` set to the target's absolute\ncanonical Bead URL and no body."
+          "selectedText": "a `GET` or `HEAD` of an alias URL — an admitted alias path resolved against the canonical Scope URL — returns `307 Temporary Redirect` with `Location` set to the target's absolute canonical Bead URL and no body."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -707,14 +707,14 @@
     },
     {
       "id": "read.owned-wildcard.present-entries",
-      "title": "A wildcard owner's ownedLinks carries present types plus empty explicit entries, never the wildcard",
+      "title": "New ownedLinks captures use nonempty nominal-Type buckets; retained captures preserve recorded state",
       "kind": "normative",
       "requiredProfile": "read",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#owned-links",
-          "selectedText": "The member carries one entry for each owned Link Type actually present on the Bead — at least one owned Link of that type exists — plus an entry, possibly empty, for each explicitly declared Link Type; a Link Type owned only through the wildcard has an entry exactly when an owned Link of that type is present."
+          "selectedText": "Each newly captured bucket is nonempty. There are no empty explicit-selector or wildcard buckets: a new empty owned set is `ownedLinks:{}`."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -729,7 +729,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#resource-records",
-          "selectedText": "A Bead whose Type owns outgoing Link Types additionally carries its `ownedLinks` member — one entry per owned Link Type present on the Bead and one, possibly empty, per explicitly declared Link Type, keyed by the Link Type URL and never by the wildcard `\"*\"`, valued by the owned Links' complete records in ascending code-unit order of their canonical `id`s — on every record read; the member is absent for Beads whose Type owns nothing."
+          "selectedText": "A Bead whose Type owns outgoing Links carries its recorded `ownedLinks` member on every record read. Newly captured members use nonempty nominal-Type buckets with full exact Link affiliations; older retained captures keep their recorded shape."
         },
         {
           "source": "docs/design/requirements.md",

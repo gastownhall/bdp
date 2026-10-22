@@ -1,0 +1,595 @@
+{
+  "status": "paper/request-grammar examples, not compiler/provider execution",
+  "capability": "https://github.com/gastownhall/bdp/capabilities/atomic-batch",
+  "scope": "https://work.example/acme/",
+  "advertisement": {
+    "https://github.com/gastownhall/bdp/capabilities/atomic-batch": {
+      "1": {
+        "operation": "https://work.example/acme/commands/atomic",
+        "operations": [
+          "createBead",
+          "updateBead",
+          "deleteBead",
+          "createLink",
+          "updateLink",
+          "deleteLink"
+        ],
+        "maximumOperations": 100
+      }
+    }
+  },
+  "pairs": [
+    {
+      "id": "named-create-and-link",
+      "commands": "create --name task --type Task --properties '{\"title\":\"Review BDP\"}'\nlink create --type Relates --source @task --target task-17\n",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "createBead",
+            "name": "task",
+            "type": "https://work.example/acme/Task",
+            "properties": {
+              "title": "Review BDP"
+            }
+          },
+          {
+            "operation": "createLink",
+            "type": "https://work.example/acme/Relates",
+            "source": "@task",
+            "target": "task-17"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retype-replace-and-delete",
+      "commands": "update task-17 --type Task@definition-r2 --replace-properties '{}' --patch-metadata '[]' --if-revision r7\nlink delete relation-old --force --if-revision link-r8\n",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r2"
+            },
+            "properties": {},
+            "metadataChange": [],
+            "expectedRevision": "r7"
+          },
+          {
+            "operation": "deleteLink",
+            "link": "relation-old",
+            "expectedRevision": "link-r8"
+          }
+        ]
+      }
+    },
+    {
+      "id": "all-no-op",
+      "commands": "update task-17 --patch-properties '[]'\n",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "create-delete-identity",
+      "commands": "create --name task --type Task\ndelete @task --force\n",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "createBead",
+            "name": "task",
+            "type": "https://work.example/acme/Task"
+          },
+          {
+            "operation": "deleteBead",
+            "bead": "@task"
+          }
+        ]
+      }
+    }
+  ],
+  "results": {
+    "twoCreates": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "batch-review-1",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "createBead",
+          "operationName": "task",
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/task-new",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "bead-r1",
+            "properties": {
+              "title": "Review BDP"
+            },
+            "metadata": {}
+          }
+        },
+        {
+          "operationIndex": 1,
+          "operation": "createLink",
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/relation-new",
+            "type": {
+              "uri": "https://work.example/acme/Relates",
+              "revision": "definition-r1"
+            },
+            "revision": "link-r1",
+            "properties": {},
+            "metadata": {},
+            "source": "https://work.example/acme/task-new",
+            "target": "https://work.example/acme/task-17"
+          }
+        }
+      ]
+    },
+    "allNoOp": {
+      "capabilityVersion": "1",
+      "changed": false,
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateBead",
+          "outcome": "updated",
+          "changed": false,
+          "resource": {
+            "id": "https://work.example/acme/task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "bead-r1",
+            "properties": {
+              "title": "Review BDP"
+            },
+            "metadata": {}
+          }
+        }
+      ]
+    },
+    "reversal": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "batch-reverse-1",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateBead",
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r2"
+            },
+            "revision": "bead-r2",
+            "properties": {
+              "title": "Review BDP"
+            },
+            "metadata": {}
+          }
+        },
+        {
+          "operationIndex": 1,
+          "operation": "updateBead",
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "bead-r3",
+            "properties": {
+              "title": "Review BDP"
+            },
+            "metadata": {}
+          }
+        }
+      ]
+    },
+    "createDelete": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "batch-create-delete-1",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "createBead",
+          "operationName": "task",
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/task-new",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "bead-r1",
+            "properties": {
+              "title": "Review BDP"
+            },
+            "metadata": {}
+          }
+        },
+        {
+          "operationIndex": 1,
+          "operation": "deleteBead",
+          "outcome": "deleted",
+          "changed": true,
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://work.example/acme/task-new",
+              "type": {
+                "uri": "https://work.example/acme/Task",
+                "revision": "definition-r1"
+              },
+              "revision": "bead-r1"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "problems": {
+    "operation": {
+      "type": "https://github.com/gastownhall/bdp/problems/request",
+      "status": 422,
+      "code": "operation-not-supported",
+      "retry": "after-state-change",
+      "operation": "createLink",
+      "pointer": "/operations/1/operation"
+    },
+    "capability": {
+      "type": "https://github.com/gastownhall/bdp/problems/request",
+      "status": 422,
+      "code": "capability-not-supported",
+      "retry": "after-state-change",
+      "capability": "https://github.com/gastownhall/bdp/capabilities/atomic-batch",
+      "capabilityVersion": "2",
+      "pointer": "/capabilityVersion"
+    }
+  },
+  "supportCases": [
+    {
+      "id": "unsupported-position-0",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "createLink",
+            "type": "https://work.example/acme/Relates",
+            "source": "task-17",
+            "target": "task-18"
+          },
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          },
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          }
+        ]
+      },
+      "supported": ["updateBead"],
+      "expectedProblem": {
+        "type": "https://github.com/gastownhall/bdp/problems/request",
+        "status": 422,
+        "code": "operation-not-supported",
+        "retry": "after-state-change",
+        "operation": "createLink",
+        "pointer": "/operations/0/operation"
+      },
+      "effects": "none; semantic execution not run"
+    },
+    {
+      "id": "unsupported-position-1",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          },
+          {
+            "operation": "createLink",
+            "type": "https://work.example/acme/Relates",
+            "source": "task-17",
+            "target": "task-18"
+          },
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          }
+        ]
+      },
+      "supported": ["updateBead"],
+      "expectedProblem": {
+        "type": "https://github.com/gastownhall/bdp/problems/request",
+        "status": 422,
+        "code": "operation-not-supported",
+        "retry": "after-state-change",
+        "operation": "createLink",
+        "pointer": "/operations/1/operation"
+      },
+      "effects": "none; semantic execution not run"
+    },
+    {
+      "id": "unsupported-position-2",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          },
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          },
+          {
+            "operation": "createLink",
+            "type": "https://work.example/acme/Relates",
+            "source": "task-17",
+            "target": "task-18"
+          }
+        ]
+      },
+      "supported": ["updateBead"],
+      "expectedProblem": {
+        "type": "https://github.com/gastownhall/bdp/problems/request",
+        "status": 422,
+        "code": "operation-not-supported",
+        "retry": "after-state-change",
+        "operation": "createLink",
+        "pointer": "/operations/2/operation"
+      },
+      "effects": "none; semantic execution not run"
+    }
+  ],
+  "semanticCases": [
+    {
+      "id": "atomic-support-first-middle-last",
+      "given": "Recognized disabled CRUD in any position.",
+      "expected": "First unsupported pointer; no supported prefix, key claim or effects.",
+      "execution": "not run"
+    },
+    {
+      "id": "stale-advertisement",
+      "given": "Support changes after CLI preflight.",
+      "expected": "Authority rechecks all new members before admission.",
+      "execution": "not run"
+    },
+    {
+      "id": "unknown-version",
+      "given": "Nonempty unsupported capabilityVersion with opaque new body.",
+      "expected": "Capability Problem before interpreting unknown version language.",
+      "execution": "not run"
+    },
+    {
+      "id": "unknown-member",
+      "given": "Version1 unknown/set-write operation.",
+      "expected": "Malformed selected vocabulary; not silently retained from old eight-operation schema.",
+      "execution": "not run"
+    },
+    {
+      "id": "retained-before-support",
+      "given": "Same known key/request after support withdrawn.",
+      "expected": "Return retained outcome/current authorized disclosure before fresh-support admission; never execute again.",
+      "execution": "not run"
+    },
+    {
+      "id": "conflict-before-support",
+      "given": "Known key with different semantic request and currently unsupported member.",
+      "expected": "Conflict wins; never reclassify as a new unsupported invocation.",
+      "execution": "not run"
+    },
+    {
+      "id": "cross-carrier-key",
+      "given": "Same key switches singleton to version1 batch context.",
+      "expected": "Conflict in same namespace; no duplicate execution, explicit changed-contract choice.",
+      "execution": "not run"
+    },
+    {
+      "id": "no-op-durable",
+      "given": "All successful members are no-ops.",
+      "expected": "changedfalse/no transaction; retain successful anti-reexecution evidence against later changed state.",
+      "execution": "not run"
+    },
+    {
+      "id": "lost-response",
+      "given": "Commit succeeds but delivery fails.",
+      "expected": "Unknown until known disposition; recover same frozen key, never a fresh key.",
+      "execution": "not run"
+    },
+    {
+      "id": "in-flight",
+      "given": "Duplicate while original pending.",
+      "expected": "Bounded wait or idempotency-in-progress Problem, no pending public receipt.",
+      "execution": "not run"
+    },
+    {
+      "id": "result-budget",
+      "given": "Staged complete result exceeds bound.",
+      "expected": "Whole request refuses before effects commit; no pages/truncation/prefix.",
+      "execution": "not run"
+    },
+    {
+      "id": "rename-handles",
+      "given": "Equivalent creation labels renamed in retained retry.",
+      "expected": "Normalize creator slots; project requested operationName by unchanged index, IDs/outcomes/transaction fixed.",
+      "execution": "not run"
+    },
+    {
+      "id": "bad-handles",
+      "given": "Forward/unknown/wrong-kind handle or handle in Type/id/revision position.",
+      "expected": "Whole-batch contextual refusal; schema string acceptance is not resolution.",
+      "execution": "not run"
+    },
+    {
+      "id": "literal-property",
+      "given": "A properties string is @task or template-looking text.",
+      "expected": "Literal data; no capture/interpolation.",
+      "execution": "not run"
+    },
+    {
+      "id": "creation-deletion",
+      "given": "Created Resource deleted later in same atomic batch.",
+      "expected": "Ordered results retain created ID/postimage and deleted identity; no final liveness promise.",
+      "execution": "not run"
+    },
+    {
+      "id": "reversal",
+      "given": "Two effective A to B to A updates.",
+      "expected": "Both changedtrue with direct operation-local postimages, not collapse to final no-op.",
+      "execution": "not run"
+    },
+    {
+      "id": "ownership-effects",
+      "given": "Owned Link enters/leaves; source retyping and native constraints.",
+      "expected": "Atomic effects/common pre-or-post source pair; exact multi-operation induced-owner allocation remains Types gate.",
+      "execution": "not run"
+    },
+    {
+      "id": "event-facts",
+      "given": "Effectful batch or Type-only transition.",
+      "expected": "Required truthful correlated facts; payload D1/D2 remains open, no fake patch/example selection.",
+      "execution": "not run"
+    },
+    {
+      "id": "replay-disclosure",
+      "given": "Current authorization withholds one retained postimage.",
+      "expected": "Whole retained-result refusal/current policy, no partial success or new execution.",
+      "execution": "not run"
+    },
+    {
+      "id": "detail-erasure-expiry",
+      "given": "Controlled retained content erased/expired.",
+      "expected": "Truthful Problems, compact successful-key evidence survives; no old content or reexecution.",
+      "execution": "not run"
+    },
+    {
+      "id": "future-parameters",
+      "given": "Later template package wants typed parameters.",
+      "expected": "Explicit new version/materialization; version1 strings and @name meanings unchanged.",
+      "execution": "not run"
+    },
+    {
+      "id": "ordinary-profile",
+      "given": "Service has individual CRUD but no atomic owner.",
+      "expected": "No batch advertisement/emulated subprocess loop or fallback sequence.",
+      "execution": "not run"
+    },
+    {
+      "id": "reverse-adapter",
+      "given": "Incoming batch routed to executable.",
+      "expected": "Check registered version/atomic support before one whole-document invocation; serve details remain deferred.",
+      "execution": "not run"
+    },
+    {
+      "id": "retained-bounds-reconfiguration",
+      "given": "Current feature input/result bounds shrink while a successful original outcome remains within its promised detail window.",
+      "expected": "Preserve original frozen request/result recovery under admitted bounds; no reclassification as a new over-limit invocation, truncation or reexecution. Renamed over-budget projection may refuse without forgetting original success.",
+      "execution": "not run"
+    }
+  ],
+  "pairRole": "commands are paper inputs and proposed canonical renderings; no compiler ran",
+  "resultRequests": {
+    "twoCreates": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "createBead",
+          "name": "task",
+          "type": "https://work.example/acme/Task",
+          "properties": {
+            "title": "Review BDP"
+          }
+        },
+        {
+          "operation": "createLink",
+          "type": "https://work.example/acme/Relates",
+          "source": "@task",
+          "target": "task-17"
+        }
+      ]
+    },
+    "allNoOp": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "propertiesChange": []
+        }
+      ]
+    },
+    "reversal": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "type": {
+            "uri": "https://work.example/acme/Task",
+            "revision": "definition-r2"
+          }
+        },
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "type": {
+            "uri": "https://work.example/acme/Task",
+            "revision": "definition-r1"
+          }
+        }
+      ]
+    },
+    "createDelete": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "createBead",
+          "name": "task",
+          "type": "https://work.example/acme/Task"
+        },
+        {
+          "operation": "deleteBead",
+          "bead": "@task"
+        }
+      ]
+    }
+  }
+}
