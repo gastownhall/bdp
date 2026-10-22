@@ -65,9 +65,10 @@ The existing C1 current-read suffix conveniences stay distinct from literal flag
 Actual advertised application History remains required for ordinary application
 exact reads. Its existing full-record-only query forbids properties-only/aggregate/
 collection/pagination combinations. HEAD is allowed. Narrow exact-definition reads
-without general History remain Trish's separate transport seam: do not infer no
+without general History use the separate [interpretation binding](exact-definition-read.md): do not infer no
 support from missing application History, guess a `types/` path, inline definitions
-or silently apply an unadopted capability. `versions`, `type list` and Events retain
+or silently apply an unadopted capability. Generic show does not fall back to that
+lookup without explicit definition intent/context; public Type CLI remains deferred. `versions`, `type list` and Events retain
 their own descriptors/contracts; this slice adopts none of their pagination/coverage.
 
 Finite reads can send `--head`, `--if-match`, `--if-none-match`,

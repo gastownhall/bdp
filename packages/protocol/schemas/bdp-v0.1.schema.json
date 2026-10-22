@@ -5736,6 +5736,21 @@
               }
             }
           ]
+        },
+        "https://github.com/gastownhall/bdp/capabilities/type-definition-read": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/capabilityVersionAdvertisements"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "1": {
+                  "$ref": "#/$defs/typeDefinitionReadCapabilityV1"
+                }
+              }
+            }
+          ]
         }
       }
     },
@@ -6107,6 +6122,169 @@
         },
         {
           "$ref": "#/$defs/atomicBatchOperationProblem"
+        }
+      ]
+    },
+    "typeDefinitionReadSelection": {
+      "type": "object",
+      "required": ["capabilityVersion"],
+      "properties": {
+        "capabilityVersion": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "typeDefinitionReadQueryV1": {
+      "type": "object",
+      "required": ["capabilityVersion", "uri", "revision"],
+      "properties": {
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "uri": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "typeDefinitionReadCapabilityV1": {
+      "type": "object",
+      "required": ["operation"],
+      "properties": {
+        "operation": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    "exactTypeDefinitionRecord": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/beadRecord"
+        },
+        {
+          "type": "object",
+          "required": ["ownedLinks"],
+          "properties": {
+            "type": {
+              "$ref": "#/$defs/pinnedTypeReference"
+            },
+            "links": false,
+            "ownedLinks": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "$ref": "#/$defs/pinnedTypeReference"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "typeDefinitionReadResult": {
+      "type": "object",
+      "required": ["definition"],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/exactTypeDefinitionRecord"
+        },
+        "originScope": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    "typeDefinitionReadCapabilityProblem": {
+      "type": "object",
+      "required": [
+        "type",
+        "status",
+        "code",
+        "retry",
+        "capability",
+        "capabilityVersion",
+        "parameter"
+      ],
+      "properties": {
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request"
+        },
+        "status": {
+          "const": 422
+        },
+        "code": {
+          "const": "capability-not-supported"
+        },
+        "retry": {
+          "const": "after-state-change"
+        },
+        "capability": {
+          "const": "https://github.com/gastownhall/bdp/capabilities/type-definition-read"
+        },
+        "capabilityVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameter": {
+          "const": "capabilityVersion"
+        },
+        "title": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "#/$defs/absoluteUri"
+        }
+      },
+      "additionalProperties": false
+    },
+    "typeDefinitionReadProblem": {
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/readProblem"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "enum": [
+                    "malformed-request",
+                    "invalid-parameter",
+                    "unauthenticated",
+                    "forbidden",
+                    "resource-not-found",
+                    "resource-pruned",
+                    "resource-erased",
+                    "request-too-large",
+                    "limit-exceeded",
+                    "rate-limited",
+                    "temporarily-unavailable",
+                    "revision-unretained"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "$ref": "#/$defs/typeDefinitionReadCapabilityProblem"
         }
       ]
     }

@@ -54,6 +54,10 @@ This is a discovery fragment with a fictional capability, not an assigned BDP fe
 
 Using an optional capability is explicit in its operation/subscription contract. A client requesting unsupported semantics refuses rather than silently omitting them; an authority refuses an unsupported new mutation before effects, including atomic preflight where required. Critical capability/version selection MUST use an admission discriminator that an implementation lacking it rejects; it MUST NOT rely only on an ignorable HTTP field/media parameter or reinterpret literal base data. Advertisement alone is not request selection. A richer service preserves the selected base behavior. If a feature cannot provide that behavior, advertising a flag is insufficient: it needs a separately selected contract or a truthful refusal. This is a bounded discovery extension point, not a template system, general executable extension mechanism or permission to add arbitrary base envelope fields.
 
+The selected [exact Type-definition lookup](type-definition-read.md) uses this
+capability map and a rejectable query selector. Its wrapper/ownership and narrow
+missing-state permission are operation-specific, not new base or History behavior.
+
 ## Context and recovery
 
 Execution identity includes the selected specification URI, explicitly selected capability versions and original semantic operation. Preparing an ordinary mutation freezes that binding with Scope, operands, input values and idempotency key. A retry MUST NOT rebind the frozen request to another contract, capability version, media type, current Type default or fresh key. A change in selected contract is a change in meaning, not an escape from the original key's disposition. An authority supporting another contract cannot erase prior durable no-reexecution obligations for the same logical Scope merely by changing its advertised version.

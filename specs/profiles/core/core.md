@@ -1032,6 +1032,11 @@ Resolution never mutates an endpoint Bead.
 
 #### Point-read kind and owning-Scope navigation
 
+These rules govern actual canonical Resource reads, not every operation wrapper
+containing a Resource record. The selected v0.1
+[exact-definition lookup](type-definition-read.md#complete-wrapper-without-ownership-transfer)
+returns recorded source context without assigning the receiver ownership.
+
 A successful current or retained Bead/Link point read MUST include
 `BDP-Resource-Kind: bead` or `BDP-Resource-Kind: link`, identifying the actual
 Resource kind. The field has exactly one lowercase token value, not a list.
@@ -1153,7 +1158,8 @@ For example:
 
 The following descriptor/HTTP examples are inherited v0 staging input. The
 selected v0.1 [common affiliation](affiliations.md) does not require Core-only
-definition interpretation; Types extraction/transport remains coordinated work.
+definition interpretation; the narrow exact-definition binding is in [the selected lookup](type-definition-read.md).
+Type inventory/lifecycle and actual profile composition remain separate gates.
 
 The discovered `types` navigation URL serves an inventory of the Bead and
 Link Type Descriptors that the Scope advertises as known. It supports generic tooling,
@@ -1793,7 +1799,11 @@ Read diagnoses, and authorized deleted-subject versions pages. It preserves
 uniform unauthorized 404 and creates no partial/current Resource success.
 
 The five `revision-*` Read diagnoses in [Problem details](#problem-details)
-apply only to History requests and require current subject-history authorization.
+apply to History requests and require current subject-history authorization.
+The sole selected v0.1 exception permits only `revision-unretained` on
+[exact Type-definition lookup](type-definition-read.md#narrow-missing-state-permission),
+under that operation's current whole-definition/owned-state disclosure permission.
+It does not import the other diagnoses or general History obligations.
 Unauthorized callers receive uniform `resource-not-found`, without evidence,
 window or participation disclosure. In particular, the Bead-history gate for
 `revision-unretained` MUST NOT depend on reconstructing the absent owned state.
