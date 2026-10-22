@@ -79,6 +79,10 @@
     {
       "id": "old-artifact-isolation",
       "expected": "The existing v0 schema/runtime/fixtures remain at actual old identity and bytes; a new exported JSON artifact neither upgrades SDK parsing nor qualifies old evidence as v0.1."
+    },
+    {
+      "id": "critical-feature-selection-not-ignored",
+      "expected": "Critical feature/version selection uses an admission discriminator missing implementations reject; it cannot rely only on an ignorable HTTP field/media parameter or reinterpret ordinary base property strings. Passive advertisement is not request selection."
     }
   ]
 }
