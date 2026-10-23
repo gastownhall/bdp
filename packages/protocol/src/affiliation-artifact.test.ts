@@ -104,11 +104,20 @@ describe("v0.1 affiliation artifact, without claiming stateful or CLI execution"
     const results = cases.nativeLinkResults;
     for (const value of Object.values(results)) {
       expect(valid("mutationResult", value)).toBe(true);
+      const final = value as { resource: { id: string }; changed: boolean };
       expect(
         valid("atomicBatchResultEntry", {
           operationIndex: 0,
           operation: "updateLink",
+          id: final.resource.id,
+        }),
+      ).toBe(true);
+      expect(
+        valid("atomicBatchResourceResult", {
           ...(value as object),
+          id: final.resource.id,
+          resourceKind: "link",
+          outcome: final.changed ? "updated" : "unchanged",
         }),
       ).toBe(true);
     }
@@ -120,7 +129,7 @@ describe("v0.1 affiliation artifact, without claiming stateful or CLI execution"
     const { changed: _changed, ...inheritedReceipt } = results.leavingOwnership;
     expect(valid("receiptResult", { operationIndex: 0, ...inheritedReceipt })).toBe(true);
     expect(valid("receiptResult", { operationIndex: 0, ...results.leavingOwnership })).toBe(false);
-    // Inherited receipt grammar stays separate; selected batch entries carry changed.
+    // Inherited receipt grammar stays separate; final batch rows carry changed.
 
     for (const missing of ["source", "sourceRevision"]) {
       const incomplete = { ...results.leavingOwnership };

@@ -10,8 +10,8 @@ Write inherits [retained Core](../core/retained-core.md) and adds individually a
 Resource CRUD and aliases, safe retry outcomes and committed required Event facts.
 The [canonical CLI](../../../docs/cli-design/bdp-cli.md) expresses the same operations.
 This is selected v0.1 source, not the inherited Read+Update/Transactional contract
-or an implementation claim. Events now has a paired source; actual batch/owner
-and Types composition remain separate gates.
+or an implementation claim. Events and final batch publication have paired source;
+actual Types/source integration and qualification remain gates.
 
 ## Eight ordinary targets, one Scope and complete outcomes
 
@@ -144,15 +144,16 @@ support admission. No sequential fallback, chunking, sets or alias members.
 
 Types' selected final-graph allowances apply only when that semantics is advertised;
 intermediate arity/endpoint eligibility repair does not defer other admission rules.
-Explicit operation postimages retain actual transitions, including reversals. Exact
-multi-operation induced-owner allocation remains Trish's actual composition gate,
-not a token example deciding how many owner revisions to create.
+[Final publication](../core/publication.md) stages members but publishes at most one
+new version per final changed Resource/owner. Results separate input identity
+mappings from unique final outcomes. Net-zero covered state retains revisions and
+successful retry evidence; allocation/create-delete remains a durable effect.
 
 Required [Event facts](../core/events.md) become durable with effects. Donna has
 selected required postimages/optional deltas and declared coverage/bounded replay/
-explicit gaps. Actual batch publication and induced-owner allocation are separate
-unanswered choices; earlier operation-local prose above is unadopted input, not an
-answer. Replica Event/epoch/receipt machinery is not imported. This entry cannot
+explicit gaps. Final publication, owner context and Events agree under the selected
+amendment; earlier operation-local batch examples are superseded. Replica
+Event/epoch/receipt machinery is not imported. This entry cannot
 be advertised as complete until actual composition and qualification finish.
 Ordinary reads retain Core semantics: no cross-replica freshness
 checkpoint/read-your-writes guarantee or hot-tier absence shortcut is added.

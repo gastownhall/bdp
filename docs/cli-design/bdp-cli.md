@@ -183,13 +183,16 @@ replay and explicit gaps. The paired [Event CLI](events.md) and
 [native source](../../specs/profiles/core/events.md) define postimage default,
 finite JSON/polling, cursor/coverage and the six mutation-name delta vocabulary.
 No predicate language, masks, wire provenance suppression or changes command is
-added. Required unknown semantics stop progress. Batch publication/owner allocation,
-actual Types composition and implementation qualification remain separate gates;
-this source does not select one Event per authored batch member.
+added. Required unknown semantics stop progress. Actual Types/source integration
+and implementation qualification remain gates.
+[Final batch publication](../../specs/profiles/core/publication.md) emits facts for
+final Resource transitions, with at most one new revision per affected Resource;
+input mappings and unique final outcomes replace per-member postimages.
 
 > **Cleo — Finite surface:** Scope defaults, singular property flags, exact/family
 > filters, revision terminology and output roots stay as recorded in the paired
 > modules. The only added ordinary-read context field is the existing C1 delete
 > preview marker. History and mutation descriptors retain their compound context;
 > public Type CLI remains deferred. Event output follows your schema2 framing;
-> batch/owner/Types composition gates remain explicit. No interruption request.
+> final batch/owner output follows the shared mutation descriptor; actual Types
+> composition and qualification remain explicit. No interruption request.

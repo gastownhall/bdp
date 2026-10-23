@@ -129,9 +129,11 @@ without trying to express ownership exit as a fictitious Link deletion.
 A derived-only `updateBead` fact is not a legal authored update. `derived` is not
 a new CLI flag, public edit field or independent command. Link and owner facts
 share actual commit correlation, and consumers must not resubmit either fact as
-new intent. Actual owner revision allocation, aggregation and multi-operation
-batch provenance remain Trish's unanswered composition gate. No example allocates
-those revisions or asserts one Event per batch member.
+new intent. Under [selected final batch publication](../../specs/profiles/core/publication.md),
+one owner captures final Link records and gets at most one new revision. One final
+Resource transition produces one fact; no intermediate member has a published
+version. Net-zero and allocation-only decisions have no lifecycle facts. Ordinary
+per-version provenance conflicts refuse rather than silently selecting a member.
 
 A Bead Event source includes its lifecycle and incident Link lifecycle effects.
 The Link effect remains `createLink`, `updateLink` or `deleteLink`; no second

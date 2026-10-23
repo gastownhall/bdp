@@ -108,5 +108,7 @@ not client patch expansion. One atomic batch can express coordinated repairs;
 no per-Type pin policy, extra mandatory guard or new ownership command is added.
 The paired [Event source](events.md) now covers Type-only facts with required
 postimages and optional deltas under the [accepted D1/D2 minimum](event-decisions-20261022.md).
-Actual batch/owner publication and Types composition remain gates; a carrier does
-not select their allocation model.
+Selected [final batch publication](../../specs/profiles/core/publication.md) uses one
+final Resource/owner outcome and at most one new revision. Batch source pairs refer
+to final owner context, with membership compared initially/finally. Literal pins
+remain unchanged. Actual Types integration/qualification remain gates.

@@ -5,8 +5,8 @@ under sole #59. Use the ordinary [object edits](object-edits.md), [affiliations]
 and [Scope binding](scope-and-references.md). This is paper design, not an implemented
 compiler/provider. The concrete choices below extend C1; they are reviewable author
 choices, not new human rulings. [Event D1/D2 are now answered](event-decisions-20261022.md).
-Trish's separate batch publication/net-zero questions remain unanswered; the
-operation-local result examples in this unadopted source do not settle them.
+Donna has also selected [final publication and net-no-op behavior](../../specs/profiles/core/publication.md).
+The result shapes below replace the earlier unadopted per-member postimages.
 
 ## One document, one decision
 
@@ -115,19 +115,80 @@ No whole-request escape stands in for missing ordinary command signatures.
 ## Complete results and errors
 
 HTTP 200 returns one native object with `capabilityVersion`, aggregate `changed`,
-ordered complete `results`, and `transaction` exactly when effectful. Each entry
-carries `operationIndex`, operation discriminator, optional create `operationName`,
-`changed` and the ordinary Resource postimage/deleted identity plus applicable
-source pair. Resource CRUD singleton results also gain authoritative `changed`;
-alias results stay their distinct shape. Replayed flags describe the original
-decision, not a second write. A transaction is opaque correlation,
-not a receipt URL, Scope position or shared Resource revision. Named creations
-return their real `resource.id`, even if deleted later in the same batch.
+ordered `results` identity mappings, unique final `resources`, and `transaction`
+exactly when effectful. Each mapping has `operationIndex`, `operation`, resolved
+`id` and optional create `operationName`. It is not an intermediate mutation result.
+Every mapped identity has one final Resource outcome, ordered by canonical URI.
+Induced owners appear there too when required, with their actual final context.
 
-Postimages describe each explicit transition, not a normalized final snapshot.
-A→B→A can have two effects. All-no-op succeeds durably with `changed:false`, no
-transaction/facts from this batch. Owner revision allocation for multi-operation
-batches remains a Types composition gate; token examples do not choose it.
+Final outcomes are created/updated/unchanged with complete live `resource`, deleted
+with its final published `deleted` identity, or allocated with only identity/kind
+when a creation was also deleted before publication. Each has `id`, `resourceKind`
+and authoritative `changed`. No fake intermediate record/revision is returned.
+Named creations keep their allocated identity even in the allocated/absent case.
+Existing singleton results and alias results keep their distinct ordinary shapes.
+
+For A→B→A in one batch, the unique final row is unchanged with its original revision;
+all command mappings still exist. No lifecycle Event or new provenance is published.
+This succeeds durably with `changed:false` when there is no other semantic effect.
+Create-then-delete commits identity consumption, so changed is true with an allocated
+row and transaction, but no Resource lifecycle Event. No-op recovery bookkeeping
+does not itself set changed. Replayed output reports the original decision.
+
+An explicit guard on an existing target compares its pre-batch committed revision,
+including on later staged edits. No new revision exists between members; a guard
+cannot name a guessed staged/future token. A newly created target has no baseline
+revision to match. Working-target liveness and other admission still apply.
+Literal endpoint pins stay literal and names capture identity only.
+
+One final version has one attribution. Conflicting explicit provenance inputs for
+that Resource (including applicable initial/final owned-Link contributions to an
+owner) refuse the whole batch; omission does not overwrite an explicit input.
+No version means no new provenance, even with valid supplied inputs. See the
+[common rules](../../specs/profiles/core/publication.md) for final owner capture,
+deletion/allocation, attribution, Events and durable recovery.
+
+For a staged Type change and restoration to its initial pin, the native result
+inside CLI data is:
+
+```json
+{
+  "capabilityVersion": "1",
+  "changed": false,
+  "results": [
+    {
+      "operationIndex": 0,
+      "operation": "updateBead",
+      "id": "https://work.example/acme/task-17"
+    },
+    {
+      "operationIndex": 1,
+      "operation": "updateBead",
+      "id": "https://work.example/acme/task-17"
+    }
+  ],
+  "resources": [
+    {
+      "id": "https://work.example/acme/task-17",
+      "resourceKind": "bead",
+      "outcome": "unchanged",
+      "changed": false,
+      "resource": {
+        "id": "https://work.example/acme/task-17",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "definition-r1"
+        },
+        "revision": "bead-r1",
+        "properties": {
+          "title": "Review BDP"
+        },
+        "metadata": {}
+      }
+    }
+  ]
+}
+```
 
 Finite JSON presents the native result through the existing mutation descriptor.
 JSONL emits the complete compound result as one item with its terminal; it does
@@ -174,6 +235,6 @@ original labels. These choices are explicit in the paired protocol.
 Future parameterized/stored batches must be explicitly selected/versioned and
 materialize this ordinary representation. No string substitution, result path,
 revision capture or template engine is specified. Events remain required under the
-paired [source](events.md); batch publication/owner allocation and actual Types
-composition remain adoption gates. `serve`, runtime/Vickie/product pins and
+paired [source](events.md); actual Types/source composition and qualification
+remain adoption gates. `serve`, runtime/Vickie/product pins and
 Experimental stay held.

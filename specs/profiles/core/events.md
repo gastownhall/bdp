@@ -250,18 +250,20 @@ Repeated delivery preserves fact identity and does not reexecute writes. Require
 Events do not promise consistent state bootstrap, complete application History,
 durable subscriber state, erasure reconciliation or replica group application.
 
-## Shared batch/owner gate remains explicit
+## Selected final batch publication
 
-Trish's per-operation-versus-final-publication and net-zero batch questions are
-unanswered. This source does not choose which internal batch stages become
-published Resource revisions, exact owner allocation, Event counts, per-member
-indexes or create-then-delete/provenance policy. It describes each transition the
-eventual selected model actually publishes. The earlier unadopted operation-local
-PR292 examples must be composed with that ruling before adoption; their presence
-does not settle it. Separate committed singleton A→B and B→C writes do retain both
-facts; that example is not an answer about one atomic batch.
+Donna selected the [final-publication model](publication.md). One atomic batch
+emits at most one lifecycle fact per final changed Resource, including a changed
+owner; order those facts by canonical URI within its known transaction. Delta
+transforms the initial committed state to that final state; it does not replay
+intermediate members. A→B→A with equal final covered state has no new revision/fact.
+Create-delete can consume an identity without publishing any Resource version or
+lifecycle fact. A successful semantic no-op still records its retry result; a
+failed decision rolls back normally. Provenance, final owner context and complete
+results follow that amendment and the [batch contract](../write/atomic-batch.md).
+Two separately committed singleton writes still retain their two facts.
 
-Types activation/intrinsics, normal source integration and actual qualification
+Types activation/intrinsics source propagation, normal integration and qualification
 also remain gates. The inherited Transactional `event`/`updatedData`/`ownedLinkDelta`
 definitions and old `linked`/`unlinked` examples remain staging input, not this
 entry. No runtime, provider, CLI, SSE or installed/full-suite proof is claimed by

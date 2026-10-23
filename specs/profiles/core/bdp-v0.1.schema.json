@@ -5835,12 +5835,7 @@
     },
     "atomicBatchResultEntry": {
       "type": "object",
-      "allOf": [
-        {
-          "$ref": "#/$defs/mutationResultMembers"
-        }
-      ],
-      "required": ["operationIndex", "operation"],
+      "required": ["operationIndex", "operation", "id"],
       "properties": {
         "operationIndex": {
           "type": "integer",
@@ -5851,127 +5846,34 @@
         },
         "operationName": {
           "$ref": "#/$defs/localName"
+        },
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
         }
       },
-      "oneOf": [
+      "allOf": [
         {
-          "properties": {
-            "operation": {
-              "const": "createBead"
-            },
-            "outcome": {
-              "const": "created"
-            },
-            "resource": {
-              "allOf": [
-                {
-                  "$ref": "#/$defs/beadRecord"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "links": false
-                  }
-                }
-              ]
-            }
-          }
-        },
-        {
-          "properties": {
-            "operation": {
-              "const": "updateBead"
-            },
-            "outcome": {
-              "const": "updated"
-            },
-            "resource": {
-              "allOf": [
-                {
-                  "$ref": "#/$defs/beadRecord"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "links": false
-                  }
-                }
-              ]
-            },
-            "operationName": false
-          }
-        },
-        {
-          "properties": {
-            "operation": {
-              "const": "deleteBead"
-            },
-            "outcome": {
-              "const": "deleted"
-            },
-            "deleted": {
-              "type": "object",
-              "properties": {
-                "resourceKind": {
-                  "const": "bead"
-                }
+          "if": {
+            "type": "object",
+            "required": ["operation"],
+            "properties": {
+              "operation": {
+                "enum": ["updateBead", "deleteBead", "updateLink", "deleteLink"]
               }
-            },
-            "operationName": false
-          }
-        },
-        {
-          "properties": {
-            "operation": {
-              "const": "createLink"
-            },
-            "outcome": {
-              "const": "created"
-            },
-            "resource": {
-              "$ref": "#/$defs/linkRecord"
             }
-          }
-        },
-        {
-          "properties": {
-            "operation": {
-              "const": "updateLink"
-            },
-            "outcome": {
-              "const": "updated"
-            },
-            "resource": {
-              "$ref": "#/$defs/linkRecord"
-            },
-            "operationName": false
-          }
-        },
-        {
-          "properties": {
-            "operation": {
-              "const": "deleteLink"
-            },
-            "outcome": {
-              "const": "deleted"
-            },
-            "deleted": {
-              "type": "object",
-              "properties": {
-                "resourceKind": {
-                  "const": "link"
-                }
-              }
-            },
-            "operationName": false
+          },
+          "then": {
+            "properties": {
+              "operationName": false
+            }
           }
         }
       ],
-      "unevaluatedProperties": false
+      "additionalProperties": false
     },
     "atomicBatchResult": {
       "type": "object",
-      "required": ["capabilityVersion", "changed", "results"],
+      "required": ["capabilityVersion", "changed", "results", "resources"],
       "properties": {
         "capabilityVersion": {
           "const": "1"
@@ -5980,14 +5882,21 @@
           "type": "boolean"
         },
         "transaction": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/revision"
         },
         "results": {
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/$defs/atomicBatchResultEntry"
+          }
+        },
+        "resources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/atomicBatchResourceResult"
           }
         }
       },
@@ -5999,12 +5908,14 @@
               "changed": {
                 "const": false
               }
-            }
+            },
+            "type": "object"
           },
           "then": {
             "properties": {
               "transaction": false,
-              "results": {
+              "resources": {
+                "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
@@ -6012,15 +5923,16 @@
                       "const": false
                     }
                   }
-                },
-                "type": "array"
+                }
               }
             }
           },
           "else": {
             "required": ["transaction"],
             "properties": {
-              "results": {
+              "transaction": true,
+              "resources": {
+                "type": "array",
                 "contains": {
                   "type": "object",
                   "required": ["changed"],
@@ -6029,10 +5941,10 @@
                       "const": true
                     }
                   }
-                },
-                "type": "array"
+                }
               }
-            }
+            },
+            "type": "object"
           }
         }
       ],
@@ -7686,6 +7598,172 @@
           }
         }
       ]
+    },
+    "atomicBatchResourceResult": {
+      "type": "object",
+      "required": ["id", "resourceKind", "outcome", "changed"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "resourceKind": {
+          "$ref": "#/$defs/resourceKind"
+        },
+        "outcome": {
+          "enum": ["created", "updated", "unchanged", "deleted", "allocated"]
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "resource": {
+          "oneOf": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/beadRecord"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "links": false
+                  }
+                }
+              ]
+            },
+            {
+              "$ref": "#/$defs/linkRecord"
+            }
+          ]
+        },
+        "deleted": {
+          "$ref": "#/$defs/deletedIdentity"
+        },
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "sourceRevision": {
+          "$ref": "#/$defs/revision"
+        }
+      },
+      "dependentRequired": {
+        "source": ["sourceRevision"],
+        "sourceRevision": ["source"]
+      },
+      "oneOf": [
+        {
+          "required": ["resource"],
+          "properties": {
+            "resource": true,
+            "outcome": {
+              "enum": ["created", "updated"]
+            },
+            "changed": {
+              "const": true
+            },
+            "deleted": false
+          },
+          "type": "object"
+        },
+        {
+          "required": ["resource"],
+          "properties": {
+            "resource": true,
+            "outcome": {
+              "const": "unchanged"
+            },
+            "changed": {
+              "const": false
+            },
+            "deleted": false
+          },
+          "type": "object"
+        },
+        {
+          "required": ["deleted"],
+          "properties": {
+            "deleted": true,
+            "outcome": {
+              "const": "deleted"
+            },
+            "changed": {
+              "const": true
+            },
+            "resource": false
+          },
+          "type": "object"
+        },
+        {
+          "properties": {
+            "outcome": {
+              "const": "allocated"
+            },
+            "changed": {
+              "const": true
+            },
+            "resource": false,
+            "deleted": false,
+            "source": false,
+            "sourceRevision": false
+          }
+        }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "required": ["resourceKind"],
+            "properties": {
+              "resourceKind": {
+                "const": "bead"
+              }
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "resource": {
+                "$ref": "#/$defs/beadRecord"
+              },
+              "deleted": {
+                "type": "object",
+                "properties": {
+                  "resourceKind": {
+                    "const": "bead"
+                  }
+                }
+              },
+              "source": false,
+              "sourceRevision": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["resourceKind"],
+            "properties": {
+              "resourceKind": {
+                "const": "link"
+              }
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "resource": {
+                "$ref": "#/$defs/linkRecord"
+              },
+              "deleted": {
+                "type": "object",
+                "properties": {
+                  "resourceKind": {
+                    "const": "link"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
     }
   }
 }

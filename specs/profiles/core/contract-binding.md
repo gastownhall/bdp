@@ -11,7 +11,7 @@ Paired source under [#280](https://github.com/gastownhall/bdp/issues/280) and so
 The retained profile front door is [Core](retained-core.md) plus
 [Write](../write/retained-write.md), native `retainedDiscovery`. Earlier
 read/read-update/transactional helper shapes remain explicit staging inputs.
-Actual batch/owner, Types composition and qualification still prevent adoption;
+Actual Types/source composition and qualification still prevent adoption;
 the selected [Event source](events.md) now has its accepted payload/replay minimum.
 
 ## One selected identity

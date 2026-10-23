@@ -2,8 +2,8 @@
 
 The [canonical CLI](bdp-cli.md) uses one v0.1 binding and the positive
 [Core](../../specs/profiles/core/retained-core.md)/[Write](../../specs/profiles/write/retained-write.md)
-entries. This completes independent discovery/factoring source; actual batch/owner
-and Types composition still block adoption. [Events](events.md) has its accepted
+entries. This completes independent discovery/factoring source; actual Types/source
+composition and qualification still block adoption. [Events](events.md) has its accepted
 postimage/replay minimum. CLI command availability cannot be
 inferred from a schema file, a path suffix or a parked exploration.
 

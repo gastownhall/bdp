@@ -10,8 +10,9 @@ This is the positive Core entry for the selected [v0.1 binding](contract-binding
 paired with the [canonical CLI](../../../docs/cli-design/bdp-cli.md). It replaces the
 inherited cumulative Read/Read+Update/Transactional **selection model** for this
 candidate, not the old v0 contract. The required [Event source](events.md) uses
-Donna's accepted postimage/replay minimum. Actual batch/owner publication,
-Types/profile composition and normal qualification remain adoption gates.
+Donna's accepted postimage/replay minimum. The [publication amendment](publication.md)
+defines final batch/owner states. Actual Types/profile integration and normal
+qualification remain adoption gates.
 
 ## Closed responsibility boundary
 
@@ -35,6 +36,7 @@ below taking precedence over inherited v0 examples/profile vocabulary:
 | Optional complete application History | [Historical resolution](core.md#historical-resolution), only when historicalResolution is advertised; no weakening into a partial capability |
 | Optional exact definition operation | [Type-definition read](type-definition-read.md), only in its explicitly selected interpreting context; not general History or a complete Types advertisement |
 | Required observation | [Events](events.md), required postimages and truthful bounded replay; optional delta uses the six mutation names |
+| Atomic publication when Write/batch is selected | [Final publication](publication.md), at most one final new version per Resource; no mandatory batch/replication on Core |
 
 Inherited embedded Type descriptors, mandatory `types` inventory, sequence,
 Transactional discovery, public epochs/positions/views, receipts, replica snapshots,

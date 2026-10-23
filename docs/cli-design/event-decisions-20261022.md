@@ -16,21 +16,27 @@ Donna requested the Event ↔ mutation vocabulary details for the following day.
 The concrete proposal is [Events CLI](events.md), paired with [Core Events](../../specs/profiles/core/events.md),
 the separately named candidate schema helpers and [examples](../../fixtures/retained-events/candidate.json).
 
-## A separate, still unanswered batch question
+## Subsequent actual batch/Types/alias rulings
 
-Trish has presented a choice between per-operation published Resource revisions
-and final-per-Resource revisions for an atomic batch, plus the related net-zero
-policy. Neither proposal is accepted by these two answers. The earlier PR292
-operation-local examples are unadopted input, not an answer to that question.
+Donna has now [answered Trish's four questions](https://github.com/gastownhall/bdp/issues/59#issuecomment-6358504683):
 
-The Event proposal describes each **published** transition, whatever the selected
-commit model ultimately makes public. It does not turn every authored batch member
-into a mandatory Event, select intermediate owner snapshots, or determine the
-Event count for A→B→A or create-then-delete inside one batch. Actual batch/owner
-composition stays with Trish. The worked two-update example uses two separately
-committed singleton writes, avoiding an inferred batch ruling.
+1. Atomic batches publish final committed states, at most one new revision per
+   affected Resource/owner. A common token across Resources is not required; token
+   meaning remains Resource-qualified, with no equality/inequality guarantee.
+2. Equal final covered state with no other durable semantic effect retains revisions
+   and emits no lifecycle Event. Successful retry outcome/witnesses are still
+   recorded. Allocation/create-delete is not automatically a no-op; ID nonreuse
+   and ordinary abort rollback remain. Earlier PR292 operation-local results are
+   superseded author input, not a compatibility constraint on this unadopted draft.
+3. Strict truthful Scope-wide Types activation; no invented historic pins or
+   prospective grandfather boundary. Trish owns its Types-local propagation.
+4. Retain initial in-Scope Bead aliases; foreign/Link/pinned expansion is parked in
+   [issue299](https://github.com/gastownhall/bdp/issues/299). Trish owns that source.
 
-Types activation/intrinsics and normal integration/implementation qualification
-also remain separate. Vickie, runtime, product/main, `serve` and Experimental work
+The paired [final-publication amendment](../../specs/profiles/core/publication.md)
+defines concrete common result, owner, guard, attribution and Event consequences.
+Those result spellings and ordinary admission details are reviewable author choices,
+not additional quoted human rulings. Actual Types/intrinsic integration and normal
+qualification remain separate. Vickie, runtime, product/main, `serve` and Experimental work
 remain held. No new question or approval campaign follows from recording these
 answers.

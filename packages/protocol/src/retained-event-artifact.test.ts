@@ -270,9 +270,9 @@ describe("retained Event source/grammar correspondence, without CLI/provider exe
     expect(page.events[0].effect.resource.revision).not.toBe(
       page.events[1].effect.resource.revision,
     );
-    expect(paper.semanticCases.find((c: { id: string }) => c.id === "batch-gate").expect).toContain(
-      "unselected",
-    );
+    expect(
+      paper.semanticCases.find((c: { id: string }) => c.id === "batch-final-publication").expect,
+    ).toContain("at most one");
   });
 
   it("pairs nonempty observed samples and last-observed deletion context in both modes", () => {

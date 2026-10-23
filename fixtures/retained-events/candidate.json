@@ -1000,8 +1000,8 @@
       "expect": "Separately committed A-to-B then B-to-C retain both facts and their own postimages."
     },
     {
-      "id": "batch-gate",
-      "expect": "Per-operation versus final publication, net-zero and create-delete in one batch remain unselected."
+      "id": "batch-final-publication",
+      "expect": "Selected atomic final publication: at most one new revision/fact per affected Resource; net-zero keeps revisions/key outcome, allocation remains a durable effect."
     },
     {
       "id": "owner-carrier",

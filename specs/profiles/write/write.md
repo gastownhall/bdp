@@ -158,6 +158,10 @@ optional and carries the same six ordinary CRUD records. Its complete inline
 result/recovery contract does not require the inherited Transactional receipt
 or replica facilities below.
 
+For this retained batch only, [final publication](../core/publication.md) supersedes
+the operation-local revision/no-op wording below: stage members in order, publish
+at most one final revision per affected Resource. Singleton behavior is unchanged.
+
 Every successful create produces a fresh opaque Resource revision. Under the
 selected v0.1 amendment, every update that changes the complete Type affiliation,
 `properties`, common `metadata` or applicable captured owned-Link state produces
@@ -201,6 +205,10 @@ otherwise available reads or fabricate pruning of retained state. No condition-
 specific identity information is disclosed by the allocation problem.
 
 ### Attribution on mutations
+
+The retained [atomic batch](atomic-batch.md) realizes attribution once per final
+version under [final publication](../core/publication.md#one-attribution-per-published-version);
+it does not publish the intermediate per-operation versions of the inherited model.
 
 BDP v0 does not expose an authority-attested actor in mutation results.
 
@@ -968,8 +976,9 @@ Under retained v0.1, Resource CRUD results require `changed`: true for successfu
 creation/deletion and true exactly for an effectful update after ordinary checks.
 A genuine no-op reports false without new revision/provenance. This does not add
 that field to alias results or the inherited unselected receipt carrier. The
-[atomic batch result](atomic-batch.md#inline-results-and-changed-facts) reuses these
-members with operation/index/name context and one aggregate decision.
+[atomic batch result](atomic-batch.md#final-results-not-intermediate-postimages)
+instead separates operation identity mappings from unique final Resource outcomes;
+it does not publish per-member postimages or staged revisions.
 
 `created` and `updated` carry `resource`, the complete Resource record as a
 `GET` of its URL would now return it: `id`, `type`, `revision`, the version's

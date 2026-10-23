@@ -12,10 +12,10 @@ v0.1 contract, [object edits](object-edits.md), [affiliations](../core/affiliati
 and ordinary guards/native constraints apply. This is a retained candidate feature,
 not a dependency on Transactional/replica facilities or adoption of their old schema.
 [Event D1/D2](../../../docs/cli-design/event-decisions-20261022.md) are answered and
-have a paired [source](../core/events.md). Actual Types/profile and batch publication/
-net-zero/induced-owner composition remain adoption gates. The earlier operation-local
-examples below are unadopted proposals, not Donna's answer to Trish's new batch
-commit-model question.
+have a paired [source](../core/events.md). Donna has selected final committed states
+and net-no-op behavior; the [common publication amendment](../core/publication.md)
+supersedes the earlier operation-local batch proposal. Actual Types/source
+composition and qualification remain adoption gates.
 
 ## Discover and explicitly select
 
@@ -76,6 +76,19 @@ commits. Syntax, authorization, guards, input/path policies, exact Reference
 resolution and ordinary native constraints retain their specified checks. Applicable
 final-atomic-graph allowances under Types are retained; temporary endpoint-pair/arity
 invalidity may be repaired, but it does not waive other admission duties.
+Members stage values in input order; public revisions are assigned only to final
+published states, at most one per affected Resource. The working graph is not a
+public sequence of Resource versions.
+
+An expectedRevision on an existing target compares its committed revision at this
+decision's baseline, even on later staged edits of that Resource. Working-target
+liveness still applies: deleting a target does not make a later update legal.
+A newly created target has no committed baseline revision to satisfy a literal
+guard; reject a supplied guard with ordinary revision-mismatch rather than guess
+a future token. Explicit endpoint pins are admitted against actual retained
+committed versions, never a staged/future revision; names capture identity only.
+The authority must preserve/check that baseline atomically at commit under normal
+concurrency admission, without exposing a public Scope snapshot or epoch.
 
 Names match the existing local-name grammar, are unique and bind identities of
 prior creations. Unknown/forward/wrong-kind handles refuse the entire request.
@@ -146,34 +159,62 @@ retryable `idempotency-in-progress` Problem or bounded waiting, not a public pen
 Resource. No failure authorizes generic JSON, a fresh key or another carrier as an
 automatic fallback. A lost/error response may leave original effects unknown.
 
-## Inline results and changed facts
+## Final results, not intermediate postimages
 
-HTTP 200 returns `atomicBatchResult`: required selector 1, boolean `changed`, and a
-nonempty ordered `results` array. Each entry corresponds to exactly one request
-member in order, with zero-based `operationIndex`, the operation discriminator and
-create `operationName` when supplied. Create/update returns the complete direct
-Resource postimage, without an optional incident-Link aggregate; delete returns
-its final live deleted identity. Outcome must
-match operation/kind. The applicable `source`/`sourceRevision` pair follows the
-common pre-OR-post ownership rule, including ownership exit and owned-Link no-op.
+HTTP200 returns atomicBatchResult: selector1, boolean changed, nonempty ordered
+results mappings, and nonempty resources outcomes. Each mapping corresponds to one
+request member with zero-based operationIndex, operation, resolved absolute id and
+create operationName when supplied. It carries no intermediate body, revision,
+changed flag or execution outcome. Names capture only that canonical identity.
 
-Ordinary Resource CRUD `mutationResultMembers` now also requires boolean `changed`:
-create/delete true, update true exactly for an effect after ordinary checks. On
-retained replay these flags report the original decision, not a new write by this
-delivery. Alias results remain distinct and unchanged. Native postimages cover each
-explicit transition, not a later normalized final state. Two A→B→A updates are not collapsed.
-Secondary owner tokens are the actual induced context under the common ownership
-contract, never a made-up shared revision. Exact induced-owner allocation across
-multiple members remains the stated Types integration gate; do not infer counts
-or intermediate owner snapshots from this result carrier.
+Resources has exactly one row per directly targeted identity plus required owning
+sources, deduplicated and ordered by canonical URI. Every mapping resolves to one
+row of the right kind. A row has id, resourceKind, changed and outcome:
 
-Aggregate `changed` is the OR of member flags. Effectful results require nonempty
-opaque `transaction`, unique within the logical Scope and shared by that batch's
-required committed facts. It conveys correlation, not a receipt URL, Scope epoch/
-position, total replica order or snapshot promise. All-no-op succeeds durably with
-false, no transaction and no facts/effects from this batch; other concurrent events
-are not ruled out. Provenance alone never forces a change. A rendering failure
-cannot alter the committed result or imply rollback.
+| Outcome | Complete final meaning |
+| --- | --- |
+| created | Initially absent, finally live; changed true and final resource with its one creation revision |
+| updated | Initially/finally live, net covered state differs; changed true and final resource with its one new revision |
+| unchanged | Initially/finally live, equal covered state; changed false and the complete original resource/envelope |
+| deleted | Initially live, finally absent; changed true and deleted identity of the initial/final-live published version, with no staged revision |
+| allocated | Initially/finally absent, committed creation consumes the identity; changed true, id/kind only, no resource/deleted body/revision/type |
+
+Live rows omit optional incident-Link aggregates. Their id/kind, Resource record
+and revision must agree. Deleted rows use the existing deletedIdentity shape;
+their identity/kind agree too. All other fields are closed. Identity allocation is
+not a sixth Resource kind or public reservation API. The whole bounded result,
+including allocation-only identity mappings, is committed and replayed atomically.
+Existing singleton mutationResult/aliasResult shapes remain distinct and unchanged.
+
+For Link rows other than allocated, include source/sourceRevision iff that Link
+belongs to its source's owned set in the initial OR final committed graph. Return
+the actual final source revision, unchanged if the source has no net change; if
+the source itself is deleted, use its final live published revision and its deleted
+row. Include that source's unique row. Compare membership at decision boundaries,
+not at internal stages. Unrelated unowned/allocated rows omit the pair. Ownership
+exit remains observable; the CLI never infers it from final Type alone.
+
+Aggregate changed is the OR of final resource-row flags, including allocation
+effects, never per-member staged changes. Effectful decisions require opaque
+transaction, unique within the logical Scope and shared by their published facts
+when any exist. Equal tokens across Resource revisions are neither required nor
+forbidden; transaction is the correlation, not a global revision/position/receipt.
+An allocation-only decision can have transaction without lifecycle facts.
+
+All-final-no-op succeeds with false, no new version/provenance/lifecycle fact or
+transaction, while durably recording its successful retry outcome and witnesses.
+A→B→A therefore retains its initial revision unless another final captured-state
+effect changes it. A create-delete pair consumes an identity and is not this no-op.
+Complete failure rolls back every effect under the ordinary retained-failure rule.
+Rendering failure cannot alter a known decision or imply rollback.
+
+The [common publication rules](../core/publication.md) define final owner capture,
+one attribution per final version and final-state Events. Conflicting explicit
+provenance inputs for one final version refuse the whole batch with the existing
+validation-failed Problem (validation family,422,never), including its required
+ordinary diagnostics. A message can identify conflicting input positions under
+current disclosure without inventing a properties-document pointer. No new Problem/receipt
+carrier, provenance schema, last-writer override or implicit endpoint repin is added.
 
 ## Request identity and durable recovery
 
@@ -221,5 +262,5 @@ critical semantics require another explicitly selected capability version, prese
 version 1 meaning or truthfully refusing it. A registered executable adapter must
 verify this atomic feature before effects and invoke one atomic owner for the whole
 document. Detailed hosting/`serve` remains deferred. Required [Events](../core/events.md),
-actual Types/profile and batch publication/owner composition precede any advertisement or
+actual Types/source composition and qualification precede any advertisement or
 implementation adoption. Old v0 artifacts/runtime/evidence remain at their actual pins.

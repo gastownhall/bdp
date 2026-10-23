@@ -12,8 +12,8 @@ It changes instance affiliations and new owned-state captures in Core/Write. The
 [separate candidate schema](bdp-v0.1.schema.json) carries the common shape;
 the held v0 schema/runtime are not upgraded. Types-profile interpretation composes
 with [Trish's exact PR283 source](https://github.com/gastownhall/bdp/blob/a2aa88d9b5a0e0d78f48de2967d4ceaa38177876/specs/profiles/types/types.md).
-Actual Types/profile and batch/owner publication composition remain adoption gates;
-the required Event minimum is now selected in [Events](events.md).
+Actual Types/profile composition and qualification remain adoption gates;
+[final publication](publication.md) and the [Event minimum](events.md) are selected.
 
 ## One affiliation, independent identity
 
@@ -92,9 +92,11 @@ unchanged remaining state is a genuine no-op after all checks; no new Resource
 revision, provenance or Event is created. Empty ordinary patch arrays contribute
 zero patch operations, not proof that the whole update is a no-op. Guard/provenance
 alone is not an update and no dummy patch is needed for a Type-only input.
-Operation-local A→B→A transitions in a batch cannot be erased because final state
-matches initial state. This does not choose exact induced-owner revision counts
-for multi-operation batches or reopen their allocation mechanics.
+Within one atomic batch, the [selected final-publication rule](publication.md)
+compares the final graph to its committed baseline. A→B→A retains the original
+revision when final covered state is equal; no staged version/Event is published.
+Each affected Resource/owner has at most one new revision. Separate committed
+decisions retain their separate history; this is not history rewriting.
 
 Retained Resource versions, tombstones and recorded facts MUST keep the affiliation
 and owned state of the revision they describe. They MUST NOT be resolved against
@@ -178,7 +180,7 @@ uses operation names and recorded `type`, with required postimages and optional
 delta, replacing the inherited event/updatedData/ownedLinkDelta entry for this
 candidate. Delta `derived.ownedLinks` records the new captured map or removal of
 owner status, handling nominal bucket entry/exit without invented Link mutations.
-Donna has accepted D1/D2; batch publication/owner allocation, actual Types composition
-and qualification remain gates. Earlier operation-local batch statements in this
-unadopted amendment must compose with Trish's separate unanswered commit-model
-question; neither the Event carrier nor a structural PASS answers it.
+Donna has accepted D1/D2 plus final batch publication/net-no-op behavior. The paired
+[publication amendment](publication.md) supersedes earlier operation-local batch
+statements. Actual Types/source composition and qualification remain gates;
+a carrier or structural PASS does not prove them.

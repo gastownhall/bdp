@@ -1,5 +1,11 @@
 # Finite retained CLI/Core/Write source cutline
 
+**Later actual ruling:** Donna has now selected final batch publication/net-no-op
+behavior. The [paired amendment](../../specs/profiles/core/publication.md) replaces
+the earlier operation-local batch model and its unanswered gate below. Strict
+Scope-wide Types activation is also selected; Trish owns Types-local propagation.
+Historical counts/maps below remain evidence at their original input, not a new PASS.
+
 **Subsequent bounded Event increment:** Donna has [answered D1/D2](../cli-design/event-decisions-20261022.md).
 The paired [Event CLI](../cli-design/events.md) / [Core source](../../specs/profiles/core/events.md)
 now defines the mandatory postimage baseline and declared-coverage replay. The
