@@ -1,0 +1,384 @@
+{
+  "status": "paper/grammar examples; parser/provider semantics not executed",
+  "contract": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+  "updateCases": [
+    {
+      "id": "replace-properties",
+      "fields": {
+        "properties": {
+          "title": "Reviewed"
+        }
+      },
+      "valid": true
+    },
+    {
+      "id": "clear-properties",
+      "fields": {
+        "properties": {}
+      },
+      "valid": true
+    },
+    {
+      "id": "replace-metadata",
+      "fields": {
+        "metadata": {
+          "reviewed": true
+        }
+      },
+      "valid": true
+    },
+    {
+      "id": "clear-both",
+      "fields": {
+        "properties": {},
+        "metadata": {}
+      },
+      "valid": true
+    },
+    {
+      "id": "independent-planes",
+      "fields": {
+        "properties": {
+          "title": "Reviewed"
+        },
+        "metadataChange": [
+          {
+            "op": "add",
+            "path": "/reviewed",
+            "value": true
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "id": "reverse-planes",
+      "fields": {
+        "metadata": {},
+        "propertiesChange": [
+          {
+            "op": "add",
+            "path": "/title",
+            "value": "Reviewed"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "id": "type-plus-replace",
+      "fields": {
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "r2"
+        },
+        "properties": {}
+      },
+      "valid": true
+    },
+    {
+      "id": "empty-properties-patch",
+      "fields": {
+        "propertiesChange": []
+      },
+      "valid": true
+    },
+    {
+      "id": "empty-metadata-patch",
+      "fields": {
+        "metadataChange": []
+      },
+      "valid": true
+    },
+    {
+      "id": "type-only",
+      "fields": {
+        "type": "https://work.example/acme/Task"
+      },
+      "valid": true
+    },
+    {
+      "id": "mixed-same-properties",
+      "fields": {
+        "properties": {},
+        "propertiesChange": []
+      },
+      "valid": false
+    },
+    {
+      "id": "mixed-same-metadata",
+      "fields": {
+        "metadata": {},
+        "metadataChange": []
+      },
+      "valid": false
+    },
+    {
+      "id": "bad-properties-array",
+      "fields": {
+        "properties": []
+      },
+      "valid": false
+    },
+    {
+      "id": "bad-properties-null",
+      "fields": {
+        "properties": null
+      },
+      "valid": false
+    },
+    {
+      "id": "bad-metadata-array",
+      "fields": {
+        "metadata": []
+      },
+      "valid": false
+    },
+    {
+      "id": "bad-metadata-null",
+      "fields": {
+        "metadata": null
+      },
+      "valid": false
+    },
+    {
+      "id": "omitted-all",
+      "fields": {},
+      "valid": false
+    },
+    {
+      "id": "guard-only",
+      "fields": {
+        "expectedRevision": "r7"
+      },
+      "valid": false
+    },
+    {
+      "id": "provenance-only",
+      "fields": {
+        "revisionProvenance": {}
+      },
+      "valid": false
+    },
+    {
+      "id": "immutable-field",
+      "fields": {
+        "properties": {},
+        "revision": "r7"
+      },
+      "valid": false
+    }
+  ],
+  "cliPairs": [
+    {
+      "id": "merge-shallow",
+      "cli": "bdp update item --properties '{\"title\":\"Reviewed\",\"settings\":{\"a\":1}}'",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "propertiesChange": [
+          {
+            "op": "add",
+            "path": "/settings",
+            "value": {
+              "a": 1
+            }
+          },
+          {
+            "op": "add",
+            "path": "/title",
+            "value": "Reviewed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "replacement",
+      "cli": "bdp update item --replace-properties '{}'",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "properties": {}
+      }
+    },
+    {
+      "id": "strict-patch",
+      "cli": "bdp update item --patch-properties '[{\"op\":\"remove\",\"path\":\"/old\"}]'",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "propertiesChange": [
+          {
+            "op": "remove",
+            "path": "/old"
+          }
+        ]
+      }
+    },
+    {
+      "id": "keyed-last-and-unset",
+      "cli": "bdp update item --set-property x=1 --unset-property x --set-property x=2",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "propertiesChange": [
+          {
+            "op": "add",
+            "path": "/x",
+            "value": 2
+          },
+          {
+            "op": "add",
+            "path": "/x",
+            "value": null
+          },
+          {
+            "op": "remove",
+            "path": "/x"
+          }
+        ]
+      }
+    },
+    {
+      "id": "escaped-key",
+      "cli": "bdp update item --set-property a/b~c=true",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "propertiesChange": [
+          {
+            "op": "add",
+            "path": "/a~1b~0c",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "independent-objects",
+      "cli": "bdp update item --replace-properties '{\"title\":\"Reviewed\"}' --set-metadata reviewed=true --if-revision r7",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "properties": {
+          "title": "Reviewed"
+        },
+        "metadataChange": [
+          {
+            "op": "add",
+            "path": "/reviewed",
+            "value": true
+          }
+        ],
+        "expectedRevision": "r7"
+      }
+    },
+    {
+      "id": "empty-merge",
+      "cli": "bdp update item --metadata '{}'",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "metadataChange": []
+      }
+    }
+  ],
+  "semanticCases": [
+    {
+      "id": "core-literal-replacement",
+      "given": "Core-only properties replacement with no applicable Types property-access policy.",
+      "expected": "Literal complete object subject to native constraints; no undocumented partial merge.",
+      "execution": "not run"
+    },
+    {
+      "id": "types-writable-set",
+      "given": "Replacement omits existing init-only and required service-managed fields.",
+      "expected": "Preserve existing init-only; service completes its fields; validate completed result, not input against every output requirement.",
+      "execution": "not run"
+    },
+    {
+      "id": "explicit-managed-equal",
+      "given": "Replacement explicitly supplies equal service-managed value.",
+      "expected": "Refuse, never equality exception or silent ignore.",
+      "execution": "not run"
+    },
+    {
+      "id": "protected-child",
+      "given": "Replacement/root patch addresses a parent of protected child.",
+      "expected": "No policy bypass; apply accepted local/inherited restrictions.",
+      "execution": "not run"
+    },
+    {
+      "id": "new-init-only",
+      "given": "Retype introduces init-only at a property.",
+      "expected": "Preserve/validate existing, refuse incompatible replacement; if absent may initialize under Types.",
+      "execution": "not run"
+    },
+    {
+      "id": "depart-init-only",
+      "given": "Retype leaves last init-only contract.",
+      "expected": "Preserve during departure; later destination writes apply, no lifetime invariant.",
+      "execution": "not run"
+    },
+    {
+      "id": "metadata-independent",
+      "given": "Replace metadata while properties is patched.",
+      "expected": "One atomic operation; metadata is not Type properties or provenance.",
+      "execution": "not run"
+    },
+    {
+      "id": "empty-replacement",
+      "given": "Replace writable properties with{} while protected fields exist.",
+      "expected": "Clear writable set subject to policy, preserve/complete protected fields; not omission or empty patch.",
+      "execution": "not run"
+    },
+    {
+      "id": "strict-root",
+      "given": "Explicit root JSON Patch versus replacement member.",
+      "expected": "Keep literal patch attempt and policy checks; never reinterpret as writable-set intent.",
+      "execution": "not run"
+    },
+    {
+      "id": "unset-absent-writable",
+      "given": "Composed add-null/remove on absent writable top-level key.",
+      "expected": "Final state unchanged, admitted no-op after guards/policy/full validation.",
+      "execution": "not run"
+    },
+    {
+      "id": "unset-protected",
+      "given": "Composed add-null/remove tries protected key even if final state equal.",
+      "expected": "Refuse prohibited input; whole-edit admission prevents no-op bypass.",
+      "execution": "not run"
+    },
+    {
+      "id": "guarded-equal",
+      "given": "Replacement yields same full state with mismatched guard.",
+      "expected": "Refuse guard rather than bypassing on no-op.",
+      "execution": "not run"
+    },
+    {
+      "id": "type-pin-only",
+      "given": "Empty patch and changed exact Type pin.",
+      "expected": "Effect under common affiliation/revision rule; no fake patch and Event encoding stays pending.",
+      "execution": "not run"
+    },
+    {
+      "id": "retry-intent",
+      "given": "Same key reauthored as replacement versus patch/omission reaching equal state.",
+      "expected": "Preserve authored mode in execution identity; no postimage-only equivalence.",
+      "execution": "not run"
+    },
+    {
+      "id": "input-schema",
+      "given": "Stored schema requires generated field absent from caller replacement.",
+      "expected": "Carrier object is valid; service completes before complete-result validation; no demand caller for protected required output.",
+      "execution": "not run"
+    },
+    {
+      "id": "renderer",
+      "given": "Render replacement as root patch then recompile.",
+      "expected": "Forbidden loss of policy intent; preserve distinct replacement/patch fields.",
+      "execution": "not run"
+    }
+  ]
+}
