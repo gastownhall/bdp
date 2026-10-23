@@ -11,6 +11,21 @@ They are not the canonical BDP schema bundle, registered Type IDs, an installabl
 package, or implementation qualification. Schema IDs under
 `https://example.org/bdp-draft/schemas/` identify schema documents, not Type Beads.
 
+Donna's [four October 22 rulings](https://github.com/gastownhall/bdp/issues/59#issuecomment-6358504683)
+select final atomic publication with at most one new revision per affected Resource;
+unchanged complete final state with no other durable effects retains revisions and
+emits no lifecycle Event, while preserving the successful retry outcome. They also
+select truthful Scope-wide Types activation without grandfathered covered records,
+and retain the smaller in-Scope Bead alias contract. See [§1](types.md#1-scope-and-responsibilities),
+[§5.7](types.md#57-ownership-matches-through-conformance) and
+[§7.4](types.md#74-local-aliases-for-canonical-references). Broader aliases are
+[deferred in issue299](https://github.com/gastownhall/bdp/issues/299).
+A shared transaction-wide revision token is not required. Sybil owns the paired
+common CLI/Core/Write/result/Event propagation; these Types-local prose changes
+do not adopt its wire format or qualify runtime behavior. Earlier artifact checks
+remain bound to their recorded source. Unchanged descriptor/schema/fixture bytes
+do not establish execution of the new written acceptance cases.
+
 | Artifact | Applies to | Status |
 | --- | --- | --- |
 | [type-definition.properties.schema.json](type-definition.properties.schema.json) | Common properties of Type-definition Beads | The properties schema of Type **is** the common descriptor schema |
