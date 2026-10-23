@@ -15,6 +15,9 @@
     },
     "./schemas/bdp-v0.schema.json": {
       "default": "./schemas/bdp-v0.schema.json"
+    },
+    "./schemas/bdp-v0.1.schema.json": {
+      "default": "./schemas/bdp-v0.1.schema.json"
     }
   },
   "dependencies": {

@@ -1,0 +1,109 @@
+{
+  "catalogVersion": 1,
+  "scenarios": [
+    {
+      "id": "read.namespace.scope-defined-ids",
+      "title": "scope defined ids",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "specs/profiles/core/core.md",
+          "anchor": "#scopes-and-identity",
+          "selectedText": "A client MUST NOT prepend a kind segment or infer Resource kind from\nan identifier's path."
+        }
+      ]
+    },
+    {
+      "id": "read.namespace.discovered-navigation",
+      "title": "discovered navigation",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "specs/profiles/core/core.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "Clients MUST NOT synthesize these URLs from the Scope or a Resource path."
+        }
+      ]
+    },
+    {
+      "id": "read.namespace.point-kind",
+      "title": "point kind",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "specs/profiles/core/core.md",
+          "anchor": "#point-read-kind-and-owning-scope-navigation",
+          "selectedText": "A successful current or retained Bead/Link point read MUST include\n`BDP-Resource-Kind: bead` or `BDP-Resource-Kind: link`, identifying the actual\nResource kind."
+        }
+      ]
+    },
+    {
+      "id": "read.namespace.owner-navigation",
+      "title": "owner navigation",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "specs/profiles/core/core.md",
+          "anchor": "#point-read-kind-and-owning-scope-navigation",
+          "selectedText": "Those successful point-read responses MUST also carry a `service-desc` Link\nto the owning Scope's machine discovery document."
+        }
+      ]
+    },
+    {
+      "id": "read.namespace.external-bead-intent",
+      "title": "external bead intent",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "specs/profiles/core/core.md",
+          "anchor": "#link-endpoint-constraints",
+          "selectedText": "No path spelling, including\n`beads/`, proves that an external target is a Bead."
+        }
+      ]
+    },
+    {
+      "id": "read-update.namespace.kind-lookup",
+      "title": "kind lookup",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "specs/profiles/write/write.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "required kind is checked against the resolved Resource,\nnot any path prefix."
+        }
+      ]
+    },
+    {
+      "id": "read-update.namespace.full-url-collisions",
+      "title": "full url collisions",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "specs/profiles/core/core.md",
+          "anchor": "#aliases",
+          "selectedText": "An alias MUST NOT occupy any URL ever\ncommitted as a canonical Bead or Link identity, including a deleted identity."
+        }
+      ]
+    },
+    {
+      "id": "read-update.namespace.identity-preserved",
+      "title": "identity preserved",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "specs/profiles/core/core.md",
+          "anchor": "#scopes-and-identity",
+          "selectedText": "Removing kind prefixes changes none of these identity obligations."
+        }
+      ]
+    }
+  ]
+}

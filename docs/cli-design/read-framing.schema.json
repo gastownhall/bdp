@@ -1,0 +1,995 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/cli-design/read-framing-v2.candidate.schema.json",
+  "title": "Candidate CLI schema 2 ordinary-read framing subset",
+  "description": "Bound v0.1 invocations only. Not the complete Cleo registry, native state schema, output renderer or provider qualification. Payload checks here protect primary context; full native state and cross-record delivery semantics require separate checks.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/envelope"
+    },
+    {
+      "$ref": "#/$defs/header"
+    },
+    {
+      "$ref": "#/$defs/item"
+    },
+    {
+      "$ref": "#/$defs/terminal"
+    }
+  ],
+  "$defs": {
+    "headers": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9!#$%&'*+.^_`|~-]+$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "subject": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        },
+        "resource_kind": {
+          "enum": ["bead", "link"]
+        },
+        "httpStatus": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
+        },
+        "headers": {
+          "$ref": "#/$defs/headers"
+        },
+        "preview": {
+          "const": "delete"
+        }
+      },
+      "required": ["subject"],
+      "additionalProperties": false
+    },
+    "resource": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        },
+        "type": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeReference"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/reference"
+        },
+        "target": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/reference"
+        }
+      },
+      "required": ["id", "type", "revision"]
+    },
+    "collection": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/resource"
+          }
+        },
+        "next": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["items"],
+      "additionalProperties": false
+    },
+    "completion": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exhausted": {
+          "type": ["boolean", "null"]
+        },
+        "stop_reason": {
+          "enum": ["exhausted", "page", "limit", "error"]
+        }
+      },
+      "required": ["returned", "exhausted", "stop_reason"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "stop_reason": {
+                "const": "exhausted"
+              }
+            },
+            "required": ["stop_reason"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "exhausted": {
+                "const": true
+              }
+            },
+            "required": ["exhausted"],
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "stop_reason": {
+                "const": "page"
+              }
+            },
+            "required": ["stop_reason"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "exhausted": {
+                "const": false
+              }
+            },
+            "required": ["exhausted"],
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "stop_reason": {
+                "const": "limit"
+              }
+            },
+            "required": ["stop_reason"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "exhausted": {
+                "const": false
+              }
+            },
+            "required": ["exhausted"],
+            "type": "object"
+          }
+        }
+      ]
+    },
+    "projection": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+          }
+        },
+        "omit": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": ["include"],
+          "type": "object",
+          "properties": {
+            "include": {}
+          }
+        },
+        {
+          "required": ["omit"],
+          "type": "object",
+          "properties": {
+            "omit": {}
+          }
+        }
+      ]
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "origin": {
+              "const": "bdp"
+            },
+            "problem": {
+              "type": "object"
+            }
+          },
+          "required": ["origin", "problem"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "origin": {
+              "const": "cli"
+            },
+            "problem": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": ["code", "message"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["origin", "problem"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "httpMetadata": {
+      "type": "object",
+      "properties": {
+        "httpStatus": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
+        },
+        "headers": {
+          "$ref": "#/$defs/headers"
+        }
+      },
+      "required": ["httpStatus", "headers"],
+      "additionalProperties": false
+    },
+    "envelope": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "bdp_spec": {
+          "const": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json"
+        },
+        "result_kind": {
+          "enum": [
+            "resource",
+            "resource_collection",
+            "properties",
+            "scope",
+            "reference",
+            "http_metadata"
+          ]
+        },
+        "outcome": {
+          "enum": ["success", "failure"]
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "projection": {
+          "$ref": "#/$defs/projection"
+        },
+        "data": true,
+        "completion": {
+          "$ref": "#/$defs/completion"
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        }
+      },
+      "required": ["schema_version", "bdp_spec", "result_kind", "outcome"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "failure"
+              }
+            },
+            "required": ["outcome"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["error"],
+            "type": "object",
+            "properties": {
+              "error": {}
+            }
+          },
+          "else": {
+            "not": {
+              "required": ["error"],
+              "type": "object",
+              "properties": {
+                "error": {}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["completion"],
+            "type": "object",
+            "properties": {
+              "completion": {}
+            }
+          },
+          "then": {
+            "properties": {
+              "result_kind": {
+                "const": "resource_collection"
+              }
+            },
+            "required": ["result_kind"],
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "required": ["completion"],
+            "properties": {
+              "outcome": {
+                "const": "failure"
+              },
+              "completion": {}
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "completion": {
+                "properties": {
+                  "stop_reason": {
+                    "const": "error"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "required": ["completion"],
+            "properties": {
+              "outcome": {
+                "const": "success"
+              },
+              "completion": {}
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "completion": {
+                "properties": {
+                  "stop_reason": {
+                    "enum": ["exhausted", "page", "limit"]
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result_kind": {
+                "const": "resource_collection"
+              }
+            },
+            "required": ["result_kind"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/collection"
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "required": ["data"],
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                },
+                "then": {
+                  "required": ["completion"],
+                  "type": "object",
+                  "properties": {
+                    "completion": {}
+                  }
+                }
+              },
+              {
+                "if": {
+                  "required": ["data"],
+                  "properties": {
+                    "outcome": {
+                      "const": "success"
+                    },
+                    "data": {}
+                  },
+                  "type": "object"
+                },
+                "then": {
+                  "properties": {
+                    "data": {
+                      "required": ["next"],
+                      "type": "object",
+                      "properties": {
+                        "next": {}
+                      }
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            ],
+            "type": "object"
+          },
+          "else": {
+            "not": {
+              "required": ["completion"],
+              "type": "object",
+              "properties": {
+                "completion": {}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result_kind": {
+                "const": "resource"
+              }
+            },
+            "required": ["result_kind"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/resource"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result_kind": {
+                "const": "properties"
+              }
+            },
+            "required": ["result_kind"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result_kind": {
+                "const": "scope"
+              }
+            },
+            "required": ["result_kind"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result_kind": {
+                "const": "reference"
+              }
+            },
+            "required": ["result_kind"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result_kind": {
+                "const": "http_metadata"
+              }
+            },
+            "required": ["result_kind"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/httpMetadata"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "success"
+              }
+            },
+            "required": ["outcome"],
+            "type": "object"
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": ["data"],
+                "type": "object",
+                "properties": {
+                  "data": {}
+                }
+              },
+              {
+                "required": ["context"],
+                "properties": {
+                  "context": {
+                    "properties": {
+                      "httpStatus": {
+                        "const": 304
+                      }
+                    },
+                    "required": ["httpStatus"],
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result_kind": {
+                "const": "http_metadata"
+              }
+            },
+            "required": ["result_kind"],
+            "type": "object"
+          },
+          "then": {
+            "if": {
+              "properties": {
+                "outcome": {
+                  "const": "success"
+                }
+              },
+              "required": ["outcome"],
+              "type": "object"
+            },
+            "then": {
+              "required": ["data"],
+              "type": "object",
+              "properties": {
+                "data": {}
+              }
+            }
+          },
+          "else": {
+            "if": {
+              "required": ["context"],
+              "properties": {
+                "context": {
+                  "properties": {
+                    "httpStatus": {
+                      "const": 304
+                    }
+                  },
+                  "required": ["httpStatus"],
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": ["data"],
+                    "type": "object",
+                    "properties": {
+                      "data": {}
+                    }
+                  },
+                  {
+                    "required": ["completion"],
+                    "type": "object",
+                    "properties": {
+                      "completion": {}
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["data"],
+            "properties": {
+              "result_kind": {
+                "const": "resource"
+              },
+              "data": {}
+            },
+            "type": "object"
+          },
+          "then": {
+            "required": ["context"],
+            "properties": {
+              "context": {
+                "required": ["resource_kind"],
+                "type": "object",
+                "properties": {
+                  "resource_kind": {}
+                }
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "required": ["data"],
+            "properties": {
+              "result_kind": {
+                "const": "resource_collection"
+              },
+              "data": {}
+            },
+            "type": "object"
+          },
+          "then": {
+            "required": ["context"],
+            "properties": {
+              "context": {
+                "required": ["resource_kind"],
+                "type": "object",
+                "properties": {
+                  "resource_kind": {}
+                }
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "required": ["data"],
+            "properties": {
+              "result_kind": {
+                "const": "properties"
+              },
+              "data": {}
+            },
+            "type": "object"
+          },
+          "then": {
+            "required": ["context"],
+            "properties": {
+              "context": {
+                "required": ["resource_kind"],
+                "type": "object",
+                "properties": {
+                  "resource_kind": {}
+                }
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "required": ["context"],
+            "properties": {
+              "result_kind": {
+                "const": "resource"
+              },
+              "context": {
+                "properties": {
+                  "resource_kind": {
+                    "const": "link"
+                  }
+                },
+                "required": ["resource_kind"],
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "required": ["source", "target"],
+                "type": "object",
+                "properties": {
+                  "source": {},
+                  "target": {}
+                }
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "required": ["context"],
+            "properties": {
+              "result_kind": {
+                "const": "resource_collection"
+              },
+              "context": {
+                "properties": {
+                  "resource_kind": {
+                    "const": "link"
+                  }
+                },
+                "required": ["resource_kind"],
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "properties": {
+                  "items": {
+                    "items": {
+                      "required": ["source", "target"],
+                      "type": "object",
+                      "properties": {
+                        "source": {},
+                        "target": {}
+                      }
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        }
+      ]
+    },
+    "header": {
+      "type": "object",
+      "properties": {
+        "record_type": {
+          "const": "header"
+        },
+        "schema_version": {
+          "const": 2
+        },
+        "bdp_spec": {
+          "const": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json"
+        },
+        "result_kind": {
+          "enum": [
+            "resource",
+            "resource_collection",
+            "properties",
+            "scope",
+            "reference",
+            "http_metadata"
+          ]
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "projection": {
+          "$ref": "#/$defs/projection"
+        }
+      },
+      "required": ["record_type", "schema_version", "bdp_spec", "result_kind"],
+      "additionalProperties": false
+    },
+    "item": {
+      "type": "object",
+      "properties": {
+        "record_type": {
+          "const": "item"
+        },
+        "data": true
+      },
+      "required": ["record_type", "data"],
+      "additionalProperties": false
+    },
+    "terminal": {
+      "type": "object",
+      "properties": {
+        "record_type": {
+          "const": "terminal"
+        },
+        "outcome": {
+          "enum": ["success", "failure"]
+        },
+        "completion": {
+          "$ref": "#/$defs/completion"
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "continuation": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["record_type", "outcome"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "failure"
+              }
+            },
+            "required": ["outcome"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["error"],
+            "type": "object",
+            "properties": {
+              "error": {}
+            }
+          },
+          "else": {
+            "not": {
+              "required": ["error"],
+              "type": "object",
+              "properties": {
+                "error": {}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["completion"],
+            "properties": {
+              "outcome": {
+                "const": "failure"
+              },
+              "completion": {}
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "completion": {
+                "properties": {
+                  "stop_reason": {
+                    "const": "error"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "required": ["completion"],
+            "properties": {
+              "outcome": {
+                "const": "success"
+              },
+              "completion": {}
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "completion": {
+                "properties": {
+                  "stop_reason": {
+                    "enum": ["exhausted", "page", "limit"]
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        }
+      ]
+    }
+  }
+}
