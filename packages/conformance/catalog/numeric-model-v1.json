@@ -15,7 +15,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-revisions-and-guards",
-          "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision."
+          "selectedText": "After applicable admission and validation, an update retains the existing revision only when the complete affiliation and applicable captured owned state are unchanged and both `properties` and common `metadata` equal their respective values immediately before the operation under RFC 6902 Section 4.6 JSON value comparison."
         },
         {
           "source": "docs/specs/bdp.md",
