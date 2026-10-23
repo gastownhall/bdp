@@ -93,3 +93,20 @@ remains a Types seam. No new question, tracker, worker or implementation queue i
 created. Runtime/product/main/serve/Vickie/Experimental holds remain. This source
 requires bounded parent review and normal semantic integration; a docs index PASS
 cannot qualify it.
+
+
+## Bounded review repair R1
+
+Trish's review of original 36a8374 found that the properties-view example declared
+include-only `/id` while still displaying other ordinary properties. The original
+470-test report correctly qualified framing, not field-mask application; it is not
+relabelled as a renderer failure or a PASS for a later source head.
+
+The ordinary-data example is now explicitly unmasked. A separately paired
+projected-properties-id-only example names that input and returns only its id
+property with the declared include mask. A static paper assertion checks this
+pairing, exact output and unchanged transport context; it implements no renderer.
+No protected Resource-field rule is applied to the ordinary properties-view root.
+Protocol/CLI contracts, native/framing schemas, catalogs and held consumers are
+unchanged. The separate repair receipts record the current focused test/source
+checks at their actual repair head; original raw reports remain immutable.

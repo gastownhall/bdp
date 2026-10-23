@@ -204,11 +204,28 @@
         "context": {
           "subject": "https://work.example/acme/task-42?view=properties",
           "resource_kind": "bead"
+        }
+      }
+    },
+    {
+      "id": "projected-properties-id-only",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "properties",
+        "outcome": "success",
+        "data": {
+          "id": 1
+        },
+        "context": {
+          "subject": "https://work.example/acme/task-42?view=properties",
+          "resource_kind": "bead"
         },
         "projection": {
           "include": ["/id"]
         }
-      }
+      },
+      "inputId": "properties-are-data"
     },
     {
       "id": "bodyless-not-modified",

@@ -87,6 +87,18 @@ describe("ordinary read paper artifacts, without CLI or HTTP execution", () => {
     expect(valid("readDiscovery", sample("scope-descriptor").data, native)).toBe(true);
     expect(valid("resource", sample("projected-primary").data)).toBe(true);
     expect(valid("beadRecord", sample("projected-primary").data, native)).toBe(false);
+
+    // Static paper pairing, not execution of a field-mask renderer.
+    const unmasked = sample("properties-are-data");
+    const projected = paper.finite.find(
+      (entry: { id: string }) => entry.id === "projected-properties-id-only",
+    );
+    expect(projected.inputId).toBe("properties-are-data");
+    expect(unmasked).not.toHaveProperty("projection");
+    expect(Object.keys(unmasked.data)).toEqual(["id", "type", "items", "next"]);
+    expect(projected.value.projection).toEqual({ include: ["/id"] });
+    expect(projected.value.data).toEqual({ id: unmasked.data.id });
+    expect(projected.value.context).toEqual(unmasked.context);
   });
 
   it("keeps the immutable selected contract distinct from schema/executable versions", () => {
