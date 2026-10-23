@@ -150,6 +150,13 @@ authority. These later candidates change no ruling or incorporation state.
 Bounded source review and the reported 470- and 481-test artifact slices do not
 execute a renderer/provider or close full #152/#282 composition.
 
+Closing source candidate [PR296](https://github.com/gastownhall/bdp/pull/296) at
+`20fdc0cc` adds the canonical CLI, positive retained Core/Write entries and finite
+done/gated map linked in the front door. Independent Sybil source work is
+complete at that cut; the unmerged draft retains Event D1/D2/composition,
+Trish's owner/Types/intrinsic and normal qualification gates. This changes no
+original row's ruling, propagation/adoption state or implementation evidence.
+
 ## Genuine unresolved work and deliberate exclusions
 
 Trish/Sybil should derive settled cases before sending another question to
