@@ -1,0 +1,289 @@
+{
+  "status": "Candidate grammar and paper correspondence, not a lookup provider or Type registration",
+  "commonSource": {
+    "commit": "ad6ddd45f4fb35742fbc60be84b0eb6f3b0fd9c1",
+    "path": "specs/profiles/core/bdp-v0.1.schema.json",
+    "sha256": "d9c9822c8abdaae907a966ef076f945043116adb52b94c9c1c71dbaa8c8adf09"
+  },
+  "capability": "https://github.com/gastownhall/bdp/capabilities/type-definition-read",
+  "advertisementDetail": {
+    "operation": "https://work.example/acme/definitions/exact"
+  },
+  "queryCases": [
+    {
+      "id": "exact",
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "task-1"
+      },
+      "valid": true
+    },
+    {
+      "id": "missing-version",
+      "query": {
+        "uri": "https://example.org/types/beads/task",
+        "revision": "task-1"
+      },
+      "valid": false
+    },
+    {
+      "id": "missing-uri",
+      "query": {
+        "capabilityVersion": "1",
+        "revision": "task-1"
+      },
+      "valid": false
+    },
+    {
+      "id": "missing-revision",
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task"
+      },
+      "valid": false
+    },
+    {
+      "id": "empty-version",
+      "query": {
+        "capabilityVersion": "",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "task-1"
+      },
+      "valid": false
+    },
+    {
+      "id": "numeric-version",
+      "query": {
+        "capabilityVersion": 1,
+        "uri": "https://example.org/types/beads/task",
+        "revision": "task-1"
+      },
+      "valid": false
+    },
+    {
+      "id": "unknown-version",
+      "query": {
+        "capabilityVersion": "2",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "task-1"
+      },
+      "valid": false
+    },
+    {
+      "id": "local-uri",
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "task",
+        "revision": "task-1"
+      },
+      "valid": false
+    },
+    {
+      "id": "urn-uri",
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "urn:example:task",
+        "revision": "task-1"
+      },
+      "valid": false
+    },
+    {
+      "id": "empty-revision",
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": ""
+      },
+      "valid": false
+    },
+    {
+      "id": "numeric-revision",
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": 2
+      },
+      "valid": false
+    },
+    {
+      "id": "projection",
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "task-1",
+        "view": "properties"
+      },
+      "valid": false
+    },
+    {
+      "id": "paging",
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "task-1",
+        "limit": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "extra-parameter",
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "task-1",
+        "extra": true
+      },
+      "valid": false
+    }
+  ],
+  "response": {
+    "originScope": "https://example.org/",
+    "definition": {
+      "id": "https://example.org/types/beads/task",
+      "revision": "task-1",
+      "type": {
+        "uri": "https://example.org/types/beads/bead-type",
+        "revision": "bead-type-1"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "type": "object"
+        }
+      },
+      "ownedLinks": {
+        "https://example.org/types/beads/refines": [
+          {
+            "id": "https://example.org/types/links/task-conforms",
+            "revision": "declaration-1",
+            "type": {
+              "uri": "https://example.org/types/beads/refines",
+              "revision": "refines-1"
+            },
+            "source": "https://example.org/types/beads/task",
+            "target": {
+              "uri": "https://example.org/types/beads/issue",
+              "revision": "issue-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    }
+  },
+  "recordSource": {
+    "path": "definitions.json",
+    "id": "https://example.org/types/beads/task",
+    "revision": "task-1",
+    "note": "Complete copied literal final-state record, byte-value equality checked. The fixture explicitly supplies example originScope context; it is not derived from that ID and does not claim a production bootstrap Scope."
+  },
+  "unknownVersionProblem": {
+    "type": "https://github.com/gastownhall/bdp/problems/request",
+    "status": 422,
+    "code": "capability-not-supported",
+    "retry": "after-state-change",
+    "capability": "https://github.com/gastownhall/bdp/capabilities/type-definition-read",
+    "capabilityVersion": "2",
+    "parameter": "capabilityVersion"
+  },
+  "unretainedProblem": {
+    "type": "https://github.com/gastownhall/bdp/problems/conflict",
+    "status": 409,
+    "code": "revision-unretained",
+    "retry": "after-state-change",
+    "missing": {
+      "items": [
+        {
+          "kind": "record"
+        }
+      ],
+      "complete": true
+    }
+  },
+  "queryEncodingCases": [
+    {
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "r+1"
+      }
+    },
+    {
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "r 1"
+      }
+    },
+    {
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "r&x=?#%"
+      }
+    },
+    {
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "current"
+      }
+    },
+    {
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "unpinned"
+      }
+    },
+    {
+      "query": {
+        "capabilityVersion": "1",
+        "uri": "https://example.org/types/beads/task",
+        "revision": "\u4fee\u8a02-7"
+      }
+    }
+  ],
+  "semanticCases": [
+    {
+      "id": "local-without-history",
+      "expected": "Complete exact record; no versions inventory or synthesized History provenance"
+    },
+    {
+      "id": "foreign-origin-offline",
+      "expected": "Serve authorized retained exact bytes/origin context; no fetch, receiving ownership claim or URI rewrite"
+    },
+    {
+      "id": "intrinsic-hidden-list",
+      "expected": "Authorized exact lookup does not imply ordinary list presence, registration/default or instantiability"
+    },
+    {
+      "id": "changed-refines",
+      "expected": "Return captured exact Links from requested revision, not current adjacency; separate exact closure reads"
+    },
+    {
+      "id": "missing-pieces-or-parent",
+      "expected": "Positive local reconstruction loss can use narrowly authorized Unretained; separate parent miss prevents full interpretation, not fake partial success"
+    },
+    {
+      "id": "bounds-or-authorization-change",
+      "expected": "Preserve promised complete reads under valid authorization; no truncation, new identity or invented configuration permission"
+    }
+  ],
+  "typesSource": {
+    "commit": "8fc7ce901f747587d352091d7110050059d3dc49",
+    "path": "specs/profiles/types/exact-definition-read-cases.json",
+    "sha256": "54d400edbe9c8ccf60a92cdd547a95eef8fe7ce2a8e70532e85fb3a1c2ee9b79",
+    "schemaSHA256": "ee1bc57c1ac69bfe1145a25c38f03541c66f52944da55075d33ad0a48d19a9ab",
+    "port": {
+      "selection": "typeDefinitionReadSelection",
+      "queryV1": "typeDefinitionReadQueryV1",
+      "capabilityV1": "typeDefinitionReadCapabilityV1",
+      "definitionRecord": "exactTypeDefinitionRecord",
+      "success": "typeDefinitionReadResult",
+      "capabilityProblem": "typeDefinitionReadCapabilityProblem",
+      "problem": "typeDefinitionReadProblem"
+    }
+  },
+  "commonSourceNote": "commonSource is the original Types-local dependency, not the current shared schema hash; native port and known capability are added by this paired source."
+}
