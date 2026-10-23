@@ -27,7 +27,19 @@
           }
         }
       ],
-      "$comment": "Embedded JSON Schema, not a URL. This draft uses 2020-12; external resource resolution, supported vocabularies and admission are separate checks."
+      "$comment": "Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. No general executable extension language is selected initially; unsupported required semantics refuse."
+    },
+    "schemaResources": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^[^#]+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/properties/propertiesSchema"
+      },
+      "$comment": "Candidate retrieval-URI to exact schema-resource map, immutable with Type revision. Values retain standard $id/base/anchor semantics. Complete closure, conflicting bindings and offline resolution require admission checks."
     },
     "id": false,
     "revision": false,
@@ -42,8 +54,25 @@
     "version": {
       "type": "string",
       "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
-      "$comment": "Optional proposed author release label. No inferred conformance, revision matching or upgrade. Publication uniqueness remains open."
-    }
+      "$comment": "Optional informational author release label; labels may repeat across exact revisions. No inferred conformance, revision matching or upgrade."
+    },
+    "abstract": {
+      "type": "boolean",
+      "default": false,
+      "description": "True forbids direct instance affiliation with this exact definition. Does not automatically make refinements abstract."
+    },
+    "propertyAccess": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^/(?:[^~]|~[01])*$"
+      },
+      "additionalProperties": {
+        "enum": ["writable", "init-only", "service-managed"]
+      },
+      "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
+    },
+    "refines": false
   },
   "additionalProperties": true,
   "$defs": {
@@ -130,22 +159,6 @@
       "additionalProperties": false,
       "$comment": "Candidate Bead participation rule: min omitted means zero; max omitted means unbounded. min<=max and intersection with inherited/Link bounds need semantic validation."
     },
-    "endpointTypes": {
-      "oneOf": [
-        {
-          "type": "array",
-          "const": ["*"]
-        },
-        {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/typeReference"
-          }
-        }
-      ]
-    },
     "endpointConstraint": {
       "oneOf": [
         {
@@ -159,27 +172,9 @@
               "enum": ["same", "cross", "either"]
             },
             "types": {
-              "$ref": "#/$defs/endpointTypes"
+              "$ref": "#/$defs/typeSelector"
             }
           },
-          "allOf": [
-            {
-              "if": {
-                "properties": {
-                  "scope": {
-                    "enum": ["cross", "either"]
-                  }
-                }
-              },
-              "then": {
-                "properties": {
-                  "types": {
-                    "const": ["*"]
-                  }
-                }
-              }
-            }
-          ],
           "additionalProperties": false
         },
         {
@@ -193,7 +188,7 @@
           "additionalProperties": false
         }
       ],
-      "$comment": "Candidate endpoint syntax. Nonlocal resources are opaque: no remote Type validation. Cross/either bead forms classify reference addresses only and require wildcard. resource admits an opaque external URI; it does not enable local Link endpoints. Exact Scope-address classification remains to specify. Endpoint pin-mode constraints are deferred."
+      "$comment": "Candidate endpoint syntax. Scope conditions remain binding. Typed cross/either Bead arms can match registered exact Type-definition endpoints using retained accepted facts; arbitrary external resources remain opaque and cannot establish a specific Type. Registration/exact-state admission is semantic, not proved by this shape schema. resource admits an opaque external URI and does not enable local Link endpoints. Scope classification and floating external-definition resolution remain to specify."
     },
     "endpointPair": {
       "type": "object",
@@ -233,10 +228,14 @@
         },
         "acyclic": {
           "type": "boolean"
+        },
+        "allowSelf": {
+          "type": "boolean",
+          "description": "False prohibits equal source and target Resource identities, ignoring revision selectors. True or omission adds no local prohibition; inherited prohibitions remain binding."
         }
       },
       "additionalProperties": false,
-      "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. False/omission adds no local restriction; cannot disable inherited restrictions. No Link minimum or endpoint pin-mode field."
+      "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. unique/acyclic false or omission adds no local restriction; allowSelf false imposes an identity self-link prohibition, true or omission does not. No local value disables inherited restrictions. No Link minimum or endpoint pin-mode field."
     }
   }
 }

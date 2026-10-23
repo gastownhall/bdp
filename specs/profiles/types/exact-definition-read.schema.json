@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/bdp-draft/schemas/exact-definition-read.schema.json",
+  "title": "Candidate exact Type-definition read binding, version 1",
+  "$comment": "Types-local source candidate only. Shared dependency reviewed at PR292 ad6ddd45f4fb35742fbc60be84b0eb6f3b0fd9c1 (SHA256 d9c9822c8abdaae907a966ef076f945043116adb52b94c9c1c71dbaa8c8adf09). No runtime/profile/History adoption; no network retrieval. Definitions are selected explicitly, not by validating this schema root.",
+  "$defs": {
+    "selection": {
+      "type": "object",
+      "required": [
+        "capabilityVersion"
+      ],
+      "properties": {
+        "capabilityVersion": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "queryV1": {
+      "type": "object",
+      "required": [
+        "capabilityVersion",
+        "uri",
+        "revision"
+      ],
+      "properties": {
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "uri": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilityV1": {
+      "type": "object",
+      "required": [
+        "operation"
+      ],
+      "properties": {
+        "operation": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    "definitionRecord": {
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/beadRecord"
+        },
+        {
+          "type": "object",
+          "required": [
+            "ownedLinks"
+          ],
+          "properties": {
+            "type": {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedTypeReference"
+            },
+            "links": false,
+            "ownedLinks": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedTypeReference"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "success": {
+      "type": "object",
+      "required": [
+        "definition"
+      ],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/definitionRecord"
+        },
+        "originScope": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilityProblem": {
+      "type": "object",
+      "required": [
+        "type",
+        "status",
+        "code",
+        "retry",
+        "capability",
+        "capabilityVersion",
+        "parameter"
+      ],
+      "properties": {
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request"
+        },
+        "status": {
+          "const": 422
+        },
+        "code": {
+          "const": "capability-not-supported"
+        },
+        "retry": {
+          "const": "after-state-change"
+        },
+        "capability": {
+          "const": "https://github.com/gastownhall/bdp/capabilities/type-definition-read"
+        },
+        "capabilityVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameter": {
+          "const": "capabilityVersion"
+        },
+        "title": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri"
+        }
+      },
+      "additionalProperties": false
+    },
+    "problem": {
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/readProblem"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "enum": [
+                    "malformed-request",
+                    "invalid-parameter",
+                    "unauthenticated",
+                    "forbidden",
+                    "resource-not-found",
+                    "resource-pruned",
+                    "resource-erased",
+                    "request-too-large",
+                    "limit-exceeded",
+                    "rate-limited",
+                    "temporarily-unavailable",
+                    "revision-unretained"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "$ref": "#/$defs/capabilityProblem"
+        }
+      ]
+    }
+  }
+}
