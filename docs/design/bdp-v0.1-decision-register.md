@@ -139,6 +139,17 @@ for genuine composition. The original PR284/Types inputs and all 29 decision
 rows retain their authority/status; source review is not semantic execution or
 incorporation. This adds no owner recount or changed implementation pin.
 
+The next source cohort adds draft [PR292](https://github.com/gastownhall/bdp/pull/292)
+at `ad6ddd45`, [PR293](https://github.com/gastownhall/bdp/pull/293) at repaired
+`e085aba7`, and [PR294](https://github.com/gastownhall/bdp/pull/294) at repaired
+`fd8d7c9e`, plus the later Types-local [PR283](https://github.com/gastownhall/bdp/pull/283)
+candidate `8fc7ce90`. Exact paired files, input stages and evidence limits are in
+the same front-door section. Original Types snapshot `a2aa88d9` and all 29
+reviewed rows/drivers remain unchanged; human rulings retain their own source
+authority. These later candidates change no ruling or incorporation state.
+Bounded source review and the reported 470- and 481-test artifact slices do not
+execute a renderer/provider or close full #152/#282 composition.
+
 ## Genuine unresolved work and deliberate exclusions
 
 Trish/Sybil should derive settled cases before sending another question to
