@@ -398,16 +398,19 @@ describe("illustrative property and metadata replacement examples", () => {
     }
   });
 
-  it("accepts root replacements on either document and rejects malformed patches on either Resource kind", () => {
+  it("accepts empty patches and root replacements on either document and rejects malformed or omitted edits", () => {
     for (const [schemaRef, subject] of [
       ["#/$defs/updateBeadRequest", { bead: "beads/a" }],
       ["#/$defs/updateLinkRequest", { link: "links/a" }],
     ] as const) {
+      for (const invalid of [subject, { ...subject, expectedRevision: "resource-r1" }]) {
+        expect(compiledDefinition(schemaRef)(invalid), `${schemaRef} omitted edits`).toBe(false);
+      }
       for (const field of ["propertiesChange", "metadataChange"] as const) {
+        expectValid(schemaRef, { ...subject, [field]: [] }, `${schemaRef} ${field} empty patch`);
         const valid = { ...subject, [field]: [{ op: "replace", path: "", value: {} }] };
         expectValid(schemaRef, valid, `${schemaRef} ${field} root replacement`);
         for (const invalid of [
-          { ...subject, [field]: [] },
           { ...subject, [field]: [{ op: "replace", path: "" }] },
           { ...subject, [field]: [{ op: "replace", path: "/bad~2", value: {} }] },
         ]) {
