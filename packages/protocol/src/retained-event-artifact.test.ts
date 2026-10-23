@@ -275,6 +275,50 @@ describe("retained Event source/grammar correspondence, without CLI/provider exe
     );
   });
 
+  it("pairs nonempty observed samples and last-observed deletion context in both modes", () => {
+    const observed = paper.observedSequence;
+    expect(observed.backendFinalRevisionKnown).toBe(false);
+    expect(observed.backendFinalAffiliationKnown).toBe(false);
+    expect(observed.absenceConfirmed).toBe(true);
+    for (const page of [observed.postimagePage, observed.deltaPage]) {
+      expect(valid("retainedEventPage", page)).toBe(true);
+      expect(page.policy.observation).toBe("observed");
+      const [changed, disappeared] = page.events;
+      expect(changed.origin).toBe("observation");
+      expect(changed.previousRevision).toBe(observed.before.revision);
+      expect(changed.revision).toBe(observed.sampled.revision);
+      expect(observed.unobservedBackendIntermediate).not.toContain(changed.previousRevision);
+      expect(changed).not.toHaveProperty("transaction");
+      expect(disappeared.origin).toBe("observation");
+      expect(disappeared.revision).toBe(observed.sampled.revision);
+      expect(disappeared.effect.deleted.resource).toEqual({
+        id: observed.sampled.id,
+        type: observed.sampled.type,
+        revision: observed.sampled.revision,
+      });
+      expect(disappeared).not.toHaveProperty("transaction");
+      expect(disappeared).not.toHaveProperty("previousRevision");
+      expect(disappeared.effect.deleted.resource).not.toHaveProperty("properties");
+    }
+    expect(observed.postimagePage.events[0].effect.resource).toEqual(observed.sampled);
+    expect(observed.deltaPage.events[0].effect.type).toEqual(observed.sampled.type);
+    expect(observed.deltaPage.events[0].effect.propertiesChange).toEqual([
+      { op: "replace", path: "/title", value: observed.sampled.properties.title },
+    ]);
+  });
+
+  it("records precise observed refusal controls when required context or absence is unknown", () => {
+    for (const control of paper.observedSequence.refusals) {
+      expect(control.priorContextKnown && control.absenceConfirmed).toBe(false);
+      expect(valid("retainedEventProblem", control.response)).toBe(true);
+      expect(control.response.code).toBe("foreign-view");
+      expect(control.response.status).toBe(409);
+      expect(control.response).not.toHaveProperty("events");
+      expect(control.response).not.toHaveProperty("cursor");
+      expect(control.cursorAfter).toBe(control.cursorBefore);
+    }
+  });
+
   it("uses existing precise read Problems rather than importing receipt/replica errors", () => {
     for (const problem of paper.problems)
       expect(valid("retainedEventProblem", problem), problem.code).toBe(true);

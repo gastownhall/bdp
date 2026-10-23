@@ -1070,6 +1070,212 @@
     {
       "id": "live-poll",
       "expect": "Follow drains fixed ranges then polls same JSON source; no independent SSE log or public epoch."
+    },
+    {
+      "id": "observed-predecessor",
+      "expect": "Observed r1-to-r4 spans complete known samples; no invented r3 predecessor, original mutation count or transaction."
+    },
+    {
+      "id": "observed-disappearance",
+      "expect": "Confirmed absence reports last-observed r4 identity/context under observation origin and observed policy; unknown backend-final state is not invented. Missing required prior context or unconfirmed absence refuses without cursor advance."
     }
-  ]
+  ],
+  "observedSequence": {
+    "meaning": "Paper control: last-observed predecessor/deletion context, never unknown immediate/final backend state. Not provider execution.",
+    "before": {
+      "id": "https://work.example/acme/task-42",
+      "type": {
+        "uri": "https://work.example/acme/Task",
+        "revision": "definition-r3"
+      },
+      "revision": "observed-r1",
+      "properties": {
+        "title": "A"
+      },
+      "metadata": {}
+    },
+    "sampled": {
+      "id": "https://work.example/acme/task-42",
+      "type": {
+        "uri": "https://work.example/acme/Task",
+        "revision": "definition-r4"
+      },
+      "revision": "observed-r4",
+      "properties": {
+        "title": "D"
+      },
+      "metadata": {}
+    },
+    "unobservedBackendIntermediate": ["backend-r2", "backend-r3"],
+    "backendFinalRevisionKnown": false,
+    "backendFinalAffiliationKnown": false,
+    "absenceConfirmed": true,
+    "postimagePage": {
+      "source": "https://work.example/acme/observations",
+      "selection": {
+        "representation": "postimage"
+      },
+      "policy": {
+        "observation": "observed",
+        "description": "Periodic complete samples; intermediate backend mutations and final backend state before disappearance may be unobserved.",
+        "minimumRetentionSeconds": 60,
+        "minimumCursorLifetimeSeconds": 30,
+        "representations": ["postimage", "delta"]
+      },
+      "coverage": {
+        "start": "observed-start",
+        "retainedFrom": "observed-start",
+        "through": "confirmed-disappearance"
+      },
+      "events": [
+        {
+          "id": "sample-update-r4",
+          "source": "https://work.example/acme/observations",
+          "time": "2026-10-23T03:00:00Z",
+          "origin": "observation",
+          "previousRevision": "observed-r1",
+          "revision": "observed-r4",
+          "representation": "postimage",
+          "effect": {
+            "operation": "updateBead",
+            "bead": "https://work.example/acme/task-42",
+            "resource": {
+              "id": "https://work.example/acme/task-42",
+              "type": {
+                "uri": "https://work.example/acme/Task",
+                "revision": "definition-r4"
+              },
+              "revision": "observed-r4",
+              "properties": {
+                "title": "D"
+              },
+              "metadata": {}
+            }
+          }
+        },
+        {
+          "id": "observed-disappearance",
+          "source": "https://work.example/acme/observations",
+          "time": "2026-10-23T03:10:00Z",
+          "origin": "observation",
+          "revision": "observed-r4",
+          "effect": {
+            "operation": "deleteBead",
+            "bead": "https://work.example/acme/task-42",
+            "deleted": {
+              "resourceKind": "bead",
+              "resource": {
+                "id": "https://work.example/acme/task-42",
+                "type": {
+                  "uri": "https://work.example/acme/Task",
+                  "revision": "definition-r4"
+                },
+                "revision": "observed-r4"
+              }
+            }
+          },
+          "representation": "postimage"
+        }
+      ],
+      "cursor": "after-observed-disappearance",
+      "next": null
+    },
+    "deltaPage": {
+      "source": "https://work.example/acme/observations",
+      "selection": {
+        "representation": "delta"
+      },
+      "policy": {
+        "observation": "observed",
+        "description": "Periodic complete samples; intermediate backend mutations and final backend state before disappearance may be unobserved.",
+        "minimumRetentionSeconds": 60,
+        "minimumCursorLifetimeSeconds": 30,
+        "representations": ["postimage", "delta"]
+      },
+      "coverage": {
+        "start": "observed-start",
+        "retainedFrom": "observed-start",
+        "through": "confirmed-disappearance"
+      },
+      "events": [
+        {
+          "id": "sample-update-r4",
+          "source": "https://work.example/acme/observations",
+          "time": "2026-10-23T03:00:00Z",
+          "origin": "observation",
+          "previousRevision": "observed-r1",
+          "revision": "observed-r4",
+          "representation": "delta",
+          "effect": {
+            "operation": "updateBead",
+            "bead": "https://work.example/acme/task-42",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r4"
+            },
+            "propertiesChange": [
+              {
+                "op": "replace",
+                "path": "/title",
+                "value": "D"
+              }
+            ]
+          }
+        },
+        {
+          "id": "observed-disappearance",
+          "source": "https://work.example/acme/observations",
+          "time": "2026-10-23T03:10:00Z",
+          "origin": "observation",
+          "revision": "observed-r4",
+          "effect": {
+            "operation": "deleteBead",
+            "bead": "https://work.example/acme/task-42",
+            "deleted": {
+              "resourceKind": "bead",
+              "resource": {
+                "id": "https://work.example/acme/task-42",
+                "type": {
+                  "uri": "https://work.example/acme/Task",
+                  "revision": "definition-r4"
+                },
+                "revision": "observed-r4"
+              }
+            }
+          },
+          "representation": "delta"
+        }
+      ],
+      "cursor": "after-observed-disappearance",
+      "next": null
+    },
+    "refusals": [
+      {
+        "reason": "required prior context unavailable",
+        "priorContextKnown": false,
+        "absenceConfirmed": true,
+        "response": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "foreign-view",
+          "status": 409,
+          "retry": "after-state-change"
+        },
+        "cursorBefore": "last-complete-page",
+        "cursorAfter": "last-complete-page"
+      },
+      {
+        "reason": "hot-tier miss does not establish absence",
+        "priorContextKnown": true,
+        "absenceConfirmed": false,
+        "response": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "foreign-view",
+          "status": 409,
+          "retry": "after-state-change"
+        },
+        "cursorBefore": "last-complete-page",
+        "cursorAfter": "last-complete-page"
+      }
+    ]
+  }
 }

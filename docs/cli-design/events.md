@@ -107,6 +107,15 @@ operation/target and carries `resource` instead of update instructions. It is th
 published transition's complete Resource, not a later GET. Both modes use deletion
 identity/context; deletion does not invent a Resource revision or retain properties.
 
+For a declared sampled source, observed r1→r4 means its last complete observation
+changed from r1 to r4; it does not claim r1 immediately preceded r4 in the backend.
+Delta spans those two known records without inventing skipped r2/r3. If confirmed
+absence follows r4, an observation-origin deletion reports r4's last-observed
+identity/affiliation/endpoints, not an unknown backend-final version or an
+authoritative delete receipt. Missing required prior context or unconfirmed
+absence uses the explicit gap/refusal path. See the [native interpretation](../../specs/profiles/core/events.md#observed-predecessors-and-disappearance)
+and the nonempty [observed examples](../../fixtures/retained-events/candidate.json).
+
 ## Derived owners and incident Links
 
 A Link effect can also publish an owner-Bead transition. That transition uses

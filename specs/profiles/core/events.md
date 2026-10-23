@@ -151,6 +151,39 @@ The operation target, record/deleted identity and envelope revision MUST agree.
 Each Event's source and representation MUST agree with its selected page. These
 cross-value obligations require semantic validation beyond the JSON grammar.
 
+### Observed predecessors and disappearance
+
+For `origin:"observation"` under `policy.observation:"observed"`, the sequence is
+the source's actual observations, not an assertion of every backend mutation.
+If its complete prior observation is X@r1 and its next complete observation is
+X@r4, `previousRevision:r1` and `revision:r4` link those two known states. The
+backend may have passed through unobserved r2/r3; r1 MUST NOT be described as its
+proven immediate mutation predecessor. The postimage is the sampled r4 record;
+an offered delta transforms the known r1 record to that r4 record, not an invented
+r3-to-r4 patch. No intermediate Event, revision, commit time or transaction is
+inferred. A declared sampling limitation is not itself an unexpected coverage gap.
+
+For such an observed disappearance, "final live" means the last complete live
+record in **this observed sequence**, not a proven final backend version. After
+X@r4 and confirmed absence, a deletion observation reports r4 and that record's
+known affiliation/kind and, for a Link, endpoints. It MUST use observation origin
+and the observed policy; it is not an authoritative deletion result/tombstone or
+proof that no unseen retype/update occurred before backend deletion. No final
+backend revision or affiliation is manufactured. Delta and postimage modes report
+the same last-observed deletion context and mint no new Resource revision.
+
+The source must possess the complete required preceding record/context and must
+be able to distinguish absence from forbidden/temporary/tier-only unavailability.
+A hot-tier miss is insufficient. If it cannot establish that context or absence,
+it uses the existing explicit coverage-loss/refusal path; it cannot emit an
+invented deletion or advance a cursor past the unresolved fact. Unexpected loss
+of the observation mechanism also remains a gap, distinct from its declared
+sampling interval. `committed` coverage and Write-origin facts still require
+their actual published predecessor/final-live context; these observation rules
+do not weaken Write durability or decide Trish's batch publication model.
+
+### Postimage and delta representations
+
 In required postimage mode, create/update `effect.resource` is the complete published
 Resource at that transition, including metadata, recorded affiliation and owned
 state when applicable; it has no optional incident-Link aggregate. It MUST NOT be
