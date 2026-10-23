@@ -100,4 +100,6 @@ ordinary update field using explicit replacement/patch/Type/guard/provenance opt
 
 Optional batch/result/recovery transport is separate source work; these shared
 ordinary fields add no non-atomic sequence, set-write operation or public receipt.
-Required Events/D1/D2, Types integration and profile adoption remain explicit gates.
+The [accepted D1/D2 Event minimum](event-decisions-20261022.md) has a paired
+[source](events.md). Batch/owner publication, Types integration and profile adoption
+remain explicit gates; object edits do not decide those policies.

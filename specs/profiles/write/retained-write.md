@@ -9,8 +9,9 @@ version: "0.1"
 Write inherits [retained Core](../core/retained-core.md) and adds individually atomic
 Resource CRUD and aliases, safe retry outcomes and committed required Event facts.
 The [canonical CLI](../../../docs/cli-design/bdp-cli.md) expresses the same operations.
-This is selected v0.1 source, not the inherited Read+Update/Transactional contract,
-a completed Event specification or an implementation claim.
+This is selected v0.1 source, not the inherited Read+Update/Transactional contract
+or an implementation claim. Events now has a paired source; actual batch/owner
+and Types composition remain separate gates.
 
 ## Eight ordinary targets, one Scope and complete outcomes
 
@@ -147,9 +148,11 @@ Explicit operation postimages retain actual transitions, including reversals. Ex
 multi-operation induced-owner allocation remains Trish's actual composition gate,
 not a token example deciding how many owner revisions to create.
 
-Required Event facts become durable with effects; exact payload baseline and
-read-only/external coverage remain the existing D1/D2 questions. The inherited
-replica Event/epoch/receipt machinery is not silently adopted in their place. This
-entry cannot be advertised as complete until those facts and normal composition
-are qualified. Ordinary reads retain Core semantics: no cross-replica freshness
+Required [Event facts](../core/events.md) become durable with effects. Donna has
+selected required postimages/optional deltas and declared coverage/bounded replay/
+explicit gaps. Actual batch publication and induced-owner allocation are separate
+unanswered choices; earlier operation-local prose above is unadopted input, not an
+answer. Replica Event/epoch/receipt machinery is not imported. This entry cannot
+be advertised as complete until actual composition and qualification finish.
+Ordinary reads retain Core semantics: no cross-replica freshness
 checkpoint/read-your-writes guarantee or hot-tier absence shortcut is added.

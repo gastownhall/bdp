@@ -11,8 +11,11 @@ Paired CLI-first [batch source](../../../docs/cli-design/atomic-batch.md) under
 v0.1 contract, [object edits](object-edits.md), [affiliations](../core/affiliations.md)
 and ordinary guards/native constraints apply. This is a retained candidate feature,
 not a dependency on Transactional/replica facilities or adoption of their old schema.
-Event D1/D2/encoding, actual Types/profile composition and multi-operation induced-
-owner revision allocation remain adoption gates. No example selects those policies.
+[Event D1/D2](../../../docs/cli-design/event-decisions-20261022.md) are answered and
+have a paired [source](../core/events.md). Actual Types/profile and batch publication/
+net-zero/induced-owner composition remain adoption gates. The earlier operation-local
+examples below are unadopted proposals, not Donna's answer to Trish's new batch
+commit-model question.
 
 ## Discover and explicitly select
 
@@ -217,6 +220,6 @@ version 1 contains no template/interpolation language. Added operations or chang
 critical semantics require another explicitly selected capability version, preserving
 version 1 meaning or truthfully refusing it. A registered executable adapter must
 verify this atomic feature before effects and invoke one atomic owner for the whole
-document. Detailed hosting/`serve` remains deferred. Required Events/D1/D2/encoding,
-actual Types/profile and owner-allocation composition precede any advertisement or
+document. Detailed hosting/`serve` remains deferred. Required [Events](../core/events.md),
+actual Types/profile and batch publication/owner composition precede any advertisement or
 implementation adoption. Old v0 artifacts/runtime/evidence remain at their actual pins.

@@ -52,6 +52,7 @@ numbers rather than round them. Null, empty and omission remain distinct.
 | link show REF [--revision TOKEN] | Same read with actual Link assertion |
 | list [SCOPE] [FILTERS] | Bead inventory, no domain/Type default |
 | link list [SCOPE] [LINK-FILTERS] | Link inventory or selected incident population |
+| events [RESOURCE]; link events RESOURCE | Required postimage observation, optional selected delta; [Events](events.md) |
 | versions REF; link versions REF | Optional complete History versions page, below |
 | create [SCOPE] --type REF [--id ID] [INITIAL-OBJECTS] | createBead singleton |
 | link create [SCOPE] --type REF --source REF --target REF [--id ID] [INITIAL-OBJECTS] | createLink singleton |
@@ -138,7 +139,7 @@ and exact native continuation. Bodyless304 has no items/completion. This descrip
 is outside the six ordinary-read framing schema; no full registry implementation
 or renderer execution is claimed by paper examples.
 
-## Honest output, errors and required Event gates
+## Honest output, errors and required Events
 
 Default point/mutation display is detail, collection table; redirection never picks
 a format. --output-format default|detail|table|json|jsonl follows each declared
@@ -174,19 +175,21 @@ scope_binding_conflict, invalid_value, unsupported_capability, retry_state_inval
 write_outcome_unknown, interrupted, output_failed and the declared read/alias codes.
 These are target author choices, not a renumbering of shipped Preview exits.
 
-Required Event signatures remain events [RESOURCE], link events RESOURCE with
+Required Event signatures are events [RESOURCE], link events RESOURCE with
 --from retained|now or mutually exclusive --after TOKEN, optional --follow,
---representation postimage|delta and possibly --omit-revision-provenance. D1/D2
-still decide mandatory representation and read-only/external coverage/replay.
-Their default/transport/cursor/required vocabulary cannot be silently filled from
-replica changes. No predicate language, list masks, JSONPath/Pointer property
-projection or changes command is added. Subscriber compatibility must select
-supported semantics or refuse before delivery; unknown required facts cannot be
-silently skipped. Actual Event wire mapping and delta/Type/owner encodings remain
-a named adoption gate, not completed functionality in this entry.
+--representation postimage|delta and --page-size N. [D1/D2 are answered](event-decisions-20261022.md):
+postimages required, deltas optional; declared observation coverage with bounded
+replay and explicit gaps. The paired [Event CLI](events.md) and
+[native source](../../specs/profiles/core/events.md) define postimage default,
+finite JSON/polling, cursor/coverage and the six mutation-name delta vocabulary.
+No predicate language, masks, wire provenance suppression or changes command is
+added. Required unknown semantics stop progress. Batch publication/owner allocation,
+actual Types composition and implementation qualification remain separate gates;
+this source does not select one Event per authored batch member.
 
 > **Cleo — Finite surface:** Scope defaults, singular property flags, exact/family
 > filters, revision terminology and output roots stay as recorded in the paired
 > modules. The only added ordinary-read context field is the existing C1 delete
 > preview marker. History and mutation descriptors retain their compound context;
-> public Type CLI and Event design gates remain explicit. No interruption request.
+> public Type CLI remains deferred. Event output follows your schema2 framing;
+> batch/owner/Types composition gates remain explicit. No interruption request.

@@ -1,5 +1,12 @@
 # Finite retained CLI/Core/Write source cutline
 
+**Subsequent bounded Event increment:** Donna has [answered D1/D2](../cli-design/event-decisions-20261022.md).
+The paired [Event CLI](../cli-design/events.md) / [Core source](../../specs/profiles/core/events.md)
+now defines the mandatory postimage baseline and declared-coverage replay. The
+counts/map below remain the exact PR296 source snapshot, not rerun evidence for
+this later increment. Trish's batch publication/owner and Types gates remain open;
+the Event increment does not infer per-operation versus final batch semantics.
+
 Candidate under existing #280/#279/#152/#153 and sole #59, based on reviewed
 PR294 `fd8d7c9e844d357081df4093e440ccdf57dde7d1`. This reuses the existing C1
 paper and [79-section disposition](bdp-v0.1-core-write-disposition.md); it does not

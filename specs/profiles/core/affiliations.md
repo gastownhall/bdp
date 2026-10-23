@@ -12,7 +12,8 @@ It changes instance affiliations and new owned-state captures in Core/Write. The
 [separate candidate schema](bdp-v0.1.schema.json) carries the common shape;
 the held v0 schema/runtime are not upgraded. Types-profile interpretation composes
 with [Trish's exact PR283 source](https://github.com/gastownhall/bdp/blob/a2aa88d9b5a0e0d78f48de2967d4ceaa38177876/specs/profiles/types/types.md).
-Profile factoring and required Event representation remain adoption gates.
+Actual Types/profile and batch/owner publication composition remain adoption gates;
+the required Event minimum is now selected in [Events](events.md).
 
 ## One affiliation, independent identity
 
@@ -169,14 +170,15 @@ Reference; `@.type.uri` addresses its URI when present. Use the structural predi
 for nominal matching across both shapes, or an explicit supported raw expression.
 This is a deliberate v0.1 shape change, not string-only compatibility under v0.
 
-## Required Events: explicit remaining gap
+## Required Events and remaining composition
 
-A Type-only effect requires an observable committed update; it MUST NOT be omitted
-or represented by a fake property patch. Event `type` remains the fact discriminator;
-`subjectType` carries the subject's recorded affiliation. The new schema widens that
-carrier but inherited `updatedData`/`ownedLinkDelta` still require another delta
-member and cannot yet express an affiliation-only effect. Existing delta application
-also assumes stable nominal buckets. These are adoption gaps, not passing behavior.
-Donna's D1/D2 representation/coverage choices and the coordinated Event payload/
-ownership transition amendment remain pending. No example here chooses required
-postimages versus deltas or general read-only observation guarantees.
+A Type-only published effect requires an observable update; it MUST NOT be omitted
+or represented by a fake property patch. The selected [Event source](events.md)
+uses operation names and recorded `type`, with required postimages and optional
+delta, replacing the inherited event/updatedData/ownedLinkDelta entry for this
+candidate. Delta `derived.ownedLinks` records the new captured map or removal of
+owner status, handling nominal bucket entry/exit without invented Link mutations.
+Donna has accepted D1/D2; batch publication/owner allocation, actual Types composition
+and qualification remain gates. Earlier operation-local batch statements in this
+unadopted amendment must compose with Trish's separate unanswered commit-model
+question; neither the Event carrier nor a structural PASS answers it.

@@ -9,9 +9,9 @@ version: "0.1"
 This is the positive Core entry for the selected [v0.1 binding](contract-binding.md),
 paired with the [canonical CLI](../../../docs/cli-design/bdp-cli.md). It replaces the
 inherited cumulative Read/Read+Update/Transactional **selection model** for this
-candidate, not the old v0 contract. The required Event source is not optional;
-its unanswered payload/coverage decisions prevent a complete adoption claim.
-Actual Types/profile composition and normal qualification remain gates.
+candidate, not the old v0 contract. The required [Event source](events.md) uses
+Donna's accepted postimage/replay minimum. Actual batch/owner publication,
+Types/profile composition and normal qualification remain adoption gates.
 
 ## Closed responsibility boundary
 
@@ -34,6 +34,7 @@ below taking precedence over inherited v0 examples/profile vocabulary:
 | Alias resolution, unknown/deleted Resource disclosure and HTTP failures | [Alias resolution](core.md#alias-resolution), [Reads after deletion](core.md#reads-after-deletion), [Problem details](core.md#problem-details) and HTTP/CORS/conditional/HEAD rules |
 | Optional complete application History | [Historical resolution](core.md#historical-resolution), only when historicalResolution is advertised; no weakening into a partial capability |
 | Optional exact definition operation | [Type-definition read](type-definition-read.md), only in its explicitly selected interpreting context; not general History or a complete Types advertisement |
+| Required observation | [Events](events.md), required postimages and truthful bounded replay; optional delta uses the six mutation names |
 
 Inherited embedded Type descriptors, mandatory `types` inventory, sequence,
 Transactional discovery, public epochs/positions/views, receipts, replica snapshots,
@@ -58,7 +59,8 @@ absolute Bead/Link inventory URLs and absolute `events` navigation. Optional fie
 are aliases navigation, order, Core limits, maximumEndpointMultiplicity under its
 existing policy, historicalResolution and capabilities. No `types` inventory is
 required or guessed. `events` is required navigation for a required obligation,
-not proof that Event semantics have been completed or a transport selected.
+not independent proof of Event conformance. The selected source uses finite v0.1
+JSON replay; optional SSE is not selected by this navigation member.
 
 Write uses the same Core shapes/meaning and adds required operations/aliases
 navigation; see [retained Write](../write/retained-write.md). Unknown capability
@@ -85,18 +87,18 @@ never acquire BDP-Collection-Kind.
 
 ## Required observations and compatibility gates
 
-Core MUST provide required Events; Write additionally owes durable facts for its
-committed effects. D1 still selects the mandatory payload baseline, and D2 the
-coverage/replay duties of read-only or externally changing sources. No invented
-answer, unversioned stream, ignorable unknown semantic message or partial claim
-can fill that gap. Event navigation in a shape-valid discovery is not conformance.
+Core MUST provide [required Events](events.md); Write additionally owes durable
+facts for its committed effects. Postimage is the required common representation;
+delta is optional. Sources declare observation coverage, bounded replay and gaps
+without fabricating external original history. Native retainedEventPage is the
+selected entry. Event navigation in shape-valid discovery is not conformance.
 
 Adding a feature MUST preserve selected base Resource/read/result meanings, issued
 revision addresses, authorization and cursor context. Added validation may refuse
 new inadmissible state; it cannot reinterpret old committed values, keys or retained
 addresses. A richer service preserves the selected Event representation or refuses
-an unsupported subscription before delivery; the Event binding still needs its
-actual source amendment. Core does not promise global latest state, cross-replica
+an unsupported subscription before delivery under the selected Event source.
+Core does not promise global latest state, cross-replica
 read-your-writes, stable portable identity across canonical-URL changes, automatic
 acquisition or implicit capability downgrade. A hot-tier miss alone proves neither
 absence nor erasure; temporary backend unavailability stays a service failure.

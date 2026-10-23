@@ -4,7 +4,9 @@ CLI-first #152 source, paired with the [batch protocol](../../specs/profiles/wri
 under sole #59. Use the ordinary [object edits](object-edits.md), [affiliations](affiliations-and-owned-state.md)
 and [Scope binding](scope-and-references.md). This is paper design, not an implemented
 compiler/provider. The concrete choices below extend C1; they are reviewable author
-choices, not new human rulings. Required Event D1/D2 remain unanswered.
+choices, not new human rulings. [Event D1/D2 are now answered](event-decisions-20261022.md).
+Trish's separate batch publication/net-zero questions remain unanswered; the
+operation-local result examples in this unadopted source do not settle them.
 
 ## One document, one decision
 
@@ -171,6 +173,7 @@ original labels. These choices are explicit in the paired protocol.
 
 Future parameterized/stored batches must be explicitly selected/versioned and
 materialize this ordinary representation. No string substitution, result path,
-revision capture or template engine is specified. Events remain required, with
-D1/D2/encoding and actual profile/Types/owner-allocation composition still adoption
-gates. `serve`, runtime/Vickie/product pins and Experimental stay held.
+revision capture or template engine is specified. Events remain required under the
+paired [source](events.md); batch publication/owner allocation and actual Types
+composition remain adoption gates. `serve`, runtime/Vickie/product pins and
+Experimental stay held.

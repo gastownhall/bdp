@@ -3519,11 +3519,13 @@ distinct from response negotiation.
 > below are required only by the Transactional profile. Read and Read+Update do
 > not publish or expose BDP Events.
 
-**v0.1 composition hold:** the delta model and reconstruction algorithm below
-are inherited v0 input. Widening `subjectType` does not encode Type-only effects
-or ownership bucket entry/exit. Required Events, their selected baseline payload
-and read-only coverage must compose before v0.1 adoption; no delta/postimage
-choice follows from these inherited examples.
+**v0.1 source replacement:** the delta model and reconstruction algorithm below
+remain inherited v0 input. The selected [Core Event source](../core/events.md)
+uses required postimages/optional deltas, declared coverage/bounded replay and
+the six mutation names, including truthful Type/owned-state effects. Its named
+retainedEventPage entry replaces these inherited Event helpers for the candidate;
+actual batch publication/owner and Types composition remain gates. Nothing below
+answers Trish's separate batch commit-model question.
 
 An **Event** is an immutable authority-generated record of a committed fact.
 Each Event has an immutable ID that is unique within exactly one **Event
@@ -3777,9 +3779,10 @@ requirements do not establish full Memory compatibility.
 
 ### Transactional revision and History extensions
 
-This inherited Event contract is not yet the complete v0.1 Event amendment.
-Affiliation-only updates are effects and need truthful facts, but the inherited
-payload cannot yet encode them; see the [explicit Event gap](../core/affiliations.md#required-events-explicit-remaining-gap).
+This is inherited Event input, not the selected v0.1 Event entry. The paired
+[Event source](../core/events.md) represents affiliation-only and derived owned
+state; [remaining composition](../core/affiliations.md#required-events-and-remaining-composition)
+concerns actual Types and batch/owner publication, not unanswered D1/D2.
 
 A semantic no-op emits no `updated` Event. A change to properties or common
 metadata is one Resource transition with one new revision and one `updated`

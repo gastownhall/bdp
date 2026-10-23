@@ -6619,6 +6619,1073 @@
         }
       },
       "additionalProperties": false
+    },
+    "retainedEventQuery": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "from": {
+          "enum": ["retained", "now"]
+        },
+        "after": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "representation": {
+          "enum": ["postimage", "delta"]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false,
+      "not": {
+        "required": ["from", "after"],
+        "type": "object",
+        "properties": {
+          "from": true,
+          "after": true
+        }
+      }
+    },
+    "retainedEventSelection": {
+      "type": "object",
+      "required": ["representation"],
+      "properties": {
+        "representation": {
+          "enum": ["postimage", "delta"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "retainedEventPolicy": {
+      "type": "object",
+      "required": [
+        "observation",
+        "description",
+        "minimumRetentionSeconds",
+        "minimumCursorLifetimeSeconds",
+        "representations"
+      ],
+      "properties": {
+        "observation": {
+          "enum": ["committed", "observed"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minimumRetentionSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minimumCursorLifetimeSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "representations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["postimage", "delta"]
+          },
+          "contains": {
+            "const": "postimage"
+          }
+        },
+        "maximumPageSize": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "retainedEventCoverage": {
+      "type": "object",
+      "required": ["start", "retainedFrom", "through"],
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "retainedFrom": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "through": {
+          "$ref": "#/$defs/wireToken"
+        }
+      },
+      "additionalProperties": false
+    },
+    "retainedEventCommon": {
+      "type": "object",
+      "required": ["id", "source", "time", "origin", "revision"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "time": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "origin": {
+          "enum": ["write", "observation"]
+        },
+        "transaction": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "previousRevision": {
+          "$ref": "#/$defs/revision"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "origin": {
+                "const": "write"
+              }
+            },
+            "required": ["origin"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["transaction"],
+            "type": "object",
+            "properties": {
+              "transaction": true
+            }
+          }
+        }
+      ]
+    },
+    "retainedEventDeleted": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["resourceKind", "resource"],
+          "properties": {
+            "resourceKind": {
+              "const": "bead"
+            },
+            "resource": {
+              "$ref": "#/$defs/resourceIdentity"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["resourceKind", "resource", "source", "target"],
+          "properties": {
+            "resourceKind": {
+              "const": "link"
+            },
+            "resource": {
+              "$ref": "#/$defs/resourceIdentity"
+            },
+            "source": {
+              "$ref": "#/$defs/reference"
+            },
+            "target": {
+              "$ref": "#/$defs/reference"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "retainedPostimageEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["operation", "id", "resource"],
+          "properties": {
+            "operation": {
+              "const": "createBead"
+            },
+            "id": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "resource": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/beadRecord"
+                },
+                {
+                  "type": "object",
+                  "required": ["metadata"],
+                  "properties": {
+                    "metadata": true,
+                    "links": false
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["operation", "bead", "resource"],
+          "properties": {
+            "operation": {
+              "const": "updateBead"
+            },
+            "bead": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "resource": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/beadRecord"
+                },
+                {
+                  "type": "object",
+                  "required": ["metadata"],
+                  "properties": {
+                    "metadata": true,
+                    "links": false
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["operation", "bead", "deleted"],
+          "properties": {
+            "operation": {
+              "const": "deleteBead"
+            },
+            "bead": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "deleted": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/retainedEventDeleted"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "resourceKind": {
+                      "const": "bead"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["operation", "id", "resource"],
+          "properties": {
+            "operation": {
+              "const": "createLink"
+            },
+            "id": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "resource": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/linkRecord"
+                },
+                {
+                  "type": "object",
+                  "required": ["metadata"],
+                  "properties": {
+                    "metadata": true
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["operation", "link", "resource"],
+          "properties": {
+            "operation": {
+              "const": "updateLink"
+            },
+            "link": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "resource": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/linkRecord"
+                },
+                {
+                  "type": "object",
+                  "required": ["metadata"],
+                  "properties": {
+                    "metadata": true
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["operation", "link", "deleted"],
+          "properties": {
+            "operation": {
+              "const": "deleteLink"
+            },
+            "link": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "deleted": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/retainedEventDeleted"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "resourceKind": {
+                      "const": "link"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "retainedDeltaEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["operation", "id", "type", "properties", "metadata"],
+          "properties": {
+            "operation": {
+              "const": "createBead"
+            },
+            "id": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "type": {
+              "$ref": "#/$defs/typeReference"
+            },
+            "properties": {
+              "$ref": "#/$defs/properties"
+            },
+            "metadata": {
+              "$ref": "#/$defs/metadata"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["operation", "bead"],
+          "properties": {
+            "operation": {
+              "const": "updateBead"
+            },
+            "bead": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "type": {
+              "$ref": "#/$defs/typeReference"
+            },
+            "properties": {
+              "$ref": "#/$defs/properties"
+            },
+            "metadata": {
+              "$ref": "#/$defs/metadata"
+            },
+            "propertiesChange": {
+              "$ref": "#/$defs/propertyChange"
+            },
+            "metadataChange": {
+              "$ref": "#/$defs/propertyChange"
+            }
+          },
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "not": {
+                "required": ["properties", "propertiesChange"],
+                "type": "object",
+                "properties": {
+                  "properties": true,
+                  "propertiesChange": true
+                }
+              }
+            },
+            {
+              "not": {
+                "required": ["metadata", "metadataChange"],
+                "type": "object",
+                "properties": {
+                  "metadata": true,
+                  "metadataChange": true
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "required": ["operation", "bead", "deleted"],
+          "properties": {
+            "operation": {
+              "const": "deleteBead"
+            },
+            "bead": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "deleted": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/retainedEventDeleted"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "resourceKind": {
+                      "const": "bead"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["operation", "id", "type", "properties", "metadata", "source", "target"],
+          "properties": {
+            "operation": {
+              "const": "createLink"
+            },
+            "id": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "type": {
+              "$ref": "#/$defs/typeReference"
+            },
+            "properties": {
+              "$ref": "#/$defs/properties"
+            },
+            "metadata": {
+              "$ref": "#/$defs/metadata"
+            },
+            "source": {
+              "$ref": "#/$defs/reference"
+            },
+            "target": {
+              "$ref": "#/$defs/reference"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["operation", "link"],
+          "properties": {
+            "operation": {
+              "const": "updateLink"
+            },
+            "link": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "type": {
+              "$ref": "#/$defs/typeReference"
+            },
+            "properties": {
+              "$ref": "#/$defs/properties"
+            },
+            "metadata": {
+              "$ref": "#/$defs/metadata"
+            },
+            "propertiesChange": {
+              "$ref": "#/$defs/propertyChange"
+            },
+            "metadataChange": {
+              "$ref": "#/$defs/propertyChange"
+            }
+          },
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "not": {
+                "required": ["properties", "propertiesChange"],
+                "type": "object",
+                "properties": {
+                  "properties": true,
+                  "propertiesChange": true
+                }
+              }
+            },
+            {
+              "not": {
+                "required": ["metadata", "metadataChange"],
+                "type": "object",
+                "properties": {
+                  "metadata": true,
+                  "metadataChange": true
+                }
+              }
+            }
+          ],
+          "anyOf": [
+            {
+              "required": ["type"],
+              "type": "object",
+              "properties": {
+                "type": true
+              }
+            },
+            {
+              "required": ["properties"],
+              "type": "object",
+              "properties": {
+                "properties": true
+              }
+            },
+            {
+              "required": ["metadata"],
+              "type": "object",
+              "properties": {
+                "metadata": true
+              }
+            },
+            {
+              "required": ["propertiesChange"],
+              "type": "object",
+              "properties": {
+                "propertiesChange": true
+              }
+            },
+            {
+              "required": ["metadataChange"],
+              "type": "object",
+              "properties": {
+                "metadataChange": true
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "required": ["operation", "link", "deleted"],
+          "properties": {
+            "operation": {
+              "const": "deleteLink"
+            },
+            "link": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "deleted": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/retainedEventDeleted"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "resourceKind": {
+                      "const": "link"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "retainedEventDerived": {
+      "type": "object",
+      "required": ["ownedLinks"],
+      "properties": {
+        "ownedLinks": {
+          "oneOf": [
+            {
+              "type": "object",
+              "propertyNames": {
+                "$ref": "#/$defs/absoluteHttpUrl"
+              },
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/linkRecord"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "retainedPostimageEvent": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/retainedEventCommon"
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "effect": {
+                "type": "object",
+                "required": ["operation"],
+                "properties": {
+                  "operation": {
+                    "enum": ["createBead", "createLink"]
+                  }
+                }
+              }
+            },
+            "required": ["effect"]
+          },
+          "then": {
+            "properties": {
+              "previousRevision": false
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "effect": {
+                "type": "object",
+                "required": ["operation"],
+                "properties": {
+                  "operation": {
+                    "enum": ["updateBead", "updateLink"]
+                  }
+                }
+              }
+            },
+            "required": ["effect"]
+          },
+          "then": {
+            "required": ["previousRevision"],
+            "type": "object",
+            "properties": {
+              "previousRevision": true
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "effect": {
+                "type": "object",
+                "required": ["operation"],
+                "properties": {
+                  "operation": {
+                    "enum": ["deleteBead", "deleteLink"]
+                  }
+                }
+              }
+            },
+            "required": ["effect"]
+          },
+          "then": {
+            "properties": {
+              "previousRevision": false
+            }
+          }
+        }
+      ],
+      "required": ["representation", "effect"],
+      "properties": {
+        "representation": {
+          "const": "postimage"
+        },
+        "effect": {
+          "$ref": "#/$defs/retainedPostimageEffect"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "retainedDeltaEvent": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/retainedEventCommon"
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "effect": {
+                "type": "object",
+                "required": ["operation"],
+                "properties": {
+                  "operation": {
+                    "enum": ["createBead", "createLink"]
+                  }
+                }
+              }
+            },
+            "required": ["effect"]
+          },
+          "then": {
+            "properties": {
+              "previousRevision": false
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "effect": {
+                "type": "object",
+                "required": ["operation"],
+                "properties": {
+                  "operation": {
+                    "enum": ["updateBead", "updateLink"]
+                  }
+                }
+              }
+            },
+            "required": ["effect"]
+          },
+          "then": {
+            "required": ["previousRevision"],
+            "type": "object",
+            "properties": {
+              "previousRevision": true
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "effect": {
+                "type": "object",
+                "required": ["operation"],
+                "properties": {
+                  "operation": {
+                    "enum": ["deleteBead", "deleteLink"]
+                  }
+                }
+              }
+            },
+            "required": ["effect"]
+          },
+          "then": {
+            "properties": {
+              "previousRevision": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["derived"],
+            "type": "object",
+            "properties": {
+              "derived": true
+            }
+          },
+          "then": {
+            "properties": {
+              "effect": {
+                "type": "object",
+                "required": ["operation"],
+                "properties": {
+                  "operation": {
+                    "enum": ["createBead", "updateBead"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["effect"],
+            "properties": {
+              "effect": {
+                "type": "object",
+                "required": ["operation"],
+                "properties": {
+                  "operation": {
+                    "const": "updateBead"
+                  }
+                }
+              }
+            },
+            "type": "object"
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": ["derived"],
+                "type": "object",
+                "properties": {
+                  "derived": true
+                }
+              },
+              {
+                "properties": {
+                  "effect": {
+                    "type": "object",
+                    "anyOf": [
+                      {
+                        "required": ["type"],
+                        "type": "object",
+                        "properties": {
+                          "type": true
+                        }
+                      },
+                      {
+                        "required": ["properties"],
+                        "type": "object",
+                        "properties": {
+                          "properties": true
+                        }
+                      },
+                      {
+                        "required": ["propertiesChange"],
+                        "type": "object",
+                        "properties": {
+                          "propertiesChange": true
+                        }
+                      },
+                      {
+                        "required": ["metadata"],
+                        "type": "object",
+                        "properties": {
+                          "metadata": true
+                        }
+                      },
+                      {
+                        "required": ["metadataChange"],
+                        "type": "object",
+                        "properties": {
+                          "metadataChange": true
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": ["effect"],
+            "properties": {
+              "effect": {
+                "type": "object",
+                "required": ["operation"],
+                "properties": {
+                  "operation": {
+                    "enum": ["deleteBead", "deleteLink"]
+                  }
+                }
+              }
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "revisionProvenance": false
+            }
+          }
+        }
+      ],
+      "required": ["representation", "effect"],
+      "properties": {
+        "representation": {
+          "const": "delta"
+        },
+        "effect": {
+          "$ref": "#/$defs/retainedDeltaEffect"
+        },
+        "derived": {
+          "$ref": "#/$defs/retainedEventDerived"
+        },
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenance"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "retainedEvent": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/retainedPostimageEvent"
+        },
+        {
+          "$ref": "#/$defs/retainedDeltaEvent"
+        }
+      ]
+    },
+    "retainedEventPage": {
+      "type": "object",
+      "required": ["source", "selection", "policy", "coverage", "events", "cursor", "next"],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "subject": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "selection": {
+          "$ref": "#/$defs/retainedEventSelection"
+        },
+        "policy": {
+          "$ref": "#/$defs/retainedEventPolicy"
+        },
+        "coverage": {
+          "$ref": "#/$defs/retainedEventCoverage"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/retainedEvent"
+          }
+        },
+        "cursor": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "selection": {
+                "type": "object",
+                "properties": {
+                  "representation": {
+                    "const": "postimage"
+                  }
+                },
+                "required": ["representation"]
+              }
+            },
+            "required": ["selection"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "events": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/retainedPostimageEvent"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "selection": {
+                "type": "object",
+                "properties": {
+                  "representation": {
+                    "const": "delta"
+                  }
+                },
+                "required": ["representation"]
+              }
+            },
+            "required": ["selection"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "events": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/retainedDeltaEvent"
+                }
+              },
+              "policy": {
+                "type": "object",
+                "properties": {
+                  "representations": {
+                    "type": "array",
+                    "contains": {
+                      "const": "delta"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "retainedEventProblem": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/readProblem"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "code": {
+              "enum": [
+                "malformed-request",
+                "invalid-parameter",
+                "unauthenticated",
+                "forbidden",
+                "resource-not-found",
+                "resource-erased",
+                "foreign-view",
+                "cursor-expired",
+                "request-too-large",
+                "limit-exceeded",
+                "rate-limited",
+                "temporarily-unavailable"
+              ]
+            }
+          }
+        }
+      ]
     }
   }
 }

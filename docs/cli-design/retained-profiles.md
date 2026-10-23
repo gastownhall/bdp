@@ -2,15 +2,16 @@
 
 The [canonical CLI](bdp-cli.md) uses one v0.1 binding and the positive
 [Core](../../specs/profiles/core/retained-core.md)/[Write](../../specs/profiles/write/retained-write.md)
-entries. This completes independent discovery/factoring source; required Event and
-actual Types composition still block adoption. CLI command availability cannot be
+entries. This completes independent discovery/factoring source; actual batch/owner
+and Types composition still block adoption. [Events](events.md) has its accepted
+postimage/replay minimum. CLI command availability cannot be
 inferred from a schema file, a path suffix or a parked exploration.
 
 scope inspect preserves native discovery. Clients understand retainedDiscovery's
 core and write arms even if they execute only Core commands. Write adds eight
 individually atomic targets, not different read/result meanings. Discovery URLs are
 absolute; aliases remain Scope-relative names within their advertised base. Both
-profiles require events navigation, with actual Event semantics still gated. Core
+profiles require events navigation under the paired [Event source](events.md). Core
 needs no Type inventory. type list remains deferred until its owning Type contract
 provides navigation/payload, without a guessed catalog path.
 

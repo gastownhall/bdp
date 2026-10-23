@@ -11,7 +11,8 @@ Paired source under [#280](https://github.com/gastownhall/bdp/issues/280) and so
 The retained profile front door is [Core](retained-core.md) plus
 [Write](../write/retained-write.md), native `retainedDiscovery`. Earlier
 read/read-update/transactional helper shapes remain explicit staging inputs.
-Required Event/Types composition and qualification still prevent adoption.
+Actual batch/owner, Types composition and qualification still prevent adoption;
+the selected [Event source](events.md) now has its accepted payload/replay minimum.
 
 ## One selected identity
 
@@ -38,7 +39,7 @@ Clients request the selected JSON type in `Accept`; mutation bodies declare it i
 
 Problems retain `application/problem+json`; machine schema documents retain `application/schema+json`. HEAD and304 remain bodyless, preserve the selected read context and obey the existing metadata rules; any supplied representation Content-Type must agree with that context. These controls do not change Resource revisions, revision guards or HTTP validators into protocol-version tokens.
 
-Non-JSON transports must explicitly bind the same selected contract before their payload is consumed. In particular, an unversioned `text/event-stream` type alone is not proof of v0.1 Event compatibility. The Event subscription/transport binding remains part of #153's composition with D1/D2; this JSON binding does not silently select a payload mode or declare that work complete.
+Non-JSON transports must explicitly bind the same selected contract before their payload is consumed. In particular, unversioned `text/event-stream` alone is not proof of v0.1 Event compatibility. The selected [Event source](events.md) requires finite v0.1 JSON and confirms representation/coverage in each page. CLI follow polls that source; no SSE binding is silently selected or qualified.
 
 ## Optional capabilities preserve the base contract
 
