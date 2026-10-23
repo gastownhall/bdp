@@ -36,6 +36,10 @@ unit: incident collections are link even though HTTP BDP-Resource-Kind identifie
 the Bead subject. Actual BDP-Collection-Kind establishes item kind, including empty
 pages; no URL-path or arbitrary data-property heuristic decides it.
 
+An observational Resource delete preview may add `context.preview:"delete"`;
+this is client intent, not a wire field, mutation admission or reserved identity.
+It otherwise uses the ordinary Resource descriptor and read protections.
+
 Context may record the associated native response's `httpStatus` and end-to-end
 `headers`, lowercase keys/arrays of values. Exclude credentials and hop-by-hop
 fields. These are native response metadata, never an ETag/status for the serialized

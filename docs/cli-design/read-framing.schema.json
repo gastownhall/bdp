@@ -48,6 +48,9 @@
         },
         "headers": {
           "$ref": "#/$defs/headers"
+        },
+        "preview": {
+          "const": "delete"
         }
       },
       "required": ["subject"],

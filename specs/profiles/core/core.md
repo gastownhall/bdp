@@ -19,6 +19,11 @@ Scope's advertised profile. Core is a document name, not a new discovery value.
 
 ## Status and conformance
 
+The selected v0.1 positive entry is [retained Core](retained-core.md), with
+[retained Write](../write/retained-write.md). The inherited v0 reading guide and
+closed profile helpers below are staging/evidence inputs, not the retained
+discovery entry or an adoption claim.
+
 **Consolidation notice:** the [selected v0.1 contract/JSON binding](contract-binding.md) and separately named [v0.1 candidate schema](bdp-v0.1.schema.json) are staged source. The inherited v0 profile/HTTP examples below do not authorize advertising retained amendments as unchanged version0. Profile/Type/Event composition and section-by-section example retargeting remain adoption gates. Existing v0 schema/runtime slots stay explicit and unchanged; the candidate is not implemented merely because its JSON artifact is present.
 
 The Core/Read and Write documents and shared conformance index form a single
@@ -1861,6 +1866,13 @@ sync promise or a promised repair mechanism. Temporary service failures remain
 `temporarily-unavailable` / 503 / `after-delay`.
 
 #### Retained versions pages
+
+Under selected v0.1, a versions metadata response supplies `BDP-Resource-Kind`
+when the subject's kind is known and disclosable, including corresponding HEAD/304.
+It MAY omit the field when kind is unknown or not disclosable; this is not a full
+Resource/properties read and creates no permanent kind-marker promise. Never
+invent a kind from URI spelling. Summary rows are not Bead/Link Resource
+collections and do not acquire `BDP-Collection-Kind`; see [retained Core](retained-core.md).
 
 `GET canonical-resource?view=versions` returns `historyVersionsPage`. `HEAD`
 has the corresponding GET status and headers without a body. Permitted query

@@ -8,6 +8,11 @@ version: "0.1"
 
 Paired source under [#280](https://github.com/gastownhall/bdp/issues/280) and sole plan [#59](https://github.com/gastownhall/bdp/issues/59). This fixes the candidate's transport/artifact identity; it does not adopt the incomplete retained profile composition. The [CLI binding](../../../docs/cli-design/contract-binding.md) uses these same values. Existing runtime implementations and their BDP0 artifacts remain held at their actual pins.
 
+The retained profile front door is [Core](retained-core.md) plus
+[Write](../write/retained-write.md), native `retainedDiscovery`. Earlier
+read/read-update/transactional helper shapes remain explicit staging inputs.
+Required Event/Types composition and qualification still prevent adoption.
+
 ## One selected identity
 
 | Surface | Exact candidate value |

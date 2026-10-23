@@ -10,6 +10,12 @@ This index accompanies [Core and Read](profiles/core/core.md) and
 [Write](profiles/write/write.md). Requirements apply only to their stated profile.
 The common draft status and requirement-language rules are defined in Core.
 
+The selected v0.1 [Core](profiles/core/retained-core.md)/[Write](profiles/write/retained-write.md)
+entry and [finite source cutline](../docs/design/bdp-v0.1-retained-cutline.md)
+do not inherit a PASS from this v0 cumulative matrix. Catalog IDs/profile tags
+and historical reports remain bound to their actual inputs; final retained
+profile/Event/Types applicability needs its own qualification.
+
 <!-- protocol-text -->
 
 ## Conformance index and informative end matter

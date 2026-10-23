@@ -6287,6 +6287,338 @@
           "$ref": "#/$defs/typeDefinitionReadCapabilityProblem"
         }
       ]
+    },
+    "coreAdvertisedLimits": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "object",
+          "properties": {
+            "defaultItems": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "maximumItems": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "targetBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "bodyBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "resource": {
+          "type": "object",
+          "properties": {
+            "representationBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "propertiesBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "selector": {
+          "type": "object",
+          "properties": {
+            "bytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "depth": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "nodes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "retention": {
+          "type": "object",
+          "properties": {
+            "maximumSnapshotLifetime": {
+              "$ref": "#/$defs/iso8601Duration"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "writeAdvertisedLimits": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "object",
+          "properties": {
+            "defaultItems": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "maximumItems": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "targetBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "bodyBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "resource": {
+          "type": "object",
+          "properties": {
+            "representationBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "propertiesBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "selector": {
+          "type": "object",
+          "properties": {
+            "bytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "depth": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "nodes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "patch": {
+          "type": "object",
+          "properties": {
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "pathBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "pathDepth": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "validation": {
+          "type": "object",
+          "properties": {
+            "diagnostics": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "diagnosticBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "retention": {
+          "type": "object",
+          "properties": {
+            "idempotency": {
+              "$ref": "#/$defs/iso8601Duration"
+            },
+            "maximumSnapshotLifetime": {
+              "$ref": "#/$defs/iso8601Duration"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "coreDiscovery": {
+      "type": "object",
+      "required": ["bdpVersion", "profile", "scope", "beads", "links", "events"],
+      "properties": {
+        "bdpVersion": {
+          "$ref": "#/$defs/bdpVersion"
+        },
+        "profile": {
+          "const": "core"
+        },
+        "scope": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "beads": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "links": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "aliases": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "order": {
+          "enum": ["canonical-uri"]
+        },
+        "limits": {
+          "$ref": "#/$defs/coreAdvertisedLimits"
+        },
+        "maximumEndpointMultiplicity": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
+          }
+        },
+        "historicalResolution": {
+          "$ref": "#/$defs/historyCapability"
+        },
+        "capabilities": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/capabilityAdvertisements"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "https://github.com/gastownhall/bdp/capabilities/atomic-batch": {
+                  "type": "object",
+                  "properties": {
+                    "1": false
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "events": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    "writeDiscovery": {
+      "type": "object",
+      "required": [
+        "bdpVersion",
+        "profile",
+        "scope",
+        "beads",
+        "links",
+        "events",
+        "operations",
+        "aliases"
+      ],
+      "properties": {
+        "bdpVersion": {
+          "$ref": "#/$defs/bdpVersion"
+        },
+        "profile": {
+          "const": "write"
+        },
+        "scope": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "beads": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "links": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "aliases": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "order": {
+          "enum": ["canonical-uri"]
+        },
+        "limits": {
+          "$ref": "#/$defs/writeAdvertisedLimits"
+        },
+        "maximumEndpointMultiplicity": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
+          }
+        },
+        "historicalResolution": {
+          "$ref": "#/$defs/historyCapability"
+        },
+        "capabilities": {
+          "$ref": "#/$defs/capabilityAdvertisements"
+        },
+        "events": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "operations": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    "retainedDiscovery": {
+      "title": "Selected retained Core or Write discovery",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/coreDiscovery"
+        },
+        {
+          "$ref": "#/$defs/writeDiscovery"
+        }
+      ]
+    },
+    "writeOperationDirectory": {
+      "type": "object",
+      "required": [
+        "createBead",
+        "updateBead",
+        "deleteBead",
+        "createLink",
+        "updateLink",
+        "deleteLink",
+        "putAlias",
+        "deleteAlias"
+      ],
+      "properties": {
+        "createBead": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "updateBead": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "deleteBead": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "createLink": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "updateLink": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "deleteLink": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "putAlias": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "deleteAlias": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "additionalProperties": false
     }
   }
 }
