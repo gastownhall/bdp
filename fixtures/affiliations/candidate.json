@@ -1,0 +1,393 @@
+{
+  "status": "paper expectations; grammar-only samples are not provider/CLI qualification",
+  "contract": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+  "commandScope": "https://work.example/acme/",
+  "cliOperations": [
+    {
+      "id": "preserve-exact",
+      "cli": "bdp update item --set-property title=new",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "propertiesChange": [
+          {
+            "op": "add",
+            "path": "/title",
+            "value": "new"
+          }
+        ]
+      }
+    },
+    {
+      "id": "explicit-unpinned",
+      "cli": "bdp update item --type Task",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "type": "https://work.example/acme/Task"
+      }
+    },
+    {
+      "id": "explicit-pin",
+      "cli": "bdp update item --type Task@r2",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "r2"
+        }
+      }
+    },
+    {
+      "id": "explicit-pin-option",
+      "cli": "bdp update item --type Task --type-revision r2",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "r2"
+        }
+      }
+    },
+    {
+      "id": "guard-separate",
+      "cli": "bdp link update rel --type Blocks@r2 --if-revision link-r7",
+      "operation": {
+        "operation": "updateLink",
+        "link": "rel",
+        "type": {
+          "uri": "https://work.example/acme/Blocks",
+          "revision": "r2"
+        },
+        "expectedRevision": "link-r7"
+      }
+    },
+    {
+      "id": "empty-array-plus-pin",
+      "cli": "bdp update item --type Task@r2 --patch-properties []",
+      "operation": {
+        "operation": "updateBead",
+        "bead": "item",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "r2"
+        },
+        "propertiesChange": []
+      }
+    }
+  ],
+  "records": {
+    "mixedPinsAndRefinement": {
+      "id": "https://work.example/acme/owner",
+      "type": {
+        "uri": "https://work.example/acme/OwnerType",
+        "revision": "owner-type-r1"
+      },
+      "revision": "owner-r9",
+      "properties": {},
+      "metadata": {},
+      "ownedLinks": {
+        "https://work.example/acme/Association": [
+          {
+            "id": "https://work.example/acme/relation-a",
+            "type": {
+              "uri": "https://work.example/acme/Association",
+              "revision": "association-r1"
+            },
+            "revision": "link-r1",
+            "source": "https://work.example/acme/owner",
+            "target": "https://work.example/acme/target",
+            "properties": {},
+            "metadata": {}
+          },
+          {
+            "id": "https://work.example/acme/relation-b",
+            "type": {
+              "uri": "https://work.example/acme/Association",
+              "revision": "association-r2"
+            },
+            "revision": "link-r1",
+            "source": "https://work.example/acme/owner",
+            "target": "https://work.example/acme/target",
+            "properties": {},
+            "metadata": {}
+          }
+        ],
+        "https://work.example/acme/SpecialAssociation": [
+          {
+            "id": "https://work.example/acme/relation-c",
+            "type": {
+              "uri": "https://work.example/acme/SpecialAssociation",
+              "revision": "special-r1"
+            },
+            "revision": "link-r1",
+            "source": "https://work.example/acme/owner",
+            "target": "https://work.example/acme/target",
+            "properties": {},
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    "emptyNewCapture": {
+      "id": "https://work.example/acme/owner",
+      "type": {
+        "uri": "https://work.example/acme/OwnerType",
+        "revision": "owner-type-r1"
+      },
+      "revision": "owner-r1",
+      "properties": {},
+      "metadata": {},
+      "ownedLinks": {}
+    },
+    "historicalEmptyBucket": {
+      "id": "https://work.example/acme/owner",
+      "type": {
+        "uri": "https://work.example/acme/OwnerType",
+        "revision": "owner-type-r1"
+      },
+      "revision": "old-retained-r1",
+      "properties": {},
+      "metadata": {},
+      "ownedLinks": {
+        "https://work.example/acme/Association": []
+      }
+    }
+  },
+  "semanticCases": [
+    {
+      "id": "omission-after-new-default",
+      "given": "Stored T@r1; default becomes r2; update omits type.",
+      "expected": "Keep T@r1; never resolve the new default.",
+      "execution": "not run"
+    },
+    {
+      "id": "explicit-default-once",
+      "given": "Explicit unpinned T has eligible selected registered default r2.",
+      "expected": "Resolve once to T@r2; exact stored/output affiliation.",
+      "execution": "not run"
+    },
+    {
+      "id": "no-default",
+      "given": "T exists but no eligible explicit default is selected.",
+      "expected": "Refuse without newest/sole guess, fetch or registration.",
+      "execution": "not run"
+    },
+    {
+      "id": "same-affiliation",
+      "given": "Explicit exact T@r1 equals existing affiliation; remaining state unchanged.",
+      "expected": "After all checks, return genuine no-op; no new revision/provenance/Event.",
+      "execution": "not run",
+      "source": "specs/profiles/write/write.md#mutation-revisions-and-guards"
+    },
+    {
+      "id": "pin-only",
+      "given": "T@r1 to T@r2 without object edits.",
+      "expected": "Validate and commit Resource revision effect; truthful Event required, encoding still open.",
+      "execution": "not run",
+      "source": "specs/profiles/write/write.md#mutation-revisions-and-guards"
+    },
+    {
+      "id": "nominal-retype",
+      "given": "T@r1 to U@u1 with targeted edits.",
+      "expected": "Validate complete destination; keep identity/kind/endpoints and untouched properties.",
+      "execution": "not run"
+    },
+    {
+      "id": "empty-patches-with-retype",
+      "given": "Empty ordinary patches plus changed Type.",
+      "expected": "Zero patch operations; still affiliation effect.",
+      "execution": "not run",
+      "source": "specs/profiles/write/write.md#mutation-revisions-and-guards"
+    },
+    {
+      "id": "guarded-no-op",
+      "given": "Equal affiliation/object values with wrong expectedRevision.",
+      "expected": "Refuse guard; no-op does not bypass admission.",
+      "execution": "not run"
+    },
+    {
+      "id": "provenance-only",
+      "given": "No type or object edit supplied, only provenance or guard.",
+      "expected": "Malformed update; no provenance-only forced revision.",
+      "execution": "not run"
+    },
+    {
+      "id": "bad-destination",
+      "given": "Destination rejects existing property or affected incident Link.",
+      "expected": "Atomic refusal with no partial Type/property/owner/revision effect.",
+      "execution": "not run"
+    },
+    {
+      "id": "final-graph-repair",
+      "given": "Two floating endpoint Beads retyped in one atomic batch; temporary pair invalid, final graph valid.",
+      "expected": "Permit final-graph repair subject to ordinary admission; no endpoint repin.",
+      "execution": "not run"
+    },
+    {
+      "id": "protected-property",
+      "given": "Retype plus parent replacement tries to bypass protected child or service-managed input.",
+      "expected": "Apply Types property-access rules; refuse bypass even when caller value equals existing.",
+      "execution": "not run"
+    },
+    {
+      "id": "retry-default-changed",
+      "given": "Uncertain keyed write first resolved T to r2, then default changes to r3.",
+      "expected": "Retained replay uses r2/outcome, never resolves r3.",
+      "execution": "not run"
+    },
+    {
+      "id": "retry-intent-distinct",
+      "given": "Reuse same key with omitted versus explicit unpinned versus exact input.",
+      "expected": "Preserve the authored intent distinction under existing mismatch rules.",
+      "execution": "not run"
+    },
+    {
+      "id": "history-exact",
+      "given": "New current affiliation/ownership differs from retained old revision.",
+      "expected": "Keep old affiliation, closure authority and captured owned state; no rebucketing.",
+      "execution": "not run"
+    },
+    {
+      "id": "nominal-filter",
+      "given": "Two records have T@r1 and T@r2.",
+      "expected": "Structural type=T / CLI --exact-type T matches both; pins invalid filter operands.",
+      "execution": "not run"
+    },
+    {
+      "id": "family-recorded",
+      "given": "A new publisher definition has changed conformance.",
+      "expected": "Family matching uses accepted recorded exact closure; no live/latest substitution.",
+      "execution": "not run"
+    },
+    {
+      "id": "raw-selector",
+      "given": "Raw selector compares @.type with URI string while exact affiliation is object.",
+      "expected": "No virtual string projection or automatic expression rewriting; prefer structural nominal filter.",
+      "execution": "not run"
+    },
+    {
+      "id": "bucket-pins",
+      "given": "Two owned Links share nominal T but have distinct definition pins.",
+      "expected": "One T bucket, full exact affiliations preserved, canonical-ID ordering.",
+      "execution": "not run"
+    },
+    {
+      "id": "bucket-refinement",
+      "given": "Owned Link matches several inherited selectors/paths.",
+      "expected": "One occurrence in its actual nominal bucket, never duplicated under ancestors.",
+      "execution": "not run"
+    },
+    {
+      "id": "empty-new-owned-set",
+      "given": "Owning Bead captures no selected outgoing Links.",
+      "expected": "ownedLinks:{}; no empty selector or wildcard bucket.",
+      "execution": "not run"
+    },
+    {
+      "id": "empty-retained-bucket",
+      "given": "Historical snapshot or unchanged returned revision carries an old empty explicit bucket.",
+      "expected": "Return recorded state; do not rewrite or claim new-capture validity from structural schema.",
+      "execution": "not run"
+    },
+    {
+      "id": "enter-owner",
+      "given": "Link affiliation change enters source owned set.",
+      "expected": "Atomic Link/source effects with captured poststate; Event representation pending.",
+      "execution": "not run"
+    },
+    {
+      "id": "leave-owner",
+      "given": "Link affiliation change leaves source owned set.",
+      "expected": "Compare pre/post membership; atomic Link/source effects, remove from capture. Report source/sourceRevision even though the resulting Type is unowned; the native leavingOwnership sample illustrates the pair.",
+      "execution": "not run",
+      "source": "specs/profiles/write/write.md#mutation-results"
+    },
+    {
+      "id": "pin-changes-membership",
+      "given": "Same nominal Link Type, new exact definition changes conformance.",
+      "expected": "Recompute membership and captured state under accepted authority.",
+      "execution": "not run"
+    },
+    {
+      "id": "source-retype",
+      "given": "Source Bead changes affiliation and ownership rules.",
+      "expected": "Recompute captured owned set from existing outgoing Links; no invented Link revisions.",
+      "execution": "not run"
+    },
+    {
+      "id": "literal-source-pin",
+      "given": "Otherwise admissible L.source cites S@r1; resulting S@r2 captures L@l1.",
+      "expected": "Keep literal pin, independent tokens; r1 gains no retroactive membership; remaining admission mechanics open.",
+      "execution": "not run"
+    },
+    {
+      "id": "operation-local-reversal",
+      "given": "Atomic batch explicitly retypes A to B to A.",
+      "expected": "Do not collapse effectful transitions to no-op; exact owner revision counts not selected here.",
+      "execution": "not run"
+    },
+    {
+      "id": "type-only-event-gap",
+      "given": "Only affiliation changes with inherited updatedData grammar.",
+      "expected": "Required Event still needs coordinated encoding; no fake patch or silent omission, D1/D2 unanswered.",
+      "execution": "not run"
+    }
+  ],
+  "nativeLinkResults": {
+    "leavingOwnership": {
+      "outcome": "updated",
+      "resource": {
+        "id": "https://work.example/acme/relation-a",
+        "type": {
+          "uri": "https://work.example/acme/UnownedRelation",
+          "revision": "unowned-type-r1"
+        },
+        "revision": "link-r2",
+        "source": "https://work.example/acme/owner",
+        "target": "https://work.example/acme/target",
+        "properties": {},
+        "metadata": {}
+      },
+      "source": "https://work.example/acme/owner",
+      "sourceRevision": "owner-r10",
+      "changed": true
+    },
+    "unrelatedUnowned": {
+      "outcome": "updated",
+      "resource": {
+        "id": "https://work.example/acme/unrelated-relation",
+        "type": {
+          "uri": "https://work.example/acme/UnownedRelation",
+          "revision": "unowned-type-r1"
+        },
+        "revision": "link-r2",
+        "source": "https://work.example/acme/owner",
+        "target": "https://work.example/acme/target",
+        "properties": {},
+        "metadata": {}
+      },
+      "changed": true
+    },
+    "ownedNoOp": {
+      "outcome": "updated",
+      "resource": {
+        "id": "https://work.example/acme/relation-a",
+        "type": {
+          "uri": "https://work.example/acme/Association",
+          "revision": "association-r1"
+        },
+        "revision": "link-r1",
+        "source": "https://work.example/acme/owner",
+        "target": "https://work.example/acme/target",
+        "properties": {},
+        "metadata": {}
+      },
+      "source": "https://work.example/acme/owner",
+      "sourceRevision": "owner-r9",
+      "changed": false
+    }
+  }
+}

@@ -1,0 +1,1994 @@
+{
+  "status": "Paper final-publication grammar/correspondence, not compiler/provider execution; earlier operation-local results superseded.",
+  "capability": "https://github.com/gastownhall/bdp/capabilities/atomic-batch",
+  "scope": "https://work.example/acme/",
+  "advertisement": {
+    "https://github.com/gastownhall/bdp/capabilities/atomic-batch": {
+      "1": {
+        "operation": "https://work.example/acme/commands/atomic",
+        "operations": [
+          "createBead",
+          "updateBead",
+          "deleteBead",
+          "createLink",
+          "updateLink",
+          "deleteLink"
+        ],
+        "maximumOperations": 100
+      }
+    }
+  },
+  "pairs": [
+    {
+      "id": "named-create-and-link",
+      "commands": "create --name task --type Task --properties '{\"title\":\"Review BDP\"}'\nlink create --type Relates --source @task --target task-17\n",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "createBead",
+            "name": "task",
+            "type": "https://work.example/acme/Task",
+            "properties": {
+              "title": "Review BDP"
+            }
+          },
+          {
+            "operation": "createLink",
+            "type": "https://work.example/acme/Relates",
+            "source": "@task",
+            "target": "task-17"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retype-replace-and-delete",
+      "commands": "update task-17 --type Task@definition-r2 --replace-properties '{}' --patch-metadata '[]' --if-revision r7\nlink delete relation-old --force --if-revision link-r8\n",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r2"
+            },
+            "properties": {},
+            "metadataChange": [],
+            "expectedRevision": "r7"
+          },
+          {
+            "operation": "deleteLink",
+            "link": "relation-old",
+            "expectedRevision": "link-r8"
+          }
+        ]
+      }
+    },
+    {
+      "id": "all-no-op",
+      "commands": "update task-17 --patch-properties '[]'\n",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "create-delete-identity",
+      "commands": "create --name task --type Task\ndelete @task --force\n",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "createBead",
+            "name": "task",
+            "type": "https://work.example/acme/Task"
+          },
+          {
+            "operation": "deleteBead",
+            "bead": "@task"
+          }
+        ]
+      }
+    }
+  ],
+  "results": {
+    "twoCreates": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "batch-review-1",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "createBead",
+          "id": "https://work.example/acme/task-new",
+          "operationName": "task"
+        },
+        {
+          "operationIndex": 1,
+          "operation": "createLink",
+          "id": "https://work.example/acme/relation-new"
+        }
+      ],
+      "resources": [
+        {
+          "id": "https://work.example/acme/relation-new",
+          "resourceKind": "link",
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/relation-new",
+            "type": {
+              "uri": "https://work.example/acme/Relates",
+              "revision": "definition-r1"
+            },
+            "revision": "link-r1",
+            "properties": {},
+            "metadata": {},
+            "source": "https://work.example/acme/task-new",
+            "target": "https://work.example/acme/task-17"
+          }
+        },
+        {
+          "id": "https://work.example/acme/task-new",
+          "resourceKind": "bead",
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/task-new",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "bead-r1",
+            "properties": {
+              "title": "Review BDP"
+            },
+            "metadata": {}
+          }
+        }
+      ]
+    },
+    "allNoOp": {
+      "capabilityVersion": "1",
+      "changed": false,
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateBead",
+          "id": "https://work.example/acme/task-17"
+        }
+      ],
+      "resources": [
+        {
+          "id": "https://work.example/acme/task-17",
+          "resourceKind": "bead",
+          "outcome": "unchanged",
+          "changed": false,
+          "resource": {
+            "id": "https://work.example/acme/task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "bead-r1",
+            "properties": {
+              "title": "Review BDP"
+            },
+            "metadata": {}
+          }
+        }
+      ]
+    },
+    "reversal": {
+      "capabilityVersion": "1",
+      "changed": false,
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateBead",
+          "id": "https://work.example/acme/task-17"
+        },
+        {
+          "operationIndex": 1,
+          "operation": "updateBead",
+          "id": "https://work.example/acme/task-17"
+        }
+      ],
+      "resources": [
+        {
+          "id": "https://work.example/acme/task-17",
+          "resourceKind": "bead",
+          "outcome": "unchanged",
+          "changed": false,
+          "resource": {
+            "id": "https://work.example/acme/task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "bead-r1",
+            "properties": {
+              "title": "Review BDP"
+            },
+            "metadata": {}
+          }
+        }
+      ]
+    },
+    "createDelete": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "batch-create-delete-1",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "createBead",
+          "id": "https://work.example/acme/task-new",
+          "operationName": "task"
+        },
+        {
+          "operationIndex": 1,
+          "operation": "deleteBead",
+          "id": "https://work.example/acme/task-new"
+        }
+      ],
+      "resources": [
+        {
+          "id": "https://work.example/acme/task-new",
+          "resourceKind": "bead",
+          "outcome": "allocated",
+          "changed": true
+        }
+      ]
+    },
+    "twoUpdates": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "final-two-updates",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateBead",
+          "id": "https://work.example/acme/task-17"
+        },
+        {
+          "operationIndex": 1,
+          "operation": "updateBead",
+          "id": "https://work.example/acme/task-17"
+        }
+      ],
+      "resources": [
+        {
+          "id": "https://work.example/acme/task-17",
+          "resourceKind": "bead",
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "bead-final-1",
+            "properties": {
+              "title": "C"
+            },
+            "metadata": {}
+          }
+        }
+      ]
+    },
+    "updateDelete": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "final-update-delete",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateBead",
+          "id": "https://work.example/acme/task-17"
+        },
+        {
+          "operationIndex": 1,
+          "operation": "deleteBead",
+          "id": "https://work.example/acme/task-17"
+        }
+      ],
+      "resources": [
+        {
+          "id": "https://work.example/acme/task-17",
+          "resourceKind": "bead",
+          "outcome": "deleted",
+          "changed": true,
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://work.example/acme/task-17",
+              "type": {
+                "uri": "https://work.example/acme/Task",
+                "revision": "definition-r1"
+              },
+              "revision": "bead-r1"
+            }
+          }
+        }
+      ]
+    },
+    "twoOwnedLinks": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "final-owned-links",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateLink",
+          "id": "https://work.example/acme/owned-1"
+        },
+        {
+          "operationIndex": 1,
+          "operation": "updateLink",
+          "id": "https://work.example/acme/owned-2"
+        }
+      ],
+      "resources": [
+        {
+          "id": "https://work.example/acme/owned-1",
+          "resourceKind": "link",
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/owned-1",
+            "type": {
+              "uri": "https://work.example/acme/Relates",
+              "revision": "definition-r1"
+            },
+            "revision": "link-final-a",
+            "source": {
+              "uri": "https://work.example/acme/owner",
+              "revision": "owner-before"
+            },
+            "target": "https://work.example/acme/task-17",
+            "properties": {
+              "weight": 2
+            },
+            "metadata": {}
+          },
+          "source": "https://work.example/acme/owner",
+          "sourceRevision": "owner-final"
+        },
+        {
+          "id": "https://work.example/acme/owned-2",
+          "resourceKind": "link",
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/owned-2",
+            "type": {
+              "uri": "https://work.example/acme/Relates",
+              "revision": "definition-r1"
+            },
+            "revision": "link-final-b",
+            "source": {
+              "uri": "https://work.example/acme/owner",
+              "revision": "owner-before"
+            },
+            "target": "https://work.example/acme/task-17",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {
+              "note": "B"
+            }
+          },
+          "source": "https://work.example/acme/owner",
+          "sourceRevision": "owner-final"
+        },
+        {
+          "id": "https://work.example/acme/owner",
+          "resourceKind": "bead",
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/owner",
+            "type": {
+              "uri": "https://work.example/acme/Owner",
+              "revision": "owner-definition-r1"
+            },
+            "revision": "owner-final",
+            "properties": {},
+            "metadata": {},
+            "ownedLinks": {
+              "https://work.example/acme/Relates": [
+                {
+                  "id": "https://work.example/acme/owned-1",
+                  "type": {
+                    "uri": "https://work.example/acme/Relates",
+                    "revision": "definition-r1"
+                  },
+                  "revision": "link-final-a",
+                  "source": {
+                    "uri": "https://work.example/acme/owner",
+                    "revision": "owner-before"
+                  },
+                  "target": "https://work.example/acme/task-17",
+                  "properties": {
+                    "weight": 2
+                  },
+                  "metadata": {}
+                },
+                {
+                  "id": "https://work.example/acme/owned-2",
+                  "type": {
+                    "uri": "https://work.example/acme/Relates",
+                    "revision": "definition-r1"
+                  },
+                  "revision": "link-final-b",
+                  "source": {
+                    "uri": "https://work.example/acme/owner",
+                    "revision": "owner-before"
+                  },
+                  "target": "https://work.example/acme/task-17",
+                  "properties": {
+                    "weight": 1
+                  },
+                  "metadata": {
+                    "note": "B"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "netOwnerNoOp": {
+      "capabilityVersion": "1",
+      "changed": false,
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateLink",
+          "id": "https://work.example/acme/owned-1"
+        },
+        {
+          "operationIndex": 1,
+          "operation": "updateLink",
+          "id": "https://work.example/acme/owned-1"
+        }
+      ],
+      "resources": [
+        {
+          "id": "https://work.example/acme/owned-1",
+          "resourceKind": "link",
+          "outcome": "unchanged",
+          "changed": false,
+          "resource": {
+            "id": "https://work.example/acme/owned-1",
+            "type": {
+              "uri": "https://work.example/acme/Relates",
+              "revision": "definition-r1"
+            },
+            "revision": "link-before-1",
+            "source": {
+              "uri": "https://work.example/acme/owner",
+              "revision": "owner-before"
+            },
+            "target": "https://work.example/acme/task-17",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {}
+          },
+          "source": "https://work.example/acme/owner",
+          "sourceRevision": "owner-before"
+        },
+        {
+          "id": "https://work.example/acme/owner",
+          "resourceKind": "bead",
+          "outcome": "unchanged",
+          "changed": false,
+          "resource": {
+            "id": "https://work.example/acme/owner",
+            "type": {
+              "uri": "https://work.example/acme/Owner",
+              "revision": "owner-definition-r1"
+            },
+            "revision": "owner-before",
+            "properties": {},
+            "metadata": {},
+            "ownedLinks": {
+              "https://work.example/acme/Relates": [
+                {
+                  "id": "https://work.example/acme/owned-1",
+                  "type": {
+                    "uri": "https://work.example/acme/Relates",
+                    "revision": "definition-r1"
+                  },
+                  "revision": "link-before-1",
+                  "source": {
+                    "uri": "https://work.example/acme/owner",
+                    "revision": "owner-before"
+                  },
+                  "target": "https://work.example/acme/task-17",
+                  "properties": {
+                    "weight": 1
+                  },
+                  "metadata": {}
+                },
+                {
+                  "id": "https://work.example/acme/owned-2",
+                  "type": {
+                    "uri": "https://work.example/acme/Relates",
+                    "revision": "definition-r1"
+                  },
+                  "revision": "link-before-2",
+                  "source": {
+                    "uri": "https://work.example/acme/owner",
+                    "revision": "owner-before"
+                  },
+                  "target": "https://work.example/acme/task-17",
+                  "properties": {
+                    "weight": 1
+                  },
+                  "metadata": {}
+                }
+              ],
+              "https://work.example/acme/HistoricalEmpty": []
+            }
+          }
+        }
+      ]
+    },
+    "sameProvenance": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "final-provenance",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateBead",
+          "id": "https://work.example/acme/task-17"
+        },
+        {
+          "operationIndex": 1,
+          "operation": "updateBead",
+          "id": "https://work.example/acme/task-17"
+        }
+      ],
+      "resources": [
+        {
+          "id": "https://work.example/acme/task-17",
+          "resourceKind": "bead",
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "provenance-final",
+            "properties": {
+              "title": "C"
+            },
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "human:author",
+                "basis": "writer-supplied"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "deleteOwner": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "final-delete-owner",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "deleteLink",
+          "id": "https://work.example/acme/owned-1"
+        },
+        {
+          "operationIndex": 1,
+          "operation": "deleteLink",
+          "id": "https://work.example/acme/owned-2"
+        },
+        {
+          "operationIndex": 2,
+          "operation": "deleteBead",
+          "id": "https://work.example/acme/owner"
+        }
+      ],
+      "resources": [
+        {
+          "id": "https://work.example/acme/owned-1",
+          "resourceKind": "link",
+          "outcome": "deleted",
+          "changed": true,
+          "deleted": {
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://work.example/acme/owned-1",
+              "type": {
+                "uri": "https://work.example/acme/Relates",
+                "revision": "definition-r1"
+              },
+              "revision": "link-before-1"
+            }
+          },
+          "source": "https://work.example/acme/owner",
+          "sourceRevision": "owner-before"
+        },
+        {
+          "id": "https://work.example/acme/owned-2",
+          "resourceKind": "link",
+          "outcome": "deleted",
+          "changed": true,
+          "deleted": {
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://work.example/acme/owned-2",
+              "type": {
+                "uri": "https://work.example/acme/Relates",
+                "revision": "definition-r1"
+              },
+              "revision": "link-before-2"
+            }
+          },
+          "source": "https://work.example/acme/owner",
+          "sourceRevision": "owner-before"
+        },
+        {
+          "id": "https://work.example/acme/owner",
+          "resourceKind": "bead",
+          "outcome": "deleted",
+          "changed": true,
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://work.example/acme/owner",
+              "type": {
+                "uri": "https://work.example/acme/Owner",
+                "revision": "owner-definition-r1"
+              },
+              "revision": "owner-before"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "problems": {
+    "operation": {
+      "type": "https://github.com/gastownhall/bdp/problems/request",
+      "status": 422,
+      "code": "operation-not-supported",
+      "retry": "after-state-change",
+      "operation": "createLink",
+      "pointer": "/operations/1/operation"
+    },
+    "capability": {
+      "type": "https://github.com/gastownhall/bdp/problems/request",
+      "status": 422,
+      "code": "capability-not-supported",
+      "retry": "after-state-change",
+      "capability": "https://github.com/gastownhall/bdp/capabilities/atomic-batch",
+      "capabilityVersion": "2",
+      "pointer": "/capabilityVersion"
+    }
+  },
+  "supportCases": [
+    {
+      "id": "unsupported-position-0",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "createLink",
+            "type": "https://work.example/acme/Relates",
+            "source": "task-17",
+            "target": "task-18"
+          },
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          },
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          }
+        ]
+      },
+      "supported": ["updateBead"],
+      "expectedProblem": {
+        "type": "https://github.com/gastownhall/bdp/problems/request",
+        "status": 422,
+        "code": "operation-not-supported",
+        "retry": "after-state-change",
+        "operation": "createLink",
+        "pointer": "/operations/0/operation"
+      },
+      "effects": "none; semantic execution not run"
+    },
+    {
+      "id": "unsupported-position-1",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          },
+          {
+            "operation": "createLink",
+            "type": "https://work.example/acme/Relates",
+            "source": "task-17",
+            "target": "task-18"
+          },
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          }
+        ]
+      },
+      "supported": ["updateBead"],
+      "expectedProblem": {
+        "type": "https://github.com/gastownhall/bdp/problems/request",
+        "status": 422,
+        "code": "operation-not-supported",
+        "retry": "after-state-change",
+        "operation": "createLink",
+        "pointer": "/operations/1/operation"
+      },
+      "effects": "none; semantic execution not run"
+    },
+    {
+      "id": "unsupported-position-2",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          },
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": []
+          },
+          {
+            "operation": "createLink",
+            "type": "https://work.example/acme/Relates",
+            "source": "task-17",
+            "target": "task-18"
+          }
+        ]
+      },
+      "supported": ["updateBead"],
+      "expectedProblem": {
+        "type": "https://github.com/gastownhall/bdp/problems/request",
+        "status": 422,
+        "code": "operation-not-supported",
+        "retry": "after-state-change",
+        "operation": "createLink",
+        "pointer": "/operations/2/operation"
+      },
+      "effects": "none; semantic execution not run"
+    }
+  ],
+  "semanticCases": [
+    {
+      "id": "atomic-support-first-middle-last",
+      "given": "Recognized disabled CRUD in any position.",
+      "expected": "First unsupported pointer; no supported prefix, key claim or effects.",
+      "execution": "not run"
+    },
+    {
+      "id": "stale-advertisement",
+      "given": "Support changes after CLI preflight.",
+      "expected": "Authority rechecks all new members before admission.",
+      "execution": "not run"
+    },
+    {
+      "id": "unknown-version",
+      "given": "Nonempty unsupported capabilityVersion with opaque new body.",
+      "expected": "Capability Problem before interpreting unknown version language.",
+      "execution": "not run"
+    },
+    {
+      "id": "unknown-member",
+      "given": "Version1 unknown/set-write operation.",
+      "expected": "Malformed selected vocabulary; not silently retained from old eight-operation schema.",
+      "execution": "not run"
+    },
+    {
+      "id": "retained-before-support",
+      "given": "Same known key/request after support withdrawn.",
+      "expected": "Return retained outcome/current authorized disclosure before fresh-support admission; never execute again.",
+      "execution": "not run"
+    },
+    {
+      "id": "conflict-before-support",
+      "given": "Known key with different semantic request and currently unsupported member.",
+      "expected": "Conflict wins; never reclassify as a new unsupported invocation.",
+      "execution": "not run"
+    },
+    {
+      "id": "cross-carrier-key",
+      "given": "Same key switches singleton to version1 batch context.",
+      "expected": "Conflict in same namespace; no duplicate execution, explicit changed-contract choice.",
+      "execution": "not run"
+    },
+    {
+      "id": "no-op-durable",
+      "given": "Final covered state unchanged, no other durable semantic effect.",
+      "expected": "changedfalse/no transaction or lifecycle facts; retain successful key outcome and resolution witnesses.",
+      "execution": "not run"
+    },
+    {
+      "id": "lost-response",
+      "given": "Commit succeeds but delivery fails.",
+      "expected": "Unknown until known disposition; recover same frozen key, never a fresh key.",
+      "execution": "not run"
+    },
+    {
+      "id": "in-flight",
+      "given": "Duplicate while original pending.",
+      "expected": "Bounded wait or idempotency-in-progress Problem, no pending public receipt.",
+      "execution": "not run"
+    },
+    {
+      "id": "result-budget",
+      "given": "Staged complete result exceeds bound.",
+      "expected": "Whole request refuses before effects commit; no pages/truncation/prefix.",
+      "execution": "not run"
+    },
+    {
+      "id": "rename-handles",
+      "given": "Equivalent creation labels renamed in retained retry.",
+      "expected": "Normalize creator slots; project requested operationName by unchanged index, IDs/outcomes/transaction fixed.",
+      "execution": "not run"
+    },
+    {
+      "id": "bad-handles",
+      "given": "Forward/unknown/wrong-kind handle or handle in Type/id/revision position.",
+      "expected": "Whole-batch contextual refusal; schema string acceptance is not resolution.",
+      "execution": "not run"
+    },
+    {
+      "id": "literal-property",
+      "given": "A properties string is @task or template-looking text.",
+      "expected": "Literal data; no capture/interpolation.",
+      "execution": "not run"
+    },
+    {
+      "id": "creation-deletion",
+      "given": "Created identity deleted before atomic publication.",
+      "expected": "One allocated URI/kind outcome, changedtrue and durable nonreuse; no fictional Resource revision or lifecycle Event.",
+      "execution": "not run"
+    },
+    {
+      "id": "reversal",
+      "given": "A to B to A staged edits in one batch.",
+      "expected": "One unchanged final Resource outcome and original envelope; no intermediate revision/provenance/Event.",
+      "execution": "not run"
+    },
+    {
+      "id": "ownership-effects",
+      "given": "Two owned Links change in one batch.",
+      "expected": "Final captures use final Link records; owner publishes at most one revision and final source pairs; Types owns membership semantics.",
+      "execution": "not run"
+    },
+    {
+      "id": "event-facts",
+      "given": "Final changed Resources in an effectful batch.",
+      "expected": "One postimage/optional delta fact per final Resource transition, canonical URI order and common transaction; no per-member event assumption.",
+      "execution": "not run"
+    },
+    {
+      "id": "replay-disclosure",
+      "given": "Current authorization withholds one retained postimage.",
+      "expected": "Whole retained-result refusal/current policy, no partial success or new execution.",
+      "execution": "not run"
+    },
+    {
+      "id": "detail-erasure-expiry",
+      "given": "Controlled retained content erased/expired.",
+      "expected": "Truthful Problems, compact successful-key evidence survives; no old content or reexecution.",
+      "execution": "not run"
+    },
+    {
+      "id": "future-parameters",
+      "given": "Later template package wants typed parameters.",
+      "expected": "Explicit new version/materialization; version1 strings and @name meanings unchanged.",
+      "execution": "not run"
+    },
+    {
+      "id": "ordinary-profile",
+      "given": "Service has individual CRUD but no atomic owner.",
+      "expected": "No batch advertisement/emulated subprocess loop or fallback sequence.",
+      "execution": "not run"
+    },
+    {
+      "id": "reverse-adapter",
+      "given": "Incoming batch routed to executable.",
+      "expected": "Check registered version/atomic support before one whole-document invocation; serve details remain deferred.",
+      "execution": "not run"
+    },
+    {
+      "id": "retained-bounds-reconfiguration",
+      "given": "Current feature input/result bounds shrink while a successful original outcome remains within its promised detail window.",
+      "expected": "Preserve original frozen request/result recovery under admitted bounds; no reclassification as a new over-limit invocation, truncation or reexecution. Renamed over-budget projection may refuse without forgetting original success.",
+      "execution": "not run"
+    },
+    {
+      "id": "baseline-guards",
+      "given": "Two staged edits use the same actual initial committed guard.",
+      "expected": "Both guards compare that baseline; no intermediate revision exists.",
+      "execution": "not run"
+    },
+    {
+      "id": "conflicting-provenance",
+      "given": "Different explicit provenance inputs for one final Resource/owner version.",
+      "expected": "Whole validation failure, no first/last winner; omission does not override one supplied input.",
+      "execution": "not run"
+    },
+    {
+      "id": "literal-pins",
+      "given": "Owner gets a final version while captured Link.source pins its earlier committed revision.",
+      "expected": "Keep the literal source pin, independent final revisions and complete final capture; no repin or revision capture.",
+      "execution": "not run"
+    },
+    {
+      "id": "resource-qualified-revisions",
+      "given": "Different Resources share equal opaque revision strings.",
+      "expected": "Allowed without a global revision/equality/inequality guarantee; addresses remain URI-qualified.",
+      "execution": "not run"
+    },
+    {
+      "id": "update-then-delete",
+      "given": "Existing Resource is staged updated then deleted.",
+      "expected": "Only deleted outcome/fact of its initial final-live published revision; no staged Type/version leak.",
+      "execution": "not run"
+    },
+    {
+      "id": "deleted-owner-context",
+      "given": "Delete owned Links and their source Bead in one batch.",
+      "expected": "No intermediate owner version; Link source pairs identify the deleted source final-live baseline revision and its final deleted row.",
+      "execution": "not run"
+    }
+  ],
+  "pairRole": "commands are paper inputs and proposed canonical renderings; no compiler ran",
+  "resultRequests": {
+    "twoCreates": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "createBead",
+          "name": "task",
+          "type": "https://work.example/acme/Task",
+          "properties": {
+            "title": "Review BDP"
+          }
+        },
+        {
+          "operation": "createLink",
+          "type": "https://work.example/acme/Relates",
+          "source": "@task",
+          "target": "task-17"
+        }
+      ]
+    },
+    "allNoOp": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "propertiesChange": []
+        }
+      ]
+    },
+    "reversal": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "type": {
+            "uri": "https://work.example/acme/Task",
+            "revision": "definition-r2"
+          }
+        },
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "type": {
+            "uri": "https://work.example/acme/Task",
+            "revision": "definition-r1"
+          }
+        }
+      ]
+    },
+    "createDelete": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "createBead",
+          "name": "task",
+          "type": "https://work.example/acme/Task"
+        },
+        {
+          "operation": "deleteBead",
+          "bead": "@task"
+        }
+      ]
+    },
+    "twoUpdates": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/title",
+              "value": "B"
+            }
+          ],
+          "expectedRevision": "bead-r1"
+        },
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/title",
+              "value": "C"
+            }
+          ],
+          "expectedRevision": "bead-r1"
+        }
+      ]
+    },
+    "updateDelete": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "type": {
+            "uri": "https://work.example/acme/Task",
+            "revision": "definition-r2"
+          }
+        },
+        {
+          "operation": "deleteBead",
+          "bead": "task-17",
+          "expectedRevision": "bead-r1"
+        }
+      ]
+    },
+    "twoOwnedLinks": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/owned-1",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/weight",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/owned-2",
+          "metadata": {
+            "note": "B"
+          }
+        }
+      ]
+    },
+    "netOwnerNoOp": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/owned-1",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/weight",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/owned-1",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/weight",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "sameProvenance": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/title",
+              "value": "B"
+            }
+          ],
+          "expectedRevision": "bead-r1",
+          "revisionProvenance": {
+            "actor": {
+              "id": "human:author",
+              "basis": "writer-supplied"
+            }
+          }
+        },
+        {
+          "operation": "updateBead",
+          "bead": "task-17",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/title",
+              "value": "C"
+            }
+          ],
+          "expectedRevision": "bead-r1",
+          "revisionProvenance": {
+            "actor": {
+              "id": "human:author",
+              "basis": "writer-supplied"
+            }
+          }
+        }
+      ]
+    },
+    "deleteOwner": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "deleteLink",
+          "link": "https://work.example/acme/owned-1"
+        },
+        {
+          "operation": "deleteLink",
+          "link": "https://work.example/acme/owned-2"
+        },
+        {
+          "operation": "deleteBead",
+          "bead": "https://work.example/acme/owner"
+        }
+      ]
+    }
+  },
+  "publicationBefore": {
+    "twoUpdates": {
+      "https://work.example/acme/task-17": {
+        "id": "https://work.example/acme/task-17",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "definition-r1"
+        },
+        "revision": "bead-r1",
+        "properties": {
+          "title": "A"
+        },
+        "metadata": {}
+      }
+    },
+    "updateDelete": {
+      "https://work.example/acme/task-17": {
+        "id": "https://work.example/acme/task-17",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "definition-r1"
+        },
+        "revision": "bead-r1",
+        "properties": {
+          "title": "A"
+        },
+        "metadata": {}
+      }
+    },
+    "twoOwnedLinks": {
+      "https://work.example/acme/owner": {
+        "id": "https://work.example/acme/owner",
+        "type": {
+          "uri": "https://work.example/acme/Owner",
+          "revision": "owner-definition-r1"
+        },
+        "revision": "owner-before",
+        "properties": {},
+        "metadata": {},
+        "ownedLinks": {
+          "https://work.example/acme/Relates": [
+            {
+              "id": "https://work.example/acme/owned-1",
+              "type": {
+                "uri": "https://work.example/acme/Relates",
+                "revision": "definition-r1"
+              },
+              "revision": "link-before-1",
+              "source": {
+                "uri": "https://work.example/acme/owner",
+                "revision": "owner-before"
+              },
+              "target": "https://work.example/acme/task-17",
+              "properties": {
+                "weight": 1
+              },
+              "metadata": {}
+            },
+            {
+              "id": "https://work.example/acme/owned-2",
+              "type": {
+                "uri": "https://work.example/acme/Relates",
+                "revision": "definition-r1"
+              },
+              "revision": "link-before-2",
+              "source": {
+                "uri": "https://work.example/acme/owner",
+                "revision": "owner-before"
+              },
+              "target": "https://work.example/acme/task-17",
+              "properties": {
+                "weight": 1
+              },
+              "metadata": {}
+            }
+          ]
+        }
+      },
+      "https://work.example/acme/owned-1": {
+        "id": "https://work.example/acme/owned-1",
+        "type": {
+          "uri": "https://work.example/acme/Relates",
+          "revision": "definition-r1"
+        },
+        "revision": "link-before-1",
+        "source": {
+          "uri": "https://work.example/acme/owner",
+          "revision": "owner-before"
+        },
+        "target": "https://work.example/acme/task-17",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {}
+      },
+      "https://work.example/acme/owned-2": {
+        "id": "https://work.example/acme/owned-2",
+        "type": {
+          "uri": "https://work.example/acme/Relates",
+          "revision": "definition-r1"
+        },
+        "revision": "link-before-2",
+        "source": {
+          "uri": "https://work.example/acme/owner",
+          "revision": "owner-before"
+        },
+        "target": "https://work.example/acme/task-17",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {}
+      }
+    },
+    "netOwnerNoOp": {
+      "https://work.example/acme/owner": {
+        "id": "https://work.example/acme/owner",
+        "type": {
+          "uri": "https://work.example/acme/Owner",
+          "revision": "owner-definition-r1"
+        },
+        "revision": "owner-before",
+        "properties": {},
+        "metadata": {},
+        "ownedLinks": {
+          "https://work.example/acme/Relates": [
+            {
+              "id": "https://work.example/acme/owned-1",
+              "type": {
+                "uri": "https://work.example/acme/Relates",
+                "revision": "definition-r1"
+              },
+              "revision": "link-before-1",
+              "source": {
+                "uri": "https://work.example/acme/owner",
+                "revision": "owner-before"
+              },
+              "target": "https://work.example/acme/task-17",
+              "properties": {
+                "weight": 1
+              },
+              "metadata": {}
+            },
+            {
+              "id": "https://work.example/acme/owned-2",
+              "type": {
+                "uri": "https://work.example/acme/Relates",
+                "revision": "definition-r1"
+              },
+              "revision": "link-before-2",
+              "source": {
+                "uri": "https://work.example/acme/owner",
+                "revision": "owner-before"
+              },
+              "target": "https://work.example/acme/task-17",
+              "properties": {
+                "weight": 1
+              },
+              "metadata": {}
+            }
+          ],
+          "https://work.example/acme/HistoricalEmpty": []
+        }
+      },
+      "https://work.example/acme/owned-1": {
+        "id": "https://work.example/acme/owned-1",
+        "type": {
+          "uri": "https://work.example/acme/Relates",
+          "revision": "definition-r1"
+        },
+        "revision": "link-before-1",
+        "source": {
+          "uri": "https://work.example/acme/owner",
+          "revision": "owner-before"
+        },
+        "target": "https://work.example/acme/task-17",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {}
+      }
+    },
+    "reversal": {
+      "https://work.example/acme/task-17": {
+        "id": "https://work.example/acme/task-17",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "definition-r1"
+        },
+        "revision": "bead-r1",
+        "properties": {
+          "title": "Review BDP"
+        },
+        "metadata": {}
+      }
+    },
+    "allNoOp": {
+      "https://work.example/acme/task-17": {
+        "id": "https://work.example/acme/task-17",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "definition-r1"
+        },
+        "revision": "bead-r1",
+        "properties": {
+          "title": "Review BDP"
+        },
+        "metadata": {}
+      }
+    },
+    "sameProvenance": {
+      "https://work.example/acme/task-17": {
+        "id": "https://work.example/acme/task-17",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "definition-r1"
+        },
+        "revision": "bead-r1",
+        "properties": {
+          "title": "A"
+        },
+        "metadata": {}
+      }
+    },
+    "twoCreates": {},
+    "createDelete": {},
+    "deleteOwner": {
+      "https://work.example/acme/owner": {
+        "id": "https://work.example/acme/owner",
+        "type": {
+          "uri": "https://work.example/acme/Owner",
+          "revision": "owner-definition-r1"
+        },
+        "revision": "owner-before",
+        "properties": {},
+        "metadata": {},
+        "ownedLinks": {
+          "https://work.example/acme/Relates": [
+            {
+              "id": "https://work.example/acme/owned-1",
+              "type": {
+                "uri": "https://work.example/acme/Relates",
+                "revision": "definition-r1"
+              },
+              "revision": "link-before-1",
+              "source": {
+                "uri": "https://work.example/acme/owner",
+                "revision": "owner-before"
+              },
+              "target": "https://work.example/acme/task-17",
+              "properties": {
+                "weight": 1
+              },
+              "metadata": {}
+            },
+            {
+              "id": "https://work.example/acme/owned-2",
+              "type": {
+                "uri": "https://work.example/acme/Relates",
+                "revision": "definition-r1"
+              },
+              "revision": "link-before-2",
+              "source": {
+                "uri": "https://work.example/acme/owner",
+                "revision": "owner-before"
+              },
+              "target": "https://work.example/acme/task-17",
+              "properties": {
+                "weight": 1
+              },
+              "metadata": {}
+            }
+          ]
+        }
+      },
+      "https://work.example/acme/owned-1": {
+        "id": "https://work.example/acme/owned-1",
+        "type": {
+          "uri": "https://work.example/acme/Relates",
+          "revision": "definition-r1"
+        },
+        "revision": "link-before-1",
+        "source": {
+          "uri": "https://work.example/acme/owner",
+          "revision": "owner-before"
+        },
+        "target": "https://work.example/acme/task-17",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {}
+      },
+      "https://work.example/acme/owned-2": {
+        "id": "https://work.example/acme/owned-2",
+        "type": {
+          "uri": "https://work.example/acme/Relates",
+          "revision": "definition-r1"
+        },
+        "revision": "link-before-2",
+        "source": {
+          "uri": "https://work.example/acme/owner",
+          "revision": "owner-before"
+        },
+        "target": "https://work.example/acme/task-17",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {}
+      }
+    }
+  },
+  "publishedEvents": {
+    "twoCreates": [
+      {
+        "id": "final-twoCreates-0",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:00:00Z",
+        "origin": "write",
+        "transaction": "batch-review-1",
+        "representation": "postimage",
+        "revision": "link-r1",
+        "effect": {
+          "operation": "createLink",
+          "id": "https://work.example/acme/relation-new",
+          "resource": {
+            "id": "https://work.example/acme/relation-new",
+            "type": {
+              "uri": "https://work.example/acme/Relates",
+              "revision": "definition-r1"
+            },
+            "revision": "link-r1",
+            "properties": {},
+            "metadata": {},
+            "source": "https://work.example/acme/task-new",
+            "target": "https://work.example/acme/task-17"
+          }
+        }
+      },
+      {
+        "id": "final-twoCreates-1",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:00:00Z",
+        "origin": "write",
+        "transaction": "batch-review-1",
+        "representation": "postimage",
+        "revision": "bead-r1",
+        "effect": {
+          "operation": "createBead",
+          "id": "https://work.example/acme/task-new",
+          "resource": {
+            "id": "https://work.example/acme/task-new",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "bead-r1",
+            "properties": {
+              "title": "Review BDP"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    ],
+    "allNoOp": [],
+    "reversal": [],
+    "createDelete": [],
+    "twoUpdates": [
+      {
+        "id": "final-twoUpdates-0",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:00:00Z",
+        "origin": "write",
+        "transaction": "final-two-updates",
+        "representation": "postimage",
+        "revision": "bead-final-1",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/task-17",
+          "resource": {
+            "id": "https://work.example/acme/task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "bead-final-1",
+            "properties": {
+              "title": "C"
+            },
+            "metadata": {}
+          }
+        },
+        "previousRevision": "bead-r1"
+      }
+    ],
+    "updateDelete": [
+      {
+        "id": "final-updateDelete-0",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:00:00Z",
+        "origin": "write",
+        "transaction": "final-update-delete",
+        "representation": "postimage",
+        "revision": "bead-r1",
+        "effect": {
+          "operation": "deleteBead",
+          "bead": "https://work.example/acme/task-17",
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://work.example/acme/task-17",
+              "type": {
+                "uri": "https://work.example/acme/Task",
+                "revision": "definition-r1"
+              },
+              "revision": "bead-r1"
+            }
+          }
+        }
+      }
+    ],
+    "twoOwnedLinks": [
+      {
+        "id": "final-twoOwnedLinks-0",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:00:00Z",
+        "origin": "write",
+        "transaction": "final-owned-links",
+        "representation": "postimage",
+        "revision": "link-final-a",
+        "effect": {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/owned-1",
+          "resource": {
+            "id": "https://work.example/acme/owned-1",
+            "type": {
+              "uri": "https://work.example/acme/Relates",
+              "revision": "definition-r1"
+            },
+            "revision": "link-final-a",
+            "source": {
+              "uri": "https://work.example/acme/owner",
+              "revision": "owner-before"
+            },
+            "target": "https://work.example/acme/task-17",
+            "properties": {
+              "weight": 2
+            },
+            "metadata": {}
+          }
+        },
+        "previousRevision": "link-before-1"
+      },
+      {
+        "id": "final-twoOwnedLinks-1",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:00:00Z",
+        "origin": "write",
+        "transaction": "final-owned-links",
+        "representation": "postimage",
+        "revision": "link-final-b",
+        "effect": {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/owned-2",
+          "resource": {
+            "id": "https://work.example/acme/owned-2",
+            "type": {
+              "uri": "https://work.example/acme/Relates",
+              "revision": "definition-r1"
+            },
+            "revision": "link-final-b",
+            "source": {
+              "uri": "https://work.example/acme/owner",
+              "revision": "owner-before"
+            },
+            "target": "https://work.example/acme/task-17",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {
+              "note": "B"
+            }
+          }
+        },
+        "previousRevision": "link-before-2"
+      },
+      {
+        "id": "final-twoOwnedLinks-2",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:00:00Z",
+        "origin": "write",
+        "transaction": "final-owned-links",
+        "representation": "postimage",
+        "revision": "owner-final",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/owner",
+          "resource": {
+            "id": "https://work.example/acme/owner",
+            "type": {
+              "uri": "https://work.example/acme/Owner",
+              "revision": "owner-definition-r1"
+            },
+            "revision": "owner-final",
+            "properties": {},
+            "metadata": {},
+            "ownedLinks": {
+              "https://work.example/acme/Relates": [
+                {
+                  "id": "https://work.example/acme/owned-1",
+                  "type": {
+                    "uri": "https://work.example/acme/Relates",
+                    "revision": "definition-r1"
+                  },
+                  "revision": "link-final-a",
+                  "source": {
+                    "uri": "https://work.example/acme/owner",
+                    "revision": "owner-before"
+                  },
+                  "target": "https://work.example/acme/task-17",
+                  "properties": {
+                    "weight": 2
+                  },
+                  "metadata": {}
+                },
+                {
+                  "id": "https://work.example/acme/owned-2",
+                  "type": {
+                    "uri": "https://work.example/acme/Relates",
+                    "revision": "definition-r1"
+                  },
+                  "revision": "link-final-b",
+                  "source": {
+                    "uri": "https://work.example/acme/owner",
+                    "revision": "owner-before"
+                  },
+                  "target": "https://work.example/acme/task-17",
+                  "properties": {
+                    "weight": 1
+                  },
+                  "metadata": {
+                    "note": "B"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "previousRevision": "owner-before"
+      }
+    ],
+    "netOwnerNoOp": [],
+    "sameProvenance": [
+      {
+        "id": "final-sameProvenance-0",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:00:00Z",
+        "origin": "write",
+        "transaction": "final-provenance",
+        "representation": "postimage",
+        "revision": "provenance-final",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/task-17",
+          "resource": {
+            "id": "https://work.example/acme/task-17",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r1"
+            },
+            "revision": "provenance-final",
+            "properties": {
+              "title": "C"
+            },
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "human:author",
+                "basis": "writer-supplied"
+              }
+            }
+          }
+        },
+        "previousRevision": "bead-r1"
+      }
+    ],
+    "deleteOwner": [
+      {
+        "id": "final-delete-owner-0",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:10:00Z",
+        "origin": "write",
+        "transaction": "final-delete-owner",
+        "representation": "postimage",
+        "revision": "link-before-1",
+        "effect": {
+          "operation": "deleteLink",
+          "link": "https://work.example/acme/owned-1",
+          "deleted": {
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://work.example/acme/owned-1",
+              "type": {
+                "uri": "https://work.example/acme/Relates",
+                "revision": "definition-r1"
+              },
+              "revision": "link-before-1"
+            },
+            "source": {
+              "uri": "https://work.example/acme/owner",
+              "revision": "owner-before"
+            },
+            "target": "https://work.example/acme/task-17"
+          }
+        }
+      },
+      {
+        "id": "final-delete-owner-1",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:10:00Z",
+        "origin": "write",
+        "transaction": "final-delete-owner",
+        "representation": "postimage",
+        "revision": "link-before-2",
+        "effect": {
+          "operation": "deleteLink",
+          "link": "https://work.example/acme/owned-2",
+          "deleted": {
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://work.example/acme/owned-2",
+              "type": {
+                "uri": "https://work.example/acme/Relates",
+                "revision": "definition-r1"
+              },
+              "revision": "link-before-2"
+            },
+            "source": {
+              "uri": "https://work.example/acme/owner",
+              "revision": "owner-before"
+            },
+            "target": "https://work.example/acme/task-17"
+          }
+        }
+      },
+      {
+        "id": "final-delete-owner-2",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T04:10:00Z",
+        "origin": "write",
+        "transaction": "final-delete-owner",
+        "representation": "postimage",
+        "revision": "owner-before",
+        "effect": {
+          "operation": "deleteBead",
+          "bead": "https://work.example/acme/owner",
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://work.example/acme/owner",
+              "type": {
+                "uri": "https://work.example/acme/Owner",
+                "revision": "owner-definition-r1"
+              },
+              "revision": "owner-before"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "admissionCases": [
+    {
+      "id": "conflicting-provenance",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": [
+              {
+                "op": "replace",
+                "path": "/title",
+                "value": "B"
+              }
+            ],
+            "expectedRevision": "bead-r1",
+            "revisionProvenance": {
+              "actor": {
+                "id": "human:author",
+                "basis": "writer-supplied"
+              }
+            }
+          },
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": [
+              {
+                "op": "replace",
+                "path": "/title",
+                "value": "C"
+              }
+            ],
+            "expectedRevision": "bead-r1",
+            "revisionProvenance": {
+              "actor": {
+                "id": "human:other",
+                "basis": "writer-supplied"
+              }
+            }
+          }
+        ]
+      },
+      "expectedProblem": {
+        "type": "https://github.com/gastownhall/bdp/problems/validation",
+        "code": "validation-failed",
+        "status": 422,
+        "retry": "never",
+        "detail": "Conflicting revisionProvenance inputs for one final version (operations0 and1).",
+        "diagnostics": [
+          {
+            "message": "Conflicting revisionProvenance inputs for one final version (operations0 and1)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "staged-guard",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": [
+              {
+                "op": "replace",
+                "path": "/title",
+                "value": "B"
+              }
+            ],
+            "expectedRevision": "bead-r1"
+          },
+          {
+            "operation": "updateBead",
+            "bead": "task-17",
+            "propertiesChange": [
+              {
+                "op": "replace",
+                "path": "/title",
+                "value": "C"
+              }
+            ],
+            "expectedRevision": "unpublished-stage"
+          }
+        ]
+      },
+      "expectedProblem": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "revision-mismatch",
+        "status": 409,
+        "retry": "after-state-change",
+        "detail": "A staged edit does not mint the expected committed revision."
+      }
+    },
+    {
+      "id": "new-target-guard",
+      "request": {
+        "capabilityVersion": "1",
+        "operations": [
+          {
+            "operation": "createBead",
+            "name": "new",
+            "type": "https://work.example/acme/Task"
+          },
+          {
+            "operation": "updateBead",
+            "bead": "@new",
+            "properties": {},
+            "expectedRevision": "guessed-final"
+          }
+        ]
+      },
+      "expectedProblem": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "revision-mismatch",
+        "status": 409,
+        "retry": "after-state-change",
+        "detail": "A new target has no committed baseline revision for a literal guard."
+      }
+    }
+  ]
+}

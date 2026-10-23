@@ -62,7 +62,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#historical-diagnoses-and-missing-state",
-          "selectedText": "The five `revision-*` Read diagnoses in [Problem details](#problem-details)\napply only to History requests and require current subject-history authorization.\nUnauthorized callers receive uniform `resource-not-found`, without evidence,\nwindow or participation disclosure. In particular, the Bead-history gate for\n`revision-unretained` MUST NOT depend on reconstructing the absent owned state.\nPermission denial is never evidence of incompleteness. These gates also apply\nto independent Link history under the selected complete Resource capability."
+          "selectedText": "The five `revision-*` Read diagnoses in [Problem details](#problem-details)\napply to History requests and require current subject-history authorization.\nThe sole selected v0.1 exception permits only `revision-unretained` on\n[exact Type-definition lookup](type-definition-read.md#narrow-missing-state-permission),\nunder that operation's current whole-definition/owned-state disclosure permission.\nIt does not import the other diagnoses or general History obligations.\nUnauthorized callers receive uniform `resource-not-found`, without evidence,\nwindow or participation disclosure. In particular, the Bead-history gate for\n`revision-unretained` MUST NOT depend on reconstructing the absent owned state.\nPermission denial is never evidence of incompleteness. These gates also apply\nto independent Link history under the selected complete Resource capability."
         }
       ]
     },
