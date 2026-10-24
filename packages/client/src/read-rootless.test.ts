@@ -30,9 +30,9 @@ function staged(resource: "bead" | "link", id: AbsoluteHttpUrl, body: unknown) {
     expect(
       prepared.route({
         scope,
-        beads: `${scope}inventory/items`,
-        links: `${scope}inventory/relations`,
-        types: `${scope}catalog`,
+        beads: `${scope}beads/`,
+        links: `${scope}links/`,
+        types: `${scope}types/`,
       }),
     ).toEqual({ kind: "success", value: id });
     return prepared.validate(body);

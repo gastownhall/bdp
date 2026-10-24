@@ -2274,12 +2274,15 @@ canonical Scope URL. Individual snapshots and receipts carry their exact
 expiry. Discovery may pre-advertise applicable retention through the optional
 `limits` object.
 
-The `beads`, `links` and `types` members are absolute HTTP(S) navigation
-URLs for their inventories beneath the canonical Scope URL. They need not
-have fixed suffixes; membership and Resource Kind do not derive from an
-item's URL prefix. Clients MUST use advertised navigation rather than
-synthesizing inventory URLs from Resource paths. When present, `aliases`
-remains the alias navigation base under its separate contract.
+BDP v0 keeps the advertised inventory navigation URLs fixed: for canonical
+Scope URL `S`, `beads` MUST equal `beads/` resolved against `S`, `links`
+MUST equal `links/` resolved against `S`, and `types` MUST equal `types/`
+resolved against `S`. When present, `aliases` MUST equal `alias/` resolved
+against `S`. These are navigation addresses only, not prefixes required
+in Resource IDs. A Bead or Link may have any canonical local Resource path;
+its Kind and inventory membership do not derive from that path. Clients use
+the advertised navigation, and the authority prevents conflicting
+Resource/alias/navigation bindings.
 
 Local Resource spellings contain one or more nonempty safe segments. Empty,
 `.` and `..` segments, controls, backslashes, queries, fragments,
