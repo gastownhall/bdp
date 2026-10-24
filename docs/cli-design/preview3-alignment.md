@@ -134,8 +134,13 @@ with common direction/depth. The settled graph exact full Type URI escapes a lit
 name; wildcard syntax is a CLI selector, never a Type identity sent as any.
 
 Nodes/Links use [Type]. Empty results use plain language, and an actual depth boundary
-is disclosed without default frontier/complete bookkeeping. Acquisition refusal or
-unserviceable exact pins never become a successful empty/complete result. An omitted
+is disclosed without default frontier/complete bookkeeping. Generic graph displays
+current Bead records alongside Links' exact stored endpoint pins, which may name
+older revisions; it does not resolve those older endpoint bodies or float the pins.
+Specialized Memory relationship reads bind current-compatible pins and refuse a
+mismatch. Historical root selection is separate admission, never silent current
+fallback or literal-sibling shadowing. Acquisition refusal never becomes a successful
+empty/complete result. An omitted
 non-Dependency notice requires actual authorized reached-incidence evidence, on
 stderr only. Do not scan the whole store for diagnostics or imply that no other
 Links exist when only a filtered set was acquired. General historical graph traversal
