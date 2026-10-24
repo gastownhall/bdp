@@ -362,10 +362,40 @@ describe("canonical local Resource IDs", () => {
     );
   });
 
+  it.each(["bead", "link", "type"] as const)(
+    "preserves literal %s paths without a Kind root",
+    (resource) => {
+      for (const localId of [
+        "a",
+        "nkfpiv",
+        "projects/alpha/task-42",
+        "a:b",
+        "a:b/c",
+        "beads/x",
+        "links/x",
+        "types/x",
+        "%E2%82%AC/x",
+      ])
+        expect(resolveCanonicalLocalResourceId(scope, resource, localId)).toBe(
+          `${scope}${localId}`,
+        );
+    },
+  );
+
   it.each([
-    ["bead", "links/x"],
-    ["link", "beads/x"],
-    ["type", "beads/x"],
+    ...[
+      "",
+      "/x",
+      "//outside.example/x",
+      "https://outside.example/x",
+      ".",
+      "..",
+      "%2E",
+      "%2F",
+      "%41",
+      "a?x",
+      "a#x",
+    ].map((id) => ["bead", id] as const),
     ["type", "types/"],
     ["type", "types/%61"],
     ["type", "types/a%2Fb"],

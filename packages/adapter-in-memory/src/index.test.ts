@@ -380,9 +380,10 @@ describe("reference fixture Scope port", () => {
       expect(error).toBeInstanceOf(ProtocolArtifactValidationError);
       expect((error as Error).cause).toBeInstanceOf(ProtocolArtifactValidationError);
     }
+    // Kind follows the fixture's declared Type and record membership, not its path.
     expect(() =>
-      createPortableReferenceFixturePort(scope, fixture("links/not-a-bead", type.id)),
-    ).toThrow("must begin with beads/");
+      createPortableReferenceFixturePort(scope, fixture("links/a-bead", type.id)),
+    ).not.toThrow();
     expect(() => createPortableReferenceFixturePort(scope, fixture("beads/..", type.id))).toThrow(
       "forbidden segment",
     );
@@ -438,12 +439,10 @@ describe("reference fixture Scope port", () => {
       ],
     });
 
-    expect(() => createPortableReferenceFixturePort(scope, fixture("beads/not-a-link"))).toThrow(
-      "must begin with links/",
-    );
+    expect(() => createPortableReferenceFixturePort(scope, fixture("beads/a-link"))).not.toThrow();
     expect(() =>
       createPortableReferenceFixturePort(scope, fixture("links/blocks", "links/a")),
-    ).toThrow("must begin with beads/");
+    ).toThrow("must name a fixture Bead");
   });
 
   it("preserves exact external endpoint identities in either Link orientation", async () => {

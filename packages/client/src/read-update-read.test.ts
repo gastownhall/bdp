@@ -929,10 +929,17 @@ describe("Read+Update explicit alias resolution", () => {
     expect(h.calls).toEqual([]);
     await expect(h.client.read(first)).resolves.toMatchObject({ kind: "success" });
   });
+  it.each(["nkfpiv", "projects/alpha/task", "links/l", "alias/chain", "a:b"])(
+    "accepts literal rootless alias Location %s without inferring Kind from its path",
+    async (local) => {
+      const h = harness(page, { resolveAlias: async (url) => redirect(url, `${scope}${local}`) });
+      await expect(h.client.resolveAlias(alias)).resolves.toMatchObject({ kind: "success" });
+    },
+  );
   it.each([
     "beads/team/a",
-    `${scope}links/l`,
-    `${scope}alias/chain`,
+    `${scope}links//l`,
+    `${scope}alias/%63hain`,
     "https://outside.test/beads/a",
     `${scope}beads/a?`,
     `${scope}beads/a#`,

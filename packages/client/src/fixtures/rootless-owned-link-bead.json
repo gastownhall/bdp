@@ -1,0 +1,51 @@
+{
+  "id": "http://127.0.0.1:52186/demo/beads/work",
+  "type": "http://127.0.0.1:52186/demo/types/native-issue/7461736b",
+  "revision": "d965358ecd3c6f99a2c7f60d9d1c71af",
+  "attribution": { "principal": "C0 Smoke", "basis": "writer-supplied" },
+  "properties": {
+    "created_at": "2026-10-24T21:15:20Z",
+    "created_by": "C0 Smoke",
+    "id": "beads/work",
+    "issue_type": "task",
+    "owner": "c0@example.invalid",
+    "priority": 2,
+    "status": "open",
+    "title": "Deployment task",
+    "updated_at": "2026-10-24T21:15:20Z"
+  },
+  "metadata": {},
+  "ownedLinks": {
+    "http://127.0.0.1:52186/demo/types/native-dependency/617070726f7665642d6279": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/61737369676e65642d746f": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/61747465737473": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/617574686f7265642d6279": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/626c6f636b73": [
+      {
+        "id": "http://127.0.0.1:52186/demo/nkfpiv",
+        "type": "http://127.0.0.1:52186/demo/types/native-dependency/626c6f636b73",
+        "revision": "486abefe43674fe5a6cfae7ba696e8b0",
+        "attribution": { "principal": "C0 Smoke", "basis": "writer-supplied" },
+        "source": "http://127.0.0.1:52186/demo/beads/work",
+        "target": "http://127.0.0.1:52186/demo/beads/prereq",
+        "properties": { "dep_type": "blocks" },
+        "metadata": {}
+      }
+    ],
+    "http://127.0.0.1:52186/demo/types/native-dependency/6361757365642d6279": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/636f6e646974696f6e616c2d626c6f636b73": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/64656c6567617465642d66726f6d": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/646973636f76657265642d66726f6d": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/6475706c696361746573": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/706172656e742d6368696c64": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/72656c61746564": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/72656c617465732d746f": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/7265706c6965732d746f": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/73757065727365646573": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/747261636b73": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/756e74696c": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/76616c696461746573": [],
+    "http://127.0.0.1:52186/demo/types/native-dependency/77616974732d666f72": [],
+    "http://127.0.0.1:52186/demo/types/subject-to": []
+  }
+}

@@ -624,9 +624,10 @@ mutation applies to exactly one Scope. URI path hierarchy does not create
 nested Scopes. A Scope exists only when it is identified by its own root BDP
 description, and the URI spaces owned by different Scopes do not overlap.
 
-A local Bead ID begins with the fixed `beads/` segment, and a local Link ID
-begins with the fixed `links/` segment. Each then contains one or more safe
-URI-path segments that form opaque identity within its Scope. Protocol
+A local Resource ID consists of one or more safe URI-path segments forming
+opaque identity within its Scope. BDP reserves no `beads/`, `links/` or
+`types/` prefix for Resource identity. Clients MUST NOT insert or remove
+such segments or infer Resource kind from an identifier's path. Protocol
 resolution against the canonical Scope URL produces one absolute canonical
 Resource URL. That URL is immutable. Once committed, it is never reassigned
 to an unrelated Resource in the lifetime of the logical Scope, including
@@ -648,22 +649,19 @@ canonical — a leading or trailing separator, an empty segment, or a
 noncanonical encoding — is rejected, never normalized: trimming would mint
 an identity the creator did not write.
 
-At a protocol boundary, BDP v0 assigns Beads and Links to exactly those two
-fixed top-level paths. The segments following `beads/` or `links/` are
-identity. They do not imply containment, collection membership, or a child
-Scope: `beads/foo/bar` implies nothing at `beads/foo`, and both may exist as
-unrelated Beads. No other Scope-relative path acquires Bead or Link
-semantics, except the alias root defined below. Multiple roots of either
-kind, and a root that mixes Beads and Links, are deferred beyond v0. The
-protocol accepts documented local reference spellings as input, but it
-emits absolute canonical Resource URLs.
+Segments do not imply containment, collection membership or a child Scope:
+`projects/alpha/task-42` implies nothing at `projects/alpha`. Collection and
+operation URLs are advertised navigation, not Resource-ID prefixes. The
+authority MUST prevent conflicting Resource/alias/navigation bindings.
+Different Scopes' URI spaces remain disjoint. BDP emits absolute canonical
+Resource URLs. The operation and resolved Resource determine Kind.
 
 #### Aliases
 
 An **alias** is a repointable name for one in-Scope Bead, beneath the fixed
 `alias/` root: one or more safe segments under the same grammar as local
-IDs, so whether a URI names canonical identity or an alias is decidable
-from its spelling alone. An alias is not a Resource: it has no
+IDs, so aliases use the same safe-path grammar as canonical identity. The
+authority distinguishes alias bindings from canonical Resource identity. An alias is not a Resource: it has no
 representation, no revision, and no collection membership. It targets a
 canonical Bead URL only — an alias MUST NOT target another alias, so
 resolution is always exactly one step. Unlike canonical segments, alias
@@ -1025,8 +1023,8 @@ data are not.
 
 A durable relative reference is resolved against the canonical Scope URL and
 normalized to an absolute canonical URL before use. It must remain beneath
-the fixed `beads/` or `links/` root required by the reference's Resource
-kind. An endpoint reference that is relative therefore always denotes an in-Scope
+the canonical Scope URL and identify the required Resource kind by resolved
+record semantics, not by its first path segment. An endpoint reference that is relative therefore always denotes an in-Scope
 endpoint and must identify a live Bead. An endpoint reference that is an
 absolute URI outside the canonical Scope is handled as opaque.
 
@@ -2276,42 +2274,33 @@ canonical Scope URL. Individual snapshots and receipts carry their exact
 expiry. Discovery may pre-advertise applicable retention through the optional
 `limits` object.
 
-BDP v0 fixes one Bead root and one Link root per Scope. The `beads` and
-`links` members are absolute HTTP(S) navigation URLs for those roots. In
-canonical local IDs, the fixed roots are still exactly `beads/` and `links/`.
-The advertised URLs are the collection URLs that correspond to those roots,
-and they are the only top-level paths under which this Scope assigns Bead and
-Link semantics. The collection URL itself is a Resource. A service MUST NOT
-advertise an additional Bead or Link root, mix both Resource kinds beneath
-one root, or let the fixed roots of separately described Scopes overlap.
-For the canonical Scope URL `S`, `beads` MUST equal the URL produced by
-resolving `beads/` against `S`, `links` MUST equal `links/` resolved against
-`S`, and `types` MUST equal `types/` resolved against `S`. When present,
-`aliases` MUST equal `alias/` resolved against `S`.
+The `beads`, `links` and `types` members are absolute HTTP(S) navigation
+URLs for their inventories beneath the canonical Scope URL. They need not
+have fixed suffixes; membership and Resource Kind do not derive from an
+item's URL prefix. Clients MUST use advertised navigation rather than
+synthesizing inventory URLs from Resource paths. When present, `aliases`
+remains the alias navigation base under its separate contract.
 
-A local Bead ID has the form `beads/{id-path}`, and a local Link ID has the
-form `links/{id-path}`. In both, `{id-path}` contains one or more nonempty
-segments. Those segments are opaque identity: they do not define containment
-or child Scopes. Empty, `.`, and `..` segments, controls, backslashes,
-queries, fragments, scheme-relative references, and encoded `/` or `\`
-separators are invalid. A service decodes percent escapes exactly once and
-rejects invalid UTF-8. It emits unreserved characters literally, and emits
-all required percent escapes with uppercase hexadecimal digits. It compares
-decoded segments exactly, without Unicode normalization.
+Local Resource spellings contain one or more nonempty safe segments. Empty,
+`.` and `..` segments, controls, backslashes, queries, fragments,
+scheme-relative references and encoded `/` or `\` separators are invalid.
+A service decodes percent escapes exactly once and rejects invalid UTF-8.
+It emits unreserved characters literally and required percent escapes with
+uppercase hexadecimal digits. Comparison is exact on decoded segments,
+without Unicode normalization. Every segment, including the first, is
+validated before literal Scope-relative path resolution. A first-segment
+colon is path data: `task:42` resolves to `<scope>task:42`, not scheme `task`.
 
-For example, both `beads/task-42` and
-`beads/projects/alpha/tasks/task-42` are valid local Bead IDs. The second
-form does not imply that `projects`, `alpha`, or `tasks` is a container or
-Scope. A Link ID follows the same rule beneath `links/`, such as
-`links/assigned-to/81`.
+For example, `task-42`, `projects/alpha/task-42` and `relations/81` are
+valid local Resource IDs. `beads/task-42` and `links/81` are also ordinary
+literal IDs; neither segment is inserted or elided. Kind is determined by
+the operation and resolved Resource, not these spellings.
 
-An input Resource reference may use that canonical local spelling or the
-absolute canonical URL. The authority resolves a local reference against
-`scope` and canonicalizes it. Before lookup, it verifies that the first
-segment is the fixed root for the required Resource kind. A relative endpoint
-reference therefore must identify a live Bead in this Scope. An absolute
-endpoint reference outside `scope` remains opaque. Resolution never mutates
-an endpoint Bead.
+An input Resource reference may use its canonical local spelling or the
+absolute canonical URL. Local references resolve within the canonical Scope
+and undergo the required Kind check on the resolved Resource. A relative
+endpoint must identify a live in-Scope Bead; an absolute endpoint outside
+Scope remains opaque. Resolution never mutates an endpoint Bead.
 
 When the Scope's profile supports mutation, `operations` identifies an
 Operation Directory rather than a collection of transactions. Its named
@@ -4568,7 +4557,7 @@ and a request that fails one step never reaches the next:
    (amended 2026-09-08, council 13), an absent, repeated, or invalid `Idempotency-Key`, a body outside
    `batchRequest`, a forward, unknown, or duplicate label, a label used
    where the other Resource kind is required, a noncanonical local ID
-   spelling, or a supplied `id` beneath the wrong fixed root is `400`
+   spelling, or a supplied `id` outside the canonical Scope is `400`
    `malformed-request`, whose problem SHOULD carry `pointer`, an RFC 6901
    JSON Pointer into the request body naming the offending member;
 3. the principal — an unauthenticated request is `401` `unauthenticated`,

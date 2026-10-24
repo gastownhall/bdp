@@ -681,14 +681,11 @@ describe("BdpClient", () => {
     },
   );
 
-  it("rejects a collection whose typed Resource identities do not match its kind", async () => {
+  it("rejects Link record semantics in a Bead collection", async () => {
     const transport = new RecordingTransport({
       items: [
         {
-          id: `${LINKS}wrong-kind`,
-          type: "https://work.example/types/task",
-          revision: "1",
-          properties: {},
+          ...validLink({ id: `${SCOPE}wrong-kind` }),
         },
       ],
       next: null,
@@ -1326,7 +1323,6 @@ describe("BdpClient", () => {
   });
 
   it.each([
-    ["cross-kind root", `${LINKS}a`],
     ["query-bearing ID", `${BEADS}a?view=properties`],
     ["encoded slash", `${BEADS}a%2Fb`],
     ["encoded backslash", `${BEADS}a%5Cb`],

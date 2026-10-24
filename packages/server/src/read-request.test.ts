@@ -125,9 +125,9 @@ describe("shared Read request kernel", () => {
 
   it.each([
     { kind: "collection", collection: "beads", continuation: `${scope}beads/?cursor=x`, limit: 1 },
-    { kind: "collection", collection: "links", source: `${scope}alias/latest` },
+    { kind: "collection", collection: "links", source: `${scope}alias//latest` },
     { kind: "collection", collection: "beads", type: "relative" },
-    { kind: "resource", resource: "bead", id: `${scope}links/wrong` },
+    { kind: "resource", resource: "bead", id: `${scope}links/%77rong` },
     { kind: "bead-links", bead: bead.id, direction: "sideways" },
     { kind: "scope-discovery", scope: "https://other.example/" },
   ])("keeps existing request validation for %j", (request) => {
@@ -205,7 +205,7 @@ describe("shared Read request kernel", () => {
     expect(() =>
       validateServerBead({ ...bead, ownedLinks: { [link.type]: [link] } }, scope),
     ).not.toThrow();
-    expect(() => validateServerLink({ ...link, source: `${scope}alias/a` }, scope)).toThrow(
+    expect(() => validateServerLink({ ...link, source: `${scope}alias/%61` }, scope)).toThrow(
       ProtocolArtifactValidationError,
     );
     expect(() => validateServerLink({ ...link, source: "urn:outside:a" }, scope)).toThrow(

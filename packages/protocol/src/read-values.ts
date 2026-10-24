@@ -324,10 +324,10 @@ export function parseCanonicalScope(value: unknown, path = "Scope"): AbsoluteHtt
   return scope;
 }
 
-/** Resolve a canonical local Resource ID beneath the required fixed root. */
+/** Resolve a literal canonical local Resource ID within one Scope; paths do not encode Kind. */
 export function resolveCanonicalLocalResourceId(
   scope: AbsoluteHttpUrl,
-  resource: "bead" | "link" | "type",
+  _resource: "bead" | "link" | "type",
   localId: string,
 ): AbsoluteHttpUrl {
   parseCanonicalScope(scope);
@@ -335,14 +335,11 @@ export function resolveCanonicalLocalResourceId(
     throw new ProtocolArtifactValidationError(
       "local Resource ID must not contain query or fragment",
     );
-  const segments = localId.split("/");
-  const expectedRoot = resource === "bead" ? "beads" : resource === "link" ? "links" : "types";
-  if (segments[0] !== expectedRoot || segments.length < 2)
-    throw new ProtocolArtifactValidationError(
-      `local ${resource} ID must begin with ${expectedRoot}/ and contain an ID path`,
-    );
-  for (const segment of segments.slice(1)) validateCanonicalIdSegment(segment);
-  return new URL(localId, scope).href as AbsoluteHttpUrl;
+  for (const segment of localId.split("/")) validateCanonicalIdSegment(segment);
+  // Concatenation preserves a colon in the first segment as a literal path,
+  // rather than letting URL resolution interpret it as a URI scheme.
+  const id = `${scope}${localId}`;
+  return parseCanonicalHttpUrl(id, "Resource ID");
 }
 
 function validateEndpointConstraint(value: unknown, path: string): void {
@@ -422,8 +419,8 @@ function validateFromSchema(validator: ValidateFunction, value: unknown, path: s
  * Validates one canonical path (one or more safe segments joined by `/`)
  * under the exact Resource-ID segment grammar: nonempty, no `.`/`..`, no
  * embedded separators or controls after one-time UTF-8 decoding, and
- * canonically encoded. The alias root shares this grammar with `beads/`
- * and `links/`.
+ * canonically encoded. All Resource-ID segments, including the first, use
+ * this grammar; no segment names determine Resource Kind.
  */
 export function assertCanonicalPathSegments(path: string, label: string): void {
   const segments = path.split("/");

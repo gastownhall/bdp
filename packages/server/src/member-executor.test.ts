@@ -1119,9 +1119,9 @@ describe("stored envelope and metadata integrity", () => {
       },
     ],
     [
-      "wrong Resource root",
+      "noncanonical Resource ID",
       (e) => {
-        obj(obj(e.disposition).resource).id = `${scope}links/x`;
+        obj(obj(e.disposition).resource).id = `${scope}links/%78`;
         return e;
       },
     ],
@@ -1403,7 +1403,7 @@ describe("stored envelope and metadata integrity", () => {
       { alias: "https://other.test/alias/new" },
       { alias: `${scope}beads/new` },
       { target: "https://other.test/beads/a" },
-      { target: `${scope}links/old` },
+      { target: `${scope}links/%6Fld` },
       { revision: "bad" },
       { outcome: "deleted" },
     ]) {

@@ -340,7 +340,7 @@ describe("explicit body-only History client", () => {
     },
   );
 
-  it("refuses both-external historical Link and local alias identities", async () => {
+  it("refuses both-external historical Link and malformed or foreign identities", async () => {
     const link = fixture<LinkRecord>("exact-link");
     const { client, calls } = clientWith(() => ({
       ...link,
@@ -357,8 +357,8 @@ describe("explicit body-only History client", () => {
     ).toMatchObject({ code: "temporarily-unavailable" });
     const count = calls.length;
     for (const [bad, code] of [
-      [`${scope}alias/decision`, "invalid-parameter"],
-      [`${scope}types/memory`, "invalid-parameter"],
+      [`${scope}alias//decision`, "invalid-parameter"],
+      [`${scope}types/%6Demory`, "invalid-parameter"],
       ["https://other.example/beads/x", "forbidden"],
     ] as const)
       expect(await client.performHistory({ ...exact, id: bad })).toMatchObject({ code });
