@@ -179,8 +179,11 @@ exact-revision cycles reject. Shape checks do not prove declaration admission.
 
 The graph records a final state. It supplies no creation/import syntax, revision
 allocation, forward-reference, Scope binding or identity-conflict behavior.
-The Issue/Dependency prose retains its inspected Preview 2 evidence; these artifacts
-do not freshly qualify a runtime or select unresolved domain fields. The fixed
+The Issue/Dependency prose retains its inspected Preview 2 evidence and records
+its selected bounded native adapter correspondence. The example Issue and Dependency
+definitions declare `abstract: true`; their task/blocks refinements remain concrete.
+This closes base instantiability, not general custom-definition provisioning or
+runtime qualification. These artifacts do not select other unresolved domain fields. The fixed
 Memory product proposal remains independent of this definition encoding.
 
 ## Validation limits and reproduction
