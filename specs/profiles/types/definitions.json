@@ -2637,6 +2637,7 @@
         "revision": "bead-type-1"
       },
       "properties": {
+        "abstract": true,
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/bdp-draft/schemas/issue.properties.schema.json",
@@ -3195,6 +3196,7 @@
         "revision": "link-type-1"
       },
       "properties": {
+        "abstract": true,
         "propertiesSchema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "$id": "https://example.org/bdp-draft/schemas/dependency.properties.schema.json",

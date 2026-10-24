@@ -218,6 +218,7 @@ describe("BDP v0 schema bundle", () => {
       "mutationReceiptPage",
       "mutationResult",
       "mutationResultMembers",
+      "ordinaryUpdateChange",
       "ownedLinkChange",
       "ownedLinkDeclaration",
       "ownedLinkDelta",

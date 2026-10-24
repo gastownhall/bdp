@@ -392,7 +392,7 @@
     },
     {
       "id": "transactional.singleton.semantics",
-      "title": "Inherited v0 Transactional singleton and batch forms have identical operation semantics",
+      "title": "A singleton and the equivalent one-operation batch have identical allocation, validation, idempotency, and Event semantics",
       "kind": "normative",
       "requiredProfile": "transactional",
       "requirements": [
@@ -733,7 +733,7 @@
     },
     {
       "id": "transactional.idempotency.cross-carrier",
-      "title": "Inherited v0 Transactional equivalent carriers share semantic request and receipt",
+      "title": "A one-operation batch, the equivalent singleton, and the equivalent sequence member present one semantic request and share one receipt",
       "kind": "normative",
       "requiredProfile": "transactional",
       "requirements": [

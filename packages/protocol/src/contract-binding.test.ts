@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
+import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
 import { BDP_V0_SCHEMA_ID, isReadDiscovery } from "./index.js";
+
+const addFormats = formatsPlugin.default;
 
 const root = new URL("../../../", import.meta.url);
 const read = (name: string) => readFileSync(new URL(name, root), "utf8");

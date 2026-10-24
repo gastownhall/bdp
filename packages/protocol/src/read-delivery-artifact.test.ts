@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
+import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+
+const addFormats = formatsPlugin.default;
 
 const root = new URL("../../../", import.meta.url);
 const read = (name: string) => readFileSync(new URL(name, root), "utf8");
@@ -37,6 +39,8 @@ function sequence(records: RecordValue[]): void {
   expect(records.length).toBeGreaterThanOrEqual(2);
   const first = records[0];
   const last = records[records.length - 1];
+  if (first === undefined || last === undefined)
+    throw new Error("sequence requires header and terminal records");
   expect(valid("header", first)).toBe(true);
   expect(valid("terminal", last)).toBe(true);
   const items = records.slice(1, -1);
@@ -50,7 +54,10 @@ function sequence(records: RecordValue[]): void {
       const data: { items: unknown[]; next?: string | null } = {
         items: items.map((item) => item.data),
       };
-      if (Object.hasOwn(last, "continuation")) data.next = continuation;
+      if (Object.hasOwn(last, "continuation")) {
+        if (continuation === undefined) throw new Error("present continuation must be defined");
+        data.next = continuation;
+      }
       frame.data = data;
       if (last.outcome === "success") {
         expect(Object.hasOwn(last, "continuation")).toBe(true);
@@ -66,7 +73,8 @@ function sequence(records: RecordValue[]): void {
     expect(last).not.toHaveProperty("completion");
     expect(last).not.toHaveProperty("continuation");
     expect(items.length).toBeLessThanOrEqual(1);
-    if (items.length) frame.data = items[0].data;
+    const item = items[0];
+    if (item !== undefined) frame.data = item.data;
   }
   expect(valid("envelope", frame)).toBe(true);
 }

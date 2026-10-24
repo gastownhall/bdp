@@ -1,5 +1,6 @@
 """Validate review artifacts only; this is not a BDP Type-profile implementation."""
 from copy import deepcopy
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -416,6 +417,9 @@ assert not direct_use_allowed({"uri": prefix + "type", "revision": "type-1"})
 assert direct_use_allowed(bead_meta)
 assert direct_use_allowed(link_meta)
 assert direct_use_allowed(task_ref)
+assert not direct_use_allowed({"uri": prefix + "issue", "revision": "issue-1"})
+assert not direct_use_allowed({"uri": prefix + "dependency", "revision": "dependency-1"})
+assert direct_use_allowed({"uri": prefix + "blocks", "revision": "blocks-1"})
 
 
 def check_direct_target_uniqueness(owner, accepted_refines_family):
@@ -588,7 +592,160 @@ for name, block in zip((issue_name, dependency_name), inline_schemas):
                 if key not in {"$id", "title", "$comment"}}
     assert block == artifact, (name, "inline properties schema drift")
 
-for path in [HERE / "types.md", HERE / "README.md", ISSUE / "issue.md",
+# Finite exact-read artifact audit against the pinned common schema. No provider,
+# registration, generic closure admission or authorization behavior is implemented.
+read_cases = json.loads((HERE / "exact-definition-read-cases.json").read_text())
+read_schema = json.loads((HERE / "exact-definition-read.schema.json").read_text())
+common_bytes = (ROOT / read_cases["commonSource"]["path"]).read_bytes()
+assert hashlib.sha256(common_bytes).hexdigest() == read_cases["commonSource"]["sha256"], "exact-read common source drift"
+common_schema = json.loads(common_bytes)
+read_registry = Registry(retrieve=unavailable).with_resources(
+    list(SPECIFICATIONS.items()) + [
+        (common_schema["$id"], Resource.from_contents(common_schema)),
+        (read_schema["$id"], Resource.from_contents(read_schema))])
+Draft202012Validator.check_schema(read_schema)
+read_validators = {
+    name: Draft202012Validator({"$ref": read_schema["$id"] + "#/$defs/" + name},
+                              registry=read_registry, format_checker=FormatChecker())
+    for name in read_schema["$defs"]}
+for alias in read_schema["$defs"].values():
+    read_registry.resolver().lookup(alias["$ref"])
+assert read_validators["selection"].is_valid({"capabilityVersion": "2", "future": True})
+assert not read_validators["selection"].is_valid({"capabilityVersion": ""})
+assert not read_validators["selection"].is_valid({})
+for case in read_cases["queryCases"]:
+    assert read_validators["queryV1"].is_valid(case["query"]) == case["valid"], case["id"]
+for case in read_cases["queryEncodingCases"]:
+    read_validators["queryV1"].validate(case["query"])
+read_validators["capabilityV1"].validate(read_cases["advertisementDetail"])
+assert not read_validators["capabilityV1"].is_valid({"operation": "relative"})
+for key in ["unknownVersionProblem", "unretainedProblem"]:
+    read_validators["problem"].validate(read_cases[key])
+read_validators["capabilityProblem"].validate(read_cases["unknownVersionProblem"])
+assert read_cases["unknownVersionProblem"]["capability"] == read_cases["capability"]
+assert not read_validators["problem"].is_valid({**read_cases["unretainedProblem"], "missing": {"items": [{"kind": "record", "value": "secret"}], "complete": True}})
+# These failures exercise common grammar; the wrapper grammar does not by itself
+# enforce requested-pair equality, copied-record completeness or origin authority.
+assert not read_validators["queryV1"].is_valid({**read_cases["queryCases"][0]["query"], "uri": "relative"})
+assert not read_validators["success"].is_valid({**read_cases["response"], "registration": True})
+
+
+def check_fixture_read(query, response):
+    read_validators["queryV1"].validate(query)
+    record = response["definition"]
+    exact = pin_of(query)
+    assert (record["id"], record["revision"]) == exact, "exact-read requested pair mismatch"
+    assert record == by_pin[exact], "exact-read copied record drift"
+    read_validators["success"].validate(response)
+
+
+check_fixture_read(read_cases["queryCases"][0]["query"], read_cases["response"])
+assert len(read_cases["intrinsicReads"]) == 4
+assert {case["id"] for case in read_cases["intrinsicReads"]} == {"type", "bead-type", "link-type", "refines"}
+for case in read_cases["intrinsicReads"]:
+    assert case["query"]["uri"] == prefix + case["id"], "intrinsic label/pair mismatch"
+    read_validators["definitionRecord"].validate(case["response"]["definition"])
+    check_fixture_read(case["query"], case["response"])
+    assert case["response"]["originScope"] == "https://example.org/fixture-publisher/"
+    # This is explicit example context, not URI-prefix inference or production authority.
+for response in [read_cases["response"]] + [case["response"] for case in read_cases["intrinsicReads"]]:
+    assert "metadata" not in response["definition"]
+    assert "revisionProvenance" not in response["definition"]
+# An unknown origin stays absent; shape permits it without manufacturing context.
+unknown_origin = deepcopy(read_cases["intrinsicReads"][0]["response"])
+del unknown_origin["originScope"]
+check_fixture_read(read_cases["intrinsicReads"][0]["query"], unknown_origin)
+assert "originScope" not in unknown_origin
+assert not read_validators["success"].is_valid({**unknown_origin, "originScope": "example.org"})
+assert read_cases["recordSource"]["path"] == read_cases["intrinsicSource"]["path"] == "definitions.json"
+assert (read_cases["recordSource"]["id"], read_cases["recordSource"]["revision"]) == pin_of(read_cases["queryCases"][0]["query"])
+assert len(read_cases["semanticCases"]) == 6  # Unexecuted provider expectations, not six PASS claims.
+read_text = (HERE / "exact-definition-read.md").read_text()
+read_inline = [json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", read_text, re.S)]
+assert read_inline[0]["capabilities"][read_cases["capability"]]["1"] == read_cases["advertisementDetail"]
+assert read_inline[1] == read_cases["unknownVersionProblem"]
+for key in ["commit", "sha256"]:
+    assert read_cases["commonSource"][key] in read_text
+assert read_cases["intrinsicReads"][0]["response"]["definition"]["properties"]["abstract"] is True
+
+# Equality failures below catch missing schema/owned bytes even when shape-valid;
+# they are artifact-source controls, not claims of provider completeness enforcement.
+read_copy_refusals = 0
+for label in ["wrong-request-pin", "missing-schema-map", "removed-owned-link", "altered-link-revision", "invented-provenance", "invented-metadata"]:
+    query = deepcopy(read_cases["intrinsicReads"][1]["query"])
+    response = deepcopy(read_cases["intrinsicReads"][1]["response"])
+    definition = response["definition"]
+    if label == "wrong-request-pin":
+        query["revision"] = "not-the-returned-pin"
+    elif label == "missing-schema-map":
+        del definition["properties"]["schemaResources"]
+    elif label == "removed-owned-link":
+        definition["ownedLinks"] = {}
+    elif label == "altered-link-revision":
+        next(iter(definition["ownedLinks"].values()))[0]["revision"] = "changed-link-pin"
+    elif label == "invented-provenance":
+        definition["revisionProvenance"] = {}
+    else:
+        definition["metadata"] = {}
+    try:
+        check_fixture_read(query, response)
+    except AssertionError as error:
+        expected = "exact-read requested pair mismatch" if label == "wrong-request-pin" else "exact-read copied record drift"
+        assert str(error) == expected, (label, str(error))
+        read_copy_refusals += 1
+    else:
+        raise AssertionError(("exact-read negative control accepted", label))
+
+
+def fixture_exact_walk(records, root):
+    # Only this eight-definition fixture: every captured owned Link is Refines.
+    # Keep exact-pair visited state for metatype loops, independently of DAG checks.
+    pending, visited = [pin_of(root)], set()
+    while pending:
+        exact = pending.pop()
+        if exact in visited:
+            continue
+        assert exact in records, "fixture exact dependency missing"
+        definition = records[exact]
+        visited.add(exact)
+        pending.append(pin_of(definition["type"]))
+        for links in definition["ownedLinks"].values():
+            for link in links:
+                pending.extend([pin_of(link["type"]), pin_of(link["target"])])
+    return visited
+
+
+for case in read_cases["closureCases"]:
+    assert fixture_exact_walk(by_pin, case["root"]) == {pin_of(ref) for ref in case["expectedExactDefinitions"]}, case["id"]
+for case in read_cases["closureRefusalCases"]:
+    records = dict(by_pin)
+    missing = records.pop(pin_of(case["remove"]))
+    newer = deepcopy(missing)
+    newer["revision"] += "-newer"
+    records[(newer["id"], newer["revision"])] = newer
+    try:
+        fixture_exact_walk(records, case["root"])
+    except AssertionError as error:
+        assert str(error) == "fixture exact dependency missing"
+    else:
+        raise AssertionError(("missing exact dependency fell back", case["id"]))
+# Adding a later task with different captured Refines state never changes task-1.
+records = dict(by_pin)
+new_task = deepcopy(by_pin[pin_of(read_cases["closureCases"][1]["root"])])
+new_task.update(revision="task-newer", ownedLinks={})
+records[(new_task["id"], new_task["revision"])] = new_task
+assert fixture_exact_walk(records, read_cases["closureCases"][1]["root"]) == {
+    pin_of(ref) for ref in read_cases["closureCases"][1]["expectedExactDefinitions"]}
+print(f"PASS: exact-read common-source digest; {len(read_cases['queryCases'])} query cases; "
+      f"task + {len(read_cases['intrinsicReads'])} complete example wrappers; "
+      f"{read_copy_refusals} altered-copy controls refused for exact reasons; "
+      f"{len(read_cases['closureCases'])} exact-pair fixture walks; "
+      f"{len(read_cases['closureRefusalCases'])} missing-dependency controls with newer copies refused; "
+      "current-state isolation; alias/inline/optional-origin controls. "
+      "No provider/registration/production-bootstrap qualification.")
+
+
+for path in [HERE / "types.md", HERE / "README.md", HERE / "exact-definition-read.md", ISSUE / "issue.md",
              ROOT / "specs/types/type-system/type-system.md"]:
     text = path.read_text()
     assert text.count("```") % 2 == 0, path

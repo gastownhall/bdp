@@ -37,9 +37,9 @@ do not establish execution of the new written acceptance cases.
 | [dependency.properties.schema.json](../../types/issue/dependency.properties.schema.json) | Dependency instance properties | Base review fragment; child-specific workflow fields remain open |
 | [domain-property-cases.json](../../../fixtures/specs/issue/domain-property-cases.json) | Illustrative Issue/Dependency properties | Shape-test inputs, not a domain specification |
 | [definitions.json](definitions.json) | Eight definition Beads and four owned declarations | Literal final graph, not creation/import syntax |
-| [exact-definition-read.md](exact-definition-read.md) | Narrow exact definition lookup | Candidate binding, not general History or public Type lifecycle |
-| [exact-definition-read.schema.json](exact-definition-read.schema.json) | Query/detail/wrapper/Problem grammar | References fixed unmerged common source; no provider semantics |
-| [exact-definition-read-cases.json](exact-definition-read-cases.json) | Exact query and copied full record; six semantic cases | Grammar/example evidence only; semantics unexecuted |
+| [exact-definition-read.md](exact-definition-read.md) | Narrow exact definition lookup | Paired common binding; not general History or public Type lifecycle |
+| [exact-definition-read.schema.json](exact-definition-read.schema.json) | Query/detail/wrapper/Problem grammar | Aliases fixed common exact-read helpers; no provider semantics |
+| [exact-definition-read-cases.json](exact-definition-read-cases.json) | Exact query, task + four intrinsic wrappers, finite walks; six service cases | Finite offline artifact audits; service semantics unexecuted |
 
 ## Source and status
 
@@ -126,16 +126,15 @@ that setting alone proves neither coverage of every standard format nor admissio
 refusal for unknown formats. It does not implement general required-vocabulary
 negotiation or prove arbitrary schema satisfiability.
 
-The later Types-local [exact lookup candidate](exact-definition-read.md) makes the
-complete-read obligation concrete without changing descriptor fields. Common-source
-author feedback supports the direction, not adoption. Shared Core/error/discovery
-propagation is separately owned; ordinary point ownership metadata must not be
-misapplied to a retained foreign definition. Its grammar uses exact PR292 common
-source as a separately recorded validation input; no canonical bundle/runtime copy
-is adopted here. The original checker below does not automatically cover that new
-binding. Read-specific grammar/source/negative cases have their own exact evidence;
-six service scenarios remain unexecuted. No new validation framework or runtime is
-introduced.
+The Types-local [exact lookup candidate](exact-definition-read.md) pairs with the
+staged common Core read/discovery/error binding. Its local schema is an alias index
+to existing common helpers, frozen at `6c3c421491adf8b7f6b3a0042c4d1196ce3c9115`;
+the cases record the exact common-schema SHA256. Original PR292 qualification
+remains historical, not inherited evidence for this candidate. The checker below
+now audits the task plus four intrinsic complete wrappers, common grammar and
+finite exact-dependency walks with retrieval disabled. Six service scenarios remain
+unexecuted. These records use the existing illustrative IDs/revisions and explicit
+example origin context, not a production bootstrap or registration claim.
 
 ## Changes from the current descriptor
 
@@ -179,8 +178,11 @@ exact-revision cycles reject. Shape checks do not prove declaration admission.
 
 The graph records a final state. It supplies no creation/import syntax, revision
 allocation, forward-reference, Scope binding or identity-conflict behavior.
-The Issue/Dependency prose retains its inspected Preview 2 evidence; these artifacts
-do not freshly qualify a runtime or select unresolved domain fields. The fixed
+The Issue/Dependency prose retains its inspected Preview 2 evidence and records
+its selected bounded native adapter correspondence. The example Issue and Dependency
+definitions declare `abstract: true`; their task/blocks refinements remain concrete.
+This closes base instantiability, not general custom-definition provisioning or
+runtime qualification. These artifacts do not select other unresolved domain fields. The fixed
 Memory product proposal remains independent of this definition encoding.
 
 ## Validation limits and reproduction
@@ -232,6 +234,12 @@ The endpoint cases stipulate Scope and accepted exact-definition facts; they do 
 implement registration or address classification; a negative case refuses an unpinned
 foreign definition even when registered.
 The revision cases check the target-edge walk, not complete declaration admission.
+The exact-read audit additionally checks the fixed common-schema digest, 14 query
+cases, capability/Problem helpers, task plus four intrinsic wrapper copies, six
+altered-copy refusals, two visited-exact-pair walks and two missing-dependency
+refusals despite newer copies. A newer task record does not affect the old walk.
+These finite checks do not execute the six provider scenarios or confer registration,
+default selection, ordinary list presence, public CRUD or publication authority.
 The composition check validates each contract unchanged and
 compares its conjunction with separate `allOf` branches, removing only each branch
 root dialect declaration after independent validation so it is not misplaced in a

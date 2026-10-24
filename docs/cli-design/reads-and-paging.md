@@ -28,7 +28,7 @@ Type filter, mixed-population query, traversal, endpoint-body fetch or domain vi
 | `--links-limit N` / `--direction in|out|both` on that aggregate | Native `limit=N` / `direction=inbound|outbound|both` |
 | `list --exact-type T` | Structural `type=<absolute nominal Type URI>` |
 | `list --type T` | `conformsTo=<absolute Type URI>` under recorded exact Types authority |
-| Link `--source`, `--target`, `--endpoint` | Same-named structural URI predicates |
+| Link `--from`, `--to`, `--endpoint` | Structural `source`, `target`, `endpoint` URI predicates |
 | Link `--incident-to BEAD` | That Bead's `view=links` population, with Link predicates |
 | `--selector JSONPATH` | Existing bounded raw Selector, unchanged |
 
@@ -39,8 +39,9 @@ Other predicates also combine with AND; endpoint itself compares source OR targe
 Family unavailable means refusal, not exact-only fallback or local scanning.
 
 Bare filter `--type any` omits that predicate; `--exact-type any` refuses. This is
-only a CLI spelling, not a forbidden Scope name or protocol Type identity. An
-absolute URI ending `/any` is an explicit identity. Filter operands are unpinned;
+only a CLI spelling, not a protocol basename-reservation rule. The earlier
+absolute-URI `/any` escape is a [draft proposal](preview3-alignment.md#type-and-rendering-boundaries);
+native configured-name/full-URI compatibility remains unresolved. Filter operands are unpinned;
 exact Type means nominal identity, never a definition revision. Raw JSONPath sees
 the Reference union without rewriting strings or dereferencing. Properties named
 `type`, `source` or `metadata` remain ordinary data in their own object.
@@ -53,14 +54,81 @@ default is both, and self-links appear once. Properties-only conflicts with aggr
 show does not accept collection filters. `--links-limit` requires aggregate and is
 positive; absent it, the provider chooses its bounded embedded-page default.
 
+## Link incidence and applicability
+
+`link list [ID1 [ID2]]` uses Resource operands, never a positional Scope. Zero
+operands select the matching current live Link inventory. One selects incidence,
+default direction both. Two select ID1 → ID2, default out; in selects ID2 → ID1;
+both unions those orientations. Preserve each Link's authored direction and emit a
+self-Link once. `--from`/`--to` are additional AND filters. Explicit --incident-to
+and positional incidence cannot both bind that role. Scope comes from --scope or
+configuration. Product `link count` must use the same checked selected population.
+
+Applicability is per endpoint, after identity resolution:
+
+| Operand | Matching endpoint on a current live Link |
+| --- | --- |
+| Bare ID | Same canonical URI, regardless of pin |
+| ID@current | Floating, or pinned to the checked current token |
+| ID@N / ID@=TOKEN | Pinned to the selected token; floating also matches if that token is checked current |
+| --all-revisions | Ignore operand revision applicability; still current live Links |
+
+The override does not turn this into a historical Link inventory. Retained endpoint
+content and current incident Links have separate acquisition times/authorities.
+Never float a stored pin, substitute a current body for an unavailable pin, or
+claim that selected Links existed when the historical endpoint version was made.
+
+The existing bounded Selector expresses resolved matching before native pagination.
+For endpoint field E, canonical URI U and exact token R, define these expressions
+as compiler notation, not new JSONPath functions:
+
+```text
+identity(E,U) = (@.E == U || @.E.uri == U)
+pinned(E,U,R) = (@.E.uri == U && @.E.revision == R)
+applicable(E,U,R,current) = pinned(E,U,R) || (@.E == U && current)
+```
+
+The compiler substitutes the actual source/target singular paths and JSON string
+literals. `current` is a resolved boolean, not a path comparison or new wire term.
+For two operands, out is match(source,A) AND match(target,B); in reverses A/B;
+both is their OR. One operand uses its selected direction. Combine any user raw
+Selector with AND inside one bounded expression; quote/encode exact values rather
+than interpolate executable syntax. Keep nominal/family predicates as their existing
+single wire parameters. Send one native query, not separate forward/reverse requests
+whose pages could belong to different snapshots. Existing source/target/endpoint
+parameters remain URI-only; no repeated query parameters implement a union.
+
+The selected adapter must establish canonical identities, local ordinal mappings
+and any current-token test truthfully in its checked read context. Ordinary BDP
+discovery does not advertise local ordinals or a shared transaction across a point
+GET and later Link query. A remote binding cannot claim atomic current-applicability
+by joining unrelated reads; unsupported resolution/consistency explicitly refuses.
+Once resolved, exact pin predicates use unchanged Selector/Reference semantics.
+For example, if the checked adapter established selected r4 is not current,
+`link list task-42@=r4 --direction out` at Scope https://work.example/acme/
+uses this ordinary selector (and the existing Link inventory URL):
+
+```text
+$[?@.source.uri == "https://work.example/acme/task-42" && @.source.revision == "r4"]
+```
+
+Server refusal for complexity/URI bounds remains a refusal; do not fetch a broad
+population, hide rows locally and reuse a misleading native cursor/count.
+
+Continuation retains the issued fully selected population, not a new ordinal/current
+lookup. Do not recompute applicability on later pages. Generic BDP has no native
+count request here; a product count uses its adapter or a complete same-snapshot
+enumeration, never the current page size or an unreported partial count.
+
 ## Existing exact reads and HTTP controls
 
-`ID@REV` and `--revision REV` both express existing exact application History reads;
-supplying both is an error even if equal. Wire query is `revision`, not a guard or
-HTTP validator. Preserve opaque token/form-query encoding, including literal plus
-as `%2B`. No current/nearest fallback. Unwrapped HTTP URLs containing raw `@` stay
-literal under shared Reference rules; use bracketed URL suffix or explicit option.
-The existing C1 current-read suffix conveniences stay distinct from literal flag tokens.
+`ID@=TOKEN` and `--revision TOKEN` express exact application History reads;
+`ID@N` first requires an authoritative stable local ordinal mapping. Supplying a
+suffix and --revision is an error even if equal. The wire query is `revision`,
+never an ordinal, guard or HTTP validator. Preserve opaque token/form-query encoding,
+including literal plus as `%2B`. No current/nearest fallback. Unwrapped HTTP URLs
+containing raw @ stay literal; use the explicit flag or exact JSON Reference.
+`@current` selects current; explicit `--revision current` is the literal token.
 
 Actual advertised application History remains required for ordinary application
 exact reads. Its existing full-record-only query forbids properties-only/aggregate/
