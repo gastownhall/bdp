@@ -10,10 +10,10 @@ bdp show task-42
 bdp list
 bdp link show relations/81
 bdp create --type Task --properties '{"title":"Review BDP"}'
-bdp link create --type Relates --source task-42 --target task-17
+bdp link create task-42 task-17 --type Relates
 ```
 
-Select context by explicit `--scope SCOPE`, then `BDP_SCOPE_URL`, then configuration `scope.url`. Commands addressing a Scope (`scope inspect`, `list`, `link list`, `create`, `link create`, `batch`, `type list`) also allow one positional Scope; it conflicts with `--scope` even when equal. Point commands use their primary operand as a Resource, never a guessed Scope. Configuration-file discovery belongs to the selected client configuration contract; this adds no connection-management commands.
+Select context by explicit `--scope SCOPE`, then `BDP_SCOPE_URL`, then configuration `scope.url`. Commands addressing a Scope (`scope inspect`, `list`, `create`, `batch`, `type list`) also allow one positional Scope; it conflicts with `--scope` even when equal. Link create/list/count positionals denote Resources; use `--scope` or the configured default there. Point commands use their primary operand as a Resource, never a guessed Scope. Configuration-file discovery belongs to the selected client configuration contract; this adds no connection-management commands.
 
 Every relative primary Resource ID, authored Type ID and Link endpoint uses the established command Scope. The whole local path is identity: do not prepend `beads/`, `links/` or `types/`, strip apparent kind words, or try multiple namespaces. The Scope may choose those words as ordinary path components. Removing prefixes does not relax canonical URI syntax, identity non-reuse, authorization, guards or exact revision binding.
 
@@ -28,6 +28,46 @@ bdp --scope https://work.example/acme/ update task-42 --if-revision saved-r1 --s
 An absolute point read needs no configured Scope or inventory lookup. A configured default never rewrites it. An absolute mutation uses a verified owning-Scope/operation binding, either explicitly supplied, already established in context, or obtained through the Resource response's `service-desc` relation. The returned discovery document supplies canonical `scope` and operation navigation. Do not strip path segments from the Resource URL, treat a Type/endpoint URL as the destination, or use an unrelated ambient default as ownership evidence.
 
 Relative secondary operands use that established command Scope. An explicit contradictory binding refuses before mutation. Authority admission still checks membership, kind, authorization and guards; discovery is not a reservation or proof an edit will succeed. A writer unable to read a target can supply a Scope binding rather than treating missing read permission as an invitation to guess routing. Navigation supplies no credential grant across authorities.
+
+## Revision selectors
+
+| Local spelling | Meaning |
+| --- | --- |
+| `item` | Bare identity; the command defines its current-read/incidence meaning |
+| `item@4` | Stable ordinal 4 in the selected store's history for this Resource |
+| `item@=123` | Exact portable revision token `123`, not ordinal 123 |
+| `item@current` | Explicit current selection where the command admits it |
+
+Generated local IDs and current token spellings make these happy paths shell-safe
+in Bash/Zsh; arbitrary caller-supplied tokens may still require quoting. The first
+raw @ in a local convenience spelling starts its selector. Unknown suffix syntax
+refuses rather than treating a former `@TOKEN` spelling as an ordinal or current.
+No bracket/glob syntax or `#` is required. Absolute HTTP URLs are literal, including
+raw @; use their explicit token flag or exact JSON Reference, not an ambiguous
+URL suffix. A literal local `notes@4` remains selectable through its full canonical
+URL or `json:"notes@4"`; exact-value forms bypass convenience parsing. Explicit
+`--id` input is always literal. No allocated identity is renamed by this grammar.
+
+N is a positive decimal int64, parsed without rounding. An ordinal is an adapter
+lookup for the selected Resource/history authority, never page position, current lineage depth, token prefix or a portable numeric token.
+Restore, pruning and sync must not silently change what an existing local selector
+means. Unknown/unsupported mapping refuses; do not enumerate a page and count rows.
+Deletion ordinals identify events, not readable bodies; no nearest-live fallback.
+Different stores can number the same portable revision differently.
+
+Resolve an admitted ordinal to the exact full token before transport, persistence
+or a guarded operation. Explicit `--revision`, `--if-revision`, `--type-revision`,
+`--source-revision` and `--target-revision` remain literal token options; they do not
+parse decimal strings as ordinals. A suffix and the corresponding explicit token
+option conflict even when equal. `@current` is not an authored durable pin.
+The separate [Beads typed endpoint-flag operations](preview3-alignment.md#product-endpoint-pin-operations)
+are product adapter intents, not changes to these generic literal token flags or
+permission to reinterpret exact @=current/@=unpinned tokens.
+Point mutation subjects stay unpinned. The separately owned Beads historical-edit
+command copies selected retained content; it is not a new generic BDP write field.
+Offline emission requires exact tokens and refuses unresolved ordinals. Full token
+JSON/References remain unchanged; no ordinal wire field or token-generation change
+is implied. The [alignment map](preview3-alignment.md) records adapter limits.
 
 ## Kind is independent of path
 
