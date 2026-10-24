@@ -39,8 +39,9 @@ Other predicates also combine with AND; endpoint itself compares source OR targe
 Family unavailable means refusal, not exact-only fallback or local scanning.
 
 Bare filter `--type any` omits that predicate; `--exact-type any` refuses. This is
-only a CLI spelling, not a forbidden Scope name or protocol Type identity. An
-absolute URI ending `/any` is an explicit identity. Filter operands are unpinned;
+only a CLI spelling, not a protocol basename-reservation rule. The earlier
+absolute-URI `/any` escape is a [draft proposal](preview3-alignment.md#type-and-rendering-boundaries);
+native configured-name/full-URI compatibility remains unresolved. Filter operands are unpinned;
 exact Type means nominal identity, never a definition revision. Raw JSONPath sees
 the Reference union without rewriting strings or dereferencing. Properties named
 `type`, `source` or `metadata` remain ordinary data in their own object.

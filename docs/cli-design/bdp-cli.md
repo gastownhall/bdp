@@ -83,8 +83,9 @@ Read filters are --type (family), --exact-type (nominal), --selector, and Link
 --from/--to/--endpoint or --incident-to with --direction in|out|both.
 The wire still names source/target. Duplicate endpoint bindings refuse; the three
 authoring forms are exact, with no inverted --from SOURCE TARGET form. Exact/family
-combine with AND. Bare --type any omits its predicate; explicit URI /any remains
-identity, not a forbidden name. Show's --properties-only is actual view=properties;
+combine with AND. Bare --type any omits its predicate. The explicit-URI /any
+escape remains a [draft proposal with an unresolved native compatibility boundary](preview3-alignment.md#type-and-rendering-boundaries),
+not a settled name-reservation rule. Show's --properties-only is actual view=properties;
 --include-links/--links-limit/--direction is one bounded Bead aggregate. Collection
 --paged/--unpaged/--page-size/--limit/--continue, HTTP controls, exact continuation,
 output formats and masks have their complete [read contract](reads-and-paging.md)
