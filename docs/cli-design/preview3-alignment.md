@@ -27,7 +27,7 @@ and BDP integration; Iris import; Sybil canonical CLI semantics and source revie
 | `link create --from SOURCE --to TARGET` | Same unique endpoint bindings |
 | `link list [A [B]]` | One current Link population; direction/applicability compiled before pagination |
 | `link list --from A --to B` | Existing structural source=A AND target=B URI predicates |
-| `--source-revision` / `--target-revision` | Literal endpoint pin, unchanged field meaning |
+| Generic `--source-revision` / `--target-revision` | Exact endpoint token; product typed operations below |
 | `--if-source-revision` | Existing product source guard; no new generic wire guard |
 | Product historical `--from-revision` | Selected retained-content edit/recovery; not an endpoint spelling |
 
@@ -46,6 +46,18 @@ An inappropriate native supersedes selection on Memory explains the live-Issue
 requirement and points to superseded-by; no silent Type substitution or claim that
 every native Dependency kind blocks scheduling.
 
+### Product endpoint pin operations
+
+Beads retains documented typed endpoint-flag operations: current means pin to the
+checked current revision, and unpinned means float the endpoint. These are product
+authoring intents resolved by its authoritative writer, not opaque token comparison
+or new BDP Reference sentinels. Generic bdp token flags stay literal. `ID@=current`
+and `ID@=unpinned` always name exact tokens with those spellings; they must not turn
+into product operations through a string-sentinel comparison. Suffix plus explicit
+endpoint flag still refuses. Only @N, @=TOKEN and @current are convenience suffixes;
+@unpinned is not a selected incidence/current alias. Current-selection applicability
+and current-pin authoring remain different operations.
+
 ## History and allocation adapters
 
 Token generation is unchanged. `@N` means a stable store-local Resource/history
@@ -63,17 +75,21 @@ its actual history adapter and keep full old tokens addressable. Generic BDP wit
 that evidence keeps its ordinary versions descriptor and honest limitations.
 
 Short generated Resource names are canonical identities, not display abbreviations.
-Beads starts with six lowercase URL-safe characters and atomically reserves the
-complete name across Resource kinds, consumed/deleted identities and conflicting
-aliases/navigation. Retry collisions within the allocator, with bounded lengthening;
+The generic Memory/Link allocator starts with six lowercase URL-safe characters.
+Ordinary native Issue allocation retains its already-short allocator and supported
+native prefix conventions; no new 32-character fallback or six-character total-ID
+promise follows. Both atomically reserve the complete name across Resource kinds,
+consumed/deleted identities and conflicting aliases/navigation. Retry collisions
+within the allocator, with bounded lengthening where applicable;
 never treat live-row absence as a lifetime reservation. Disconnected allocation/
 merge conflict behavior must be disclosed by that implementation. No old identity
 is rewritten and the protocol imposes no mandatory token/ID length.
 
 `--id-root` on product create/link create is an explicit allocation prefix; reject
 with --id, use the shared import-root grammar, and keep the default flat rather than
-source-derived. Product root validation/allocation happens in its authoritative
-adapter. The unchanged generic create wire has id, not idRoot. A remote CLI may send
+source-derived. Native Issue root allocation uses the authoritative Issue writer
+wrapper and the same lifetime collision boundary. Product root validation/allocation
+happens in its authoritative adapter. The unchanged generic create wire has id, not idRoot. A remote CLI may send
 an explicit allocated candidate as id, but cannot infer reservation from a GET,
 print a future allocation claim, or silently retry a conflicting/unknown decision
 with a new idempotency key. Without a suitable allocation adapter, refuse --id-root;

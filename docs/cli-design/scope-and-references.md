@@ -60,6 +60,9 @@ or a guarded operation. Explicit `--revision`, `--if-revision`, `--type-revision
 `--source-revision` and `--target-revision` remain literal token options; they do not
 parse decimal strings as ordinals. A suffix and the corresponding explicit token
 option conflict even when equal. `@current` is not an authored durable pin.
+The separate [Beads typed endpoint-flag operations](preview3-alignment.md#product-endpoint-pin-operations)
+are product adapter intents, not changes to these generic literal token flags or
+permission to reinterpret exact @=current/@=unpinned tokens.
 Point mutation subjects stay unpinned. The separately owned Beads historical-edit
 command copies selected retained content; it is not a new generic BDP write field.
 Offline emission requires exact tokens and refuses unresolved ordinals. Full token
