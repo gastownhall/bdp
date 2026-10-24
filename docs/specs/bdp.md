@@ -2606,8 +2606,8 @@ The Read+Update rows mean:
 A member's subject Resource or in-Scope endpoint Bead that does not exist
 or is not visible in the request's Authorization View fails with the Read
 profile's `resource-not-found`, under the same non-disclosure rule; so does
-a subject reference whose spelling is not a canonical reference of the
-required kind or that names a Resource of another kind — the subject does
+a subject reference whose spelling is not canonical or whose resolved
+Resource is of another kind — the subject does
 not exist as the required kind — except that a `bead` subject or a Link
 endpoint spelled by alias is admitted and resolved under
 [Alias targets](#alias-targets), and fails this way only when the
@@ -2616,12 +2616,13 @@ put whose canonical `target`
 names a Bead that does not exist or is not visible, and an alias delete
 whose alias is unknown, fail the same way: aliases are not an enumeration
 oracle. Which code a reference fault takes follows from what the
-reference is: a subject reference — `bead`, `link`, or the `alias` member
-of an alias record — whose spelling has the wrong root is
-`resource-not-found`, since the subject does not exist as the required
-kind; an endpoint or target reference of the wrong category — an alias, a
-Link, or an external URI as an alias put's `target`, or a Link path as a
-Link endpoint — is `validation-failed`; and a value that is not a
+reference is: a `bead` or `link` subject reference that resolves to the
+wrong Resource kind is `resource-not-found`, since the subject does not
+exist as the required kind. An `alias` subject beneath the wrong alias
+root also remains `resource-not-found` under its separate alias contract.
+An endpoint or target reference of the wrong category — an alias, a Link,
+or an external URI as an alias put's `target`, or a Resource resolved as a
+Link where a Link endpoint requires a Bead — is `validation-failed`; and a value that is not a
 reference shape at all — neither a relative path nor an absolute URL
 under the local-ID grammar, or a `@name` where none is admitted — is
 carrier syntax, `malformed-request`. A member the principal may not perform
