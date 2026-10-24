@@ -322,11 +322,11 @@ describe("durable reference ownership and transaction interface", () => {
   });
 
   it("asserts pinned runtime, takes real exclusive ownership, and releases only on close", () => {
-    expect(process.version).toBe("v24.16.0");
+    expect(process.version).toBe("v24.22.1");
     const dir = directory();
     const first = open(dir, true);
     expect(first.runtime).toMatchObject({
-      node: "v24.16.0",
+      node: "v24.22.1",
       executable: process.execPath,
       journalMode: "delete",
       lockingMode: "exclusive",
@@ -762,7 +762,7 @@ import {openRecoveryStore} from ${JSON.stringify(moduleUrl)};
 import {DatabaseSync} from "node:sqlite";
 import {writeSync} from "node:fs";
 const [directory,mode]=process.argv.slice(1);
-if(process.version!=="v24.16.0")throw new Error("wrong interpreter");
+if(process.version!=="v24.22.1")throw new Error("wrong interpreter");
 const store=openRecoveryStore({directory,scope:${JSON.stringify(scope)},installationId:"installed-v1",lineageId:"logical-store-v1"});
 const send=value=>writeSync(1,JSON.stringify(value)+"\\n");
 const stop=()=>Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0);
@@ -797,7 +797,7 @@ async function startChild(
   messages: Record<string, unknown>[];
   wait: (field: string) => Promise<Record<string, unknown>>;
 }> {
-  expect(process.version).toBe("v24.16.0");
+  expect(process.version).toBe("v24.22.1");
   const child = spawn(
     process.execPath,
     ["--input-type=module", "--eval", childProgram, dir, mode],
@@ -939,7 +939,7 @@ describe("actual Node24 child-process crashes", () => {
     const { child, wait } = await startChild(dir, "owner");
     const ready = await wait("ready");
     expect(ready.ready).toMatchObject({
-      node: "v24.16.0",
+      node: "v24.22.1",
       executable: process.execPath,
       lockingMode: "exclusive",
     });
