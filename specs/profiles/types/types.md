@@ -995,7 +995,8 @@ apply; BeadType and LinkType remain usable metatypes under §2.1.
 The [Types-local exact lookup candidate](exact-definition-read.md) now pairs with
 the staged [common read binding](../core/type-definition-read.md) and its native
 schema helpers. Complete intrinsic example wrappers and exact-pair fixture walks
-provide finite source correspondence, not adopted transport or provider qualification. This section does not adopt History for every
+provide finite source correspondence, not adopted transport or provider qualification.
+This section does not adopt History for every
 Resource. A lookup miss does not authorize fetch-and-register.
 
 Current authorization applies. Missing, unavailable or undisclosable required exact
