@@ -58,6 +58,16 @@ endpoint flag still refuses. Only @N, @=TOKEN and @current are convenience suffi
 @unpinned is not a selected incidence/current alias. Current-selection applicability
 and current-pin authoring remain different operations.
 
+These are contract examples, pending qualification against the built product:
+
+| Command | Endpoint intent |
+| --- | --- |
+| `bd link create A B --type types/references --target-revision current` | Pin B to its checked current token |
+| `bd link update L --target-revision unpinned` | Float L's target through the product writer |
+| `bd link create A B@=current --type types/references` | Pin B to the literal token current |
+| `bd link create A B@=unpinned --type types/references` | Pin B to the literal token unpinned |
+| `bdp link create A B --type Relates --target-revision current` | Generic token flag: literal token current |
+
 ## History and allocation adapters
 
 Token generation is unchanged. `@N` means a stable store-local Resource/history
