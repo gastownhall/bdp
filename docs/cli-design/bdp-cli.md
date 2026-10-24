@@ -10,7 +10,9 @@ There are no domain conveniences, public request/receipt/snapshot/changes/sequen
 commands, or new Type verbs. `serve` is reserved and undetailed.
 The [Preview3 alignment](preview3-alignment.md) records the settled shared CLI delta,
 product extensions and exact lowering limits. It changes CLI source, not the wire
-contract or an implementation/release pin.
+contract or an implementation/release pin. The separate
+[Memory CLI companion](memory-cli.md) defines an optional domain command package,
+with a task walkthrough and its own explicit Type-design dependency.
 
 ## Scope, References and exact values
 

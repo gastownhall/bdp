@@ -42,6 +42,9 @@ endpoint. Link commands with Resource positionals use explicit/default Scope.
 All five Memory authoring verbs—reference, supersede, requires, defines, subject-to—
 share those signatures and the Link success renderer. Type/package semantics supply
 the corresponding operation; supersede preserves old → replacement direction.
+The [Memory CLI companion](memory-cli.md) collects their complete command contract,
+the ten focused relationship reads and an informative task walkthrough, with its
+Type-design dependency and implementation correspondence kept explicit.
 An inappropriate native supersedes selection on Memory explains the live-Issue
 requirement and points to superseded-by; no silent Type substitution or claim that
 every native Dependency kind blocks scheduling.
