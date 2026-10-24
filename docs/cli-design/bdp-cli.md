@@ -8,31 +8,44 @@ and [Write](../../specs/profiles/write/retained-write.md) define the matching pr
 The [completion map](../design/bdp-v0.1-retained-cutline.md) identifies actual gates.
 There are no domain conveniences, public request/receipt/snapshot/changes/sequence
 commands, or new Type verbs. `serve` is reserved and undetailed.
+The [Preview3 alignment](preview3-alignment.md) records the settled shared CLI delta,
+product extensions and exact lowering limits. It changes CLI source, not the wire
+contract or an implementation/release pin.
 
 ## Scope, References and exact values
 
-Use `--scope`, then BDP_SCOPE_URL, then configuration scope.url. Scope commands may
-also take one positional Scope, conflicting with --scope even when equal. A point
+Use `--scope`, then BDP_SCOPE_URL, then configuration scope.url. Scope-only commands may
+also take one positional Scope, conflicting with --scope even when equal.
+`link create`, `link list` and product `link count` use Resource positionals;
+select their Scope with --scope or the default, never a guessed positional Scope. A point
 operand is a Resource, not a guessed Scope. Absolute URLs stay directly readable;
 mutations use verified owning Scope/navigation. Preserve whole Scope-defined names,
 without beads/links/types prefixes. [Scope routing](scope-and-references.md) controls
 normalization, aliases, kind and credential boundaries.
 
-Human exact References are ID@REV or `[HTTP_URL]@REV`. An unwrapped absolute HTTP URL
-stays literal, including raw @; local spelling uses its first raw @ as suffix.
-Use an absolute URL to name a local identity containing literal @. Explicit forms:
+Human selectors are `ID@N` for a stable store-local ordinal, `ID@=TOKEN` for an
+exact portable revision token, and `ID@current` for explicit current selection.
+An unwrapped absolute HTTP URL stays literal, including raw @; use an explicit
+selector flag for an absolute URL. Exact JSON string/Reference forms or the full
+canonical URL keep literal identities containing @ selectable. `--id` is always
+literal. See [reference parsing](scope-and-references.md#revision-selectors).
 
 | Position | Flag | Meaning |
 | --- | --- | --- |
-| show | --revision TOKEN | Historical revision query, not a guard |
-| unpinned mutation target | --if-revision TOKEN | expectedRevision guard |
+| show | --revision TOKEN | Exact historical revision query, not a guard or ordinal |
+| unpinned mutation target | --if-revision TOKEN | Exact expectedRevision guard |
 | authored --type | --type-revision TOKEN | Exact Type affiliation |
-| authored Link source/target | --source-revision / --target-revision TOKEN | Literal endpoint pin |
+| authored Link source/target | --source-revision / --target-revision TOKEN | Exact endpoint pin |
 
-A suffix plus its corresponding explicit selector refuses even when equal. Show's
-@current/@unpinned convenience means current, while explicit --revision current is
-a literal token. Type/endpoint @unpinned means unpinned; @current refuses. Filters
-accept unpinned identities only. No GET-then-write current-pin emulation.
+A suffix plus its corresponding explicit selector refuses even when equal.
+Explicit token flags remain literal, including numeric/current spellings. Local
+ordinals require a truthful selected-store mapping and resolve to full tokens
+before transport or stored references; unavailable mapping refuses, never guesses.
+Type/endpoint @current refuses as a pin; bare input is unpinned. Mutation targets
+remain unpinned; historical edit/recovery is a separately owned product operation.
+Type filter operands stay unpinned; Link incidence selectors have the explicit
+[current-population applicability](reads-and-paging.md#link-incidence-and-applicability)
+contract. No GET-then-write current-pin emulation is added.
 
 Reference/token fields also accept exact `json:JSON`, `json:@FILE` or `json:@-`:
 a Reference is an admitted URI string or closed {uri,revision}; a token a nonempty
@@ -51,11 +64,11 @@ numbers rather than round them. Null, empty and omission remain distinct.
 | show REF [--revision TOKEN] | One current or exact Resource; [reads](reads-and-paging.md) |
 | link show REF [--revision TOKEN] | Same read with actual Link assertion |
 | list [SCOPE] [FILTERS] | Bead inventory, no domain/Type default |
-| link list [SCOPE] [LINK-FILTERS] | Link inventory or selected incident population |
+| link list [ID1 [ID2]] [LINK-FILTERS] | Current Link inventory/incidence/pair, selected Scope explicit/default |
 | events [RESOURCE]; link events RESOURCE | Required postimage observation, optional selected delta; [Events](events.md) |
 | versions REF; link versions REF | Optional complete History versions page, below |
-| create [SCOPE] --type REF [--id ID] [INITIAL-OBJECTS] | createBead singleton |
-| link create [SCOPE] --type REF --source REF --target REF [--id ID] [INITIAL-OBJECTS] | createLink singleton |
+| create [SCOPE] --type REF [--id ID] [INITIAL-OBJECTS] | createBead singleton; product allocation adapter may admit --id-root |
+| link create SOURCE TARGET --type REF [--id ID] [INITIAL-OBJECTS] | createLink; SOURCE --to TARGET or --from SOURCE --to TARGET also admitted |
 | update REF [--type REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateBead; at least one mutation input |
 | link update REF [--type REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateLink; endpoints are not update fields |
 | delete REF --force [--if-revision TOKEN] | deleteBead apply |
@@ -67,7 +80,9 @@ numbers rather than round them. Null, empty and omission remain distinct.
 | type list [SCOPE] | Deferred Type CLI placeholder; no invented inventory payload/path |
 
 Read filters are --type (family), --exact-type (nominal), --selector, and Link
---source/--target/--endpoint or --incident-to with --direction in|out|both. Exact/family
+--from/--to/--endpoint or --incident-to with --direction in|out|both.
+The wire still names source/target. Duplicate endpoint bindings refuse; the three
+authoring forms are exact, with no inverted --from SOURCE TARGET form. Exact/family
 combine with AND. Bare --type any omits its predicate; explicit URI /any remains
 identity, not a forbidden name. Show's --properties-only is actual view=properties;
 --include-links/--links-limit/--direction is one bounded Bead aggregate. Collection
@@ -103,6 +118,8 @@ is the authority contract; retry-file is private client recovery, not a public A
 
 --emit-operation on six ordinary CRUD commands and --emit-batch on batch produce
 literal selected native input without network/key/ID allocation or admission claim.
+Local ordinals and allocator-only --id-root cannot be silently resolved by the
+offline compiler; use exact tokens and explicit IDs, or receive an explicit refusal.
 Create --name is a batch/operation-emission label; ordinary singleton execution
 refuses it rather than inventing a body field. Delete rendering preserves --force. Display framing/masks and execution/retry keys
 conflict with emission. Shared native fields, presence, exact values, guards, Type
@@ -138,15 +155,22 @@ removed by guessing optional field masks. Terminal gives delivered-row completio
 and exact native continuation. Bodyless304 has no items/completion. This descriptor
 is outside the six ordinary-read framing schema; no full registry implementation
 or renderer execution is claimed by paper examples.
+Beads may additionally show a stable local SEQ timeline including deletion events;
+these are not fabricated native historyVersionsPage rows. A deleted entry has no
+live Resource body to select. See [product History mapping](preview3-alignment.md#history-and-allocation-adapters).
 
 ## Honest output, errors and required Events
 
-Default point/mutation display is detail, collection table; redirection never picks
-a format. --output-format default|detail|table|json|jsonl follows each declared
+Default point display is a shared human document and collections use shared rows.
+Create/Memory authoring success uses a brief acknowledgement plus the same row
+helper; it does not default to JSON or separate Link/source revision chatter.
+`--long` exposes administrative detail and full exact references/tokens.
+Redirection never picks a format. --output-format default|detail|table|json|jsonl follows each declared
 adapter. Mutations/aliases/batch preserve complete native results inside result_kind
 mutation (batch uses its compound ordered object). JSONL mutation is one complete
 compound item plus terminal, never a misleading stream of independently committed
-members; table is not admitted for these single/compound results. No public receipt
+members; use of a shared human row helper does not admit the table output format
+for these single/compound results. No public receipt
 replaces the result. Explicit data masks are ordinary-read representation controls,
 not mutation-result rewriting. Emission is separate, not framed success.
 

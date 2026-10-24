@@ -56,6 +56,30 @@ actual BDP Problem unchanged in `error:{origin:"bdp",problem:...}`; local proble
 use origin cli with stable code/message. Error framing cannot claim native payload
 validation merely by carrying a Problem object.
 
+## Common human documents and rows
+
+Bead and Link point output use one layout: `ID [declared concrete Type]`, optional
+title, selected revision/context, exact stored body, then metadata. Links add source
+and target with authored pins visible. Current and retained reads use that layout;
+never fill a historical document with current comments/relationships. Omit empty
+sections; `--long` exposes administrative detail and full URI/token/affiliation.
+An abstract base must not be relabeled as a concrete declaration for appearance.
+
+Collection and creation rows share helpers and begin ID then [Type]; native Issue
+status/priority remain useful product columns, and Link rows add exact endpoints.
+Creation success is a brief acknowledgement plus those rows. All five product Memory
+authoring verbs consume the same Link result renderer, without default JSON or
+separate Link/source revision chatter. This is human rendering, not a change to the
+native result or admission of new output-format/descriptor combinations.
+
+Remove only the exact canonical local Scope prefix for human identity display,
+preserving every literal segment; foreign URLs remain absolute. A stable local
+ordinal may abbreviate the selected revision/pin in human output when the adapter
+supplies its mapping. Otherwise show its exact token form. Full tokens, canonical
+URIs and actual Type References remain in structured output and detail access.
+Labels/local numbers must not become stored references or advertised portable IDs.
+Diagnostics and graph omission notices use stderr, keeping JSON/JSONL stdout valid.
+
 ## Field masks are representation only
 
 `--include POINTER` unions explicit fields; `--omit POINTER` subtracts optional
