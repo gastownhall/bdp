@@ -1,11 +1,13 @@
 """Validate review artifacts only; this is not a BDP Type-profile implementation."""
 from copy import deepcopy
+import hashlib
 import json
 from pathlib import Path
 import re
 from urllib.parse import urljoin, urldefrag
 
 from jsonschema import Draft202012Validator, FormatChecker
+from jsonschema.exceptions import ValidationError
 from jsonschema.validators import SPECIFICATIONS
 from referencing import Registry, Resource
 from referencing.exceptions import NoSuchResource
@@ -590,6 +592,124 @@ for name, block in zip((issue_name, dependency_name), inline_schemas):
     artifact = {key: value for key, value in SCHEMAS[name].items()
                 if key not in {"$id", "title", "$comment"}}
     assert block == artifact, (name, "inline properties schema drift")
+
+# Finite exact-read artifact audit against the pinned common schema. No provider,
+# registration, generic closure admission or authorization behavior is implemented.
+read_cases = json.loads((HERE / "exact-definition-read-cases.json").read_text())
+read_schema = json.loads((HERE / "exact-definition-read.schema.json").read_text())
+common_bytes = (ROOT / read_cases["commonSource"]["path"]).read_bytes()
+assert hashlib.sha256(common_bytes).hexdigest() == read_cases["commonSource"]["sha256"], "exact-read common source drift"
+common_schema = json.loads(common_bytes)
+read_registry = Registry(retrieve=unavailable).with_resources(
+    list(SPECIFICATIONS.items()) + [
+        (common_schema["$id"], Resource.from_contents(common_schema)),
+        (read_schema["$id"], Resource.from_contents(read_schema))])
+Draft202012Validator.check_schema(read_schema)
+read_validators = {
+    name: Draft202012Validator({"$ref": read_schema["$id"] + "#/$defs/" + name},
+                              registry=read_registry, format_checker=FormatChecker())
+    for name in read_schema["$defs"]}
+for case in read_cases["queryCases"]:
+    assert read_validators["queryV1"].is_valid(case["query"]) == case["valid"], case["id"]
+read_validators["capabilityV1"].validate(read_cases["advertisementDetail"])
+for key in ["unknownVersionProblem", "unretainedProblem"]:
+    read_validators["problem"].validate(read_cases[key])
+read_validators["capabilityProblem"].validate(read_cases["unknownVersionProblem"])
+# These failures exercise common grammar; the wrapper grammar does not by itself
+# enforce requested-pair equality, copied-record completeness or origin authority.
+assert not read_validators["queryV1"].is_valid({**read_cases["queryCases"][0]["query"], "uri": "relative"})
+assert not read_validators["success"].is_valid({**read_cases["response"], "registration": True})
+
+
+def check_fixture_read(query, response):
+    read_validators["queryV1"].validate(query)
+    read_validators["success"].validate(response)
+    record = response["definition"]
+    exact = pin_of(query)
+    assert (record["id"], record["revision"]) == exact, "exact-read requested pair mismatch"
+    assert record == by_pin[exact], "exact-read copied record drift"
+
+
+check_fixture_read(read_cases["queryCases"][0]["query"], read_cases["response"])
+assert {case["id"] for case in read_cases["intrinsicReads"]} == {"type", "bead-type", "link-type", "refines"}
+for case in read_cases["intrinsicReads"]:
+    check_fixture_read(case["query"], case["response"])
+    assert case["response"]["originScope"] == "https://example.org/fixture-publisher/"
+    # This is explicit example context, not URI-prefix inference or production authority.
+    assert "metadata" not in case["response"]["definition"]
+    assert "revisionProvenance" not in case["response"]["definition"]
+assert read_cases["intrinsicReads"][0]["response"]["definition"]["properties"]["abstract"] is True
+
+# Equality failures below catch missing schema/owned bytes even when shape-valid;
+# they are artifact-source controls, not claims of provider completeness enforcement.
+read_copy_refusals = 0
+for label in ["wrong-request-pin", "missing-schema-map", "removed-owned-link", "altered-link-revision", "invented-provenance"]:
+    query = deepcopy(read_cases["intrinsicReads"][1]["query"])
+    response = deepcopy(read_cases["intrinsicReads"][1]["response"])
+    definition = response["definition"]
+    if label == "wrong-request-pin":
+        query["revision"] = "not-the-returned-pin"
+    elif label == "missing-schema-map":
+        del definition["properties"]["schemaResources"]
+    elif label == "removed-owned-link":
+        definition["ownedLinks"] = {}
+    elif label == "altered-link-revision":
+        next(iter(definition["ownedLinks"].values()))[0]["revision"] = "changed-link-pin"
+    else:
+        definition["revisionProvenance"] = {}
+    try:
+        check_fixture_read(query, response)
+    except (AssertionError, KeyError, ValidationError):
+        read_copy_refusals += 1
+    else:
+        raise AssertionError(("exact-read negative control accepted", label))
+
+
+def fixture_exact_walk(records, root):
+    # Only this eight-definition fixture: every captured owned Link is Refines.
+    # Keep exact-pair visited state for metatype loops, independently of DAG checks.
+    pending, visited = [pin_of(root)], set()
+    while pending:
+        exact = pending.pop()
+        if exact in visited:
+            continue
+        assert exact in records, "fixture exact dependency missing"
+        definition = records[exact]
+        visited.add(exact)
+        pending.append(pin_of(definition["type"]))
+        for links in definition["ownedLinks"].values():
+            for link in links:
+                pending.extend([pin_of(link["type"]), pin_of(link["target"])])
+    return visited
+
+
+for case in read_cases["closureCases"]:
+    assert fixture_exact_walk(by_pin, case["root"]) == {pin_of(ref) for ref in case["expectedExactDefinitions"]}, case["id"]
+for case in read_cases["closureRefusalCases"]:
+    records = dict(by_pin)
+    missing = records.pop(pin_of(case["remove"]))
+    newer = deepcopy(missing)
+    newer["revision"] += "-newer"
+    records[(newer["id"], newer["revision"])] = newer
+    try:
+        fixture_exact_walk(records, case["root"])
+    except AssertionError as error:
+        assert str(error) == "fixture exact dependency missing"
+    else:
+        raise AssertionError(("missing exact dependency fell back", case["id"]))
+# Adding a later task with different captured Refines state never changes task-1.
+records = dict(by_pin)
+new_task = deepcopy(by_pin[pin_of(read_cases["closureCases"][1]["root"])])
+new_task.update(revision="task-newer", ownedLinks={})
+records[(new_task["id"], new_task["revision"])] = new_task
+assert fixture_exact_walk(records, read_cases["closureCases"][1]["root"]) == {
+    pin_of(ref) for ref in read_cases["closureCases"][1]["expectedExactDefinitions"]}
+print(f"PASS: exact-read common-source digest; {len(read_cases['queryCases'])} query cases; "
+      f"task + {len(read_cases['intrinsicReads'])} complete example wrappers; "
+      f"{read_copy_refusals} altered-copy controls refused; 2 exact-pair fixture walks; "
+      "2 missing-dependency controls with newer copies refused; current-state isolation. "
+      "No provider/registration/production-bootstrap qualification.")
+
 
 for path in [HERE / "types.md", HERE / "README.md", ISSUE / "issue.md",
              ROOT / "specs/types/type-system/type-system.md"]:
