@@ -1,11 +1,13 @@
 # Issue and Dependency Types
 
-Draft for review, October 14, 2026. **`issue` is a base Bead Type; `task`, `bug`
-and the other work classifications conform to it. `dependency` is a base Link
-Type; `blocks`, `parent-child` and the other dependency classifications conform
-to it.** Intrinsic Types for task, blocks and the other classifications are a
-settled product decision. Preview 2 exposes that direction through CLI shims; the
-inspected underlying catalog has not yet caught up. Native classification values
+Selected native classification contract, with historical Preview 2 evidence below.
+**`issue` is an abstract Bead Type; `task`, `bug` and the other work classifications
+are concrete Types refining it. `dependency` is an abstract Link Type; `blocks`,
+`parent-child` and the other dependency classifications are concrete Types refining
+it.** Neither base permits direct instance affiliation. Built-in concrete Types
+for the native classifications are a settled product decision. Preview 2 exposes
+that direction through CLI shims; the inspected underlying catalog has not yet
+caught up. Native classification values
 translate to the intrinsic `type` reference; `issue_type` and `dep_type` are not
 properties in the proposed records.
 
@@ -30,10 +32,10 @@ means a settled product decision, including intrinsic classification Types.
 does not reopen that product decision. **Open** means a remaining design choice.
 Inspection is not fresh runtime qualification.
 
-**Product update from Donna, October 14:** Preview 2's CLI ratifies intrinsic
-classification Types through shimming. The underlying implementation is planned
-to catch up for Preview 3 by Friday, October 16. This is the product plan, not a
-claim that this draft has inspected or qualified the future implementation. The
+**Historical product update from Donna, October 14:** Preview 2's CLI ratifies intrinsic
+classification Types through shimming. At that time, implementation catch-up was
+planned for Preview 3 by Friday, October 16. This historical plan is not a claim
+that this draft inspected or qualified the later implementation. The
 source evidence below remains the inspected Preview 2 snapshot.
 
 | Evidence | Exact identity | What it establishes |
@@ -92,17 +94,23 @@ to `blocks` merely because both affect readiness.
 
 `issue` and `dependency` membership queries must include conforming children.
 An exact nominal query for task remains distinct from a query for everything
-conforming to issue. The shared query syntax is open. Installing a Type or giving
-it a familiar display name does not confer membership without a declaration.
+conforming to issue. The candidate BDP collection uses `conformsTo` for family
+membership and `type` for exact nominal identity; the product CLI uses `--type` and `--exact-type`
+respectively. These predicates do not compare definition revision pins. Installing
+a Type or giving it a familiar display name does not confer membership without a
+declaration.
 
 The base Types need not freeze the list of permitted children. Existing custom
 Issue classifications and arbitrary valid dependency labels still need a stable,
 authorized mapping to definitions. The adapter must not invent global IDs from
 suffixes, silently fall back to the base, or discard an unknown classification.
-Whether base issue/dependency are directly instantiable, how ordinary create
-chooses its concrete Type, and how custom definitions are provisioned are OPEN.
-Existing native defaults are evidence for that decision, not automatically chosen
-new defaults.
+Base issue/dependency definitions declare `abstract: true`; direct creation and
+retyping into either base refuse. Abstractness is not inherited automatically:
+each classification child remains concrete unless its own definition declares
+otherwise. Ordinary native Issue creation keeps the task default; native dependency
+authoring keeps its existing blocks default. This does not introduce a default
+Type into generic BDP create. General custom-definition provisioning remains a
+separate lifecycle question; the native adapter boundary is specified in §2.2.
 
 The proposed graph representation has one classification authority: `type`.
 Compatibility input handling for simultaneous old discriminator and new Type
@@ -126,19 +134,24 @@ other definitions are Beads. Instance affiliation remains the distinguished
 `type` reference. Both Bead-Type and Link-Type definitions are Beads, but their
 described instance worlds do not intersect.
 
-The hierarchy above is represented by owned ConformsTo Links on the definition
+The hierarchy above is represented by owned Refines Links on the definition
 Beads, with exact target pins. For example, in conceptual snapshot notation:
 
 ```text
-task@t1    -- owned ConformsTo --> issue@i1
-bug@b1     -- owned ConformsTo --> issue@i1
-blocks@l1  -- owned ConformsTo --> dependency@d1
+task@t1    -- owned Refines --> issue@i1
+bug@b1     -- owned Refines --> issue@i1
+blocks@l1  -- owned Refines --> dependency@d1
 ```
 
 The left labels identify the definition revisions whose recorded owned state
-contains the declarations; this does not select wire syntax for Link source pins.
+contains the declarations. The foundation example uses floating sources and exact
+target pins. Owner history captures the exact declaration Link revision; the left
+labels above are snapshot context, not pinned source syntax or a shared revision
+token. This example does not settle the deferred source-Scope/pinned-owned-source
+operation seam in the Types profile (§§2, 5.7). Literal recorded pins are not
+rewritten by an owner capture.
 Each declaration has its own Link identity and revision, including provenance
-under V2. Conforming ConformsTo specializations may add requirements or evidence,
+under V2. Conforming Refines specializations may add requirements or evidence,
 but cannot weaken the declared structural and semantic promises. A later review
 can be an Activity about the exact declaration Link revision without changing it.
 
@@ -158,7 +171,7 @@ concrete mechanism remains to specify.
 
 A Type hierarchy viewer can show these actual definition Beads and Links. A
 work-graph traversal starting at an Issue does not automatically enter that
-hierarchy through its type field. Conversely, the definition's ConformsTo Links
+hierarchy through its type field. Conversely, the definition's Refines Links
 are not the Issue instance's work Dependencies and do not affect its scheduler.
 Generic viewer support and exact historical traversal still require qualification.
 
@@ -183,6 +196,46 @@ Endpoint-pin mode constraints are deferred in the shared descriptor language; th
 does not expand the inspected Preview 2 CLI's floating-only endpoint support.
 The portable target model promises no external resource validation; existing native
 external behavior is evidence to reconcile, not an automatic protocol guarantee.
+
+### 2.2 Bounded native adapter correspondence
+
+The native catch-up preserves the existing Issue/Dependency tables, validators,
+authorization and workflow operations. It requires concrete nominal Type identity
+across current records, retained records, family/exact reads, public inventory,
+JSON/HTTP projections and supported import/export. A friendly task/blocks label
+on a record still affiliated directly with an abstract base does not satisfy it.
+
+The adapter provides one authoritative mapping from the validated native
+classification to its Scope-local concrete Type. It must distinguish work-domain
+decision from decision Memory and preserve existing custom-classification admission;
+a decodable Type URI or retained descriptor is not permission to create a new
+custom classification. Imported unfamiliar values follow the importer's supported
+native validation contract, not a broader CLI admission inferred from storage.
+
+Native columns may remain authoritative storage details. When a supported input
+supplies both a concrete Type and a native discriminator, they must agree. A
+reclassification updates native state and the graph affiliation atomically, with
+all incident-Link, ownership and workflow checks; failure leaves the complete
+state unchanged. It does not expose independently editable classification copies.
+
+Public inventory and details must identify the bases as abstract/non-instantiable
+and list actual concrete definitions. A legacy fixed-descriptor representation
+that cannot carry the selected descriptor fields must disclose that limitation;
+labels alone do not establish the complete portable Types profile. Native adapter
+metadata must not invent unsupported fields in that older descriptor format.
+
+A mapping retains stable identity after reclassification, deletion or configuration
+removal when retained data still needs it. Retention does not authorize new use
+after configuration removes that admission. Mapping a Type must also respect the
+common lifetime identity boundary: a new native adapter binding cannot take a URI
+already allocated to a live or deleted Resource. Read/history operations must not silently register Types.
+Historical native payloads keep their recorded classification and exact pins;
+there is no current-row reinterpretation or implicit in-place history migration.
+
+This is the selected compatibility contract, not a claim that every adapter,
+registration/lifecycle operation, Type-definition Bead or released binary already
+implements it. Bind qualification to the exact product source, build and supported
+Scope generation. Preserve older data and make unsupported transitions explicit.
 
 ## 3. Issue data and validation
 
@@ -716,11 +769,11 @@ current preview wire syntax.
 }
 ```
 
-The task definition in the first example owns a ConformsTo Link pinned to an
+The task definition in the first example owns a Refines Link pinned to an
 issue definition revision; blocks in the second owns one pinned to dependency.
 These declarations belong to the definition revisions, not the instance records.
 The schemas and other constraints are descriptor fields. Production definition
-IDs, metatypes and the remaining reference syntax still need the shared format.
+IDs and installation remain separate from the shared candidate definition format.
 
 Repair depends on delivery; delivery blocks repair. A separate MemoryGuidance
 Link may point from repair to a procedure Memory. It is not a Dependency and
@@ -772,13 +825,20 @@ The following are design acceptance cases, not executed product tests:
 | T14 | Only heartbeat observations change between reads | Observe existing same-revision behavior; do not infer a selected future query-time revision policy |
 | T15 | A custom native classification has no registered Type mapping | Explicit unresolved-mapping outcome needed; no silent fallback or guessed global identity |
 | T16 | Read task@t1 after the current task definition changes its conformance | Follow task@t1's recorded owned declarations and exact target pins; do not use current adjacency |
-| T17 | Edit a ConformsTo declaration on the task definition | Create definition-owner revision effects; existing task instances retain their affiliation and state |
+| T17 | Edit a Refines declaration on the task definition | Create definition-owner revision effects; existing task instances retain their affiliation and state |
 | T18 | Record a later review of the blocks-to-dependency declaration | An Activity may target the exact declaration Link revision without changing the definition |
-| T19 | Display the definition hierarchy with a generic graph viewer | Actual ConformsTo Links can supply edges; current and historical views require distinct qualification |
+| T19 | Display the definition hierarchy with a generic graph viewer | Actual Refines Links can supply edges; current and historical views require distinct qualification |
 | T20 | Traverse a work Issue's incident Links | Do not synthesize a Link from its type field or include definition declarations as work Dependencies |
 | T21 | A declaration connects task to dependency | Reject cross-kind conformance even though both endpoints are definition Beads |
-| T22 | A specialized ConformsTo relation adds evidence requirements | Preserve the full base promise; do not reinterpret workflow or allow conditional membership |
+| T22 | A specialized Refines relation adds evidence requirements | Preserve the full base promise; do not reinterpret workflow or allow conditional membership |
 | T23 | Encode Issue/Dependency schemas and graph constraints | Keep descriptor fields; no separate Schema/Constraint Beads or new domain limits implied |
+| T24 | Create or retype directly to issue/dependency | Refuse abstract base affiliation; task/blocks remain concrete |
+| T25 | Ordinary native Issue/dependency creation omits classification | Preserve task/blocks defaults; no generic BDP default inferred |
+| T26 | Concrete Type and supplied native discriminator disagree | Refuse atomically; retain the prior full state |
+| T27 | Read current/history/export after native reclassification | Preserve each recorded concrete affiliation; do not derive an old record from its current classification |
+| T28 | Remove a configured custom classification | Retain required definition/history access, but refuse unauthorized new use |
+| T29 | Concrete Type mapping would reuse a live/deleted Resource URI | Refuse atomically; a Type label cannot bypass lifetime allocation |
+| T30 | Inspect public Type inventory/details | Show actual concrete definitions and abstract base admission honestly; disclose legacy representation limits |
 
 ## 9. What this teaches us about the shared Type system
 
@@ -809,8 +869,8 @@ qualifies the capability; some underlying native functionality already exists.
 
 | Area | Design/source status | Remaining work |
 | --- | --- | --- |
-| issue/dependency bases with conforming classification Types | Intrinsic classification Types settled at product level; Preview 2 CLI shims expose the direction | Underlying implementation planned for Preview 3 Friday October 16; qualify delivered IDs, pins, conformance, registrations and adapter mapping when available |
-| Definition representation and conformance hierarchy | Selected representation; candidate Type/ConformsTo schemas and eight-definition fixture linked from §2 | Metatype/bootstrap approval, exact IDs, historical traversal, editing/provenance and viewer qualification NYI here |
+| Abstract issue/dependency bases with concrete classification Types | Base refusal, native task/blocks defaults and bounded adapter correspondence selected (§2.2); foundation examples carry `abstract: true` | Qualify exact delivered identities, public reporting, current/retained mapping and adapter transactions; general registry/Type-definition runtime remains separate |
+| Definition representation and conformance hierarchy | Selected representation; candidate Type/Refines schemas and eight-definition fixture linked from §2 | Production metatype/bootstrap adoption, exact IDs, historical traversal, editing/provenance and viewer qualification NYI here |
 | Ordinary content, status and classification | Existing behavior inventoried; linked and embedded machine-readable base schema fragments | Full durable-field and child schemas plus configuration-dependent validation contract |
 | Dependency direction, pair uniqueness and kind roles | Existing behavior documented | Portable invariant/admission encoding; no implicit new maximum syntax |
 | Local floating endpoints | Current graph behavior documented; proposed initial boundary | Decide pins and remote workflow separately |

@@ -416,6 +416,9 @@ assert not direct_use_allowed({"uri": prefix + "type", "revision": "type-1"})
 assert direct_use_allowed(bead_meta)
 assert direct_use_allowed(link_meta)
 assert direct_use_allowed(task_ref)
+assert not direct_use_allowed({"uri": prefix + "issue", "revision": "issue-1"})
+assert not direct_use_allowed({"uri": prefix + "dependency", "revision": "dependency-1"})
+assert direct_use_allowed({"uri": prefix + "blocks", "revision": "blocks-1"})
 
 
 def check_direct_target_uniqueness(owner, accepted_refines_family):
