@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
+import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+
+const addFormats = formatsPlugin.default;
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8");

@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
+import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+
+const addFormats = formatsPlugin.default;
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => JSON.parse(readFileSync(new URL(p, root), "utf8"));
@@ -74,10 +76,11 @@ describe("shared exact-definition read artifact, without lookup/CLI execution", 
     expect(valid("typeDefinitionReadResult", paper.response)).toBe(true);
     expect(paper.response.definition.id).toBe(paper.queryCases[0].query.uri);
     expect(paper.response.definition.revision).toBe(paper.queryCases[0].query.revision);
-    const declarations = Object.values(paper.response.definition.ownedLinks).flat() as {
-      source: string;
-    }[];
-    expect(declarations[0].source).toBe(paper.response.definition.id);
+    const declarations = Object.values(paper.response.definition.ownedLinks).flat();
+    const declaration = declarations[0];
+    if (typeof declaration !== "object" || declaration === null || !("source" in declaration))
+      throw new Error("fixture requires a Refines declaration with a source");
+    expect(declaration.source).toBe(paper.response.definition.id);
     expect(paper.response.definition).not.toHaveProperty("metadata");
     expect(paper.response.definition).not.toHaveProperty("revisionProvenance");
   });
