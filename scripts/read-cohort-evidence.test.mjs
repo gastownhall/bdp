@@ -304,7 +304,8 @@ describe("Read schema projection drift over the committed cohort", () => {
       encoding: "utf8",
     });
   };
-  const committedBundle = () => JSON.parse(sealedText("packages/protocol/schemas/bdp-v0.schema.json"));
+  const committedBundle = () =>
+    JSON.parse(sealedText("packages/protocol/schemas/bdp-v0.schema.json"));
 
   function committedInput(bundle, inputText = sealedText) {
     const catalogPath = "packages/conformance/catalog/read-v1.json";
