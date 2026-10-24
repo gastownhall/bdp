@@ -61,7 +61,7 @@ metadata/guard/provenance semantics are identical to standalone commands.
 
 ```text
 create --name task --type Task --properties '{"title":"Review BDP"}'
-link create --type Relates --source @task --target task-17
+link create @task task-17 --type Relates
 ```
 
 With command Scope `https://work.example/acme/`, this compiles to:
@@ -81,6 +81,9 @@ With command Scope `https://work.example/acme/`, this compiles to:
 in an admitted Resource-reference position, not its revision or arbitrary output.
 Unknown/forward/wrong-kind handles refuse the whole batch. Type references and
 caller-assigned IDs cannot capture a handle. A property string `"@task"` stays data.
+A whole `@NAME` handle is recognized only in this batch capture context; a suffix
+`ID@N` is a local revision selector and `ID@=TOKEN` an exact token. Canonical
+rendering uses explicit tokens/JSON References, never store-local ordinal labels.
 Pinned endpoint handles carry only an explicitly authored literal revision; no
 current-revision capture is invented. Types-specific pin admission remains separate.
 
@@ -100,6 +103,12 @@ Every admitted version 1 request has a canonical command-file rendering using th
 ordinary replacement/patch flags and exact Reference/token field escapes when
 convenience spellings would lose meaning. The outer compiler supplies selector 1.
 Rendering an unsupported feature version refuses rather than rewriting it as 1.
+An unresolved local ordinal or allocator-only --id-root refuses offline emission.
+Execution may use a selected local resolver before freezing the full request/key,
+but never resolve a future capture or re-resolve on retry. Version1 has no idRoot
+member. An allocated explicit ID is ordinary id; no allocation claim follows from
+printing it. Existing fixture command strings preserve the previous paper grammar;
+they are historical inputs, not execution proof of this updated grammar.
 
 ```text
 compile(render(request), binding) = request

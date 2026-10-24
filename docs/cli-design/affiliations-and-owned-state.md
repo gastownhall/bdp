@@ -18,9 +18,9 @@ Type, while update can omit it to preserve the complete existing affiliation.
 | --- | --- |
 | `bdp update item --set-property title=new` | `bead:"item"`, properties patch, no `type` |
 | `bdp update item --type Task` | `bead:"item"`, `type:"https://work.example/acme/Task"` |
-| `bdp update item --type Task@r2` | `bead:"item"`, `type:{uri:"https://work.example/acme/Task",revision:"r2"}` |
+| `bdp update item --type Task@=r2` | `bead:"item"`, `type:{uri:"https://work.example/acme/Task",revision:"r2"}` |
 | `bdp update item --type Task --type-revision r2` | Same exact affiliation |
-| `bdp link update rel --type Blocks@r2 --if-revision link-r7` | `link:"rel"`, exact `type`, `expectedRevision:"link-r7"` |
+| `bdp link update rel --type Blocks@=r2 --if-revision link-r7` | `link:"rel"`, exact `type`, `expectedRevision:"link-r7"` |
 
 Examples assume command Scope `https://work.example/acme/`. The singleton operation
 URL supplies its discriminator; a batch member includes `operation:"updateBead"`
@@ -30,18 +30,19 @@ success. No hand-authored whole-request JSON escape is needed for these inputs.
 Actual key allocation, framing and emission/batch details belong to the complete
 canonical CLI design and do not follow from this bounded source subset alone.
 
-For local spellings the first raw `@` begins the suffix. Unwrapped absolute URLs
-containing `://` remain literal, including raw `@`; use `'[HTTP_URL]@REV'` or the
-explicit pin option for an exact URL affiliation. Suffix plus `--type-revision`
-is an error even if equal; an already pinned exact field-value escape also
-conflicts with the explicit pin option. `--type-revision` requires `--type`. Type `@unpinned`
-means unpinned input; `@current` refuses rather than a client read/write race.
-`json:JSON`, `json:@FILE` and `json:@-` are exact field-value escapes for admitted
-Reference/token forms and preserve opaque tokens/delimiters; they do not broaden
-protocol Type URI grammar. Mutation targets remain unpinned. Resource
-`--revision` / `ID@REV` select historical reads; `--if-revision` guards the current
-write. Neither is the Type definition pin. An explicit token option carries the
-literal token, including `current`/`unpinned` if those are actual opaque tokens.
+[Shared Reference parsing](scope-and-references.md#revision-selectors) uses
+`TYPE@=TOKEN` for an exact Type pin; `TYPE@N` is usable only with an actual selected
+store's Type-version ordinal mapping. It is not a definition inventory lookup or
+permission to guess Type history. Absolute URLs containing `://` remain literal,
+including raw @; use `--type-revision TOKEN` or an exact JSON Reference.
+Suffix plus `--type-revision` is an error even if equal; an already pinned exact
+field-value escape also conflicts with that option. `--type-revision` requires
+`--type`. Bare Type/endpoint input is unpinned; `@current` refuses as a durable pin.
+`json:JSON`, `json:@FILE` and `json:@-` preserve exact Reference/token values without
+broadening protocol URI grammar. Explicit token flags remain literal, including
+numeric/current strings. Historical read selection and `--if-revision` guards are
+distinct from the Type definition pin. Offline emission refuses unresolved local
+ordinals; it neither queries history nor invents a future/staged revision.
 
 Under Types, the service resolves explicit unpinned input once to its eligible
 registered exact default. The CLI never resolves it during compilation. An omitted

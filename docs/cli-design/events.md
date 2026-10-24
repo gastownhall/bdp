@@ -16,8 +16,8 @@ bdp link events RESOURCE [same options]
 No Resource means the default/explicit Scope's discovered `events` URL. A Resource
 means its canonical URL with `view=events`; root is generic, `link` asserts Link.
 Scope defaults and whole Scope-defined names follow the existing Reference rules.
-The Resource operand must be unpinned: `@REV` and `--revision` are not Event resume
-selectors. No fabricated `events/` path or stripping of kind prefixes.
+The Resource operand must be unpinned: revision suffixes and `--revision` are not
+Event resume selectors. No fabricated `events/` path or stripping of kind prefixes.
 
 Default is `--from retained --representation postimage`, one finite native page.
 `--from now` captures the current boundary and returns an empty page plus its
@@ -73,7 +73,7 @@ CLI quoting or promises the author's original edit spelling.
 For example, the emitted batch operation for:
 
 ```text
-bdp update task-42 --type Task@definition-r4 --if-revision resource-r7 --emit-operation
+bdp update task-42 --type Task@=definition-r4 --if-revision resource-r7 --emit-operation
 ```
 
 contains the authored Type pin and `expectedRevision`. Its resulting delta fact is:
