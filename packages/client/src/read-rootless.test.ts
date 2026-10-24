@@ -65,64 +65,78 @@ describe("rootless Read identities", () => {
     if (result.kind === "success") expect(result.value.body).toEqual(composite);
   });
 
-  it("reads public-client collection pages with rootless owned Links and literal pagination", async () => {
-    const id = `${scope}task-alpha`;
-    const composite = {
-      ...raw,
-      id,
-      ownedLinks: {
-        [link.type]: [
-          { ...link, id: `${scope}rel-beta`, source: id, target: `${scope}task-gamma` },
-        ],
-      },
-    };
-    const next = `${scope}beads/?cursor=rootless-page-2`;
-    const calls: string[] = [];
-    const client = new BdpClient({
-      scope,
-      transport: {
-        async discover() {
-          return { kind: "success", body: { serviceDescription: `${scope}bdp.json` } };
+  it.each(["beads", "links"] as const)(
+    "reads public-client %s collection pages with rootless identities and literal pagination",
+    async (collection) => {
+      const id = `${scope}task-alpha`;
+      const composite = {
+        ...raw,
+        id,
+        ownedLinks: {
+          [link.type]: [
+            { ...link, id: `${scope}rel-beta`, source: id, target: `${scope}task-gamma` },
+          ],
         },
-        async perform<Body>(url: string) {
-          calls.push(url);
-          const body =
-            url === `${scope}bdp.json`
-              ? {
-                  bdpVersion: "0",
-                  profile: "read",
-                  scope,
-                  beads: `${scope}beads/`,
-                  links: `${scope}links/`,
-                  types: `${scope}types/`,
-                }
-              : url === `${scope}beads/`
-                ? { items: [raw, composite], next }
-                : url === next
-                  ? { items: [], next: null }
-                  : (() => {
-                      throw new Error(`unexpected request ${url}`);
-                    })();
-          return { kind: "success" as const, body: body as Body };
-        },
-      },
-    });
-    try {
-      const first = await client.perform({ kind: "collection", collection: "beads" });
-      expect(first).toEqual({ items: [parseBeadRecord(raw), parseBeadRecord(composite)], next });
-      const second = await client.perform({
-        kind: "collection",
-        collection: "beads",
-        continuation: next,
+      };
+      const rootlessLink = parseLinkRecord({
+        ...link,
+        id: `${scope}rel-beta`,
+        source: id,
+        target: `${scope}task-gamma`,
       });
-      expect(second).toEqual({ items: [], next: null });
-      expect(calls).toEqual([`${scope}bdp.json`, `${scope}beads/`, next]);
-      // The captured payload value/attribution remains unchanged in this positive cohort.
-      expect(raw).toEqual(historicalRaw);
-    } finally {
-      await client.close();
-    }
-  });
+      const items =
+        collection === "beads"
+          ? [parseBeadRecord(raw), parseBeadRecord(composite)]
+          : [link, rootlessLink];
+      const inventory = `${scope}${collection}/`;
+      const next = `${inventory}?cursor=rootless-page-2`;
+      const calls: string[] = [];
+      const client = new BdpClient({
+        scope,
+        transport: {
+          async discover() {
+            return { kind: "success", body: { serviceDescription: `${scope}bdp.json` } };
+          },
+          async perform<Body>(url: string) {
+            calls.push(url);
+            const body =
+              url === `${scope}bdp.json`
+                ? {
+                    bdpVersion: "0",
+                    profile: "read",
+                    scope,
+                    beads: `${scope}beads/`,
+                    links: `${scope}links/`,
+                    types: `${scope}types/`,
+                  }
+                : url === inventory
+                  ? { items, next }
+                  : url === next
+                    ? { items: [], next: null }
+                    : (() => {
+                        throw new Error(`unexpected request ${url}`);
+                      })();
+            return { kind: "success" as const, body: body as Body };
+          },
+        },
+      });
+      try {
+        const first = await client.perform({ kind: "collection", collection });
+        expect(first).toEqual({ items, next });
+        const second = await client.perform({
+          kind: "collection",
+          collection,
+          continuation: next,
+        });
+        expect(second).toEqual({ items: [], next: null });
+        expect(calls).toEqual([`${scope}bdp.json`, inventory, next]);
+        // The captured payload value/attribution remains unchanged in this positive cohort.
+        expect(raw).toEqual(historicalRaw);
+      } finally {
+        await client.close();
+      }
+    },
+  );
 
   it.each([
     "work",
