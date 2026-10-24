@@ -235,7 +235,7 @@ implement registration or address classification; a negative case refuses an unp
 foreign definition even when registered.
 The revision cases check the target-edge walk, not complete declaration admission.
 The exact-read audit additionally checks the fixed common-schema digest, 14 query
-cases, capability/Problem helpers, task plus four intrinsic wrapper copies, five
+cases, capability/Problem helpers, task plus four intrinsic wrapper copies, six
 altered-copy refusals, two visited-exact-pair walks and two missing-dependency
 refusals despite newer copies. A newer task record does not affect the old walk.
 These finite checks do not execute the six provider scenarios or confer registration,
