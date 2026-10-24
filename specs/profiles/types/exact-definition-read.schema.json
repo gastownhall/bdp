@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/bdp-draft/schemas/exact-definition-read.schema.json",
+  "title": "Candidate exact Type-definition read binding, version 1",
+  "$comment": "Types-local review aliases to the common exact-read helpers at base 6c3c421491adf8b7f6b3a0042c4d1196ce3c9115. No competing wire grammar, runtime/profile/History adoption or network retrieval. Select a named helper explicitly; validating this schema root is not request admission.",
+  "$defs": {
+    "selection": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeDefinitionReadSelection"
+    },
+    "queryV1": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeDefinitionReadQueryV1"
+    },
+    "capabilityV1": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeDefinitionReadCapabilityV1"
+    },
+    "definitionRecord": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/exactTypeDefinitionRecord"
+    },
+    "success": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeDefinitionReadResult"
+    },
+    "capabilityProblem": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeDefinitionReadCapabilityProblem"
+    },
+    "problem": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeDefinitionReadProblem"
+    }
+  }
+}
