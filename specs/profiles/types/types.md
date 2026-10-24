@@ -992,10 +992,10 @@ inserting retained foreign copies into ordinary local graph inventory. Readabili
 alone grants neither creation/affiliation permission nor a promise of inclusion in
 ordinary product Type lists. Category, abstractness and authorization rules still
 apply; BeadType and LinkType remain usable metatypes under §2.1.
-The [Types-local exact lookup candidate](exact-definition-read.md) now makes the
-local/foreign binding, wrapper and narrow error reuse concrete for shared review.
-It is not adopted transport: Core/discovery/error/schema correspondence and
-qualification remain necessary. This section does not adopt History for every
+The [Types-local exact lookup candidate](exact-definition-read.md) now pairs with
+the staged [common read binding](../core/type-definition-read.md) and its native
+schema helpers. Complete intrinsic example wrappers and exact-pair fixture walks
+provide finite source correspondence, not adopted transport or provider qualification. This section does not adopt History for every
 Resource. A lookup miss does not authorize fetch-and-register.
 
 Current authorization applies. Missing, unavailable or undisclosable required exact
@@ -1756,7 +1756,7 @@ The remaining decisions are narrower:
 | Exact conformance closure | Exact target pins, no exact-revision cycles; ancestor requirements deduplicated by originating exact definition/location; distinct declaration restrictions retained | Concrete location/qualifier representation and diagnostics; distinct from once-per-instance-Link counting |
 | Constraint evolution | §§5.4, 5.6, 5.8 and 5.9 select local activation with cross-revision family populations, per-Link acyclicity and exact-affiliation self-link activation | Precise inherited-declaration activation and selector/diagnostic syntax; no Scope-wide minimum over installed definitions |
 | Definition resolution | Registered exact global definitions satisfy endpoint Type checks for any Link, with explicit endpoint pins and Scope restrictions intact; arbitrary external resources remain opaque | Installation operation mechanics, Scope classification and inventory/read projection; locally retained available inventory does not rewrite origin identity/authority |
-| Complete exact definition reads | Full records within operational admission bounds; exact retained closure; narrow definition access without mandatory full application History; no legacy view obligation (§3.14) | Coordinated Core read/admission/discovery/error correspondence, concrete budgets and runtime qualification |
+| Complete exact definition reads | Full records within operational admission bounds; exact retained closure; narrow definition access without mandatory full application History; no legacy view obligation (§3.14) | Staged common read/admission/discovery/error binding exists; exact-candidate correspondence, operational budgets and runtime qualification remain |
 | Bootstrap and declaration admission | Shared published exact intrinsic graph loaded by trusted initialization; prior versions retained on upgrade; no client mutation; declaration Link Type accepted before use | Production namespace/publication artifact, upgrade activation and operation/batch/import admission ordering |
 | Availability and lifecycle | Truthful Scope-wide activation covers live/retained records without grandfathering (§1); explicit atomic exact-graph registration distinct from definition presence; initial use/import requires existing registration; explicit local default; retirement preserves existing use/history | Activation enforcement and exact source correspondence; concrete registration/retirement verbs, permissions, broader acquisition and physical-removal retention deferred |
 | Revision compatibility | Conformance only initially, including explicit same-identity revision conformance; none inferred from age/SemVer; no migration guarantee | Reusable informational labels selected; no version-range resolution |
@@ -2070,7 +2070,7 @@ Beads behavior as implementing its proposed semantics.
 | Property write/read boundary | Writable replacement, init-only preservation/change refusal, service read-only completion and separate live observations selected (§3.6) | PropertyAccess and init-only retyping selected; enforcement, observation representation, shared Write adoption and provenance-owned signing mechanisms remain |
 | Conformance graph operations | Owned historical declaration authority, tightening-only specialization and already-accepted declaration Link Types selected | Core amendment for nominal-identity grouping/empty-set projection, source-pin/traversal/admission-ordering operation contract, performance and historical-query qualification |
 | Acceptance cases (§6) | Written review cases | Property/example checks cover only their documented shape/finite-graph subset; runtime cases remain unqualified |
-| Exact definition read boundary | Complete records, retained exact closure and operational admission bounds selected; narrow definition access independent of full application History (§3.14) | Core bindings, discovery/errors and exact retained-read qualification; no new pagination or legacy compatibility obligation |
+| Exact definition read boundary | Complete records, retained exact closure and operational admission bounds selected; narrow definition access independent of full application History (§3.14) | Common binding and intrinsic read examples are authored; actual retained-read, authorization and bound qualification remain; no new pagination or legacy compatibility obligation |
 | Shared provenance and recovery | Shared owners and accepted product direction identified (§7) | Shared schema/operation adoption; no parallel Types implementation |
 | Fixed Memory product | Separate product proposal; fixed catalog/compiled validation need not expose Type definitions | Native catalog, properties/history, pins, mutation and release evidence tracked in Beads #7656 |
 | General Type lifecycle and packaging | Authority, retained meaning, explicit atomic registration separate from definition presence, already-registered initial use/import, explicit local defaults and retirement with preserved use selected (§7) | Operation syntax/permissions, exact registration/retirement enforcement, physical retention/removal, bootstrap publication and portable format |

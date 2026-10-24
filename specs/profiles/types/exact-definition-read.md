@@ -10,10 +10,11 @@ Types-local candidate under [#282](https://github.com/gastownhall/bdp/issues/282
 shared correspondence [#279](https://github.com/gastownhall/bdp/issues/279) and sole
 [#59](https://github.com/gastownhall/bdp/issues/59). This makes the selected
 [complete exact read obligation](types.md#314-complete-exact-definition-reads)
-concrete for common-source review. Sybil's bounded author feedback supports this
-binding, not adoption or a Donna ruling. Core/discovery/shared-schema propagation
-is separately owned and remains a gate. No runtime, general History or lifecycle
-capability is enabled by this draft.
+concrete alongside the staged [common read binding](../core/type-definition-read.md)
+and [CLI interpretation seam](../../../docs/cli-design/exact-definition-read.md).
+The common source supplies the wire grammar; the aliases below do not maintain
+a competing definition. Adoption, runtime and full Types qualification remain
+separate gates. No general History or lifecycle capability is enabled by this draft.
 
 ## Discover and select one exact definition
 
@@ -138,13 +139,14 @@ pointer for this query request. Unknown versions do not grant an absence oracle.
 ```
 
 For positive local knowledge of the required exact retained revision with missing
-reconstruction pieces, propose the existing `revision-unretained` Problem and bounded
+reconstruction pieces, the staged common binding permits the existing
+`revision-unretained` Problem and bounded
 `missing` shape under **current exact-definition/owned-state disclosure permission**.
 The existing64-item diagnostic ceiling/complete flag applies to this reused shape,
 not a semantic maximum on definitions or owned Links. No Resource or partial
-Resource accompanies it. Current Core restricts revision diagnoses to History;
-this Types-local permission/operation exception requires an explicit shared-source
-amendment before adoption. It neither imports the full five-diagnosis obligation
+Resource accompanies it. The [common exception](../core/type-definition-read.md#narrow-missing-state-permission)
+is scoped to this exact lookup; its source presence is not released-profile adoption.
+It neither imports the full five-diagnosis obligation
 nor requires versions, History provenance or general subject-history access. An
 unfamiliar token alone is not evidence of loss, pruning, reorganization or tampering.
 
@@ -157,22 +159,41 @@ and actual concrete budget/error correspondence require shared qualification.
 
 ## Artifact and qualification cutline
 
-[Local candidate grammar](exact-definition-read.schema.json) describes the selected
-query, prefix/detail, complete wrapper and feature Problems. It references shared
-native record/pin/Problem shapes, not another copied canonical bundle. Its fixed
-review input is PR292 `ad6ddd45f4fb35742fbc60be84b0eb6f3b0fd9c1`, schema SHA256
-`d9c9822c8abdaae907a966ef076f945043116adb52b94c9c1c71dbaa8c8adf09`.
-That dependency is unmerged staging source, not adopted runtime support. Resolve
-it from exact local input with network retrieval disabled; schema IDs are not Type
-identities or proof of registration. Shape validation cannot enforce actual category,
-whole-record completeness, request/result equality, origin authority, authorization,
-retention, dispatch, closure traversal or operational admission.
+[Local review aliases](exact-definition-read.schema.json) select the existing common
+query/selection/detail/record/result/Problem helpers from
+[the shared native schema](../core/bdp-v0.1.schema.json). The fixed input for this
+correspondence is commit `6c3c421491adf8b7f6b3a0042c4d1196ce3c9115`, shared schema
+SHA256 `72dd1837ad169114911b4ffcd9104c1aa2d1d02870e60b2ac7e8c4e950fc7d1d`.
+Resolve that exact local input with retrieval disabled. A schema change requires
+new correspondence review and fresh checks; schema IDs are not Type identities
+or proof of registration. Original PR292 `ad6ddd45f4fb35742fbc60be84b0eb6f3b0fd9c1`
+qualification used schema SHA256
+`d9c9822c8abdaae907a966ef076f945043116adb52b94c9c1c71dbaa8c8adf09`;
+it remains historical provenance in the cases, not an inherited pass for this input.
 
-[Cases](exact-definition-read-cases.json) contain grammar examples, exact query
-encoding and six **unexecuted** semantic expectations. They do not implement a
-lookup, HTTP service, CLI or parser. The existing finite Type checker still owns
-its original artifact coverage; additional read-binding checks have separate evidence.
-Core/discovery/error/schema propagation, real definition read/closure and permission
-qualification, intrinsic publication, actual Types/profile composition and applicable
-integration checks remain gates. Existing runtime/serve/Vickie/product/main/Experimental
+[Cases](exact-definition-read-cases.json) retain the task wrapper and add complete
+Type, BeadType, LinkType and Refines wrappers copied from the existing final-state
+example graph. Each uses explicit fixture origin context; it is not inferred from
+the record URI, a verified mutation destination or a production bootstrap identity.
+Unknown metadata/provenance remains absent. Exact affiliations, schemaResources,
+abstract Type marker and captured owned Refines records, including their independent
+revisions and floating source references, remain unchanged.
+
+The [artifact checker](../../../scripts/check_type_examples.py) now validates those
+five example wrappers and the existing query/Problem cases against the common
+helpers. Exact JSON-value comparison checks source completeness separately from
+shape validation; altered-copy controls exercise missing schema/owned bytes,
+changed Link revisions, request/result mismatch and invented provenance. Two finite
+walks follow each definition's exact affiliation and recorded Refines Link
+Type/target references with visited-exact-pair tracking. Metatype loops terminate;
+repeated paths deduplicate the same exact pair. Removing an exact dependency refuses
+complete interpretation even when a newer copy exists. Adding newer task adjacency
+does not change the task-1 walk. These are fixture audits, not a generic interpreter,
+Refines DAG proof, HTTP provider, registration engine or production bootstrap.
+
+Six service scenarios remain **unexecuted**. Shape/copy/walk checks do not enforce
+actual category, source authority, authorization, storage retention, dispatch or
+operational admission. Actual definition reads, complete closure interpretation,
+permission/boundary cases, intrinsic publication, full Types composition and
+applicable integration checks remain gates. Existing runtime/serve/product/main
 holds and owner/Event questions remain. No source presence is a feature advertisement.
