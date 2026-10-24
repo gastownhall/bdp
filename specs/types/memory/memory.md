@@ -20,6 +20,13 @@ Sections marked **informative**, including their subsections and examples, expla
 
 ### Memory Beads and References Links
 
+A team rarely starts with a complete knowledge model. It starts with small things worth remembering: a file format, a decision made during implementation, or a rule someone should not have to rediscover. Those notes become more useful when they have stable identities and can be connected to the work they explain.
+
+Consider a team adding CSV export. At first, “CSV files use UTF-8 encoding” is enough to save a future conversation. Later, a design note can cite that fact, an implementation Issue can refer to the design, and a Specification can collect the obligations the export must meet. The information can grow without turning every note into a formal requirement.
+
+A Memory supplies a title and a Markdown body. The body can contain ordinary prose, examples, lists or links. The graph records explicit relationships around that prose; it does not turn the prose into an executable language. Issues and memories retain their different purposes while using the same identity, revision and graph model.
+
+
 Memory Beads let agents record and recall knowledge in a graph that connects memories with Issues. The two general-purpose Types are [Memory Bead Type](#memory--bead-type) and [References Link Type](#references--link-type). A Memory Bead holds knowledge; a References Link connects it to useful context. The shared graph contract supplies identity, revision, and relationship rules, while the content can serve many purposes.
 
 A Memory Bead's body holds arbitrary Markdown, and a References Link can have an optional Markdown body explaining the connection. Both also carry metadata for application-specific labels and structured data. The system preserves that content without interpreting arbitrary prose or metadata as executable rules.
@@ -50,47 +57,63 @@ Selecting governing roots, establishing their authority, and choosing an executa
 
 ## A worked example (informative)
 
+### Start with useful context
+
+A reference answers “what context is useful here?” The design notes for CSV export can point to the encoding note so that a reader can find the agreed format. They can also point to the implementation Issue, connecting an explanation to the work that will put it into practice.
+
+The relationship deserves its own record. A title such as “Uses this text encoding” tells the next reader why the connection exists; a longer body can explain caveats. Two notes can refer to the same target for different reasons. A References Link preserves that authored explanation and direction instead of asking a search engine to infer the connection from similar words.
+
+A plain References Link is unowned: adding or editing it revises the Link, not either endpoint. The source and target retain their identities and revisions.
+
+### Keep edits distinct from replacement
+
+Knowledge changes in two useful ways. We can correct or extend a note while keeping its identity: it is still the same note, with a new revision. Or we can write a separately maintained document that replaces it. These changes should remain distinguishable to someone following an older reference.
+
+For the CSV example, a short encoding note might eventually give way to a fuller guide covering headings, spreadsheet behavior and examples. Superseded By records that replacement. Someone opening the old note can still read what it said and discover its successor. Existing references continue to identify the old note until their authors deliberately change them; replacement does not rewrite the rest of the graph.
+
+The replacement Link points from the retiring Memory to its successor. It is owned by the retiring Memory, so adding or changing it revises that source. Its target is not revised. Each retiring Memory has at most one selected successor, and replacement chains cannot cycle.
+
 ### Define the obligations
 
-A team wants users to export selected rows from a table. Its **CSV export format** Specification Bead defines a Requirement Bead, **Export all selected rows**, and a Scenario Bead, **Export an empty selection**. The Scenario Bead says that an empty selection produces column headings and no data rows.
+Some notes describe useful context; others state obligations. A CSV export Specification might require every selected row to appear in the file and specify that an empty selection produces headings without data rows. A customer-data Policy might govern logs and sample exports across many features, including CSV export.
 
-The Specification Bead also requires a separately defined **Protect customer data** Policy Bead. The Defines Links identify the Specification Bead's own parts; the Requires Link brings in a necessary obligation from another defining tree.
+Keeping those documents distinct lets each evolve where it belongs. The export team maintains the Specification and its detailed behavior. The customer-data Policy can remain independently maintained and apply to other work too. Both are Constraints: knowledge stating obligations that a subject is expected to meet. Their more specific Types tell a reader whether they are looking at a Specification, Requirement, Scenario, Policy, Decision or Procedure.
 
-```mermaid
-flowchart TD
-    S["Specification Bead: CSV export format"]
-    R["Requirement Bead: Export all selected rows"]
-    C["Scenario Bead: Export an empty selection"]
-    P["Policy Bead: Protect customer data"]
-    S -->|defines| R
-    S -->|defines| C
-    S -->|requires| P
-```
+The Specification has two kinds of connection. “Export all selected rows” and “Export an empty selection” are parts of its definition. The customer-data Policy is an additional obligation it requires, maintained as a separate document. Defines expresses the first relationship; Requires expresses the second.
 
-### Organize the Policy Beads
+That distinction matters when reading. Asking for the Specification's definition should show its defining Requirement and Scenario. Asking what it requires should also reach the independently maintained Policy and that Policy's defining obligations: redact application logs and use anonymized sample exports. Defines is a refinement of Requires, so the broader requirements question includes both kinds of connection.
 
-The Policy Bead defines two more specific Policy Beads: **Redact application logs** and **Use anonymized sample exports**.
+A defining child belongs to at most one defining parent, and defining trees cannot cycle. Requires can connect independently maintained trees, including cycles that a traversal must recognize and stop following. In either case, each linked obligation is necessary for meeting its source. The graph does not establish that the listed children exhaust everything required by the parent's prose; an author must say that explicitly when it is intended.
+
+Requires and Defines Links are owned by their source Constraint. Adding, changing or removing one revises the source while leaving the target unchanged. A defining child retains its own identity and can be required from another tree without acquiring a second defining parent.
 
 ```mermaid
 flowchart TD
-    P["Policy Bead: Protect customer data"]
-    L["Policy Bead: Redact application logs"]
-    E["Policy Bead: Use anonymized sample exports"]
-    P -->|defines| L
-    P -->|defines| E
+    S["Specification: CSV export format"] -->|defines| R["Requirement: Export all selected rows"]
+    S -->|defines| C["Scenario: Export an empty selection"]
+    S -->|requires| P["Policy: Protect customer data"]
+    P -->|defines| L["Policy: Redact application logs"]
+    P -->|defines| E["Policy: Use anonymized sample exports"]
 ```
 
-The subpolicy Beads use the ordinary Policy Bead Type. They can define further Policy Beads, and another Bead can require one without assigning it a second defining parent. The same structure supports subrequirement Beads.
-
-Every defined child is necessary for its parent. That does not make the children collectively sufficient: the parent's body may contain other obligations. A body can explicitly state that the children form its complete acceptance condition. Structured ways to express that statement remain deferred.
+The empty-selection Scenario states that no selected rows produces column headings and no data rows. The two subpolicies are ordinary Policy Beads, and they can define further policies. The graph supplies the relationships; the Markdown bodies supply the obligations and any claim that the listed children are a complete acceptance condition.
 
 ### Find the rules governing an Issue
 
-An Issue Bead tracks the export work. A Subject To Link declares that the CSV export Specification applies to it. Following the Specification's Requires family discovers the row-export Requirement, empty-selection Scenario, customer-data Policy, and its two subpolicies.
+The obligation graph still leaves one question unanswered: what work is governed by it? Subject To connects a subject to a Constraint. The CSV implementation Issue can be subject to the export Specification, and a Memory describing a preview build can be subject to that same Specification. The constraint vocabulary works uniformly for both kinds of Bead.
+
+Starting from either subject, a reader can discover the declared Specification and then the obligations reached through Requires and Defines. This is useful when preparing a change, reviewing a build, or asking which rules apply before work begins. The paths explain how each obligation was reached.
+
+Subject To declarations do not spread transitively through other Subject To declarations. If the Specification document is itself subject to a document-review Policy, that governs maintenance of the document. It does not automatically impose that review process on the implementation Issue. To govern the Issue, declare the appropriate relationship explicitly.
+
+These records help people and agents find obligations. They do not execute policies, certify compliance or establish that a particular author had authority to bind a subject. Those questions need their own evidence and workflows.
+
+Subject To is owned by its source subject. Editing the declaration revises that subject, not the governing Constraint. These relationships do not automatically alter Issue readiness, blocking or dispatch; those continue to follow the Issue workflow and Dependency-family rules.
 
 ```mermaid
 flowchart LR
-    I["Issue: Add CSV export"] -->|subject-to| S["Specification: CSV export format"]
+    I["Task: Add CSV export"] -->|subject-to| S["Specification: CSV export format"]
+    B["Memory: CSV preview build"] -->|subject-to| S
     S -->|defines| R["Requirement: Export all selected rows"]
     S -->|defines| C["Scenario: Export an empty selection"]
     S -->|requires| P["Policy: Protect customer data"]
@@ -98,19 +121,19 @@ flowchart LR
     P -->|defines| E["Policy: Use anonymized sample exports"]
 ```
 
-The Specification can separately be subject to a document-review Policy. That declaration governs the Specification document; it does not make the export Issue subject to the same document-review process. Subject To is not transitive. Requires dependencies, including Defines children, are followed transitively from the Issue's governing roots.
-
 ## Memory and the CLI (informative)
 
 The Type definitions below describe the data and relationship rules. The separate [Memory CLI proposal](https://github.com/gastownhall/beads/issues/7758) specifies the canonical `bd memory` command group, selection and output. Source publication is not an installed-command or release-readiness claim.
 
 | Relationship | Read operations | Authoring operation |
 | --- | --- | --- |
-| References | `bd memory references`, `bd memory referenced-by` | `bd memory reference A --to B` |
-| Replacement | `bd memory successor`, `bd memory supersedes` | `bd memory supersede OLD --by NEW` |
-| Necessary dependencies | `bd memory requirements`, `bd memory required-by` | `bd memory requires A --to B` |
-| Defining tree | `bd memory definition`, `bd memory defined-by` | `bd memory defines A --to B` |
-| Applicable obligations | `bd memory constraints`, `bd memory subjects` | `bd memory subject-to A --to B` |
+| References | `bd memory references`, `bd memory referenced-by` | `bd memory reference A B` |
+| Replacement | `bd memory successor`, `bd memory supersedes` | `bd memory supersede OLD NEW` |
+| Necessary dependencies | `bd memory requirements`, `bd memory required-by` | `bd memory requires A B` |
+| Defining tree | `bd memory definition`, `bd memory defined-by` | `bd memory defines A B` |
+| Applicable obligations | `bd memory constraints`, `bd memory subjects` | `bd memory subject-to A B` |
+
+The positional authoring forms name source first and target second. Explicit endpoint options use `--from SOURCE --to TARGET`; for Superseded By, source is the retiring Memory and target its replacement. CLI reference conveniences resolve to full identities and revision tokens before a Link is stored. See the separate CLI contract and release runbook for the selected syntax and qualified build.
 
 The initial discovery surface follows explicit Subject To declarations and their Requires-family dependencies. Direct subjects are reported separately. Generic Bead and Link operations remain the underlying authoring model. Existing `remember`, `recall`, `memories`, and `forget` retain their contracts; Type-specific CRUD shortcuts are separate future interface work.
 
