@@ -1,411 +1,1168 @@
 # Canonical Memory CLI
 
-This companion to the [generic CLI](bdp-cli.md) specifies the `bd memory`
-command group and its use with ordinary Bead and Link commands. Memory is an
-optional domain package, not a new requirement of Core or Write. `bd` is the
-Beads executable; a different host can expose the same command contract through
-its own executable when it supports the corresponding package and adapters.
+This specification defines the `bd memory` commands that accompany the [Memory
+Bead and Link
+Types](https://github.com/gastownhall/bdp/blob/21fa91d3e189bff3832bd977c3d6be49f2b5d93c/specs/types/memory/memory.md).
+It also shows how to use those Types with the [general
+CLI](bdp-cli.md#cli-specification). Memory is an optional package.
 
-**Status: authored design candidate, not a qualification or release claim.**
-The walkthrough is informative. The command contract below is normative for
-this CLI candidate. The [Memory Types v0.2 design](https://github.com/gastownhall/bdp/blob/21fa91d3e189bff3832bd977c3d6be49f2b5d93c/specs/types/memory/memory.md)
-owns Type meanings and invariants; this document does not complete its deferred
-pin, lifecycle or transaction mechanics. Every example is authored, not a
-captured command run. [Sources and implementation correspondence](#sources-and-implementation-correspondence)
-record the older proposal and the publication boundary.
+**Status: design draft.** The walkthrough is informative; the command reference
+specifies this CLI candidate. Examples are authored illustrations. Support in a
+particular build is recorded separately under [Sources and implementation
+correspondence](#sources-and-implementation-correspondence).
 
-## Walkthrough: context, replacement and obligations (informative)
+## Using Memory Beads and Links (informative)
 
-Assume the selected workspace has a default Scope and the supported Memory
-Types installed. Relative IDs use that Scope; it need not be repeated on every
-command. Use absolute canonical URLs for identities outside the local display
-context, subject to the operation's endpoint restrictions. This walkthrough
-does not install Types, initialize a workspace or qualify a build.
+The [Memory Type
+spec](https://github.com/gastownhall/bdp/blob/21fa91d3e189bff3832bd977c3d6be49f2b5d93c/specs/types/memory/memory.md#overview-informative)
+introduces the model. This walkthrough follows one small example: adding CSV
+export to a product, keeping the design notes, and recording the rules the
+feature must follow. Use the current workspace and its default Scope, with
+relative IDs such as `csv-design`. These examples use installed Type identifiers
+such as `memory`, `task` and `specification`, written in lower case with hyphens
+between words, as in `superseded-by`. The CLI resolves them to their actual
+Type References.
 
-The shell variables below stand for actual installed Type References supplied
-by that workspace: `MEMORY_TYPE`, `SPECIFICATION_TYPE`, `REQUIREMENT_TYPE`,
-`SCENARIO_TYPE` and `POLICY_TYPE`. They are not display names from which a Type
-URI can be guessed. The named IDs are illustrative Scope-defined names; there
-are no required `beads/`, `links/` or `types/` Resource prefixes.
+### Creating Memories
 
-### Connect useful context
-
-Record the CSV design note and its encoding context using ordinary creation.
-Memory requires a nonblank title and a body; the body may be empty.
+A team learns as it works, and Memory Beads keep that knowledge available for
+later use. Each note has a title and a Markdown body; status is an optional
+author-chosen label. For the CSV feature, start with a design note, an encoding
+note and a note about spreadsheet interoperability. `bd memory remember` takes
+the body as its argument. Use `--key`
+to choose the identity and `--title` to choose the display text.
 
 ```sh
-bd create --id csv-design --type "$MEMORY_TYPE" \
+# Record the initial design under an explicit ID and title.
+bd memory remember 'Export the selected rows as CSV.' \
+  --key csv-design --title 'CSV export design' --create-only
+
+# Record the text-encoding note that the design will refer to.
+bd memory remember 'Use UTF-8.' \
+  --key csv-encoding --title 'CSV encoding' --create-only
+
+# Record the spreadsheet checks that connect the design to implementation work.
+bd memory remember 'Test the exported UTF-8 file in spreadsheet tools; keep the results with the implementation work.' \
+  --key csv-interop --title 'CSV interoperability checks' --create-only
+
+```
+
+The top-level `bd remember` remains a compatibility alias for `bd memory
+remember`. Either spelling performs the same operation, so this block is an
+alternative way to create the same notes.
+
+```sh
+# Use the compatibility alias to create the same design note.
+bd remember 'Export the selected rows as CSV.' \
+  --key csv-design --title 'CSV export design' --create-only
+
+# Use the compatibility alias to create the same encoding note.
+bd remember 'Use UTF-8.' \
+  --key csv-encoding --title 'CSV encoding' --create-only
+
+# Use the compatibility alias to create the same interoperability note.
+bd remember 'Test the exported UTF-8 file in spreadsheet tools; keep the results with the implementation work.' \
+  --key csv-interop --title 'CSV interoperability checks' --create-only
+
+```
+
+The general Bead command can create those same notes by naming the `memory` Type
+explicitly. Choose one of these creation blocks; each creates the same three
+identities.
+
+```sh
+# Create the same design note through the general Bead command.
+bd create --id csv-design --type memory \
   --properties '{"title":"CSV export design","body":"Export the selected rows as CSV."}'
-bd create --id csv-encoding --type "$MEMORY_TYPE" \
+
+# Create the same encoding note through the general Bead command.
+bd create --id csv-encoding --type memory \
   --properties '{"title":"CSV encoding","body":"Use UTF-8."}'
+
+# Create the same interoperability note through the general Bead command.
+bd create --id csv-interop --type memory \
+  --properties '{"title":"CSV interoperability checks","body":"Test the exported UTF-8 file in spreadsheet tools; keep the results with the implementation work."}'
+
+```
+
+Add two Issues using the concrete `task` Type for implementing and reviewing the
+feature. The Issues record the work, while the notes hold knowledge that helps
+people carry it out.
+
+```sh
+# Create the implementation Issue.
+bd create --id export-work --type task \
+  --properties '{"title":"Add CSV export","body":"Implement CSV export for the selected rows."}'
+
+# Create the review Issue.
+bd create --id review-work --type task \
+  --properties '{"title":"Review CSV export","body":"Review the completed CSV export feature."}'
+
+```
+
+Read a note's full body with `recall`, or browse short summaries with
+`memories`. The top-level `bd recall` and `bd memories` remain compatibility
+aliases for these nested spellings.
+
+```sh
+# Read the design note's body.
+bd memory recall csv-design
+
+# Browse the notes whose ID, title or body mentions CSV.
+bd memory memories CSV
+
+```
+
+### Referencing Memories
+
+References Links connect records so that readers can follow useful context.
+The design uses the encoding note, which points to the interoperability checks;
+those checks refer back to the design. The checks also point to the
+implementation Issue, which refers to the design it implements. These
+connections form one cycle entirely among Memories and another through an
+Issue. A title or body on a Link can explain why the connection matters.
+
+```sh
+# Explain which encoding note the design uses.
 bd memory reference csv-design csv-encoding --id encoding-context \
-  --title "Uses this encoding" --body "Context for the export design"
+  --title 'Uses this encoding' --body 'Text encoding for exported files'
+
+# Connect the encoding choice to its spreadsheet checks.
+bd memory reference csv-encoding csv-interop --id encoding-checks \
+  --title 'Interoperability checks for this encoding'
+
+# Close the References cycle among the three Memories.
+bd memory reference csv-interop csv-design --id checks-design \
+  --title 'Design these checks validate'
+
+# Connect the interoperability checks to the work recording their results.
+bd memory reference csv-interop export-work --id checks-work \
+  --title 'Implementation and verification work'
+
+# Close the References cycle that passes through the implementation Issue.
+bd memory reference export-work csv-design --id design-context \
+  --title 'Implementation context'
+
+# Make the review Issue depend on completion of the implementation Issue.
+bd link create review-work export-work --type blocks \
+  --id review-after-export
+
+```
+
+The three notes form a permitted References cycle. A second cycle follows the
+same encoding and interoperability notes through the implementation Issue and
+back to the design. The `blocks` Dependency separately says that review waits
+for implementation; References supply context without imposing that workflow.
+
+```mermaid
+flowchart LR
+    V["Issue: review-work"] -->|blocks| I["Issue: export-work"]
+    I -->|references| D["Memory: csv-design"]
+    D -->|references| E["Memory: csv-encoding"]
+    E -->|references| N["Memory: csv-interop"]
+    N -->|references| D
+    N -->|references| I
+```
+
+The general Link command can create the same References Links. These commands
+are alternatives to the five `bd memory reference` calls above.
+
+```sh
+# Create the same encoding reference with its installed Link Type.
+bd link create csv-design csv-encoding --type references \
+  --id encoding-context \
+  --properties '{"title":"Uses this encoding","body":"Text encoding for exported files"}'
+
+# Create the same reference from the encoding note to its spreadsheet checks.
+bd link create csv-encoding csv-interop --type references \
+  --id encoding-checks --properties '{"title":"Interoperability checks for this encoding"}'
+
+# Create the same reference that closes the cycle among Memories.
+bd link create csv-interop csv-design --type references \
+  --id checks-design --properties '{"title":"Design these checks validate"}'
+
+# Create the same reference from the checks to their implementation work.
+bd link create csv-interop export-work --type references \
+  --id checks-work --properties '{"title":"Implementation and verification work"}'
+
+# Create the same design reference from the implementation Issue.
+bd link create export-work csv-design --type references \
+  --id design-context --properties '{"title":"Implementation context"}'
+
+```
+
+A plain References Link has its own revision; adding or editing it does not
+revise either endpoint. A traversal stops expanding a Bead it has already
+visited and keeps the recorded Links, including those that close cycles.
+
+```sh
+# Find the design note's direct context.
 bd memory references csv-design
-bd memory referenced-by csv-encoding
+
+# Find Beads that refer to the design note.
+bd memory referenced-by csv-design
+
+# Explore the References graph far enough to encounter both cycles.
+bd graph csv-design --link-type references --direction out --depth 4
+
 ```
 
-The References Link records its own explanation and authored direction. A
-plain References Link is unowned under the v0.2 design: creating or editing it
-changes the Link, not either endpoint. A second independently authored reference
-between the same endpoints is a different Link, not an update of the first.
+The `bd graph` examples use the existing Beads graph viewer on current, unpinned
+data. Its broader read contract differs from the focused Memory reads,
+particularly for historical endpoint pins. Canonical graph reconciliation
+remains separate from the fixed Memory questions in this document.
 
-### Edit one identity or name its replacement
+### Memories Over Time
 
-Maintain the same note with an ordinary update. Use a guard when the edit
-depends on an observed predecessor; `ENCODING_REV` below is its exact token.
+Edit a Memory when maintaining the same piece of knowledge. Its identity stays
+the same, and each accepted change creates a new revision. A separately
+maintained Memory can also replace it, recording a change of identity rather
+than another revision.
+
+#### Revising a Memory
+
+Update the encoding note twice, first clarifying its body and then changing its
+title and status. Both edits keep the ID `csv-encoding`. An unchanged update
+leaves the revision unchanged. `bd versions` lists the saved states so that a
+reader can select one explicitly.
 
 ```sh
-bd update csv-encoding --set-property body='Use UTF-8 without a byte-order mark.' \
-  --if-revision "$ENCODING_REV"
+# Clarify the encoding requirement while keeping the same note.
+bd update csv-encoding --set-property body='Use UTF-8 without a byte-order mark.'
+
+# Rename the note and label it reviewed in one update.
+bd update csv-encoding --set-property title='CSV text encoding' \
+  --set-property status=reviewed
+
+# List the revisions saved for this identity.
+bd versions csv-encoding
+
+```
+
+Here is illustrative output for the note created and edited above. `SEQ` is the
+store-local revision number used after `@`, while `REVISION` is the exact token
+used after `@=`.
+
+```text
+SEQ  REVISION     TITLE
+1    encoding-r1  CSV encoding
+2    encoding-r2  CSV encoding
+3    encoding-r3  CSV text encoding
+```
+
+These short tokens illustrate opaque values; use the numbers and complete tokens
+reported by your store. The diagram shows three saved states of one identity,
+with dotted arrows indicating revision history rather than stored Links.
+
+```mermaid
+flowchart LR
+    E1["csv-encoding@1<br/>CSV encoding<br/>Use UTF-8."]
+    E2["csv-encoding@2<br/>CSV encoding<br/>Use UTF-8 without a byte-order mark."]
+    E3["csv-encoding@3<br/>CSV text encoding<br/>status: reviewed"]
+    E1 -. next revision .-> E2
+    E2 -. next revision .-> E3
+```
+
+A bare ID reads the current state, and an `@` suffix selects a saved state.
+`recall` returns its body, while `show` returns the Resource document.
+
+```sh
+# Read the current note.
+bd show csv-encoding
+
+# Read the saved second revision from this example.
 bd show csv-encoding@2
-bd show csv-encoding --revision "$ENCODING_REV"
+
+# Recall just the body of that saved revision.
+bd memory recall csv-encoding@2
+
+# Select the same illustrative revision using its exact token.
+bd show csv-encoding@=encoding-r2
+
 ```
 
-`@2` uses a stable ordinal in the selected store; it requires that mapping and
-retained revision to exist. `--revision` selects an exact historical revision,
-as does `ID@=TOKEN`. Neither is a write guard. A suffix and `--revision` together
-are an error, even if they would select the same state.
-
-When a separately maintained guide replaces the note, create that guide and
-record the change of identity:
+The Memory convenience command can also edit an existing note while preserving
+omitted content. This title-only example leaves the body unchanged and makes no
+new revision if the title is already equal.
 
 ```sh
-bd create --id csv-guide --type "$MEMORY_TYPE" \
-  --properties '{"title":"CSV interoperability guide","body":"Encoding, headings and spreadsheet examples."}'
+# Change only the existing note's title through the Memory command.
+bd memory remember --update csv-encoding --title 'CSV text encoding'
+
+```
+
+An unpinned Reference follows the current revision of its target. A pin selects
+one exact saved revision, which is useful when recording the version a design
+relied on. Add another References Link to revision 2, keeping the original
+floating Link alongside it.
+
+```sh
+# Record the exact encoding revision used by the design.
+bd memory reference csv-design csv-encoding@2 --id encoding-used \
+  --title 'Encoding revision used for the design'
+
+```
+
+Both Links identify the same encoding Bead. The diagram separates its current
+and saved representations to make their different revision selections visible.
+
+```mermaid
+flowchart LR
+    D["Memory: csv-design"] -->|references, floating| E["csv-encoding@current<br/>current revision 3"]
+    D -->|references, pinned| E2["csv-encoding@2<br/>exact token encoding-r2"]
+    E -->|references, floating| N["Memory: csv-interop"]
+    N -->|references, floating| D
+```
+
+The pinned Link keeps its exact target token through later edits to the note.
+The generic graph viewer can show that stored pin alongside current Bead bodies;
+it does not fetch the old body for display. Focused Memory reads require
+current-compatible pins in the selected Preview 3 adapter and can refuse this
+older pin.
+
+```sh
+# Inspect the References graph with its stored endpoint pins and current bodies.
+bd graph csv-design --link-type references --direction out --depth 1
+
+```
+
+The Memory update shorthand accepts `--title`, `--body` and `--status` while
+preserving omitted content. Use `bd update` for the full property-edit surface
+or a Type change.
+
+#### Retiring a Memory
+
+A short encoding note may eventually give way to a guide covering headings,
+spreadsheet behavior and examples. Create the guide as a separately maintained
+Memory. A Superseded By Link records that it replaces the old note. The old
+identity and its earlier revisions remain readable.
+
+```sh
+# Create the separately maintained replacement guide.
+bd memory remember 'Encoding, headings and spreadsheet examples.' \
+  --key csv-guide --title 'CSV interoperability guide' --create-only
+
+# Record the old-to-new replacement.
 bd memory supersede csv-encoding csv-guide --id encoding-replacement
+
+```
+
+The replacement Link points from old to new. This view shows it beside the
+original forward Reference; the other References remain unchanged.
+
+```mermaid
+flowchart LR
+    D["Memory: csv-design"] -->|references| E["Memory: csv-encoding"]
+    E -->|superseded-by| G["Memory: csv-guide"]
+```
+
+The general Link command expresses the same replacement using the installed
+`superseded-by` Type. This is an alternative to the preceding `bd memory
+supersede` call.
+
+```sh
+# Create the same replacement Link through the general command.
+bd link create csv-encoding csv-guide --type superseded-by \
+  --id encoding-replacement
+
+```
+
+Each retiring Memory has at most one successor, and replacement chains cannot
+cycle. Recording the Link revises the old Memory while leaving the replacement
+unchanged. The focused reads below follow that replacement relationship in
+either direction.
+
+```sh
+# Follow the encoding note's replacement path.
 bd memory successor csv-encoding
+
+# Find notes directly replaced by the guide.
 bd memory supersedes csv-guide
+
+# Display the current replacement path with the Beads graph viewer.
+bd graph csv-encoding --link-type superseded-by --direction out --depth 1000
+
 ```
 
-The old Memory remains readable. Existing references still identify it until
-their authors change them. The retiring Memory owns the replacement Link;
-recording it revises that source, not the replacement. It neither deletes the
-old Memory nor changes a status label or approves the guide.
+### Constraints
 
-### Describe the obligations
+#### Constraint Beads
 
-Use Constraints for obligations. A Specification can define its detailed
-Requirement and Scenario, while requiring a separately maintained Policy.
+Some memories state what work must do, what it must avoid, or how it must be
+carried out. A Constraint Bead records one of these obligations. Its body
+describes the rule, and its Type tells readers what kind of rule they are
+reading. Use Constraint directly when none of the more specific Types fits.
+
+- Policy states governing rules of a system, project or team.
+- Decision records choices that constrain later work.
+- Procedure describes how work is carried out, with the flow in the body.
+- Requirement states an outcome or condition that must be met.
+- Scenario describes required behavior in a particular situation.
+- Specification describes intended results at any useful level of detail.
+
+These six Types refine Constraint, which itself refines Memory. The Type diagram
+points from each refinement to its parent.
+
+```mermaid
+flowchart BT
+    Constraint -->|refines| Memory
+    Policy -->|refines| Constraint
+    Decision -->|refines| Constraint
+    Procedure -->|refines| Constraint
+    Requirement -->|refines| Constraint
+    Scenario -->|refines| Constraint
+    Specification -->|refines| Constraint
+```
+
+For CSV export, create a Specification, a Requirement and an empty-selection
+Scenario. The `remember --type` creation option chooses each installed
+Type by name; a separate customer-data Policy supplies rules used by more than
+this feature, with two more Policy Beads for its details.
 
 ```sh
-bd create --id csv-format --type "$SPECIFICATION_TYPE" \
-  --properties '{"title":"CSV export format","body":"The export must meet these requirements and its own format rules."}'
-bd create --id selected-rows --type "$REQUIREMENT_TYPE" \
-  --properties '{"title":"Export every selected row","body":"Every selected row appears exactly once."}'
-bd create --id empty-export --type "$SCENARIO_TYPE" \
-  --properties '{"title":"Export an empty selection","body":"Produce headings and no data rows."}'
-bd create --id customer-data --type "$POLICY_TYPE" \
-  --properties '{"title":"Protect customer data","body":"Do not expose personal information in logs or sample exports."}'
+# Describe the feature's intended result.
+bd memory remember 'Export the selected rows and follow the rules linked below.' \
+  --key csv-format --title 'CSV export format' --type specification --create-only
+
+# State which rows must appear in the file.
+bd memory remember 'Every selected row appears exactly once.' \
+  --key selected-rows --title 'Export every selected row' --type requirement --create-only
+
+# State the expected result for an empty selection.
+bd memory remember 'Produce headings and no data rows.' \
+  --key empty-export --title 'Export an empty selection' --type scenario --create-only
+
+# Record the independently maintained customer-data Policy.
+bd memory remember 'Keep personal information out of logs and sample exports.' \
+  --key customer-data --title 'Protect customer data' --type policy --create-only
+
+# Record the log-handling detail as an ordinary Policy Bead.
+bd memory remember 'Remove personal information before writing log entries.' \
+  --key redact-logs --title 'Redact application logs' --type policy --create-only
+
+# Record the sample-data detail as another Policy Bead.
+bd memory remember 'Use anonymized records in shared sample exports.' \
+  --key sample-exports --title 'Use anonymized sample exports' --type policy --create-only
+
+```
+
+Each record has its own identity and can be read, revised or referenced
+independently. The next section connects them into defining trees and
+cross-references.
+
+### Constraint Bead Graphs
+
+Two Link Types connect Constraints to build compound rules and record
+dependencies. Defines makes its target part of the source's definition. Requires
+names another Constraint that must also be met, including one maintained
+elsewhere. Defines refines Requires, so a Requires-family read includes both
+kinds of Link.
+
+```sh
+# Make the selected-row Requirement part of the Specification's definition.
 bd memory defines csv-format selected-rows
+
+# Make the empty-selection Scenario another defining part.
 bd memory defines csv-format empty-export
+
+# Give the customer-data Policy its log-handling detail.
+bd memory defines customer-data redact-logs
+
+# Give the customer-data Policy its sample-data detail.
+bd memory defines customer-data sample-exports
+
+# Require that independently maintained Policy from the CSV Specification.
 bd memory requires csv-format customer-data
-bd memory definition csv-format
-bd memory requirements csv-format
+
+# Require the same log-handling Policy from the selected-row Requirement.
+bd memory requires selected-rows redact-logs
+
 ```
 
-`definition` follows the defining tree. `requirements` also includes the
-external Policy because Defines refines Requires. Every reached dependency is
-necessary; finding those records does not prove they were met. The source's
-own body still applies, and the graph does not assert that its children exhaust
-the parent's obligations unless the author says so.
+The Specification and customer-data Policy each have a defining tree. The last
+Requires Link crosses between them: the log-handling Policy keeps its defining
+parent even though the selected-row Requirement also requires it.
 
-### Find the rules governing work
+```mermaid
+flowchart TD
+    S["Specification: csv-format"] -->|defines| R["Requirement: selected-rows"]
+    S -->|defines| C["Scenario: empty-export"]
+    S -->|requires| P["Policy: customer-data"]
+    P -->|defines| L["Policy: redact-logs"]
+    P -->|defines| E["Policy: sample-exports"]
+    R -->|requires| L
+```
 
-Assume `export-work` is an existing Issue in the workspace, whose installed
-Type supports Subject To ownership and the required write operation.
+A defining child has at most one defining parent, and Defines trees cannot
+cycle. Requires can cross between trees and can cycle, with repeated expansion
+stopped during a read. Each linked target must be met for its source to be met;
+the source's own text still applies, and only an explicit statement makes its
+listed children exhaustive.
+
+Requires and Defines Links are owned by their source Constraint, so a Link
+change revises that source without revising the target. The reads below
+distinguish defining parts from the broader Requires family, which includes the
+separate Policies and the cross-reference.
 
 ```sh
-bd memory subject-to export-work csv-format
-bd memory constraints export-work
-bd memory subjects csv-format
+# Read the Specification's defining Requirement and Scenario.
+bd memory definition csv-format
+
+# Read its defining parts and the separate Policies it requires.
+bd memory requirements csv-format
+
+# Find the direct defining parent of the selected-row Requirement.
+bd memory defined-by selected-rows
+
+# Find Constraints that directly require the log-handling Policy.
+bd memory required-by redact-logs
+
+# Display only the current Defines tree with the Beads graph viewer.
+bd graph csv-format --link-type defines --direction out --depth 1000
+
+# Display the Requires family, including Defines and the cross-reference.
+bd graph csv-format --link-type requires --direction out --depth 1000
+
 ```
 
-The first read starts with the Issue's explicit Subject To declaration and
-follows the Specification's Requires family, including Defines. The reverse
-read reports subjects declaring that Specification directly. If the
-Specification itself is subject to a document-review Policy, that does not
-automatically bind the Issue to the document-review process.
+### Applying Constraints
 
-The result explains declared obligations and their supporting paths. It does
-not execute a Policy, establish compliance or change Issue readiness. Installation,
-build provenance and release acceptance belong in the release runbook.
+People and agents need to know which constraints apply to a piece of work. They
+can infer relevant rules from a prompt or ambient context without creating a
+stored relationship. A Subject To Link makes an explicit declaration in the
+graph. Declare that the implementation Issue and a note about the preview build
+are both subject to the CSV Specification.
+
+```sh
+# Record a note about the preview build as a second kind of subject.
+bd memory remember 'The CSV preview build is ready for review.' \
+  --key csv-preview --title 'CSV preview build' --create-only
+
+# Declare which Specification governs the implementation Issue.
+bd memory subject-to export-work csv-format
+
+# Declare that the same Specification governs the preview-build note.
+bd memory subject-to csv-preview csv-format
+
+```
+
+The Issue and the Memory are different kinds of subject governed by the same
+Specification. From either subject, its explicit declaration leads into the
+Specification's Requires family, including Defines.
+
+```mermaid
+flowchart TD
+    I["Issue: export-work"] -->|subject-to| S["Specification: csv-format"]
+    B["Memory: csv-preview"] -->|subject-to| S
+    S -->|defines| R["Requirement: selected-rows"]
+    S -->|defines| C["Scenario: empty-export"]
+    S -->|requires| P["Policy: customer-data"]
+    P -->|defines| L["Policy: redact-logs"]
+    P -->|defines| E["Policy: sample-exports"]
+    R -->|requires| L
+```
+
+The supporting paths explain why each rule was reached for its original subject.
+`constraints` follows those declarations and dependencies; `subjects` answers
+the direct reverse question of which Beads name this Constraint.
+
+```sh
+# Discover the rules explicitly governing the implementation Issue.
+bd memory constraints export-work
+
+# Keep the paths for both subjects visible in one read.
+bd memory constraints export-work csv-preview
+
+# Find the subjects that directly declare the CSV Specification.
+bd memory subjects csv-format
+
+```
+
+Subject To is owned by its source when that source's installed Type supports
+this contract, including the required Issue ownership declaration. Editing the
+Link revises that subject and leaves the target Constraint unchanged. Issue
+readiness and scheduling continue to follow their workflow and Dependency rules.
+
+Subject To does not spread through other Subject To declarations. A
+document-review Policy governing the Specification applies to that document; it
+does not automatically govern the implementation Issue. Declare the relationship
+to the Issue explicitly when that is intended.
+
+A prompt can direct an agent to follow the customer-data Policy today. A future
+executable applicability feature might select subjects using a predicate, but
+its syntax and CLI remain deferred. This walkthrough discovers stored
+declarations and their Requires paths; discovery does not establish compliance.
 
 ## CLI specification
 
-Common flags and behavior are defined first. Each command then lists all the
-flags it accepts, its defaults, behavior and examples. A common flag is
-available only on commands that list it. Universal `--help` is omitted from
-these listings.
+The reference starts with rules shared by the Memory commands, followed by one
+entry per command. Each entry lists its accepted flags and defaults. The
+[general CLI specification](bdp-cli.md#cli-specification) defines shared flags;
+this companion defines only the Memory-specific additions and restrictions.
+Universal `--help` is omitted from the listings.
 
-The command order follows the walkthrough: references, replacement, requirements
-and definitions, then Subject To. Ordinary Bead and Link CRUD uses the [general CLI specification](bdp-cli.md#cli-specification).
+### General CLI rules used here
 
-Type meanings and invariants come from the v0.2 model linked above. Where that
-model leaves revision or lifecycle mechanics open, these signatures do not
-settle them. A host must identify its implemented Type and shared contract, and
-refuse operations it cannot faithfully provide.
+Use the general specification for [Scope selection](bdp-cli.md#scope-selection),
+[IDs and revision references](bdp-cli.md#reference-syntax),
+[creation IDs](bdp-cli.md#creation-ids),
+[revision guards](bdp-cli.md#write-revision-flags),
+[object inputs and edits](bdp-cli.md#object-inputs),
+[output controls](bdp-cli.md#output-controls) and
+[errors and exit status](bdp-cli.md#exit-status).
+A shared flag is accepted only where a command lists it. Scope-selection
+mechanics retain the general specification's Unreviewed status.
 
-### Common flags and reference syntax
+The Type spec owns Type meanings and invariants. Its deferred revision and
+lifecycle mechanics remain deferred here. The current Memory proposal requires
+Link endpoints in one Scope. A host refuses an operation it cannot faithfully
+provide under its installed Types and writer.
 
-<a id="memory-references"></a>
-
-#### Scope, IDs and revisions
-
-Use a configured default Scope for relative IDs. An absolute URL identifies its
-Resource without relying on that default. Preserve the entire Scope-defined
-name; there are no required `beads/`, `links/` or `types/` prefixes. A Type or
-endpoint URL does not silently redirect a write into another Scope. The current
-Memory Types proposal requires endpoints in one Scope.
-
-| Reference | Meaning |
-| --- | --- |
-| `note-1` | The identity, using current content where a read needs content. |
-| `note-1@3` | Select local revision number 3. |
-| `note-1@=saved-r1` | Select exact revision token `saved-r1`. |
-| `note-1@current` | Explicitly select current content. |
-| `'[https://work.example/acme/note-1]@3'` | Select a revision of an absolute URL. Quote the argument for the shell. |
-
-Each operand carries its own selection where the command permits one. An
-unwrapped absolute URL is literal, including any `@` in that URL. Bracketed URLs
-require a revision suffix. Local revision numbers require a valid store-local
-mapping to full tokens; failure to resolve a number is an error. The [shared reference grammar](bdp-cli.md#reference-syntax) defines the complete rules.
-
-New local Bead and Link IDs reserve `@` for revision syntax. Already-issued
-identities remain unchanged and can be addressed by their literal absolute URL.
-A revision suffix never authorizes a pin forbidden by the selected Type. In
-particular, selecting historical point content does not establish support for
-historical graph traversal.
-
-`--scope SCOPE` remains **Unreviewed**, as in the general CLI. It appears in the
-command tables to make that status visible; this pass does not settle its
-configuration or override rules.
-
-<a id="memory-creation-ids"></a>
-
-#### Creation IDs: `--id` and `--id-root`
-
-| Flag | Meaning | When omitted |
-| --- | --- | --- |
-| `--id ID` | Choose the complete local Link ID. This value is literal. | Generate a new ID. |
-| `--id-root ROOT` | Generate an ID under this local path prefix. | Use ordinary ID generation. |
-
-These flags are mutually exclusive. ID generation and lifetime reservation use
-the common writer; a deleted ID does not become reusable. `--id-root` requires a
-supported allocation adapter. It does not add an `idRoot` wire field or promise
-that an offline operation can reserve a name. See the [general creation-ID rules](bdp-cli.md#creation-ids).
-
-<a id="memory-endpoints"></a>
-
-#### Link endpoints: operands, `--from` and `--to`
-
-All five creation commands accept exactly these forms, with the command's own
-operand names substituted for `SOURCE` and `TARGET`:
-
-```text
-bd memory VERB SOURCE TARGET [OPTIONS]
-bd memory VERB SOURCE --to TARGET [OPTIONS]
-bd memory VERB --from SOURCE --to TARGET [OPTIONS]
-```
-
-Bind each endpoint once. Duplicate bindings are errors even when their values
-are equal. A lone endpoint flag or the inverted form `--from SOURCE TARGET` is
-invalid. There is no `--by`, `--source` or `--target` alternative here.
-
-References can select endpoint revisions where their Type and writer allow that
-operation. Generic owned-state rules and the Beads product's current refusal of
-owned-source pins are distinct contracts. These commands do not settle the v0.2
-model's deferred pin mechanics or silently repin an endpoint. Product pin
-operations described in [Preview3 alignment](preview3-alignment.md#product-endpoint-pin-operations) remain
-separate from literal endpoint References.
+### Common Memory flags and behavior
 
 <a id="memory-creation-inputs"></a>
 
-#### Creation properties and metadata
+#### Named content: `--title`, `--body` and `--status`
 
-| Flag | Meaning | When omitted |
-| --- | --- | --- |
-| `--properties JSON` | Initialize the Link's declared properties. | Supply no properties through this option. |
-| `--metadata JSON` | Initialize informational metadata. | Supply no metadata. |
-| `--title TEXT` | Set the Link's `title` property. | Leave `title` absent. |
-| `--body TEXT` | Set the Link's `body` property. | Leave `body` absent. |
-| `--status TEXT` | Set its descriptive `status` property. | Leave `status` absent. |
+`remember` and the five relationship-creation commands accept these property
+shortcuts. Each flag sets the corresponding property on the Memory or Link.
 
-Object inputs accept inline JSON, `@FILE` or `@-` under the [common object-input rules](object-edits.md). Read and freeze inputs before dispatch; only one input
-may consume stdin. Duplicate object members, invalid Unicode and inadmissible
-numbers are errors.
+| Flag | Meaning |
+| --- | --- |
+| `--title TEXT` | Set the display title. |
+| `--body TEXT` | Set the Markdown body. A Memory body may be empty. |
+| `--status TEXT` | Set the descriptive status label. |
 
-A property cannot be supplied both by name and in `--properties`, even with an
-equal value. Omission stays omission. These relationship properties must be
-nonblank when supplied. Status does not activate a rule, approve a replacement
-or change a workflow. Creation accepts initialization, not update-only
-replace/patch/set/unset modes.
+A supplied title or status must be nonblank; a relationship Link's body must
+also be nonblank when supplied. A property cannot appear both as a named flag
+and in `--properties`, even with an equal value. Status adds no approval or
+workflow transition. Other object-input rules come from the general
+specification.
 
-Each command fixes its nominal installed Link Type. It accepts neither `--type`
-nor `--exact-type`. Use `bd link create --type TYPE` to create another admitted
-Type or refinement. Actual installed Type References, rather than guessed URI
-prefixes or display names, identify those definitions.
+On `remember`, `--body` is an alternative to positional BODY, `--body-file`,
+`--stdin` or a `body` property in `--properties`. Select exactly one body source.
+Creation derives a missing title from the body and leaves an omitted status
+absent. An existing-ID edit preserves each omitted content property.
+
+<a id="memory-endpoints"></a>
+
+#### Relationship creation
+
+All five relationship-creation commands use the endpoint forms of
+[`bd link create`](bdp-cli.md#bd-link-create). Each fixes its installed nominal
+Link Type, so there is no `--type` override or Type filter. Use the general Link
+command to create another Type or refinement.
+
+The source and target may select revisions where the Type and writer allow
+those pins. The current Beads writer's restriction on owned-source pins remains
+a product boundary; these signatures do not settle the Type design's deferred
+pin mechanics.
 
 <a id="memory-guards"></a>
 
-#### Revision guards
+#### Source revision guard: `--if-source-revision`
 
-`--if-revision REV` guards an existing Resource mutation; `--from-revision REV`
-selects content in a separately admitted historical edit or recovery operation.
-Their shared `N` / `=TOKEN` grammar is defined in the [general write-revision rules](bdp-cli.md#write-revision-flags). Neither flag is an endpoint pin, and
-neither is accepted by these five Link creation commands or ten relationship
-reads.
+The existing Beads owner-guard option is accepted only by a relationship command
+whose source owns that Link and whose authoritative writer supports the guard.
+It compares the actual source revision atomically with the write. It adds no
+new generic BDP field. Its spelling follows the selected product guard adapter;
+this editorial pass does not change that parser. Plain References is unowned
+and has no source owner guard.
 
-The existing Beads product option `--if-source-revision TOKEN` is a different,
-conditional creation option: require that the owning source still has this exact
-revision token. It is available only through an authoritative writer that
-supports that source guard, and only for an owned relationship. Its existing
-product token syntax does not define a new generic BDP field or a client-side
-read/check/write procedure. The product's guard-parser alignment is
-implementation correspondence, not a new syntax decision in this pass.
+<a id="memory-common-creation"></a>
 
-A stale admitted guard refuses the whole write atomically, including a would-be
-no-op. Plain References is unowned and does not admit an owner guard.
+#### Common relationship-creation behavior
+
+These commands reuse the general Link writer, allocator and transaction
+boundary. The writer validates the resulting graph atomically, including
+concurrent writes. Read-time diagnostics alone do not enforce an invariant.
+An owned Link change revises its source, not its target. Plain References
+revises neither endpoint. Subject To requires the actual source Type to declare
+its ownership; wider endpoint eligibility does not install it.
+
+The Types inherit References' identity-self prohibition. Requires' same-identity
+cross-revision question remains provisional in the Type design. Separate
+creation calls do not turn equal endpoints into an upsert. Explicit-ID conflict
+and exact retry use the common writer, while each Type keeps its cardinality
+and cycle rules.
+
+In the canonical mapping, named content becomes fields of `--properties` on the
+general Link command. IDs, metadata and admitted endpoint pins keep their shared
+meaning. Emission and [atomic batch](atomic-batch.md) use that corresponding
+generic command; these facades add no Memory wire operation or emission flag.
 
 <a id="memory-depth"></a>
 
 #### Traversal depth: `--depth`
 
-`--depth N` sets the hop limit for the eight ordinary family traversals. Their
-per-command tables give the default. A default of 1000 is a bound, not unlimited
-traversal. Each requested root gets its own hop allowance; acquisition, output
-and candidate-work caps are cumulative across all roots and stages.
+`--depth N` sets the hop limit for the eight ordinary family traversals. The
+per-command tables give their defaults. Each root gets its own hop allowance;
+acquisition, output and work caps are cumulative across all roots and stages.
+A default of 1000 is a bound.
 
-Find the Beads reached from each root in the selected direction and depth, then
-retain all matching-family Links between those Beads. Keep parallel, cross and
-cycle-closing Links. Compute this graph for each root before combining results;
-do not induce extra Links across the combined Bead union. For A→B, A→C, B→D and
-C→D, roots A and B at depth one retain AB, AC and BD, not CD. No individual root
-reached both C and D within its allowance.
+For each root, find the Beads reached in the selected direction and depth, then
+keep all matching-family Links between those Beads. Preserve parallel, cross
+and cycle-closing Links. Combine the per-root graphs without inducing extra
+Links across their union. For A→B, A→C, B→D and C→D, roots A and B at depth one
+retain AB, AC and BD, not CD: neither root reached both C and D.
 
-Visited identities prevent endless expansion without dropping selected Links.
-Requires and direct References can cycle. Defines and Superseded By follow their
-stronger Type invariants. A read must not relabel a cycle as a tree or silently
-repair invalid stored relationships.
+Visited identities stop repeated expansion without dropping selected Links.
+Requires and direct References can cycle. Defines and Superseded By keep their
+stronger invariants. A read does not repair invalid stored state.
 
 `constraints` has a staged bound whose separate depth controls remain
-unselected. `subjects` is direct only. Neither command accepts `--depth` in this
-candidate. Collection paging, Type filters, arbitrary Selectors and additional
-direction flags are not automatically accepted by a fixed Memory question.
+unselected. `subjects` is direct only. Neither accepts `--depth` here. Fixed
+Memory questions do not accept extra direction, Type-filter, collection-paging
+or arbitrary Selector flags.
 
 <a id="memory-read-view"></a>
 
-#### Consistent reads and unavailable information
+#### Consistent relationship reads
 
 Each relationship read requires one or more roots in one consistent, bounded
-read view. Preserve roots with no matching relationships, each root's
-membership, supporting paths, exact stored pins and any depth frontier. Root
-order cannot change the question or transfer obligations between roots.
+view. Preserve roots with no matching relationships, per-root membership,
+supporting paths, exact stored pins and any depth frontier. Shared expansion
+must not transfer governing rules from one original subject to another.
 
-These are derived graph questions. Ordinary BDP collection Selectors provide
-neither recursive joins nor a coherent snapshot across independent pages. A host
-needs a suitable traversal/read-view adapter. Without one, it refuses the
-operation. The canonical correspondence below describes composition of ordinary
-reads, not a new Memory wire method or an invented graph/query command.
+These graph questions need a suitable read-view/traversal adapter. Ordinary
+BDP collection Selectors provide no recursive joins or coherent snapshot across
+independent pages. The canonical mappings describe composition under that
+adapter, rather than a new graph/query wire operation.
 
-The selected Preview3 specialized adapter requires current-compatible endpoint
-pins in its captured current view and refuses a mismatch. Generic graph display
-has a different contract: it may show current Bead bodies alongside older stored
-pins. Do not float an exact pin, substitute today's body for a historical root,
-or use today's graph as historical evidence. General historical graph traversal
-is not selected by these signatures.
+The selected Preview 3 specialized adapter requires current-compatible endpoint
+pins and refuses a mismatch. Generic graph display can show current Bead bodies
+alongside older literal pins. Do not float pins, substitute current content for
+a historical root, or claim a current graph is historical evidence. General
+historical graph traversal remains unselected.
 
-An invalid, inaccessible or unavailable requested root, incompatible endpoint
-binding, or acquisition/work/output budget failure refuses the aggregate. It
-must not become successful empty or partial discovery. An admitted depth
-frontier is shown as a bound; it proves neither terminal replacement, complete
-obligations nor satisfaction.
+An invalid, inaccessible or unavailable root, incompatible binding, or
+acquisition/work/output budget failure refuses the aggregate. It cannot become
+a successful empty or partial result. A depth frontier is visible; it proves
+neither a terminal successor, discovery of every governing rule nor compliance.
+Failures use the [general statuses](bdp-cli.md#exit-status) and preserve native
+Problems.
 
 <a id="memory-output"></a>
 
-#### Output and detail
+#### Memory result views
 
-Relationship reads default to the shared compact relationship tree; no `--graph`
-flag is needed. Show root IDs, actual Types and titles. Links show their actual
-Types and authored direction, even during incoming traversal. Distinguish
-cycles, shared descendants and repeated expansion; preserve every selected Link.
-At a Constraint, show Defines children before other Requires dependencies.
-Indentation does not establish ownership or readiness.
+Relationship reads default to the shared compact tree, with no `--graph` opt-in.
+Show IDs, actual Types and titles; label Links with their actual Type and
+original arrow direction, including during incoming reads. Distinguish shared
+descendants, repeated visits and cycles while preserving all selected Links.
+Show Defines children before other Requires dependencies at a Constraint.
+Indentation establishes neither ownership nor readiness.
 
-`--long` exposes administrative details, full References and exact tokens
-through the common renderer. Human shortening removes only the exact local Scope
-prefix, preserving every literal segment. Redirection never changes the output
-format. Diagnostics go to stderr.
+Graph JSON/JSONL framing and the format/projection matrix remain Unreviewed.
+The [ordinary-read schema](read-output.md) does not define a graph descriptor.
+Graph machine output must retain roots, membership, paths and bounds before a
+shared adapter can claim support. Ordinary point-read and collection formats
+do not automatically apply to these results.
 
-Graph JSON/JSONL framing and its format/projection matrix remain **Unreviewed**.
-The [ordinary-read schema](read-output.md) has six descriptors and no graph
-descriptor. This companion adds no private result schema. Graph machine output
-must retain roots, per-root membership, supporting paths and bounds before an
-adapter can claim support. The read signatures list the common output-format
-option, but its nondefault graph formats remain unreviewed. Ordinary point-read
-or collection formats and field masks do not automatically apply to a graph.
+The five relationship-creation commands use the general Link success renderer,
+including the new Link ID. Supported structured output preserves the complete
+native mutation result and any source revision actually returned. It invents
+no revision field or extra commit stream.
 
-Creation uses Cleo's common Link success renderer: a brief acknowledgement and
-the shared row, including the new Link ID. `--output-format FORMAT` may select
-only a format supported for that complete native mutation result. It does not
-turn a compound Link/source result into an ordinary point-read record.
-Structured output must preserve every native result component, including a
-source revision when actually returned; human output invents no revision field
-or extra commit stream. Unsupported format combinations refuse.
+The four nested convenience commands reuse their existing top-level command's
+output. In particular, `recall` writes the body and `memories` writes summaries.
+They do not silently switch to full Resource rows, a different JSON schema or
+the graph renderer. Their entries state the accepted product output controls.
 
-<a id="memory-exit-status"></a>
+### Memory commands
 
-#### Errors and exit status
+These four commands are the canonical Memory spellings of the existing
+`bd remember`, `bd recall`, `bd memories` and `bd forget` commands. Retain the
+top-level spellings as compatibility aliases. Both paths share their handlers,
+workspace selection, identity resolution, guards, limits, output, errors and
+compatibility options. The entries below describe their Memory-Bead mode. Any existing
+key/value-workspace behavior remains the corresponding top-level command's
+contract; adding an alias does not migrate a workspace.
 
-| Status | Meaning |
-| --- | --- |
-| `0` | Successful operation, including a read with no matching relationships. |
-| `2` | Invalid arguments, conflicting options, invalid values or missing Scope for a relative ID. |
-| `3` | A diagnosed missing requested Resource or selected revision. |
-| `4` | A diagnosed revision mismatch. |
-| `5` | Required operation, Type, revision lookup, allocation or read-view support is unavailable. |
-| `130` | Delivery was interrupted. |
-| `1` | Other failure, including access denial, graph invariant refusal, budget exhaustion, output failure or unknown write outcome. |
+The nested spellings are proposed for the Preview 3 queue after this edit pass.
+This document makes no claim that the aliases have been registered. Top-level
+compatibility remains until a separate removal decision. Their long-term
+canonical home is this Memory package.
 
-These are the general CLI's proposed statuses, not a renumbering of released
-Preview exits. Preserve native BDP Problems. Do not classify all HTTP 409 or 422
-responses as a revision mismatch. A failed display does not undo a known write;
-unknown mutation disposition follows the common recovery contract, without blind
-replay. Each entry below calls out its command-specific failures.
+#### `bd memory remember`
 
-<a id="memory-common-creation"></a>
+Store a Memory or update the same Memory under an explicit identity.
 
-#### Common creation behavior
+##### Usage
 
-All five creation commands use the common Link writer, allocator and transaction
-boundary. They supply no validation bypass, separate upsert or independent retry
-policy. The writer validates the affected prospective graph atomically;
-read-time diagnostics do not establish enforcement.
+```text
+bd memory remember [BODY] [--key ID | --id ID | --update REF]
+    [--type TYPE]
+    [--title TEXT] [--body TEXT | --body-file FILE | --stdin] [--status TEXT]
+    [--properties JSON | --replace-properties JSON]
+    [--metadata JSON | --replace-metadata JSON
+       | [--set-metadata KEY=VALUE]... [--unset-metadata KEY]...]
+    [--create-only] [--if-revision REV] [--json] [--quiet]
+```
 
-The Types inherit References' prohibition on a Link from a Bead identity to
-itself. Selecting different revisions does not make two identities. Requires'
-same-identity cross-revision rule remains provisional in the v0.2 Type design;
-this command reference does not resolve that deferred question.
+##### Arguments
 
-An owned Link change revises its source, not its target. Plain References is
-unowned and revises neither endpoint. Subject To ownership must be declared by
-the actual source Type; accepting an endpoint does not install ownership. No
-command implicitly deletes a Bead, changes status, establishes compliance or
-edits previously authored references.
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| `BODY` | For creation, unless another body source supplies it | The Memory's content, not its title or ID. It may be empty when explicitly supplied. |
 
-Without an explicit ID, repeated References creation makes distinct Links for
-equal endpoints. Explicit-ID conflict and exact retry follow the common writer.
-The other creation commands also retain their own Type cardinality and cycle
-checks; endpoint equality is never an instruction to retarget or upsert a Link.
+##### Flags
 
-Each per-command mapping uses the actual installed Type Reference shown as a
-shell variable, not a guessed URI. The named `title`, `body` and `status` flags
-become properties in the corresponding generic `bd link create` operation. IDs,
-metadata and admitted endpoint pins retain their ordinary meanings. Conditional
-product source guards require that same authoritative writer.
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--key ID` | Derived from body | Choose the literal public ID for create-or-update. |
+| `--id ID` | Derived from body | Same identity choice as `--key`; the two conflict. |
+| `--update REF` | Create-or-update route | Require an existing, unpinned Memory and preserve omitted fields. |
+| `--type TYPE` | `memory` on creation | Choose Memory or a refinement for `--create-only`. See [Types](bdp-cli.md#type-selection). |
+| `--title TEXT` | Derived on create; preserved on edit | Set the title without changing the ID. |
+| `--body TEXT` | Required through one source on create; unchanged on edit | Set the body explicitly, including an empty body. |
+| `--status TEXT` | Absent on create; unchanged on edit | Set a nonblank descriptive label. |
+| `--body-file FILE` | No file input | Read the body from a UTF-8 file. |
+| `--stdin` | Off | Read the body explicitly from stdin; supplying false is invalid. |
+| `--properties JSON` | No supplied object | Initialize or merge declared properties under the existing Memory writer. See [object inputs](bdp-cli.md#object-inputs). |
+| `--replace-properties JSON` | No replacement | Replace properties of an existing selected Memory. |
+| `--metadata JSON` | Empty on create; unchanged on edit | Initialize or merge metadata. See [object inputs](bdp-cli.md#object-inputs). |
+| `--replace-metadata JSON` | No replacement | Set the metadata object through the existing command's replacement mode. |
+| `--set-metadata KEY=VALUE` | No keyed edit | Set a metadata key; repeatable. |
+| `--unset-metadata KEY` | No keyed edit | Remove a metadata key; repeatable and combinable with sets. |
+| `--create-only` | Off | Require a new Memory with explicit `--key` or `--id`. |
+| `--if-revision REV` | No comparison | Guard an existing Memory edit using the [general revision grammar](bdp-cli.md#write-revision-flags). |
+| `--json` | Off | Preserve the top-level command's supported native structured result. |
+| `--quiet` | Off | Preserve the top-level command's quiet rendering. |
 
-Operation emission and [atomic batch](atomic-batch.md) use the corresponding
-generic Link command. These commands add no new Memory wire discriminator or
-Memory-specific emission flags.
+##### Behavior
+
+`--key` and `--id` choose the same literal public identity; neither is a title.
+They conflict with each other and with `--update`. An explicit ID creates a new
+Memory when unused, or updates that same live Memory when already allocated.
+It cannot overwrite an Issue, reuse a deleted identity or silently retype a
+Bead. `--update` instead requires an existing Memory. A guard also requires an
+existing predecessor; it cannot authorize creation.
+
+Creation needs a body. Choose one source: positional BODY, `--body`,
+`--body-file`, `--stdin`, or the `body` property in `--properties`. Existing-ID
+edits can change `--title`, `--body` or `--status` independently, preserving
+omitted content. Naming a property both through a shorthand and in
+`--properties` is an error. Only an explicit body source reads stdin.
+
+With no explicit identity, derive the ID through the same content-to-key rule
+as top-level `remember`. Retain its existing bare-word safeguard: a single
+key-like argument naming an existing Memory recalls it; a missing key-like
+argument refuses. Supplying `--key` makes write intent explicit. A missing
+creation title becomes the same short body summary used by the existing
+command: collapse whitespace in the first trimmed line and shorten it to at
+most 80 code points, including the ellipsis when shortened. An empty summary
+becomes `Untitled memory`; an explicitly supplied blank creation title refuses.
+`--title` on an edit changes the title while preserving an omitted body.
+
+`--type TYPE` is accepted only with `--create-only`, and selects an installed
+Memory Type or one of its refinements. Omission creates plain Memory, while an
+existing-ID edit preserves its current Type. Type resolution and validation use
+the general creation command's rules, including its exact definition-reference
+syntax. Use `bd update REF --type TYPE` to change an existing Bead's Type.
+
+`--create-only` requires explicit `--key` or `--id`, and conflicts with a guard
+or `--update`. It refuses an already allocated ID. Property replacement needs
+exactly one existing identity selector and conflicts with BODY, `--title`,
+`--body`, `--status`, body-file/stdin, `--properties` and `--create-only`.
+General metadata modes keep their existing conflicts. At least one actual edit input is required for an
+existing-ID write; a guard alone is not an edit.
+
+The content-update shorthand is limited to `--title`, `--body` and `--status`.
+Use `bd update` for the full property-edit surface and for changing an existing
+Bead's Type. Existing property/metadata compatibility options remain available
+on both remember spellings; do not add the general command's patch or keyed
+property-edit flags here.
+
+As in top-level `remember`, admitted metadata edits apply to an empty object on
+creation or the checked predecessor on update. This does not add those modes
+to the general `create` command.
+
+Preserve the existing command's body acquisition bound: the inspected Preview 3
+adapter accepts at most 1 MiB of UTF-8 body input. Checks, no-op detection and
+updates happen in the authoritative writer; omission is not filled by a stale
+client read. An unchanged state retains its revision. This convenience adds no
+wire upsert operation or implicit read/modify/write fallback.
+
+##### Results
+
+Use exactly the top-level command's creation, update, unchanged or recalled-body
+result, as applicable. Preserve its native structured mutation result and quiet
+behavior. A recalled bare key produces body output rather than a write receipt.
+
+##### Errors and exit status
+
+Return the same diagnosis and status as top-level `remember`. Refuse conflicting
+identity/body sources, blank creation titles, invalid inputs, unsupported
+properties, unavailable existing targets and identity reuse. A stale guard must
+fail atomically. A lost write acknowledgement must not trigger an unguarded
+create or update fallback.
+
+##### Canonical CLI correspondence
+
+`bd memory remember` delegates to `bd remember` with the same arguments.
+A selected new Memory corresponds to general `bd create --type TYPE`, using
+plain Memory by default or the Type selected for typed creation. An
+existing edit corresponds to `bd update REF` with the equivalent object edits
+and guard. These are alternative operation outcomes, not a portable atomic
+upsert API. The shared Memory writer must decide the admitted route safely.
+A body-only result can be read through `bd show REF`, selecting its saved
+revision where applicable.
+
+##### Examples
+
+```sh
+# Create a named note while choosing its display title separately.
+bd memory remember 'Use UTF-8.' --key csv-encoding --title 'CSV encoding' --create-only
+
+# Update only the title of an existing Memory.
+bd memory remember --update csv-encoding --title 'CSV text encoding'
+
+# Edit the named content fields without replacing the whole property object.
+bd memory remember --update csv-encoding --body 'Use UTF-8 without a byte-order mark.' \
+  --status reviewed
+
+# Replace the body under the same explicit key.
+bd memory remember 'Use UTF-8 without a byte-order mark.' --key csv-encoding
+
+# Guard a body edit with the exact revision token previously observed.
+bd memory remember 'Use UTF-8.' --update csv-encoding --if-revision =saved-r3
+
+# Read the body explicitly from a file.
+bd memory remember --key csv-guide --title 'CSV interoperability guide' --body-file guide.md
+
+# Select an installed Policy Type for creation.
+bd memory remember 'Keep personal information out of logs.' \
+  --key data-logs --title 'Protect log data' --type policy --create-only
+
+```
+
+#### `bd memory recall`
+
+Read one Memory's full body, current or at a saved revision.
+
+##### Usage
+
+```text
+bd memory recall REF [--quiet]
+```
+
+##### Arguments
+
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| `REF` | Exactly one | A local Memory ID or full URL, optionally selecting its revision with the [shared syntax](bdp-cli.md#reference-syntax). |
+
+##### Flags
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--quiet` | Off | Preserve top-level behavior: the requested body is still printed. |
+
+##### Behavior
+
+Resolve the same Memory selector as top-level `recall`. With a bare Reference,
+read the current body. A selected revision reads that retained body or fails;
+it never substitutes current content. Read a Memory, rather than an Issue or
+Link that happens to have a `body` property.
+
+This is a body command. It does not add graph traversal, property masks or a
+new structured representation. The inspected Preview 3 graph adapter refuses
+`--json`; use the general `bd show` command for a supported full-record format.
+The alias retains the top-level command's Preview 3 compatibility options;
+this canonical reference uses revision suffixes.
+
+##### Results
+
+Write the stored body unchanged, followed by one newline, including when the
+body is empty. Preserve any newlines already in the body. `--quiet` does not
+suppress the requested content. Do not add a title, status or acknowledgement
+to the body stream.
+
+##### Errors and exit status
+
+Preserve top-level `recall` statuses and Problems. Refuse an invalid, missing,
+inaccessible or wrong-kind target, unavailable saved content, unresolved local
+revision number or unsupported format. No failure becomes a successful empty
+body.
+
+##### Canonical CLI correspondence
+
+Delegate to `bd recall REF`. The underlying read is the same current or saved
+Memory read available through `bd show REF`; render only its body through the
+existing recall renderer. Reading a saved body is independent of graph traversal.
+
+##### Examples
+
+```sh
+# Recall the current note's complete body.
+bd memory recall csv-encoding
+
+# Recall the body from local revision number 2.
+bd memory recall csv-encoding@2
+
+# Recall the body at one exact token.
+bd memory recall csv-encoding@=saved-r2
+
+# Select a saved body using an absolute URL.
+bd memory recall '[https://work.example/acme/csv-encoding]@2'
+
+```
+
+#### `bd memory memories`
+
+Browse Memory summaries, optionally matching text in the ID, title or body.
+
+##### Usage
+
+```text
+bd memory memories [SEARCH] [--all] [--details]
+    [--format table|records-json] [--quiet]
+```
+
+##### Arguments
+
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| `SEARCH` | No | One literal search string, using the top-level command's ID/title/body matching. |
+
+##### Flags
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--all` | Off | Return all matches within the existing bounded summary view. |
+| `--details` | Off | Include revision, attribution and owned-Link counts. |
+| `--format table\|records-json` | `table` | Preserve the existing summary output formats. |
+| `--quiet` | Off | Preserve the top-level command's quiet rendering. |
+
+##### Behavior
+
+Use the same checked current snapshot and summary selection as top-level
+`memories`. SEARCH is literal, case-insensitive ID/title/body text matching, not
+a Selector, regex, graph predicate or new query language. Omission browses the
+admitted Memory population. `--details` obtains no neighboring bodies.
+
+Preserve the product's current bounds. The inspected Preview 3 adapter requires
+at most 50 matches by default; more matches refuse with a request to narrow the
+search or use `--all`. That option keeps the acquisition/output caps: at most
+1000 live Resources and 16 MiB acquired, 1 MiB of output, a search of at most
+4096 UTF-8 bytes, and excerpts of at most 160 code points. These are product
+bounds, not limits added to BDP or the Memory Type definitions.
+
+There is no paging or promise of full Memory JSON. `records-json` preserves the
+existing experimental summary shape; it is not a new canonical Resource
+collection descriptor. In the inspected graph adapter, `--json` is unsupported.
+This alias does not reconcile general list/search/graph/query or change their
+filter rules.
+
+##### Results
+
+Return the existing compact summaries: identities, titles, bounded body excerpts
+and optional details. A body match selects an excerpt near the match; otherwise
+the excerpt starts at the beginning. Keep exact IDs and revision tokens where
+the selected summary format carries them. Return a complete admitted bounded
+selection or fail; never silently return the first 50 as though all matches
+had been reported. Use `recall` for a selected body's full text.
+
+##### Errors and exit status
+
+Preserve top-level `memories` statuses. Invalid search or unsupported formats
+refuse. Acquisition/output limits and more-than-default match counts refuse
+the whole selection. A successful empty selection remains distinguishable from
+an unreadable workspace or failed query.
+
+##### Canonical CLI correspondence
+
+Delegate to `bd memories` with the same arguments and summary renderer.
+`bd list --type "$MEMORY_TYPE"` is the general Type-family inventory; its paging,
+projection and full-Resource output are a different command contract. It is
+not a drop-in replacement for this bounded summary search. No protocol search
+operator or hidden full-store client scan is added here.
+
+##### Examples
+
+```sh
+# Browse summaries in the current workspace.
+bd memory memories
+
+# Match one literal phrase in IDs, titles or bodies.
+bd memory memories 'CSV encoding'
+
+# Include versions, attribution and owned-Link counts.
+bd memory memories CSV --details
+
+# Request every match within the existing acquisition/output bounds.
+bd memory memories CSV --all --format records-json
+
+```
+
+#### `bd memory forget`
+
+Delete one unreferenced live Memory through the existing Memory deletion writer.
+
+##### Usage
+
+```text
+bd memory forget REF [--if-revision REV] [--json] [--quiet]
+```
+
+##### Arguments
+
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| `REF` | Exactly one | An existing, unpinned Memory identity, resolved like top-level `forget`. |
+
+##### Flags
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--if-revision REV` | No comparison | Guard the actual current Memory using the [general revision grammar](bdp-cli.md#write-revision-flags). |
+| `--json` | Off | Preserve the top-level command's supported native deletion result. |
+| `--quiet` | Off | Preserve the top-level command's quiet rendering. |
+
+##### Behavior
+
+Invocation supplies delete intent, as with top-level `forget`. There is no
+extra `--force`, preview mode, cascade or new unconditional flag. The inspected
+Preview 3 writer accepts the current predecessor when no comparison is supplied
+and checks an explicit guard atomically.
+Require a live Memory with no incident Links. Refuse an Issue, a revision-pinned
+mutation target, or a Memory still participating in any live Link. Remove those
+Links through their admitted operations before forgetting the Memory. Retain
+its consumed identity and earlier snapshots under the same product lifecycle
+contract. Forgetting does not retire it in favor of a successor or erase history.
+
+##### Results
+
+Return the same native deletion result and human acknowledgement as top-level
+`forget`. Preserve its selected structured/quiet rendering. Report the actual
+committed decision; a display failure does not restore the Memory.
+
+##### Errors and exit status
+
+Use top-level `forget` diagnoses and statuses. Invalid selectors, a missing or
+wrong-kind Memory, live incident Links, a stale guard or denied deletion refuse.
+Preserve uncertainty if the write outcome is unknown; do not imply rollback or
+blindly submit a fresh deletion.
+
+##### Canonical CLI correspondence
+
+Delegate to `bd forget REF` with the same options. The general CLI counterpart
+is `bd delete REF --force`, with the corresponding guard and the Memory writer's
+no-incident-Link restriction. The convenience supplies apply intent; it adds no
+protocol field or wire operation. Use general `bd delete REF` without `--force`
+for an observational preview, which never reserves a later successful deletion.
+
+##### Examples
+
+```sh
+# Delete a temporary Memory after its live Links have been removed.
+bd memory forget scratch-note
+
+# Delete only if the observed exact revision is still current.
+bd memory forget scratch-note --if-revision =saved-r3
+
+```
 
 ### Reference commands
 
@@ -433,7 +1190,7 @@ OPTIONS:
 | `SOURCE` | Yes, positional or `--from` | Source Bead in an eligible References pair. |
 | `TARGET` | Yes, positional or `--to` | Context Bead in that correlated pair. |
 
-Each endpoint is a [Reference](#memory-references), subject to this Type's pin
+Each endpoint is a [Reference](bdp-cli.md#reference-syntax), subject to this Type's pin
 rules.
 
 ##### Flags
@@ -442,14 +1199,14 @@ rules.
 | --- | --- | --- |
 | `--from REF` | No separate binding | Supply SOURCE by flag. See [endpoint forms](#memory-endpoints). |
 | `--to REF` | No separate binding | Supply TARGET by flag. |
-| `--id ID` | Generated | Set the complete Link ID. See [creation IDs](#memory-creation-ids). |
+| `--id ID` | Generated | Set the complete Link ID. See [creation IDs](bdp-cli.md#creation-ids). |
 | `--id-root ROOT` | Ordinary allocation | Generate under a prefix; requires allocation support. |
-| `--properties JSON` | Not supplied | Initialize properties. See [creation inputs](#memory-creation-inputs). |
+| `--properties JSON` | Not supplied | Initialize properties. See [object inputs](bdp-cli.md#object-inputs). |
 | `--metadata JSON` | Not supplied | Initialize informational metadata. |
 | `--title TEXT` | Absent | Set the nonblank title property. |
 | `--body TEXT` | Absent | Set the nonblank body property. |
 | `--status TEXT` | Absent | Set descriptive, nonblank status text. |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use a supported common mutation format. See [output](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -474,7 +1231,7 @@ Endpoint revision effects follow [common creation behavior](#memory-common-creat
 
 Ineligible endpoint pairs and self-Links refuse. Duplicate endpoint bindings or
 properties are usage errors. An owner guard is not accepted for this unowned
-relationship. Use the [common statuses](#memory-exit-status); only a successful
+relationship. Use the [common statuses](bdp-cli.md#exit-status); only a successful
 admitted write returns `0`. Ordinary allocation, Type, access and output
 failures keep their common diagnosis.
 
@@ -519,14 +1276,14 @@ bd memory references REF... [--depth N]
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `REF...` | One or more | One or more Beads eligible for the selected References family. Each is a [Reference](#memory-references). |
+| `REF...` | One or more | One or more Beads eligible for the selected References family. Each is a [Reference](bdp-cli.md#reference-syntax). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--depth N` | `1` | Set each root's hop allowance. See [traversal depth](#memory-depth). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use shared graph output; nondefault formats remain [Unreviewed](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -554,7 +1311,7 @@ relationship is created.
 
 Unsupported historical root/endpoint binding or a missing read-view adapter
 refuses; invalid, unavailable or inaccessible requested roots and budget
-exhaustion refuse the aggregate. Use the [common statuses](#memory-exit-status).
+exhaustion refuse the aggregate. Use the [common statuses](bdp-cli.md#exit-status).
 A successful root-only result is `0`; refusal is never disguised as that result.
 
 ##### Canonical CLI correspondence
@@ -593,14 +1350,14 @@ bd memory referenced-by REF... [--depth N]
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `REF...` | One or more | One or more Beads eligible as targets in the selected References family. Each is a [Reference](#memory-references). |
+| `REF...` | One or more | One or more Beads eligible as targets in the selected References family. Each is a [Reference](bdp-cli.md#reference-syntax). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--depth N` | `1` | Set each root's hop allowance. See [traversal depth](#memory-depth). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use shared graph output; nondefault formats remain [Unreviewed](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -627,7 +1384,7 @@ per-root membership, exact pins and bounds. No stored relationship is created.
 
 Unsupported historical root/endpoint binding or a missing read-view adapter
 refuses; invalid, unavailable or inaccessible requested roots and budget
-exhaustion refuse the aggregate. Use the [common statuses](#memory-exit-status).
+exhaustion refuse the aggregate. Use the [common statuses](bdp-cli.md#exit-status).
 A successful root-only result is `0`; refusal is never disguised as that result.
 
 ##### Canonical CLI correspondence
@@ -674,7 +1431,7 @@ OPTIONS:
 | `OLD` | Yes, positional or `--from` | Retiring Memory or supported refinement. |
 | `NEW` | Yes, positional or `--to` | Replacement Memory or supported refinement. |
 
-Each endpoint is a [Reference](#memory-references), subject to this Type's pin
+Each endpoint is a [Reference](bdp-cli.md#reference-syntax), subject to this Type's pin
 rules.
 
 ##### Flags
@@ -683,15 +1440,15 @@ rules.
 | --- | --- | --- |
 | `--from REF` | No separate binding | Supply OLD by flag. See [endpoint forms](#memory-endpoints). |
 | `--to REF` | No separate binding | Supply NEW by flag. |
-| `--id ID` | Generated | Set the complete Link ID. See [creation IDs](#memory-creation-ids). |
+| `--id ID` | Generated | Set the complete Link ID. See [creation IDs](bdp-cli.md#creation-ids). |
 | `--id-root ROOT` | Ordinary allocation | Generate under a prefix; requires allocation support. |
-| `--properties JSON` | Not supplied | Initialize properties. See [creation inputs](#memory-creation-inputs). |
+| `--properties JSON` | Not supplied | Initialize properties. See [object inputs](bdp-cli.md#object-inputs). |
 | `--metadata JSON` | Not supplied | Initialize informational metadata. |
 | `--title TEXT` | Absent | Set the nonblank title property. |
 | `--body TEXT` | Absent | Set the nonblank body property. |
 | `--status TEXT` | Absent | Set descriptive, nonblank status text. |
 | `--if-source-revision TOKEN` | No source guard | Conditional product owner guard; see [revision guards](#memory-guards). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use a supported common mutation format. See [output](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -717,7 +1474,7 @@ Endpoint revision effects follow [common creation behavior](#memory-common-creat
 
 Pinned or ineligible endpoints, an existing outgoing successor, or a prospective
 cycle refuse. A stale admitted source guard is a revision mismatch. Use the
-[common statuses](#memory-exit-status); only a successful admitted write returns
+[common statuses](bdp-cli.md#exit-status); only a successful admitted write returns
 `0`. Ordinary allocation, Type, access and output failures keep their common
 diagnosis.
 
@@ -758,14 +1515,14 @@ bd memory successor REF... [--depth N]
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `REF...` | One or more | One or more Memory Beads or supported refinements. Each is a [Reference](#memory-references). |
+| `REF...` | One or more | One or more Memory Beads or supported refinements. Each is a [Reference](bdp-cli.md#reference-syntax). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--depth N` | `1000` | Set each root's hop allowance. See [traversal depth](#memory-depth). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use shared graph output; nondefault formats remain [Unreviewed](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -794,7 +1551,7 @@ membership, exact pins and bounds. No stored relationship is created.
 
 Unsupported historical root/endpoint binding or a missing read-view adapter
 refuses; invalid, unavailable or inaccessible requested roots and budget
-exhaustion refuse the aggregate. Use the [common statuses](#memory-exit-status).
+exhaustion refuse the aggregate. Use the [common statuses](bdp-cli.md#exit-status).
 A successful root-only result is `0`; refusal is never disguised as that result.
 
 ##### Canonical CLI correspondence
@@ -830,14 +1587,14 @@ bd memory supersedes REF... [--depth N]
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `REF...` | One or more | One or more replacement Memory Beads or supported refinements. Each is a [Reference](#memory-references). |
+| `REF...` | One or more | One or more replacement Memory Beads or supported refinements. Each is a [Reference](bdp-cli.md#reference-syntax). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--depth N` | `1` | Set each root's hop allowance. See [traversal depth](#memory-depth). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use shared graph output; nondefault formats remain [Unreviewed](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -863,7 +1620,7 @@ pins and bounds. No stored relationship is created.
 
 Unsupported historical root/endpoint binding or a missing read-view adapter
 refuses; invalid, unavailable or inaccessible requested roots and budget
-exhaustion refuse the aggregate. Use the [common statuses](#memory-exit-status).
+exhaustion refuse the aggregate. Use the [common statuses](bdp-cli.md#exit-status).
 A successful root-only result is `0`; refusal is never disguised as that result.
 
 ##### Canonical CLI correspondence
@@ -910,7 +1667,7 @@ OPTIONS:
 | `SOURCE` | Yes, positional or `--from` | Constraint whose obligations include the dependency. |
 | `TARGET` | Yes, positional or `--to` | Necessary Constraint, maintained independently. |
 
-Each endpoint is a [Reference](#memory-references), subject to this Type's pin
+Each endpoint is a [Reference](bdp-cli.md#reference-syntax), subject to this Type's pin
 rules.
 
 ##### Flags
@@ -919,15 +1676,15 @@ rules.
 | --- | --- | --- |
 | `--from REF` | No separate binding | Supply SOURCE by flag. See [endpoint forms](#memory-endpoints). |
 | `--to REF` | No separate binding | Supply TARGET by flag. |
-| `--id ID` | Generated | Set the complete Link ID. See [creation IDs](#memory-creation-ids). |
+| `--id ID` | Generated | Set the complete Link ID. See [creation IDs](bdp-cli.md#creation-ids). |
 | `--id-root ROOT` | Ordinary allocation | Generate under a prefix; requires allocation support. |
-| `--properties JSON` | Not supplied | Initialize properties. See [creation inputs](#memory-creation-inputs). |
+| `--properties JSON` | Not supplied | Initialize properties. See [object inputs](bdp-cli.md#object-inputs). |
 | `--metadata JSON` | Not supplied | Initialize informational metadata. |
 | `--title TEXT` | Absent | Set the nonblank title property. |
 | `--body TEXT` | Absent | Set the nonblank body property. |
 | `--status TEXT` | Absent | Set descriptive, nonblank status text. |
 | `--if-source-revision TOKEN` | No source guard | Conditional product owner guard; see [revision guards](#memory-guards). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use a supported common mutation format. See [output](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -952,7 +1709,7 @@ Endpoint revision effects follow [common creation behavior](#memory-common-creat
 Ineligible Constraint endpoints, same-identity self-Links or unsupported
 pin/ownership combinations refuse. A cycle through distinct Constraint identities
 alone is not an error. A stale admitted source guard is a revision mismatch.
-Use the [common statuses](#memory-exit-status); only a successful admitted write returns `0`. Ordinary allocation, Type, access and
+Use the [common statuses](bdp-cli.md#exit-status); only a successful admitted write returns `0`. Ordinary allocation, Type, access and
 output failures keep their common diagnosis.
 
 ##### Canonical CLI correspondence
@@ -989,14 +1746,14 @@ bd memory requirements REF... [--depth N]
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `REF...` | One or more | One or more Constraint Beads or supported refinements. Each is a [Reference](#memory-references). |
+| `REF...` | One or more | One or more Constraint Beads or supported refinements. Each is a [Reference](bdp-cli.md#reference-syntax). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--depth N` | `1000` | Set each root's hop allowance. See [traversal depth](#memory-depth). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use shared graph output; nondefault formats remain [Unreviewed](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -1025,7 +1782,7 @@ per-root membership, exact pins and bounds. No stored relationship is created.
 
 Unsupported historical root/endpoint binding or a missing read-view adapter
 refuses; invalid, unavailable or inaccessible requested roots and budget
-exhaustion refuse the aggregate. Use the [common statuses](#memory-exit-status).
+exhaustion refuse the aggregate. Use the [common statuses](bdp-cli.md#exit-status).
 A successful root-only result is `0`; refusal is never disguised as that result.
 
 ##### Canonical CLI correspondence
@@ -1061,14 +1818,14 @@ bd memory required-by REF... [--depth N]
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `REF...` | One or more | One or more Constraint Beads or supported refinements. Each is a [Reference](#memory-references). |
+| `REF...` | One or more | One or more Constraint Beads or supported refinements. Each is a [Reference](bdp-cli.md#reference-syntax). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--depth N` | `1` | Set each root's hop allowance. See [traversal depth](#memory-depth). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use shared graph output; nondefault formats remain [Unreviewed](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -1093,7 +1850,7 @@ pins and bounds. No stored relationship is created.
 
 Unsupported historical root/endpoint binding or a missing read-view adapter
 refuses; invalid, unavailable or inaccessible requested roots and budget
-exhaustion refuse the aggregate. Use the [common statuses](#memory-exit-status).
+exhaustion refuse the aggregate. Use the [common statuses](bdp-cli.md#exit-status).
 A successful root-only result is `0`; refusal is never disguised as that result.
 
 ##### Canonical CLI correspondence
@@ -1138,7 +1895,7 @@ OPTIONS:
 | `PARENT` | Yes, positional or `--from` | Parent Constraint that owns the defining Link. |
 | `CHILD` | Yes, positional or `--to` | Constraint being defined as this parent's child. |
 
-Each endpoint is a [Reference](#memory-references), subject to this Type's pin
+Each endpoint is a [Reference](bdp-cli.md#reference-syntax), subject to this Type's pin
 rules.
 
 ##### Flags
@@ -1147,15 +1904,15 @@ rules.
 | --- | --- | --- |
 | `--from REF` | No separate binding | Supply PARENT by flag. See [endpoint forms](#memory-endpoints). |
 | `--to REF` | No separate binding | Supply CHILD by flag. |
-| `--id ID` | Generated | Set the complete Link ID. See [creation IDs](#memory-creation-ids). |
+| `--id ID` | Generated | Set the complete Link ID. See [creation IDs](bdp-cli.md#creation-ids). |
 | `--id-root ROOT` | Ordinary allocation | Generate under a prefix; requires allocation support. |
-| `--properties JSON` | Not supplied | Initialize properties. See [creation inputs](#memory-creation-inputs). |
+| `--properties JSON` | Not supplied | Initialize properties. See [object inputs](bdp-cli.md#object-inputs). |
 | `--metadata JSON` | Not supplied | Initialize informational metadata. |
 | `--title TEXT` | Absent | Set the nonblank title property. |
 | `--body TEXT` | Absent | Set the nonblank body property. |
 | `--status TEXT` | Absent | Set descriptive, nonblank status text. |
 | `--if-source-revision TOKEN` | No source guard | Conditional product owner guard; see [revision guards](#memory-guards). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use a supported common mutation format. See [output](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -1180,7 +1937,7 @@ Endpoint revision effects follow [common creation behavior](#memory-common-creat
 
 A second live incoming Defines-family Link or a prospective defining cycle
 refuses. Ineligible endpoints and unsupported pin/ownership combinations also
-refuse; stale admitted source guards are revision mismatches. Use the [common statuses](#memory-exit-status); only a successful admitted write returns `0`.
+refuse; stale admitted source guards are revision mismatches. Use the [common statuses](bdp-cli.md#exit-status); only a successful admitted write returns `0`.
 Ordinary allocation, Type, access and output failures keep their common
 diagnosis.
 
@@ -1221,14 +1978,14 @@ bd memory definition REF... [--depth N]
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `REF...` | One or more | One or more Constraint Beads or supported refinements. Each is a [Reference](#memory-references). |
+| `REF...` | One or more | One or more Constraint Beads or supported refinements. Each is a [Reference](bdp-cli.md#reference-syntax). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--depth N` | `1000` | Set each root's hop allowance. See [traversal depth](#memory-depth). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use shared graph output; nondefault formats remain [Unreviewed](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -1258,7 +2015,7 @@ relationship is created.
 
 Unsupported historical root/endpoint binding or a missing read-view adapter
 refuses; invalid, unavailable or inaccessible requested roots and budget
-exhaustion refuse the aggregate. Use the [common statuses](#memory-exit-status).
+exhaustion refuse the aggregate. Use the [common statuses](bdp-cli.md#exit-status).
 A successful root-only result is `0`; refusal is never disguised as that result.
 
 ##### Canonical CLI correspondence
@@ -1294,14 +2051,14 @@ bd memory defined-by REF... [--depth N]
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `REF...` | One or more | One or more child Constraint Beads or supported refinements. Each is a [Reference](#memory-references). |
+| `REF...` | One or more | One or more child Constraint Beads or supported refinements. Each is a [Reference](bdp-cli.md#reference-syntax). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--depth N` | `1` | Set each root's hop allowance. See [traversal depth](#memory-depth). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use shared graph output; nondefault formats remain [Unreviewed](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -1327,7 +2084,7 @@ pins and bounds. No stored relationship is created.
 
 Unsupported historical root/endpoint binding or a missing read-view adapter
 refuses; invalid, unavailable or inaccessible requested roots and budget
-exhaustion refuse the aggregate. Use the [common statuses](#memory-exit-status).
+exhaustion refuse the aggregate. Use the [common statuses](bdp-cli.md#exit-status).
 A successful root-only result is `0`; refusal is never disguised as that result.
 
 ##### Canonical CLI correspondence
@@ -1374,7 +2131,7 @@ OPTIONS:
 | `SUBJECT` | Yes, positional or `--from` | Bead explicitly governed by the declaration. |
 | `CONSTRAINT` | Yes, positional or `--to` | Constraint or admitted refinement that governs it. |
 
-Each endpoint is a [Reference](#memory-references), subject to this Type's pin
+Each endpoint is a [Reference](bdp-cli.md#reference-syntax), subject to this Type's pin
 rules.
 
 ##### Flags
@@ -1383,15 +2140,15 @@ rules.
 | --- | --- | --- |
 | `--from REF` | No separate binding | Supply SUBJECT by flag. See [endpoint forms](#memory-endpoints). |
 | `--to REF` | No separate binding | Supply CONSTRAINT by flag. |
-| `--id ID` | Generated | Set the complete Link ID. See [creation IDs](#memory-creation-ids). |
+| `--id ID` | Generated | Set the complete Link ID. See [creation IDs](bdp-cli.md#creation-ids). |
 | `--id-root ROOT` | Ordinary allocation | Generate under a prefix; requires allocation support. |
-| `--properties JSON` | Not supplied | Initialize properties. See [creation inputs](#memory-creation-inputs). |
+| `--properties JSON` | Not supplied | Initialize properties. See [object inputs](bdp-cli.md#object-inputs). |
 | `--metadata JSON` | Not supplied | Initialize informational metadata. |
 | `--title TEXT` | Absent | Set the nonblank title property. |
 | `--body TEXT` | Absent | Set the nonblank body property. |
 | `--status TEXT` | Absent | Set descriptive, nonblank status text. |
 | `--if-source-revision TOKEN` | No source guard | Conditional product owner guard; see [revision guards](#memory-guards). |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use a supported common mutation format. See [output](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -1418,7 +2175,7 @@ Endpoint revision effects follow [common creation behavior](#memory-common-creat
 An ineligible target, same-identity self-Link, missing source ownership support
 for the selected operation, or unsupported endpoint binding refuses. An admitted
 source guard applies only to an owned relationship; stale guards are revision
-mismatches. Use the [common statuses](#memory-exit-status); only a successful admitted write
+mismatches. Use the [common statuses](bdp-cli.md#exit-status); only a successful admitted write
 returns `0`. Ordinary allocation, Type, access and output failures keep their
 common diagnosis.
 
@@ -1459,13 +2216,13 @@ bd memory constraints SUBJECT...
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `SUBJECT...` | One or more | One or more subject Beads whose installed Types support the selected Subject To contract. Each is a [Reference](#memory-references). |
+| `SUBJECT...` | One or more | One or more subject Beads whose installed Types support the selected Subject To contract. Each is a [Reference](bdp-cli.md#reference-syntax). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use shared graph output; nondefault formats remain [Unreviewed](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -1503,7 +2260,7 @@ per-root membership, exact pins and bounds. No stored relationship is created.
 
 `--depth` is not accepted. Unsupported historical root/endpoint binding or a
 missing read-view adapter refuses; invalid, unavailable or inaccessible
-requested roots and budget exhaustion refuse the aggregate. Use the [common statuses](#memory-exit-status). A successful root-only result is `0`; refusal is
+requested roots and budget exhaustion refuse the aggregate. Use the [common statuses](bdp-cli.md#exit-status). A successful root-only result is `0`; refusal is
 never disguised as that result.
 
 ##### Canonical CLI correspondence
@@ -1544,13 +2301,13 @@ bd memory subjects CONSTRAINT...
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `CONSTRAINT...` | One or more | One or more Constraint Beads or supported refinements. Each is a [Reference](#memory-references). |
+| `CONSTRAINT...` | One or more | One or more Constraint Beads or supported refinements. Each is a [Reference](bdp-cli.md#reference-syntax). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope and references](#memory-references). |
+| `--scope SCOPE` | Unreviewed | Relative-ID Scope selection; see [Scope selection](bdp-cli.md#scope-selection). |
 | `--output-format FORMAT` | `default` | Use shared graph output; nondefault formats remain [Unreviewed](#memory-output). |
 | `--long` | Off | Show full References and administrative details. |
 
@@ -1579,7 +2336,7 @@ relationship is created.
 
 `--depth` is not accepted. Unsupported historical root/endpoint binding or a
 missing read-view adapter refuses; invalid, unavailable or inaccessible
-requested roots and budget exhaustion refuse the aggregate. Use the [common statuses](#memory-exit-status). A successful root-only result is `0`; refusal is
+requested roots and budget exhaustion refuse the aggregate. Use the [common statuses](bdp-cli.md#exit-status). A successful root-only result is `0`; refusal is
 never disguised as that result.
 
 ##### Canonical CLI correspondence
@@ -1600,56 +2357,36 @@ bd memory subjects csv-format
 
 ### Ordinary Bead and Link commands
 
-Memory Beads use the [general CLI](bdp-cli.md#cli-specification), rather than a
-second CRUD command set. The same applies when editing or deleting one of the
-Links created above.
+Use the general CLI for [creation](bdp-cli.md#bd-create),
+[point reads](bdp-cli.md#bd-show), [updates](bdp-cli.md#bd-update),
+[deletion](bdp-cli.md#bd-delete), [listing](bdp-cli.md#bd-list) and
+[versions](bdp-cli.md#bd-versions), with the corresponding Link commands for
+Link identities. Their flag definitions and edit modes are owned by that
+specification. Memory adds no second CRUD contract or implicit cascade.
 
-| Intent | Canonical shape |
-| --- | --- |
-| Create a Bead with an installed Memory Type | `bd create --type TYPE --properties JSON` |
-| Change the Type of an existing Bead | `bd update REF --type TYPE` |
-| Merge or replace properties | `bd update REF --properties JSON`; `--replace-properties JSON` |
-| Patch or edit named properties | `--patch-properties JSON`; `--set-property KEY=VALUE`; `--unset-property KEY` |
-| Edit informational metadata | Matching `--metadata`, `--replace-metadata`, `--patch-metadata`, `--set-metadata` and `--unset-metadata` modes |
-| Read current or saved content | `bd show REF`; `bd show REF@N`; `bd show REF@=TOKEN` |
-| List a Memory family, including refinements | `bd list --type "$MEMORY_TYPE"` |
-| List exactly one nominal Type | `bd list --exact-type "$MEMORY_TYPE"` |
-| List every admitted Bead Type | `bd list --type any` |
-| Create another Link Type or refinement | `bd link create SOURCE TARGET --type TYPE` |
-| Read or edit a Link by its identity | `bd link show REF`; `bd link update REF` with ordinary edits |
-| List Links by family or exact Type | `bd link list --type TYPE`; `bd link list --exact-type TYPE` |
-| Read one identity's available revisions | `bd versions REF`; `bd link versions REF` |
-| Delete through the shared operation | `bd delete REF --force`; `bd link delete REF --force` |
-| Future Type inventory location | `bd type list` |
+Use the Type's actual installed Reference to select a family or exact Type.
+Changing a Type preserves the shared validity rules and does not promise that a
+native Issue can change its backing model. A focused Memory relationship read
+keeps its stated question; the generic filters do not turn it into an arbitrary
+query. `bd type list` remains the agreed location for the later Type CLI.
 
-Creation initializes objects. On update, merge/replacement/patch/keyed modes are
-exclusive per object; properties and metadata choose independently. Omitted Type
-preserves the exact affiliation. Retyping neither discards properties nor
-bypasses graph validity. It does not promise a native Issue can be converted
-into a different backing model. An exact owner read uses its captured owned-Link
-envelopes, not today's Link store. Deletion adds no independent cascade, erasure
-or recovery policy.
+The four convenience aliases above preserve their existing Memory contracts.
+In particular, `memories` summary search does not replace general `list`, and
+`recall` body output does not replace `show`'s Resource representation.
 
-On filters, `--type` means this Type and its refinements; `--exact-type` means
-this nominal identity. Neither filter accepts a Type-definition revision. They
-combine with AND. `--type any` is the shared wildcard, not a stored Type. On
-writes, `--type` sets the affiliation and can use the common revision syntax.
-Use actual Type References: a Memory Decision and a native Issue classification
-with the same display label are not interchangeable.
+### Editorial decisions still open
 
-For ordinary Resource edits, `--if-revision` supplies a write guard using the
-[general revision grammar](bdp-cli.md#write-revision-flags). A selected
-historical Reference is a read selection, not a mutation guard. The focused
-Memory reads retain their fixed questions; generic filtering does not turn them
-into an arbitrary query language.
-
-Existing `remember`, `recall`, `memories` and `forget` retain their separate
-contracts and are not added to this command reference. In particular, the
-product's `memories` summary is not silently replaced with full generic rows.
+- **Graph views.** The existing Beads graph examples can display individual
+  current Link families. Melinda owns canonical list/search/graph/query
+  reconciliation. In particular, `constraints` is a staged Subject To-then-Requires
+  question; selecting both families in one generic traversal is not equivalent.
+  No new generic graph grammar or historical-read guarantee is selected here.
 
 ## Sources and implementation correspondence
 
-This file is the proposed canonical home beside the generic CLI. The older
+This file is the proposed canonical home beside the general CLI. The four
+namespace aliases additionally follow Donna's October 24 instruction to preserve
+the corresponding top-level commands while moving their canonical home here. The older
 [accepted ten-read/five-create proposal, Beads #7758](https://github.com/gastownhall/beads/issues/7758) and its [editable Beads source](https://github.com/donnabox/beads/blob/86e1efcf63ae84736a63975d12ebb01250eb0d50/docs/reference/bdp/cli/types/memory/memory.md)
 are reconciliation inputs. On adoption, the Beads documentation should point
 here or identify itself as a product mirror of an exact revision, rather than
@@ -1665,7 +2402,7 @@ silently replace a released documentation or runtime pin.
 | [Preview3 shared CLI alignment](preview3-alignment.md) | Settled selector, from/to, Type-filter, actual-Type renderer, product pin and current-compatible traversal decisions. These are CLI/adaptor contracts, not BDP schema changes. |
 | [Release evidence ledger](https://github.com/gastownhall/beads/issues/7656) | Actual source-bound implementation, checks and integration status. A source review, this paper, or an older passing suite is not an aggregate runtime PASS. |
 
-The older product facade still documents `bd types` and an earlier catalog; it
+The earlier product facade documents `bd types` and an earlier catalog; it
 is not proof the ten focused reads or this v0.2 model are qualified. The
 canonical `bd type list` location selects no new inventory payload. Assessment
 authoring, evaluation/claim commands, custom Type installation, executable
@@ -1679,3 +2416,67 @@ string into an implicit executable instruction.
 > Direct References is unowned in both the v0.2 design and the reviewed current
 > catalog. Preserve the explicit generic/product/deferred pin boundaries above;
 > do not change a runtime pin or claim qualification from publication.
+
+### Keeping the Type and CLI documents aligned
+
+The [Memory Type spec](https://github.com/gastownhall/bdp/blob/21fa91d3e189bff3832bd977c3d6be49f2b5d93c/specs/types/memory/memory.md)
+is authoritative for Type meanings, properties, endpoint rules, ownership and
+graph invariants. This companion is authoritative for Memory command syntax,
+selection, results and CLI examples. The [general CLI](bdp-cli.md#cli-specification)
+owns shared flags. Introductory prose can use the same explanations without
+creating a second source of semantic rules.
+
+For an editorial change, update the explanation where it belongs and check the
+corresponding topic in its companion. The walkthrough deliberately has its own
+flow; paragraphs need not remain identical. For a semantic change affecting both,
+update the Type rule and the affected command/example together in one paired
+review. A wording edit must not silently change a Type invariant through a CLI
+example.
+
+Check these shared facts at each such review: the eight Bead Types and their
+refinements; the five Link Types; the difference between revisions and
+replacement; source ownership; Defines' single-parent/acyclic rules; Requires
+cycles; and explicit Subject To followed by Requires without transitive Subject
+To inheritance. Keep executable applicability and deferred pin mechanics
+identified as deferred in both documents.
+
+Publication records exact Type and CLI source revisions independently. An
+editorial update does not adopt a new runtime catalog, regenerate schemas or
+promote a client/server pin. Keep product documentation as a pointer or an
+identified mirror, rather than a third independently edited command contract.
+
+### Four-command alias correspondence
+
+The inspected behavior source is Beads
+[`79450c2d67ccab326b20b07cc3d66179fa148ec0`](https://github.com/donnabox/beads/tree/79450c2d67ccab326b20b07cc3d66179fa148ec0).
+The relevant command handlers are
+[memory.go](https://github.com/donnabox/beads/blob/79450c2d67ccab326b20b07cc3d66179fa148ec0/cmd/bd/memory.go),
+[remember admission](https://github.com/donnabox/beads/blob/79450c2d67ccab326b20b07cc3d66179fa148ec0/cmd/bd/graph_preview.go),
+[remember edits](https://github.com/donnabox/beads/blob/79450c2d67ccab326b20b07cc3d66179fa148ec0/cmd/bd/graph_preview_remember_update.go),
+[recall](https://github.com/donnabox/beads/blob/79450c2d67ccab326b20b07cc3d66179fa148ec0/cmd/bd/graph_preview_recall.go),
+[memories](https://github.com/donnabox/beads/blob/79450c2d67ccab326b20b07cc3d66179fa148ec0/cmd/bd/graph_preview_memories.go)
+and [forget](https://github.com/donnabox/beads/blob/79450c2d67ccab326b20b07cc3d66179fa148ec0/cmd/bd/graph_preview_memory_delete.go).
+The source is evidence for the existing command contracts, not proof that the
+four nested spellings are implemented or that this whole v0.2 model is qualified.
+
+The canonical reference uses the settled `@N`/`@=TOKEN` selection and
+`N`/`=TOKEN` guard notation. Preview 3 may retain its existing compatibility
+flags; the aliases must share those options and the selected guard resolver,
+not fork them. Follow the current guard-alignment source when implementing.
+The inspected forget handler accepts an omitted guard even though older help
+text described a required unconditional choice; use the actual shared handler.
+
+The accepted `remember --type TYPE --create-only` option and explicit `--body`
+and `--status` content flags are additions to the inspected behavior source.
+Both command spellings must use the same general Type resolution and native
+writer checks, preserving existing-ID edit behavior.
+Examples use installed literal Type names; they do not infer identities from
+Resource prefixes or adopt a new runtime catalog.
+
+> **Cleo and Janet — after the edit pass:** Queue the four nested spellings for
+> Preview 3 as aliases using the existing handlers, rather than copies with
+> independent flags or storage logic. Add typed creation to both spellings
+> together, preserving existing-ID behavior and compatibility. Keep the update
+> shorthand to title, body and status; full property edits stay with `bd update`.
+> This is a recorded implementation follow-up, not an instruction to interrupt current
+> work or a claim that the aliases have landed.
