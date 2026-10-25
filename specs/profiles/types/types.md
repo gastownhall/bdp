@@ -24,6 +24,11 @@ position: this Types profile represents definitions as Beads; the proposed Core
 boundary does not require that representation. The current Core/Write contracts
 remain unchanged until coordinated amendments adopt that boundary.
 
+For a guided introduction, read the [Type definitions](../../types/type-system/type-system.md#overview-informative)
+and their [worked example](../../types/type-system/type-system.md#a-worked-example-informative).
+The [canonical Types CLI companion](../../../docs/cli-design/types-cli.md) separates
+command presentation from the detailed semantic rules in this profile.
+
 ## 1. Scope and responsibilities
 
 This section defines the intended profile boundary. Structural extraction of
