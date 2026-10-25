@@ -38,10 +38,11 @@ structural and semantic promises. Refinement can add requirements and tighten
 restrictions. It does not erase the requirements of the actual Type used by an
 instance.
 
-Definitions and declarations have their own revisions. Earlier definition revisions
-retain their captured declarations, so changing a parent's current definition does
-not silently change an existing child's meaning. The profile specifies the exact
-historical interpretation and transaction rules behind this model.
+Definitions and declarations have their own revisions. A child's declaration names
+an exact parent revision, so revising the parent does not silently change the child's
+captured meaning; earlier child revisions likewise retain their own declarations.
+The profile specifies the exact historical interpretation and transaction rules
+behind this model.
 
 ### Availability for use
 
@@ -90,7 +91,7 @@ live adjacency is a different view.
 ## Types and the CLI (informative)
 
 The [canonical Types CLI companion](../../../docs/cli-design/types-cli.md) follows
-this model through ordinary canonical operations and the agreed `bd type list`
+this model through ordinary canonical operations and the agreed Type-inventory
 command location. It records the remaining Type-command design gaps explicitly.
 The [general CLI](../../../docs/cli-design/bdp-cli.md) owns shared syntax and protocol
 lowering; this descriptor specification owns the meanings of the fields below.
@@ -99,9 +100,11 @@ lowering; this descriptor specification owns the meanings of the fields below.
 
 ### Reading the definitions (informative)
 
-Each entry gives the Type's meaning, its direct refinement and its properties.
-The **Defined by** column identifies where a field originates; inherited fields
-are repeated in the complete category tables. Owned outgoing Link tables describe
+Each entry gives the Type's meaning, an informative example, its direct conformance
+and its properties. Applicable entries also give abstractness, owned outgoing Links,
+allowed endpoint pairs and other constraints. The **Defined by** column identifies
+where a field originates; inherited fields are repeated in the complete category
+tables. Owned outgoing Link tables describe
 state belonging to a definition Bead, separately from any ownership policy that
 the definition imposes on its instances.
 
@@ -129,7 +132,7 @@ These affiliations and the bootstrap procedure are still candidate design. The c
 
 ### Shared descriptor shapes
 
-These tables describe abstract values, not an executable Markdown-to-schema projection. Type IDs and references below follow the Types profile's candidate representation. No field here introduces a new endpoint pin-mode or selected-set graph language.
+These tables describe abstract values, not an executable Markdown-to-schema projection. Type IDs and references below follow the Types profile's candidate representation. No field here introduces a new endpoint pin-mode or selected-set graph language. The category entries below identify which fields use these shared shapes.
 
 #### Type reference
 
@@ -226,7 +229,7 @@ These are addressable Type-definition Beads affiliated with BeadType in the prop
 
 **Example (informative).** Both a Product definition and a relationship-Type definition use these common descriptor fields. Their different categories are expressed by their metatype affiliations, not by adding a second category property.
 
-**Refines.** No parent Type in this package.
+**Refines (direct conformance).** No parent Type in this package.
 
 **Properties.** The [candidate common properties schema](../../profiles/types/type-definition.properties.schema.json) is a companion validation projection. The tables here own abstract field meanings; the profile owns detailed interpretation. Shape validation does not prove those semantics. The common authored fields are:
 
@@ -243,8 +246,6 @@ These are addressable Type-definition Beads affiliated with BeadType in the prop
 
 **Owned outgoing Links.** Type owns direct Refines declarations. BeadType and LinkType inherit this ownership for their **definition Beads**; a BeadType descriptor's separate `ownsOutgoing` field governs instances of the Type it defines.
 
-**Owned outgoing Link Types.**
-
 | Link Type family | Declared by | Effect |
 | --- | --- | --- |
 | Refines | Type | Direct declarations belong to this definition Bead's revision-covered owned state. Changing one has the profile's atomic source-revision effects. |
@@ -256,9 +257,9 @@ These are addressable Type-definition Beads affiliated with BeadType in the prop
 
 **Example (informative).** A Product definition can require a name and a nonnegative price on its instances. Its own affiliation is BeadType; an ordinary product Bead instead names the exact Product definition it uses.
 
-**Refines.** Type.
+**Refines (direct conformance).** Type.
 
-**Properties.** The table includes the fields inherited from Type and the participation and ownership fields introduced by BeadType. The [candidate BeadType properties schema](../../profiles/types/bead-type-definition.properties.schema.json) is a companion validation projection, not an independent field authority:
+**Properties.** The table includes the fields inherited from Type and the participation and ownership fields introduced by BeadType. The [candidate BeadType properties schema](../../profiles/types/bead-type-definition.properties.schema.json) composes the common Type schema with its category-specific fields; it is a companion validation projection, not an independent field authority:
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
@@ -274,7 +275,7 @@ These are addressable Type-definition Beads affiliated with BeadType in the prop
 
 This descriptor prohibits `linkConstraints` on a BeadType definition. Owned direct Refines Links are inherited from Type.
 
-**Owned outgoing Link Types.**
+**Owned outgoing Links (inherited).**
 
 | Link Type family | Declared by | Effect |
 | --- | --- | --- |
@@ -287,9 +288,9 @@ This descriptor prohibits `linkConstraints` on a BeadType definition. Owned dire
 
 **Example (informative).** A Supplies definition can admit a Supplier source and a Product target. Supplies is defined by a Bead affiliated with LinkType; each actual supply relationship is a Link affiliated with Supplies.
 
-**Refines.** Type. LinkType does not conform to BeadType; both are Bead Types with separate category-specific meanings.
+**Refines (direct conformance).** Type. LinkType does not conform to BeadType; both are Bead Types with separate category-specific meanings.
 
-**Properties.** The table includes the fields inherited from Type and the endpoint and graph constraints introduced by LinkType. The [candidate LinkType properties schema](../../profiles/types/link-type-definition.properties.schema.json) is a companion validation projection, not an independent field authority:
+**Properties.** The table includes the fields inherited from Type and the endpoint and graph constraints introduced by LinkType. The [candidate LinkType properties schema](../../profiles/types/link-type-definition.properties.schema.json) composes the common Type schema with its category-specific fields; it is a companion validation projection, not an independent field authority:
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
@@ -303,7 +304,7 @@ This descriptor prohibits `linkConstraints` on a BeadType definition. Owned dire
 
 This descriptor prohibits BeadType-only `incoming`, `outgoing` and `ownsOutgoing` fields here. Endpoint eligibility is a union of **pairs**: both endpoints must match one row together. BeadType and LinkType category membership must not be ambiguous. Owned direct Refines Links are inherited from Type.
 
-**Owned outgoing Link Types.**
+**Owned outgoing Links (inherited).**
 
 | Link Type family | Declared by | Effect |
 | --- | --- | --- |
@@ -324,7 +325,7 @@ The Refines definition would be an addressable Type-definition Bead affiliated w
 
 **Example (informative).** An ApprovedProduct definition declares conformance to Product at an exact revision. A later Product revision does not change the contract captured by that declaration.
 
-**Refines.** No parent Link Type in this package. Specialized Refines Link Types may add only tighter promises.
+**Refines (direct conformance).** No parent Link Type in this package. Specialized Refines Link Types may add only tighter promises.
 
 **Allowed endpoint pairs.** These are correlated alternatives over endpoint Type membership, not named definition identities or independently interchangeable source and target lists. They do not themselves encode the profile’s kind-agreement or category-exclusivity checks:
 
@@ -350,7 +351,7 @@ The endpoint-pair summary above is not a literal complete `linkConstraints` valu
 | Definition representation | Definitions are Beads; direct Refines declarations are owned Links. | Trusted bootstrap, production identities and upgrade publication. |
 | Exact interpretation | The profile's retained-definition and recorded-owned-state rules apply. | Provider, authorization and operational-bound qualification. |
 | Availability and lifecycle | Definition presence does not grant registration or instantiation. | Concrete lifecycle commands, permissions and retention operations. |
-| Canonical Types CLI | Structural companion and agreed command location. | Complete Type-command signatures, results and faithful lowering. |
+| Canonical Types CLI | Agreed Type-inventory command location; the companion is a design draft. | Complete Type-command signatures, results and faithful lowering. |
 
 
 The [artifact index](../../profiles/types/README.md) points to the colocated profile,
@@ -376,7 +377,7 @@ This v0.1 candidate deliberately relocates the working descriptor from its
 into BDP. The [original placement Decision](https://github.com/donnabox/memory-beads/blob/cc32cba35758a8dbbd89d5cf953c7035203cd836/decisions/type-descriptor-profile-split.md)
 remains historical context. Trish owns the descriptor/profile correspondence;
 Janet's earlier format scope was returned on October20. The accepted format
-rulings are incorporated below. [Source and status](../../profiles/types/README.md#source-and-status)
+rulings are incorporated in the Specification section above. [Source and status](../../profiles/types/README.md#source-and-status)
 records the original bytes and digest; that origin digest does not identify this
 amended file. JSON schemas are candidate validation projections, with semantic
 admission checks beyond shape validation. Relocation preserves the original

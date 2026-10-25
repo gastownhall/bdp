@@ -43,10 +43,10 @@ precondition here; creating or retrieving a definition would not establish it.
 ### Find a Type family or one nominal Type
 
 Product and ApprovedProduct are different nominal Types. A Product-family query
-includes records whose exact Type declares the required conformance. A nominal
-query selects records affiliated directly with Product, independently of which
-Product definition revision they use. These filters select records, rather than
-registering Types or changing their affiliations.
+includes records affiliated with Product and those whose exact Type has recorded
+conformance to it, directly or transitively. A nominal query selects records
+affiliated directly with Product across its definition revisions. These filters
+select records, rather than registering Types or changing their affiliations.
 
 ```sh
 # Find Product records and records of its conforming Types.
@@ -96,7 +96,8 @@ the walkthrough does not create or register those definitions.
 An ordinary content edit can omit Type and retain the complete existing
 affiliation. Installing a later definition or changing a local default does not
 move this record to it. Explicit retyping is a separate authored action. The
-general CLI owns guards and retry behavior for either form of update.
+general CLI owns guards, retry behavior and the [scalar-or-text interpretation](object-edits.md#deterministic-lowering) that
+makes `price=30` a numeric value.
 
 ```sh
 # Change one property while preserving the exact ApprovedProduct affiliation.
@@ -148,7 +149,7 @@ roles.
 
 | Context | Meaning |
 | --- | --- |
-| Authored `--type TYPE` on a write | Explicitly select the affiliation; under Types, unpinned input uses an eligible explicitly selected registered exact default. |
+| Authored `--type TYPE` on a write | Explicitly select the affiliation; under Types, the service resolves unpinned input once to its eligible registered exact default. The CLI never resolves it during compilation. |
 | Authored `--type TYPE@=TOKEN` | Explicitly select the named exact definition revision, subject to the profile's availability and admission rules. |
 | Omitted `--type` on an update | Preserve the whole existing affiliation, including its exact revision. |
 | Read filter `--type TYPE` | Select the Type family through the applicable recorded conformance. |
@@ -184,7 +185,7 @@ matching protocol source when its command signature is selected.
 
 #### `bd type list` — command contract still open
 
-The agreed singular command location is for Type discovery. Its complete
+The one agreed Type command location is for Type discovery. Its complete
 invocation and result contract have not been selected. The headings below record
 what must be supplied before this can be a complete canonical command entry.
 
@@ -195,12 +196,12 @@ bd type list
 ```
 
 This records the command location only. It does not settle positional Scope
-syntax, accepted options or executable availability. The older `[SCOPE]`
-placeholder in the general inventory is not a complete argument grammar.
+syntax, accepted options or executable availability. The `[SCOPE]` entry in the
+current general inventory is a deferred placeholder, not a complete argument grammar.
 
 ##### Arguments
 
-| Argument | Required | Meaning |
+| Argument | Selection status | Meaning |
 | --- | --- | --- |
 | Scope selection | Unselected | Must follow the coordinated general Scope contract once the command's invocation is bound. |
 
@@ -274,7 +275,8 @@ The descriptor specification owns field meanings, and the Types profile owns
 detailed conformance and enforcement. The general CLI owns shared syntax and
 wire mapping; this companion owns its explanatory Type workflow and the visible
 status of the Type-command reference. Changes crossing those boundaries need
-paired review.
+paired review. The general CLI needs a paired navigation link to this companion; its source is owned by the
+common CLI workstream and is unchanged in this editorial pass.
 
 The documentation structure follows the completed Memory editorial pass and the
 [Memory specification's organization](https://github.com/gastownhall/bdp/blob/21fa91d3e189bff3832bd977c3d6be49f2b5d93c/specs/types/memory/memory.md).

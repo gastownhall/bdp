@@ -258,9 +258,10 @@ checker, import a graph, exercise a BDP server or qualify a release.
 
 The common descriptor defines no Type-specific name or display-name field. Resource
 ID supplies identity; generic resource aliases do not alter equality or conformance.
-See the [independent CLI proposal](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-cli-proposal.md) for
-authoring affordances and the separate [implementation notes](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-cli-implementation-notes.md)
-for the proposed initial exercise.
+The historical [independent CLI proposal](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-cli-proposal.md) records earlier
+authoring ideas, and the historical [implementation notes](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-cli-implementation-notes.md)
+record the earlier proposed initial exercise. The canonical companion below is the
+current command presentation; neither historical document selects current behavior.
 
 ## Reading and using the Type definitions
 
