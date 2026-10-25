@@ -261,3 +261,12 @@ ID supplies identity; generic resource aliases do not alter equality or conforma
 See the [independent CLI proposal](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-cli-proposal.md) for
 authoring affordances and the separate [implementation notes](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-cli-implementation-notes.md)
 for the proposed initial exercise.
+
+## Reading and using the Type definitions
+
+The [descriptor specification](../../types/type-system/type-system.md) starts with
+a conceptual overview and worked example, then presents shared shapes and complete
+entries for Type, BeadType, LinkType and Refines. The
+[canonical Types CLI companion](../../../docs/cli-design/types-cli.md) uses the same
+overview/walkthrough/command-reference structure as the Memory companion. It makes
+unselected Type-command contracts visible without assigning lifecycle behavior.
