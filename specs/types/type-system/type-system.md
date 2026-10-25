@@ -346,7 +346,7 @@ The endpoint-pair summary above is not a literal complete `linkConstraints` valu
 
 | Area | Selected contract | Remaining work |
 | --- | --- | --- |
-| Descriptor fields | Common and category-specific field shapes and meanings below. | Implementation and exact-source qualification. |
+| Descriptor fields | Common and category-specific field shapes and meanings in this specification. | Implementation and exact-source qualification. |
 | Definition representation | Definitions are Beads; direct Refines declarations are owned Links. | Trusted bootstrap, production identities and upgrade publication. |
 | Exact interpretation | The profile's retained-definition and recorded-owned-state rules apply. | Provider, authorization and operational-bound qualification. |
 | Availability and lifecycle | Definition presence does not grant registration or instantiation. | Concrete lifecycle commands, permissions and retention operations. |

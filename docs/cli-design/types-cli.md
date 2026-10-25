@@ -17,17 +17,17 @@ commands or claim support in a particular build.
 
 ### Start with an available contract
 
-A Type tells a reader what a record means and which requirements apply to it.
-The record's affiliation names an exact definition revision. A definition can
-refine another Type while adding requirements of its own. This example follows
-a Product Bead as it gains an approval requirement, using the
+A Type describes a record's meaning and requirements; the record's affiliation
+names an exact definition revision. This example follows a Product Bead as it
+gains an approval requirement, using the
 [existing Product example](../../specs/profiles/types/types.md#34-the-parent-must-allow-additional-properties).
 
 Assume the workspace already has registered Product at token `product-1` and
-ApprovedProduct at token `approved-1`. ApprovedProduct declares conformance to
-that exact Product revision and requires `approvalCode`. Product requires `name`
-and a nonnegative `price`, and permits additional properties. These names resolve
-to installed Type identities in the selected Scope; the tokens are illustrative.
+ApprovedProduct at token `approved-1`, with a Refines declaration to that exact
+Product revision. Product requires `name` and a nonnegative `price` and permits
+additional properties, while ApprovedProduct adds required `approvalCode`.
+The names resolve to installed Type identities in the selected Scope, and the
+tokens are illustrative.
 
 ```sh
 # Create a Product with its exact registered Type revision.
