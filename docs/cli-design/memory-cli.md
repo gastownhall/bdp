@@ -248,10 +248,24 @@ Updated remember-demo [memory] "CSV headings reminder"
 
 ```
 
-After either block, the identity already exists. Supplying `--create-only`
-to a `remember` command refuses to overwrite it; the stored title and body remain unchanged.
+After either block, the identity already exists. If, however, the Bead ID passed to the `remember` command is misspelled, we wind up with an errant second Bead and the intended Memory is not updated. To protect against this situation, the `remember` command accepts two mutually exclusive flags:
+
+- `--update ID` — only update the Memory if the ID exists; fail otherwise.
+- `--create-only` — only create a new Memory; fail if the supplied `--key` or `--id` already exists.
+
+Use `--update` when you intend to edit an existing Memory. The first call below updates the reminder; the second misspells its ID and fails without creating another Bead. The final call uses `--create-only` to protect the existing reminder from an attempted creation.
 
 ```console
+# Update the existing reminder while preserving its title.
+> bd memory remember 'Keep headings even when the selection is empty.' \
+  --update remember-demo
+Updated remember-demo [memory] "CSV headings reminder"
+
+# Refuse an update to a misspelled ID rather than creating another Memory.
+> bd memory remember 'This text must not create another Memory.' \
+  --update remembre-demo
+Error: remembre-demo not found.
+
 # Refuse to create another Memory at an identity already used above.
 > bd memory remember 'This text must not replace the saved reminder.' \
   --key remember-demo --title 'A competing reminder' --create-only
@@ -555,11 +569,6 @@ flowchart LR
 ```
 
 The pinned Link keeps its exact target token through later edits to the note.
-The generic graph viewer can show that stored pin alongside current Bead bodies;
-it does not fetch the old body for display. Focused Memory reads require
-current-compatible pins in the selected Preview 3 adapter and can refuse this
-older pin. Canonical graph reconciliation remains separate from the fixed
-Memory questions in this document.
 
 Now update both notes reached through the floating References: the encoding
 note and its interoperability checks. Their identities and the Links stay the
@@ -577,33 +586,18 @@ Updated csv-encoding; revision m2p7zs.
   --body 'Test UTF-8 and CRLF line endings in spreadsheet tools; record the results with the implementation work.'
 Updated csv-interop; revision h8d4vk.
 
-# Recall the encoding note through its floating identity.
-> bd memory recall csv-encoding
-Use UTF-8 without a byte-order mark, with CRLF line endings.
-
-# Recall the updated interoperability checks.
-> bd memory recall csv-interop
-Test UTF-8 and CRLF line endings in spreadsheet tools; record the results with the implementation work.
-
-# Read the saved encoding revision that the pinned Reference still selects.
-> bd memory recall csv-encoding@=v9k2tx
-Use UTF-8 without a byte-order mark.
-
 ```
 
-The graph still follows the same floating Links to the two updated notes; their
-titles have not changed. It also preserves the second Link's exact target pin,
-even though this graph display shows the current Bead rather than fetching its
-historical body.
+The same graph now follows revision 4 of the encoding note and revision 2 of the
+interoperability checks through its floating References. The pinned Link still
+selects encoding revision 2; the changed revision labels are italicized.
 
-```console
-# Inspect the References graph after both target notes have changed.
-> bd graph csv-design --link-type references --direction out --depth 2
-csv-design [memory] CSV export design
-├─ references [encoding-context, floating] → csv-encoding [memory] Reviewed CSV encoding (current body)
-│  └─ references [encoding-checks, floating] → csv-interop [memory] CSV interoperability checks (current body; depth limit)
-└─ references [encoding-used, target pin =v9k2tx] → csv-encoding (same current body; depth limit)
-
+```mermaid
+flowchart LR
+    D["Memory: csv-design"] -->|references, floating| E["csv-encoding@current<br/><i>current revision 4 · m2p7zs</i>"]
+    D -->|references, pinned| E2["csv-encoding@2<br/>exact token v9k2tx"]
+    E -->|references, floating| N["csv-interop@current<br/><i>current revision 2 · h8d4vk</i>"]
+    N -->|references, floating| D
 ```
 
 The Memory update shorthand accepts `--title`, `--body` and `--status` while
