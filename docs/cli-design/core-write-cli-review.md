@@ -12,6 +12,10 @@ The starting sources are the [canonical CLI draft](bdp-cli.md),
 and Donna's later decisions must be reconciled with older summaries before the
 packet can be treated as coherent.
 
+The [product command inventory and lowering map](product-cli-lowering.md) accounts
+for every registered command path in the inspected product source and identifies
+the domain workflows and flag modes that need this review.
+
 ## What the mappings must preserve
 
 A canonical operation must express the full selected BDP intent through ordinary
@@ -54,7 +58,7 @@ protocol coverage or promises that today's product implements the translation.
 | Change an Issue's status or close it with supporting context | An allowed typed `update`, possibly composed with Memory/Link creation in `batch`. | Prove that the selected Issue contract admits the intended transition; native workflow effects cannot be assumed to be arbitrary property writes. State whether the whole action is atomic. |
 | Follow successors, defining trees, ancestors or governing constraints | A client algorithm over `show` and bounded `link list` calls, unless another selected query facility provides it. | Termination, authorization gaps, acquisition limits and consistency need explicit treatment. Independent reads do not establish one graph snapshot. Route query-language decisions to Melinda. |
 | Restore content from a historical revision | Exact `show`, then a guarded `update` of precisely the intended content. | Content copying does not restore identity, old revision tokens or an entire historical graph. Protected fields and owned relationships need their own treatment. |
-| Change an existing Link's endpoint while keeping its identity | No admitted generic `link update` translation is established by the current draft. | Generic endpoint mutation is currently excluded. Delete-and-create changes identity and is not an equivalent fallback. Decide whether this is a required primitive or an explicit product-only capability. |
+| Change the selected revision of a Link endpoint while keeping Link identity | No admitted generic `link update` translation is established by the current draft. | The product supports same-ID endpoint re-pinning; generic endpoint/pin mutation is currently excluded. Delete-and-create changes identity and is not equivalent. Endpoint identity retargeting is a separate, unestablished requirement. |
 | Import a related set of Beads and Links | Creates plus identity captures in an admitted atomic `batch`, where its limits and member kinds suffice. | File import may need several invocations. Mapping records is not preserving original history, all-or-nothing whole-file behavior, or portable graph round trips. |
 | Update or delete every current match | `list` followed by guarded members in `batch` can act on an enumerated set. | This does not provide atomic predicate evaluation or include new matches. Do not silently revive deferred set-write semantics. |
 | Watch a visualizer's graph | Events plus explicit initial acquisition and permitted representation choices. | A usable initial-state/live-stream handoff must handle gaps and overlap honestly. Observation is not automatically replica bootstrap. |
