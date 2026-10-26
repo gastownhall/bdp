@@ -32,20 +32,22 @@ to perform the same operation.
 
 ### Creating Memories
 
-Memory Beads record knowledge for later use by both humans and agents. Memory beads can represent policies, requirements, decisions, or generic information that doesn't fit into a particular category. Plain Memory is informative; the Constraint refinement introduced below adds normative rules while remaining a Memory.
+Memory Beads record knowledge for later use by both humans and agents. Memory beads can represent policies, requirements, decisions, or generic information that doesn't fit into a particular category. Plain Memory beads are informative; Constraint Beads are Memory Beads that add normative rules while retaining their "memory-ness."
 
-A Memory Bead has a `title` and a Markdown `body`; its third property (`status`) is optional. Unlike Issues, where status defines a lifecycle specific to work tracking, the `status` field on Memory Beads is free-form text and can map onto whatever lifecycle you, your project, or your organization uses (e.g., PROPOSED or APPROVED).
+All Memory Beads have a `title` and a Markdown `body`; their third property (`status`) is optional. Unlike Issues, where status defines a lifecycle specific to work tracking, the `status` field on Memory Beads is free-form text and can map onto whatever lifecycle you, your project, or your organization uses (e.g., PROPOSED or APPROVED).
 
-Four commands work with Memory Beads:
+Four common commands work with Memory Beads:
 
 - `bd memory remember [BODY] [--key ID | --update REF]` creates a Memory or edits an existing one.
 - `bd memory recall REF` reads a Memory's Markdown body.
 - `bd memory memories [SEARCH]` browses compact Memory summaries, optionally matching search text.
 - `bd memory forget REF` deletes a Memory.
 
+As we will see, `bd memory` has other commands that are specific to different kinds of memory. The current top-level `bd remember` et al are simply aliases to the corresponding `bd memory` version.
+
 For the CSV feature in this walkthrough, we will start with a design note, an encoding
 note and a note about spreadsheet interoperability. `bd memory remember` takes
-the body as its argument. Use `--key`
+the body as its argument. We use  `--key`
 to choose the identity and `--title` to choose the display text.
 
 ```console
@@ -69,18 +71,18 @@ Created csv-interop [memory] "CSV interoperability checks"
 The top-level `bd remember` command remains a compatibility alias for `bd memory
 remember`. Because Memories are Beads, the general `bd create` can create the
 same notes by naming the `memory` Type explicitly. The three spellings below
-are alternatives to the first creation above; use one spelling when creating
+are alternatives to the first creation above; you can pick a spelling when creating
 the design note.
 
 ```console
 # Create the design note using the top-level compatibility alias.
 > bd remember 'Export the selected rows as CSV.' \
-  --key csv-design --title 'CSV export design' --create-only
+  --key csv-design --title 'CSV export design'
 Created csv-design [memory] "CSV export design"
 
 # Alternatively, create the same note using the Memory command group.
 > bd memory remember 'Export the selected rows as CSV.' \
-  --key csv-design --title 'CSV export design' --create-only
+  --key csv-design --title 'CSV export design'
 Created csv-design [memory] "CSV export design"
 
 # Alternatively, create the same note using the general Bead command.
@@ -94,7 +96,6 @@ To finish out our scenario, let's create two Issues using the concrete `task` Ty
 feature. The Issues record the work, while the notes hold knowledge that helps
 people carry it out. Issues use `description` for their text, while Memories
 use `body`.
-
 ```console
 # Create the implementation Issue.
 > bd create --id export-work --type task \
@@ -161,7 +162,7 @@ Markdown body.
 
 ```console
 # Inspect the design note as a Bead document.
-> bd show csv-design
+> bd show csv-design --output-format json
 {
   "id": "csv-design",
   "type": "memory",
@@ -248,7 +249,7 @@ Updated remember-demo [memory] "CSV headings reminder"
 ```
 
 After either block, the identity already exists. Supplying `--create-only`
-refuses to overwrite it; the stored title and body remain unchanged.
+to a `remember` command refuses to overwrite it; the stored title and body remain unchanged.
 
 ```console
 # Refuse to create another Memory at an identity already used above.
@@ -262,8 +263,7 @@ Error: remember-demo already exists; --create-only refused the write.
 
 References Links connect memory beads so that readers can follow useful related context.  There is a distinct new link type, `references`, that connects memory beads to one another or to beads of any type (e.g., `task`). Reference links share the same three properties as memory beads (title, body, status) allowing you to treat references between memories as full-fledged parts of the memory graph; unlike memory beads however, all three of these fields are optional. Reference links can be created using the memory-specific `bd memory reference` command or the generic `bd link create` command that works with all link types.
 
-Direct References provide informative context. Requires and Subject To state
-obligations, and Defines adds defining structure to Requires; these specialized
+Generic References links provide informative context. The Requires, Defines, and Subject To Link Types are specializations that build normative rules that activities and artifacts have to adhere to; these specialized
 Links are also References. Superseded By expresses normative succession: it
 directs readers to the successor for current guidance. It does not automatically
 approve that successor, change status, rewrite Subject To declarations or erase
@@ -365,7 +365,7 @@ Updated review-after-export.
 ```
 
 
-The generic `bd graph` has been updated to handle cyclic references no matter what the link type is, and can filter out only links of a specific type (e.g., `references`, `blocks`).  For convenience, the `bd memory references` and `bd memory referenced-by` will show the graph of memory references in either outbound or inbound direction,
+The generic `bd graph` has been updated to handle cyclic references no matter what the link type is, and can filter out only links of a specific type (e.g., `references`, `blocks`).  For convenience, the `bd memory references` and `bd memory referenced-by` will show the graph of memory references in either outbound or inbound direction.  These two commands are conveniences over the generic `bd graph` command, which can also show these traversals.
 
 ```console
 # Find the design note's direct context.
@@ -443,12 +443,19 @@ SEQ  REVISION  TITLE
 ```
 
 `SEQ` is the store-local revision number; `REVISION` is the exact stable token
-for the same revision, used after `@=`. The short, random-looking tokens in
+for the same revision. Use the number when browsing that identity's history in
+the same store. Use the complete exact token when sharing a saved revision,
+recording it in another system or retaining a reference across export and import.
+Local numbers are not portable: another store may assign a different number to
+the same revision, and equal numbers on different Beads do not identify the same
+state.
+
+The short, random-looking tokens in
 these illustrations are invented; actual tokens are opaque and may be much
 longer. Use the complete token returned by the store when making an exact
 reference.
 
-All three revisions share the same id/key (`csv-encoding`). Use `@2` to select
+All three revisions share the same id/key (`csv-encoding`). When specifying a bead or link's ID on the command line, you can append `@2` to select
 local revision number 2, or `@=v9k2tx` to select that revision by its exact
 token. These are *pinned* references. Omitting the suffix produces an unpinned
 or *floating* reference, which selects the latest state when used.
@@ -470,7 +477,7 @@ Here is an example showing unpinned/floating references as well as pinned refere
 
 ```console
 # Read the current note.
-> bd show csv-encoding
+> bd show csv-encoding --output-format json
 {
   "id": "csv-encoding",
   "type": "memory",
@@ -483,7 +490,7 @@ Here is an example showing unpinned/floating references as well as pinned refere
 }
 
 # Read the saved second revision from this example.
-> bd show csv-encoding@2
+> bd show csv-encoding@2 --output-format json
 {
   "id": "csv-encoding",
   "type": "memory",
@@ -499,7 +506,7 @@ Here is an example showing unpinned/floating references as well as pinned refere
 Use UTF-8 without a byte-order mark.
 
 # Select the same illustrative revision using its exact token.
-> bd show csv-encoding@=v9k2tx
+> bd show csv-encoding@=v9k2tx --output-format json
 {
   "id": "csv-encoding",
   "type": "memory",
@@ -554,11 +561,47 @@ current-compatible pins in the selected Preview 3 adapter and can refuse this
 older pin. Canonical graph reconciliation remains separate from the fixed
 Memory questions in this document.
 
+Now update both notes reached through the floating References: the encoding
+note and its interoperability checks. Their identities and the Links stay the
+same, while subsequent floating reads see the updated content. The pinned
+Reference still selects encoding revision 2.
+
 ```console
-# Inspect the References graph with its stored endpoint pins and current bodies.
-> bd graph csv-design --link-type references --direction out --depth 1
+# Refine the encoding note again without replacing its identity.
+> bd memory remember --update csv-encoding \
+  --body 'Use UTF-8 without a byte-order mark, with CRLF line endings.'
+Updated csv-encoding; revision m2p7zs.
+
+# Extend the checks behind the next floating Reference.
+> bd memory remember --update csv-interop \
+  --body 'Test UTF-8 and CRLF line endings in spreadsheet tools; record the results with the implementation work.'
+Updated csv-interop; revision h8d4vk.
+
+# Recall the encoding note through its floating identity.
+> bd memory recall csv-encoding
+Use UTF-8 without a byte-order mark, with CRLF line endings.
+
+# Recall the updated interoperability checks.
+> bd memory recall csv-interop
+Test UTF-8 and CRLF line endings in spreadsheet tools; record the results with the implementation work.
+
+# Read the saved encoding revision that the pinned Reference still selects.
+> bd memory recall csv-encoding@=v9k2tx
+Use UTF-8 without a byte-order mark.
+
+```
+
+The graph still follows the same floating Links to the two updated notes; their
+titles have not changed. It also preserves the second Link's exact target pin,
+even though this graph display shows the current Bead rather than fetching its
+historical body.
+
+```console
+# Inspect the References graph after both target notes have changed.
+> bd graph csv-design --link-type references --direction out --depth 2
 csv-design [memory] CSV export design
-├─ references [encoding-context, floating] → csv-encoding [memory] Reviewed CSV encoding (current body; depth limit)
+├─ references [encoding-context, floating] → csv-encoding [memory] Reviewed CSV encoding (current body)
+│  └─ references [encoding-checks, floating] → csv-interop [memory] CSV interoperability checks (current body; depth limit)
 └─ references [encoding-used, target pin =v9k2tx] → csv-encoding (same current body; depth limit)
 
 ```
@@ -619,9 +662,8 @@ Created encoding-replacement: csv-encoding --superseded-by--> csv-guide
 ```
 
 Each retiring Memory has at most one successor, and replacement chains cannot
-cycle. Recording the Link revises the old Memory while leaving the replacement
-unchanged. The focused reads below follow that replacement relationship in
-either direction.
+cycle. The focused reads below follow that replacement relationship in either
+direction.
 
 ```console
 # Follow the encoding note's replacement path.
@@ -643,17 +685,25 @@ csv-encoding [memory] Reviewed CSV encoding
 
 ### Constraints
 
+Generic Memory Beads and References Links (created with `--type memory` and `--type references` respectively) don't have a lot of semantics associated with them. They create a graph of Markdown-based information with a descriptive title and an optional status. What the memory means and how it should be used is implicit in the markdown body.
+
+The `superseded-by` link actually makes a semantic statement; the source bead has been retired and replaced by the target bead.  The meaning is clear, and the discovery is explicit and deterministic.
+
+The family of constraint bead and link types also make semantic statements, whose meaning is clear, and discovery is equally explicit and deterministic.
+
 #### Constraint Beads
 
 Some memories state what work must do, what it must avoid, or how it must be
 carried out. A Constraint Bead records one of these obligations. Its body
 describes the rule, and its Type tells readers what kind of rule they are
-reading. Use Constraint directly when none of the more specific Bead Types fits.
+reading.
 
-- Policy states governing rules or adopted directions for a system, project or team.
-- Requirement states an outcome or condition that must be met.
-- Scenario describes required behavior in a particular situation.
-- Specification describes intended results at any useful level of detail.
+- A Policy Bead states governing rules or adopted directions for a system, project or team.
+- A Requirement Bead states an outcome or condition that must be met.
+- A Scenario Bead describes required behavior in a particular situation.
+- A Specification Bead describes intended results at any useful level of detail.
+
+You can use the Constraint Bead Type directly if none of the more specific Bead Types fits.
 
 An adopted choice that governs later work is a Policy; record its scope,
 rationale and authority in existing content and metadata. A historical account
@@ -719,14 +769,17 @@ cross-references.
 
 ### Constraint Bead Graphs
 
-Two Link Types connect Constraint Beads to express compound constraints and dependencies: Requires and Defines. Both connect two Constraint Beads and indicate that the source's constraints cannot be satisfied unless the target's constraints have also been met.
+Like a generic `--type memory` bead, the `--type references` link is fairly semantics free. You can traverse the memory graph, but why two beads are linked with a `references` link is implicit and based on context.
+
+Constraint graphs rely on specific link types (Requires and Defines) to express compound constraints and cross-referenced dependencies. Both link types connect two Constraint Beads and indicate that the source's constraints cannot be satisfied unless the target's constraints have also been met.
 
 - A `defines` Link builds a compound constraint: a Policy can define subpolicies, or a Specification can define Requirements and Specifications.
 - A `requires` Link can cross-reference constraints maintained in other Specifications, Policies or defining trees. Defines refines Requires, so a Requires-family traversal includes Defines Links too.
 
 Defines Links form defining trees: each child has at most one defining parent, and the trees cannot cycle. Requires Links may form cycles; traversals must detect repeated visits and terminate even when cycles occur. Graph queries can collect the necessary obligations reached through the Requires family, including Defines.
 
-Requires and Defines Links are owned by their source Constraint. Changing one revises that source while leaving its target unchanged. A defining child keeps its own identity and can be required from another tree without acquiring a second defining parent.
+A defining child keeps its own identity and can be required from another tree
+without acquiring a second defining parent.
 
 Six commands create and follow these relationships:
 
@@ -839,7 +892,7 @@ The constraint graphs we just looked at express what conditions must be true in 
 The most obvious and flexible way to determine who or what is subject to a constraint graph is implicit inference. An agent may infer relevant constraints from a prompt or ambient context. For example,
 a Policy may state that all bug fixes must include a regression test. The constraint's subjects can be identified this way, but we are relying on inference to find them.
 
-The alternative way to determine the subject(s) of a constraint are using the `subject-to` link, A `subject-to` Link explicitly connects a Bead to a Constraint that governs it.
+The alternative way to determine the subjects of a constraint is to use the `subject-to` Link. A `subject-to` Link explicitly connects a Bead to a Constraint that governs it.
 Any Bead, including an Issue, can be the source, and it can have several such
 declarations. Starting from those Constraints, a read can follow Requires and
 Defines to deterministically find the set of rules the bead is subject to.
@@ -929,13 +982,9 @@ csv-format [specification] CSV export format
 └─ subject-to ← csv-preview [memory] CSV preview build
 
 ```
-
-Subject To is owned by its source when that source's installed Type supports
-this contract, including the required Issue ownership declaration. Editing the
-Link revises that subject and leaves the target Constraint unchanged. These
-declarations help readers discover the rules; they do not prove compliance or
-change Issue readiness. Readiness and scheduling continue to follow their
-workflow and Dependency rules.
+These declarations help readers discover the rules; they do not prove
+compliance or change Issue readiness. Readiness and scheduling continue to
+follow their workflow and Dependency rules.
 
 Subject To does not spread through other Subject To declarations. A
 document-review Policy governing the Specification applies to that document; it
