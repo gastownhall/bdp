@@ -1,0 +1,61 @@
+{
+  "status": "authored narrow semantic amendment; source review artifact, not runtime qualification",
+  "origin": {
+    "repository": "gastownhall/bdp",
+    "commit": "afec9117914bd1c1fe0027c2067e4d89677e40a3",
+    "path": "specs/types/memory/memory.md",
+    "bytes": 106334,
+    "sha256": "1f97f8a80f725b2a44a0c715b4ccf09918f02af2abb9885797c3395255dc9e34"
+  },
+  "amended": {
+    "path": "specs/types/memory/memory.md",
+    "bytes": 103192,
+    "sha256": "60c319aac0e42ea9825d6b383a6d09b7d789023fded675e647fd657f37961cb0"
+  },
+  "accepted_changes": {
+    "removed_memory_types": ["decision", "procedure"],
+    "retained_bead_types": [
+      "memory",
+      "evaluation",
+      "constraint",
+      "policy",
+      "requirement",
+      "scenario",
+      "specification"
+    ],
+    "retained_link_types": [
+      "references",
+      "superseded-by",
+      "requires",
+      "defines",
+      "subject-to",
+      "conformance",
+      "addresses",
+      "satisfies",
+      "violates"
+    ],
+    "native_issue_decision": "unchanged",
+    "policy": "binding choices and required methods using existing properties",
+    "plain_memory": "historical accounts and optional guidance",
+    "superseded_by": "normative succession without automatic approval, status change, Subject To rewrite or history erasure"
+  },
+  "comparison_checks": {
+    "remaining_property_declarations_unchanged": true,
+    "remaining_owned_link_declarations_unchanged": true,
+    "remaining_endpoint_and_graph_constraints_unchanged": true,
+    "evaluation_definition_byte_identical": true,
+    "scenario_definition_byte_identical": true,
+    "evaluation_lifecycle_byte_identical": true,
+    "ownership_summary_byte_identical": true,
+    "historical_schemas_definitions_fixtures_unchanged": true,
+    "cli_sketch_changes": "only replace the removed Decision shortcut example with Requirement",
+    "shared_profile_core_write_runtime_or_store_files_changed": false
+  },
+  "review_boundary": {
+    "source_comparison": "automated structural comparison and author inspection",
+    "independent_source_review": "required before product adopts this leaf; not claimed by this receipt",
+    "product_projection": "sole product author prepares and reviews exact projection separately",
+    "unreviewed_live_semantic_and_cli_edits": "excluded; left untouched",
+    "publication_or_source_digest": "does not install Types or qualify runtime behavior"
+  }
+}

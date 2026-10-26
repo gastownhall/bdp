@@ -1,6 +1,21 @@
-# Memory catalog publication — October 19, 2026
+# Memory catalog amendment — October 25, 2026
 
-[Memory Bead and Link Types](memory.md) is the current v0.2 review draft. It describes **nine Bead Types and nine Link Types**, including **Evaluation as the selected Memory subtype** for the accepted evaluation-owner model, with required nonempty exact `{uri, revision}` subject references. The earlier eight-Bead catalog is preserved at [Memory010](https://github.com/gastownhall/bdp/blob/010be6463c54041dc9ec266c385788ec1a3fd88b/specs/types/memory/memory.md). Neither this source publication nor its Type count means installation, adoption or runtime support.
+[Memory Bead and Link Types](memory.md) is the current v0.2 review draft. It describes **seven Bead Types and nine Link Types**, including **Evaluation as the selected Memory subtype** for the accepted evaluation-owner model, with required nonempty exact `{uri, revision}` subject references. The earlier eight-Bead catalog is preserved at [Memory010](https://github.com/gastownhall/bdp/blob/010be6463c54041dc9ec266c385788ec1a3fd88b/specs/types/memory/memory.md). Neither this source publication nor its Type count means installation, adoption or runtime support.
+
+## Accepted catalog reduction
+
+This narrow amendment starts from exact BDP source
+`afec9117914bd1c1fe0027c2067e4d89677e40a3`. Donna accepted removing the new
+Memory Decision and Procedure Types and retaining Scenario. The remaining Bead
+set is Memory, Evaluation, Constraint, Policy, Requirement, Scenario and
+Specification. The native Issue classification `decision` is unchanged.
+Policy covers binding choices and required methods; plain Memory covers
+historical accounts and optional guidance. Superseded By expresses normative
+succession for current guidance, without automatic approval, status changes,
+Subject To rewrites or history erasure. All nine Link Types, remaining declared
+properties and graph/ownership constraints, and assessment contracts and gates
+are retained. This source amendment selects no Type-ID mapping, store transition,
+runtime installation or broader CLI/profile adoption.
 
 ## Accepted behavior and carrier
 
@@ -12,12 +27,14 @@ All examples, claim endpoints/ownership, group-aware query behavior and satisfac
 
 The earlier [MEM-DEC-009](../../../docs/design/memory-review-boundaries-decision-20261019.md) retains nontransitive Subject To, Requires/Defines closure, abstract Conformance with concrete peers, Issue/Dependency workflow boundaries, closure≠satisfaction and Type-constraint enforcement. Its unowned-claim baseline is superseded by MEM-DEC-010. [MEM-DEC-008](../../../docs/design/memory-conformance-decision-20261019.md) retains the peer hierarchy, shared evidence and Refines naming. Remaining deferrals are explicit in [publication scope](memory.md#publication-scope-and-deferred-specification-work).
 
-## Source and projection
+## Historical authoring origin and amended public source
 
-- Authoring source revision: `691d07b46169497c3fc7e917d368e1b5556f2856`; path `specs/type-packages/memory-references/memory-and-references.md` in the private authoring scope.
-- Authoring source SHA256: `394636d4f9447d21c1a15387db479e1dd21fffeb63a3fe130c7fe78e3cd5870d`.
-- Public `memory.md` SHA256: `1f97f8a80f725b2a44a0c715b4ccf09918f02af2abb9885797c3395255dc9e34`.
-- Projection retains frontmatter, title, body, examples and definitions; omits the local-only Depends on locator; replaces the Chris-proposal locator with [its public source](https://github.com/gastownhall/beads/issues/5877).
+- Historical authoring source revision: `691d07b46169497c3fc7e917d368e1b5556f2856`; path `specs/type-packages/memory-references/memory-and-references.md` in the private authoring scope.
+- Historical authoring source SHA256: `394636d4f9447d21c1a15387db479e1dd21fffeb63a3fe130c7fe78e3cd5870d`.
+- Origin public source: `afec9117914bd1c1fe0027c2067e4d89677e40a3`, path `specs/types/memory/memory.md`, 106,334 bytes, SHA256 `1f97f8a80f725b2a44a0c715b4ccf09918f02af2abb9885797c3395255dc9e34`.
+- Amended public `memory.md`: 103,192 bytes, SHA256 `60c319aac0e42ea9825d6b383a6d09b7d789023fded675e647fd657f37961cb0`.
+- Amendment receipt: [accepted-cut source comparison](../../../docs/design/memory-catalog-reduction-20261025.json). The historical authoring origin above does not identify the amended bytes.
+- Historical publication projection retains frontmatter, title, body, examples and definitions; omits the local-only Depends on locator; replaces the Chris-proposal locator with [its public source](https://github.com/gastownhall/beads/issues/5877).
 - Private authoring paths are provenance, not external normative dependencies.
 
 The separate [Types profile](../../profiles/types/types.md) and [reviewed immutable revision](https://github.com/gastownhall/bdp/blob/3f7ebc145513425c1362bf0ef88c756c41ed4315/specs/profiles/types/types.md) remain shared owner work. This pass edits no shared Type/metatype, Core/Write, authoring-format or runtime contract files.
@@ -30,6 +47,8 @@ The [original issue body](../../../docs/design/history/memory-issue-7661-before-
 
 ## Validation and handoff
 
-The [current lifetime-group receipt](../../../docs/design/memory-evaluation-lifetime-20261020.json) records source/projection digests and documentation/model-integrity checks for 18 Type definitions, accepted carrier/exact-subject-reference selection, evaluation ownership and four claim endpoint tables, collective/full-group scope, logical claim composition, Type refinement/evidence, and Markdown links/tables/whitespace. The [earlier carrier receipt](../../../docs/design/memory-evaluation-claims-20261019.json) retains its exact f200/bbd97 source subject. No regenerated schema or native runtime qualification is claimed.
+The [amendment receipt](../../../docs/design/memory-catalog-reduction-20261025.json) records the exact origin and amended source identities, seven retained Bead Types, nine retained Link Types, and structural comparisons of the remaining declarations. Independent source review is required before product adoption; this receipt does not claim that review or qualify a runtime.
+
+The [historical lifetime-group receipt](../../../docs/design/memory-evaluation-lifetime-20261020.json) records source/projection digests and documentation/model-integrity checks for 18 Type definitions at its own source revision, accepted carrier/exact-subject-reference selection, evaluation ownership and four claim endpoint tables, collective/full-group scope, logical claim composition, Type refinement/evidence, and Markdown links/tables/whitespace. The [earlier carrier receipt](../../../docs/design/memory-evaluation-claims-20261019.json) retains its exact f200/bbd97 source subject. Neither historical receipt validates this amendment. No regenerated schema or native runtime qualification is claimed.
 
 Trish owns Memory-Type implementation and shared Type/metatype design; Melinda owns the Memory specification; Janet coordinates integration and qualification. A consumer frozen at Memory010 keeps that exact input until deliberate reconciliation selects a successor. Publication changes neither implementation holds nor merge, runner, runtime-pin or release authority.

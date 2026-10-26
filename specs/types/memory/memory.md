@@ -22,7 +22,7 @@ Sections marked **informative**, including their subsections and examples, expla
 
 ### Memory Beads and References Links
 
-Memory Beads let agents record and recall knowledge in a graph that connects memories with Issues. The two general-purpose Types are [Memory Bead Type](#memory--bead-type) and [References Link Type](#references--link-type). A Memory Bead holds knowledge; a References Link connects it to useful context. The shared graph contract supplies identity, revision, and relationship rules, while the content can serve many purposes.
+Memory Beads let agents record and recall knowledge in a graph that connects memories with Issues. The two general-purpose Types are [Memory Bead Type](#memory--bead-type) and [References Link Type](#references--link-type). A plain Memory Bead holds informative knowledge; a direct References Link connects it to useful context. Constraint remains a Memory, and normative relationship specializations remain References. The shared graph contract supplies identity, revision, and relationship rules, while the content can serve many purposes.
 
 A Memory Bead's body holds arbitrary Markdown, and a References Link can have an optional Markdown body explaining the connection. Both also carry metadata for application-specific labels and structured data. The system preserves that content without interpreting arbitrary prose or metadata as executable rules.
 
@@ -30,7 +30,7 @@ A Memory Bead's body holds arbitrary Markdown, and a References Link can have an
 
 Edit a Memory Bead when you are maintaining the same piece of knowledge. Its identity stays the same and it gains a new revision. Readers can distinguish the current content from earlier retained revisions.
 
-Use a [Superseded By Link](#superseded-by--link-type) when a different Memory Bead takes its place. The Link points from the retiring Bead to its replacement. Each retiring Bead has at most one selected replacement, and replacement chains cannot form cycles. Retirement preserves the old Bead and its history; it does not delete it or automatically approve the replacement.
+Use a [Superseded By Link](#superseded-by--link-type) when a different Memory Bead takes its place. The Link points from the retiring Bead to its replacement. Each retiring Bead has at most one selected replacement, and replacement chains cannot form cycles. This succession is normative: readers should follow the successor for current guidance. Retirement preserves the old Bead and its history; it does not delete it, automatically approve the replacement, change status or rewrite Subject To declarations.
 
 For example, a short deployment note might be replaced by a separately maintained deployment handbook. A Superseded By Link makes that change of identity explicit. Editing the original note would instead keep its identity.
 
@@ -40,7 +40,7 @@ Memory Beads, References Links, and Superseded By Links provide the general know
 
 Agents also need to discover the rules governing their behavior and side effects. They should be able to find their obligations, understand what they must do or avoid, and inspect evidence about whether their work stayed within those obligations.
 
-[Constraint](#constraint--bead-type) is the common Bead Type for obligations and restrictions. Policy Beads state governing rules. Decision Beads state choices that constrain later work. Procedure Beads describe how work is carried out, with the flow in the body. Requirement and Scenario Beads state required outcomes and conditions. Specification Beads describe intended results at any level of detail. These six Types refine the Constraint Bead Type and share its behavior. A plain Constraint Bead can hold a rule that needs no more specific Type; a plain Memory Bead can hold context and can itself be subject to constraints.
+[Constraint](#constraint--bead-type) is the common Bead Type for obligations and restrictions. Policy Beads state governing rules, adopted binding choices and required ways of working. Requirement and Scenario Beads state required outcomes and conditions. Specification Beads describe intended results at any level of detail. These four Types refine the Constraint Bead Type and share its behavior. A plain Constraint Bead can hold a rule that needs no more specific Type; a plain Memory Bead can hold context and can itself be subject to constraints. Historical choice accounts with no continuing obligation and optional how-to guidance use plain Memory. Policy carries the scope, rationale, authority, steps and conditions of a binding choice or required method in its existing content and properties.
 
 > **Custom Types (informative).** Creating and installing user-defined Bead or Link Types is not part of this proposal's initial Memory release surface. While that capability is unavailable, use the closest supported Bead or Link Type and put experimental labels or structured fields in metadata. Such conventions do not create new Type membership, validation, or executable behavior. Type refinement allows later Types to join the common model when custom Type support is introduced.
 
@@ -162,7 +162,7 @@ The shared `bd create`, `bd update`, `bd delete`, `bd show`, `bd list`, and hist
 
 ### Optional Type-specific creation shortcuts (informative)
 
-A convenience spelling could select a Type while delegating to ordinary `bd create`. For example, `bd memory policy <title>` could create a Policy Bead, and `bd memory decision <title>` could create a Decision Bead. Body input and any distinct optional properties would use the eventual shared input conventions.
+A convenience spelling could select a Type while delegating to ordinary `bd create`. For example, `bd memory policy <title>` could create a Policy Bead, and `bd memory requirement <title>` could create a Requirement Bead. Body input and any distinct optional properties would use the eventual shared input conventions.
 
 These are optional shorthand candidates. They do not create a `kind` field, change Type contracts, infer authority or applicability, or automatically add Defines, Subject To, or assessment Links. A generic creation path must remain available for every supported Type. Future custom Type support can use the same path without requiring a built-in shortcut. Whether shortcuts use noun commands or a form such as `bd memory create policy` remains open.
 
@@ -205,7 +205,7 @@ The published Type catalog can proceed independently of this CLI design. Specify
 
 ## Constraint-system behavioral contract
 
-Constraint is the common Bead Type for this system. The Specification, Policy, Decision, Procedure, Requirement, and Scenario Bead Types refine Constraint and inherit this contract. Their distinct meanings and additional properties remain useful, but they do not need separate dependency, applicability, or assessment rules. Future supported Constraint subtypes participate through Type refinement; creating or installing custom Types is outside this proposal's initial release surface. The rules below apply to each Link family, including its refining Types.
+Constraint is the common Bead Type for this system. The Specification, Policy, Requirement, and Scenario Bead Types refine Constraint and inherit this contract. Their distinct meanings and additional properties remain useful, but they do not need separate dependency, applicability, or assessment rules. Future supported Constraint subtypes participate through Type refinement; creating or installing custom Types is outside this proposal's initial release surface. The rules below apply to each Link family, including its refining Types.
 
 A **subject** is the Bead whose obligations or behavior are being considered. An evaluation assesses one subject group: one or more Beads with selected revisions. All of its claims concern that group collectively; a different group needs a separate evaluation. It can have any Bead Type, including an Issue Type; being subject to a Constraint Bead does not make the subject itself a Constraint Bead. Constraint targets include every Type refining Constraint. “Any Bead” is an endpoint category without a Type restriction, not a new Bead Type or a closed union of known names. Link and opaque external-Resource endpoints are not added by that category.
 
@@ -254,7 +254,7 @@ A parent exception does not silently remove its Requires dependencies or Defines
 
 ### Discovery, assessment, and evidence
 
-A generic constraint view recognizes Constraint and every Type refining it. It uses Type refinement, not a fixed enumeration of Policy, Decision, Procedure, Requirement, Scenario, or Specification. A future supported Constraint subtype inherits the common contract and may add its own properties or restrictions. This design does not require arbitrary public Type creation or installation as a prerequisite for the first release.
+A generic constraint view recognizes Constraint and every Type refining it. It uses Type refinement, not a fixed enumeration of Policy, Requirement, Scenario, or Specification. A future supported Constraint subtype inherits the common contract and may add its own properties or restrictions. This design does not require arbitrary public Type creation or installation as a prerequisite for the first release.
 
 The caller identifies the subject, context or governing roots to examine, and the relevant revisions. A Subject To Link declares an applicable Constraint Bead for any source Bead; predicate matches can supply additional implicit starting relationships. Within the selected context, the view takes the subject's explicit or implicitly selected Subject To roots, then follows those Constraints' Requires Link families, including Defines, to find the complete reachable set of necessary obligations. It does not follow another Constraint's Subject To Links as if they bound the original subject. A dependency can cross defining trees without giving its target another defining parent. How an agent or task selects its subject and roots, who can establish binding applicability, and detailed traversal/revision mechanics remain open. A direct References Link supplies context without making its target a governing constraint. No inferred stored Subject To Links are created by dependency traversal.
 
@@ -288,7 +288,7 @@ An implementation claiming enforcement must validate affected Type constraints o
 
 Prose uses names such as Memory Bead and References Link to distinguish the resources. In headings, Type tables, refinement declarations, and property-origin columns, the shorter names identify the Types themselves. Code formatting identifies literal commands, property names, and precise Type spellings, such as `references` or `superseded-by`.
 
-The **Refines** relationship connects Types: every valid instance of the source Type must meet the target Type's structural and semantic promises. The source inherits the target's properties and rules and may add restrictions. This universal implication is conceptually closer to Requires necessity than to a claim that one subject satisfies a Constraint. It does not declare Refines to be a Requires subtype or turn the `type` field into a Conformance Link. For example, a Decision Bead inherits `title`, `body`, and `status` from the Memory Bead Type. The **Defined by** column identifies which Type introduces a property. The diagrams show Type refinement with an arrow from the more specific Type to its parent. The shared Type-to-Type relationship is named Refines in this design; older source revisions call it ConformsTo. This naming decision preserves its universal structural and semantic promise. It does not automatically rename stored identifiers, wire fields, or installed definitions.
+The **Refines** relationship connects Types: every valid instance of the source Type must meet the target Type's structural and semantic promises. The source inherits the target's properties and rules and may add restrictions. This universal implication is conceptually closer to Requires necessity than to a claim that one subject satisfies a Constraint. It does not declare Refines to be a Requires subtype or turn the `type` field into a Conformance Link. For example, a Policy Bead inherits `title`, `body`, and `status` from the Memory Bead Type. The **Defined by** column identifies which Type introduces a property. The diagrams show Type refinement with an arrow from the more specific Type to its parent. The shared Type-to-Type relationship is named Refines in this design; older source revisions call it ConformsTo. This naming decision preserves its universal structural and semantic promise. It does not automatically rename stored identifiers, wire fields, or installed definitions.
 
 Links have a source and a target. An **owned Link** is part of its source Bead's versioned content. Adding, changing, or deleting that owned Link creates a new revision of the source Bead. For example, adding a Requirement Bead to a Specification Bead with an owned `defines` Link changes what that Specification Bead defines, so the Specification Bead gets a new revision. The Link change does not revise the target Requirement Bead.
 
@@ -304,8 +304,6 @@ The following definitions specify the Bead Types. Examples labelled informative 
 | [Evaluation](#evaluation--bead-type) | Concrete carrier for an evaluation of one collective subject group, bound to exact Bead revisions; owns every claim it makes. |
 | [Constraint](#constraint--bead-type) | A Constraint Bead states an obligation or restriction; its subtypes share discovery and coverage rules. |
 | [Policy](#policy--bead-type) | A Policy Bead states a governing rule for a project or organization. |
-| [Decision](#decision--bead-type) | A Decision Bead explains a choice and the reasons for making it. |
-| [Procedure](#procedure--bead-type) | A Procedure Bead explains how to carry out a repeatable task. |
 | [Requirement](#requirement--bead-type) | A Requirement Bead states an outcome or constraint that must be met. |
 | [Scenario](#scenario--bead-type) | A Scenario Bead describes a concrete situation and the outcome expected in it. |
 | [Specification](#specification--bead-type) | A Specification Bead describes an intended result and refines Constraint. |
@@ -315,8 +313,6 @@ flowchart BT
     Evaluation --> Memory
     Constraint --> Memory
     Policy --> Constraint
-    Decision --> Constraint
-    Procedure --> Constraint
     Requirement --> Constraint
     Scenario --> Constraint
     Specification --> Constraint
@@ -387,7 +383,7 @@ These URIs and revision tokens are illustrative, not assigned identities or revi
 
 ### Constraint — Bead Type
 
-**Meaning and use.** A Constraint Bead states an obligation or restriction governing behavior, side effects, or outcomes. Use the Constraint Bead Type directly for a general rule, or choose a Policy, Decision, Procedure, Requirement, Scenario, or Specification Bead when one expresses the rule more clearly. Additional subtypes can inherit these rules when custom Type support is introduced; that authoring surface is not selected for the initial release. Type membership identifies a Constraint Bead, independently of any experimental metadata labels.
+**Meaning and use.** A Constraint Bead states an obligation or restriction governing behavior, side effects, or outcomes. Use the Constraint Bead Type directly for a general rule, or choose a Policy, Requirement, Scenario, or Specification Bead when one expresses the rule more clearly. Additional subtypes can inherit these rules when custom Type support is introduced; that authoring surface is not selected for the initial release. Type membership identifies a Constraint Bead, independently of any experimental metadata labels.
 
 The body carries the constraint itself, including conditions, exceptions, and any explicit statement of what is sufficient to meet it. Its optional executable `applicability` predicate selects additional subjects without filtering explicit Subject To Links. A Satisfies Link claim may explain that a stated exception leaves no active obligation in the assessed case; this is vacuous satisfaction, not evidence that the subject performed work. Every Requires target, including each Defines child, is necessary for satisfying the source Constraint. All such children and the parent's own constraints must be accounted for. Plain Memory Beads can supply explanations through References Links without becoming required Constraint Beads. Neither an empty child set nor evidence for only some children establishes satisfaction of the parent.
 
@@ -416,7 +412,7 @@ A Constraint Bead can be a source or target of Subject To and can be an assessed
 
 ### Policy — Bead Type
 
-**Meaning and use.** A Policy Bead states a rule governing how a project or organization works, including constraints on an agent's behavior and side effects. Put the rule and its scope in the body so readers can tell when it applies. Explain its authority there, cite another Bead with a References Link, or identify the issuing person or governing source with `authority`. Defines Links can organize more specific Policy Beads beneath it. A Satisfies Link owned by an evaluation claims that its full subject group meets the Policy Bead's obligations; it does not approve or change the Policy Bead.
+**Meaning and use.** A Policy Bead states a governing rule, adopted binding choice or required way of working for a project or organization, including constraints on an agent's behavior and side effects. Put the rule or method, its scope, rationale, steps and relevant conditions in the body so readers can tell when it applies. Explain its authority there, cite another Bead with a References Link, or identify the issuing person or governing source with `authority`. Defines Links can organize more specific Policy Beads beneath it. A Satisfies Link owned by an evaluation claims that its full subject group meets the Policy Bead's obligations; it does not approve or change the Policy Bead.
 
 **Example (informative).** A Policy Bead might require customer data to be removed from sample exports.
 
@@ -433,57 +429,6 @@ A Constraint Bead can be a source or target of Subject To and can be an assessed
 | `authority` | Optional URI or `{uri, revision}` Reference | Policy | Identifies the person, role, or governing source that issued the rule. |
 
 The `authority` value identifies who or what issued the Policy Bead; it is a claim of authority, not proof of approval.
-
-**Owned outgoing Link Types.**
-
-| Link Type family | Declared by | Effect |
-| --- | --- | --- |
-| `requires` | Constraint | Inherited ownership of Requires and its specializations, including Defines. |
-| `subject-to` | Memory | Inherited ownership of applicability declarations. |
-| `superseded-by` | Memory | Inherited ownership; revises this Bead when its replacement Link changes. |
-
-### Decision — Bead Type
-
-**Meaning and use.** A Decision Bead explains a choice and why it was made. It constrains subsequent behavior and side effects that must conform to that choice. The body can explain alternatives and consequences. Defines Links can identify finer-grained Decision Beads. A Satisfies Link claims that the work follows the chosen direction; it does not establish that the choice was justified or approved. If a later choice replaces this one, create a new Decision Bead and give the earlier Bead a Superseded By Link to its replacement. Editing the earlier Bead instead continues its identity.
-
-**Example (informative).** A team might choose CSV for its first export format because its users already work in spreadsheets.
-
-**Refines.** Constraint; transitively Memory.
-
-**Properties.**
-
-| Name | Type | Defined by | Use and meaning |
-| --- | --- | --- | --- |
-| `title` | Required nonblank text | Memory | The decision's subject or chosen direction. |
-| `body` | Required Markdown text; may be empty | Memory | Choice, rationale, consequences, and any alternatives worth recording. |
-| `status` | Optional nonblank open string | Memory | Organization-defined lifecycle label (e.g., draft, accepted); no automatic workflow effect. |
-| `applicability` | Optional executable subject-selection predicate; concrete representation deferred | Constraint | Matches add implicit Subject To applicability without filtering explicit declarations or inherited obligations. |
-| `authority` | Optional URI or `{uri, revision}` Reference; working shape | Decision | Identifies the person, team, or governing body that made the decision. |
-
-**Owned outgoing Link Types.**
-
-| Link Type family | Declared by | Effect |
-| --- | --- | --- |
-| `requires` | Constraint | Inherited ownership of Requires and its specializations, including Defines. |
-| `subject-to` | Memory | Inherited ownership of applicability declarations. |
-| `superseded-by` | Memory | Inherited ownership; revises this Bead when its replacement Link changes. |
-
-### Procedure — Bead Type
-
-**Meaning and use.** A Procedure Bead explains how to carry out a task that people or agents may need to repeat. Put the flow, steps, and relevant conditions in the body. Defines Links identify meaningful parts that can be assessed independently, such as named subprocedure or subpolicy Beads; the Links do not encode execution order. A Satisfies Link owned by an evaluation of a concrete run claims that the run followed the instructions and applicable conditions. Keep the method separate from the account and evidence of a particular execution.
-
-**Example (informative).** A release checklist explains the steps to repeat for each release.
-
-**Refines.** Constraint; transitively Memory.
-
-**Properties.**
-
-| Name | Type | Defined by | Use and meaning |
-| --- | --- | --- | --- |
-| `title` | Required nonblank text | Memory | Name of the method. |
-| `body` | Required Markdown text; may be empty | Memory | The instructions and relevant conditions. |
-| `status` | Optional nonblank open string | Memory | Organization-defined lifecycle. |
-| `applicability` | Optional executable subject-selection predicate; concrete representation deferred | Constraint | Matches add implicit Subject To applicability without filtering explicit declarations or inherited obligations. |
 
 **Owned outgoing Link Types.**
 
@@ -603,7 +548,7 @@ flowchart BT
 
 A direct `references` Link is unowned: changing it does not revise either endpoint. The other Link Types below build on `references` to express a more specific relationship.
 
-**Example (informative).** A Decision Bead about CSV export might reference a Policy Bead about customer data.
+**Example (informative).** A Memory Bead describing the rationale for CSV export might reference a Policy Bead about customer data.
 
 **Refines.** No named Link Type in this catalog. Every other Link Type in this catalog refines it directly or transitively.
 
@@ -639,13 +584,13 @@ Other constraints:
 
 ### `superseded-by` — Link Type
 
-**Meaning and use.** Use a Superseded By Link to retire a Memory Bead in favor of a replacement with a different identity. The replacement may have any Memory Bead Type, including a different subtype from the retiring Bead.
+**Meaning and use.** Use a Superseded By Link to retire a Memory Bead in favor of a replacement with a different identity. The replacement may have any Memory Bead Type, including a different subtype from the retiring Bead. The Link expresses normative succession: readers should follow the successor for current guidance rather than treating the replaced Bead as current guidance.
 
 An ordinary update creates a new revision of the same Bead. The latest revision becomes that Bead's current state, and earlier revisions remain in its history. A Superseded By Link expresses a different change: another Bead, with a different identity, takes over the old Bead's role. Use an update to maintain one Bead; use Superseded By to retire it in favor of another.
 
 The Link points from the retiring Bead to its replacement. The retiring Bead owns the Link, so adding or changing the replacement creates a new revision of that Bead. Each Bead can point to at most one replacement. If that replacement is later retired too, following the Links leads along a chain to the current successor. Cycles are forbidden.
 
-Retirement through this Link leaves the old Bead and its earlier revisions available. It does not delete the Bead, assign a status value, or approve the replacement. Both endpoints follow their Beads' current states rather than exact revisions.
+Retirement through this Link leaves the old Bead and its earlier revisions available. It does not delete the Bead, assign a status value, approve the replacement or rewrite existing Subject To declarations. Both endpoints follow their Beads' current states rather than exact revisions.
 
 **Example (informative).** A plain Memory note about an informal convention can point to a Policy Bead that makes the convention a governing rule.
 
@@ -680,7 +625,7 @@ Other constraints:
 
 ### `requires` — Link Type
 
-**Meaning and use.** Use a Requires Link when satisfying one Constraint Bead requires satisfying another. The source depends on the target. Any Constraint subtype can participate, including Requirement, Policy, Decision, Procedure, Scenario, and Specification. The target keeps its defining home; requiring it does not copy it or assign another defining parent.
+**Meaning and use.** Use a Requires Link when satisfying one Constraint Bead requires satisfying another. The source depends on the target. Any Constraint subtype can participate, including Requirement, Policy, Scenario, and Specification. The target keeps its defining home; requiring it does not copy it or assign another defining parent.
 
 Requires Links are interpreted transitively. If A requires B and B requires C, then A transitively requires C. Traversal includes every Link Type refining Requires, including Defines. Multiple necessary conditions do not become sufficient merely because all of them have been recorded or met; the source's own constraints still apply.
 
@@ -869,7 +814,7 @@ Preserve the original full group, participating evaluation identities and revisi
 
 **Example (informative).** A release evaluation claims that the release satisfies the CSV format Specification. A separate evaluation of that Specification alone claims that its contract satisfies the export goals. Compatible claims support an indirect claim about the release meeting the goals. An evaluation of the Specification plus another artifact would not supply the same singleton intermediate claim.
 
-**Procedure and Decision examples (informative).** An evaluation of a concrete release run can claim that the run followed a Procedure. An evaluation of a result using PostgreSQL can claim that the result follows the Decision selecting PostgreSQL. Neither claim establishes approval or independently verifies the evaluation.
+**Policy examples (informative).** An evaluation of a concrete release run can claim that the run followed a Policy prescribing the release method. An evaluation of a result using PostgreSQL can claim that the result follows the Policy selecting PostgreSQL. Neither claim establishes approval or independently verifies the evaluation.
 
 **Conditional satisfaction example (informative).** A Policy says “If the export contains personal data, anonymize it.” An evaluation of an export containing no personal data can own a Satisfies Link titled `N/A — no personal data`, explaining the condition and evidence. The group remains subject to the Policy; the claim neither removes applicability nor waives independently necessary obligations.
 
@@ -961,7 +906,7 @@ Defines permits at most one incoming Defines-family Link per child identity, whi
 
 This revision publishes the selected model for review and implementation planning. It does not adopt a new BDP profile, install Type definitions, qualify a runtime, select a release cutline, or lift an existing integration hold. Runtime scope and qualification remain separate decisions. A Bead identifying the assessed result is still distinct from an Issue Bead tracking work; no separate Implementation Bead Type is required.
 
-The review catalog describes nine Bead Types: Memory, Evaluation, Constraint, Policy, Decision, Procedure, Requirement, Scenario, and Specification. The earlier eight-Bead catalog remains an exact historical source. Evaluation refining Memory, Conformance-family ownership and the required nonempty exact `{uri, revision}` subject-reference array are selected design. Publishing this catalog does not install a Type identity or qualify a schema or runtime. It has nine Link Types: References, Superseded By, Requires, Defines, Subject To, Conformance, Addresses, Satisfies, and Violates. Their Type refinement, declared properties, correlated endpoint pairs, family ownership, necessity, tree limits, multiplicity, and claim meanings are specified above. No `kind` field or subtype-specific constraint checker is required. These rules are not deferred merely because they may require implementation work.
+The review catalog describes seven Bead Types: Memory, Evaluation, Constraint, Policy, Requirement, Scenario, and Specification. This revision removes the new Memory Decision and Procedure Types and retains Scenario; it does not change the native Issue classification `decision`, retype stored records or erase their history. The earlier eight-Bead catalog remains an exact historical source. Evaluation refining Memory, Conformance-family ownership and the required nonempty exact `{uri, revision}` subject-reference array are selected design. Publishing this catalog does not install a Type identity or qualify a schema or runtime. It has nine Link Types: References, Superseded By, Requires, Defines, Subject To, Conformance, Addresses, Satisfies, and Violates. Their Type refinement, declared properties, correlated endpoint pairs, family ownership, necessity, tree limits, multiplicity, and claim meanings are specified above. No `kind` field or subtype-specific constraint checker is required. These rules are not deferred merely because they may require implementation work.
 
 The following specification work is deliberately deferred and does not block publication of this design:
 
