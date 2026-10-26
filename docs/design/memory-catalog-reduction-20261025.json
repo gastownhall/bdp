@@ -13,10 +13,7 @@
     "sha256": "60c319aac0e42ea9825d6b383a6d09b7d789023fded675e647fd657f37961cb0"
   },
   "accepted_changes": {
-    "removed_memory_types": [
-      "decision",
-      "procedure"
-    ],
+    "removed_memory_types": ["decision", "procedure"],
     "retained_bead_types": [
       "memory",
       "evaluation",
