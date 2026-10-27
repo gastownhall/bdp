@@ -14,6 +14,26 @@ contract or an implementation/release pin. The separate
 [Memory CLI companion](memory-cli.md) defines an optional domain command package,
 with a task walkthrough and its own explicit Type-design dependency.
 
+## Overview authoring sections
+
+The connected walkthrough is being written in separate sections so the Read and
+Write authors can work in parallel. Read the available sections in this order:
+
+1. Find your place — Scope, defaults and identity introduction, pending.
+2. [Explore the graph](overview/02-explore-graph.md) — show, List, Links, Graph and Query.
+3. [Build and revise the graph](overview/03-crud.md) — complete Bead and Link CRUD.
+4. [Observe changes](overview/04-events.md) — Events, live observation and cursors.
+5. [Revisions and history](overview/05-revisions.md) — edition selection, pins and guarded edits.
+6. Atomic batch — pending.
+7. Automation — pending.
+
+These are authored examples of the design target. The Read/Query contribution
+includes [candidate protocol modules and an incorporation map](query-ir/INCORPORATION.md):
+accepted behavior, proposed details and changes still needed in the retained
+contract are identified separately. Publishing these drafts does not amend held
+schemas, advertise new capabilities or qualify an implementation. The existing
+summaries below still need the bounded reconciliation recorded in that map.
+
 ## Scope, References and exact values
 
 Use `--scope`, then BDP_SCOPE_URL, then configuration scope.url. Scope-only commands may
