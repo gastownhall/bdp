@@ -1,0 +1,48 @@
+{
+  "reviewer": "actual Claude Code CLI, configured model",
+  "exitCode": 0,
+  "reviewedCommit": "9eb4bb49f2b3494ea337ab48628bf113c004f292",
+  "source": [
+    {
+      "path": "specs/profiles/core/query.md",
+      "sha256": "89eaabc7bec16dcdef0b93ae7fa3f6ff70515f0ca07211cc39d1bc28a33060a4"
+    },
+    {
+      "path": "specs/profiles/core/resource-projection.md",
+      "sha256": "2a853c85f5c723a12b24a02519eed21a02192ad3ffc8fc752665d2e2083fbf42"
+    },
+    {
+      "path": "docs/cli-design/query-ir.md",
+      "sha256": "5e71e03f0312ac91fb97c6e044d69d7c93faa3ffa73ac96cfd7f5133d1d61b8d"
+    },
+    {
+      "path": "docs/cli-design/query-ir/query.schema.json",
+      "sha256": "a59c0486c2723c6d5e71ef29736c2fa9e2d85487fbad11488baa5eb6a500c01d"
+    },
+    {
+      "path": "docs/cli-design/query-ir/validate.py",
+      "sha256": "035f35227c33d24ca463b1508821d1c8c5e7d67216329bbbcfbf42d881530b7b"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/README.md",
+      "sha256": "b8e136bf2b254344118a60431d9105bd4c25c3cdf124554af78418e0ad402b57"
+    },
+    {
+      "path": "docs/cli-design/query-ir/cases.json",
+      "sha256": "c1235f3d0d1cdfda503e6fdbf32555258b888ee8dd58c0fedaa9f07a0ff7afbc"
+    },
+    {
+      "path": "docs/cli-design/query-ir/fixtures.json",
+      "sha256": "b8920cbaa81e69b7df99374e64807bdc7d3dde26629a6aecaa7663203698ce0a"
+    }
+  ],
+  "stdoutSha256": "14bdf31575c211d685cdcf419a2d40699cd9fb09302be5bbb2862a60cb834f92",
+  "notExecuted": [
+    "validator",
+    "Query evaluator",
+    "bd CLI",
+    "HTTP transport",
+    "backend"
+  ],
+  "subsequentFixes": "Recorded in review/README.md; static checks refreshed separately."
+}

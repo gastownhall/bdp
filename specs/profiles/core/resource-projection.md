@@ -36,8 +36,12 @@ permission to read otherwise unavailable history.
 - Root include (`""`, the empty JSON Pointer) selects the whole Resource. Root
   omission refuses. Supplied mask arrays are nonempty; omit an array member to
   request no mask of that kind. Invalid RFC 6901 escapes refuse.
+  Omit an empty projection container rather than serializing `{}` in this AST.
 - Protect canonical identity, actual Type, selected revision, and whole source/
   target References on Links. A mask cannot misrepresent their meaning.
+- Protected context cannot be sliced with nested include paths either. Protection
+  is Resource-kind-aware: an absent `/source` on a Bead is an ordinary no-op,
+  whereas a Link's `/source` Reference is protected whole.
 - `title` is an ordinary optional property, not protected context.
 - Properties/metadata admit nested paths. Revision provenance, recorded owned
   Links (`ownedLinks`), and any admitted included-Link plane (`links`) are whole-

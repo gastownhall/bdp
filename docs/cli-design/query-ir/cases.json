@@ -1270,8 +1270,7 @@
                 "type": "https://work.example/acme/requires",
                 "match": "family"
               }
-            },
-            "bind": "r"
+            }
           }
         },
         "result": {
@@ -1326,8 +1325,7 @@
                 "type": "https://work.example/acme/requires",
                 "match": "family"
               }
-            },
-            "bind": "r"
+            }
           }
         },
         "result": {
@@ -4631,16 +4629,446 @@
         "runtimeError": "resource-not-found"
       },
       "note": "Explicit root acquisition is all-or-refuse; no successful partial-root graph."
+    },
+    {
+      "id": "bead-absent-source-omit-noop",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "omit": [
+            "/source"
+          ]
+        }
+      },
+      "admission": "accept",
+      "outcome": "result",
+      "expected": {
+        "ids": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "U"
+        ]
+      },
+      "note": ""
+    },
+    {
+      "id": "link-source-omit-protected",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "links"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "omit": [
+            "/source"
+          ]
+        }
+      },
+      "admission": "reject-semantic",
+      "outcome": "static-refusal",
+      "expected": {
+        "error": "protected-projection"
+      },
+      "note": ""
+    },
+    {
+      "id": "link-source-slice-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "links"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "include": [
+            "/source/uri"
+          ]
+        }
+      },
+      "admission": "reject-semantic",
+      "outcome": "static-refusal",
+      "expected": {
+        "error": "unsupported-plane-mask"
+      },
+      "note": ""
+    },
+    {
+      "id": "type-reference-slice-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "include": [
+            "/type/uri"
+          ]
+        }
+      },
+      "admission": "reject-semantic",
+      "outcome": "static-refusal",
+      "expected": {
+        "error": "unsupported-plane-mask"
+      },
+      "note": ""
+    },
+    {
+      "id": "empty-projection-container-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {}
+      },
+      "admission": "reject-schema",
+      "outcome": "static-refusal",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": ""
+    },
+    {
+      "id": "any-dead-binding-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/A"
+            ]
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "any",
+            "input": {
+              "op": "scan",
+              "collection": "links"
+            },
+            "bind": "unused"
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-schema",
+      "outcome": "static-refusal",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": ""
+    },
+    {
+      "id": "list-mirrored-contains-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "contains",
+            "text": {
+              "op": "literal",
+              "value": "platform-core"
+            },
+            "substring": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "properties",
+                "team"
+              ]
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-semantic",
+      "outcome": "static-refusal",
+      "expected": {
+        "error": "outside-profile"
+      },
+      "note": ""
+    },
+    {
+      "id": "combined-mask-omit-wins",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "id",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              }
+            },
+            "right": {
+              "op": "literal",
+              "value": "https://work.example/acme/A"
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "include": [
+            "",
+            "/properties/title"
+          ],
+          "omit": [
+            "/properties/labels",
+            "/ownedLinks"
+          ]
+        }
+      },
+      "admission": "accept",
+      "outcome": "result",
+      "expected": {
+        "ids": [
+          "A"
+        ]
+      },
+      "note": "Root include selects whole; omit then subtracts labels and absent ownedLinks. Bodies are authored expected data, not executed projection.",
+      "expectedProjection": {
+        "id": "https://work.example/acme/A",
+        "type": "https://work.example/acme/constraint",
+        "revision": "r1",
+        "properties": {
+          "status": "ratified",
+          "title": "Cache design",
+          "team": "platform",
+          "nullable": null,
+          "priority": 1
+        },
+        "metadata": {}
+      }
+    },
+    {
+      "id": "any-proof-versus-acquisition-error-policy",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/A"
+            ]
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "any",
+            "input": {
+              "op": "walk",
+              "roots": {
+                "op": "binding",
+                "name": "b"
+              },
+              "direction": "outgoing",
+              "depth": 1
+            },
+            "bind": "link",
+            "predicate": {
+              "op": "compare",
+              "operator": "eq",
+              "left": {
+                "op": "field",
+                "of": {
+                  "op": "endpoint",
+                  "of": {
+                    "op": "binding",
+                    "name": "link"
+                  },
+                  "side": "target"
+                },
+                "path": [
+                  "properties",
+                  "status"
+                ]
+              },
+              "right": {
+                "op": "literal",
+                "value": "retired"
+              }
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "outcome": "execution-dependent",
+      "expected": {
+        "allowedOutcomes": [
+          {
+            "ids": [
+              "A"
+            ]
+          },
+          {
+            "runtimeError": "resource-not-found"
+          }
+        ]
+      },
+      "note": "AUTHOR-PROPOSED fail-fast policy. LX\u2192D can prove the quantifier; L1/L5\u2192hidden B can fail first. Allowed outcomes are whole-query success/refusal, not a third Boolean.",
+      "contextOverrides": {
+        "hiddenIdentities": [
+          "https://work.example/acme/B"
+        ]
+      }
+    },
+    {
+      "id": "all-proof-versus-acquisition-error-policy",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/A"
+            ]
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "all",
+            "input": {
+              "op": "walk",
+              "roots": {
+                "op": "binding",
+                "name": "b"
+              },
+              "direction": "outgoing",
+              "depth": 1
+            },
+            "bind": "link",
+            "predicate": {
+              "op": "compare",
+              "operator": "eq",
+              "left": {
+                "op": "field",
+                "of": {
+                  "op": "endpoint",
+                  "of": {
+                    "op": "binding",
+                    "name": "link"
+                  },
+                  "side": "target"
+                },
+                "path": [
+                  "properties",
+                  "status"
+                ]
+              },
+              "right": {
+                "op": "literal",
+                "value": "met"
+              }
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "outcome": "execution-dependent",
+      "expected": {
+        "allowedOutcomes": [
+          {
+            "ids": []
+          },
+          {
+            "runtimeError": "resource-not-found"
+          }
+        ]
+      },
+      "note": "AUTHOR-PROPOSED fail-fast policy. LX\u2192D can prove the quantifier; L1/L5\u2192hidden B can fail first. Allowed outcomes are whole-query success/refusal, not a third Boolean.",
+      "contextOverrides": {
+        "hiddenIdentities": [
+          "https://work.example/acme/B"
+        ]
+      }
     }
   ],
   "execution_obligations": [
     {
       "id": "any-short-circuit-witness",
-      "expected": "true may be definitive before unrelated enumeration completes"
+      "expected": "true may be definitive before unrelated enumeration completes; fail-fast before proof remains an explicit author proposal, not a contradictory successful answer"
     },
     {
       "id": "all-short-circuit-counterexample",
-      "expected": "false may be definitive before unrelated enumeration completes"
+      "expected": "false may be definitive before unrelated enumeration completes; fail-fast before proof remains an explicit author proposal, not a contradictory successful answer"
     },
     {
       "id": "any-negative-needs-exhaustion",
@@ -4687,8 +5115,9 @@
       "count",
       "roots+links+beads",
       "error for static refusals",
-      "runtimeError for runtime/authority refusals"
+      "runtimeError for runtime/authority refusals",
+      "allowedOutcomes for explicit fail-fast execution-policy proposals"
     ],
-    "outcome": "result, static-refusal, or runtime-refusal; admission checks never claim runtime execution."
+    "outcome": "result, static-refusal, runtime-refusal, or execution-dependent (author-proposed allowed success/refusal choices, never a wire outcome or a third Boolean)."
   }
 }

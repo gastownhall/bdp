@@ -61,7 +61,8 @@ def check_predicate(predicate, environment):
         check_predicate(predicate["predicate"], environment)
     elif op in {"any", "all"}:
         kind = collection_kind(predicate["input"], environment)
-        check_predicate(predicate.get("predicate", True), {**environment, predicate["bind"]: kind})
+        if "predicate" in predicate:
+            check_predicate(predicate["predicate"], {**environment, predicate["bind"]: kind})
     elif op == "typeIs":
         resource_kind(predicate["of"], environment)
     elif op == "compare":
@@ -83,7 +84,8 @@ def collection_kind(expr, environment):
         require(not known_pinned_roots(root), "historical-walk-roots-unsupported")
         kind = resource_kind(root, environment) if root["op"] in {"binding", "endpoint"} else collection_kind(root, environment)
         require(kind == "beads", "wrong-root-kind")
-        check_predicate(expr.get("through", True), {**environment, expr.get("bind", "__unused"): "links"})
+        if "through" in expr:
+            check_predicate(expr["through"], {**environment, expr["bind"]: "links"})
         return "links"
     kind = collection_kind(expr["input"], environment)
     if op == "endpoints":
@@ -133,17 +135,19 @@ def local_predicate(expr, binding):
 
 
 def admit(request):
-    collection_kind(request["selection"], {})
+    kind = collection_kind(request["selection"], {})
     selection, profile, form = request["selection"], request["profile"], request["result"]["form"]
     if form == "graph":
         require(selection["op"] == "walk", "graph-result-needs-direct-walk")
         require("projection" not in request, "graph-projection-undefined")
     for mode, pointers in request.get("projection", {}).items():
+        protected = {"id", "type", "revision"} | ({"source", "target"} if kind == "links" else set())
         for pointer in pointers:
             segments = [segment.replace("~1", "/").replace("~0", "~") for segment in pointer.split("/")[1:]]
             if not segments:
                 continue
-            require(not (mode == "omit" and segments[0] in {"id", "type", "revision", "source", "target"}), "protected-projection")
+            require(not (mode == "omit" and segments[0] in protected), "protected-projection")
+            require(not (segments[0] in protected and len(segments) > 1), "unsupported-plane-mask")
             require(not (segments[0] in {"revisionProvenance", "ownedLinks", "links"} and len(segments) > 1), "unsupported-plane-mask")
     if profile == "list":
         require(form in {"resources", "count"}, "outside-profile")
@@ -212,6 +216,8 @@ def check_documents():
         files.append(path)
     files.append(HERE / "examples/index.json")
     files.append(HERE / "review/claude-initial.md")
+    files.append(HERE / "review/claude-followup.md")
+    files.append(HERE / "review/followup-source.json")
     story = ROOT / "docs/cli-design/overview/05-revisions.fixture.json"
     if story.exists():
         states = json.loads(story.read_text())["guideStates"]
@@ -236,11 +242,15 @@ for case in CORPUS["cases"]:
     seen.add(case["id"])
     expected = case["expected"]
     keys = set(expected)
-    assert keys in [{"ids"}, {"editions"}, {"count"}, {"roots", "links", "beads"}, {"error"}, {"runtimeError"}], case["id"]
-    wanted_outcome = "static-refusal" if case["admission"] != "accept" else "runtime-refusal" if "runtimeError" in expected else "result"
+    assert keys in [{"ids"}, {"editions"}, {"count"}, {"roots", "links", "beads"}, {"error"}, {"runtimeError"}, {"allowedOutcomes"}], case["id"]
+    wanted_outcome = "static-refusal" if case["admission"] != "accept" else "execution-dependent" if "allowedOutcomes" in expected else "runtime-refusal" if "runtimeError" in expected else "result"
     assert case["outcome"] == wanted_outcome, case["id"]
     for key in keys & {"ids", "editions", "roots", "links", "beads"}:
         assert expected[key] == sorted(set(expected[key])), case["id"]
+    for outcome in expected.get("allowedOutcomes", []):
+        assert set(outcome) in [{"ids"}, {"runtimeError"}], case["id"]
+        if "ids" in outcome:
+            assert outcome["ids"] == sorted(set(outcome["ids"])), case["id"]
     errors = list(VALIDATOR.iter_errors(case["request"]))
     if case["admission"] == "reject-schema":
         assert errors, case["id"]

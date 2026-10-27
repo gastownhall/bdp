@@ -216,7 +216,9 @@ Beads. A planner may push tests down only when doing so preserves that answer.
 ## Quantifiers and completeness
 
 `any` returns true if at least one member passes its test; an omitted test is
-true. `all` returns true if every member passes its required test. The AST
+true and declares no unused quantifier binding. A supplied `any` test and its
+binding occur together. A traversal's separate `through` binding remains local
+to that restriction. `all` returns true if every member passes its required test. The AST
 contains input, binder, and test directly. It does not first filter the input and
 then universally quantify the surviving Resources.
 
@@ -234,6 +236,16 @@ for `any` or true for `all`. Required unavailable data remains a failure wheneve
 it prevents the answer from being established. Valid definitive short-circuit
 answers do not require unrelated enumeration to finish. Services MUST NOT make
 arbitrary Boolean branch-order differences into conflicting successful answers.
+
+**Author-proposed execution policy:** an evaluator may fail fast on a required
+runtime acquisition error before it has established a definitive witness or
+counterexample. It need not continue searching for another branch that might
+prove the answer. If a valid witness/counterexample is established first, it is
+definitive and unrelated unfinished acquisitions need not occur. Success versus
+uniform refusal may therefore depend on executed work; conflicting successful
+Booleans remain forbidden. This is an explicit policy proposal for review, not a
+new selected ruling. Pre-execution syntax/type/capability admission and explicit
+root assertions remain mandatory and are never bypassed by a later proof.
 
 Completeness and termination reasons belong to evaluator/response reporting.
 There is no language-level `unknown` Boolean, `complete()` predicate, or implicit
@@ -296,6 +308,10 @@ subset. The structured List profile is not the retained bounded Selector grammar
 Literal contains, array membership, and structured comparison literals may exceed
 what that old carrier can express. They require the explicitly new predicate
 carrier, not unadvertised functions/nested filters in `selector=`.
+List `contains` requires a literal substring operand. A literal text searched for
+a candidate-derived substring is outside this initial List subset; Query may
+admit that richer local test. This asymmetry keeps ordinary field-search lowering
+simple and does not change existing compatibility matching.
 
 Graph-only support requires no arbitrary predicate parser or full Query support.
 List and Graph are independently admitted subsets. A declared profile is checked
