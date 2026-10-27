@@ -51,6 +51,9 @@ discriminator, not a new Resource property or a replacement for Bead/Link Types.
 Requests declare `ir: "bdp-query-design-1"`, a `profile`, a `selection`, and a
 `result.form`. That design identifier MUST NOT be advertised as a released BDP
 version. Profile names and representation spellings remain reviewable.
+Here `profile` denotes an admitted AST subset; it does not change the native
+Core/Write discovery profile literal. Capability URI/version selection still
+requires the explicit discovery integration listed below.
 
 ## Collections and bindings
 
@@ -69,13 +72,22 @@ References use the shared URI/string-or-pinned-object shape. The CLI resolves it
 quoted relative Reference literals against the selected Scope and uses the
 shared ordinal/token rules where those are actually supported. It MUST NOT
 manufacture a revision from a string suffix or introduce an ordinal wire token.
+Every supplied Reference must resolve to an authorized Resource of the asserted
+kind. Missing and authorization-hidden identities use the same inherited uniform
+unknown-Resource outcome; do not drop failed roots and return partial success.
+An empty supplied array is a genuinely empty selection. A pinned `refs` entry
+requires actual advertised exact application History support and its retention,
+body, authorization and Reference-closure checks. No capability is inferred from
+the AST shape or the existence of a stored token.
 
 A binding names one member, not its whole input collection. A `filter` binding is
 visible only in its predicate. A `walk` binding is visible only in `through`.
 Quantifier bindings are visible only in their test. An inner binding of the same
 name shadows the outer binding in that region. Inputs and roots are evaluated in
 the enclosing environment, before the new member binding is introduced. Unknown
-or forward names refuse. Duplicate names in one declaration scope refuse.
+or forward names refuse. The surface parser rejects duplicate declarations in
+one scope; each AST node declares at most one name, so that case is not separately
+expressible in this encoding.
 
 CLI syntax can introduce a single alias used by both a traversal restriction and
 its outer selection. Lowering may repeat that name in the separate `walk` and
@@ -111,6 +123,15 @@ List's literal right operands avoid that case. These are value semantics, not a
 third Boolean or a successful answer to an unavailable read. Malformed operations,
 unsupported capabilities, and required acquisition failures remain failures.
 
+Inventory scans enumerate only the request's Authorization View. An authorized
+Link may still carry a Reference whose target the caller cannot read. A required
+endpoint acquisition then uses the same uniform unknown-Resource outcome as a
+missing target, without disclosing whether the identity exists or is hidden.
+It does not become an absent `status` field or a successful negative finding.
+The selected unavailable-content rule applies whenever that content is needed
+to determine the answer. This is distinct from a hidden Link never entering the
+input collection in the first place.
+
 `compare` with two Resources admits equality/inequality and compares canonical
 identity plus concrete selected revision. It does not compare their JSON bodies.
 Resource-to-string and Resource-to-raw-Reference comparison refuse rather than
@@ -128,8 +149,15 @@ string operands do not satisfy contains. Exact membership tests an array element
 missing/null/non-array collections do not satisfy it. JSON null and booleans are
 not numbers. Exact numeric/interoperability limits remain governed by the shared
 JSON admission rules rather than host-language coercion.
+`id` and `rev` both return strings, so comparing their returned values is ordinary
+string comparison; they do not introduce extra implicit nominal scalar domains.
 
 `typeIs` resolves a nominal Type identity and requests exact or family matching.
+The operand is an unpinned absolute nominal Type identity. Exact matching compares
+that URI to the declared affiliation URI, extracting `.uri` from a pinned Type
+Reference and ignoring its definition revision. It does not select an exact
+definition version. A raw `field` path to `type`, like `source` or `target`, sees
+the stored Reference union rather than a flattened or dereferenced value.
 Family includes refinements under the authoritative recorded interpretation
 rules. Missing family authority refuses; there is no exact-only fallback.
 
@@ -139,6 +167,13 @@ rules. Missing family authority refuses; there is no exact-only fallback.
 an optional depth. Absence means one. A nonnegative integer bounds Link hops;
 `"unbounded"` removes that semantic bound. It does not remove work budgets.
 Depth zero returns no Links. Graph result formation still retains explicit roots.
+The initial walk candidate admits only current Bead roots. Known pinned root
+operands refuse pending an edition-aware incidence capability; a computed root
+that selects noncurrent content likewise refuses before expansion. This is an
+explicit author-proposed first-slice restriction, not a ban on later historical
+traversal. Exact `refs` reads and pinned endpoint navigation still use their
+qualified History contract. Neither pin spelling nor a successful historical
+body read invents a historical Link population.
 
 At each reached Bead, inspect incident Links in the requested direction. Evaluate
 `through`, if supplied, on the actual prospective Link edition. False excludes
@@ -156,6 +191,15 @@ route MUST permit the expansions a prematurely recorded longer route would hide.
 Records deduplicate by canonical identity plus selected revision. Distinct Link
 identities remain distinct for the same endpoint pair. Enumeration order is not
 a path count or a statement of ownership.
+
+A Link-only one-hop result can retain an opaque endpoint Reference without
+acquiring its body, if neither `through` nor result selection needs it. Expanding
+that endpoint at a deeper hop requires supported, authorized acquisition; if that
+cannot be established, the initial candidate refuses rather than treating it as
+an exhausted branch. Explicit `endpoint`/`endpoints` and graph formation require
+their selected Bead content and likewise refuse when it is unavailable. An opaque
+stub/frontier graph representation is a possible later extension, not implicit
+partial success in this first slice.
 
 Operational algorithms may use visited tables, recursive SQL, provider graph
 operations, or another equivalent implementation. A finite authorized graph with
@@ -206,6 +250,10 @@ distinct edition count before paging; zero is the empty answer. Both List and
 Query use this result mode. The evaluator can lower it directly to storage and
 need not fetch Resource bodies. Projection does not change the count. An
 unfinished count MUST NOT be reported as exact.
+Count, graph closure, and quantifier completeness are relative to the request's
+Authorization View and admitted read context, never a count of hidden inventory
+members. Failure to acquire content required by a visible member's predicate
+still follows the uniform unavailable-endpoint rule above.
 
 `graph` forms a graph from an explicit walk: preserve roots, traversed Link
 editions, and selected endpoint Bead editions. Isolated roots survive. Link
@@ -220,7 +268,10 @@ No graph count unit is silently selected.
 Shared [Resource projection](resource-projection.md) applies to Resource results.
 Graphs require separately targeted Bead/Link masks; that mixed-carrier grammar is
 still open. Sorting applies to full selected Resource data before projection and
-delivery. Shared paging/continuation rules apply only through their declared
+delivery when the accepted one-pointer request-sort extension is bound. Retained
+Core's authority-advertised `order` remains its baseline; per-request sorting needs
+an explicit protocol/discovery/carrier amendment. This AST schema does not assign
+that common control a wire member. Shared paging/continuation rules apply only through their declared
 carrier; this draft assigns no private cursor, endpoint, or new result envelope.
 
 ## Profiles: obvious structural subsets
@@ -239,6 +290,12 @@ Type tests, local identity/revision extraction, and literal comparison operands.
 Link endpoint URI flags can lower to comparisons over the stored Reference union
 without acquiring Beads. List's collection remains current even if a predicate
 compares its revision fields. Query reuses these exact nodes and meanings.
+Exact membership admits both a literal element in a local array and a local
+scalar in a literal array; field-to-field membership is outside this initial List
+subset. The structured List profile is not the retained bounded Selector grammar.
+Literal contains, array membership, and structured comparison literals may exceed
+what that old carrier can express. They require the explicitly new predicate
+carrier, not unadvertised functions/nested filters in `selector=`.
 
 Graph-only support requires no arbitrary predicate parser or full Query support.
 List and Graph are independently admitted subsets. A declared profile is checked
@@ -253,8 +310,9 @@ Before adoption, owners must reconcile:
 
 1. Native request transport/discovery, contract/version identifiers, capability
    advertisement, profile bounds, and exact refusal codes.
-2. Current collection and point-read projection parameters and validator behavior;
-   existing exact History GET currently forbids combining other query members.
+2. Current collection and point-read projection parameters, projected record/item
+   schema definitions, and validator behavior. Full-record/always-metadata/owned-
+   state clauses and exact History's revision-only query need explicit amendments.
 3. Result framing, graph component masks, ordering/value bounds, completeness and
    native continuation. Existing History/Events delivery is not replaced.
 4. CLI command assertions for full expressions versus generated candidate filters,
@@ -273,3 +331,4 @@ JSONPath remains a useful semantic reference and a possible later predicate
 encoding. A future version may add reviewed function extensions or another
 representation. No executable strings, JSONPath callbacks, SQL, `select`, or
 general record constructors are hidden inside this initial complete AST.
+Collection-level union/intersection/difference and path results are also deferred.

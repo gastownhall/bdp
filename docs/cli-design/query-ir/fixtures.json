@@ -17,7 +17,8 @@
               "memory"
             ],
             "priority": 1
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/B",
@@ -26,7 +27,8 @@
           "properties": {
             "status": "met",
             "team": "platform"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/C",
@@ -34,7 +36,8 @@
           "revision": "r1",
           "properties": {
             "status": "draft"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/D",
@@ -42,13 +45,15 @@
           "revision": "r1",
           "properties": {
             "status": "retired"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/U",
           "type": "https://work.example/acme/note",
           "revision": "r1",
-          "properties": {}
+          "properties": {},
+          "metadata": {}
         }
       ],
       "links": [
@@ -60,7 +65,8 @@
           "target": "https://work.example/acme/B",
           "properties": {
             "status": "active"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/L2",
@@ -70,7 +76,8 @@
           "target": "https://work.example/acme/C",
           "properties": {
             "status": "active"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/L4",
@@ -80,7 +87,8 @@
           "target": "https://work.example/acme/A",
           "properties": {
             "status": "active"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/L5",
@@ -90,7 +98,8 @@
           "target": "https://work.example/acme/B",
           "properties": {
             "status": "draft"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/LS",
@@ -100,7 +109,8 @@
           "target": "https://work.example/acme/B",
           "properties": {
             "status": "active"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/LX",
@@ -110,7 +120,8 @@
           "target": "https://work.example/acme/D",
           "properties": {
             "status": "draft"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/L3",
@@ -120,7 +131,8 @@
           "target": "https://work.example/acme/C",
           "properties": {
             "status": "draft"
-          }
+          },
+          "metadata": {}
         }
       ],
       "typeParents": {
@@ -141,7 +153,8 @@
           "id": "https://work.example/acme/pin-root",
           "type": "https://work.example/acme/note",
           "revision": "r1",
-          "properties": {}
+          "properties": {},
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/P",
@@ -149,7 +162,8 @@
           "revision": "r2",
           "properties": {
             "status": "new"
-          }
+          },
+          "metadata": {}
         }
       ],
       "savedEditions": [
@@ -159,7 +173,8 @@
           "revision": "r1",
           "properties": {
             "status": "old"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/P",
@@ -167,7 +182,8 @@
           "revision": "current",
           "properties": {
             "status": "literal-token"
-          }
+          },
+          "metadata": {}
         }
       ],
       "links": [
@@ -182,7 +198,8 @@
           },
           "properties": {
             "status": "active"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/pin-floating",
@@ -192,7 +209,8 @@
           "target": "https://work.example/acme/P",
           "properties": {
             "status": "active"
-          }
+          },
+          "metadata": {}
         }
       ],
       "typeParents": {}
@@ -203,7 +221,8 @@
           "id": "https://work.example/acme/external-root",
           "type": "https://work.example/acme/note",
           "revision": "r1",
-          "properties": {}
+          "properties": {},
+          "metadata": {}
         }
       ],
       "links": [
@@ -215,7 +234,8 @@
           "target": "https://unavailable.example/opaque",
           "properties": {
             "status": "active"
-          }
+          },
+          "metadata": {}
         }
       ],
       "typeParents": {}
@@ -231,7 +251,8 @@
             "status": "draft",
             "title": "CSV export plan",
             "body": "Export selected rows with column headings."
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/csv-format",
@@ -241,7 +262,8 @@
             "status": "ratified",
             "title": "CSV format",
             "body": "Keep a header row even when no rows are selected."
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/csv-review",
@@ -251,7 +273,8 @@
             "status": "draft",
             "title": "Spreadsheet review",
             "body": "Open the exported file in spreadsheet tools."
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/csv-encoding",
@@ -261,7 +284,8 @@
             "status": "ratified",
             "title": "CSV encoding",
             "body": "Use UTF-8."
-          }
+          },
+          "metadata": {}
         }
       ],
       "links": [
@@ -273,7 +297,8 @@
           "target": "https://work.example/acme/csv-format",
           "properties": {
             "status": "active"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/csv-format-review",
@@ -283,7 +308,8 @@
           "target": "https://work.example/acme/csv-review",
           "properties": {
             "status": "active"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/csv-review-plan",
@@ -293,7 +319,8 @@
           "target": "https://work.example/acme/csv-plan",
           "properties": {
             "status": "draft"
-          }
+          },
+          "metadata": {}
         },
         {
           "id": "https://work.example/acme/csv-plan-format-alt",
@@ -303,7 +330,8 @@
           "target": "https://work.example/acme/csv-format",
           "properties": {
             "status": "draft"
-          }
+          },
+          "metadata": {}
         }
       ],
       "typeParents": {
@@ -319,6 +347,102 @@
         "Human overview excerpts omit protocol administrative detail; these fixture revision tokens exist only for schema/case identity.",
         "No csv-draft/csv-checks/csv-context objects exist initially; overview03 creates them."
       ]
+    },
+    "pinned-affiliations": {
+      "beads": [
+        {
+          "id": "https://work.example/acme/pinned-note",
+          "type": {
+            "uri": "https://work.example/acme/encoding-note",
+            "revision": "encoding-definition-1"
+          },
+          "revision": "r1",
+          "properties": {
+            "status": "ratified"
+          },
+          "metadata": {}
+        }
+      ],
+      "links": [],
+      "typeParents": {
+        "https://work.example/acme/encoding-note": [
+          "https://work.example/acme/note"
+        ]
+      },
+      "interpretationNote": "Fixture assumes the recorded exact encoding-definition-1 declares the note parent in the authoritative interpreting context; nominal exact matching ignores this pin."
+    },
+    "shorter-route": {
+      "beads": [
+        {
+          "id": "https://work.example/acme/R",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {},
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/X",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {},
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/Y",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {},
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/Z",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {},
+          "metadata": {}
+        }
+      ],
+      "links": [
+        {
+          "id": "https://work.example/acme/RY",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/R",
+          "target": "https://work.example/acme/Y",
+          "properties": {},
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/YX",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/Y",
+          "target": "https://work.example/acme/X",
+          "properties": {},
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/XZ",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/X",
+          "target": "https://work.example/acme/Z",
+          "properties": {},
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/RX",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/R",
+          "target": "https://work.example/acme/X",
+          "properties": {},
+          "metadata": {}
+        }
+      ],
+      "typeParents": {},
+      "note": "Input order deliberately presents the longer route before the shorter R\u2192X edge. Depth2 must still expand X\u2192Z."
     }
-  }
+  },
+  "recordShape": "Logical fixture Resource contents for AST obligations, not complete native HTTP/History responses or Type-authority certificates. Provider harness supplies real disclosure/provenance/retention context."
 }

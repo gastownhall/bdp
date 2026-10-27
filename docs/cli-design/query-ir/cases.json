@@ -46,7 +46,8 @@
           "C"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "list-count",
@@ -89,7 +90,8 @@
       "expected": {
         "count": 1
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "list-type-family",
@@ -127,7 +129,8 @@
           "D"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "list-type-exact",
@@ -162,7 +165,8 @@
           "A"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "list-field-to-field-refuses",
@@ -212,7 +216,8 @@
       "expected": {
         "error": "outside-profile"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "list-endpoint-body-refuses",
@@ -259,7 +264,8 @@
       "expected": {
         "error": "outside-profile"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "list-reference-union-local",
@@ -329,7 +335,8 @@
           "LX"
         ]
       },
-      "note": "Stored Reference identity tests acquire no endpoint bodies."
+      "note": "Stored Reference identity tests acquire no endpoint bodies.",
+      "outcome": "result"
     },
     {
       "id": "graph-one-hop",
@@ -377,7 +384,8 @@
           "B"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "graph-depth-zero",
@@ -421,7 +429,8 @@
           "A"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "graph-isolated-root",
@@ -465,7 +474,8 @@
           "U"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "graph-multiple-roots",
@@ -516,7 +526,8 @@
           "U"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "graph-requires-closure",
@@ -568,7 +579,8 @@
           "C"
         ]
       },
-      "note": "Defines refines Requires; cycle, parallel, and self Links survive once each."
+      "note": "Defines refines Requires; cycle, parallel, and self Links survive once each.",
+      "outcome": "result"
     },
     {
       "id": "graph-exact-requires",
@@ -617,7 +629,8 @@
           "B"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "graph-general-predicate-refuses",
@@ -679,7 +692,8 @@
       "expected": {
         "error": "outside-profile"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "graph-filtered-result-refuses",
@@ -740,7 +754,8 @@
       "expected": {
         "error": "graph-result-needs-direct-walk"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "walk-default-depth",
@@ -771,7 +786,8 @@
           "LX"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "walk-incoming",
@@ -811,7 +827,8 @@
           "L4"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "walk-connected",
@@ -853,7 +870,8 @@
           "L5"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "walk-filter-after-traversal",
@@ -921,7 +939,8 @@
           "L5"
         ]
       },
-      "note": "Unrestricted traversal crosses LX and discovers L3."
+      "note": "Unrestricted traversal crosses LX and discovers L3.",
+      "outcome": "result"
     },
     {
       "id": "walk-through-before-filter",
@@ -984,7 +1003,8 @@
           "L5"
         ]
       },
-      "note": "Requires-only traversal cannot cross LX to reach L3."
+      "note": "Requires-only traversal cannot cross LX to reach L3.",
+      "outcome": "result"
     },
     {
       "id": "walk-result-filter-does-not-prune",
@@ -1051,7 +1071,8 @@
           "L2"
         ]
       },
-      "note": "May traverse met B before returning B\u2192C."
+      "note": "May traverse met B before returning B\u2192C.",
+      "outcome": "result"
     },
     {
       "id": "walk-step-filter-prunes",
@@ -1117,7 +1138,8 @@
       "expected": {
         "ids": []
       },
-      "note": "A\u2192B fails step target test; cannot discover C through B."
+      "note": "A\u2192B fails step target test; cannot discover C through B.",
+      "outcome": "result"
     },
     {
       "id": "endpoint-collection-dedup",
@@ -1161,7 +1183,8 @@
           "B"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "endpoint-source-navigation",
@@ -1205,7 +1228,8 @@
           "C"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "any-without-test",
@@ -1260,7 +1284,8 @@
           "A"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "any-empty-false",
@@ -1313,7 +1338,8 @@
       "expected": {
         "ids": []
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "all-empty-true",
@@ -1369,7 +1395,8 @@
           "U"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "all-direct-targets-met",
@@ -1444,7 +1471,8 @@
           "A"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "all-unbounded-counterexample",
@@ -1520,7 +1548,8 @@
       "expected": {
         "ids": []
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "nested-outer-capture",
@@ -1602,7 +1631,8 @@
           "A"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "nested-lexical-shadow",
@@ -1673,7 +1703,8 @@
           "A"
         ]
       },
-      "note": "Inner b is the traversed Link; outer b is intentionally shadowed."
+      "note": "Inner b is the traversed Link; outer b is intentionally shadowed.",
+      "outcome": "result"
     },
     {
       "id": "unknown-binding-refuses",
@@ -1719,7 +1750,8 @@
       "expected": {
         "error": "unknown-binding"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "all-without-test-refuses",
@@ -1769,7 +1801,8 @@
       "expected": {
         "error": "invalid-ast"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "negative-depth-refuses",
@@ -1797,7 +1830,8 @@
       "expected": {
         "error": "invalid-ast"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "boolean-top-level-refuses",
@@ -1814,7 +1848,8 @@
       "expected": {
         "error": "invalid-ast"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "raw-source-string-refuses",
@@ -1834,7 +1869,8 @@
       "expected": {
         "error": "invalid-ast"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "endpoint-on-bead-refuses",
@@ -1881,7 +1917,8 @@
       "expected": {
         "error": "wrong-resource-kind"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "missing-equality-false",
@@ -1927,7 +1964,8 @@
       "expected": {
         "ids": []
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "missing-inequality-true",
@@ -1975,7 +2013,8 @@
           "A"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "present-null-true",
@@ -2018,7 +2057,8 @@
           "A"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "case-sensitive-contains",
@@ -2063,7 +2103,8 @@
       "expected": {
         "ids": []
       },
-      "note": "A title is Cache design."
+      "note": "A title is Cache design.",
+      "outcome": "result"
     },
     {
       "id": "literal-contains-no-wildcard",
@@ -2108,7 +2149,8 @@
       "expected": {
         "ids": []
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "exact-array-membership",
@@ -2155,7 +2197,8 @@
           "A"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "typed-no-coercion",
@@ -2201,7 +2244,8 @@
       "expected": {
         "ids": []
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "endpoint-pins-preserved",
@@ -2236,7 +2280,8 @@
           "P@r2"
         ]
       },
-      "note": "Pinned and floating target Links select different editions of P in one read context."
+      "note": "Pinned and floating target Links select different editions of P in one read context.",
+      "outcome": "result"
     },
     {
       "id": "rev-returns-concrete",
@@ -2289,7 +2334,8 @@
           "P@r1"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "required-endpoint-unavailable",
@@ -2342,9 +2388,10 @@
       },
       "admission": "accept",
       "expected": {
-        "error": "required-acquisition-unavailable"
+        "runtimeError": "required-acquisition-unavailable"
       },
-      "note": ""
+      "note": "",
+      "outcome": "runtime-refusal"
     },
     {
       "id": "count-before-paging",
@@ -2387,7 +2434,8 @@
       "expected": {
         "count": 4
       },
-      "note": "L1,L2,L5,LS are collected by expansion inside two hops; C is at the boundary, so its outgoing L4 is not expanded. Count precedes delivery."
+      "note": "L1,L2,L5,LS are collected by expansion inside two hops; C is at the boundary, so its outgoing L4 is not expanded. Count precedes delivery.",
+      "outcome": "result"
     },
     {
       "id": "count-zero",
@@ -2415,7 +2463,8 @@
       "expected": {
         "count": 0
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "overview-list-draft-notes",
@@ -2474,7 +2523,8 @@
           "csv-review"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "overview-graph-two-hops",
@@ -2514,17 +2564,18 @@
           "csv-plan"
         ],
         "links": [
+          "csv-format-review",
           "csv-plan-format",
-          "csv-plan-format-alt",
-          "csv-format-review"
+          "csv-plan-format-alt"
         ],
         "beads": [
-          "csv-plan",
           "csv-format",
+          "csv-plan",
           "csv-review"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "overview-query-ratified-target",
@@ -2596,7 +2647,8 @@
           "csv-plan"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "query-all-ratified-targets",
@@ -2669,7 +2721,8 @@
       "expected": {
         "ids": []
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "overview-graph-cycle",
@@ -2709,18 +2762,19 @@
           "csv-plan"
         ],
         "links": [
+          "csv-format-review",
           "csv-plan-format",
           "csv-plan-format-alt",
-          "csv-format-review",
           "csv-review-plan"
         ],
         "beads": [
-          "csv-plan",
           "csv-format",
+          "csv-plan",
           "csv-review"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "overview-note-family",
@@ -2757,7 +2811,8 @@
           "csv-review"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "overview-note-exact",
@@ -2793,7 +2848,8 @@
           "csv-review"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "resource-edition-equality",
@@ -2868,7 +2924,8 @@
       "expected": {
         "ids": []
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "resource-identity-only",
@@ -2952,7 +3009,8 @@
           "pin-floating"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "resource-ordering-refuses",
@@ -2992,7 +3050,8 @@
       "expected": {
         "error": "resource-ordering"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "resource-string-coercion-refuses",
@@ -3032,7 +3091,8 @@
       "expected": {
         "error": "incompatible-comparison-domains"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "two-missing-paths-equal",
@@ -3087,7 +3147,8 @@
           "A"
         ]
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "empty-roots-empty-links",
@@ -3123,7 +3184,8 @@
       "expected": {
         "ids": []
       },
-      "note": ""
+      "note": "",
+      "outcome": "result"
     },
     {
       "id": "walk-link-roots-refuse",
@@ -3148,7 +3210,8 @@
       "expected": {
         "error": "wrong-root-kind"
       },
-      "note": ""
+      "note": "",
+      "outcome": "static-refusal"
     },
     {
       "id": "count-with-mask-unchanged",
@@ -3196,7 +3259,8 @@
       "expected": {
         "count": 1
       },
-      "note": "Logical count is independent of masks. Final CLI flag conflict policy remains an incorporation item."
+      "note": "Logical count is independent of masks. Final CLI flag conflict policy remains an incorporation item.",
+      "outcome": "result"
     },
     {
       "id": "literal-current-token-not-selector",
@@ -3224,7 +3288,1349 @@
           "P@current"
         ]
       },
-      "note": "The pinned native object uses the exact opaque token current. It must not select current P@r2."
+      "note": "The pinned native object uses the exact opaque token current. It must not select current P@r2.",
+      "outcome": "result"
+    },
+    {
+      "id": "pinned-refs-history-read",
+      "fixture": "pins",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": [
+            {
+              "uri": "https://work.example/acme/P",
+              "revision": "r1"
+            }
+          ]
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "editions": [
+          "P@r1"
+        ]
+      },
+      "note": "Assumes actual complete application History and required authorization/closure; no historical Link inventory inferred.",
+      "outcome": "result"
+    },
+    {
+      "id": "pinned-refs-history-capability-unavailable",
+      "fixture": "pins",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": [
+            {
+              "uri": "https://work.example/acme/P",
+              "revision": "r1"
+            }
+          ]
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "runtimeError": "unsupported-exact-history"
+      },
+      "note": "Same AST against an authority without the required capability refuses at runtime admission.",
+      "outcome": "runtime-refusal",
+      "contextOverrides": {
+        "applicationHistory": false
+      }
+    },
+    {
+      "id": "historical-root-walk-refuses",
+      "fixture": "pins",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              {
+                "uri": "https://work.example/acme/P",
+                "revision": "r1"
+              }
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 1
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-semantic",
+      "expected": {
+        "error": "historical-walk-roots-unsupported"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "missing-explicit-root",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": [
+            "https://work.example/acme/unavailable-root"
+          ]
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "runtimeError": "resource-not-found"
+      },
+      "note": "Absent root is not dropped.",
+      "outcome": "runtime-refusal"
+    },
+    {
+      "id": "hidden-explicit-root",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": [
+            "https://work.example/acme/B"
+          ]
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "runtimeError": "resource-not-found"
+      },
+      "note": "Authorization-hidden root has the same uniform outcome as absent.",
+      "outcome": "runtime-refusal",
+      "contextOverrides": {
+        "hiddenIdentities": [
+          "https://work.example/acme/B"
+        ]
+      }
+    },
+    {
+      "id": "actual-kind-assertion-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "refs",
+          "collection": "links",
+          "references": [
+            "https://work.example/acme/A"
+          ]
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "runtimeError": "kind-mismatch-under-shared-contract"
+      },
+      "note": "Declared collection does not override actual Resource kind; diagnosis label does not introduce a wire Problem.",
+      "outcome": "runtime-refusal"
+    },
+    {
+      "id": "hidden-target-not-missing-property",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "walk",
+            "roots": {
+              "op": "refs",
+              "collection": "beads",
+              "references": [
+                "https://work.example/acme/A"
+              ]
+            },
+            "direction": "outgoing",
+            "depth": 1
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "endpoint",
+                "of": {
+                  "op": "binding",
+                  "name": "b"
+                },
+                "side": "target"
+              },
+              "path": [
+                "properties",
+                "status"
+              ]
+            },
+            "right": {
+              "op": "literal",
+              "value": "draft"
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "runtimeError": "resource-not-found"
+      },
+      "note": "Use a view where a visible Link target is hidden. Required acquisition uses uniform not-found; it cannot become an absent property.",
+      "outcome": "runtime-refusal",
+      "contextOverrides": {
+        "hiddenIdentities": [
+          "https://work.example/acme/B"
+        ],
+        "visibleLinkIdentities": [
+          "https://work.example/acme/L1",
+          "https://work.example/acme/L5",
+          "https://work.example/acme/LX"
+        ]
+      }
+    },
+    {
+      "id": "external-one-hop-links",
+      "fixture": "external",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/external-root"
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 1
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "external-link"
+        ]
+      },
+      "note": "No body is needed to retain this Link; through/result predicates do not acquire target content.",
+      "outcome": "result"
+    },
+    {
+      "id": "external-depth-two-expansion-refuses",
+      "fixture": "external",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/external-root"
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 2
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "runtimeError": "required-acquisition-unavailable"
+      },
+      "note": "Cannot silently treat an unestablished external expansion as exhausted.",
+      "outcome": "runtime-refusal"
+    },
+    {
+      "id": "external-graph-formation-refuses",
+      "fixture": "external",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "graph",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/external-root"
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 1
+        },
+        "result": {
+          "form": "graph"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "runtimeError": "required-acquisition-unavailable"
+      },
+      "note": "Initial graph mode requires endpoint Beads; no implicit opaque-stub carrier is defined.",
+      "outcome": "runtime-refusal"
+    },
+    {
+      "id": "external-endpoint-navigation-refuses",
+      "fixture": "external",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "endpoints",
+          "input": {
+            "op": "walk",
+            "roots": {
+              "op": "refs",
+              "collection": "beads",
+              "references": [
+                "https://work.example/acme/external-root"
+              ]
+            },
+            "direction": "outgoing",
+            "depth": 1
+          },
+          "side": "target"
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "runtimeError": "required-acquisition-unavailable"
+      },
+      "note": "",
+      "outcome": "runtime-refusal"
+    },
+    {
+      "id": "graph-projection-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "graph",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/A"
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 1,
+          "bind": "link",
+          "through": {
+            "op": "typeIs",
+            "of": {
+              "op": "binding",
+              "name": "link"
+            },
+            "type": "https://work.example/acme/requires",
+            "match": "family"
+          }
+        },
+        "result": {
+          "form": "graph"
+        },
+        "projection": {
+          "include": [
+            "/properties/title"
+          ]
+        }
+      },
+      "admission": "reject-semantic",
+      "expected": {
+        "error": "graph-projection-undefined"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "list-scalar-in-literal-array",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "member",
+            "value": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "properties",
+                "status"
+              ]
+            },
+            "array": {
+              "op": "literal",
+              "value": [
+                "draft",
+                "ratified"
+              ]
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "A",
+          "C"
+        ]
+      },
+      "note": "",
+      "outcome": "result"
+    },
+    {
+      "id": "list-field-in-field-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "member",
+            "value": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "properties",
+                "status"
+              ]
+            },
+            "array": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "properties",
+                "labels"
+              ]
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-semantic",
+      "expected": {
+        "error": "outside-profile"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "pinned-affiliation-exact-nominal",
+      "fixture": "pinned-affiliations",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "typeIs",
+            "of": {
+              "op": "binding",
+              "name": "b"
+            },
+            "type": "https://work.example/acme/encoding-note",
+            "match": "exact"
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "pinned-note"
+        ]
+      },
+      "note": "",
+      "outcome": "result"
+    },
+    {
+      "id": "pinned-affiliation-family",
+      "fixture": "pinned-affiliations",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "typeIs",
+            "of": {
+              "op": "binding",
+              "name": "b"
+            },
+            "type": "https://work.example/acme/note",
+            "match": "family"
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "pinned-note"
+        ]
+      },
+      "note": "",
+      "outcome": "result"
+    },
+    {
+      "id": "pinned-affiliation-raw-uri-field",
+      "fixture": "pinned-affiliations",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "type",
+                "uri"
+              ]
+            },
+            "right": {
+              "op": "literal",
+              "value": "https://work.example/acme/encoding-note"
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "pinned-note"
+        ]
+      },
+      "note": "",
+      "outcome": "result"
+    },
+    {
+      "id": "pinned-affiliation-not-flattened",
+      "fixture": "pinned-affiliations",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "type"
+              ]
+            },
+            "right": {
+              "op": "literal",
+              "value": "https://work.example/acme/encoding-note"
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": []
+      },
+      "note": "",
+      "outcome": "result"
+    },
+    {
+      "id": "shorter-route-reexpands",
+      "fixture": "shorter-route",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/R"
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 2
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "RX",
+          "RY",
+          "XZ",
+          "YX"
+        ]
+      },
+      "note": "",
+      "outcome": "result"
+    },
+    {
+      "id": "root-include-whole-resource",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "include": [
+            ""
+          ]
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "U"
+        ]
+      },
+      "note": "",
+      "outcome": "result"
+    },
+    {
+      "id": "protected-field-omission-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "omit": [
+            "/id"
+          ]
+        }
+      },
+      "admission": "reject-semantic",
+      "expected": {
+        "error": "protected-projection"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "nested-owned-plane-mask-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "include": [
+            "/ownedLinks/anything"
+          ]
+        }
+      },
+      "admission": "reject-semantic",
+      "expected": {
+        "error": "unsupported-plane-mask"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "whole-owned-plane-omit",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "omit": [
+            "/ownedLinks"
+          ]
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "U"
+        ]
+      },
+      "note": "Representation omission only; content membership/count unchanged and full-record claims must be projected.",
+      "outcome": "result"
+    },
+    {
+      "id": "invalid-pointer-escape",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "include": [
+            "/a~2b"
+          ]
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "root-omit-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "omit": [
+            ""
+          ]
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "empty-mask-array-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "include": []
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "invalid-binding-name",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "invalid-name",
+          "predicate": true
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "empty-and-node-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "and",
+            "operands": []
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "through-without-binding-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/A"
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 1,
+          "through": true
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "binding-without-through-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/A"
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 1,
+          "bind": "unused"
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "empty-field-path-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": []
+            },
+            "right": {
+              "op": "literal",
+              "value": "x"
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "duplicate-root-literals-refuse",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": [
+            "https://work.example/acme/A",
+            "https://work.example/acme/A"
+          ]
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "unknown-node-member-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "scan",
+          "collection": "beads",
+          "surprise": "code"
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "relative-wire-reference-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": [
+            "relative-root"
+          ]
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "relative-wire-type-refuses",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "typeIs",
+            "of": {
+              "op": "binding",
+              "name": "b"
+            },
+            "type": "relative-type",
+            "match": "exact"
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-schema",
+      "expected": {
+        "error": "invalid-ast"
+      },
+      "note": "",
+      "outcome": "static-refusal"
+    },
+    {
+      "id": "stored-pinned-reference-uri-arm",
+      "fixture": "pins",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "links"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "target",
+                "uri"
+              ]
+            },
+            "right": {
+              "op": "literal",
+              "value": "https://work.example/acme/P"
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "pin-fixed"
+        ]
+      },
+      "note": "",
+      "outcome": "result"
+    },
+    {
+      "id": "stored-floating-reference-string-arm",
+      "fixture": "pins",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "links"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "target"
+              ]
+            },
+            "right": {
+              "op": "literal",
+              "value": "https://work.example/acme/P"
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "pin-floating"
+        ]
+      },
+      "note": "",
+      "outcome": "result"
+    },
+    {
+      "id": "main-document-through-then-filter",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "walk",
+            "roots": {
+              "op": "refs",
+              "collection": "beads",
+              "references": [
+                "https://work.example/acme/A"
+              ]
+            },
+            "direction": "outgoing",
+            "depth": "unbounded",
+            "bind": "link",
+            "through": {
+              "op": "typeIs",
+              "of": {
+                "op": "binding",
+                "name": "link"
+              },
+              "type": "https://work.example/acme/requires",
+              "match": "family"
+            }
+          },
+          "bind": "link",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "endpoint",
+                "of": {
+                  "op": "binding",
+                  "name": "link"
+                },
+                "side": "target"
+              },
+              "path": [
+                "properties",
+                "status"
+              ]
+            },
+            "right": {
+              "op": "literal",
+              "value": "draft"
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "outcome": "result",
+      "expected": {
+        "ids": [
+          "L2"
+        ]
+      },
+      "note": "Exact complete AST printed in query-ir.md; unbounded Requires closure then target draft selection."
+    },
+    {
+      "id": "mixed-visible-hidden-roots-refuse",
+      "fixture": "constraints",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "graph",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/A",
+              "https://work.example/acme/B"
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 1
+        },
+        "result": {
+          "form": "graph"
+        }
+      },
+      "contextOverrides": {
+        "hiddenIdentities": [
+          "https://work.example/acme/B"
+        ]
+      },
+      "admission": "accept",
+      "outcome": "runtime-refusal",
+      "expected": {
+        "runtimeError": "resource-not-found"
+      },
+      "note": "Explicit root acquisition is all-or-refuse; no successful partial-root graph."
     }
   ],
   "execution_obligations": [
@@ -3255,6 +4661,34 @@
     {
       "id": "hidden-endpoint-nondisclosure",
       "expected": "use shared authorization/disclosure policy; do not invent identifying errors"
+    },
+    {
+      "id": "shorter-route-reexpansion",
+      "expected": "R\u2192Y\u2192X encountered before R\u2192X cannot hide X\u2192Z at depth2"
+    },
+    {
+      "id": "authorization-relative-count-and-closure",
+      "expected": "Only authorized collection members are quantified/counted; hidden endpoint acquisition still follows uniform failure rules"
+    },
+    {
+      "id": "computed-historical-walk-root-refuses",
+      "expected": "Noncurrent root derived through endpoint acquisition refuses before initial-slice walk expansion"
+    },
+    {
+      "id": "pinned-link-target-closure",
+      "expected": "Historical Link endpoint acquisition obeys qualified History and target-closure authorization"
     }
-  ]
+  ],
+  "expectedConventions": {
+    "arrays": "Unordered sets of fixture-relative identities or identity@token edition labels; sorted for readability. Delivery order is not tested by these obligations.",
+    "shapes": [
+      "ids",
+      "editions",
+      "count",
+      "roots+links+beads",
+      "error for static refusals",
+      "runtimeError for runtime/authority refusals"
+    ],
+    "outcome": "result, static-refusal, or runtime-refusal; admission checks never claim runtime execution."
+  }
 }

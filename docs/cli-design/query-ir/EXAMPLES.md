@@ -6,6 +6,9 @@ logical requests, not complete HTTP messages. Friendly syntax uses selected
 constructs; final token/command/file grammar remains under review. Expected
 results are authored obligations. The validator checks AST shape and admission,
 not the parser, evaluator, product, or backend.
+Expected identity/edition arrays are unordered sets, sorted for readability.
+Runtime/authority refusals are marked separately from static admission refusals.
+Run the checks with `uv run --no-project --with 'jsonschema[format-nongpl]==4.23.0' python docs/cli-design/query-ir/validate.py`.
 
 The [example index](examples/index.json) binds each expression, fixture, request,
 and expected result to the [case ledger](cases.json). Concrete names are resolved

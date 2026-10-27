@@ -59,6 +59,10 @@ than copying the entire entry from another worktree:
    those helper paragraphs with the selected bracketed-URL selector syntax and
    removal of standalone `--revision` and `json:` Reference escapes. Native
    protocol revision tokens/query decoding remain unchanged.
+8. The ordinary-read contrast in `exact-definition-read.md` also has an old
+   standalone read revision flag. Its owner should change that example to a
+   suffix/bracketed URL without changing exact Type-definition interpretation
+   intent, origin, authority, or the native lookup operation.
 
 ## Protocol/schema/discovery work outside this patch
 
@@ -73,3 +77,11 @@ No broader runtime change is necessary to review this draft. JSON Schema and
 static admission checks validate only the proposed artifacts. The case ledger's
 expected query results, response completeness, HTTP behavior, and backend
 equivalence remain unexecuted obligations.
+
+An actual [Claude review and disposition](review/README.md) accounts for projection
+schema/full-record conflicts, input/endpoint acquisition boundaries, profile
+admission and case gaps. Review recommendations that would change Donna's
+unavailable-data semantics or remove selected sort/count targets were not adopted.
+The initial historical-root/external-graph limits are visible author proposals.
+Staged Memory witness-graph composition remains an explicitly unimplemented IR
+result extension, rather than a claimed replacement for every domain facade.

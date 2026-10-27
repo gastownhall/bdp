@@ -1,13 +1,14 @@
 {
   "status": "schema-and-static-admission-checks-passed",
-  "authored_cases": 65,
+  "authored_cases": 104,
   "checks": {
-    "static_admission_accepts_checked": 52,
-    "static_admission_refusals_checked": 9,
-    "schema_refusals_checked": 4
+    "static_admission_accepts_checked": 74,
+    "static_admission_refusals_checked": 14,
+    "schema_refusals_checked": 16
   },
   "markdown_json_blocks_parsed": 1,
   "shell_examples_lexically_parsed_not_executed": 23,
+  "uri_format_checker_enabled": true,
   "semantic_expected_results": "authored, not executed by this validator",
   "not_executed": [
     "friendly parser",
@@ -20,27 +21,35 @@
   "artifacts": [
     {
       "path": "specs/profiles/core/query.md",
-      "sha256": "4713efbc7ebad6face3119789ea1833a2081a1dbe8537c81d1b20b506a0911f2"
+      "sha256": "89eaabc7bec16dcdef0b93ae7fa3f6ff70515f0ca07211cc39d1bc28a33060a4"
     },
     {
       "path": "specs/profiles/core/resource-projection.md",
-      "sha256": "55dfd47b02b06c4fd78bea89ad11b64d1a613e03418876a15a06ba8c01ddb183"
+      "sha256": "2a853c85f5c723a12b24a02519eed21a02192ad3ffc8fc752665d2e2083fbf42"
     },
     {
       "path": "docs/cli-design/query-ir.md",
-      "sha256": "20c4729f1d7f56f89bf527deb7ffff1d23e4cf8feea2a1e74b5f73c089976d79"
+      "sha256": "5e71e03f0312ac91fb97c6e044d69d7c93faa3ffa73ac96cfd7f5133d1d61b8d"
+    },
+    {
+      "path": "docs/cli-design/reads-and-paging.md",
+      "sha256": "d272aaa4313ac7de6acc1691eb1944aae08b719c9da3b9542dc00d0ab35b3ef5"
     },
     {
       "path": "docs/cli-design/overview/02-explore-graph.md",
-      "sha256": "bd89c4296510fdc218a310a2c5c04fc0c9bc3688d3304178c7093d68f361acb8"
+      "sha256": "a2501127e6292b851f9a9390c811813958f76577fa7a2987f976f64182b1fb0a"
     },
     {
       "path": "docs/cli-design/query-ir/EXAMPLES.md",
-      "sha256": "cd2eec7f07522c88ceb69640137e9e704062b8e51ad28acdd27f6762365d4b8d"
+      "sha256": "d86a099f6d70d25fcddf54b6acb9954fcb63d3037581bedfa2ce38183f001a42"
     },
     {
       "path": "docs/cli-design/query-ir/INCORPORATION.md",
-      "sha256": "ac079ec87a53690fc596cee322ff46e38bb2019ef29699262b87e71fd868cc9a"
+      "sha256": "2397cc8e44c4e131b43f7bcfdb7f0cb674bc7e1b0469079c700bb0a7e17acdf3"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/README.md",
+      "sha256": "b8e136bf2b254344118a60431d9105bd4c25c3cdf124554af78418e0ad402b57"
     },
     {
       "path": "docs/cli-design/overview/05-revisions.md",
@@ -48,19 +57,19 @@
     },
     {
       "path": "docs/cli-design/query-ir/query.schema.json",
-      "sha256": "18e47930895c3b1eb9f90b22ef74c86309814eaede4709b3051b7f812c361bee"
+      "sha256": "a59c0486c2723c6d5e71ef29736c2fa9e2d85487fbad11488baa5eb6a500c01d"
     },
     {
       "path": "docs/cli-design/query-ir/cases.json",
-      "sha256": "dd712400f546fddcf3b82e6db5fdb5285595a52551fcc36eb83c921d9d7055ac"
+      "sha256": "c1235f3d0d1cdfda503e6fdbf32555258b888ee8dd58c0fedaa9f07a0ff7afbc"
     },
     {
       "path": "docs/cli-design/query-ir/fixtures.json",
-      "sha256": "984146e5b9d6f039f648752960daf9ab7f61912f4e09751b43e1283b2495e586"
+      "sha256": "b8920cbaa81e69b7df99374e64807bdc7d3dde26629a6aecaa7663203698ce0a"
     },
     {
       "path": "docs/cli-design/query-ir/validate.py",
-      "sha256": "7d6ff6ecd41bbc92ccbd140887e44b4703312178e2b0eb3e75c62fdc240ccc2e"
+      "sha256": "035f35227c33d24ca463b1508821d1c8c5e7d67216329bbbcfbf42d881530b7b"
     },
     {
       "path": "docs/cli-design/query-ir/examples/list-draft-notes.json",
@@ -80,7 +89,11 @@
     },
     {
       "path": "docs/cli-design/query-ir/examples/index.json",
-      "sha256": "dc17c7e75f1a6ed5614c9c9752c7d90ac687195726f84c7b7a2750495aa39739"
+      "sha256": "fa751f19b08a5323263e840cb64c44f892eb17a87375e3bce779e4ef649fe1d3"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/claude-initial.md",
+      "sha256": "370de8d0117139d577ec855c6f6fdca16a9edd62aa2840101ec274fdd9fc94b4"
     },
     {
       "path": "docs/cli-design/overview/05-revisions.fixture.json",
