@@ -1,0 +1,55 @@
+{
+  "query": {
+    "ir": "bdp-query-design-1",
+    "profile": "list",
+    "selection": {
+      "op": "filter",
+      "input": {
+        "op": "scan",
+        "collection": "beads"
+      },
+      "bind": "b",
+      "predicate": {
+        "op": "and",
+        "operands": [
+          {
+            "op": "typeIs",
+            "of": {
+              "op": "binding",
+              "name": "b"
+            },
+            "type": "https://work.example/acme/note",
+            "match": "family"
+          },
+          {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "properties",
+                "status"
+              ]
+            },
+            "right": {
+              "op": "literal",
+              "value": "draft"
+            }
+          }
+        ]
+      }
+    },
+    "result": {
+      "form": "resources"
+    }
+  },
+  "sort": {
+    "path": "/properties/title",
+    "direction": "asc"
+  },
+  "limit": 25
+}

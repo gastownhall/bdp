@@ -211,6 +211,27 @@
             "status": "active"
           },
           "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/pin-old-source",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": {
+            "uri": "https://work.example/acme/P",
+            "revision": "r1"
+          },
+          "target": "https://work.example/acme/pin-root",
+          "properties": {},
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/pin-current-source",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/P",
+          "target": "https://work.example/acme/pin-root",
+          "properties": {},
+          "metadata": {}
         }
       ],
       "typeParents": {}
@@ -442,6 +463,120 @@
       ],
       "typeParents": {},
       "note": "Input order deliberately presents the longer route before the shorter R\u2192X edge. Depth2 must still expand X\u2192Z."
+    },
+    "multi-flags": {
+      "scope": "https://work.example/acme/",
+      "beads": [
+        {
+          "id": "https://work.example/acme/csv-plan",
+          "type": "https://work.example/acme/guide",
+          "revision": "r1",
+          "properties": {
+            "status": "draft",
+            "title": "CSV export plan",
+            "body": "Export selected rows with column headings."
+          },
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/csv-format",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {
+            "status": "ratified",
+            "title": "CSV format",
+            "body": "Keep a header row even when no rows are selected."
+          },
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/csv-review",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {
+            "status": "draft",
+            "title": "Spreadsheet review",
+            "body": "Open the exported file in spreadsheet tools."
+          },
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/csv-encoding",
+          "type": "https://work.example/acme/encoding-note",
+          "revision": "r1",
+          "properties": {
+            "status": "ratified",
+            "title": "CSV encoding",
+            "body": "Use UTF-8."
+          },
+          "metadata": {}
+        }
+      ],
+      "links": [
+        {
+          "id": "https://work.example/acme/csv-plan-format",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": {
+            "uri": "https://work.example/acme/csv-plan",
+            "revision": "r1"
+          },
+          "target": "https://work.example/acme/csv-format",
+          "properties": {
+            "status": "active",
+            "body": "The export format is explained here."
+          },
+          "metadata": {
+            "team": "export"
+          }
+        },
+        {
+          "id": "https://work.example/acme/csv-format-review",
+          "type": "https://work.example/acme/explains",
+          "revision": "r1",
+          "source": "https://work.example/acme/csv-format",
+          "target": "https://work.example/acme/csv-review",
+          "properties": {
+            "status": "active"
+          },
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/csv-review-plan",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/csv-review",
+          "target": "https://work.example/acme/csv-plan",
+          "properties": {
+            "status": "draft"
+          },
+          "metadata": {}
+        },
+        {
+          "id": "https://work.example/acme/csv-plan-format-alt",
+          "type": "https://work.example/acme/explains",
+          "revision": "r1",
+          "source": "https://work.example/acme/csv-plan",
+          "target": "https://work.example/acme/csv-format",
+          "properties": {
+            "status": "draft"
+          },
+          "metadata": {}
+        }
+      ],
+      "typeParents": {
+        "https://work.example/acme/encoding-note": [
+          "https://work.example/acme/note"
+        ],
+        "https://work.example/acme/explains": [
+          "https://work.example/acme/references"
+        ]
+      },
+      "notes": [
+        "Scope-local fixture Types; no provider installation or standard Type package is implied.",
+        "Human overview excerpts omit protocol administrative detail; these fixture revision tokens exist only for schema/case identity.",
+        "No csv-draft/csv-checks/csv-context objects exist initially; overview03 creates them."
+      ]
     }
   },
   "recordShape": "Logical fixture Resource contents for AST obligations, not complete native HTTP/History responses or Type-authority certificates. Provider harness supplies real disclosure/provenance/retention context."

@@ -1,0 +1,1388 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/bdp-read-binding-design-1.schema.json",
+  "title": "Native List/Query binding design candidate",
+  "description": "Review-only schema. Additional request/result semantics, full-record/projection relation, graph closure and capability admission are checked separately. Not an installed or distribution schema.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/response"
+    },
+    {
+      "$ref": "#/$defs/capability"
+    },
+    {
+      "$ref": "#/$defs/pointProjectionCapability"
+    },
+    {
+      "$ref": "#/$defs/problem"
+    }
+  ],
+  "$defs": {
+    "mask": {
+      "$ref": "https://example.invalid/bdp-query-design-1.schema.json#/properties/projection"
+    },
+    "sort": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(/([^/~]|~[01])*)*$"
+        },
+        "direction": {
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "direction"
+      ],
+      "additionalProperties": false
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "https://example.invalid/bdp-query-design-1.schema.json"
+        },
+        "sort": {
+          "$ref": "#/$defs/sort"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "query": {
+                "properties": {
+                  "result": {
+                    "properties": {
+                      "form": {
+                        "enum": [
+                          "count",
+                          "graph"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "limit"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "query": {
+                "properties": {
+                  "result": {
+                    "properties": {
+                      "form": {
+                        "const": "graph"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "sort"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "capability": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://[^?#]+$"
+        },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "list",
+              "graph",
+              "query"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": {
+            "const": "list"
+          }
+        },
+        "sort": {
+          "type": "boolean"
+        },
+        "unboundedTraversal": {
+          "type": "boolean"
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "requestBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "nodes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "nesting": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestBytes",
+            "nodes",
+            "nesting"
+          ],
+          "additionalProperties": false
+        },
+        "maximumDepth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "count": {
+          "type": "boolean"
+        },
+        "projection": {
+          "type": "boolean"
+        },
+        "typeFamily": {
+          "type": "boolean"
+        },
+        "pinnedReferences": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "operation",
+        "profiles",
+        "sort",
+        "unboundedTraversal",
+        "limits",
+        "count",
+        "projection",
+        "typeFamily",
+        "pinnedReferences"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "profiles": {
+                "not": {
+                  "contains": {
+                    "enum": [
+                      "graph",
+                      "query"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "unboundedTraversal": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "edition": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "projectedBead": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeReference"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "properties": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/metadata"
+        },
+        "links": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/linkCollection"
+        },
+        "ownedLinks": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/linkRecord"
+            }
+          }
+        },
+        "revisionProvenance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenance"
+        }
+      },
+      "additionalProperties": false
+    },
+    "fullBead": {
+      "anyOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/currentBeadRecord"
+        },
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/historicalBeadRecord"
+        }
+      ]
+    },
+    "projectedLink": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "revision",
+        "source",
+        "target"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeReference"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/reference"
+        },
+        "target": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/reference"
+        },
+        "properties": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/metadata"
+        },
+        "revisionProvenance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenance"
+        }
+      },
+      "additionalProperties": false
+    },
+    "fullLink": {
+      "anyOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/currentLinkRecord"
+        },
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/historicalLinkRecord"
+        }
+      ]
+    },
+    "trace": {
+      "type": "object",
+      "properties": {
+        "at": {
+          "type": "string",
+          "pattern": "^(/([^/~]|~[01])*)*$"
+        },
+        "depth": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "const": "unbounded"
+            }
+          ]
+        },
+        "completion": {
+          "enum": [
+            "exhausted",
+            "depth",
+            "proof"
+          ]
+        },
+        "closure": {
+          "enum": [
+            "complete",
+            "not-complete",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "at",
+        "depth",
+        "completion",
+        "closure"
+      ],
+      "additionalProperties": false
+    },
+    "evaluation": {
+      "type": "object",
+      "properties": {
+        "complete": {
+          "const": true
+        },
+        "traversals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/trace"
+          },
+          "minItems": 0
+        },
+        "scope": {
+          "const": "response"
+        }
+      },
+      "required": [
+        "scope",
+        "complete",
+        "traversals"
+      ],
+      "additionalProperties": false
+    },
+    "beadResources": {
+      "type": "object",
+      "properties": {
+        "form": {
+          "const": "resources"
+        },
+        "resourceKind": {
+          "const": "bead"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/projectedBead"
+          },
+          "minItems": 0
+        },
+        "next": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "projection": {
+          "$ref": "#/$defs/mask"
+        }
+      },
+      "required": [
+        "form",
+        "resourceKind",
+        "items",
+        "next"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "not": {
+              "required": [
+                "projection"
+              ]
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/fullBead"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "beadCount": {
+      "type": "object",
+      "properties": {
+        "form": {
+          "const": "count"
+        },
+        "resourceKind": {
+          "const": "bead"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "form",
+        "resourceKind",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    "linkResources": {
+      "type": "object",
+      "properties": {
+        "form": {
+          "const": "resources"
+        },
+        "resourceKind": {
+          "const": "link"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/projectedLink"
+          },
+          "minItems": 0
+        },
+        "next": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "projection": {
+          "$ref": "#/$defs/mask"
+        }
+      },
+      "required": [
+        "form",
+        "resourceKind",
+        "items",
+        "next"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "not": {
+              "required": [
+                "projection"
+              ]
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/fullLink"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "linkCount": {
+      "type": "object",
+      "properties": {
+        "form": {
+          "const": "count"
+        },
+        "resourceKind": {
+          "const": "link"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "form",
+        "resourceKind",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    "endpointMapping": {
+      "type": "object",
+      "properties": {
+        "link": {
+          "$ref": "#/$defs/edition"
+        },
+        "source": {
+          "$ref": "#/$defs/edition"
+        },
+        "target": {
+          "$ref": "#/$defs/edition"
+        }
+      },
+      "required": [
+        "link",
+        "source",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "graph": {
+      "type": "object",
+      "properties": {
+        "form": {
+          "const": "graph"
+        },
+        "roots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/edition"
+          },
+          "minItems": 0
+        },
+        "beads": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fullBead"
+          },
+          "minItems": 0
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fullLink"
+          },
+          "minItems": 0
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/endpointMapping"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "form",
+        "roots",
+        "beads",
+        "links",
+        "endpoints"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/beadResources"
+            },
+            {
+              "$ref": "#/$defs/linkResources"
+            },
+            {
+              "$ref": "#/$defs/beadCount"
+            },
+            {
+              "$ref": "#/$defs/linkCount"
+            },
+            {
+              "$ref": "#/$defs/graph"
+            }
+          ]
+        },
+        "evaluation": {
+          "$ref": "#/$defs/evaluation"
+        }
+      },
+      "required": [
+        "result",
+        "evaluation"
+      ],
+      "additionalProperties": false
+    },
+    "pointProjectionCapability": {
+      "type": "object",
+      "properties": {
+        "current": {
+          "const": true
+        },
+        "exact": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "current",
+        "exact"
+      ],
+      "additionalProperties": false
+    },
+    "problem": {
+      "title": "BDP Read Problem Details",
+      "type": "object",
+      "required": [
+        "type",
+        "code",
+        "retry"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            410,
+            413,
+            429,
+            503,
+            422
+          ]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri"
+        },
+        "code": {
+          "enum": [
+            "malformed-request",
+            "invalid-parameter",
+            "unauthenticated",
+            "forbidden",
+            "resource-not-found",
+            "resource-pruned",
+            "resource-erased",
+            "foreign-view",
+            "cursor-expired",
+            "request-too-large",
+            "limit-exceeded",
+            "rate-limited",
+            "temporarily-unavailable",
+            "revision-unknown",
+            "revision-unretained",
+            "revision-reorganized",
+            "revision-not-tracked",
+            "revision-unrepresentable",
+            "capability-not-supported"
+          ]
+        },
+        "retry": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/retryDisposition"
+        },
+        "capability": {
+          "enum": [
+            "https://github.com/gastownhall/bdp/capabilities/resource-selection",
+            "https://github.com/gastownhall/bdp/capabilities/resource-projection"
+          ]
+        },
+        "capabilityVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "at": {
+          "type": "string",
+          "pattern": "^(/([^/~]|~[01])*)*$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "malformed-request"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/request"
+              },
+              "status": {
+                "const": 400
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "invalid-parameter"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/request"
+              },
+              "status": {
+                "const": 400
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "unauthenticated"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/authentication"
+              },
+              "status": {
+                "const": 401
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "forbidden"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/authorization"
+              },
+              "status": {
+                "const": 403
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-not-found"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/not-found"
+              },
+              "status": {
+                "const": 404
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "foreign-view"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "cursor-expired"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/gone"
+              },
+              "status": {
+                "const": 410
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "request-too-large"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/size"
+              },
+              "status": {
+                "const": 413
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "limit-exceeded"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/size"
+              },
+              "status": {
+                "const": 413
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "rate-limited"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/rate-limit"
+              },
+              "status": {
+                "const": 429
+              },
+              "retry": {
+                "const": "after-delay"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "temporarily-unavailable"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/unavailable"
+              },
+              "status": {
+                "const": 503
+              },
+              "retry": {
+                "const": "after-delay"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-pruned"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/gone"
+              },
+              "status": {
+                "const": 410
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-erased"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/gone"
+              },
+              "status": {
+                "const": 410
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-unknown"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/not-found"
+              },
+              "status": {
+                "const": 404
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-unretained"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-reorganized"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/gone"
+              },
+              "status": {
+                "const": 410
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-not-tracked"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-unrepresentable"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-pruned"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "archivedAt": {
+                "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/reference"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "code": {
+                  "const": "resource-pruned"
+                }
+              },
+              "required": [
+                "code"
+              ]
+            }
+          },
+          "then": {
+            "properties": {
+              "archivedAt": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-erased"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "pointer": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-unretained"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "required": [
+              "missing"
+            ],
+            "properties": {
+              "missing": {
+                "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/historyMissing"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "missing": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "enum": [
+                  "revision-unknown",
+                  "revision-unretained",
+                  "revision-reorganized",
+                  "revision-not-tracked",
+                  "revision-unrepresentable"
+                ]
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "window": false,
+              "mayChangeAfterSync": false,
+              "resource": false,
+              "properties": false,
+              "ownedLinks": false,
+              "archivedAt": false,
+              "pointer": false,
+              "revisionProvenance": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "capability-not-supported"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/request"
+              },
+              "status": {
+                "const": 422
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            },
+            "required": [
+              "capability",
+              "capabilityVersion"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-not-found"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "at"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

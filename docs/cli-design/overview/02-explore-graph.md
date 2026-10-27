@@ -76,10 +76,11 @@ substitute exact matching.
 
 `--include` and `--omit` select fields using JSON Pointers. They have the same
 Resource meaning on `show` and List items. Filtering chooses the records;
-projection chooses which fields of those records are transferred and shown.
+projection chooses which fields of those records are transferred and shown. It
+does not promise that storage can avoid reading an omitted field internally.
 
 ```console
-# Request the title property without acquiring the body's content in the response.
+# Transfer only the title property plus protected Resource context.
 > bd show csv-plan --include /properties/title
 csv-plan [guide] CSV export plan
 …
@@ -144,7 +145,7 @@ the eligible Links to the named nominal Type.
 
 ```console
 # Follow outgoing Reference-family connections through two hops.
-> bd graph csv-plan --direction out --depth 2 --link-type references
+> bd graph csv-plan --direction out --depth 2 --link-type references --output-format detail
 csv-plan [guide] CSV export plan
 ├─ references → csv-format [note] CSV format
 │  └─ explains → csv-review [note] Spreadsheet review
@@ -152,7 +153,8 @@ csv-plan [guide] CSV export plan
 
 ```
 
-The tree is a compact view of a graph. The repeated format Bead is shown once
+The explicit detail format shows a compact tree; default Graph output uses the
+shared Beads/Links tables. The tree is a compact view of a graph. The repeated format Bead is shown once
 with a second relationship pointing to it. Both plan-to-format Links are retained
 in structured graph content. This view is complete for the requested two-hop
 neighborhood; it does not claim that no connections continue beyond it.
@@ -170,7 +172,7 @@ the same Bead forever.
 
 ```console
 # Include the review-to-plan Link at the next depth.
-> bd graph csv-plan --direction out --depth 3 --link-type references
+> bd graph csv-plan --direction out --depth 3 --link-type references --output-format detail
 csv-plan [guide] CSV export plan
 ├─ references → csv-format [note] CSV format
 │  └─ explains → csv-review [note] Spreadsheet review
@@ -192,16 +194,11 @@ For example, we can select Beads with an outgoing Reference-family Link to a
 ratified Bead. The result is the qualifying starting Beads, not an automatic
 expansion of every witness.
 
-```text
-# Query expression: find starting Beads with a ratified supporting target.
-beads as b where (
-  any outgoing(b) as link
-    through link is references
-    where link.target.status = "ratified"
-)
-
-# Expected Resource result in this fixture.
-csv-plan [guide] CSV export plan
+```console
+# Find starting Beads with a ratified supporting target.
+> bd query 'beads as b where (any outgoing(b) as link through link is references where link.target.status = "ratified")'
+ID        TYPE   TITLE
+csv-plan  guide  CSV export plan
 
 ```
 
@@ -210,11 +207,31 @@ The bindings are visible: `b` is a candidate Bead and `link` is a traversed Link
 test for `any`; the outer `where` selects starting Beads. `all` uses the same form
 to test every member. Empty input makes `any` false and `all` true.
 
-This is the accepted expression direction, with remaining lexical details under
-review. The final CLI argument/file spelling and transport binding are still
-open, so this example deliberately shows an expression rather than inventing a
-working `bd query` invocation. The [portable AST draft](../query-ir.md) gives the
-same example as structured data for review.
+The [complete surface candidate](../query-language.md) now specifies this command
+argument and its file-input alternatives. Its exact grammar and command binding
+remain author proposals; this is an authored example of that design. The
+[portable AST draft](../query-ir.md) gives the same request as structured data.
+
+For a simpler question, List can filter a Bead's own fields without following a
+Link. It combines separate conditions with AND. One explicitly bound filter can
+write OR when that is what we mean:
+
+```console
+# Select note-family Beads whose own status is ratified.
+> bd list --type note --property 'status = "ratified"'
+ID            TYPE           TITLE
+csv-encoding  encoding-note  CSV encoding
+csv-format    note           CSV format
+
+# Either a draft or a ratified status qualifies.
+> bd list --filter 'as b where b.status = "draft" or b.status = "ratified"' --count-only
+4
+
+```
+
+Both examples leave the graph unchanged. The last result is a complete exact
+count in this seed, rather than the number of rows on a page. A different
+Authorization View can legitimately select a different population.
 
 The service can return an exact count of selected Resources instead of their
 records. The canonical CLI uses `--count-only` on List and Query, including Link
@@ -233,5 +250,5 @@ incorporation gap, not a reason to count a page or silently scan at the client.
 > filters and shared field selection; legacy `bd query` and `bd sql` keep their
 > existing behavior until a deliberate compatibility decision changes them.
 
-For this story, no objects have changed. The exact Scope fixtures and expected
-selection sets are captured in [the authored seed](../query-ir/fixtures.json).
+For this story, no objects have changed. The exact Scope fixtures are captured in [the authored seed](../query-ir/fixtures.json),
+and expected selection sets in [the case ledger](../query-ir/cases.json).

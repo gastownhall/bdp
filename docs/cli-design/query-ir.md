@@ -197,39 +197,34 @@ command/file grammar questions do not reopen that spelling or count semantics.
 Graph preserves explicit roots, collected Links, and endpoint Beads. Roots remain
 when no Link is found or depth is zero. The initial graph profile optionally restricts the
 walk by Link Type and has no outer result filter. The canonical Graph direction
-facade maps in/out/both to incoming/outgoing/connected; exact flag grammar remains
-a command-reference incorporation task.
+facade maps in/out/both to incoming/outgoing/connected; the [complete CLI candidate](query-language.md) supplies its proposed flag grammar.
 
 Include/omit use the [shared Resource projection](../../specs/profiles/core/resource-projection.md)
 contract. Continuation retains its declared carrier. Retained Core uses authority-
-advertised order; the selected one-pointer request sort applies to full selected
-data before projection, but needs an explicit protocol/discovery/carrier amendment.
-This AST schema does not assign that common control a wire member. No `select`,
+advertised order; the one-pointer sort proposal applies to full selected data
+before projection. The native binding supplies the explicit optional amendment.
+The AST schema leaves that common control in the outer request wrapper. No `select`,
 computed columns, general scalar top-level result, or path enumeration is needed
 for this first slice.
 
-## Draft surface grammar and remaining decisions
+## Complete surface and native proposals
 
-The selected constructs now have a consistent lowering story. The following
-details are author proposals for grammar review, not additional human rulings:
+The [complete CLI candidate](query-language.md) now specifies command assertions,
+quoted inputs, generic List flags, explicit Boolean filters, nested grammar,
+field/Type/Reference handling, file inputs and source-to-AST lowering. These
+spellings are author proposals, with the selected semantics held fixed.
 
-- Use `beads` and `links` for current inventory sources; `beads(REF, ...)` and
-  `links(REF, ...)` for explicit selection. AST `refs` performs actual selection.
-- Bare ordinary fields after an alias address properties: `b.status`. Explicit
-  `b.properties["status"]` and `b.metadata["owner"]` avoid key ambiguity. `.source`
-  and `.target` are endpoint navigation; use `id()`/`rev()` for Resource context.
-- `is TYPE` means family affiliation, including refinements; `is exactly TYPE`
-  means nominal Type identity. Resolve the Type operand against authoritative
-  Scope naming before emitting the absolute unpinned Type identity. Final quoting
-  of named Type operands remains lexical review work.
-- Boolean precedence is proposed as NOT, AND, OR. Parentheses delimit nested
-  quantified conditions. Predicate delimiters, escaping, reserved names and final
-  command argument/file spellings need a parser/grammar pass before freezing.
+The [native binding candidate](../../specs/profiles/core/read-operations.md)
+specifies discovered List/Query dispatch, optional structural profiles, shared
+point/List projection, one-pointer sorting, exact count, graph edition mappings,
+response-level completeness and native continuation. Graph initially lowers to a
+restricted Query; assigning a separate convenience operation remains deferred.
 
-The CLI should construct the AST from List/Graph flags directly. A friendly Query
-parser produces the same AST. A JSON-file request input can expose it to generated
-clients without a friendly parser; its flag name and command assertion matrix
-remain open. This document does not present a provisional flag as installed CLI.
+The complete request-file input is the existing AST request. Sort/page controls
+belong in the native wrapper, not AST nodes. Both CLI and service validate input;
+the service does not trust a client type check or receive backend SQL. All initial
+collection expressions have one selected Resource kind. A graph has separate
+Bead and Link components; mixed flat unions remain deferred.
 
 ## Authoring evidence and integration
 
@@ -241,8 +236,9 @@ local links and correspondence; it does not execute the product or a Query engin
 Its documented environment includes URI format checkers and asserts they are
 active, rather than silently accepting relative wire References.
 
-Transport/discovery, exact capability identifiers, response completeness fields,
-graph component masks, and shared sorting details remain explicit in the
-[contract integration list](../../specs/profiles/core/query.md#integration-and-validation-still-required).
+Transport/discovery, capability identifiers, response completeness and sorting
+now have explicit review proposals. Graph component masks remain deferred. The
+[contract integration list](../../specs/profiles/core/query.md#integration-and-validation-still-required)
+tracks adoption and implementation rather than leaving those proposals implicit.
 JSONPath is a possible future representation and a reference for selected local
 value semantics. The initial wire proposal contains no executable query strings.

@@ -18,6 +18,9 @@ actual native meaning.
 Ordinary Bead and Link inventories return full records in the existing stable
 snapshot order. Structural `type` and `conformsTo` MAY combine and mean AND:
 nominal identity and recorded exact family membership are separate predicates.
+Family matching is reflexive: the named nominal Type itself and its recorded
+refinements match `conformsTo`. This does not remove the recorded authority
+requirement or turn nominal matching into a definition-revision comparison.
 Type operands MUST be unpinned absolute identities. Missing family authority
 MUST refuse, never silently switch to nominal equality. Raw Selectors see the
 actual Type Reference union; they do not dereference or flatten it.
@@ -84,7 +87,7 @@ permitted by this rule. Issuers, including URL-signing schemes, MUST support
 this advertised-contract resizing without invalidating the continuation's
 snapshot or authorization fence. Duplicate/invalid limit still refuses.
 
-This lets a client request `min(pageSize, remainingTotal)` for each fetch and
+This lets a client request `min(limit, remainingTotal)` for each fetch and
 stop at a native boundary without dropping an overfetched tail. The response's
 issued `next` is the lossless continuation at that page's end; `null` means
 authoritative end. A total cap cannot justify returning a token after rows

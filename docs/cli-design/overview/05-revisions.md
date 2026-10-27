@@ -8,7 +8,7 @@ revision to protect an edit from overwriting someone else's work.
 The guide now has the title `CSV export guide (reviewed)`, after the update we
 observed. For this example, the Scope advertises complete application History and
 allows the illustrated reads. Its adapter also provides stable local revision
-numbers. Outputs are authored excerpts; the short token labels below stand for
+numbers. The omitted details in these outputs are marked with `…`. Outputs are authored excerpts; the short token labels below stand for
 complete opaque tokens, not a token-generation scheme or a runtime transcript.
 
 ### Read the current state and its revision
@@ -86,6 +86,10 @@ Revision: guide-a
 …
 Keep column headings in every CSV export.
 
+Metadata
+  area: export
+  scratch: true
+
 # Read current content explicitly.
 > bd show csv-draft@current
 csv-draft [guide] CSV export guide (reviewed)
@@ -162,6 +166,7 @@ Root `versions` is generic; `link versions` asserts that its subject is a Link.
 Subject: csv-context
 Population: all-retained
 Participation: tracked
+Window: complete
 REVISION          LINEAGE   BODY
 context-explains  replaced  complete
 context-edited    replaced  complete
@@ -230,7 +235,9 @@ Error: revision-mismatch
 
 ```
 
-The successful write creates the new current state `guide-i`. The failed write
+The successful write creates the new current state `guide-i`. The illustrated
+adapter now records its stable local number as 9; this is supplied mapping, not
+a number inferred from the table. The failed write
 does not create another state. The floating citation now selects the approved
 guide; the pinned citation still selects `guide-h`, whose title remains reviewed.
 Omitting the guard makes an ordinary unguarded write; it does not imply an
