@@ -9,4 +9,3 @@ set -euo pipefail
     --dry-run-mode batch || exit
 
 ) > csv-read-only.jsonl
-
