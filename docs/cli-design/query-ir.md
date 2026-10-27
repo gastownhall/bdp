@@ -26,6 +26,14 @@ or evaluate them itself. It need not parse JSONPath or support graph acquisition
 Capability admission must check the actual requested shape rather than guess
 from a command name.
 
+Donna subsequently selected Batch List filtering a prior typed set and Query
+using prior scalar/set explicit inputs. That context uses then-current staged
+content with fixed captured identity membership. The
+[transaction-input note](query-ir/transaction-selection-inputs.md) proposes the
+CLI and AST correspondence and records its first-slice gates. It does not change
+the standalone scan-based List profile, the ordinary read result model, or the
+ultimate IR choice under discussion.
+
 Whether Graph eventually receives its own wire operation or a focused carrier
 is deferred. Its selected semantics fit this model either way. The retained
 Core Selector remains unchanged until deliberately amended; existing Selector

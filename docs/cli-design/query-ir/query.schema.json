@@ -519,36 +519,43 @@
           ]
         },
         "references": {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "type": "string",
-                "format": "uri",
-                "minLength": 1
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "uri": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
                     "type": "string",
                     "format": "uri",
                     "minLength": 1
                   },
-                  "revision": {
-                    "type": "string",
-                    "minLength": 1
+                  {
+                    "type": "object",
+                    "properties": {
+                      "uri": {
+                        "type": "string",
+                        "format": "uri",
+                        "minLength": 1
+                      },
+                      "revision": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "uri",
+                      "revision"
+                    ],
+                    "additionalProperties": false
                   }
-                },
-                "required": [
-                  "uri",
-                  "revision"
-                ],
-                "additionalProperties": false
-              }
-            ]
-          },
-          "uniqueItems": true
+                ]
+              },
+              "uniqueItems": true
+            },
+            {
+              "$ref": "#/$defs/batchReference"
+            }
+          ]
         }
       },
       "required": [
@@ -684,6 +691,20 @@
           "$ref": "#/$defs/resource"
         }
       ]
+    },
+    "batchReference": {
+      "description": "Author-proposed transaction-selection input only. Standalone reads refuse. Shared Batch grammar owns names and binding resolution.",
+      "type": "object",
+      "properties": {
+        "binding": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "binding"
+      ],
+      "additionalProperties": false
     }
   }
 }

@@ -96,6 +96,31 @@ its outer selection. Lowering may repeat that name in the separate `walk` and
 and collected Link editions; neither creates a second alias visible alongside
 the first. Alpha-renaming a bound variable preserves the answer.
 
+### Transaction selection from prior bindings
+
+Donna selected a later Batch List filtering a previously captured typed set,
+and Query using prior scalar identities or typed sets as explicit inputs. Those
+selections see earlier staged writes under the Batch's serializable logical
+execution rule. A capture fixes identity membership, not a snapshot of its bodies;
+later selections inspect then-current staged content. Read-only batches are
+allowed. Transaction List/Query capabilities are independently advertised.
+
+The [selection-input reconciliation](../../../docs/cli-design/query-ir/transaction-selection-inputs.md)
+proposes `refs.references:{binding:NAME}` for those prior inputs. It keeps the
+asserted Bead/Link kind and ordinary lexical query aliases separate from Batch
+names. Transaction List admits a prior typed set as its source with local-only
+conditions; standalone List remains inventory-based. Query accepts a prior scalar
+or set, and `walk` still requires Bead roots. Exact grammar, the structural union
+and conservative admission restrictions are author proposals, not adopted wire.
+
+This first transaction slice is current-staged only: no historical acquisition,
+unpublished-revision tests or cross-Scope acquisition/mutation. A Link can retain
+an opaque external endpoint under ordinary Type rules without acquiring it.
+Batch owns identity capture, lifecycle outcomes, revision publication and replay;
+it does not manufacture public editions for intermediate staged states.
+The companion standalone read binding does not accept Batch operands or
+turn its resource-edition result into a transaction identity capture.
+
 ## Predicates and values
 
 The initial predicate nodes are JSON booleans, `and`, `or`, `not`, `compare`,

@@ -78,6 +78,8 @@ def check_predicate(predicate, environment):
 def collection_kind(expr, environment):
     op = expr["op"]
     if op in {"scan", "refs"}:
+        if op == "refs":
+            require(isinstance(expr["references"], list), "batch-input-outside-context")
         return expr["collection"]
     if op == "walk":
         root = expr["roots"]
@@ -97,7 +99,8 @@ def collection_kind(expr, environment):
 
 def known_pinned_roots(expr):
     if expr["op"] == "refs":
-        return any(isinstance(reference, dict) for reference in expr["references"])
+        references = expr["references"]
+        return isinstance(references, list) and any(isinstance(reference, dict) for reference in references)
     if expr["op"] == "filter":
         return known_pinned_roots(expr["input"])
     return False

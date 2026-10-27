@@ -37,7 +37,7 @@ exception: it uses the authoritative Type interpretation. Link List can inspect
 stored endpoint References, but cannot test an endpoint Bead's body or properties.
 Query is the place for those reads and for traversal.
 
-The first structured List binding selects whole inventories. Existing positional
+The first standalone structured List binding selects whole inventories. Existing positional
 incidence and `--incident-to` remain on their established native Link-view route;
 they do not combine with the new structured filter/file/count/sort controls in
 this first slice. Such a combination refuses with a Query alternative rather
@@ -140,6 +140,16 @@ Generated predicates refer to that same alias. List has no nested binding forms,
 so no textual alias replacement or hidden second name is needed. A supplied
 Type restriction joins the same `and` group. No conditions
 means a plain `scan`. The AST profile is `list`, with `resources` or `count` result.
+
+In a transaction selection, Donna also selected a prior typed set as List's
+candidate source. The [Batch input proposal](query-ir/transaction-selection-inputs.md)
+uses `--candidates batch-ref::NAME` in member-emission mode, retaining the same
+local predicate rules. Generated filters wrap that source rather than `scan`.
+The earlier capture's membership is fixed; this later List tests its members'
+then-current staged content. This does not add standalone ID-list input, endpoint
+body tests or traversal to List. The exact flag and structural encoding remain
+author proposals; the ordinary read result/count/paging controls do not belong
+to a transaction selector envelope.
 
 For a generated filter that is awkward to spell in flags, `bd list --request-file
 FILE` accepts the same complete request shape as Query's JSON input. It requires
@@ -252,6 +262,16 @@ JSON Reference duplicates therefore never reach the wire's unique array. Distinc
 selected revisions remain distinct. An empty `beads()` or `links()` denotes an
 empty selection, not inventory. Missing
 or unauthorized explicit entries fail uniformly rather than disappearing.
+
+For emitted transaction Query only, the [input proposal](query-ir/transaction-selection-inputs.md)
+recognizes a sole `"batch-ref::NAME"` in these explicit Reference positions,
+including quoted-root shorthand. A prior scalar identity or typed set becomes
+the proposed structural `refs` binding source; Bead/Link assertions still apply.
+A scalar external argument resolves to an ordinary Reference during assembly.
+Query aliases remain lexical, and property/literal strings are never substituted.
+Standalone execution refuses Batch references. Current-staged/history/scope
+restrictions come from the transaction selector contract, not the ordinary
+standalone exact-read rules.
 
 The functions below return existing Resources, never new computed records:
 
