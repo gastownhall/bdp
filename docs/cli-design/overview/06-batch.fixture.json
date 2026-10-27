@@ -9,6 +9,55 @@
     "checks": "https://work.example/acme/p8k4m",
     "connection": "https://work.example/acme/r6n2v"
   },
+  "fixedIds": {
+    "memberIdentityMappings": [
+      {
+        "operationIndex": 0,
+        "operation": "createBead",
+        "ids": [
+          "https://work.example/acme/csv-headings"
+        ]
+      },
+      {
+        "operationIndex": 1,
+        "operation": "createBead",
+        "ids": [
+          "https://work.example/acme/csv-empty-output"
+        ]
+      },
+      {
+        "operationIndex": 2,
+        "operation": "createLink",
+        "ids": [
+          "https://work.example/acme/csv-acceptance-order"
+        ]
+      }
+    ],
+    "changedIds": [
+      "https://work.example/acme/csv-acceptance-order",
+      "https://work.example/acme/csv-empty-output",
+      "https://work.example/acme/csv-headings"
+    ],
+    "expectedPublishedLifecycleFacts": 3
+  },
+  "guardedFailure": {
+    "expectedProblem": "revision-mismatch",
+    "expectedCreatedIds": [],
+    "originalGuideRevision": "guide-i",
+    "expectedResourceLifecycleFacts": 0
+  },
+  "bindingsOnly": {
+    "execution": "emitted-only",
+    "externalArguments": []
+  },
+  "arguments": {
+    "execution": "emitted-only",
+    "supplied": {
+      "guide": "csv-draft"
+    },
+    "sameCompiledRequestAs": "csv-bindings.batch.json",
+    "missingAndUnused": "reject"
+  },
   "prepare": {
     "bindings": {
       "checks": {
@@ -184,6 +233,11 @@
     },
     "metadata": {}
   },
+  "fixedIdsStillLive": [
+    "https://work.example/acme/csv-acceptance-order",
+    "https://work.example/acme/csv-empty-output",
+    "https://work.example/acme/csv-headings"
+  ],
   "newDeletedIds": [
     "https://work.example/acme/p8k4m",
     "https://work.example/acme/r6n2v"
@@ -193,13 +247,14 @@
     "csv-checks"
   ],
   "refusalExamplesChecked": [
+    "fixed-ID-creation-plus-stale-guide-guard",
     "stale-guide-guard-before-publication",
     "other-incident-Link-blocks-cleanup"
   ],
   "notExecuted": [
-    "friendly CLI parser/compiler",
+    "actual CLI parser/compiler",
     "actual BDP service",
-    "backend Query evaluator",
+    "provider Query evaluator",
     "database transaction/isolation",
     "authorization",
     "Event backend",

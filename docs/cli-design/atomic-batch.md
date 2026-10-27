@@ -11,8 +11,12 @@ The result shapes below replace the earlier unadopted per-member postimages.
 The newer [batch overview](overview/06-batch.md) and
 [selection design notes](batch-selection-design.md) explore named List/Query
 bindings and a shared `--dry-run-mode` surface. They are review proposals for an
-explicit extension. This version-1 source continues to admit only six CRUD
+explicit extension. The retained version-1 wire continues to admit only six CRUD
 members; its closed grammar and existing capture semantics are unchanged.
+The older CLI tokenizer, `--name`, `@name` and emit-flag spellings below are
+historical authoring proposals, superseded by the reviewed
+[canonical CLI entry](bdp-cli.md#atomic-batch). They do not authorize raw CLI
+input in the current design.
 
 ## One document, one decision
 

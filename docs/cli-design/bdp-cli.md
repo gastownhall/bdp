@@ -24,7 +24,7 @@ Write authors can work in parallel. Read the available sections in this order:
 3. [Build and revise the graph](overview/03-crud.md) — complete Bead and Link CRUD.
 4. [Observe changes](overview/04-events.md) — Events, live observation and cursors.
 5. [Revisions and history](overview/05-revisions.md) — edition selection, pins and guarded edits.
-6. [Apply related changes atomically](overview/06-batch.md) — batch, named selections and emission; selection-capable extension under review.
+6. [Apply related changes atomically](overview/06-batch.md) — batch, fixed IDs, outcomes, bindings, arguments and selection; extension under review.
 7. Automation — pending.
 
 These are authored examples of the design target. The Read/Query contribution
@@ -149,16 +149,16 @@ transmission. Capability/guard/conflict/unknown-result diagnoses never authorize
 fresh key automatically. [Write durability](../../specs/profiles/write/retained-write.md#standalone-key-foundation-independent-of-sequence-and-replication)
 is the authority contract; retry-file is private client recovery, not a public API.
 
---emit-operation on six ordinary CRUD commands and --emit-batch on batch produce
-literal selected native input without network/key/ID allocation or admission claim.
+`--dry-run-mode batch` emits a member on ordinary CRUD commands and the complete
+native wrapper on `bd batch`, without execution, allocation or an admission claim.
 Local ordinals and allocator-only --id-root cannot be silently resolved by the
 offline compiler; use exact tokens and explicit IDs, or receive an explicit refusal.
-Create --name is a batch/operation-emission label; ordinary singleton execution
-refuses it rather than inventing a body field. Delete rendering preserves --force. Display framing/masks and execution/retry keys
-conflict with emission. Shared native fields, presence, exact values, guards, Type
+Create `--batch-bind` is a batch-member emission label; ordinary execution refuses
+it. Delete rendering preserves `--force`. Display framing/masks and execution/retry
+keys conflict with emission. Shared native fields, presence, exact values, guards, Type
 pins, patch/replacement intent and capture names survive compile/render; unsupported
-versions refuse rather than rewrite. Future parameterization needs explicit versioned
-syntax; current strings/@name never acquire new interpolation meaning.
+versions refuse rather than rewrite. Richer value kinds require explicit
+extensions; literal strings never acquire interpolation meaning.
 
 ## Optional History delivery, without a new History promise
 
@@ -494,8 +494,8 @@ revision. The provider determines whether any fresh version is produced.
 | `--force` | Apply a Resource deletion; required for alias deletion. | A Resource delete previews its current record. |
 | `--idempotency-key KEY` | Use this exact key for one applied mutation. | Generate and save a key before transmission. |
 | `--retry-file FILE` | Recover the original frozen invocation with its original key. | Execute a new invocation. |
-| `--emit-operation` | Produce one ordinary CRUD batch-member record without executing it. | Execute the command. |
-| `--name NAME` | Label a creation in an emitted operation or a CLI batch file. | No capture label. |
+| `--dry-run-mode MODE` | Emit one compact member plus newline with `batch`, or preview the BDP request with `bdp`. | Execute the command. |
+| `--batch-bind NAME` | Bind a creation result for later members; valid only with batch-member emission. | No capture label. |
 
 Retry mode accepts only its saved file and display controls. It cannot change the
 Scope, operands, Type, guard, inputs or key. It reuses the saved operation binding
@@ -504,12 +504,20 @@ Credentials are obtained for the current attempt. An uncertain outcome stays
 uncertain until same-key recovery establishes its disposition. A failed render
 does not undo a known successful write. See [Write durability](../../specs/profiles/write/retained-write.md#standalone-key-foundation-independent-of-sequence-and-replication).
 
-Emission rejects explicit display controls, execution keys and retry mode. It
-does not fetch, allocate or reserve IDs, resolve local revision numbers, choose
-Type defaults, validate server policy or claim successful admission. Exact tokens
-and a sufficient offline Scope binding are required. `--name` is not a singleton
+MODE is `batch` or `bdp`. Member mode emits one compact JSON object and a newline;
+batch-only references use `batch-ref::NAME` in admitted operand positions. The
+definition flag and references refuse ordinary execution. The reviewed spelling
+supersedes the older literal-command-file authoring model. See the
+[batch overview](overview/06-batch.md) for composition and arguments.
+
+Emission rejects explicit display controls, execution keys and retry mode.
+Member/body emission does not fetch, allocate or reserve IDs, resolve local
+revision numbers, choose Type defaults or validate server policy. BDP request
+preview uses an established route; its exact discovery policy remains a review
+question. No preview claims successful admission. Exact tokens
+and a sufficient offline Scope binding are required. `--batch-bind` is not a singleton
 body field. Emission preserves field presence, edit intent, pins and guards.
-See [operation emission and batch rendering](atomic-batch.md#emission-and-rendering).
+See [batch authoring and emission](batch-selection-design.md#jsonl-assembly-and-supplied-arguments).
 
 Applied mutations accept `default`, `detail`, `json` and `jsonl` output, plus
 `--long` for human detail. They do not accept table format or read field masks.
@@ -574,9 +582,9 @@ Create one Bead with a Type and optional initial properties and metadata.
 
 ```text
 bd create [SCOPE] --type TYPE [--id ID | --id-root ROOT]
-    [--properties JSON] [--metadata JSON] [--scope SCOPE] [--name NAME]
+    [--properties JSON] [--metadata JSON] [--scope SCOPE] [--batch-bind NAME]
     [--revision-provenance JSON]
-    [--idempotency-key KEY | --emit-operation]
+    [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd create --retry-file FILE
     [--output-format default|detail|json|jsonl] [--long]
@@ -601,8 +609,8 @@ bd create --retry-file FILE
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
-| `--emit-operation` | Off | Emit a CRUD member without executing it. See [emission](#mutation-delivery). |
-| `--name NAME` | No label | Name this creation only in emission or a CLI batch file. See [write delivery](#mutation-delivery). |
+| `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
+| `--batch-bind NAME` | No label | Name this creation only with batch-member emission. See [write delivery](#mutation-delivery). |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [write output](#mutation-delivery). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 
@@ -648,7 +656,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --id ID / allocated root ID | Set the complete chosen `id`; omission leaves authority allocation. |
 | --properties / --metadata | Set the existing initial object members. |
 | --revision-provenance JSON | Set `revisionProvenance` input. |
-| --emit-operation / --name | Emit `operation:"createBead"` and optional `name`; neither is a singleton body member. |
+| --dry-run-mode batch / --batch-bind | Emit `operation:"createBead"` and optional `name`; neither is a singleton body member. |
 
 ##### Examples
 
@@ -660,7 +668,7 @@ bd create --type memory --properties '{"title":"Review","body":"Read the draft"}
 bd create --type memory --id notes/review
 
 # Emit a named creation for later batch composition.
-bd create --type memory@=type-r1 --id note-1 --name note --emit-operation
+bd create --type memory@=type-r1 --id note-1 --batch-bind note --dry-run-mode batch
 
 ```
 
@@ -807,7 +815,7 @@ bd update REF [--type TYPE] [--scope SCOPE] [--if-revision REV]
     [--metadata JSON | --replace-metadata JSON | --patch-metadata JSON
        | [--set-metadata KEY=VALUE]... [--unset-metadata KEY]...]
     [--revision-provenance JSON]
-    [--idempotency-key KEY | --emit-operation]
+    [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd update --retry-file FILE
     [--output-format default|detail|json|jsonl] [--long]
@@ -839,7 +847,7 @@ bd update --retry-file FILE
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
-| `--emit-operation` | Off | Emit a CRUD member without executing it. See [emission](#mutation-delivery). |
+| `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [write output](#mutation-delivery). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 
@@ -890,7 +898,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | Merge, patch and keyed object edits | Lower to `propertiesChange` / `metadataChange` without changing edit intent or policy. |
 | --if-revision REV | Resolve the target-local number or strip `=` and set exact `expectedRevision`. |
 | --revision-provenance JSON | Set admitted `revisionProvenance` input. |
-| --emit-operation | Emit a member with `operation:"updateBead"` and the same inputs. |
+| --dry-run-mode batch | Emit a member with `operation:"updateBead"` and the same inputs. |
 
 ##### Examples
 
@@ -916,7 +924,7 @@ Preview or apply deletion of one Bead.
 bd delete REF [--scope SCOPE]
     [--output-format default|detail|json|jsonl] [--long]
 bd delete REF --force [--scope SCOPE] [--if-revision REV]
-    [--idempotency-key KEY | --emit-operation]
+    [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd delete --retry-file FILE
     [--output-format default|detail|json|jsonl] [--long]
@@ -937,7 +945,7 @@ bd delete --retry-file FILE
 | `--if-revision REV` | No guard | Require the target revision; `N` or `=TOKEN`. See [write revisions](#write-revision-flags). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
-| `--emit-operation` | Off | Emit a CRUD member without executing it. See [emission](#mutation-delivery). |
+| `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [write output](#mutation-delivery). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 
@@ -983,7 +991,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | REF with --force | POST `bead` to discovered `deleteBead` with an Idempotency-Key. |
 | --if-revision REV | Set exact `expectedRevision` after the shared revision conversion. |
 | --force | Client apply intent only; no native field. |
-| --emit-operation | Emit `operation:"deleteBead"`; do not execute it. |
+| --dry-run-mode batch | Emit `operation:"deleteBead"`; do not execute it. |
 
 ##### Examples
 
@@ -995,7 +1003,7 @@ bd delete note-1
 bd delete note-1 --force --if-revision =saved-r7
 
 # Emit an explicit deletion for batch composition.
-bd delete note-1 --force --emit-operation
+bd delete note-1 --force --dry-run-mode batch
 
 ```
 
@@ -1193,11 +1201,11 @@ bd link create --retry-file FILE
     [--output-format default|detail|json|jsonl] [--long]
 
 OPTIONS:
-    [--scope SCOPE] [--id ID | --id-root ROOT] [--name NAME]
+    [--scope SCOPE] [--id ID | --id-root ROOT] [--batch-bind NAME]
     [--source-revision TOKEN] [--target-revision TOKEN]
     [--properties JSON] [--metadata JSON]
     [--revision-provenance JSON]
-    [--idempotency-key KEY | --emit-operation]
+    [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 ```
 
@@ -1225,8 +1233,8 @@ OPTIONS:
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
-| `--emit-operation` | Off | Emit a CRUD member without executing it. See [emission](#mutation-delivery). |
-| `--name NAME` | No label | Name this creation only in emission or a CLI batch file. See [write delivery](#mutation-delivery). |
+| `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
+| `--batch-bind NAME` | No label | Name this creation only with batch-member emission. See [write delivery](#mutation-delivery). |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [write output](#mutation-delivery). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 
@@ -1278,7 +1286,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --type TYPE | Set whole `type` Reference. |
 | --id / --id-root | Use ordinary `id` or authority allocation; `idRoot` is not a wire member. |
 | --properties / --metadata / --revision-provenance | Set the existing initial object and attribution members. |
-| --emit-operation / --name | Emit `operation:"createLink"` with optional creation name; no singleton name field. |
+| --dry-run-mode batch / --batch-bind | Emit `operation:"createLink"` with optional creation name; no singleton name field. |
 
 ##### Examples
 
@@ -1429,7 +1437,7 @@ bd link update REF [--type TYPE] [--scope SCOPE] [--if-revision REV]
     [--metadata JSON | --replace-metadata JSON | --patch-metadata JSON
        | [--set-metadata KEY=VALUE]... [--unset-metadata KEY]...]
     [--revision-provenance JSON]
-    [--idempotency-key KEY | --emit-operation]
+    [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd link update --retry-file FILE
     [--output-format default|detail|json|jsonl] [--long]
@@ -1461,7 +1469,7 @@ bd link update --retry-file FILE
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
-| `--emit-operation` | Off | Emit a CRUD member without executing it. See [emission](#mutation-delivery). |
+| `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [write output](#mutation-delivery). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 
@@ -1513,7 +1521,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | Merge, patch and keyed object edits | Lower to `propertiesChange` / `metadataChange` without changing edit intent or policy. |
 | --if-revision REV | Resolve the target-local number or strip `=` and set exact `expectedRevision`. |
 | --revision-provenance JSON | Set admitted `revisionProvenance` input. |
-| --emit-operation | Emit a member with `operation:"updateLink"` and the same inputs. |
+| --dry-run-mode batch | Emit a member with `operation:"updateLink"` and the same inputs. |
 
 ##### Examples
 
@@ -1540,7 +1548,7 @@ bd link delete REF [--scope SCOPE]
     [--output-format default|detail|json|jsonl] [--long]
 bd link delete REF --force [--scope SCOPE] [--if-revision REV]
     [--revision-provenance JSON]
-    [--idempotency-key KEY | --emit-operation]
+    [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd link delete --retry-file FILE
     [--output-format default|detail|json|jsonl] [--long]
@@ -1562,7 +1570,7 @@ bd link delete --retry-file FILE
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
-| `--emit-operation` | Off | Emit a CRUD member without executing it. See [emission](#mutation-delivery). |
+| `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [write output](#mutation-delivery). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 
@@ -1609,7 +1617,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --if-revision REV | Set exact `expectedRevision` after the shared revision conversion. |
 | --revision-provenance JSON | Set attribution for an induced source revision where applicable. |
 | --force | Client apply intent only; no native field. |
-| --emit-operation | Emit `operation:"deleteLink"`; do not execute it. |
+| --dry-run-mode batch | Emit `operation:"deleteLink"`; do not execute it. |
 
 ##### Examples
 
@@ -1621,7 +1629,7 @@ bd link delete rel-1
 bd link delete rel-1 --force --if-revision =saved-r7
 
 # Emit an explicit deletion for batch composition.
-bd link delete rel-1 --force --emit-operation
+bd link delete rel-1 --force --dry-run-mode batch
 
 ```
 
@@ -2344,104 +2352,143 @@ bd alias delete current-plan --force --output-format json
 
 #### `bd batch`
 
-Apply or emit one optional atomic batch using ordinary CRUD commands or the native JSON form.
+Apply or emit one optional atomic batch from JSONL member data or a native
+versioned JSON request. The [overview](overview/06-batch.md) introduces fixed
+IDs, outcomes and recovery before bindings, arguments and selections.
 
 ##### Usage
 
 ```text
-bd batch [SCOPE] --file FILE [--input-format json|cli] [--scope SCOPE]
-    [--idempotency-key KEY | --emit-batch]
+bd batch [SCOPE] --file FILE --input-format jsonl --batch-version VERSION
+    [--batch-arg NAME=VALUE ...] [--scope SCOPE]
+    [--idempotency-key KEY | --dry-run-mode batch|bdp]
+    [--output-format default|detail|json|jsonl] [--long]
+bd batch [SCOPE] --file FILE [--input-format json] [--scope SCOPE]
+    [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd batch --retry-file FILE
     [--output-format default|detail|json|jsonl] [--long]
 ```
 
+The JSONL version-selection spelling and proposed version-2 encoding remain
+author proposals. This section incorporates the reviewed CLI direction; it
+does not amend the retained version-1 wire/schema or claim an implementation.
+
 ##### Arguments
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| SCOPE | No; Unreviewed | Optional single destination Scope spelling; see [Scope selection](#scope-selection). |
+| SCOPE | No; Unreviewed | Optional destination Scope spelling; see [Scope selection](#scope-selection). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
-| `--file FILE` | Required, except retry | Read one complete batch document; `-` means stdin. |
-| `--input-format json\|cli` | `json` | Choose native versioned JSON or literal CLI command lines; extension does not select it. |
-| `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
-| `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
-| `--emit-batch` | Off | Compile the versioned native wrapper without execution or allocation. |
+| `--file FILE` | Required, except retry | Read and freeze one complete input; `-` means stdin. |
+| `--input-format json\|jsonl` | `json` | Choose a literal native wrapper or local JSONL member authoring. Raw CLI text is not accepted. |
+| `--batch-version VERSION` | Required for JSONL; proposed | Select its exact encoder/admission grammar; native JSON already carries its selector and rejects this flag. |
+| `--batch-arg NAME=VALUE` | None | Repeat to supply scalar Reference arguments required by JSONL operand use. Missing, unused and duplicate values fail. |
+| `--idempotency-key KEY` | Generated and saved | Set one applied write key. See [write delivery](#mutation-delivery). |
+| `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. |
+| `--dry-run-mode batch\|bdp` | Off | Emit the compiled native wrapper or preview its BDP request without execution. |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [write output](#mutation-delivery). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 
 ##### Behavior
 
-Require the separately advertised atomic-batch capability, exact version `1`,
-for execution. Only Bead/Link create, update and delete members are admitted.
-No alias, read, set-write, domain command or non-atomic sequence is added.
-No sequential fallback or automatic chunking can preserve this contract.
+The selected version must be implemented by the compiler and advertised by the
+authority for execution. Version 1 retains its six CRUD members and existing
+creation-capture semantics. Named List/Query selection and set targets belong
+to the explicitly proposed version-2 grammar. Unsupported selection refuses;
+there is no downgrade, client-side preselection, independent-write fallback or
+automatic chunking.
 
-CLI input is a tokenizer, not a shell. Lines contain ordinary signatures without
-the executable. Parse every command and freeze every local input before dispatch;
-a malformed final line leaves the whole document unsubmitted. Only the outer
-batch may consume stdin. Members share one Scope, contract, authorization context
-and key, without per-member connection, output or retry flags. Delete members
-require `--force`. See the [complete literal-command grammar](atomic-batch.md#literal-command-files).
+JSONL authoring contains one complete member object per physical line.
+It has no comments, blank lines, header or array delimiters. Freeze and validate
+every member and argument before sending anything. Syntax and value checks
+retain the selected contract's duplicate-key, Unicode, numeric and input bounds.
+Members share one Scope, authorization context, contract and key.
 
-Creates may use `--name NAME`; an earlier creation's `@NAME` captures its identity
-only in admitted Resource-reference positions. Unknown/forward/wrong-kind handles
-refuse. Property strings stay data. No Type handle, revision capture, string
-substitution or parameterized-template feature is specified.
+Ordinary commands with `--dry-run-mode batch` produce those member records.
+Creates and admitted selections use `--batch-bind NAME` to define a variable;
+`batch-ref::NAME` in an admitted Reference position emits a structural reference.
+Names are unique and match `[A-Za-z][A-Za-z0-9_-]*`. A full HTTP URL stays a
+Reference; property strings and arbitrary JSON data are never interpolated.
+Using a batch definition/reference in ordinary execution fails.
+
+Compile the complete JSONL document before classifying references. Names defined
+by members are internal, must precede use and cannot be overridden by arguments.
+An undefined name in an admitted operand is an implicit required external
+argument. `--batch-arg NAME=VALUE` resolves that input to an ordinary Reference
+under the outer Scope before constructing the native wrapper. Forward internal
+references, missing/unused/duplicate arguments and invalid operand kinds refuse.
+Native JSON is literal selected wire input and accepts neither supplied arguments
+nor undeclared external names. Exact allowed argument positions remain in the
+[batch design notes](batch-selection-design.md#jsonl-assembly-and-supplied-arguments).
 
 One decision commits all admitted effects or none. Guards on existing targets
-compare their committed pre-batch revisions. Final publication produces at most
-one new revision per final changed Resource or owner. A net-zero covered state
-retains its original revision; create-then-delete still consumes identity.
-Recovery replays the complete frozen request in the original selected context.
+compare their committed pre-batch baseline. Final publication produces at most
+one new revision per final changed Resource or owner; a net-zero covered state
+retains its original revision. Create-then-delete still consumes identity.
+Selection sees earlier staged writes and captures membership once, subject to
+explicit transaction-scoped support. Precise concurrent-selection admission
+remains review work.
 
+Recovery uses the complete original frozen request, resolved arguments,
+selected version, route and key. It never rereads source files or reevaluates
+a committed selection. Dry-run output makes no remote admission, allocation
+or key-reservation claim. BDP preview requires an established operation route;
+its exact framing/read-only discovery policy remains under review.
 
 ##### Results
 
-Preserve the complete native object: capabilityVersion, aggregate changed,
-ordered input identity mappings, unique final Resource outcomes and transaction
-when effectful. There are no fake intermediate postimages. An allocated identity
-may remain in the result even when its created Resource was deleted before
-publication. Human display may show member mappings while reporting one decision.
-JSONL carries the entire compound result as one item. Emission returns only the
-unexecuted native wrapper. See [batch results](atomic-batch.md#complete-results-and-errors).
+Preserve the complete native result: selected version, aggregate change,
+ordered member identity mappings and unique final Resource outcomes.
+The retained version-1 result grammar remains unchanged; exact result fields
+for selections and sets are proposals for the next detailed pass.
+There are no intermediate public postimages. Human output reports one decision;
+JSONL output carries its complete compound result as one item.
 
+Member emission writes one compact JSON object and a newline. Batch emission
+writes one complete versioned native wrapper. Neither is a successful mutation
+result. See the [retained wire result contract](../../specs/profiles/write/atomic-batch.md#final-results-not-intermediate-postimages)
+and [new selection examples](overview/06-batch.md).
 
 ##### Errors and exit status
 
-Uses the [common exit statuses](#exit-status). Invalid or conflicting inputs
-return `2`; a missing target returns `3`; revision mismatch returns `4`;
-unsupported Write or a required lowering capability returns `5`. Access, integrity,
-validation and other failures use their precise Problem and status `1` unless
-another common diagnosis applies. An uncertain write returns `1` and preserves
-same-key recovery information; it is not permission to submit a fresh write.
+Uses the [common exit statuses](#exit-status). Invalid or conflicting inputs,
+including missing or unused arguments, return `2`; a missing target returns
+`3`; revision mismatch returns `4`; unsupported Write or a required capability
+returns `5`. Other failures retain their precise Problem and status `1` unless
+another common diagnosis applies. Member context is reported where the selected
+Problem and authorization permit it. An uncertain write preserves same-key
+recovery information and never authorizes a fresh execution automatically.
 
 ##### Protocol correspondence
 
 | CLI input | Protocol request or client behavior |
 | --- | --- |
-| --input-format cli | Compile ordinary commands into the closed native version-1 wrapper; no shell execution. |
-| --input-format json | Validate and retain the exact selected native wrapper, including required `capabilityVersion:"1"`. |
-| Execution | POST to the separately discovered atomic-batch operation with one Idempotency-Key. |
-| Creation labels and handles | Use existing `name` and earlier `@name` Resource references; no new parameterization. |
-| --emit-batch | Print the versioned wrapper without discovery, allocation, default resolution or admission. |
-| Recovery / output controls | Preserve one original decision and its complete compound native result. |
+| JSONL members and selected version | Validate/resolve authoring input and build the exact versioned native wrapper. |
+| Native JSON | Validate the literal wrapper and required selector without interpolation. |
+| `--batch-bind` / `batch-ref::NAME` | Define and consume typed batch variables; selected wire encoding preserves their identity dependencies. |
+| `--batch-arg NAME=VALUE` | Resolve external Reference inputs locally; no unresolved external argument is sent. |
+| Execution | POST once to the discovered atomic-batch operation with one Idempotency-Key. |
+| `--dry-run-mode batch` | Emit the complete native request body without execution. |
+| `--dry-run-mode bdp` | Preview the corresponding request under an established route; omit credentials. |
+| Recovery / output controls | Preserve the original decision and its complete compound outcome. |
 
 ##### Examples
 
 ```sh
-# Execute a file containing literal ordinary commands.
-bd batch --file review.bdp --input-format cli
+# Execute fixed-ID JSONL members under the retained CRUD grammar.
+bd batch --file csv-basics.jsonl --input-format jsonl --batch-version 1
 
-# Compile those commands to the native JSON wrapper.
-bd batch --file review.bdp --input-format cli --emit-batch
+# Supply the guide input and inspect the resolved candidate request.
+bd batch --file csv-arguments.jsonl --input-format jsonl --batch-version 2 \
+  --batch-arg guide=csv-draft --dry-run-mode batch
 
-# Execute an already authored native batch document.
+# Execute an already authored native versioned request.
 bd batch --file review.json --input-format json
 
 # Recover an uncertain batch using its frozen original invocation.

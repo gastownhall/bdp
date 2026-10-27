@@ -1,6 +1,6 @@
 # Batch selections: review choices and paired examples
 
-**Author proposal for morning review, October 26, 2026.** This accompanies the
+**Review draft, updated October 27, 2026.** This accompanies the
 [batch overview](overview/06-batch.md). It does not amend the retained
 [version-1 batch](../../specs/profiles/write/atomic-batch.md), held schemas,
 runtime pins or implementations. The proposed version-2 names below make the
@@ -12,7 +12,21 @@ Donna selected a single atomic decision covering selection and writes.
 Selections see earlier staged creates and updates. A named selection captures
 its ID set once; later members consume that set without implicitly reevaluating it.
 The existing final-publication, net-no-op and retained keyed-outcome model is
-the intended foundation.
+the intended foundation. The overview now starts with two fixed-ID creations
+and a Link, then results, failure, revisions and recovery before bindings,
+arguments, List and Query.
+
+Donna selected `--batch-bind NAME` and `batch-ref::NAME` for definitions and
+references. Both require batch-member emission rather than ordinary execution.
+Each operand carries its own reference; no per-endpoint flag family is needed.
+The spelling is explicitly reserved in batch Reference positions, even though
+`batch-ref:` has URI-scheme syntax. Full HTTP URLs and property strings stay
+literal under their ordinary rules.
+
+Donna also selected `--batch-arg NAME=VALUE`, with missing and unused arguments
+rejected. Parameters are implicit through use; there is no declaration block.
+Raw CLI text is no longer a batch input. The overview uses JSONL member assembly
+and native JSON requests; exact local grammar details below remain proposals.
 
 Donna proposed `--dry-run-mode batch` for operation emission and `--dry-run-mode
 bdp` (possibly named http) for request emission. The overview uses those proposed
@@ -37,10 +51,12 @@ The examples preserve ordinary create/update/delete fields. They add:
 | `updateBead.bead` / `deleteBead.bead` bound to a Bead set | Apply the ordinary operation to each selected target as part of the same decision. Link forms require a Link set. |
 | Creation `name` | Bind the one new identity, consumable as a singleton mutation target or single Link endpoint. |
 
-The CLI's `--name` is accepted on creates and named selection members in this
-proposal. Query aliases such as `edge` are local to their read expression; batch
-names such as `ready-links` belong to the batch document. Neither is a persisted
-alias. Property strings containing `@name` remain literal data.
+The CLI's `--batch-bind` maps to `name` on creates and named selection members;
+`batch-ref::NAME` emits an explicit `{binding:NAME}` operand. Query aliases such
+as `edge` are local to their expression; batch names such as `ready-links` belong
+to the batch document. Neither is a persisted alias. Property strings containing
+`batch-ref::NAME` remain literal data. These CLI choices do not change the
+retained version-1 wire's existing name/handle representation.
 
 The `query` selector envelope deliberately has no read result/delivery controls:
 no Resource-body response request, masks, sort, paging cursor or count. Its output
@@ -48,15 +64,71 @@ is a typed identity set. The checker can validate the shared selection shape by
 placing it in an ordinary resource-result AST request, but that does not make the
 ordinary read transport or public Resource-edition model its transaction contract.
 
-The paired files are:
-- [Prepare CLI](overview/examples/csv-review.bdp) and [native input](overview/examples/csv-review.batch.json).
-- [Cleanup CLI](overview/examples/csv-cleanup.bdp) and [native input](overview/examples/csv-cleanup.batch.json).
-- [Empty-set CLI](overview/examples/csv-empty.bdp) and [native input](overview/examples/csv-empty.batch.json).
+The paired examples are ordinary shell assembly scripts, JSONL authoring files
+and compiled native requests. No shell script is an input to `bd batch`.
+
+| Example | Assembly script | JSONL members | Native request |
+| --- | --- | --- | --- |
+| Fixed IDs | [script](overview/examples/csv-basics.sh) | [members](overview/examples/csv-basics.jsonl) | [request](overview/examples/csv-basics.batch.json) |
+| Guarded refusal | [script](overview/examples/csv-failure.sh) | [members](overview/examples/csv-failure.jsonl) | [request](overview/examples/csv-failure.batch.json) |
+| Self-contained bindings | [script](overview/examples/csv-bindings.sh) | [members](overview/examples/csv-bindings.jsonl) | [request](overview/examples/csv-bindings.batch.json) |
+| Supplied guide argument | [script](overview/examples/csv-arguments.sh) | [members](overview/examples/csv-arguments.jsonl) | [resolved request](overview/examples/csv-arguments.batch.json) |
+| List and updates | [script](overview/examples/csv-review.sh) | [members](overview/examples/csv-review.jsonl) | [request](overview/examples/csv-review.batch.json) |
+| Query and cleanup | [script](overview/examples/csv-cleanup.sh) | [members](overview/examples/csv-cleanup.jsonl) | [request](overview/examples/csv-cleanup.batch.json) |
+| Empty set | [script](overview/examples/csv-empty.sh) | [members](overview/examples/csv-empty.jsonl) | [request](overview/examples/csv-empty.batch.json) |
 
 A service may support transaction-scoped List without Query. An unsupported
 selector/profile refuses the whole request; clients never perform the read on
 the side or silently drop clauses. The full representation must remain renderable
 through the ordinary command signatures and shared expression language.
+
+## JSONL assembly and supplied arguments
+
+The proposed authoring grammar is one complete member object per physical line,
+without comments, a header, opening/closing array delimiters or a version field.
+An emitter escapes embedded newlines inside JSON strings. Arrays, scalar records,
+blank lines and duplicate object keys refuse. All input and ordinary value-file
+contents are frozen before submission; a valid prefix is never dispatched while
+the remainder is being read. Scripts use explicit shell failure checks to avoid
+submitting a prefix left behind by a failed emission. A conditional group can
+suppress Bash errexit, so `set -e` alone inside that group is insufficient.
+
+The overview proposes `--input-format jsonl --batch-version VERSION` to select
+the exact implemented encoder/admission grammar before compilation. The explicit
+version flag is an author proposal, not a human ruling. It avoids guessing a
+version from the currently advertised provider or from the last input member.
+Native `--input-format json` instead carries its own required selector and is
+literal wire input. Conflicting selection or an unsupported grammar refuses;
+there is no downgrade or provider-dependent reinterpretation.
+
+Individual `--dry-run-mode batch` invocations emit one member object and a newline.
+On `bd batch`, the same mode emits the complete versioned native wrapper after
+local argument resolution. `--dry-run-mode bdp` previews the corresponding
+protocol request under a verified route. Neither mode allocates IDs, reserves a
+key or validates remote admission; offline emission cannot resolve local ordinals.
+
+In JSONL authoring, an explicit `{binding:NAME}` in an admitted operand position
+names a variable. Compilation first collects all `name` definitions. A reference
+to one is internal, must follow its definition, and remains a structural binding
+reference in the proposed version-2 request. A name with no definition is an
+implicit external argument, required through `--batch-arg NAME=VALUE`. It resolves
+locally to an ordinary Reference before the wire request is frozen.
+
+For this slice, external arguments are scalar References in the ordinary Bead/Link
+target and Link endpoint positions. A position's kind and revision restrictions
+still apply, and relative values use the outer Scope. This does not admit Type,
+ID-allocation or revision-token variables, set-valued input arguments, dynamic
+query text, property substitution or a general template language. Additional
+positions/value kinds remain review work rather than acquiring implicit meaning.
+
+Missing, unused or duplicate arguments fail. An argument cannot override an
+internal definition, duplicate internal names fail, and a forward internal
+reference never becomes an external argument. Wrong-kind or incompatible uses
+fail as their available static/resolution information permits; service admission
+still checks live Resources. Only designated operand positions participate;
+an object or string in properties is never scanned for variables. Native JSON
+input accepts no `--batch-arg`; already compiled bindings are internal references,
+not an implicit template. Retry freezes resolved inputs and cannot add arguments.
 
 ## Staged values are not public revisions
 
@@ -87,7 +159,7 @@ writable current identity is not an acceptable implicit lowering.
 - Exceeding a bound refuses before publication. A paged prefix is not the intended
   complete set. Explicit bounded-subset selection is not specified by this slice.
 - No implicit Cartesian Link creation, array element map, computed patch value,
-  cascade, arbitrary loop or parameterized-template language is added.
+  cascade, arbitrary loop or general template language is added.
 - Results must expose each input member's identity mapping, including each
   selection, and one final outcome per affected Resource. A selected but unchanged
   Resource need not acquire a fake mutation outcome just because it was read.
@@ -145,7 +217,9 @@ after an error does not meet this acceptance case.
 | Guards | Per-target revisions or another explicit set precondition; no single token silently reused as a set guard. |
 | Product lowering | Preserve lifecycle, label-set/array edits, native dependency rules and explicit incident-Link removal. Acquisition alone is not the entire command. |
 | Results and errors | Identity sets per member, final Resource outcomes, stable indices/diagnostics, retained recovery and authorization of replayed detail. |
-| Wire and emission | Adopt or revise the example selector/binding encoding, capability/version dispatch and exact dry-run output. Resolve read-only discovery versus offline emission. |
+| Wire and emission | Adopt or revise the example selector/binding encoding, explicit JSONL version selection and exact dry-run output. Resolve read-only discovery versus offline emission. |
+| Supplied arguments | Confirm first-slice Reference positions and how incompatible constraints are diagnosed. Missing/unused rejection, implicit parameters and no internal override are selected. |
 
-Templates/parameters remain a future explicitly selected extension. The present
-binding syntax must not acquire new interpolation behavior when that arrives.
+Richer value kinds and packaged templates remain future explicit extensions.
+The selected Reference arguments do not introduce string interpolation, and
+ordinary literal data must not acquire it when those extensions arrive.
