@@ -95,6 +95,46 @@ writable current identity is not an acceptable implicit lowering.
 - Recovery preserves the original selected sets, allocated identities and outcome.
   It does not reevaluate a committed batch against later graph state.
 
+## Provider acceptance case: staged reads and fixed captures
+
+Retain this case for every provider claiming transaction-scoped selection. It
+tests the already-selected visibility behavior, independently of the candidate
+wire spelling. The following is an authored acceptance scenario, not an executed
+provider test or a claim that a particular adapter supports it.
+
+Start with one Bead, `existing`, whose status is `draft`. No other Bead matches
+that predicate. Use a deterministic, ordinary refusal for the final member,
+such as updating an identity known not to exist.
+
+| Member | Expected staged observation or effect |
+| --- | --- |
+| Create `new` with status `draft`. | The new identity is available to later members without publishing a Resource revision. |
+| Select Beads with status `draft` as `before`. | The captured set is exactly `{existing, new}`. This proves selection observes the earlier create. |
+| Update `new` to status `ready`. | The earlier capture remains `{existing, new}`. |
+| Select Beads with status `draft` as `after`. | The new capture is exactly `{existing}`. This proves a fresh selection observes the earlier update. |
+| Update `before`, setting metadata `visited` to `true`. | Both Beads receive the staged edit, including `new`, which no longer matches the original predicate. This proves consuming a capture does not reevaluate it. |
+| Force the final member to refuse. | The whole batch refuses; none of these Resource changes is published. |
+
+Run a successful control with the same starting state and the final refusal
+member omitted. It must return those two captured sets and publish `existing`
+as `draft` with `visited:true`, and `new` as `ready` with `visited:true`. The new
+Bead has one final published revision rather than a visible draft intermediate
+state. This control exposes the staged semantics without relying on failed
+requests returning intermediate bindings.
+
+Run the refusal variant from a fresh copy of the starting state. After refusal,
+`existing` retains its original content and revision, and no new Bead or Resource
+lifecycle Event from this attempt is published. Diagnostic or audit records and
+retained failure outcomes are distinct from committed Resource effects. Neither
+test variant permits intermediate committed states to become visible to another
+reader. Instrumented evidence may supplement these observations, but a forced
+failure alone cannot prove which sets were captured internally.
+
+An adapter may use native staged reads, an authorized transaction-local overlay,
+or another equivalent implementation. Atomicity by itself does not establish
+read-your-writes behavior. Publishing intermediate commits and compensating
+after an error does not meet this acceptance case.
+
 ## Morning review
 
 | Issue | Decision to make |
