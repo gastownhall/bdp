@@ -54,3 +54,27 @@ Memory wrapper. It covers the reviewed initial List/Graph/correlated query subse
 
 All authored expected sets remain obligations for a future evaluator harness.
 The validator executes schema and static admission checks only.
+
+## Focused follow-up
+
+Claude then reviewed frozen commit `9eb4bb49f2b3494ea337ab48628bf113c004f292`.
+The [verbatim follow-up](claude-followup.md) and [source hashes](followup-source.json)
+preserve that exact scope and its no-runtime statement. The following fixes came
+after that review; no third external pass is implied.
+
+| Finding | Bounded correction |
+| --- | --- |
+| 1. Error versus proof order | Made permissive fail-fast behavior an explicit author proposal, with allowed whole-query outcomes. A valid established proof remains definitive; no false/true is fabricated from missing content. Donna has not yet selected this execution policy. |
+| 2. Kind-blind mask protection | Retain collection-kind inference; protect source/target only on Links. Bead `/source` omission is a no-op, and Link omission refuses. |
+| 3. Sorting carrier wording | Explainer now names authority order, accepted one-pointer sort target, and its pending native carrier amendment separately from continuation. |
+| 4. Dead `any` binding | With no test, `any` has no unused binder. Predicate/binder occur together; traversal restriction has its own binder. Added schema refusal. |
+| 5. Optional Graph Type test | Explainer now says optional Type restriction, matching the profile and no-filter cases. |
+| 6. Empty projection object | Initial AST requires a nonempty projection object; omit it for no mask. Added refusal. |
+| 7. Reference slicing | Nested protected-context paths refuse in both modes, with Resource-kind-aware Reference protection. Added Type/endpoint cases. |
+| 8. Mirrored List contains | Literal substring is explicitly required for List; mirrored candidate-derived substring remains Query-only. Added profile refusal. |
+| Combined-mask coverage | Added include-plus-omit case with authored expected logical representation; omit wins. |
+
+Permitted fail-fast outcomes are test-ledger alternatives, not a new wire outcome
+or a third Boolean. They keep an unresolved policy visible for Donna's review.
+All current-root, opaque-graph, capability/carrier, and staged-witness boundaries
+remain explicit. The new cases execute only schema/static admission in this work.

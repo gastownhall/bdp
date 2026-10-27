@@ -1,10 +1,10 @@
 {
   "status": "schema-and-static-admission-checks-passed",
-  "authored_cases": 104,
+  "authored_cases": 114,
   "checks": {
-    "static_admission_accepts_checked": 74,
-    "static_admission_refusals_checked": 14,
-    "schema_refusals_checked": 16
+    "static_admission_accepts_checked": 78,
+    "static_admission_refusals_checked": 18,
+    "schema_refusals_checked": 18
   },
   "markdown_json_blocks_parsed": 1,
   "shell_examples_lexically_parsed_not_executed": 23,
@@ -21,15 +21,15 @@
   "artifacts": [
     {
       "path": "specs/profiles/core/query.md",
-      "sha256": "89eaabc7bec16dcdef0b93ae7fa3f6ff70515f0ca07211cc39d1bc28a33060a4"
+      "sha256": "ee9b168ca48b9116baf56ac57ace1e973ce914be5f8e16176be88d4f1a476da1"
     },
     {
       "path": "specs/profiles/core/resource-projection.md",
-      "sha256": "2a853c85f5c723a12b24a02519eed21a02192ad3ffc8fc752665d2e2083fbf42"
+      "sha256": "5cf986cc7df45b20b3b41cd8e94f2ae4a5c625ebf41b5c844b4398337284a754"
     },
     {
       "path": "docs/cli-design/query-ir.md",
-      "sha256": "5e71e03f0312ac91fb97c6e044d69d7c93faa3ffa73ac96cfd7f5133d1d61b8d"
+      "sha256": "6d47b6d7251135d689811a7ad8b0b6f5f95d53fe17b87fd81402255b5e22ebc9"
     },
     {
       "path": "docs/cli-design/reads-and-paging.md",
@@ -49,7 +49,7 @@
     },
     {
       "path": "docs/cli-design/query-ir/review/README.md",
-      "sha256": "b8e136bf2b254344118a60431d9105bd4c25c3cdf124554af78418e0ad402b57"
+      "sha256": "0d9940bc64aceb20a16600dfd8edddcdbbde707877d5098f735a7929dd167b0f"
     },
     {
       "path": "docs/cli-design/overview/05-revisions.md",
@@ -57,11 +57,11 @@
     },
     {
       "path": "docs/cli-design/query-ir/query.schema.json",
-      "sha256": "a59c0486c2723c6d5e71ef29736c2fa9e2d85487fbad11488baa5eb6a500c01d"
+      "sha256": "eddee14a3f8f9c37ff7f06bf9f21f31efcbf06f918dc0423d34f412c3dd4aef6"
     },
     {
       "path": "docs/cli-design/query-ir/cases.json",
-      "sha256": "c1235f3d0d1cdfda503e6fdbf32555258b888ee8dd58c0fedaa9f07a0ff7afbc"
+      "sha256": "109f8b2daa1bd1d121d57ae8bb9f8a82d690ee6c9d04b18fba32bd5d27a4609e"
     },
     {
       "path": "docs/cli-design/query-ir/fixtures.json",
@@ -69,7 +69,7 @@
     },
     {
       "path": "docs/cli-design/query-ir/validate.py",
-      "sha256": "035f35227c33d24ca463b1508821d1c8c5e7d67216329bbbcfbf42d881530b7b"
+      "sha256": "1b14abb3152558281c167acf971475ed904ef23dcf8a61373c2d00b911d16c24"
     },
     {
       "path": "docs/cli-design/query-ir/examples/list-draft-notes.json",
@@ -94,6 +94,14 @@
     {
       "path": "docs/cli-design/query-ir/review/claude-initial.md",
       "sha256": "370de8d0117139d577ec855c6f6fdca16a9edd62aa2840101ec274fdd9fc94b4"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/claude-followup.md",
+      "sha256": "08a4755a25f87fc51bb615cc3dd860eb056120a4cc36056af77d8dcffe94da37"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/followup-source.json",
+      "sha256": "74b346609bf5856e89ed62e5b6e38afad1c10e7c23483dafd8b2b2a4c4c60c85"
     },
     {
       "path": "docs/cli-design/overview/05-revisions.fixture.json",

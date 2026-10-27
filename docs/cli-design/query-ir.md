@@ -15,7 +15,7 @@ identity, missing data, and Boolean tests.
 
 ```text
 List:   scan → local filter → Resources or exact count
-Graph:  roots → walk with a Type restriction → graph
+Graph:  roots → walk with an optional Type restriction → graph
 Query:  compose scans, filters, walks, endpoint navigation and quantifiers
 ```
 
@@ -195,13 +195,16 @@ The selected canonical flag is `--count-only`, including Link variants. Remainin
 command/file grammar questions do not reopen that spelling or count semantics.
 
 Graph preserves explicit roots, collected Links, and endpoint Beads. Roots remain
-when no Link is found or depth is zero. The initial graph profile restricts the
+when no Link is found or depth is zero. The initial graph profile optionally restricts the
 walk by Link Type and has no outer result filter. The canonical Graph direction
 facade maps in/out/both to incoming/outgoing/connected; exact flag grammar remains
 a command-reference incorporation task.
 
 Include/omit use the [shared Resource projection](../../specs/profiles/core/resource-projection.md)
-contract. Sorting and continuation retain their shared carriers. No `select`,
+contract. Continuation retains its declared carrier. Retained Core uses authority-
+advertised order; the selected one-pointer request sort applies to full selected
+data before projection, but needs an explicit protocol/discovery/carrier amendment.
+This AST schema does not assign that common control a wire member. No `select`,
 computed columns, general scalar top-level result, or path enumeration is needed
 for this first slice.
 

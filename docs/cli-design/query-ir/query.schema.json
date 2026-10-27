@@ -56,7 +56,8 @@
         }
       },
       "required": [],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "minProperties": 1
     }
   },
   "required": [
@@ -412,10 +413,17 @@
       },
       "required": [
         "op",
-        "input",
-        "bind"
+        "input"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "dependentRequired": {
+        "predicate": [
+          "bind"
+        ],
+        "bind": [
+          "predicate"
+        ]
+      }
     },
     "all": {
       "type": "object",
