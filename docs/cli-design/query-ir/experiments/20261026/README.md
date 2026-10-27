@@ -140,3 +140,11 @@ The packaged `EVIDENCE.zip` SHA256 is
 `8c2242f0cf981efef848a32c6ef7ff74c92eed7f018ae305ec1c36e0f5309bde`.
 Its 217 members include an individual digest manifest; the final parent audit
 matched 193 recorded artifact digests and confirmed both owned ports closed.
+
+## Optimization follow-up
+
+The [Dolt optimization investigation](dolt-optimization.md) measures direct physical
+plans and a 0.61-second checked backend prototype with byte-identical output and
+refusal controls. Its whole-fixture batching remains experimental; bounded,
+precharged production cohorts are still required. No tested Memory operator
+needed removal. This addendum has its own source/evidence packet.
