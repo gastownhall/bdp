@@ -39,7 +39,7 @@ farther along. Path restriction and result selection therefore have separate
 positions:
 
 ```text
-outgoing("release-spec", depth: unbounded) as link
+outgoing("A", depth: unbounded) as link
   through link is requires
   where link.target.status = "draft"
 ```
@@ -56,7 +56,8 @@ Link editions. Source and target keep their authored direction, including in
 connected traversal. Cycles and parallel Links do not turn the result into paths.
 
 The draft AST for the example has a `walk` node inside a `filter` node. This is
-the proposed structural correspondence; schema spelling remains reviewable:
+the proposed structural correspondence; schema spelling remains reviewable.
+It uses the constraints fixture and case `main-document-through-then-filter`:
 
 ```json
 {
@@ -69,7 +70,7 @@ the proposed structural correspondence; schema spelling remains reviewable:
       "roots": {
         "op": "refs",
         "collection": "beads",
-        "references": ["https://work.example/acme/release-spec"]
+        "references": ["https://work.example/acme/A"]
       },
       "direction": "outgoing",
       "depth": "unbounded",
@@ -127,7 +128,7 @@ traversed Link. The AST retains these binding references. A service is free to
 lower them to correlated joins or another equivalent plan; it need not construct
 JSON binding records while executing.
 
-Quoted Reference literals such as `"release-spec"` are distinct from bindings
+Quoted Reference literals such as `"A"` are distinct from bindings
 such as `b`. Ordinary string comparisons stay typed comparisons. A function or
 operator accepting a Reference interprets that operand using the shared Reference
 contract; arbitrary string fields are not silently converted to Resources.
@@ -138,11 +139,11 @@ contract; arbitrary string fields are not silently converted to Resources.
 traversal restriction, and test remain visible to the compiler:
 
 ```text
-any outgoing("release-spec") as link
+any outgoing("A") as link
   through link is requires
   where link.status = "draft"
 
-all outgoing("release-spec", depth: unbounded) as link
+all outgoing("A", depth: unbounded) as link
   through link is requires
   where link.target.status = "ratified"
 ```
@@ -167,7 +168,7 @@ distinct endpoint Bead editions:
 
 ```text
 (
-  outgoing("release-spec", depth: unbounded) as link
+  outgoing("A", depth: unbounded) as link
     through link is requires
 ).target as bead
 where bead.status = "ratified"
@@ -190,6 +191,8 @@ Resource collection, graph, and exact count are result modes of the request.
 Count is outside the expression language but inside the service evaluator. List
 and Query count distinct selected Resource editions before paging; masks do not
 change the number. Exact zero is a valid result. A partial count is not exact.
+The selected canonical flag is `--count-only`, including Link variants. Remaining
+command/file grammar questions do not reopen that spelling or count semantics.
 
 Graph preserves explicit roots, collected Links, and endpoint Beads. Roots remain
 when no Link is found or depth is zero. The initial graph profile restricts the
@@ -232,6 +235,8 @@ family refinements, isolated roots and pinned/current endpoint differences. The
 case ledger separates schema/admission expectations from semantic result
 obligations. The [validator](query-ir/validate.py) checks schemas, static admission,
 local links and correspondence; it does not execute the product or a Query engine.
+Its documented environment includes URI format checkers and asserts they are
+active, rather than silently accepting relative wire References.
 
 Transport/discovery, exact capability identifiers, response completeness fields,
 graph component masks, and shared sorting details remain explicit in the

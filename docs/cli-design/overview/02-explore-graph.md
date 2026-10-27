@@ -139,6 +139,8 @@ refines `references` in this Scope.
 Graph starts from explicit Beads and follows selected Link Types. Direction says
 which way to walk; depth counts Link hops. A depth of one finds direct neighbors.
 The graph result retains its roots, the traversed Links, and their endpoint Beads.
+`--link-type` includes refinements, like `--type`; `--exact-link-type` restricts
+the eligible Links to the named nominal Type.
 
 ```console
 # Follow outgoing Reference-family connections through two hops.
@@ -224,7 +226,9 @@ incorporation gap, not a reason to count a page or silently scan at the client.
 > **Product conveniences**
 >
 > A product may retain field-specific flags such as `--title`, or its established
-> Issue/search defaults. Each such flag needs an exact lowering or an explicit
+> Issue/search defaults. Existing `bd count` and `bd link count` can remain
+> compatibility facades with their own admitted selection/default behavior.
+> Each such flag or facade needs an exact lowering or an explicit
 > compatibility route. The canonical examples here use generic Resources, Type
 > filters and shared field selection; legacy `bd query` and `bd sql` keep their
 > existing behavior until a deliberate compatibility decision changes them.

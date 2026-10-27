@@ -24,13 +24,13 @@
           "csv-plan"
         ],
         "links": [
+          "csv-format-review",
           "csv-plan-format",
-          "csv-plan-format-alt",
-          "csv-format-review"
+          "csv-plan-format-alt"
         ],
         "beads": [
-          "csv-plan",
           "csv-format",
+          "csv-plan",
           "csv-review"
         ]
       }

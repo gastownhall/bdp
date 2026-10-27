@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/bdp-query-design-1.schema.json",
-  "title": "BDP query logical AST — review-only design schema",
-  "description": "Proposed encoding. Not a released protocol schema, runtime capability, HTTP request binding, or implementation qualification. Semantic admission and profile checks are additionally required.",
+  "title": "BDP query logical AST \u2014 review-only design schema",
+  "description": "Proposed encoding. Not a released protocol schema, runtime capability, HTTP request binding, or implementation qualification. Semantic admission and profile checks are additionally required. URI format checkers must be enabled by implementations; shape validation alone does not enforce semantic admission or capabilities.",
   "type": "object",
   "properties": {
     "ir": {
@@ -41,15 +41,18 @@
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^(/.*)?$"
-          }
+            "pattern": "^(/([^/~]|~[01])*)*$"
+          },
+          "minItems": 1
         },
         "omit": {
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^(/.*)?$"
-          }
+            "pattern": "^(/([^/~]|~[01])*)*$",
+            "minLength": 1
+          },
+          "minItems": 1
         }
       },
       "required": [],
@@ -616,6 +619,9 @@
       "dependentRequired": {
         "through": [
           "bind"
+        ],
+        "bind": [
+          "through"
         ]
       }
     },

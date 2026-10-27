@@ -1,7 +1,7 @@
 """Check design artifacts; never execute bd, HTTP, SQL, or the Query evaluator.
 
-Run with Python plus jsonschema 4.23.0, for example:
-  uv run --no-project --with jsonschema==4.23.0 python validate.py
+Run with Python plus jsonschema and its non-GPL format checkers, for example:
+  uv run --no-project --with 'jsonschema[format-nongpl]==4.23.0' python validate.py
 
 The semantic checks below are a draft static admission checker. Expected Resource
 sets/counts in cases.json remain authored obligations, not executed query tests.
@@ -80,6 +80,7 @@ def collection_kind(expr, environment):
         return expr["collection"]
     if op == "walk":
         root = expr["roots"]
+        require(not known_pinned_roots(root), "historical-walk-roots-unsupported")
         kind = resource_kind(root, environment) if root["op"] in {"binding", "endpoint"} else collection_kind(root, environment)
         require(kind == "beads", "wrong-root-kind")
         check_predicate(expr.get("through", True), {**environment, expr.get("bind", "__unused"): "links"})
@@ -90,6 +91,14 @@ def collection_kind(expr, environment):
         return "beads"
     check_predicate(expr["predicate"], {**environment, expr["bind"]: kind})
     return kind
+
+
+def known_pinned_roots(expr):
+    if expr["op"] == "refs":
+        return any(isinstance(reference, dict) for reference in expr["references"])
+    if expr["op"] == "filter":
+        return known_pinned_roots(expr["input"])
+    return False
 
 
 def local_value(expr, binding):
@@ -116,7 +125,11 @@ def local_predicate(expr, binding):
     keys = {"present": ["value"], "contains": ["text", "substring"], "member": ["value", "array"]}[op]
     if not all(local_value(expr[k], binding) for k in keys):
         return False
-    return op == "present" or expr["substring" if op == "contains" else "value"]["op"] == "literal"
+    if op == "present":
+        return True
+    if op == "contains":
+        return expr["substring"]["op"] == "literal"
+    return expr["value"]["op"] == "literal" or expr["array"]["op"] == "literal"
 
 
 def admit(request):
@@ -124,6 +137,14 @@ def admit(request):
     selection, profile, form = request["selection"], request["profile"], request["result"]["form"]
     if form == "graph":
         require(selection["op"] == "walk", "graph-result-needs-direct-walk")
+        require("projection" not in request, "graph-projection-undefined")
+    for mode, pointers in request.get("projection", {}).items():
+        for pointer in pointers:
+            segments = [segment.replace("~1", "/").replace("~0", "~") for segment in pointer.split("/")[1:]]
+            if not segments:
+                continue
+            require(not (mode == "omit" and segments[0] in {"id", "type", "revision", "source", "target"}), "protected-projection")
+            require(not (segments[0] in {"revisionProvenance", "ownedLinks", "links"} and len(segments) > 1), "unsupported-plane-mask")
     if profile == "list":
         require(form in {"resources", "count"}, "outside-profile")
         if selection["op"] == "filter":
@@ -143,9 +164,11 @@ def check_documents():
         ROOT / "specs/profiles/core/query.md",
         ROOT / "specs/profiles/core/resource-projection.md",
         ROOT / "docs/cli-design/query-ir.md",
+        ROOT / "docs/cli-design/reads-and-paging.md",
         ROOT / "docs/cli-design/overview/02-explore-graph.md",
         HERE / "EXAMPLES.md",
         HERE / "INCORPORATION.md",
+        HERE / "review/README.md",
     ]
     later = ROOT / "docs/cli-design/overview/05-revisions.md"
     if later.exists():
@@ -188,6 +211,7 @@ def check_documents():
         assert example["expected"] == cases[example["case"]]["expected"], example["file"]
         files.append(path)
     files.append(HERE / "examples/index.json")
+    files.append(HERE / "review/claude-initial.md")
     story = ROOT / "docs/cli-design/overview/05-revisions.fixture.json"
     if story.exists():
         states = json.loads(story.read_text())["guideStates"]
@@ -201,16 +225,26 @@ def check_documents():
 
 
 Draft202012Validator.check_schema(SCHEMA)
-VALIDATOR = Draft202012Validator(SCHEMA, format_checker=FormatChecker())
+FORMATS = FormatChecker()
+assert "uri" in FORMATS.checkers, "Install jsonschema[format-nongpl]; URI checking must not silently disappear."
+VALIDATOR = Draft202012Validator(SCHEMA, format_checker=FORMATS)
 assert CORPUS["status"] == "authored-design-obligations-not-executed-evaluator-tests"
 counts = Counter()
 seen = set()
 for case in CORPUS["cases"]:
     assert case["id"] not in seen
     seen.add(case["id"])
+    expected = case["expected"]
+    keys = set(expected)
+    assert keys in [{"ids"}, {"editions"}, {"count"}, {"roots", "links", "beads"}, {"error"}, {"runtimeError"}], case["id"]
+    wanted_outcome = "static-refusal" if case["admission"] != "accept" else "runtime-refusal" if "runtimeError" in expected else "result"
+    assert case["outcome"] == wanted_outcome, case["id"]
+    for key in keys & {"ids", "editions", "roots", "links", "beads"}:
+        assert expected[key] == sorted(set(expected[key])), case["id"]
     errors = list(VALIDATOR.iter_errors(case["request"]))
     if case["admission"] == "reject-schema":
         assert errors, case["id"]
+        assert case["expected"] == {"error": "invalid-ast"}, case["id"]
         counts["schema_refusals_checked"] += 1
         continue
     assert not errors, (case["id"], [error.message for error in errors])
@@ -231,6 +265,7 @@ receipt = {
     "checks": dict(counts),
     "markdown_json_blocks_parsed": blocks,
     "shell_examples_lexically_parsed_not_executed": commands,
+    "uri_format_checker_enabled": "uri" in FORMATS.checkers,
     "semantic_expected_results": "authored, not executed by this validator",
     "not_executed": ["friendly parser", "Query evaluator", "bd CLI", "HTTP transport", "backend lowering", "runtime conformance"],
     "artifacts": [{"path": str(path.relative_to(ROOT)), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()} for path in files],

@@ -5,6 +5,9 @@ server-side Resource projection contract for current point GET, exact historical
 point GET, and each Resource returned by List. This module specifies that target;
 physical parameters, discovery, framing, and exact validator bindings still need
 integration. It does not change held schema bytes or advertise provider support.
+It composes [Core selection](core.md#collection-retrieval-and-selection),
+[ordinary read delivery](read-delivery.md), and the selected
+[contract binding](contract-binding.md) only after their explicit amendments.
 
 ## Select content, then represent it
 
@@ -30,11 +33,17 @@ permission to read otherwise unavailable history.
 - No includes or omissions returns the full selected Resource representation.
 - Includes union the selected original paths, plus protected context.
 - Omissions subtract from that union; omit wins and argument order has no effect.
+- Root include (`""`, the empty JSON Pointer) selects the whole Resource. Root
+  omission refuses. Supplied mask arrays are nonempty; omit an array member to
+  request no mask of that kind. Invalid RFC 6901 escapes refuse.
 - Protect canonical identity, actual Type, selected revision, and whole source/
   target References on Links. A mask cannot misrepresent their meaning.
 - `title` is an ordinary optional property, not protected context.
-- Properties/metadata admit nested paths. Revision provenance is whole-plane only
-  initially; nested provenance slicing is deferred. References stay whole.
+- Properties/metadata admit nested paths. Revision provenance, recorded owned
+  Links (`ownedLinks`), and any admitted included-Link plane (`links`) are whole-
+  plane only initially. Each may be omitted by a mask; omission must be declared
+  as projection, not misrepresented as a full record with no recorded state.
+  Nested plane slicing is deferred. References stay whole.
 - A valid absent optional include adds nothing, and an absent omission changes
   nothing. An include set matching no optional fields returns protected context
   only. Do not synthesize null or fall back to a full Resource.
@@ -66,6 +75,22 @@ amend that rule for service-side projection. Client rendering of a full response
 does not establish server projection support. HTTP validators describe their
 actual selected representation and policy; no client manufactures a validator
 from a Resource revision or assumes a full-body validator qualifies another view.
+
+The current Core collection rules require complete Resource items and reject
+unsupported query parameters. `read-delivery.md` likewise specifies full inventory
+records. Those clauses need explicit projection-capable amendments; an unchanged
+service remains required to refuse unsupported masks. The current always-metadata
+and owning-record owned-state requirements also need to distinguish an authorized
+projected response from a full record. Projection does not weaken the stored
+record, full-read, or authorization requirements.
+
+Held schema definitions require `properties`, and current record definitions also
+require `metadata`. Therefore adoption needs projected Bead/Link representation
+definitions and collection-item arms tied to an actual projected invocation.
+Protected-context-only responses cannot validate as the held full-record types.
+Do not globally make required stored/full-record fields optional or add a projection
+marker inside the Resource to work around that mismatch. Native response schema,
+capability/version binding, and framing must identify the projection contract.
 
 ## Required positive/refusal coverage
 

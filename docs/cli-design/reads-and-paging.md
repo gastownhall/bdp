@@ -5,14 +5,21 @@ Paired #280 candidate, following [Scope/references](scope-and-references.md),
 [Output and masking](read-output.md) reuse Cleo schema 2. This is paper source,
 not shipped client/provider support or a new History/Type/Events capability.
 
+The later accepted [shared Resource projection target](../../specs/profiles/core/resource-projection.md)
+applies server-side to current GET, exact GET and List items. Its explicit native
+binding remains an amendment, not proof that the baseline below already admits
+new query members. The [Query draft](../../specs/profiles/core/query.md) likewise
+adds a proposed structured AST and service result modes without reinterpreting
+the retained raw Selector or replacing these native delivery contracts.
+
 ## One point or one population
 
 ```sh
-bdp show task-42
-bdp show https://work.example/acme/task-42 --properties-only
-bdp list --type Issue --exact-type Task
-bdp link list --endpoint 'json:"urn:example:external"'
-bdp link list --incident-to task-42 --direction out --type Relates
+bd show task-42
+bd show https://work.example/acme/task-42 --properties-only
+bd list --type Issue --exact-type Task
+bd link list --endpoint urn:example:external
+bd link list --incident-to task-42 --direction out --type Relates
 ```
 
 Default Scope applies once; absolute operands retain their own verified binding.
@@ -116,19 +123,22 @@ Server refusal for complexity/URI bounds remains a refusal; do not fetch a broad
 population, hide rows locally and reuse a misleading native cursor/count.
 
 Continuation retains the issued fully selected population, not a new ordinal/current
-lookup. Do not recompute applicability on later pages. Generic BDP has no native
-count request here; a product count uses its adapter or a complete same-snapshot
-enumeration, never the current page size or an unreported partial count.
+lookup. Do not recompute applicability on later pages. This native baseline has
+no count request. The selected [List/Query extension](../../specs/profiles/core/query.md#results-and-projection)
+uses a shared service count result mode over the same selected population before
+paging. A qualified product adapter or explicitly admitted coherent client fallback
+is separate; neither page length nor unreported partial enumeration is exact count.
 
 ## Existing exact reads and HTTP controls
 
-`ID@=TOKEN` and `--revision TOKEN` express exact application History reads;
-`ID@N` first requires an authoritative stable local ordinal mapping. Supplying a
-suffix and --revision is an error even if equal. The wire query is `revision`,
+`ID@=TOKEN` and quoted `'[URL]@=TOKEN'` express exact application History reads;
+`ID@N` first requires an authoritative stable local ordinal mapping. Historical
+selection is carried on the Reference, not a standalone `--revision` flag or
+`json:` Reference escape. The wire query is still `revision`,
 never an ordinal, guard or HTTP validator. Preserve opaque token/form-query encoding,
 including literal plus as `%2B`. No current/nearest fallback. Unwrapped HTTP URLs
-containing raw @ stay literal; use the explicit flag or exact JSON Reference.
-`@current` selects current; explicit `--revision current` is the literal token.
+containing raw @ stay literal; use quoted `'[URL]@REV'` for a selector.
+`@current` selects current; `@=current` is the exact literal token `current`.
 
 Actual advertised application History remains required for ordinary application
 exact reads. Its existing full-record-only query forbids properties-only/aggregate/
