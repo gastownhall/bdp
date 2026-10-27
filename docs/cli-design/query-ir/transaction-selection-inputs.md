@@ -89,14 +89,22 @@ not implemented CLI examples. The Batch owner's emission/version proposal still
 applies.
 
 ```sh
+# Emit a List filtering captured Beads by their current staged status.
 bd list --candidates batch-ref::draft-notes --property 'status = "ready"' \
   --batch-bind ready-notes --dry-run-mode batch
+
+# Emit a List filtering captured Links by a candidate-local property.
 bd link list --candidates batch-ref::ready-links --has-property body \
   --batch-bind described-links --dry-run-mode batch
+
+# Emit a traversal using the captured Bead set as explicit roots.
 bd query 'outgoing(beads("batch-ref::draft-notes"), depth: 2) as edge through edge is references' \
   --batch-bind reachable-links --dry-run-mode batch
+
+# Emit a traversal using an earlier generated identity as its root.
 bd query 'outgoing("batch-ref::created-note")' \
   --batch-bind created-note-links --dry-run-mode batch
+
 ```
 
 `--candidates` is single-use and exclusive with positional/incidence candidate

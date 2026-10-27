@@ -495,7 +495,7 @@ revision. The provider determines whether any fresh version is produced.
 | `--idempotency-key KEY` | Use this exact key for one applied mutation. | Generate and save a key before transmission. |
 | `--retry-file FILE` | Recover the original frozen invocation with its original key. | Execute a new invocation. |
 | `--dry-run-mode MODE` | Emit one compact member plus newline with `batch`, or preview the BDP request with `bdp`. | Execute the command. |
-| `--batch-bind NAME` | Bind a creation result for later members; valid only with batch-member emission. | No capture label. |
+| `--batch-bind NAME` | Bind a creation or admitted selection result for later members; valid only with member emission. | No capture label. |
 
 Retry mode accepts only its saved file and display controls. It cannot change the
 Scope, operands, Type, guard, inputs or key. It reuses the saved operation binding
@@ -2428,8 +2428,9 @@ argument. `--batch-arg NAME=VALUE` resolves that input to an ordinary Reference
 under the outer Scope before constructing the native wrapper. Scalar Reference
 arguments and earlier internal bindings can also supply explicit read roots.
 A List may filter an earlier typed capture; Query may traverse from captured
-Bead roots. Exact shared input/node syntax is being reconciled in the read
-grammar; this rule does not silently broaden its old inventory-only AST profile.
+Bead roots. The [shared input proposal](query-ir/transaction-selection-inputs.md)
+uses `--candidates` and a typed structural source in transaction context;
+standalone List remains inventory-based. These node spellings remain proposals.
 Forward internal references, missing/unused/duplicate arguments and invalid
 operand kinds refuse.
 Native JSON is literal selected wire input and accepts neither supplied arguments
@@ -2441,8 +2442,8 @@ compare their committed pre-batch baseline. Final publication produces at most
 one new revision per final changed Resource or owner; a net-zero covered state
 retains its original revision. Create-then-delete still consumes identity.
 Selection sees earlier staged writes and captures membership once per attempt,
-subject to explicit transaction-scoped support. Successful execution is
-serializable with competing authoritative changes. Before a terminal decision,
+subject to explicit transaction-scoped support. The selection-capable version
+requires serializable execution with competing authoritative changes. Before a terminal decision,
 the authority may make bounded serialization-conflict restarts using the same
 frozen request/key; a new attempt may capture different sets. It never restarts
 a recorded terminal decision or retries guard, authorization or validation failure.

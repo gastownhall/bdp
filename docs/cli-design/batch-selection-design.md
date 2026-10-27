@@ -193,7 +193,7 @@ writable current identity is not an acceptable implicit lowering.
 
 ## Concurrency, Scope and composition
 
-Successful execution is equivalent to some sequential ordering with competing
+Successful selection-capable execution is equivalent to some sequential ordering with competing
 authoritative changes. One shared connection or a consistent starting view alone
 does not prove that serializable guarantee. Explicit Resource revision guards
 still protect prior observations; serializability does not compare the batch
@@ -219,12 +219,14 @@ selection reads those identities' then-current staged content and captures its
 own membership. Explicit roots still obey ordinary kind, liveness and access
 checks; failed roots are not silently dropped.
 
-The current standalone List proposal admits an inventory scan with an optional
-local filter. It does not already encode this selected captured-set input.
-Melinda owns the shared read-grammar/AST reconciliation. Exact input syntax and
-batch binding slots in logical read expressions remain encoding proposals;
-the existing fixed-root examples are not evidence those added forms are admitted
-by the held schema or implemented runtime.
+Standalone List remains inventory-based. The incorporated
+[read-input reconciliation](query-ir/transaction-selection-inputs.md) proposes
+`--candidates batch-ref::NAME` and `refs.references:{binding:NAME}` for transaction
+selection. Its authored static admission checks distinguish that context from
+standalone reads. Exact syntax and node fields remain encoding proposals;
+neither the held production schema nor a runtime acquires support from these
+design artifacts. Prior scalar bindings can seed Query; List candidates require
+a set in this first proposal.
 
 ## Provider acceptance case: staged reads and fixed captures
 
@@ -318,8 +320,9 @@ the named encoding proposals remain subject to detailed incorporation.
 - Specify exact version-2 selector/binding/result fields and separate advertised
   transactional selection support. The examples propose field names without
   changing a held schema or capability registry.
-- Reconcile List candidate inputs and typed explicit-root binding slots with
-  the shared read grammar/AST and its authored cases in Melinda's owned sources.
+- Review the incorporated List candidate input and typed explicit-root proposals
+  from Melinda's owned sources against the batch codec. Their schema and static
+  cases are design evidence, not provider qualification.
 - Keep product lowering honest about lifecycle, label/array editing, dependency
   rules, Type authority and ordinary graph integrity; collection acquisition
   alone is not proof that a domain command lowers faithfully.

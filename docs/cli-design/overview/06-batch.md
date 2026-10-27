@@ -328,8 +328,23 @@ skipping it.
 A captured set can become the candidate input to another List. That List filters
 the same identities using their staged content at its own position and captures
 a new subset. Query can use a captured Bead set as roots and traverse from it.
-The shared read grammar is being reconciled to express those selected forms;
-its earlier inventory-only List shape is not sufficient by itself.
+The [shared read proposal](../query-ir/transaction-selection-inputs.md) expresses
+these forms with typed inputs. Its proposed `--candidates` flag names a prior
+set without overloading Link endpoint flags.
+
+For example, a later member placed after the status update can narrow the
+original capture using its current staged fields:
+
+```sh
+# Emit a later List using the previously captured identities as candidates.
+bd list --candidates batch-ref::draft-notes --property 'status = "ready"' \
+  --batch-bind ready-notes --dry-run-mode batch
+
+```
+
+This supplementary member would capture the same two notes after their update.
+It cannot admit another newly ready note outside the original capture.
+The five-member review file remains the complete example submitted above.
 
 ### Select through relationships with Query
 
