@@ -1,0 +1,17 @@
+{
+  "capabilityVersion": "2",
+  "changed": false,
+  "results": [
+    {
+      "operationIndex": 0,
+      "operation": "select",
+      "bindingName": "ready-notes",
+      "ids": [
+        "https://work.example/acme/csv-empty-output",
+        "https://work.example/acme/csv-headings",
+        "https://work.example/acme/csv-review"
+      ]
+    }
+  ],
+  "resources": []
+}

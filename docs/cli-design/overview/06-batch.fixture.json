@@ -259,5 +259,37 @@
     "authorization",
     "Event backend",
     "idempotency replay"
-  ]
+  ],
+  "readOnly": {
+    "memberIdentityMappings": [
+      {
+        "operationIndex": 0,
+        "operation": "select",
+        "ids": [
+          "https://work.example/acme/csv-empty-output",
+          "https://work.example/acme/csv-headings",
+          "https://work.example/acme/csv-review"
+        ]
+      }
+    ],
+    "bindings": {
+      "ready-notes": {
+        "kind": "bead",
+        "shape": "set",
+        "ids": [
+          "https://work.example/acme/csv-empty-output",
+          "https://work.example/acme/csv-headings",
+          "https://work.example/acme/csv-review"
+        ]
+      }
+    },
+    "changedIds": [],
+    "expectedResourceLifecycleFacts": 0,
+    "authoredResult": "examples/csv-read-only.result.json"
+  },
+  "selectedDecisionPass": {
+    "date": "2026-10-27",
+    "decisions": 25,
+    "runtimeQualification": false
+  }
 }

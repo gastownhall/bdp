@@ -513,9 +513,9 @@ supersedes the older literal-command-file authoring model. See the
 Emission rejects explicit display controls, execution keys and retry mode.
 Member/body emission does not fetch, allocate or reserve IDs, resolve local
 revision numbers, choose Type defaults or validate server policy. BDP request
-preview uses an established route; its exact discovery policy remains a review
-question. No preview claims successful admission. Exact tokens
-and a sufficient offline Scope binding are required. `--batch-bind` is not a singleton
+preview may perform discovery and reads needed to determine its route or resolve
+local revision numbers. No preview claims successful admission. Offline member
+and body emission require exact tokens and a sufficient Scope binding. `--batch-bind` is not a singleton
 body field. Emission preserves field presence, edit intent, pins and guards.
 See [batch authoring and emission](batch-selection-design.md#jsonl-assembly-and-supplied-arguments).
 
@@ -2359,20 +2359,21 @@ IDs, outcomes and recovery before bindings, arguments and selections.
 ##### Usage
 
 ```text
-bd batch [SCOPE] --file FILE --input-format jsonl --batch-version VERSION
+bd batch [SCOPE] --file FILE [--input-format jsonl] [--batch-version VERSION]
     [--batch-arg NAME=VALUE ...] [--scope SCOPE]
     [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
-bd batch [SCOPE] --file FILE [--input-format json] [--scope SCOPE]
+bd batch [SCOPE] --file FILE --input-format json [--scope SCOPE]
     [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd batch --retry-file FILE
     [--output-format default|detail|json|jsonl] [--long]
 ```
 
-The JSONL version-selection spelling and proposed version-2 encoding remain
-author proposals. This section incorporates the reviewed CLI direction; it
-does not amend the retained version-1 wire/schema or claim an implementation.
+JSONL is the default input, with a stable documented default encoder and an
+optional version pin. Exact version-2 fields remain author proposals; examples
+use proposed encoder 2. This reviewed CLI direction does not amend the retained
+version-1 wire/schema or claim an implementation.
 
 ##### Arguments
 
@@ -2386,8 +2387,8 @@ does not amend the retained version-1 wire/schema or claim an implementation.
 | --- | --- | --- |
 | `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--file FILE` | Required, except retry | Read and freeze one complete input; `-` means stdin. |
-| `--input-format json\|jsonl` | `json` | Choose a literal native wrapper or local JSONL member authoring. Raw CLI text is not accepted. |
-| `--batch-version VERSION` | Required for JSONL; proposed | Select its exact encoder/admission grammar; native JSON already carries its selector and rejects this flag. |
+| `--input-format json\|jsonl` | `jsonl` | Choose local JSONL members or explicitly select a native wrapper; filename extension has no effect. Raw CLI text is not accepted. |
+| `--batch-version VERSION` | Stable documented CLI default | Pin an implemented JSONL encoder/admission grammar; native JSON carries its selector and rejects this flag. |
 | `--batch-arg NAME=VALUE` | None | Repeat to supply scalar Reference arguments required by JSONL operand use. Missing, unused and duplicate values fail. |
 | `--idempotency-key KEY` | Generated and saved | Set one applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. |
@@ -2398,14 +2399,17 @@ does not amend the retained version-1 wire/schema or claim an implementation.
 ##### Behavior
 
 The selected version must be implemented by the compiler and advertised by the
-authority for execution. Version 1 retains its six CRUD members and existing
-creation-capture semantics. Named List/Query selection and set targets belong
+authority for execution. Every native request states the exact version; no
+provider-driven version choice, automatic downgrade or reinterpretation is
+allowed. Transaction-scoped List and Query are advertised independently.
+Version 1 retains its six CRUD members and existing creation-capture semantics. Named List/Query selection and set targets belong
 to the explicitly proposed version-2 grammar. Unsupported selection refuses;
 there is no downgrade, client-side preselection, independent-write fallback or
 automatic chunking.
 
-JSONL authoring contains one complete member object per physical line.
-It has no comments, blank lines, header or array delimiters. Freeze and validate
+JSONL authoring contains one complete member object per nonblank physical line.
+Ignore whitespace-only lines; comments, multiline members, a header and array
+delimiters are not accepted. At least one member is required. Freeze and validate
 every member and argument before sending anything. Syntax and value checks
 retain the selected contract's duplicate-key, Unicode, numeric and input bounds.
 Members share one Scope, authorization context, contract and key.
@@ -2421,33 +2425,63 @@ Compile the complete JSONL document before classifying references. Names defined
 by members are internal, must precede use and cannot be overridden by arguments.
 An undefined name in an admitted operand is an implicit required external
 argument. `--batch-arg NAME=VALUE` resolves that input to an ordinary Reference
-under the outer Scope before constructing the native wrapper. Forward internal
-references, missing/unused/duplicate arguments and invalid operand kinds refuse.
+under the outer Scope before constructing the native wrapper. Scalar Reference
+arguments and earlier internal bindings can also supply explicit read roots.
+A List may filter an earlier typed capture; Query may traverse from captured
+Bead roots. Exact shared input/node syntax is being reconciled in the read
+grammar; this rule does not silently broaden its old inventory-only AST profile.
+Forward internal references, missing/unused/duplicate arguments and invalid
+operand kinds refuse.
 Native JSON is literal selected wire input and accepts neither supplied arguments
-nor undeclared external names. Exact allowed argument positions remain in the
+nor undeclared external names. First-slice argument positions are recorded in the
 [batch design notes](batch-selection-design.md#jsonl-assembly-and-supplied-arguments).
 
 One decision commits all admitted effects or none. Guards on existing targets
 compare their committed pre-batch baseline. Final publication produces at most
 one new revision per final changed Resource or owner; a net-zero covered state
 retains its original revision. Create-then-delete still consumes identity.
-Selection sees earlier staged writes and captures membership once, subject to
-explicit transaction-scoped support. Precise concurrent-selection admission
-remains review work.
+Selection sees earlier staged writes and captures membership once per attempt,
+subject to explicit transaction-scoped support. Successful execution is
+serializable with competing authoritative changes. Before a terminal decision,
+the authority may make bounded serialization-conflict restarts using the same
+frozen request/key; a new attempt may capture different sets. It never restarts
+a recorded terminal decision or retries guard, authorization or validation failure.
+
+A set may fill a Link endpoint only with exactly one live Bead. A scalar revision
+guard requires exactly one target, including a singleton set, and still checks
+the committed baseline. There is no generic outer batch guard or implicit
+per-target revision map. A deleted captured target causes a later update/delete
+to refuse; it is not skipped. Empty-set mutation without a singleton guard
+succeeds without Resource effects.
+
+Selection is current-staged-only: defer historical acquisition and tests that
+need a public revision of unpublished staged content. First-slice sets are
+complete and unordered; no ranked subset, paging or truncation is introduced.
+Result bounds must be satisfied before commit.
+
+Execution acquires and mutates Resources only in the owning Scope. Local Links
+may retain opaque external endpoints where their ordinary Type policy permits;
+the authority neither dereferences nor enlists those remote Resources. Required
+Type authority keeps its ordinary contract. A batch may contain selections
+alone, using the same capability, key, bounds and retained outcome.
 
 Recovery uses the complete original frozen request, resolved arguments,
 selected version, route and key. It never rereads source files or reevaluates
 a committed selection. Dry-run output makes no remote admission, allocation
-or key-reservation claim. BDP preview requires an established operation route;
-its exact framing/read-only discovery policy remains under review.
+or key-reservation claim. BDP preview may perform necessary discovery/read
+operations; it refuses if the actual route or required Reference resolution
+cannot be established. Exact preview framing remains an encoding proposal.
 
 ##### Results
 
 Preserve the complete native result: selected version, aggregate change,
 ordered member identity mappings and unique final Resource outcomes.
-The retained version-1 result grammar remains unchanged; exact result fields
-for selections and sets are proposals for the next detailed pass.
-There are no intermediate public postimages. Human output reports one decision;
+Every new-version member mapping uses an identity array, even for a singleton;
+set arrays sort by canonical Resource URI. A selection-only batch has
+`changed:false` and no mutation outcomes, revisions or lifecycle Events.
+The retained version-1 result grammar remains unchanged; exact new field names
+remain encoding proposals. There are no intermediate public postimages.
+Human output reports one decision;
 JSONL output carries its complete compound result as one item.
 
 Member emission writes one compact JSON object and a newline. Batch emission
@@ -2461,8 +2495,11 @@ Uses the [common exit statuses](#exit-status). Invalid or conflicting inputs,
 including missing or unused arguments, return `2`; a missing target returns
 `3`; revision mismatch returns `4`; unsupported Write or a required capability
 returns `5`. Other failures retain their precise Problem and status `1` unless
-another common diagnosis applies. Member context is reported where the selected
-Problem and authorization permit it. An uncertain write preserves same-key
+another common diagnosis applies. Once member evaluation begins, it stops at
+the first failure and reports one
+ordinary Problem with the failing index and permitted target detail. Static
+whole-input checks and inherited admission precedence still apply. An uncertain
+write preserves same-key
 recovery information and never authorizes a fresh execution automatically.
 
 ##### Protocol correspondence
@@ -2481,11 +2518,14 @@ recovery information and never authorizes a fresh execution automatically.
 ##### Examples
 
 ```sh
-# Execute fixed-ID JSONL members under the retained CRUD grammar.
-bd batch --file csv-basics.jsonl --input-format jsonl --batch-version 1
+# Execute fixed-ID members using the stable default encoder.
+bd batch --file csv-basics.jsonl
+
+# Pin the retained CRUD encoder for a compatible member file.
+bd batch --file csv-basics.jsonl --batch-version 1
 
 # Supply the guide input and inspect the resolved candidate request.
-bd batch --file csv-arguments.jsonl --input-format jsonl --batch-version 2 \
+bd batch --file csv-arguments.jsonl \
   --batch-arg guide=csv-draft --dry-run-mode batch
 
 # Execute an already authored native versioned request.

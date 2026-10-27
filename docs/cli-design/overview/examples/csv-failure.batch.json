@@ -1,5 +1,5 @@
 {
-  "capabilityVersion": "1",
+  "capabilityVersion": "2",
   "operations": [
     {
       "operation": "createBead",

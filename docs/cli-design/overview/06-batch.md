@@ -10,8 +10,9 @@ fixed IDs so the transaction is easy to see.
 > implemented commands. JSONL authoring, `--batch-bind`, `batch-ref::NAME` and
 > required/used `--batch-arg` inputs reflect Donna's review. Selection sees
 > earlier staged changes and captures each set once. The proposed version-2 wire
-> encoding, version-selection flag and remaining admission/result details are
-> [author proposals](../batch-selection-design.md); the retained version-1
+> encoding and exact result/selection forms remain
+> [author proposals](../batch-selection-design.md). The examples use proposed
+> encoder version 2 as the stable CLI default; the retained version-1
 > protocol and schemas are unchanged.
 
 ### Create two Beads and a Link
@@ -45,7 +46,7 @@ members into a JSONL file using its ordinary quoting and redirection.
 
 ) > csv-basics.jsonl &&
 # Submit the assembled file as one decision.
-bd batch --file csv-basics.jsonl --input-format jsonl --batch-version 1
+bd batch --file csv-basics.jsonl
 
 ```
 
@@ -67,8 +68,9 @@ the committed graph after the decision; they cannot observe a committed prefix.
 
 A successful result reports one batch decision and identifies what each member
 targeted. It also reports the final outcome of each affected Resource. The
-member mappings preserve input order, while the final Resource outcomes collect
-repeated edits to the same identity. The output below is authored and abbreviated.
+member mappings preserve input order. Each mapping has an identity array,
+including singleton operations; set arrays are sorted by canonical URI.
+The final Resource outcomes collect repeated edits to the same identity. The output below is authored and abbreviated.
 
 ```text
 Committed
@@ -110,12 +112,13 @@ published either. A failure belongs to the complete decision.
 
 ) > csv-failure.jsonl &&
 # Submit both members and observe one refusal.
-bd batch --file csv-failure.jsonl --input-format jsonl --batch-version 1
+bd batch --file csv-failure.jsonl
 
 ```
 
-The CLI reports the ordinary revision-mismatch Problem, with member context
-where the contract and authorization permit it. No review note or guide change
+Member evaluation stops at its first failure and returns one ordinary Problem
+with the failing member's index and permitted target detail. The guide's stale
+guard produces revision mismatch here. No review note or guide change
 from this attempt becomes public, and no Resource lifecycle Event announces
 either proposed change. A failure does not turn the earlier member into an
 independent success.
@@ -133,12 +136,21 @@ the batch's baseline. Later staged edits to that target do not manufacture a
 new public token for another guard. Newly created Resources have no committed
 baseline revision to satisfy a literal guard. The authority must check the
 applicable baseline and commit the decision atomically under its concurrency
-rules.
+rules. A guard is accepted only when the resolved target is a singleton,
+including a singleton set; an empty or multi-target set cannot use one token
+as a group guard. There is no generic revision guard on the outer batch.
 
-A concurrent writer may cause a guard or integrity check to refuse the complete
-batch. A batch does not reserve identities or establish a public Scope snapshot
-while its JSONL is being assembled. The precise consistency rule for selections
-and concurrent predicate or relationship changes remains a review question.
+Successful execution is serializable: its observations and effects are
+equivalent to some sequential ordering with competing authoritative changes.
+The authority may make bounded internal restarts after a serialization conflict,
+before recording a terminal decision. A restarted attempt may capture different
+sets; each capture stays fixed within its attempt. Guard, authorization and
+validation failures do not trigger that restart mechanism.
+
+A batch does not reserve identities or establish a public Scope snapshot while
+its JSONL is being assembled. Serializability also does not protect a caller's
+old observation automatically; an explicit Resource guard still does that job.
+A committed or terminally recorded decision is never rerun by internal restart.
 
 A lost response is different from a known refusal: the batch may have committed.
 The client saves the frozen request and its key before sending it. Recovery asks
@@ -182,7 +194,7 @@ the final command shows the complete request without applying it.
 
 ) > csv-bindings.jsonl &&
 # Inspect this self-contained batch without executing it.
-bd batch --file csv-bindings.jsonl --input-format jsonl --batch-version 2 \
+bd batch --file csv-bindings.jsonl \
   --dry-run-mode batch
 
 ```
@@ -196,7 +208,10 @@ for execution. No generated ID is allocated while either form is emitted.
 recognized before ordinary URI resolution; full HTTP URLs remain ordinary
 References. Property strings containing the same text stay literal. Unknown,
 forward or wrong-kind internal references fail, and `--batch-bind` or a batch
-reference on ordinary execution is an error.
+reference on ordinary execution is an error. Each internal name has one
+definition; assigning the same name again fails before submission. A selected
+set may fill a Link endpoint only when it contains exactly one live Bead.
+There is no implicit fan-out.
 
 ### Supply arguments to a reusable batch
 
@@ -212,7 +227,7 @@ request using:
 
 ```sh
 # Supply the guide argument and inspect the request without applying it.
-bd batch --file csv-arguments.jsonl --input-format jsonl --batch-version 2 \
+bd batch --file csv-arguments.jsonl \
   --batch-arg guide=csv-draft --dry-run-mode batch
 
 ```
@@ -228,9 +243,11 @@ The reader first collects every internal definition: a reference to a later
 definition is a forward-reference error, not an implicit external argument.
 
 This first example accepts Reference-valued arguments in admitted operand
-positions. Values use the selected Scope and the ordinary Reference rules for
-that position. The complete allowed positions and kinds remain design work;
-there is no arbitrary property-string, query-text or JSON-pointer substitution.
+positions: mutation targets, Link endpoints and explicit read Reference inputs.
+Values use the selected Scope and the ordinary kind/revision rules for that
+position. Explicit read roots can also use earlier internal bindings, including
+generated identities. There is no arbitrary property-string, query-text or
+JSON-pointer substitution.
 
 ### Select a set with List
 
@@ -264,7 +281,7 @@ edit of the guide. Its one new check is still `draft` when selection runs.
 
 ) > csv-review.jsonl &&
 # Submit the creation, selection and edits as one decision.
-bd batch --file csv-review.jsonl --input-format jsonl --batch-version 2
+bd batch --file csv-review.jsonl
 
 ```
 
@@ -272,7 +289,7 @@ The [complete assembly script](examples/csv-review.sh),
 [JSONL members](examples/csv-review.jsonl) and
 [native request](examples/csv-review.batch.json) describe the same five members.
 The example authority advertises the proposed selection-capable version and
-the transaction-scoped List subset. A provider that supports only the retained
+transaction-scoped List. Transaction-scoped Query is advertised separately. A provider that supports only the retained
 six-CRUD version refuses this request before effects.
 
 ```mermaid
@@ -305,14 +322,23 @@ A selection's result is a typed identity set, with no paging, masks, sort or
 Resource-body delivery controls. Exceeding a bound refuses the whole batch;
 a truncated prefix is never a successful complete selection. A captured set
 retains membership after field changes, but deleting a member does not permit
-a later update of that deleted target.
+a later update or deletion of that target; the whole batch refuses rather than
+skipping it.
+
+A captured set can become the candidate input to another List. That List filters
+the same identities using their staged content at its own position and captures
+a new subset. Query can use a captured Bead set as roots and traverse from it.
+The shared read grammar is being reconciled to express those selected forms;
+its earlier inventory-only List shape is not sufficient by itself.
 
 ### Select through relationships with Query
 
 List selects by a Resource's own fields. Query adds relationship traversal and
 endpoint inspection using the same logical read language introduced earlier.
 A provider must advertise support for that selection shape inside its write
-transaction. Standalone Query support alone does not establish it.
+transaction. Standalone Query support alone does not establish it. This first
+slice selects the current staged graph, without historical acquisition or tests
+that require a published revision of an unpublished staged state.
 
 The separate acceptance check has now served its purpose. We can capture its
 explaining Links and their target Beads, then remove the Links before removing
@@ -337,7 +363,7 @@ the Beads. Both selections run while the relationships still exist.
 
 ) > csv-cleanup.jsonl &&
 # Apply the cleanup as one decision.
-bd batch --file csv-cleanup.jsonl --input-format jsonl --batch-version 2
+bd batch --file csv-cleanup.jsonl
 
 ```
 
@@ -358,16 +384,23 @@ flowchart LR
 
 Any other live incident Link or ordinary integrity refusal fails the complete
 cleanup. There is no implicit cascade, endpoint cross-product or mixed Graph
-display used as a mutation operand. The fixed-ID notes and their Link remain
-live, as do the guide and review note. Deleted identities remain unavailable
-for reuse under the Scope's identity rules.
+display used as a mutation operand.
+
+Execution stays within one Scope: selections, acquired endpoints and mutations
+cannot enlist remote Resources. A local Link may still store an opaque external
+URI where its Type permits it. The authority does not acquire that remote
+Resource or make a transactional promise about its state. External endpoint
+values do not become remote identities in the batch's result mappings.
+
+The fixed-ID notes and their Link remain live, as do the guide and review note.
+Deleted identities remain unavailable for reuse under the Scope's identity rules.
 
 ### Handle an empty selection and inspect the wire request
 
 After these changes, this fixture has no note-family Bead with status `draft`.
 The [empty-set script](examples/csv-empty.sh) selects that known-kind empty set
-and updates it. This draft proposes successful completion with no Resource
-effects. Unknown names or a wrong Resource kind still fail.
+and updates it. An empty-set update succeeds with no Resource effects.
+Unknown names or a wrong Resource kind still fail.
 
 We can also inspect a fully compiled protocol request rather than apply it.
 The preview includes the method, target, relevant headers and body for the
@@ -376,18 +409,68 @@ claim.
 
 ```sh
 # Inspect the empty-set batch's BDP request without applying it.
-bd batch --file csv-empty.jsonl --input-format jsonl --batch-version 2 \
+bd batch --file csv-empty.jsonl \
   --dry-run-mode bdp
 
 ```
 
-The exact BDP-preview format and read-only discovery behavior remain review
-choices. A missing route or unresolved local revision cannot become a guessed
-request. Retry mode preserves the original resolved arguments and complete
-decision; it never reevaluates a committed selection.
+The request preview may perform discovery and reads needed to determine its
+route or resolve a local revision number. It applies no mutations, allocates
+no identities and reserves no key. If the required information cannot be
+established, it refuses rather than guessing. Member emission remains offline;
+the exact BDP-preview framing is still an encoding proposal. Retry mode
+preserves the original resolved arguments and complete decision; it never
+reevaluates a committed selection.
 
-The [design notes](../batch-selection-design.md) retain the remaining review
-questions and a provider acceptance case for staged visibility and fixed
-captures. The [story-state fixture](06-batch.fixture.json) records the authored
-results, including the successful fixed-ID batch and failed guarded attempt.
+### Read without changing the graph
+
+A batch can contain only selections. It uses the same capability, one key and
+one consistent view, with the same bounds and retained outcome. Its results
+report captured identities without inventing mutation outcomes, Resource
+revisions or lifecycle Events. A separately installed read-only query facility
+can coexist with this batch composition.
+
+The [read-only member](examples/csv-read-only.jsonl) selects the ready notes left
+by this walkthrough. The [assembly script](examples/csv-read-only.sh) emits that
+member, and the [native request](examples/csv-read-only.batch.json) contains it.
+
+```sh
+# Read the ready-note selection through the ordinary batch result envelope.
+bd batch --file csv-read-only.jsonl --output-format json
+
+```
+
+The [authored result](examples/csv-read-only.result.json) makes the result shape
+concrete. These version-2 field names remain an encoding proposal.
+
+```json
+{
+  "capabilityVersion": "2",
+  "changed": false,
+  "results": [
+    {
+      "operationIndex": 0,
+      "operation": "select",
+      "bindingName": "ready-notes",
+      "ids": [
+        "https://work.example/acme/csv-empty-output",
+        "https://work.example/acme/csv-headings",
+        "https://work.example/acme/csv-review"
+      ]
+    }
+  ],
+  "resources": []
+}
+```
+
+Whitespace-only JSONL lines may separate groups visually; every nonblank line
+must contain one complete member object. Comments and multiline member records
+are not accepted. A file with no members is an input error, distinct from a
+real selection that returns an empty set.
+
+The [design notes](../batch-selection-design.md) record the completed decision
+pass, remaining encoding/incorporation work and a provider acceptance case for
+staged visibility and fixed captures. The
+[story-state fixture](06-batch.fixture.json) records the authored results,
+including the successful fixed-ID batch and failed guarded attempt.
 These are consistency examples, not execution evidence for a CLI or provider.
