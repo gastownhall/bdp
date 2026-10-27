@@ -1,9 +1,9 @@
 {
   "status": "schema-and-static-admission-checks-passed",
-  "authored_cases": 129,
+  "authored_cases": 130,
   "checks": {
     "static_admission_accepts_checked": 89,
-    "static_admission_refusals_checked": 22,
+    "static_admission_refusals_checked": 23,
     "schema_refusals_checked": 18
   },
   "markdown_json_blocks_parsed": 2,
@@ -21,15 +21,15 @@
   "artifacts": [
     {
       "path": "specs/profiles/core/query.md",
-      "sha256": "29aed8847cc15d571bfb97c8daf87ff88a4e43dd28851188c0dab1987f05f22d"
+      "sha256": "550643b47a97b23918baf30e82341e3bcc506ba7dac7b882d01767803445df26"
     },
     {
       "path": "specs/profiles/core/read-operations.md",
-      "sha256": "530810d7a16ecc2a6e4d0ec59ec1e4f5b95aea41198a588b2f0f4559212dc7a0"
+      "sha256": "4bf1ec21b7eb72edd424b245dd2a07642149ff931da0766166084d80bd9be6e6"
     },
     {
       "path": "docs/cli-design/query-language.md",
-      "sha256": "31eb8af0d310e343fb070e112b8711184aa888c143b5f568f46ca6af4903ccf8"
+      "sha256": "295d3e1e38fb942bb34601850cd0bc1865ebadd4abf01e590e8bbb7f4443e3d6"
     },
     {
       "path": "docs/cli-design/read-review.md",
@@ -41,7 +41,7 @@
     },
     {
       "path": "docs/cli-design/query-ir.md",
-      "sha256": "027d51b8c18762c64cbe55ce922be5df4e21d320ee1afd610fa712bdf189e762"
+      "sha256": "d8162ccd73e1f155560fa2f55604797393c046daf1f3e0c8ea7692e13c1a8366"
     },
     {
       "path": "docs/cli-design/reads-and-paging.md",
@@ -73,11 +73,11 @@
     },
     {
       "path": "docs/cli-design/query-ir/query.schema.json",
-      "sha256": "eddee14a3f8f9c37ff7f06bf9f21f31efcbf06f918dc0423d34f412c3dd4aef6"
+      "sha256": "0e0576bcccc2f19a743531f343d683ba91ae7529ab0d5246167ce87d889ffa15"
     },
     {
       "path": "docs/cli-design/query-ir/cases.json",
-      "sha256": "e39002ae4f715d8477d0b8779d85e97a41b7f3f7ac6ed7279588d8a31c58f727"
+      "sha256": "c6552a42d8cfeb13bc76705e0cc7c4b2b745f69bbba477efcee3df7a9cd226f5"
     },
     {
       "path": "docs/cli-design/query-ir/fixtures.json",
@@ -85,7 +85,7 @@
     },
     {
       "path": "docs/cli-design/query-ir/validate.py",
-      "sha256": "9f758da90bcf9423ec4c5640023e71ab2d3bcaee32ae38fcca1cbed668da1a44"
+      "sha256": "0ebc2963fbc59a6490dd04a2688f7f2e8df22cd9d2ec206c830f2f42c1527048"
     },
     {
       "path": "docs/cli-design/query-ir/examples/list-draft-notes.json",

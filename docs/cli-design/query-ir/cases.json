@@ -5846,6 +5846,30 @@
       },
       "outcome": "result",
       "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
+    },
+    {
+      "id": "batch-input-refuses-outside-transaction",
+      "fixture": "overview",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": {
+            "binding": "notes"
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-semantic",
+      "expected": {
+        "error": "batch-input-outside-context"
+      },
+      "outcome": "static-refusal",
+      "note": "The shared shape can describe a proposed transaction input. Ordinary standalone reads must refuse it; no implicit service binding environment."
     }
   ],
   "execution_obligations": [

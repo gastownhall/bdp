@@ -32,6 +32,17 @@ All initial collection expressions have a statically determined Bead or Link
 element kind, even when empty. A graph has separate Bead and Link components.
 There is no mixed Resource union or computed-record result in this first AST.
 
+This binding describes standalone reads. A future Batch selector reuses logical
+selection nodes under a different transaction context and identity-set result;
+it is not an invocation of this paged read transport. Donna selected prior typed
+sets as transaction List candidates and scalar/set explicit Query roots. The
+[input reconciliation](../../../docs/cli-design/query-ir/transaction-selection-inputs.md)
+proposes that correspondence. The shared draft schema can describe its structural
+Batch input, but this standalone operation refuses that operand. Transaction
+List and Query support must each be advertised explicitly by the Batch contract;
+these standalone capability details imply neither. Result/delivery, public
+editions and continuation rules here are not imported into staged execution.
+
 ## Capability and safe dispatch
 
 Proposed capability identity:

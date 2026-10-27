@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/bdp-batch-selection-design-1.schema.json",
+  "title": "Transaction-scoped selection envelope \u2014 author proposal, not adopted Batch wire",
+  "description": "Only the selection portion of a future Batch member. No result, projection, paging, count, sort, mutation grammar, discovery or runtime support is implied. Typed prior-binding and transaction-specific admission checks remain required.",
+  "type": "object",
+  "properties": {
+    "ir": {
+      "const": "bdp-query-design-1"
+    },
+    "profile": {
+      "enum": [
+        "list",
+        "query"
+      ]
+    },
+    "selection": {
+      "$ref": "https://example.invalid/bdp-query-design-1.schema.json#/$defs/collection"
+    }
+  },
+  "required": [
+    "ir",
+    "profile",
+    "selection"
+  ],
+  "additionalProperties": false
+}
