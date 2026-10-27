@@ -1,0 +1,16 @@
+# Create the checks and bind their new identity.
+create --name checks --type note \
+  --properties '{"title":"CSV acceptance checks","body":"Check headings for empty and non-empty selections.","status":"draft"}'
+
+# Connect the existing guide to that newly created Bead.
+link create csv-draft @checks --name connection --type explains \
+  --properties '{"title":"Acceptance checks"}'
+
+# Capture every current draft note, including the earlier staged creation.
+list --name draft-notes --type note --property 'status = "draft"'
+
+# Prepare all captured notes for review.
+update @draft-notes --set-property status=ready
+
+# Mark the guide only if it is still the version we approved.
+update csv-draft --if-revision =guide-i --set-metadata validation=pending

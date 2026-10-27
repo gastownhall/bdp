@@ -8,6 +8,12 @@ choices, not new human rulings. [Event D1/D2 are now answered](event-decisions-2
 Donna has also selected [final publication and net-no-op behavior](../../specs/profiles/core/publication.md).
 The result shapes below replace the earlier unadopted per-member postimages.
 
+The newer [batch overview](overview/06-batch.md) and
+[selection design notes](batch-selection-design.md) explore named List/Query
+bindings and a shared `--dry-run-mode` surface. They are review proposals for an
+explicit extension. This version-1 source continues to admit only six CRUD
+members; its closed grammar and existing capture semantics are unchanged.
+
 ## One document, one decision
 
 ```sh

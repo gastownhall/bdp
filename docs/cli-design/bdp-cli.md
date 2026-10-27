@@ -24,7 +24,7 @@ Write authors can work in parallel. Read the available sections in this order:
 3. [Build and revise the graph](overview/03-crud.md) — complete Bead and Link CRUD.
 4. [Observe changes](overview/04-events.md) — Events, live observation and cursors.
 5. [Revisions and history](overview/05-revisions.md) — edition selection, pins and guarded edits.
-6. Atomic batch — pending.
+6. [Apply related changes atomically](overview/06-batch.md) — batch, named selections and emission; selection-capable extension under review.
 7. Automation — pending.
 
 These are authored examples of the design target. The Read/Query contribution
@@ -39,6 +39,11 @@ proposal: [CLI grammar and command matrix](query-language.md),
 [native read binding](../../specs/profiles/core/read-operations.md), council
 findings and the bounded provider experiments. Its adoption boundaries remain
 explicit; it does not incorporate the newer transactional List-binding design.
+
+The [batch overview and paired examples](overview/06-batch.md) introduce the
+newer selection-binding proposal. Its [design notes](batch-selection-design.md)
+separate agreed transaction visibility from proposed syntax and version-2
+encoding. The retained six-CRUD batch reference below remains version 1.
 
 ## Scope, References and exact values
 

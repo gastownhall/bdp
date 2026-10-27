@@ -1,0 +1,5 @@
+# Capture the complete, now-empty set of draft notes.
+list --name draft-notes --type note --property 'status = "draft"'
+
+# Apply the ordinary update to that empty set.
+update @draft-notes --set-property status=ready

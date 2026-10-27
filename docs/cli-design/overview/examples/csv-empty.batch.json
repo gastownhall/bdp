@@ -1,0 +1,67 @@
+{
+  "capabilityVersion": "2",
+  "operations": [
+    {
+      "operation": "select",
+      "name": "draft-notes",
+      "query": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "_candidate",
+          "predicate": {
+            "op": "and",
+            "operands": [
+              {
+                "op": "typeIs",
+                "of": {
+                  "op": "binding",
+                  "name": "_candidate"
+                },
+                "type": "https://work.example/acme/note",
+                "match": "family"
+              },
+              {
+                "op": "compare",
+                "operator": "eq",
+                "left": {
+                  "op": "field",
+                  "of": {
+                    "op": "binding",
+                    "name": "_candidate"
+                  },
+                  "path": [
+                    "properties",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "literal",
+                  "value": "draft"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "operation": "updateBead",
+      "bead": {
+        "binding": "draft-notes"
+      },
+      "propertiesChange": [
+        {
+          "op": "add",
+          "path": "/status",
+          "value": "ready"
+        }
+      ]
+    }
+  ]
+}
