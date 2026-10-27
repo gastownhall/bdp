@@ -1,0 +1,90 @@
+{
+  "status": "schema-and-static-admission-checks-passed",
+  "authored_cases": 65,
+  "checks": {
+    "static_admission_accepts_checked": 52,
+    "static_admission_refusals_checked": 9,
+    "schema_refusals_checked": 4
+  },
+  "markdown_json_blocks_parsed": 1,
+  "shell_examples_lexically_parsed_not_executed": 23,
+  "semantic_expected_results": "authored, not executed by this validator",
+  "not_executed": [
+    "friendly parser",
+    "Query evaluator",
+    "bd CLI",
+    "HTTP transport",
+    "backend lowering",
+    "runtime conformance"
+  ],
+  "artifacts": [
+    {
+      "path": "specs/profiles/core/query.md",
+      "sha256": "4713efbc7ebad6face3119789ea1833a2081a1dbe8537c81d1b20b506a0911f2"
+    },
+    {
+      "path": "specs/profiles/core/resource-projection.md",
+      "sha256": "55dfd47b02b06c4fd78bea89ad11b64d1a613e03418876a15a06ba8c01ddb183"
+    },
+    {
+      "path": "docs/cli-design/query-ir.md",
+      "sha256": "20c4729f1d7f56f89bf527deb7ffff1d23e4cf8feea2a1e74b5f73c089976d79"
+    },
+    {
+      "path": "docs/cli-design/overview/02-explore-graph.md",
+      "sha256": "bd89c4296510fdc218a310a2c5c04fc0c9bc3688d3304178c7093d68f361acb8"
+    },
+    {
+      "path": "docs/cli-design/query-ir/EXAMPLES.md",
+      "sha256": "cd2eec7f07522c88ceb69640137e9e704062b8e51ad28acdd27f6762365d4b8d"
+    },
+    {
+      "path": "docs/cli-design/query-ir/INCORPORATION.md",
+      "sha256": "ac079ec87a53690fc596cee322ff46e38bb2019ef29699262b87e71fd868cc9a"
+    },
+    {
+      "path": "docs/cli-design/overview/05-revisions.md",
+      "sha256": "b3a6e74f2da83848a1e4148acfee4223b416f167be18fdf70a08d62f3e3965f2"
+    },
+    {
+      "path": "docs/cli-design/query-ir/query.schema.json",
+      "sha256": "18e47930895c3b1eb9f90b22ef74c86309814eaede4709b3051b7f812c361bee"
+    },
+    {
+      "path": "docs/cli-design/query-ir/cases.json",
+      "sha256": "dd712400f546fddcf3b82e6db5fdb5285595a52551fcc36eb83c921d9d7055ac"
+    },
+    {
+      "path": "docs/cli-design/query-ir/fixtures.json",
+      "sha256": "984146e5b9d6f039f648752960daf9ab7f61912f4e09751b43e1283b2495e586"
+    },
+    {
+      "path": "docs/cli-design/query-ir/validate.py",
+      "sha256": "7d6ff6ecd41bbc92ccbd140887e44b4703312178e2b0eb3e75c62fdc240ccc2e"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/list-draft-notes.json",
+      "sha256": "4b21f80027a59e0ce79ea5dbd89e64e92e748985847469947228dbd984b4bfc0"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/graph-references.json",
+      "sha256": "50266862c08c0d6d7dfc44cfa5f83ff5715c83271966844d61fa63a7aa6834f9"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/query-any-ratified-reference.json",
+      "sha256": "02913f8942b507b825731bce3c2cc9b5be6374e22ce36c77ab0b7e3e7415e954"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/query-all-ratified-requires.json",
+      "sha256": "92a1633ace90f8001426bc0da9682350ad0cfbf8aea0e3c8e0bdd75e9bb45625"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/index.json",
+      "sha256": "dc17c7e75f1a6ed5614c9c9752c7d90ac687195726f84c7b7a2750495aa39739"
+    },
+    {
+      "path": "docs/cli-design/overview/05-revisions.fixture.json",
+      "sha256": "e89ef396aef787b61cedf378d6c4e0b26d40ae0411c0379cfb87a3710f149326"
+    }
+  ]
+}

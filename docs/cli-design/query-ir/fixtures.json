@@ -1,0 +1,324 @@
+{
+  "status": "authored-fixtures-not-installed",
+  "scope": "https://work.example/acme/",
+  "fixtures": {
+    "constraints": {
+      "beads": [
+        {
+          "id": "https://work.example/acme/A",
+          "type": "https://work.example/acme/constraint",
+          "revision": "r1",
+          "properties": {
+            "status": "ratified",
+            "title": "Cache design",
+            "team": "platform",
+            "nullable": null,
+            "labels": [
+              "memory"
+            ],
+            "priority": 1
+          }
+        },
+        {
+          "id": "https://work.example/acme/B",
+          "type": "https://work.example/acme/policy",
+          "revision": "r1",
+          "properties": {
+            "status": "met",
+            "team": "platform"
+          }
+        },
+        {
+          "id": "https://work.example/acme/C",
+          "type": "https://work.example/acme/requirement",
+          "revision": "r1",
+          "properties": {
+            "status": "draft"
+          }
+        },
+        {
+          "id": "https://work.example/acme/D",
+          "type": "https://work.example/acme/policy",
+          "revision": "r1",
+          "properties": {
+            "status": "retired"
+          }
+        },
+        {
+          "id": "https://work.example/acme/U",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {}
+        }
+      ],
+      "links": [
+        {
+          "id": "https://work.example/acme/L1",
+          "type": "https://work.example/acme/requires",
+          "revision": "r1",
+          "source": "https://work.example/acme/A",
+          "target": "https://work.example/acme/B",
+          "properties": {
+            "status": "active"
+          }
+        },
+        {
+          "id": "https://work.example/acme/L2",
+          "type": "https://work.example/acme/defines",
+          "revision": "r1",
+          "source": "https://work.example/acme/B",
+          "target": "https://work.example/acme/C",
+          "properties": {
+            "status": "active"
+          }
+        },
+        {
+          "id": "https://work.example/acme/L4",
+          "type": "https://work.example/acme/requires",
+          "revision": "r1",
+          "source": "https://work.example/acme/C",
+          "target": "https://work.example/acme/A",
+          "properties": {
+            "status": "active"
+          }
+        },
+        {
+          "id": "https://work.example/acme/L5",
+          "type": "https://work.example/acme/requires",
+          "revision": "r1",
+          "source": "https://work.example/acme/A",
+          "target": "https://work.example/acme/B",
+          "properties": {
+            "status": "draft"
+          }
+        },
+        {
+          "id": "https://work.example/acme/LS",
+          "type": "https://work.example/acme/requires",
+          "revision": "r1",
+          "source": "https://work.example/acme/B",
+          "target": "https://work.example/acme/B",
+          "properties": {
+            "status": "active"
+          }
+        },
+        {
+          "id": "https://work.example/acme/LX",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/A",
+          "target": "https://work.example/acme/D",
+          "properties": {
+            "status": "draft"
+          }
+        },
+        {
+          "id": "https://work.example/acme/L3",
+          "type": "https://work.example/acme/requires",
+          "revision": "r1",
+          "source": "https://work.example/acme/D",
+          "target": "https://work.example/acme/C",
+          "properties": {
+            "status": "draft"
+          }
+        }
+      ],
+      "typeParents": {
+        "https://work.example/acme/policy": [
+          "https://work.example/acme/constraint"
+        ],
+        "https://work.example/acme/requirement": [
+          "https://work.example/acme/constraint"
+        ],
+        "https://work.example/acme/defines": [
+          "https://work.example/acme/requires"
+        ]
+      }
+    },
+    "pins": {
+      "beads": [
+        {
+          "id": "https://work.example/acme/pin-root",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {}
+        },
+        {
+          "id": "https://work.example/acme/P",
+          "type": "https://work.example/acme/note",
+          "revision": "r2",
+          "properties": {
+            "status": "new"
+          }
+        }
+      ],
+      "savedEditions": [
+        {
+          "id": "https://work.example/acme/P",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {
+            "status": "old"
+          }
+        },
+        {
+          "id": "https://work.example/acme/P",
+          "type": "https://work.example/acme/note",
+          "revision": "current",
+          "properties": {
+            "status": "literal-token"
+          }
+        }
+      ],
+      "links": [
+        {
+          "id": "https://work.example/acme/pin-fixed",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/pin-root",
+          "target": {
+            "uri": "https://work.example/acme/P",
+            "revision": "r1"
+          },
+          "properties": {
+            "status": "active"
+          }
+        },
+        {
+          "id": "https://work.example/acme/pin-floating",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/pin-root",
+          "target": "https://work.example/acme/P",
+          "properties": {
+            "status": "active"
+          }
+        }
+      ],
+      "typeParents": {}
+    },
+    "external": {
+      "beads": [
+        {
+          "id": "https://work.example/acme/external-root",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {}
+        }
+      ],
+      "links": [
+        {
+          "id": "https://work.example/acme/external-link",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/external-root",
+          "target": "https://unavailable.example/opaque",
+          "properties": {
+            "status": "active"
+          }
+        }
+      ],
+      "typeParents": {}
+    },
+    "overview": {
+      "scope": "https://work.example/acme/",
+      "beads": [
+        {
+          "id": "https://work.example/acme/csv-plan",
+          "type": "https://work.example/acme/guide",
+          "revision": "r1",
+          "properties": {
+            "status": "draft",
+            "title": "CSV export plan",
+            "body": "Export selected rows with column headings."
+          }
+        },
+        {
+          "id": "https://work.example/acme/csv-format",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {
+            "status": "ratified",
+            "title": "CSV format",
+            "body": "Keep a header row even when no rows are selected."
+          }
+        },
+        {
+          "id": "https://work.example/acme/csv-review",
+          "type": "https://work.example/acme/note",
+          "revision": "r1",
+          "properties": {
+            "status": "draft",
+            "title": "Spreadsheet review",
+            "body": "Open the exported file in spreadsheet tools."
+          }
+        },
+        {
+          "id": "https://work.example/acme/csv-encoding",
+          "type": "https://work.example/acme/encoding-note",
+          "revision": "r1",
+          "properties": {
+            "status": "ratified",
+            "title": "CSV encoding",
+            "body": "Use UTF-8."
+          }
+        }
+      ],
+      "links": [
+        {
+          "id": "https://work.example/acme/csv-plan-format",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/csv-plan",
+          "target": "https://work.example/acme/csv-format",
+          "properties": {
+            "status": "active"
+          }
+        },
+        {
+          "id": "https://work.example/acme/csv-format-review",
+          "type": "https://work.example/acme/explains",
+          "revision": "r1",
+          "source": "https://work.example/acme/csv-format",
+          "target": "https://work.example/acme/csv-review",
+          "properties": {
+            "status": "active"
+          }
+        },
+        {
+          "id": "https://work.example/acme/csv-review-plan",
+          "type": "https://work.example/acme/references",
+          "revision": "r1",
+          "source": "https://work.example/acme/csv-review",
+          "target": "https://work.example/acme/csv-plan",
+          "properties": {
+            "status": "draft"
+          }
+        },
+        {
+          "id": "https://work.example/acme/csv-plan-format-alt",
+          "type": "https://work.example/acme/explains",
+          "revision": "r1",
+          "source": "https://work.example/acme/csv-plan",
+          "target": "https://work.example/acme/csv-format",
+          "properties": {
+            "status": "draft"
+          }
+        }
+      ],
+      "typeParents": {
+        "https://work.example/acme/encoding-note": [
+          "https://work.example/acme/note"
+        ],
+        "https://work.example/acme/explains": [
+          "https://work.example/acme/references"
+        ]
+      },
+      "notes": [
+        "Scope-local fixture Types; no provider installation or standard Type package is implied.",
+        "Human overview excerpts omit protocol administrative detail; these fixture revision tokens exist only for schema/case identity.",
+        "No csv-draft/csv-checks/csv-context objects exist initially; overview03 creates them."
+      ]
+    }
+  }
+}

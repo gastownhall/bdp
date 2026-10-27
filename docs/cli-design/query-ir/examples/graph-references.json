@@ -1,0 +1,29 @@
+{
+  "ir": "bdp-query-design-1",
+  "profile": "graph",
+  "selection": {
+    "op": "walk",
+    "roots": {
+      "op": "refs",
+      "collection": "beads",
+      "references": [
+        "https://work.example/acme/csv-plan"
+      ]
+    },
+    "direction": "outgoing",
+    "depth": 2,
+    "bind": "link",
+    "through": {
+      "op": "typeIs",
+      "of": {
+        "op": "binding",
+        "name": "link"
+      },
+      "type": "https://work.example/acme/references",
+      "match": "family"
+    }
+  },
+  "result": {
+    "form": "graph"
+  }
+}
