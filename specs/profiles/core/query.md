@@ -7,7 +7,8 @@ endpoint, replace the existing bounded JSONPath Selector, or claim installed
 support. The exact node encoding and the initial profile rules are author
 proposals. Requirements below specify this candidate when adopted.
 
-This is the semantic source for the companion [CLI and IR explanation](../../../docs/cli-design/query-ir.md),
+This is the semantic source for the companion [complete CLI surface](../../../docs/cli-design/query-language.md),
+[proposed native binding](read-operations.md), [CLI and IR explanation](../../../docs/cli-design/query-ir.md),
 [design schema](../../../docs/cli-design/query-ir/query.schema.json), and
 [authored cases](../../../docs/cli-design/query-ir/cases.json). The schema covers
 logical requests only; scope binding, transport, delivery, and response framing
@@ -158,8 +159,9 @@ that URI to the declared affiliation URI, extracting `.uri` from a pinned Type
 Reference and ignoring its definition revision. It does not select an exact
 definition version. A raw `field` path to `type`, like `source` or `target`, sees
 the stored Reference union rather than a flattened or dereferenced value.
-Family includes refinements under the authoritative recorded interpretation
-rules. Missing family authority refuses; there is no exact-only fallback.
+Family is reflexive: it includes the named nominal Type itself and its recorded
+refinements under the authoritative interpretation rules. Required family
+authority is still checked; reflexivity is not an exact-only fallback. Missing family authority refuses; there is no exact-only fallback.
 
 ## Traversal
 
@@ -174,6 +176,21 @@ explicit author-proposed first-slice restriction, not a ban on later historical
 traversal. Exact `refs` reads and pinned endpoint navigation still use their
 qualified History contract. Neither pin spelling nor a successful historical
 body read invents a historical Link population.
+
+**Author-proposed incidence rule:** a walk starts from selected Bead editions,
+not bare identity strings. The matched endpoint must be applicable to that edition:
+a pinned endpoint matches the same identity and exact selected revision; a
+floating endpoint matches the checked current edition for that identity in the
+read context. Thus incoming traversal from current P@r2 excludes a Link targeting
+P@r1, while a floating target P matches. The same rule applies to source matching
+for outgoing and either matched side for connected. A self-Link is eligible if
+an endpoint on the requested side matches; collect its edition once.
+
+A quoted bare root such as `"P"` selects current content through `refs`, so it
+uses current-edition applicability. This deliberately differs from the existing
+Link List bare-ID identity filter. Use stored-Reference identity predicates for
+that inventory question; a current walk does not erase endpoint pins. This choice
+needs Donna's review alongside the current-only incidence restriction.
 
 At each reached Bead, inspect incident Links in the requested direction. Evaluate
 `through`, if supplied, on the actual prospective Link edition. False excludes
@@ -200,6 +217,14 @@ an exhausted branch. Explicit `endpoint`/`endpoints` and graph formation require
 their selected Bead content and likewise refuse when it is unavailable. An opaque
 stub/frontier graph representation is a possible later extension, not implicit
 partial success in this first slice.
+
+The same historical-incidence boundary applies at an intermediate endpoint.
+A current Link may target a retained noncurrent Bead edition. A one-hop result
+can retain that Link and, where supported, acquire the pinned endpoint content.
+Expanding from that noncurrent edition requires edition-aware incidence, which
+the initial candidate does not advertise. If another hop is required, refuse;
+do not silently substitute that identity's current adjacency. A stored pin is
+not a license to invent a historical Link population.
 
 Operational algorithms may use visited tables, recursive SQL, provider graph
 operations, or another equivalent implementation. A finite authorized graph with
@@ -251,9 +276,11 @@ Completeness and termination reasons belong to evaluator/response reporting.
 There is no language-level `unknown` Boolean, `complete()` predicate, or implicit
 partial-count success. Being complete at depth two does not prove full closure;
 the service reports deeper connectivity as unknown unless it has established
-whether a frontier remains. Exact carrier fields, partial Resource-delivery
-policy, streaming failure framing, and work controls remain shared integration
-work. This candidate does not silently adopt partial-answer success or an exit code.
+whether a frontier remains. The [native binding proposal](read-operations.md) supplies concrete carrier fields
+and initially refuses evaluator cutoffs rather than returning successful partial
+answers. Delivery of an already established selection can still stop at an exact
+page boundary. These transport choices are review proposals, not new selected
+human rulings or an installed exit-code contract.
 
 ## Results and projection
 
@@ -278,13 +305,14 @@ selection; filtered graph/path/row results require a separately defined scope.
 No graph count unit is silently selected.
 
 Shared [Resource projection](resource-projection.md) applies to Resource results.
-Graphs require separately targeted Bead/Link masks; that mixed-carrier grammar is
-still open. Sorting applies to full selected Resource data before projection and
-delivery when the accepted one-pointer request-sort extension is bound. Retained
+The initial native binding refuses masks on graphs; separately targeted Bead/Link
+masks remain deferred. Sorting applies to full selected Resource data before projection
+and delivery under the proposed one-pointer request-sort binding. Retained
 Core's authority-advertised `order` remains its baseline; per-request sorting needs
-an explicit protocol/discovery/carrier amendment. This AST schema does not assign
-that common control a wire member. Shared paging/continuation rules apply only through their declared
-carrier; this draft assigns no private cursor, endpoint, or new result envelope.
+an explicit protocol/discovery/carrier amendment. The AST schema does not assign
+that common control a node: the native request wrapper carries it separately.
+Shared paging/continuation rules apply through that binding, with issued native
+continuations rather than client-invented cursors.
 
 ## Profiles: obvious structural subsets
 
@@ -322,7 +350,9 @@ this design does not remove that obligation or reinterpret existing Selector tex
 
 ## Integration and validation still required
 
-Before adoption, owners must reconcile:
+The paired CLI/native proposals now specify the following incorporation work;
+they do not change held front-door schemas automatically. Before adoption, owners
+must reconcile:
 
 1. Native request transport/discovery, contract/version identifiers, capability
    advertisement, profile bounds, and exact refusal codes.
@@ -331,8 +361,9 @@ Before adoption, owners must reconcile:
    state clauses and exact History's revision-only query need explicit amendments.
 3. Result framing, graph component masks, ordering/value bounds, completeness and
    native continuation. Existing History/Events delivery is not replaced.
-4. CLI command assertions for full expressions versus generated candidate filters,
-   Type/field/reference lexical grammar, and complete source-to-AST lowering.
+4. The proposed CLI command assertions, complete lexical grammar and lowering in
+   [query-language.md](../../../docs/cli-design/query-language.md), with actual
+   parser and compatibility-routing evidence.
 5. Provider/reference implementation and positive/refusal conformance against the
    schema and authored cases. Schema checks and source snapshots do not establish
    CLI, HTTP, evaluator, or backend equivalence.

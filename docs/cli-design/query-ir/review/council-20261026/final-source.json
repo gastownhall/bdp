@@ -1,0 +1,183 @@
+{
+  "capturedUTC": "2026-10-27T06:07:00.256959+00:00",
+  "gitBase": "ba9c40e3d5b148a476817723a35cddfa248d39e6",
+  "state": "Final corrected author draft before scoped commit; review coverage is in each reviewer report, not implied by this manifest.",
+  "files": [
+    {
+      "path": "docs/cli-design/overview/02-explore-graph.md",
+      "sha256": "cd6f345ee928fae4b7c13615147d38507d1741fcaaf3b5ccbb7f2f23f809f8db"
+    },
+    {
+      "path": "docs/cli-design/overview/05-revisions.md",
+      "sha256": "0c8d3c5ff9d1bc14c0bfb405691dfde0be3ee77869ef3358c5806ecd2e868b2b"
+    },
+    {
+      "path": "docs/cli-design/query-ir/BINDING-VALIDATION.json",
+      "sha256": "a6a6f757897a47d40ef6869cd20e9f917fc717f13f934f7400a00a95b9abf3b4"
+    },
+    {
+      "path": "docs/cli-design/query-ir/EXAMPLES.md",
+      "sha256": "ed35da2abf8cbb05c713461c9225586fbdfc12da941bebd96762830152726260"
+    },
+    {
+      "path": "docs/cli-design/query-ir/INCORPORATION.md",
+      "sha256": "8150ba7a2e94f23880fd30b206d2575e8e3838c09c84429d2bd7a6428bbb75d9"
+    },
+    {
+      "path": "docs/cli-design/query-ir/VALIDATION.json",
+      "sha256": "d614b37d89eb940fa5cfb6ab2808e0b277c9a374ef3436b2af97e06038f8c40f"
+    },
+    {
+      "path": "docs/cli-design/query-ir/cases.json",
+      "sha256": "e39002ae4f715d8477d0b8779d85e97a41b7f3f7ac6ed7279588d8a31c58f727"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/graph-references.json",
+      "sha256": "50266862c08c0d6d7dfc44cfa5f83ff5715c83271966844d61fa63a7aa6834f9"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/index.json",
+      "sha256": "fa751f19b08a5323263e840cb64c44f892eb17a87375e3bce779e4ef649fe1d3"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/list-draft-notes.json",
+      "sha256": "4b21f80027a59e0ce79ea5dbd89e64e92e748985847469947228dbd984b4bfc0"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/native-graph-references.json",
+      "sha256": "202db7a2dade3d55a641822a73a998849b23dc21003af871a85989d04b36abdf"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/native-list-draft-notes.json",
+      "sha256": "47d1d6141714ea8d749d1ceb0242c42d138b20135fb60a0955207aa54290685d"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/query-all-ratified-requires.json",
+      "sha256": "92a1633ace90f8001426bc0da9682350ad0cfbf8aea0e3c8e0bdd75e9bb45625"
+    },
+    {
+      "path": "docs/cli-design/query-ir/examples/query-any-ratified-reference.json",
+      "sha256": "02913f8942b507b825731bce3c2cc9b5be6374e22ce36c77ab0b7e3e7415e954"
+    },
+    {
+      "path": "docs/cli-design/query-ir/experiments/20261026/README.md",
+      "sha256": "12270d9f1a60cc392ea4c1ebfeed688d21e0896ea27329ba6f081dae04dbf197"
+    },
+    {
+      "path": "docs/cli-design/query-ir/fixtures.json",
+      "sha256": "facc9e30025d3cc752aa33e31e3c755937189d474f814824246f7a3d6c5d1400"
+    },
+    {
+      "path": "docs/cli-design/query-ir/query.schema.json",
+      "sha256": "eddee14a3f8f9c37ff7f06bf9f21f31efcbf06f918dc0423d34f412c3dd4aef6"
+    },
+    {
+      "path": "docs/cli-design/query-ir/read-binding-cases.json",
+      "sha256": "676feefa68807a9f882729e0fb5d6271a0ae7a5fbdfa93d43036b1fd435e9b11"
+    },
+    {
+      "path": "docs/cli-design/query-ir/read-binding.schema.json",
+      "sha256": "ecb24504cf6441fb9708d9fda554db58cedd4cdc2f0c63410427325a308491e2"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/README.md",
+      "sha256": "0d9940bc64aceb20a16600dfd8edddcdbbde707877d5098f735a7929dd167b0f"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/claude-followup.md",
+      "sha256": "08a4755a25f87fc51bb615cc3dd860eb056120a4cc36056af77d8dcffe94da37"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/claude-initial.md",
+      "sha256": "370de8d0117139d577ec855c6f6fdca16a9edd62aa2840101ec274fdd9fc94b4"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/council-20261026/README.md",
+      "sha256": "f74811f0ee81ba564ac1b7fbc11d8c2778e22a0de821fbdeed89dea70988d38f"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/council-20261026/claude-followup.md",
+      "sha256": "b1364c7075d425449c5376986bdefdc168baf555e5480e32db6f8e91d35c7994"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/council-20261026/claude.md",
+      "sha256": "b86785e2502d43f20951e9f00190eb1237524b8069557845cbbeff66ecf0f09b"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/council-20261026/codex-corrections.md",
+      "sha256": "6109d590b1810e8bea8e4ba044f5e7aed5c3d07130acd4747e21ce1e8fccd295"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/council-20261026/codex-final.md",
+      "sha256": "892484aa079f9de680d046acd81bc04589b6e5e2b95b6c1379380d003d6bbfe3"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/council-20261026/codex-followup.md",
+      "sha256": "71a9f3466b4297caa466f3da2d8a4c38bd3e1d0487cbc597a7096266e9a32626"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/council-20261026/codex.md",
+      "sha256": "10b6456e9b1771ac142d2eaaab9e1066eca8d18509c3ff230b98596e12950779"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/council-20261026/gemini.md",
+      "sha256": "08605a7c38552861a1df922a45a8240e6e7d7bc093a52579a255262c9ab9ff45"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/council-20261026/revised-source.json",
+      "sha256": "daee25c4c60b9cb53f213179ec63c173ed7435b5362d1b3e1864f8076944f4f8"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/council-20261026/source.json",
+      "sha256": "71d746abd22a33d711f8fa272b89dcb0c1f219b8e1780742b2a51244ee982714"
+    },
+    {
+      "path": "docs/cli-design/query-ir/review/followup-source.json",
+      "sha256": "74b346609bf5856e89ed62e5b6e38afad1c10e7c23483dafd8b2b2a4c4c60c85"
+    },
+    {
+      "path": "docs/cli-design/query-ir/syntax-cases.json",
+      "sha256": "ab2bd9c13dbdbdc3f6432215cf206319a5d9db54f23fa032191a684fb02cf3f3"
+    },
+    {
+      "path": "docs/cli-design/query-ir/validate-binding.py",
+      "sha256": "e5359ab58e1da4e923ba36adbca586871a4edda82dbe5efe3d6c37204959df7a"
+    },
+    {
+      "path": "docs/cli-design/query-ir/validate.py",
+      "sha256": "9f758da90bcf9423ec4c5640023e71ab2d3bcaee32ae38fcca1cbed668da1a44"
+    },
+    {
+      "path": "docs/cli-design/query-ir.md",
+      "sha256": "027d51b8c18762c64cbe55ce922be5df4e21d320ee1afd610fa712bdf189e762"
+    },
+    {
+      "path": "docs/cli-design/query-language.md",
+      "sha256": "31eb8af0d310e343fb070e112b8711184aa888c143b5f568f46ca6af4903ccf8"
+    },
+    {
+      "path": "docs/cli-design/read-output.md",
+      "sha256": "fad615260cb9f08721a90f3715171e403a456305a17fbe39e688475595d0baa0"
+    },
+    {
+      "path": "docs/cli-design/read-review.md",
+      "sha256": "3edf6cc40dbfe9ec9def9c6699b536f1d5ff40995c427e84cefc1b61001af3d3"
+    },
+    {
+      "path": "specs/profiles/core/query.md",
+      "sha256": "29aed8847cc15d571bfb97c8daf87ff88a4e43dd28851188c0dab1987f05f22d"
+    },
+    {
+      "path": "specs/profiles/core/read-delivery.md",
+      "sha256": "f1d3aaf5f534c54ab11b5e4926c486d760e9b0c6df9c4e45767068c929b3cd27"
+    },
+    {
+      "path": "specs/profiles/core/read-operations.md",
+      "sha256": "530810d7a16ecc2a6e4d0ec59ec1e4f5b95aea41198a588b2f0f4559212dc7a0"
+    },
+    {
+      "path": "specs/profiles/core/resource-projection.md",
+      "sha256": "b7b951242419f1d22c7213a04de3591ce7754f89b9e10c3f5f80952bb2bd5a26"
+    }
+  ]
+}

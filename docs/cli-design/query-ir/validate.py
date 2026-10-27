@@ -130,7 +130,7 @@ def local_predicate(expr, binding):
     if op == "present":
         return True
     if op == "contains":
-        return expr["substring"]["op"] == "literal"
+        return expr["substring"]["op"] == "literal" and isinstance(expr["substring"].get("value"), str)
     return expr["value"]["op"] == "literal" or expr["array"]["op"] == "literal"
 
 
@@ -166,9 +166,13 @@ def admit(request):
 def check_documents():
     files = [
         ROOT / "specs/profiles/core/query.md",
+        ROOT / "specs/profiles/core/read-operations.md",
+        ROOT / "docs/cli-design/query-language.md",
+        ROOT / "docs/cli-design/read-review.md",
         ROOT / "specs/profiles/core/resource-projection.md",
         ROOT / "docs/cli-design/query-ir.md",
         ROOT / "docs/cli-design/reads-and-paging.md",
+        ROOT / "docs/cli-design/read-output.md",
         ROOT / "docs/cli-design/overview/02-explore-graph.md",
         HERE / "EXAMPLES.md",
         HERE / "INCORPORATION.md",
@@ -192,12 +196,15 @@ def check_documents():
         for target in re.findall(r"\]\(([^)]+)\)", text):
             if "://" not in target and not target.startswith("#"):
                 assert (path.parent / target.split("#")[0]).exists(), (path, target)
-        for block in re.findall(r"^```console\n(.*?)^```", text, re.S | re.M):
+        for block in re.findall(r"^```(?:console|sh)\n(.*?)^```", text, re.S | re.M):
             lines = iter(block.splitlines())
             for line in lines:
-                if not line.startswith("> bd "):
+                if line.startswith("> bd "):
+                    command = line[2:]
+                elif line.startswith("bd "):
+                    command = line
+                else:
                     continue
-                command = line[2:]
                 while command.endswith("\\"):
                     command = command[:-1] + next(lines).lstrip()
                 assert shlex.split(command)[0] == "bd", (path, command)
@@ -215,6 +222,11 @@ def check_documents():
         assert example["expected"] == cases[example["case"]]["expected"], example["file"]
         files.append(path)
     files.append(HERE / "examples/index.json")
+    syntax = json.loads((HERE / "syntax-cases.json").read_text())
+    assert syntax["status"] == "authored-parser-obligations-not-executed-parser-tests"
+    assert len({case["id"] for case in syntax["cases"]}) == len(syntax["cases"])
+    assert all(case["source"] and case["expect"] in {"accept", "refuse"} for case in syntax["cases"])
+    files.append(HERE / "syntax-cases.json")
     files.append(HERE / "review/claude-initial.md")
     files.append(HERE / "review/claude-followup.md")
     files.append(HERE / "review/followup-source.json")

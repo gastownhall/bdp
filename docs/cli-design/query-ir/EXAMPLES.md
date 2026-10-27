@@ -103,3 +103,20 @@ construction to obtain these answers.
 The next implementation exercise can admit these requests directly, without a
 friendly parser, against one disposable graph. That work is not executed by this
 documentation contribution.
+
+
+## Native request wrappers
+
+The complete [native binding proposal](../../../specs/profiles/core/read-operations.md)
+places the AST in `query`, with sort and per-page size outside the language.
+These are authored requests, not captured HTTP exchanges:
+
+- [List request](examples/native-list-draft-notes.json), dispatched to the
+  discovered operation with `readVersion=1&operation=list`.
+- [Graph request](examples/native-graph-references.json), dispatched with
+  `readVersion=1&operation=query` under the restricted Graph profile.
+
+[Binding schema](read-binding.schema.json), [binding cases](read-binding-cases.json)
+and [binding checker](validate-binding.py) check request/response shape and bounded
+static invariants. No server dispatch, header, cursor or parser behavior is proved
+by those checks.

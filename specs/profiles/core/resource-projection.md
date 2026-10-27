@@ -3,8 +3,8 @@
 **Status: October 26, 2026 incorporation candidate.** Donna accepted one
 server-side Resource projection contract for current point GET, exact historical
 point GET, and each Resource returned by List. This module specifies that target;
-physical parameters, discovery, framing, and exact validator bindings still need
-integration. It does not change held schema bytes or advertise provider support.
+the [native binding proposal](read-operations.md) now supplies physical parameters,
+discovery, framing and validator rules for review and integration. It does not change held schema bytes or advertise provider support.
 It composes [Core selection](core.md#collection-retrieval-and-selection),
 [ordinary read delivery](read-delivery.md), and the selected
 [contract binding](contract-binding.md) only after their explicit amendments.

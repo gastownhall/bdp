@@ -2920,7 +2920,10 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": []
+        "ids": [
+          "pin-current-source",
+          "pin-old-source"
+        ]
       },
       "note": "",
       "outcome": "result"
@@ -3003,8 +3006,10 @@
       "admission": "accept",
       "expected": {
         "ids": [
+          "pin-current-source",
           "pin-fixed",
-          "pin-floating"
+          "pin-floating",
+          "pin-old-source"
         ]
       },
       "note": "",
@@ -5059,6 +5064,788 @@
           "https://work.example/acme/B"
         ]
       }
+    },
+    {
+      "id": "noncurrent-intermediate-needs-incidence",
+      "fixture": "pins",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/pin-root"
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 2
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "runtimeError": "unsupported-historical-incidence"
+      },
+      "note": "Following a pinned noncurrent intermediate endpoint needs edition-aware incidence; do not use current adjacency.",
+      "outcome": "runtime-refusal"
+    },
+    {
+      "id": "list-contains-refuses-number-substring",
+      "fixture": "overview",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "contains",
+            "text": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "properties",
+                "title"
+              ]
+            },
+            "substring": {
+              "op": "literal",
+              "value": 5
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-semantic",
+      "expected": {
+        "error": "outside-profile"
+      },
+      "outcome": "static-refusal",
+      "note": "List substring operand must be a string literal, unlike richer Query false-on-nonstring evaluation."
+    },
+    {
+      "id": "list-contains-refuses-null-substring",
+      "fixture": "overview",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "contains",
+            "text": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "properties",
+                "title"
+              ]
+            },
+            "substring": {
+              "op": "literal",
+              "value": null
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-semantic",
+      "expected": {
+        "error": "outside-profile"
+      },
+      "outcome": "static-refusal",
+      "note": "List substring operand must be a string literal, unlike richer Query false-on-nonstring evaluation."
+    },
+    {
+      "id": "list-contains-refuses-array-substring",
+      "fixture": "overview",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "contains",
+            "text": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "properties",
+                "title"
+              ]
+            },
+            "substring": {
+              "op": "literal",
+              "value": []
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-semantic",
+      "expected": {
+        "error": "outside-profile"
+      },
+      "outcome": "static-refusal",
+      "note": "List substring operand must be a string literal, unlike richer Query false-on-nonstring evaluation."
+    },
+    {
+      "id": "list-contains-refuses-object-substring",
+      "fixture": "overview",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "contains",
+            "text": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": [
+                "properties",
+                "title"
+              ]
+            },
+            "substring": {
+              "op": "literal",
+              "value": {}
+            }
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "reject-semantic",
+      "expected": {
+        "error": "outside-profile"
+      },
+      "outcome": "static-refusal",
+      "note": "List substring operand must be a string literal, unlike richer Query false-on-nonstring evaluation."
+    },
+    {
+      "id": "current-edition-incidence-incoming",
+      "fixture": "pins",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/P"
+            ]
+          },
+          "direction": "incoming",
+          "depth": 1
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "pin-floating"
+        ]
+      },
+      "outcome": "result",
+      "note": "Author proposal: current P@r2 matches floating endpoints, excluding stored pins to P@r1; bare Query roots select editions."
+    },
+    {
+      "id": "current-edition-incidence-outgoing",
+      "fixture": "pins",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/P"
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 1
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "pin-current-source"
+        ]
+      },
+      "outcome": "result",
+      "note": "Author proposal: current P@r2 matches floating endpoints, excluding stored pins to P@r1; bare Query roots select editions."
+    },
+    {
+      "id": "current-edition-incidence-connected",
+      "fixture": "pins",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              "https://work.example/acme/P"
+            ]
+          },
+          "direction": "connected",
+          "depth": 1
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "pin-current-source",
+          "pin-floating"
+        ]
+      },
+      "outcome": "result",
+      "note": "Author proposal: current P@r2 matches floating endpoints, excluding stored pins to P@r1; bare Query roots select editions."
+    },
+    {
+      "id": "overview-bare-list",
+      "fixture": "overview",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "csv-encoding",
+          "csv-format",
+          "csv-plan",
+          "csv-review"
+        ]
+      },
+      "outcome": "result",
+      "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
+    },
+    {
+      "id": "overview-reference-links-from-plan",
+      "fixture": "overview",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "links"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "and",
+            "operands": [
+              {
+                "op": "typeIs",
+                "of": {
+                  "op": "binding",
+                  "name": "b"
+                },
+                "type": "https://work.example/acme/references",
+                "match": "family"
+              },
+              {
+                "op": "or",
+                "operands": [
+                  {
+                    "op": "compare",
+                    "operator": "eq",
+                    "left": {
+                      "op": "field",
+                      "of": {
+                        "op": "binding",
+                        "name": "b"
+                      },
+                      "path": [
+                        "source"
+                      ]
+                    },
+                    "right": {
+                      "op": "literal",
+                      "value": "https://work.example/acme/csv-plan"
+                    }
+                  },
+                  {
+                    "op": "compare",
+                    "operator": "eq",
+                    "left": {
+                      "op": "field",
+                      "of": {
+                        "op": "binding",
+                        "name": "b"
+                      },
+                      "path": [
+                        "source",
+                        "uri"
+                      ]
+                    },
+                    "right": {
+                      "op": "literal",
+                      "value": "https://work.example/acme/csv-plan"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "csv-plan-format",
+          "csv-plan-format-alt"
+        ]
+      },
+      "outcome": "result",
+      "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
+    },
+    {
+      "id": "overview-note-title-projection",
+      "fixture": "overview",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "typeIs",
+            "of": {
+              "op": "binding",
+              "name": "b"
+            },
+            "type": "https://work.example/acme/note",
+            "match": "family"
+          }
+        },
+        "result": {
+          "form": "resources"
+        },
+        "projection": {
+          "include": [
+            "/properties/title"
+          ]
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "csv-encoding",
+          "csv-format",
+          "csv-review"
+        ]
+      },
+      "outcome": "result",
+      "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
+    },
+    {
+      "id": "overview-ratified-notes",
+      "fixture": "overview",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "and",
+            "operands": [
+              {
+                "op": "typeIs",
+                "of": {
+                  "op": "binding",
+                  "name": "b"
+                },
+                "type": "https://work.example/acme/note",
+                "match": "family"
+              },
+              {
+                "op": "compare",
+                "operator": "eq",
+                "left": {
+                  "op": "field",
+                  "of": {
+                    "op": "binding",
+                    "name": "b"
+                  },
+                  "path": [
+                    "properties",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "literal",
+                  "value": "ratified"
+                }
+              }
+            ]
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "csv-encoding",
+          "csv-format"
+        ]
+      },
+      "outcome": "result",
+      "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
+    },
+    {
+      "id": "overview-or-count",
+      "fixture": "overview",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "or",
+            "operands": [
+              {
+                "op": "compare",
+                "operator": "eq",
+                "left": {
+                  "op": "field",
+                  "of": {
+                    "op": "binding",
+                    "name": "b"
+                  },
+                  "path": [
+                    "properties",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "literal",
+                  "value": "draft"
+                }
+              },
+              {
+                "op": "compare",
+                "operator": "eq",
+                "left": {
+                  "op": "field",
+                  "of": {
+                    "op": "binding",
+                    "name": "b"
+                  },
+                  "path": [
+                    "properties",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "literal",
+                  "value": "ratified"
+                }
+              }
+            ]
+          }
+        },
+        "result": {
+          "form": "count"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "count": 4
+      },
+      "outcome": "result",
+      "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
+    },
+    {
+      "id": "pinned-source-identity-union",
+      "fixture": "pins",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "links"
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "or",
+            "operands": [
+              {
+                "op": "compare",
+                "operator": "eq",
+                "left": {
+                  "op": "field",
+                  "of": {
+                    "op": "binding",
+                    "name": "b"
+                  },
+                  "path": [
+                    "source"
+                  ]
+                },
+                "right": {
+                  "op": "literal",
+                  "value": "https://work.example/acme/P"
+                }
+              },
+              {
+                "op": "compare",
+                "operator": "eq",
+                "left": {
+                  "op": "field",
+                  "of": {
+                    "op": "binding",
+                    "name": "b"
+                  },
+                  "path": [
+                    "source",
+                    "uri"
+                  ]
+                },
+                "right": {
+                  "op": "literal",
+                  "value": "https://work.example/acme/P"
+                }
+              }
+            ]
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "pin-current-source",
+          "pin-old-source"
+        ]
+      },
+      "outcome": "result",
+      "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
+    },
+    {
+      "id": "list-generated-multi-flag-lowering",
+      "fixture": "multi-flags",
+      "request": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "links"
+          },
+          "bind": "_candidate",
+          "predicate": {
+            "op": "and",
+            "operands": [
+              {
+                "op": "typeIs",
+                "of": {
+                  "op": "binding",
+                  "name": "_candidate"
+                },
+                "type": "https://work.example/acme/references",
+                "match": "family"
+              },
+              {
+                "op": "or",
+                "operands": [
+                  {
+                    "op": "compare",
+                    "operator": "eq",
+                    "left": {
+                      "op": "field",
+                      "of": {
+                        "op": "binding",
+                        "name": "_candidate"
+                      },
+                      "path": [
+                        "source"
+                      ]
+                    },
+                    "right": {
+                      "op": "literal",
+                      "value": "https://work.example/acme/csv-plan"
+                    }
+                  },
+                  {
+                    "op": "compare",
+                    "operator": "eq",
+                    "left": {
+                      "op": "field",
+                      "of": {
+                        "op": "binding",
+                        "name": "_candidate"
+                      },
+                      "path": [
+                        "source",
+                        "uri"
+                      ]
+                    },
+                    "right": {
+                      "op": "literal",
+                      "value": "https://work.example/acme/csv-plan"
+                    }
+                  }
+                ]
+              },
+              {
+                "op": "compare",
+                "operator": "eq",
+                "left": {
+                  "op": "field",
+                  "of": {
+                    "op": "binding",
+                    "name": "_candidate"
+                  },
+                  "path": [
+                    "properties",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "literal",
+                  "value": "active"
+                }
+              },
+              {
+                "op": "compare",
+                "operator": "eq",
+                "left": {
+                  "op": "field",
+                  "of": {
+                    "op": "binding",
+                    "name": "_candidate"
+                  },
+                  "path": [
+                    "metadata",
+                    "team"
+                  ]
+                },
+                "right": {
+                  "op": "literal",
+                  "value": "export"
+                }
+              },
+              {
+                "op": "present",
+                "value": {
+                  "op": "field",
+                  "of": {
+                    "op": "binding",
+                    "name": "_candidate"
+                  },
+                  "path": [
+                    "properties",
+                    "body"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "result": {
+          "form": "resources"
+        }
+      },
+      "admission": "accept",
+      "expected": {
+        "ids": [
+          "csv-plan-format"
+        ]
+      },
+      "outcome": "result",
+      "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
     }
   ],
   "execution_obligations": [
