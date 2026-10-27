@@ -34,6 +34,12 @@ contract are identified separately. Publishing these drafts does not amend held
 schemas, advertise new capabilities or qualify an implementation. The existing
 summaries below still need the bounded reconciliation recorded in that map.
 
+The [Read/Query review entry](read-review.md) collects the completed author
+proposal: [CLI grammar and command matrix](query-language.md),
+[native read binding](../../specs/profiles/core/read-operations.md), council
+findings and the bounded provider experiments. Its adoption boundaries remain
+explicit; it does not incorporate the newer transactional List-binding design.
+
 ## Scope, References and exact values
 
 Use `--scope`, then BDP_SCOPE_URL, then configuration scope.url. Scope-only commands may
