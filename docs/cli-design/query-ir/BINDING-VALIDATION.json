@@ -1,0 +1,38 @@
+{
+  "status": "schema-and-bounded-static-binding-checks-passed",
+  "cases": 54,
+  "checks": {
+    "accept": 28,
+    "reject-schema": 15,
+    "reject-semantic": 11
+  },
+  "not_executed": [
+    "HTTP request dispatch",
+    "CLI parser",
+    "service evaluator",
+    "response header and native cursor behavior",
+    "provider lowering"
+  ],
+  "files": [
+    {
+      "path": "docs/cli-design/query-ir/read-binding.schema.json",
+      "sha256": "ba95b57ad9bedc49b97858f53aae288f10d16575203aa94771a94200a8ed205f"
+    },
+    {
+      "path": "docs/cli-design/query-ir/query.schema.json",
+      "sha256": "bf5fbf0b89f74273122c28b944907dd3e0fdb057d9266fdee4de9c0dfcbaeaa8"
+    },
+    {
+      "path": "specs/profiles/core/bdp-v0.1.schema.json",
+      "sha256": "72dd1837ad169114911b4ffcd9104c1aa2d1d02870e60b2ac7e8c4e950fc7d1d"
+    },
+    {
+      "path": "docs/cli-design/query-ir/read-binding-cases.json",
+      "sha256": "b7b45740f14086b2c1109417890719d0546f54b70ea4bcac12c09b7554bc12d8"
+    },
+    {
+      "path": "docs/cli-design/query-ir/validate-binding.py",
+      "sha256": "e5359ab58e1da4e923ba36adbca586871a4edda82dbe5efe3d6c37204959df7a"
+    }
+  ]
+}

@@ -1,0 +1,238 @@
+{
+  "status": "authored-story-state-checks-not-runtime-execution",
+  "assumptions": [
+    "complete authorized application History for illustrated reads",
+    "stable local-ordinal adapter as shown",
+    "no extra ownership-induced guide transitions",
+    "fixture Link Types allow illustrated endpoints/pins"
+  ],
+  "source": {
+    "crudCommit": "7f2d6afc97278a459333d3957424dba50fe223e9",
+    "eventsCommit": "bad0250788dca771479444e0b0c4dc00eb05b06a",
+    "businessStatesSha256": "eff7054b1b9189032fffa2a46e43644f1abc5d76384179fa995fd80f2b6d9432"
+  },
+  "guideStates": [
+    {
+      "localOrdinal": 1,
+      "opaqueToken": "guide-a",
+      "record": {
+        "id": "csv-draft",
+        "kind": "bead",
+        "type": "note",
+        "properties": {
+          "title": "CSV export notes",
+          "body": "Keep column headings in every CSV export."
+        },
+        "metadata": {
+          "area": "export",
+          "scratch": true
+        },
+        "revision": "guide-a"
+      },
+      "sourceChapter": "03"
+    },
+    {
+      "localOrdinal": 2,
+      "opaqueToken": "guide-b",
+      "record": {
+        "id": "csv-draft",
+        "kind": "bead",
+        "type": "note",
+        "properties": {
+          "title": "CSV export notes",
+          "body": "Include headings even when no rows are selected.",
+          "status": "review-needed"
+        },
+        "metadata": {
+          "area": "export",
+          "scratch": true,
+          "reviewed": true
+        },
+        "revision": "guide-b"
+      },
+      "sourceChapter": "03"
+    },
+    {
+      "localOrdinal": 3,
+      "opaqueToken": "guide-c",
+      "record": {
+        "id": "csv-draft",
+        "kind": "bead",
+        "type": "note",
+        "properties": {
+          "title": "CSV export notes",
+          "body": "Include headings even when no rows are selected."
+        },
+        "metadata": {
+          "area": "export",
+          "reviewed": true
+        },
+        "revision": "guide-c"
+      },
+      "sourceChapter": "03"
+    },
+    {
+      "localOrdinal": 4,
+      "opaqueToken": "guide-d",
+      "record": {
+        "id": "csv-draft",
+        "kind": "bead",
+        "type": "note",
+        "properties": {
+          "title": "CSV export notes",
+          "body": "Include headings even when no rows are selected.",
+          "audience": "spreadsheet users"
+        },
+        "metadata": {
+          "area": "export",
+          "reviewed": true,
+          "channel": "preview"
+        },
+        "revision": "guide-d"
+      },
+      "sourceChapter": "03"
+    },
+    {
+      "localOrdinal": 5,
+      "opaqueToken": "guide-e",
+      "record": {
+        "id": "csv-draft",
+        "kind": "bead",
+        "type": "note",
+        "properties": {
+          "title": "CSV export guide",
+          "body": "Include headings even when no rows are selected."
+        },
+        "metadata": {
+          "area": "export",
+          "reviewed": true,
+          "channel": "preview",
+          "ready": true
+        },
+        "revision": "guide-e"
+      },
+      "sourceChapter": "03"
+    },
+    {
+      "localOrdinal": 6,
+      "opaqueToken": "guide-f",
+      "record": {
+        "id": "csv-draft",
+        "kind": "bead",
+        "type": "note",
+        "properties": {
+          "title": "CSV export guide",
+          "body": "Include headings even for an empty selection. Check the exported file in a spreadsheet."
+        },
+        "metadata": {
+          "area": "export",
+          "ready": true
+        },
+        "revision": "guide-f"
+      },
+      "sourceChapter": "03"
+    },
+    {
+      "localOrdinal": 7,
+      "opaqueToken": "guide-g",
+      "record": {
+        "id": "csv-draft",
+        "kind": "bead",
+        "type": "guide",
+        "properties": {
+          "title": "CSV export guide",
+          "body": "Include headings even for an empty selection. Check the exported file in a spreadsheet."
+        },
+        "metadata": {
+          "area": "export",
+          "ready": true
+        },
+        "revision": "guide-g"
+      },
+      "sourceChapter": "03"
+    },
+    {
+      "localOrdinal": 8,
+      "opaqueToken": "guide-h",
+      "record": {
+        "id": "csv-draft",
+        "kind": "bead",
+        "type": "guide",
+        "properties": {
+          "title": "CSV export guide (reviewed)",
+          "body": "Include headings even for an empty selection. Check the exported file in a spreadsheet."
+        },
+        "metadata": {
+          "area": "export",
+          "ready": true
+        },
+        "revision": "guide-h"
+      },
+      "sourceChapter": "04"
+    },
+    {
+      "localOrdinal": 9,
+      "opaqueToken": "guide-i",
+      "record": {
+        "id": "csv-draft",
+        "kind": "bead",
+        "type": "guide",
+        "properties": {
+          "title": "CSV export guide (approved)",
+          "body": "Include headings even for an empty selection. Check the exported file in a spreadsheet."
+        },
+        "metadata": {
+          "area": "export",
+          "ready": true
+        },
+        "revision": "guide-i"
+      },
+      "sourceChapter": "05"
+    }
+  ],
+  "newLinks": [
+    {
+      "id": "csv-guide-current",
+      "type": "references",
+      "source": "csv-plan",
+      "target": "csv-draft"
+    },
+    {
+      "id": "csv-guide-snapshot",
+      "type": "references",
+      "source": "csv-plan",
+      "target": {
+        "uri": "csv-draft",
+        "revision": "guide-h"
+      }
+    }
+  ],
+  "staleGuard": {
+    "expectedRevision": "guide-h",
+    "actualRevision": "guide-i",
+    "differentAttemptedTitle": "CSV export guide (needs another review)",
+    "outcome": "revision-mismatch",
+    "stateUnchanged": true
+  },
+  "optionalProductBranch": {
+    "partOfMainStory": false,
+    "fromLocalRevision": 7,
+    "ifLocalRevision": 9,
+    "expectedNewRecord": {
+      "id": "csv-draft",
+      "kind": "bead",
+      "type": "guide",
+      "properties": {
+        "title": "CSV export guide",
+        "body": "Include headings even for an empty selection. Check the exported file in a spreadsheet."
+      },
+      "metadata": {
+        "area": "export",
+        "ready": true
+      },
+      "revision": "guide-j"
+    },
+    "requires": "authoritative historical-content adapter, not GET plus replacement"
+  },
+  "deletedIds": ["csv-context", "csv-checks"]
+}

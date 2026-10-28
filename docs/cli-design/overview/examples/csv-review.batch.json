@@ -1,0 +1,98 @@
+{
+  "capabilityVersion": "2",
+  "operations": [
+    {
+      "operation": "createBead",
+      "name": "checks",
+      "type": "https://work.example/acme/note",
+      "properties": {
+        "title": "CSV acceptance checks",
+        "body": "Check headings for empty and non-empty selections.",
+        "status": "draft"
+      }
+    },
+    {
+      "operation": "createLink",
+      "name": "connection",
+      "type": "https://work.example/acme/explains",
+      "source": "https://work.example/acme/csv-draft",
+      "target": {
+        "binding": "checks"
+      },
+      "properties": {
+        "title": "Acceptance checks"
+      }
+    },
+    {
+      "operation": "select",
+      "name": "draft-notes",
+      "query": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "bind": "_candidate",
+          "predicate": {
+            "op": "and",
+            "operands": [
+              {
+                "op": "typeIs",
+                "of": {
+                  "op": "binding",
+                  "name": "_candidate"
+                },
+                "type": "https://work.example/acme/note",
+                "match": "family"
+              },
+              {
+                "op": "compare",
+                "operator": "eq",
+                "left": {
+                  "op": "field",
+                  "of": {
+                    "op": "binding",
+                    "name": "_candidate"
+                  },
+                  "path": ["properties", "status"]
+                },
+                "right": {
+                  "op": "literal",
+                  "value": "draft"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "operation": "updateBead",
+      "bead": {
+        "binding": "draft-notes"
+      },
+      "propertiesChange": [
+        {
+          "op": "add",
+          "path": "/status",
+          "value": "ready"
+        }
+      ]
+    },
+    {
+      "operation": "updateBead",
+      "bead": "https://work.example/acme/csv-draft",
+      "metadataChange": [
+        {
+          "op": "add",
+          "path": "/validation",
+          "value": "pending"
+        }
+      ],
+      "expectedRevision": "guide-i"
+    }
+  ]
+}

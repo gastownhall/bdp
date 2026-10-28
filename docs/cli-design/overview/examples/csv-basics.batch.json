@@ -1,0 +1,30 @@
+{
+  "capabilityVersion": "2",
+  "operations": [
+    {
+      "operation": "createBead",
+      "id": "csv-headings",
+      "type": "https://work.example/acme/note",
+      "properties": {
+        "title": "CSV column headings",
+        "status": "ready"
+      }
+    },
+    {
+      "operation": "createBead",
+      "id": "csv-empty-output",
+      "type": "https://work.example/acme/note",
+      "properties": {
+        "title": "CSV empty selection",
+        "status": "ready"
+      }
+    },
+    {
+      "operation": "createLink",
+      "id": "csv-acceptance-order",
+      "type": "https://work.example/acme/explains",
+      "source": "https://work.example/acme/csv-headings",
+      "target": "https://work.example/acme/csv-empty-output"
+    }
+  ]
+}

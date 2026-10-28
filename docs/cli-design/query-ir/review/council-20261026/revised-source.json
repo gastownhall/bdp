@@ -1,0 +1,97 @@
+{
+  "status": "frozen-revised-author-draft",
+  "files": [
+    {
+      "path": "specs/profiles/core/query.md",
+      "sha256": "29aed8847cc15d571bfb97c8daf87ff88a4e43dd28851188c0dab1987f05f22d"
+    },
+    {
+      "path": "specs/profiles/core/read-operations.md",
+      "sha256": "d987e3068775f0eff2367a97db379cef892046861b60be82d3232405bf040040"
+    },
+    {
+      "path": "specs/profiles/core/resource-projection.md",
+      "sha256": "b7b951242419f1d22c7213a04de3591ce7754f89b9e10c3f5f80952bb2bd5a26"
+    },
+    {
+      "path": "specs/profiles/core/read-delivery.md",
+      "sha256": "473ea3ec46498da9dc38888f00ae0069a82f7ab3f7e7020376eb12b9f524e254"
+    },
+    {
+      "path": "specs/profiles/core/contract-binding.md",
+      "sha256": "5052fd96a24c2b9f52362d57aaf33ca61c89c184fadf05d3039e7eb0bf052985"
+    },
+    {
+      "path": "specs/profiles/core/affiliations.md",
+      "sha256": "dc0120a7f822ff23221ab26469b02b37a2064904caa123c4ba2c2a93ef2d89fc"
+    },
+    {
+      "path": "docs/cli-design/query-language.md",
+      "sha256": "9b00abff9ae39c7ba88591ec0bffa9f5b180ba79ce7486c2edb316da40fcc4b5"
+    },
+    {
+      "path": "docs/cli-design/query-ir.md",
+      "sha256": "027d51b8c18762c64cbe55ce922be5df4e21d320ee1afd610fa712bdf189e762"
+    },
+    {
+      "path": "docs/cli-design/read-output.md",
+      "sha256": "3ea6d85bd8f9f91449139feca88444f95d4c6207520482cd70c76a8eb6daac70"
+    },
+    {
+      "path": "docs/cli-design/reads-and-paging.md",
+      "sha256": "d272aaa4313ac7de6acc1691eb1944aae08b719c9da3b9542dc00d0ab35b3ef5"
+    },
+    {
+      "path": "docs/cli-design/scope-and-references.md",
+      "sha256": "ad67d0439945e9f5c72feafc8427db9087ac68e25f2b1e5d83aff7762db92302"
+    },
+    {
+      "path": "docs/cli-design/overview/02-explore-graph.md",
+      "sha256": "cd6f345ee928fae4b7c13615147d38507d1741fcaaf3b5ccbb7f2f23f809f8db"
+    },
+    {
+      "path": "docs/cli-design/overview/05-revisions.md",
+      "sha256": "0c8d3c5ff9d1bc14c0bfb405691dfde0be3ee77869ef3358c5806ecd2e868b2b"
+    },
+    {
+      "path": "docs/cli-design/overview/05-revisions.fixture.json",
+      "sha256": "e89ef396aef787b61cedf378d6c4e0b26d40ae0411c0379cfb87a3710f149326"
+    },
+    {
+      "path": "docs/cli-design/query-ir/query.schema.json",
+      "sha256": "eddee14a3f8f9c37ff7f06bf9f21f31efcbf06f918dc0423d34f412c3dd4aef6"
+    },
+    {
+      "path": "docs/cli-design/query-ir/read-binding.schema.json",
+      "sha256": "ecb24504cf6441fb9708d9fda554db58cedd4cdc2f0c63410427325a308491e2"
+    },
+    {
+      "path": "docs/cli-design/query-ir/read-binding-cases.json",
+      "sha256": "efb01d3f6eeb0e55f1d0f30dffde1dc957c47c072b4c696963b3dc63c8404474"
+    },
+    {
+      "path": "docs/cli-design/query-ir/cases.json",
+      "sha256": "989ef2a9f2984d8d4aff8cf0dabfbc9ff1b2368c3a7b71b67ab3c4783fd28a82"
+    },
+    {
+      "path": "docs/cli-design/query-ir/fixtures.json",
+      "sha256": "facc9e30025d3cc752aa33e31e3c755937189d474f814824246f7a3d6c5d1400"
+    },
+    {
+      "path": "docs/cli-design/query-ir/validate.py",
+      "sha256": "9f758da90bcf9423ec4c5640023e71ab2d3bcaee32ae38fcca1cbed668da1a44"
+    },
+    {
+      "path": "docs/cli-design/query-ir/validate-binding.py",
+      "sha256": "e5359ab58e1da4e923ba36adbca586871a4edda82dbe5efe3d6c37204959df7a"
+    },
+    {
+      "path": "docs/cli-design/read-review.md",
+      "sha256": "7df7e70700c7284481df38d9b728f4220921084fbecf67077169eeb99d7db451"
+    },
+    {
+      "path": "docs/cli-design/query-ir/syntax-cases.json",
+      "sha256": "ab2bd9c13dbdbdc3f6432215cf206319a5d9db54f23fa032191a684fb02cf3f3"
+    }
+  ]
+}

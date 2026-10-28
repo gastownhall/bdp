@@ -1,0 +1,27 @@
+{
+  "capabilityVersion": "2",
+  "operations": [
+    {
+      "operation": "createBead",
+      "name": "checks",
+      "type": "https://work.example/acme/note",
+      "properties": {
+        "title": "CSV acceptance checks",
+        "body": "Check headings for empty and non-empty selections.",
+        "status": "draft"
+      }
+    },
+    {
+      "operation": "createLink",
+      "name": "connection",
+      "type": "https://work.example/acme/explains",
+      "source": "https://work.example/acme/csv-draft",
+      "target": {
+        "binding": "checks"
+      },
+      "properties": {
+        "title": "Acceptance checks"
+      }
+    }
+  ]
+}

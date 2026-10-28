@@ -1326,6 +1326,13 @@
         ]
       }
     },
+    "ordinaryUpdateChange": {
+      "description": "An ordinary update input may supply no patch operations; a supplied array member is still required.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/propertyChange/items"
+      }
+    },
     "createBeadMembers": {
       "type": "object",
       "required": ["type"],
@@ -1369,10 +1376,10 @@
           "$ref": "#/$defs/resourceReference"
         },
         "propertiesChange": {
-          "$ref": "#/$defs/propertyChange"
+          "$ref": "#/$defs/ordinaryUpdateChange"
         },
         "metadataChange": {
-          "$ref": "#/$defs/propertyChange"
+          "$ref": "#/$defs/ordinaryUpdateChange"
         },
         "expectedRevision": {
           "$ref": "#/$defs/expectedRevision"
@@ -1443,10 +1450,10 @@
           "$ref": "#/$defs/resourceReference"
         },
         "propertiesChange": {
-          "$ref": "#/$defs/propertyChange"
+          "$ref": "#/$defs/ordinaryUpdateChange"
         },
         "metadataChange": {
-          "$ref": "#/$defs/propertyChange"
+          "$ref": "#/$defs/ordinaryUpdateChange"
         },
         "expectedRevision": {
           "$ref": "#/$defs/expectedRevision"

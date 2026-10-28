@@ -1,0 +1,53 @@
+{
+  "status": "authored-parser-obligations-not-executed-parser-tests",
+  "cases": [
+    {
+      "id": "ordinary-explicit-binder",
+      "source": "beads as b where b.status = \"draft\"",
+      "expect": "accept",
+      "notes": "Emit filter(scan(beads),bind b,compare field(properties.status),literal draft)."
+    },
+    {
+      "id": "hyphen-alias-refused",
+      "source": "beads as draft-note where draft-note.status = \"draft\"",
+      "expect": "refuse",
+      "notes": "Alias names match AST names; Type/property names have separate hyphen-friendly spelling."
+    },
+    {
+      "id": "hyphen-type-admitted",
+      "source": "beads as b where b is encoding-note",
+      "expect": "accept",
+      "notes": "Resolve Type name to absolute nominal URI; do not parse as subtraction."
+    },
+    {
+      "id": "dangling-through-quantifier-refused",
+      "source": "outgoing(\"A\", depth: 2) as l through any outgoing(l.target) as x through x is references where l.status = \"draft\"",
+      "expect": "refuse",
+      "notes": "Parenthesize a quantifier in through to make its clause boundary explicit."
+    },
+    {
+      "id": "quantified-through-outer-filter",
+      "source": "outgoing(\"A\", depth: 2) as l through (any outgoing(l.target) as x through x is references) where l.status = \"draft\"",
+      "expect": "accept",
+      "notes": "Outer filter wraps walk; draft condition does not prune traversal."
+    },
+    {
+      "id": "quantified-through-inner-test",
+      "source": "outgoing(\"A\", depth: 2) as l through (any outgoing(l.target) as x through x is references where l.status = \"draft\")",
+      "expect": "accept",
+      "notes": "Draft condition belongs inside any predicate, so can prune outer walk."
+    },
+    {
+      "id": "outer-boolean-quantifier-needs-parens",
+      "source": "beads as b where b.status = \"draft\" and any outgoing(b)",
+      "expect": "refuse",
+      "notes": "A quantified predicate used as a Boolean operand must be parenthesized."
+    },
+    {
+      "id": "outer-boolean-quantifier-parenthesized",
+      "source": "beads as b where b.status = \"draft\" and (any outgoing(b))",
+      "expect": "accept",
+      "notes": "Explicit Boolean boundary; no implicit alias."
+    }
+  ]
+}
