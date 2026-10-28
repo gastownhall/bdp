@@ -47,7 +47,9 @@ encoding. The retained six-CRUD batch reference below remains version 1.
 
 ## Scope, References and exact values
 
-Use `--scope`, then BDP_SCOPE_URL, then configuration scope.url. Scope-only commands may
+Commands use the selected default Scope. The candidate client context rule uses
+`--scope`, then
+`BDP_SCOPE_URL`, then configuration `scope.url`. Scope-only commands may
 also take one positional Scope, conflicting with --scope even when equal.
 `link create`, `link list` and product `link count` use Resource positionals;
 select their Scope with --scope or the default, never a guessed positional Scope. A point
@@ -59,34 +61,32 @@ normalization, aliases, kind and credential boundaries.
 Human selectors are `ID@N` for a stable store-local ordinal, `ID@=TOKEN` for an
 exact portable revision token, and `ID@current` for explicit current selection.
 An unwrapped absolute HTTP URL stays literal, including raw @; use the quoted
-`'[URL]@REV'` form to select a revision of an absolute URL. Exact JSON string/Reference forms or the full
-canonical URL keep literal identities containing @ selectable. `--id` is always
-literal. See [reference parsing](scope-and-references.md#revision-selectors).
+`'[URL]@REV'` form to select a revision of an absolute URL. The full canonical
+URL keeps literal identities containing @ selectable. `--id` is always literal. See [reference parsing](scope-and-references.md#revision-selectors).
 
-| Position | Flag | Meaning |
+| Position | Input | Meaning |
 | --- | --- | --- |
-| unpinned mutation target | --if-revision TOKEN | Exact expectedRevision guard |
-| authored --type | --type-revision TOKEN | Exact Type affiliation |
-| authored Link source/target | --source-revision / --target-revision TOKEN | Exact endpoint pin |
+| unpinned mutation target | --if-revision N or =TOKEN | Resolve the local number or use the exact expectedRevision token |
+| authored --type | TYPE@N or TYPE@=TOKEN | Exact Type affiliation after authoritative ordinal resolution |
+| authored Link source/target | REF@N or REF@=TOKEN | Exact endpoint pin after authoritative ordinal resolution |
 
-A suffix plus its corresponding explicit selector refuses even when equal.
-Explicit token flags remain literal, including numeric/current spellings. Local
-ordinals require a truthful selected-store mapping and resolve to full tokens
+Local ordinals require a truthful selected-store mapping and resolve to full tokens
 before transport or stored references; unavailable mapping refuses, never guesses.
-Type/endpoint @current refuses as a pin; bare input is unpinned. Mutation targets
-remain unpinned; historical edit/recovery is a separately owned product operation.
-Type filter operands stay unpinned; Link incidence selectors have the explicit
+`--from-revision` uses the same `N` or `=TOKEN` grammar only on a separately
+specified historical-content adapter. Type/endpoint @current refuses as a pin;
+bare input is unpinned. Mutation targets remain unpinned. Type filter operands
+stay unpinned; Link incidence selectors have the explicit
 [current-population applicability](reads-and-paging.md#link-incidence-and-applicability)
 contract. No GET-then-write current-pin emulation is added.
 
-Reference/token fields also accept exact `json:JSON`, `json:@FILE` or `json:@-`:
-a Reference is an admitted URI string or closed {uri,revision}; a token a nonempty
-string. These forms preserve delimiter-bearing/literal values without broadening
-URI admission. A string beginning json: can use JSON string form. There is no raw
-whole-request escape substituting for ordinary flags. Object/patch/provenance
-options use inline JSON, @FILE or @-. Inputs are UTF-8, frozen before transmission,
-with one stdin consumer; reject duplicate members, invalid Unicode and inadmissible
-numbers rather than round them. Null, empty and omission remain distinct.
+There is no standalone canonical `--revision` or `--type-revision`, or `json:`
+Reference escape. The retained explicit Link-creation endpoint token flags remain
+literal and conflict with the corresponding suffix even when equal; they are not
+write guards. Object/patch/provenance options use inline JSON, @FILE or @-.
+Inputs are UTF-8, frozen before transmission, with one stdin consumer; reject
+duplicate members, invalid Unicode and inadmissible numbers rather than round
+them. Null, empty and omission remain distinct. No raw whole-request escape
+substitutes for ordinary flags.
 
 ## Command inventory and native correspondence
 
@@ -101,20 +101,20 @@ numbers rather than round them. Null, empty and omission remain distinct.
 | versions REF; link versions REF | Optional complete History versions page, below |
 | create [SCOPE] --type REF [--id ID] [INITIAL-OBJECTS] | createBead singleton; product allocation adapter may admit --id-root |
 | link create SOURCE TARGET --type REF [--id ID] [INITIAL-OBJECTS] | createLink; SOURCE --to TARGET or --from SOURCE --to TARGET also admitted |
-| update REF [--type REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateBead; at least one mutation input |
-| link update REF [--type REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateLink; endpoints are not update fields |
-| delete REF --force [--if-revision TOKEN] | deleteBead apply |
-| link delete REF --force [--if-revision TOKEN] | deleteLink apply |
+| update REF [--type REF] [OBJECT-EDITS] [--if-revision REV] | updateBead; at least one mutation input |
+| link update REF [--type REF] [--from REF] [--to REF] [OBJECT-EDITS] [--if-revision REV] | updateLink; whole endpoint corrections preserve Link identity |
+| delete REF --force [--if-revision REV] | deleteBead apply |
+| link delete REF --force [--if-revision REV] | deleteLink apply |
 | alias resolve NAME | One-step alias Location, never target body |
 | alias put NAME --target REF | putAlias, canonical in-Scope unpinned Bead target |
 | alias delete NAME --force | deleteAlias, explicit apply intent |
-| batch [SCOPE] --file FILE [--input-format json|cli] | Optional selected atomic batch; [complete grammar](atomic-batch.md) |
+| batch [SCOPE] --file FILE [--input-format json|jsonl] | JSONL authoring or native JSON; no raw CLI text; [current grammar](#atomic-batch) |
 | type list [SCOPE] | Deferred Type CLI placeholder; no invented inventory payload/path |
 
 Read filters are --type (family), --exact-type (nominal), --selector, and Link
 --from/--to/--endpoint or --incident-to with --direction in|out|both.
-The wire still names source/target. Duplicate endpoint bindings refuse; the three
-authoring forms are exact, with no inverted --from SOURCE TARGET form. Exact/family
+The wire still names source/target. On Link creation, duplicate endpoint bindings
+refuse; the three creation forms are exact, with no inverted --from SOURCE TARGET form. Exact/family
 combine with AND. Bare --type any omits its predicate. The explicit-URI /any
 escape remains a [draft proposal with an unresolved native compatibility boundary](preview3-alignment.md#type-and-rendering-boundaries),
 not a settled name-reservation rule. Show's --properties-only is actual view=properties;
@@ -261,14 +261,30 @@ it accepts, along with its defaults, behavior and examples. A common flag is
 available only on commands that list it.
 
 Examples use `bd`. The generic BDP executable uses the name `bdp` and the same
-command hierarchy. This section is a draft for review. Material we have not
-agreed on is kept under [Unreviewed material](#unreviewed-material).
+command hierarchy. This section is a draft for review. Common candidate client
+mechanics are grouped below; remaining proposals are identified under
+[Unreviewed material](#unreviewed-material).
 
 Each general command describes its BDP mapping. Domain CLI specifications,
 such as Memory, will describe their equivalent canonical CLI commands. The
 mapping from those canonical commands to BDP is defined here.
 
 ### Common flags and reference syntax
+
+<a id="scope-selection"></a>
+
+#### Scope context: candidate client mechanics
+
+Commands use the selected default Scope. This candidate's concrete context rule
+chooses explicit `--scope SCOPE`, then `BDP_SCOPE_URL`, then configuration
+`scope.url`; this precedence is client authoring detail, not a new human ruling.
+Scope-only commands may also take one positional Scope, which conflicts with
+`--scope` even when equal. Link create/list/count positionals denote Resources.
+A point operand is a Resource, never a guessed Scope. Absolute reads remain
+literal; mutations require a verified owning-Scope/operation binding. Relative
+secondary operands use that established Scope. Contradictory binding refuses,
+and navigation grants no cross-authority credentials. See the complete
+[Scope and routing rules](scope-and-references.md#set-context-once).
 
 <a id="creation-ids"></a>
 
@@ -369,7 +385,8 @@ The shell removes the quotes but passes the brackets to the CLI. The CLI
 separates the URL from the revision selector. Brackets around a URL require
 a revision suffix.
 
-On a Link creation command, the source and target may each select a revision.
+On Link creation and endpoint correction, the source and target may each select
+a revision.
 The Link's Type still determines whether those endpoint revisions are allowed.
 See the [URL revision example](#show-examples).
 
@@ -439,7 +456,12 @@ Field selection uses JSON Pointers: for example, `/properties/title` selects
 a Resource's title. In a properties-only view, use `/title` instead. Includes
 are applied first, followed by omissions, using the original field paths.
 A Resource's ID, Type, revision and Link endpoints remain available as context.
-Field selection changes the display, not which records are selected.
+Field selection changes represented fields, not which records are selected.
+For Resource point reads and ordinary List, these flags select the independent
+[native projection capability](../../specs/profiles/core/resource-projection.md):
+`projectionVersion=1` plus encoded `fields`. Unsupported support refuses.
+Properties-only masks apply locally to that native view. Other native views do
+not acquire this capability through display controls.
 
 The surrounding result information records errors, completion and any field
 selection. If you remove it, use stderr and the command's exit status to check
@@ -526,6 +548,22 @@ Resource row. JSON retains the complete native mutation result. JSONL emits that
 compound result as one item, with one header and terminal; it does not split
 owner effects or batch members into separate commits.
 
+#### Complete Link owner context
+
+Selected v0.1 Link mutation results preserve optional
+`ownerRevisions:[{id,revision}]`, containing exactly the distinct initial or final
+source owners. Each entry reports that owner's actual final published revision;
+there are at most two, in ascending code-unit order of canonical URI without
+duplicates. Omit the member
+when no source owns the Link; never emit an empty array. Ownership exit reports
+the former owner's final context, and an owned no-op reports its unchanged
+revision. Bead and allocation-only results omit this member. The inherited
+result-level `source`/`sourceRevision` pair is not an
+alternative v0.1 spelling. Endpoint fields inside the Link record retain their
+ordinary meanings. Batch Link rows use the same complete context and include
+each owner's unique final Resource outcome. See the
+[complete result rules](../../specs/profiles/write/link-updates.md#complete-owner-revision-context).
+
 <a id="collection-paging"></a>
 
 #### Collection paging and filters
@@ -594,13 +632,13 @@ bd create --retry-file FILE
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| SCOPE | No; Unreviewed | Optional destination Scope spelling. Its use and precedence remain [unreviewed](#scope-selection). |
+| SCOPE | No | Optional destination Scope spelling; see the [candidate context rule](#scope-selection). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--type TYPE` | Required | Set the Type Reference, optionally pinned. See [Types](#type-selection). |
 | `--id ID` | Authority allocation | Supply the complete local ID. See [creation IDs](#creation-ids). |
 | `--id-root ROOT` | Ordinary allocation | Allocate beneath a local prefix where the adapter supports it. See [creation IDs](#creation-ids). |
@@ -697,7 +735,7 @@ bd show REF
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose the Scope for a relative ID. [Scope details](#scope-selection) remain unreviewed. |
+| `--scope SCOPE` | Command context | Choose the Scope for a relative ID. See the [candidate context rule](#scope-selection). |
 | `--properties-only` | Off | Return the properties view. See [read views](#read-views-properties-and-included-links). |
 | `--include-links` | Off | Include one page of connected Links for a Bead. |
 | `--links-limit N` | Service's bounded page default | Limit the included-Link page. Requires `--include-links`. |
@@ -831,7 +869,7 @@ bd update --retry-file FILE
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--type TYPE` | Unchanged | Replace the whole Type Reference, optionally pinned. See [Types](#type-selection). |
 | `--properties JSON` | Unchanged | Shallow merge supplied top-level values. See [object inputs](#object-inputs). |
 | `--replace-properties JSON` | Unchanged | Replace the writable object. See [object inputs](#object-inputs). |
@@ -940,7 +978,7 @@ bd delete --retry-file FILE
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--force` | Off | Apply deletion; without it, read the current record as an observational preview. See [write delivery](#mutation-delivery). |
 | `--if-revision REV` | No guard | Require the target revision; `N` or `=TOKEN`. See [write revisions](#write-revision-flags). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
@@ -1029,13 +1067,13 @@ bd list --continue URL [--scope SCOPE]
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| SCOPE | No; Unreviewed | Optional Scope spelling; not a Bead filter. See [Scope selection](#scope-selection). |
+| SCOPE | No | Optional Scope spelling; not a Bead filter. See [Scope selection](#scope-selection). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--type TYPE` | No family filter | Select a Type and its refinements; `any` removes this predicate. See [Types](#type-selection). |
 | `--exact-type TYPE` | No exact filter | Select nominal Type identity only. See [Types](#type-selection). |
 | `--selector JSONPATH` | No raw Selector | Apply the existing bounded Selector. See [filters](#collection-paging). |
@@ -1059,14 +1097,17 @@ without graph traversal or endpoint fetching.
 With `--continue`, do not supply initial operands, filters or direction. Preserve
 the issued selection and validate its collection kind, even for an empty page.
 Follow the [ordinary paging rules](#collection-paging), not History or Events
-rules. Read masks affect display only. Unsupported family selection refuses;
+rules. Native Resource masks remain frozen in the issued continuation; new
+`--include`/`--omit` Resource masks cannot replace them on resume. Separate local
+rendering cannot recover omitted fields or replace native projection metadata.
+Unsupported family selection refuses;
 it is not replaced with exact matching or a broad local scan.
 
 
 ##### Results
 
 Use `resource_collection`, retaining native items and the exact continuation.
-The default is the shared row table. JSONL emits complete Resource items plus
+The default is the shared row table. JSONL emits selected Resource representations plus
 terminal completion. A successful page or total-limit prefix is not a claim that
 all matches have been delivered; null continuation means observed exhaustion.
 Preserve all Link endpoint pins and actual Type References in structured output.
@@ -1128,7 +1169,7 @@ bd versions REF --continue URL [--scope SCOPE] [--paged]
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--paged` | On | Deliver one native History page. |
 | `--page-size N` | Provider History default | Select the initial History page limit; cannot accompany continuation. |
 | `--continue URL` | Initial History page | Use the native same-subject History next URL unchanged. |
@@ -1202,7 +1243,6 @@ bd link create --retry-file FILE
 
 OPTIONS:
     [--scope SCOPE] [--id ID | --id-root ROOT] [--batch-bind NAME]
-    [--source-revision TOKEN] [--target-revision TOKEN]
     [--properties JSON] [--metadata JSON]
     [--revision-provenance JSON]
     [--idempotency-key KEY | --dry-run-mode batch|bdp]
@@ -1220,12 +1260,10 @@ OPTIONS:
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--from SOURCE` | Positional source | Bind the source in the all-flag form; no duplicate binding. |
 | `--to TARGET` | Positional target | Bind the target in either admitted flag form. |
 | `--type TYPE` | Required | Set the Link Type Reference. See [Types](#type-selection). |
-| `--source-revision TOKEN` | Unpinned unless source suffix selects a pin | Set an exact literal source token; conflicts with a source revision suffix. |
-| `--target-revision TOKEN` | Unpinned unless target suffix selects a pin | Set an exact literal target token; conflicts with a target revision suffix. |
 | `--id ID` | Authority allocation | Supply the complete local ID. See [creation IDs](#creation-ids). |
 | `--id-root ROOT` | Ordinary allocation | Allocate beneath a local prefix where the adapter supports it. See [creation IDs](#creation-ids). |
 | `--properties JSON` | `{}` | Initialize properties. See [object inputs](#object-inputs). |
@@ -1246,10 +1284,9 @@ is invalid. No `--source` or `--target` alias is introduced.
 
 Each endpoint may use its own exact pin or resolvable local number through
 [Reference syntax](#reference-syntax). Bare input is unpinned. `@current` cannot
-author a durable generic pin. The retained explicit endpoint flags carry literal
-tokens, including numeric, `current` and `unpinned` strings; unlike write-guard
-flags they do not convert numbers or use an `=` marker. A suffix plus that
-endpoint's token flag conflicts even if equal. Product pin-current/float edits
+author a durable generic pin. Each endpoint uses the shared `@N` or `@=TOKEN`
+Reference syntax; separate endpoint revision flags are not part of this canonical
+surface. Product pin-current/float edits
 are separately owned adapter operations, not extra generic wire semantics.
 
 The Link Type determines admitted endpoint kinds, Scope boundaries and pins.
@@ -1282,7 +1319,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | CLI input | Protocol request or client behavior |
 | --- | --- |
 | Endpoint bindings | Set existing `source` and `target` References in POST to discovered `createLink`. |
-| Endpoint suffix / explicit token | Use the exact `{uri,revision}` Reference; bare input stays a URI string. |
+| Endpoint revision suffix | Use the exact `{uri,revision}` Reference; bare input stays a URI string. |
 | --type TYPE | Set whole `type` Reference. |
 | --id / --id-root | Use ordinary `id` or authority allocation; `idRoot` is not a wire member. |
 | --properties / --metadata / --revision-provenance | Set the existing initial object and attribution members. |
@@ -1329,7 +1366,7 @@ bd link show REF
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose the Scope for a relative ID. [Scope details](#scope-selection) remain unreviewed. |
+| `--scope SCOPE` | Command context | Choose the Scope for a relative ID. See the [candidate context rule](#scope-selection). |
 | `--properties-only` | Off | Return the properties view. See [read views](#read-views-properties-and-included-links). |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [output](#output-format-detail-and-field-selection). |
 | `--long` | Off | Show administrative details in human-readable output. |
@@ -1426,12 +1463,14 @@ bd link show rel-1 --properties-only --include /title
 
 #### `bd link update`
 
-Update one Link, changing its Type, properties or metadata in one atomic operation.
+Update one Link, changing its Type, endpoints, properties or metadata in one
+atomic operation.
 
 ##### Usage
 
 ```text
-bd link update REF [--type TYPE] [--scope SCOPE] [--if-revision REV]
+bd link update REF [--type TYPE] [--from REF] [--to REF]
+    [--scope SCOPE] [--if-revision REV]
     [--properties JSON | --replace-properties JSON | --patch-properties JSON
        | [--set-property KEY=VALUE]... [--unset-property KEY]...]
     [--metadata JSON | --replace-metadata JSON | --patch-metadata JSON
@@ -1453,8 +1492,10 @@ bd link update --retry-file FILE
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--type TYPE` | Unchanged | Replace the whole Type Reference, optionally pinned. See [Types](#type-selection). |
+| `--from REF` | Unchanged | Replace the complete source Reference; bare input removes any preceding pin. |
+| `--to REF` | Unchanged | Replace the complete target Reference; bare input removes any preceding pin. |
 | `--properties JSON` | Unchanged | Shallow merge supplied top-level values. See [object inputs](#object-inputs). |
 | `--replace-properties JSON` | Unchanged | Replace the writable object. See [object inputs](#object-inputs). |
 | `--patch-properties JSON` | Unchanged | Apply an ordered strict JSON Patch. See [object inputs](#object-inputs). |
@@ -1476,7 +1517,8 @@ bd link update --retry-file FILE
 ##### Behavior
 
 The target must be an unpinned Link; select a guard with `--if-revision`, not a
-revision suffix on `REF`. Supply at least one Type or object mutation input.
+revision suffix on `REF`. Supply at least one Type, endpoint or object mutation
+input.
 An admitted empty patch is allowed; a guard or provenance alone is not an update.
 Properties and metadata choose their editing modes independently.
 
@@ -1485,9 +1527,19 @@ replaces that whole Reference; under Types, an unpinned input resolves once at
 admission. A genuine unchanged result mints no revision or Event, after guards
 and policy checks. A changed Type pin is an effect even with no property changes.
 
-Endpoints are not update fields. No source/target edit or pin-edit operation is
-invented by this generic command. Link Type changes can change source ownership;
-the provider performs those effects atomically and reports native owner context.
+`--from REF` and `--to REF` each replace a whole endpoint, independently.
+Omission preserves the complete preceding Reference, including its pin. A bare
+Reference floats that endpoint and deliberately removes an earlier pin; a pinned
+Reference supplies the selected exact edition. Duplicate bindings refuse even
+when equal. Identity, Resource kind and owning Scope of the Link stay fixed.
+Ordinary endpoint kind, Scope/external-endpoint policy, exact Reference resolution
+and Type constraints still apply. See [endpoint corrections](../../specs/profiles/write/link-updates.md).
+
+Endpoint and Type corrections can affect the initial and final source owners.
+The provider admits and publishes the Link and all induced owner effects
+atomically, with no new mandatory owner guard. Equal complete References are
+no-ops after required checks unless another edit changes covered state. Retry
+preserves authored endpoint intent and original resolution witnesses.
 
 `--from-revision` belongs to a separately specified historical-content adapter;
 ordinary update has no generic field for it.
@@ -1517,6 +1569,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --- | --- |
 | REF | Set `link` in a POST to discovered `updateLink`. |
 | --type TYPE | Set the whole `type` Reference; omission remains omission. |
+| --from REF / --to REF | Set whole `source` / `target` replacements; omission preserves the preceding Reference and pin. |
 | --replace-properties / --replace-metadata | Set distinct `properties` / `metadata` replacement members, not root patches. |
 | Merge, patch and keyed object edits | Lower to `propertiesChange` / `metadataChange` without changing edit intent or policy. |
 | --if-revision REV | Resolve the target-local number or strip `=` and set exact `expectedRevision`. |
@@ -1534,6 +1587,13 @@ bd link update rel-1 --replace-properties '{"title":"Reviewed"}' --set-metadata 
 
 # Change the Type without manufacturing a property patch.
 bd link update rel-1 --type references@=type-r2
+
+# Correct the source while preserving the Link ID and omitted target pin.
+bd link update rel-1 --from note-2 --if-revision =saved-r7
+
+# Replace the target with an exact pin, then explicitly float that target.
+bd link update rel-1 --to note-3@=note-r4
+bd link update rel-1 --to note-3
 
 ```
 
@@ -1564,7 +1624,7 @@ bd link delete --retry-file FILE
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--force` | Off | Apply deletion; without it, read the current record as an observational preview. See [write delivery](#mutation-delivery). |
 | `--if-revision REV` | No guard | Require the target revision; `N` or `=TOKEN`. See [write revisions](#write-revision-flags). |
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
@@ -1586,7 +1646,8 @@ The flag does not waive authorization, integrity or revision guards and does not
 reach the wire. The target remains unpinned. Deleted canonical IDs stay reserved.
 
 Deleting a Link may produce an induced source revision under ownership rules.
-Preserve the result's source pair when present; deleting an unowned Link does
+Preserve the complete `ownerRevisions` context when present; deleting an unowned
+Link does
 not imply an endpoint revision change.
 
 
@@ -1664,7 +1725,7 @@ bd link list --continue URL [--scope SCOPE]
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--from REF` | No source filter | Match the canonical source URI; unpinned identity only. |
 | `--to REF` | No target filter | Match the canonical target URI; unpinned identity only. |
 | `--endpoint REF` | No endpoint filter | Match that canonical URI at either endpoint; unpinned identity only. |
@@ -1711,14 +1772,17 @@ See [Link applicability](reads-and-paging.md#link-incidence-and-applicability).
 With `--continue`, do not supply initial operands, filters or direction. Preserve
 the issued selection and validate its collection kind, even for an empty page.
 Follow the [ordinary paging rules](#collection-paging), not History or Events
-rules. Read masks affect display only. Unsupported family selection refuses;
+rules. Native Resource masks remain frozen in the issued continuation; new
+`--include`/`--omit` Resource masks cannot replace them on resume. Separate local
+rendering cannot recover omitted fields or replace native projection metadata.
+Unsupported family selection refuses;
 it is not replaced with exact matching or a broad local scan.
 
 
 ##### Results
 
 Use `resource_collection`, retaining native items and the exact continuation.
-The default is the shared row table. JSONL emits complete Resource items plus
+The default is the shared row table. JSONL emits selected Resource representations plus
 terminal completion. A successful page or total-limit prefix is not a claim that
 all matches have been delivered; null continuation means observed exhaustion.
 Preserve all Link endpoint pins and actual Type References in structured output.
@@ -1786,7 +1850,7 @@ bd link versions REF --continue URL [--scope SCOPE] [--paged]
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--paged` | On | Deliver one native History page. |
 | `--page-size N` | Provider History default | Select the initial History page limit; cannot accompany continuation. |
 | `--continue URL` | Initial History page | Use the native same-subject History next URL unchanged. |
@@ -1877,7 +1941,7 @@ bd events [RESOURCE] [--scope SCOPE]
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--from retained\|now` | `retained` | Choose the retained range or capture the current boundary; conflicts with --after. |
 | `--after TOKEN` | No saved cursor | Resume the same source using its issued opaque cursor, not an Event ID. |
 | `--representation postimage\|delta` | `postimage` | Request complete published records or optional realized deltas; no fallback. |
@@ -1976,7 +2040,7 @@ bd link events RESOURCE [--scope SCOPE]
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--from retained\|now` | `retained` | Choose the retained range or capture the current boundary; conflicts with --after. |
 | `--after TOKEN` | No saved cursor | Resume the same source using its issued opaque cursor, not an Event ID. |
 | `--representation postimage\|delta` | `postimage` | Request complete published records or optional realized deltas; no fallback. |
@@ -2069,13 +2133,13 @@ bd scope inspect [SCOPE] [--scope SCOPE]
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| SCOPE | No; Unreviewed | Scope discovery location; positional and flag selection remain [unreviewed](#scope-selection). |
+| SCOPE | No | Scope discovery location; see the [candidate context rule](#scope-selection). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [output](#output-controls). |
 
 ##### Behavior
@@ -2083,9 +2147,9 @@ bd scope inspect [SCOPE] [--scope SCOPE]
 Use the established discovery binding and return the advertised description.
 Preserve the canonical Scope, navigation URLs, profiles and capability versions.
 Do not infer adoption of a new capability from a newer client, expand a missing
-advertisement or guess inventory/operation suffixes. The Scope spelling and
-configuration precedence proposal remains unreviewed; this entry specifies the
-read after its discovery binding has been established.
+advertisement or guess inventory/operation suffixes. The common candidate
+[context rule](#scope-selection) establishes the discovery binding; this command
+then reads that selected description.
 
 
 ##### Results
@@ -2143,7 +2207,7 @@ bd alias resolve NAME [--scope SCOPE]
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [output](#output-controls). |
 
 ##### Behavior
@@ -2214,7 +2278,7 @@ bd alias put --retry-file FILE
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--target REF` | Required, except retry | Canonical unpinned in-Scope Bead target; not a Link endpoint flag. |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
@@ -2293,7 +2357,7 @@ bd alias delete --retry-file FILE
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--force` | Required, except saved retry | Express explicit deletion intent; aliases have no Resource preview. |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
@@ -2379,13 +2443,13 @@ version-1 wire/schema or claim an implementation.
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| SCOPE | No; Unreviewed | Optional destination Scope spelling; see [Scope selection](#scope-selection). |
+| SCOPE | No | Optional destination Scope spelling; see [Scope selection](#scope-selection). |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--scope SCOPE` | Unreviewed | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--file FILE` | Required, except retry | Read and freeze one complete input; `-` means stdin. |
 | `--input-format json\|jsonl` | `jsonl` | Choose local JSONL members or explicitly select a native wrapper; filename extension has no effect. Raw CLI text is not accepted. |
 | `--batch-version VERSION` | Stable documented CLI default | Pin an implemented JSONL encoder/admission grammar; native JSON carries its selector and rejects this flag. |
@@ -2551,16 +2615,6 @@ the complete collection entries above specify `list` only.
 ### Unreviewed material
 
 These details are retained for discussion. They are not agreed requirements.
-
-#### Scope selection
-
-The draft Scope flag is `--scope SCOPE`. Its configuration rules remain
-unreviewed. The previous proposal chose an explicit flag first, then
-`BDP_SCOPE_URL`, then configuration `scope.url`.
-
-That proposal allowed some commands to take a positional Scope, rejected
-combining it with `--scope`, and used a verified owning Scope for writes.
-See [Scope selection details](scope-and-references.md#set-context-once).
 
 #### HTTP read conditions and metadata
 

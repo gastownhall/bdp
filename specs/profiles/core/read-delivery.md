@@ -16,7 +16,9 @@ on every embedded Resource. Current record/aggregate validators retain their
 actual native meaning.
 
 Ordinary Bead and Link inventories return full records in the existing stable
-snapshot order. Structural `type` and `conformsTo` MAY combine and mean AND:
+snapshot order. An explicitly selected [Resource projection](resource-projection.md)
+invocation may mask those items under its independent capability; selection and
+snapshot order remain unchanged. Structural `type` and `conformsTo` MAY combine and mean AND:
 nominal identity and recorded exact family membership are separate predicates.
 Family matching is reflexive: the named nominal Type itself and its recorded
 refinements match `conformsTo`. This does not remove the recorded authority
@@ -110,8 +112,9 @@ every captured revision.
 
 The existing advertised application History capability selects a complete
 record with `GET`/`HEAD RESOURCE?revision=TOKEN`. Query decoding is the existing
-form-query convention, once; literal plus is `%2B`. No other query member may
-combine with `revision`. Actual properties/aggregate/collection queries do
+form-query convention, once; literal plus is `%2B`. Only an explicitly selected [Resource projection](resource-projection.md)
+invocation additionally admits `projectionVersion` and `fields`, returning the
+projected saved edition. Otherwise no other query member may combine with `revision`. Actual properties/aggregate/collection queries do
 not become exact reads by fetching a full record and extracting it. Unsupported
 History remains an explicit refusal; no current/nearest revision fallback.
 Narrow exact Type-definition transport remains separately owned; this source

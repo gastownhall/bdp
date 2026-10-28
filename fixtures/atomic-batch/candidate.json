@@ -362,8 +362,12 @@
             },
             "metadata": {}
           },
-          "source": "https://work.example/acme/owner",
-          "sourceRevision": "owner-final"
+          "ownerRevisions": [
+            {
+              "id": "https://work.example/acme/owner",
+              "revision": "owner-final"
+            }
+          ]
         },
         {
           "id": "https://work.example/acme/owned-2",
@@ -389,8 +393,12 @@
               "note": "B"
             }
           },
-          "source": "https://work.example/acme/owner",
-          "sourceRevision": "owner-final"
+          "ownerRevisions": [
+            {
+              "id": "https://work.example/acme/owner",
+              "revision": "owner-final"
+            }
+          ]
         },
         {
           "id": "https://work.example/acme/owner",
@@ -488,8 +496,12 @@
             },
             "metadata": {}
           },
-          "source": "https://work.example/acme/owner",
-          "sourceRevision": "owner-before"
+          "ownerRevisions": [
+            {
+              "id": "https://work.example/acme/owner",
+              "revision": "owner-before"
+            }
+          ]
         },
         {
           "id": "https://work.example/acme/owner",
@@ -629,8 +641,12 @@
               "revision": "link-before-1"
             }
           },
-          "source": "https://work.example/acme/owner",
-          "sourceRevision": "owner-before"
+          "ownerRevisions": [
+            {
+              "id": "https://work.example/acme/owner",
+              "revision": "owner-before"
+            }
+          ]
         },
         {
           "id": "https://work.example/acme/owned-2",
@@ -648,8 +664,12 @@
               "revision": "link-before-2"
             }
           },
-          "source": "https://work.example/acme/owner",
-          "sourceRevision": "owner-before"
+          "ownerRevisions": [
+            {
+              "id": "https://work.example/acme/owner",
+              "revision": "owner-before"
+            }
+          ]
         },
         {
           "id": "https://work.example/acme/owner",

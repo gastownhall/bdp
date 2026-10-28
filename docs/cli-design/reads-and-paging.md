@@ -5,12 +5,13 @@ Paired #280 candidate, following [Scope/references](scope-and-references.md),
 [Output and masking](read-output.md) reuse Cleo schema 2. This is paper source,
 not shipped client/provider support or a new History/Type/Events capability.
 
-The later accepted [shared Resource projection target](../../specs/profiles/core/resource-projection.md)
-applies server-side to current GET, exact GET and List items. Its explicit native
-binding remains an amendment, not proof that the baseline below already admits
-new query members. The [Query draft](../../specs/profiles/core/query.md) likewise
-adds a proposed structured AST and service result modes without reinterpreting
-the retained raw Selector or replacing these native delivery contracts.
+The selected [shared Resource projection](../../specs/profiles/core/resource-projection.md)
+applies server-side to current GET, exact saved GET and ordinary List items through
+its independent capability. Resource `--include`/`--omit` lower to
+`projectionVersion=1` and encoded `fields`; unsupported support refuses rather than
+silently fetching a full record. Properties-view masks remain local rendering.
+The [Query draft](../../specs/profiles/core/query.md) adds proposed structured AST
+and result modes without reinterpreting the retained raw Selector.
 
 ## One point or one population
 
@@ -185,7 +186,11 @@ not a guessed cursor token. Establish owning Scope/authority from retained bindi
 or verified service-desc, never path stripping or an unrelated ambient default.
 An explicit Scope can verify that binding, not change it. No initial semantic
 filters, incident operand/direction or positional Scope may reselect the cursor;
-rendering/masks, per-fetch size and total delivery cap may change. Validate actual
+output format/detail, per-fetch size and total delivery cap may change. Native
+Resource masks are frozen in the issued continuation; new `--include`/`--omit`
+Resource masks cannot replace them on resume. Any additional local rendering mask
+must remain separate from the native applied-mask metadata and cannot recover
+omitted fields. Validate actual
 `BDP-Collection-Kind` against the command, including empty pages; subject kind and
 item kind remain distinct for incident views. Preserve credentials/authorization
 boundaries; a continuation is not an authorization grant.

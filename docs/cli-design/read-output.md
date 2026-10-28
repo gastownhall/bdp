@@ -117,10 +117,14 @@ requested original-value paths. Protected context is implicit, not added to incl
 metadata; `envelope` is not a Resource pointer. No explicit mask means no projection
 object. Projected output need not validate as complete native state and cannot claim
 to be a full write replacement or transfer package. Masks do not change selection, order, revision/context or authorization. Under
-the proposed native projection capability the transferred Resource is already
+the selected native projection capability the transferred Resource is already
 projected; the renderer preserves that declared projection and never fills omitted
 fields from another read. Earlier display-only adapters do not establish that
-service capability. Reference stays Reference.
+service capability. Resource point and ordinary List masks lower to
+`projectionVersion=1` plus encoded `fields`; unsupported native capability refuses.
+Properties-view masks remain client rendering of that distinct native view.
+Incident and included-Link views have no native Resource mask in this version;
+explicit client rendering there must not claim the native capability. Reference stays Reference.
 
 ## Finite/stream completion
 

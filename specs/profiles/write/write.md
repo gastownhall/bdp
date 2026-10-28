@@ -164,7 +164,8 @@ at most one final revision per affected Resource. Singleton behavior is unchange
 
 Every successful create produces a fresh opaque Resource revision. Under the
 selected v0.1 amendment, every update that changes the complete Type affiliation,
-`properties`, common `metadata` or applicable captured owned-Link state produces
+`properties`, common `metadata`, applicable captured owned-Link state, or complete
+Link endpoint References under [endpoint corrections](link-updates.md), produces
 a fresh Resource revision. A client compares revisions only for equality and
 must not derive meaning from their spelling.
 
@@ -954,6 +955,11 @@ crash, restart, or failover mid-sequence is governed by
 [Durability and recovery](#durability-and-recovery).
 
 #### Mutation results
+
+For selected retained v0.1, [complete owner revision context](link-updates.md#complete-owner-revision-context)
+supersedes the inherited singular `source`/`sourceRevision` result clauses and
+examples below. Its input/result/Event amendment admits identity-preserving whole
+Link endpoint corrections. The separate v0 contract keeps its original shapes.
 
 Every successful Read+Update Resource mutation — a creation, update, or
 deletion of a Bead or Link, whether submitted to a singleton target or as

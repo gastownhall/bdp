@@ -1,13 +1,12 @@
-# Shared Resource projection: draft amendment
+# Selected v0.1 Resource projection
 
-**Status: October 26, 2026 incorporation candidate.** Donna accepted one
-server-side Resource projection contract for current point GET, exact historical
-point GET, and each Resource returned by List. This module specifies that target;
-the [native binding proposal](read-operations.md) now supplies physical parameters,
-discovery, framing and validator rules for review and integration. It does not change held schema bytes or advertise provider support.
-It composes [Core selection](core.md#collection-retrieval-and-selection),
-[ordinary read delivery](read-delivery.md), and the selected
-[contract binding](contract-binding.md) only after their explicit amendments.
+This amendment defines an optional, independently advertised capability under the
+[selected v0.1 binding](contract-binding.md). The same mask applies to current
+point GET, exact historical point GET, and each Resource returned by an ordinary
+List. It amends [Core reads](core.md) and [ordinary read delivery](read-delivery.md)
+only for an explicitly selected projection invocation. The unextended full-read
+contract and held v0 schema bytes remain unchanged. This is specification source,
+not an advertisement of client or provider implementation.
 
 ## Select content, then represent it
 
@@ -36,7 +35,7 @@ permission to read otherwise unavailable history.
 - Root include (`""`, the empty JSON Pointer) selects the whole Resource. Root
   omission refuses. Supplied mask arrays are nonempty; omit an array member to
   request no mask of that kind. Invalid RFC 6901 escapes refuse.
-  Omit an empty projection container rather than serializing `{}` in this AST.
+  Omit an empty projection container rather than serializing `{}`.
 - Protect canonical identity, actual Type, selected revision, and whole source/
   target References on Links. A mask cannot misrepresent their meaning.
 - Protected context cannot be sliced with nested include paths either. Protection
@@ -44,13 +43,19 @@ permission to read otherwise unavailable history.
   whereas a Link's `/source` Reference is protected whole.
 - `title` is an ordinary optional property, not protected context.
 - Properties/metadata admit nested paths. Revision provenance, recorded owned
-  Links (`ownedLinks`), and any admitted included-Link plane (`links`) are whole-
-  plane only initially. Each may be omitted by a mask; omission must be declared
+  Links (`ownedLinks`) are whole-plane only initially. Each may be omitted by a mask; omission must be declared
   as projection, not misrepresented as a full record with no recorded state.
   Nested plane slicing is deferred. References stay whole.
 - A valid absent optional include adds nothing, and an absent omission changes
   nothing. An include set matching no optional fields returns protected context
   only. Do not synthesize null or fall back to a full Resource.
+
+Every path is evaluated against the original Resource. Retained array elements
+are compacted once in original order; do not fabricate null padding or reevaluate
+shifted indexes. Preserve ancestor containers. For `items:["red","blue","green"]`,
+including `/properties/items/1` produces `["blue"]`; omitting that path from the
+full array produces `["red","green"]`. Including indexes 1 and 2 and then omitting
+index 1 produces `["green"]`.
 
 Mask paths refer to the stable logical Resource shape. Schema evolution needs an
 explicit compatibility story before this shape is locked. Path syntax,
@@ -74,27 +79,80 @@ inventories retain their own representations. A mask does not request a native
 view or acquire related Resources. Versions is the separately accepted subject
 History GET view; summary rows do not automatically accept Resource masks.
 
-Current native exact GET has a revision-only query rule. Adoption MUST explicitly
-amend that rule for service-side projection. Client rendering of a full response
-does not establish server projection support. HTTP validators describe their
-actual selected representation and policy; no client manufactures a validator
-from a Resource revision or assumes a full-body validator qualifies another view.
+## Discovery and native invocation
 
-The current Core collection rules require complete Resource items and reject
-unsupported query parameters. `read-delivery.md` likewise specifies full inventory
-records. Those clauses need explicit projection-capable amendments; an unchanged
-service remains required to refuse unsupported masks. The current always-metadata
-and owning-record owned-state requirements also need to distinguish an authorized
-projected response from a full record. Projection does not weaken the stored
-record, full-read, or authorization requirements.
+The capability identity is
+`https://github.com/gastownhall/bdp/capabilities/resource-projection`, version `"1"`.
+Its closed detail contains required booleans `current`, `exact` and `list`; at least
+one MUST be true. Each selects support for that operation independently. `exact:true`
+also requires actual complete application History. Projection never advertises
+History, structured List, Graph or Query on their own behalf.
 
-Held schema definitions require `properties`, and current record definitions also
-require `metadata`. Therefore adoption needs projected Bead/Link representation
-definitions and collection-item arms tied to an actual projected invocation.
-Protected-context-only responses cannot validate as the held full-record types.
-Do not globally make required stored/full-record fields optional or add a projection
-marker inside the Resource to work around that mismatch. Native response schema,
-capability/version binding, and framing must identify the projection contract.
+A supported Resource GET/HEAD or ordinary Bead/Link inventory GET/HEAD accepts
+once-only `projectionVersion=1` and optional `fields=ENCODED_JSON_MASK`.
+`fields` is a JSON object with nonempty `include` and/or `omit` arrays of RFC 6901
+pointers. Apply ordinary form-query decoding once, then JSON decoding; duplicate
+JSON keys refuse and a literal plus must be encoded `%2B`. `fields` requires the
+version selector. A selected version without fields requests the full native
+representation and has no projection header. A supplied empty mask refuses.
+
+Current requests require `current:true`; exact `revision=TOKEN` requests require
+`exact:true`; ordinary inventories require `list:true`. Inventory selectors,
+`limit` and `cursor` compose under their existing meanings. Structural endpoint
+filters retain canonical local Bead ID or absolute URI inputs; normalize local
+references before comparison, preserving external URI equality. The parsed-query
+schema carries raw filter strings; existing local-ID/URI validation still applies. Exact requests admit
+only `revision`, `projectionVersion` and `fields`; no historical inventory is
+introduced. Properties view, incident view, included-Link aggregate, Versions,
+Events and Type inventories do not admit these parameters in version 1.
+
+Base clients may ignore the capability and continue full reads. A client selecting
+it MUST refuse locally if the necessary advertisement is absent. A receiving
+service MUST refuse unsupported capability/version or operation support, never
+ignore a mask, silently return full content or substitute local rendering.
+Malformed, repeated or extra parameters use `invalid-parameter`. A well-formed
+unsupported selection uses the feature-local 422 `capability-not-supported`
+Problem with `capability` equal to this URI and `capabilityVersion` equal to the
+requested version. Ordinary authentication and nondisclosure precedence applies.
+
+## Representation and continuation
+
+Every successful explicitly masked point or inventory response MUST carry the
+outer HTTP field `BDP-Projection`, containing the compact ASCII JSON mask actually
+applied. Escape non-ASCII characters as JSON Unicode escapes. Include the field on
+corresponding successful HEAD and 304 responses. Full responses have no such field.
+This is representation metadata, never a Resource property or a claim that omitted
+content was absent in storage. Expose it under ordinary CORS rules. Refuse before
+output if required request-target or response-header bounds cannot carry it intact;
+never truncate the mask. Existing actual-kind and owning-Scope headers still apply.
+
+Projected responses use `projectedBeadRecord` or `projectedLinkRecord`, and inventory
+wrappers use `projectedBeadCollection` or `projectedLinkCollection`. These arms are
+selected only by an explicitly masked invocation; no-mask responses use ordinary
+full/current/historical arms. The projected arms retain identity, actual Type,
+revision and whole Link endpoints, while allowing masked properties, metadata,
+provenance and owned state to be absent. Stored/full-record requirements are not
+loosened. Schema acceptance does not replace semantic protection of mask paths.
+
+Authorization of the complete selected edition precedes masking. Exact saved data
+that is unavailable remains unavailable; no current read may fill the gaps.
+Validators cover the actual authorized representation, not a manufactured ETag
+from a Resource revision. Conditional and HEAD decisions retain their native order
+and bodyless meaning. A full representation's validator does not automatically
+qualify a projected representation.
+
+An inventory continuation freezes the mask with its selection, ordering, snapshot
+and authorization context. Follow the issued `next` unchanged except for the
+existing permitted `limit` replacement. Changing its native mask refuses; a
+client cannot silently substitute a new selection or snapshot. Count and member
+order are determined before projection. A separate client display mask cannot
+recover fields the native representation omitted or alter that continuation.
+
+The canonical schema's projection capability, parsed-query, projected-record and
+feature-local Problem definitions are mirrored in the distribution schema.
+[Artifact cases](../../../fixtures/resource-projection/candidate.json) pair the
+native shapes with current/exact/List content obligations. They are authored
+static cases, not evidence that a provider executed authorization or masking.
 
 ## Required positive/refusal coverage
 

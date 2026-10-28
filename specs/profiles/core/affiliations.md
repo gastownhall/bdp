@@ -44,11 +44,13 @@ map keys remain URI strings; they are not affiliations.
 
 Creation requires `type`. An ordinary Bead or Link update MAY supply `type`,
 `properties`, `propertiesChange`, `metadata` or `metadataChange`, with at least one
-present. Each object's replacement and patch members are mutually exclusive under
+present. Link updates additionally admit whole `source`/`target` replacements under
+[endpoint corrections](../write/link-updates.md). Each object's replacement and patch members are mutually exclusive under
 [ordinary object edits](../write/object-edits.md). An explicit `type` replaces the whole affiliation; it is not a partial
 object merge. Omitting `type` MUST preserve the complete preceding affiliation,
 including its definition pin, regardless of newly installed definitions/defaults.
-Identity, Resource kind and Link endpoints/pins do not change in an update.
+Identity and Resource kind do not change. Omitted endpoints retain their complete
+References; explicit endpoint corrections follow the paired amendment.
 Properties and metadata remain unless explicitly edited, subject to applicable
 service-completion and property-access rules; retyping is not implicit conversion.
 
@@ -135,7 +137,9 @@ old empty buckets; returning an unchanged retained revision does not rewrite it.
 
 Retyping a Link can add it to or remove it from its source's owned set. Compare
 membership before and after the operation: leaving ownership is an effect too.
-The Link and affected source revision effects commit atomically. A definition-pin
+The Link and every affected initial/final source revision effect commit atomically;
+a source correction can affect two distinct owners under
+[complete owner results](../write/link-updates.md#complete-owner-revision-context). A definition-pin
 change can change conformance/membership even when nominal identity is unchanged;
 if the Link remains owned, its changed full record is still changed captured state.
 Retyping a source Bead recomputes its owned set from existing outgoing Links under

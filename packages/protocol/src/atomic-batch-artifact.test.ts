@@ -306,8 +306,8 @@ describe("optional atomic batch artifacts; no compiler/provider execution", () =
     for (const row of result.resources.filter(
       (r: { resourceKind: string }) => r.resourceKind === "link",
     )) {
-      expect(row.source).toBe(owner.id);
-      expect(row.sourceRevision).toBe(owner.resource.revision);
+      expect(row.ownerRevisions[0].id).toBe(owner.id);
+      expect(row.ownerRevisions[0].revision).toBe(owner.resource.revision);
       expect(captured).toContainEqual(row.resource);
       expect(row.resource.source.revision).toBe(
         cases.publicationBefore.twoOwnedLinks[owner.id].revision,
@@ -342,8 +342,8 @@ describe("optional atomic batch artifacts; no compiler/provider execution", () =
     for (const row of result.resources) {
       expect(row).not.toHaveProperty("resource");
       if (row.resourceKind === "link") {
-        expect(row.source).toBe(owner.id);
-        expect(row.sourceRevision).toBe(before.revision);
+        expect(row.ownerRevisions[0].id).toBe(owner.id);
+        expect(row.ownerRevisions[0].revision).toBe(before.revision);
       }
     }
     expect(cases.publishedEvents.deleteOwner).toHaveLength(3);
@@ -373,7 +373,7 @@ describe("optional atomic batch artifacts; no compiler/provider execution", () =
     const result = structuredClone(cases.results.twoOwnedLinks);
     for (const row of result.resources) {
       row.resource.revision = "same-token";
-      if (row.sourceRevision) row.sourceRevision = "same-token";
+      for (const owner of row.ownerRevisions ?? []) owner.revision = "same-token";
       for (const records of Object.values(row.resource.ownedLinks ?? {}) as {
         revision: string;
       }[][])

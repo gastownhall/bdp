@@ -6,6 +6,11 @@ PR310 head f386bf0c5069cfc642b84aee842f109809841ef9. This follow-up completes
 review proposals on top of that author source. No held schema, runtime, main,
 release or pin is moved by these documents.
 
+The [October27 current source map](../../design/bdp-v0.1-current-source-map.md)
+records later selected native projection and endpoint amendments. The review
+proposal and adoption instructions below describe this October26 handoff; they
+do not override that later paired incorporation.
+
 ## Source homes
 
 | Home | Responsibility |

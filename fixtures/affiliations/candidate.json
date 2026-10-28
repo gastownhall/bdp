@@ -301,7 +301,7 @@
     {
       "id": "leave-owner",
       "given": "Link affiliation change leaves source owned set.",
-      "expected": "Compare pre/post membership; atomic Link/source effects, remove from capture. Report source/sourceRevision even though the resulting Type is unowned; the native leavingOwnership sample illustrates the pair.",
+      "expected": "Compare pre/post membership; atomic Link/source effects, remove from capture. Report ownerRevisions even though the resulting Type is unowned; the native leavingOwnership sample illustrates the owner revision context.",
       "execution": "not run",
       "source": "specs/profiles/write/write.md#mutation-results"
     },
@@ -351,9 +351,13 @@
         "properties": {},
         "metadata": {}
       },
-      "source": "https://work.example/acme/owner",
-      "sourceRevision": "owner-r10",
-      "changed": true
+      "changed": true,
+      "ownerRevisions": [
+        {
+          "id": "https://work.example/acme/owner",
+          "revision": "owner-r10"
+        }
+      ]
     },
     "unrelatedUnowned": {
       "outcome": "updated",
@@ -385,9 +389,13 @@
         "properties": {},
         "metadata": {}
       },
-      "source": "https://work.example/acme/owner",
-      "sourceRevision": "owner-r9",
-      "changed": false
+      "changed": false,
+      "ownerRevisions": [
+        {
+          "id": "https://work.example/acme/owner",
+          "revision": "owner-r9"
+        }
+      ]
     }
   }
 }

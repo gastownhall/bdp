@@ -35,7 +35,8 @@ exact JSON/numeric admission rules remain; no generic-JSON fallback after reject
 The ordinary decision imports [creation/allocation](write.md#creation-and-identity-allocation),
 [guards and no-ops](write.md#mutation-revisions-and-guards), explicit Bead/Link/alias
 operation check order, mutation authorization and native bounds. The selected
-[affiliation](../core/affiliations.md) and [object-edit](object-edits.md) amendments
+[affiliation](../core/affiliations.md), [endpoint correction](link-updates.md) and
+[object-edit](object-edits.md) amendments
 govern mutable whole Type affiliation, literal replacement versus patch, policy,
 recorded ownership and resulting-state equality. Old installed-descriptor requirements
 are conditional Types duties, not a hidden obligation on a Core-only provider.
@@ -53,8 +54,9 @@ HTTP 200 returns the complete ordinary mutationResult or aliasResult directly, w
 private/no-store and no operation-target ETag or Location. Resource create/delete
 has changed true; update reports actual changed. Create/update has the full original
 postimage; delete has the final live identity, no newly minted deleted version.
-An affected owned-Link result preserves source/sourceRevision when owned before OR
-after, including leaving ownership. A genuine owned no-op reports unchanged context.
+A Link result carries [ownerRevisions](link-updates.md#complete-owner-revision-context)
+for every distinct initial/final owner, including ownership exit and a source move
+with two owners. A genuine owned no-op reports unchanged context.
 Alias results retain their own created/updated/deleted shape, no changed member,
 Resource revision or invented provenance. Ordinary results do not turn into public
 receipts when the service gains another capability. Retained output reauthorization

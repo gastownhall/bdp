@@ -29,10 +29,12 @@ below taking precedence over inherited v0 examples/profile vocabulary:
 | --- | --- |
 | Scope/Resource non-reuse, URI normalization, aliases and References | [Scopes and identity](core.md#scopes-and-identity), [Beads and Links](core.md#beads-and-links) |
 | Value equality, opaque revisions, attribution and ordinary native constraints | [Revisions](core.md#revisions), [Carried attribution](core.md#carried-attribution) and the shared JSON/numeric rules |
+| Identity-preserving Link endpoint corrections | [Whole References, complete owner effects and historical preservation](../write/link-updates.md) |
 | Complete Type carrier and recorded owned state | [Affiliations](affiliations.md); Types interpretation remains conditional, not Core's descriptor-installation rule |
 | Read authorization and selection | [Authorization views](core.md#authorization-views), [Selection](core.md#selection) |
 | Full/properties/optional aggregate/incident/collection reads and kind metadata | [Resource records](core.md#resource-records) through collection retrieval, amended by [ordinary read delivery](read-delivery.md) |
 | Alias resolution, unknown/deleted Resource disclosure and HTTP failures | [Alias resolution](core.md#alias-resolution), [Reads after deletion](core.md#reads-after-deletion), [Problem details](core.md#problem-details) and HTTP/CORS/conditional/HEAD rules |
+| Optional shared Resource projection | [Current GET, exact saved GET and ordinary List masks](resource-projection.md), independently advertised per operation; full records remain the base contract |
 | Optional complete application History | [Historical resolution](core.md#historical-resolution), only when historicalResolution is advertised; no weakening into a partial capability |
 | Optional exact definition operation | [Type-definition read](type-definition-read.md), only in its explicitly selected interpreting context; not general History or a complete Types advertisement |
 | Required observation | [Events](events.md), required postimages and truthful bounded replay; optional delta uses the six mutation names |

@@ -184,15 +184,17 @@ and revision must agree. Deleted rows use the existing deletedIdentity shape;
 their identity/kind agree too. All other fields are closed. Identity allocation is
 not a sixth Resource kind or public reservation API. The whole bounded result,
 including allocation-only identity mappings, is committed and replayed atomically.
-Existing singleton mutationResult/aliasResult shapes remain distinct and unchanged.
+Singleton mutationResult/aliasResult shapes remain distinct; selected Link owner
+context follows [endpoint corrections](link-updates.md#complete-owner-revision-context).
 
-For Link rows other than allocated, include source/sourceRevision iff that Link
-belongs to its source's owned set in the initial OR final committed graph. Return
-the actual final source revision, unchanged if the source has no net change; if
-the source itself is deleted, use its final live published revision and its deleted
-row. Include that source's unique row. Compare membership at decision boundaries,
-not at internal stages. Unrelated unowned/allocated rows omit the pair. Ownership
-exit remains observable; the CLI never infers it from final Type alone.
+For non-allocated Link rows, include `ownerRevisions` for the distinct sources
+that own that Link in the initial OR final committed graph. A source correction
+can name two owners; deduplicate and order by canonical URI. Return each actual
+final source revision, unchanged for a net no-op, or its final live published
+revision if that owner is deleted. Include each owner's unique Resource row.
+Compare membership at complete decision boundaries, not intermediate stages:
+A→B→C does not invent a published B owner effect. Unowned/allocated rows omit
+the member. The CLI never infers ownership solely from the final Link Type.
 
 Aggregate changed is the OR of final resource-row flags, including allocation
 effects, never per-member staged changes. Effectful decisions require opaque

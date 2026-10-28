@@ -23,7 +23,8 @@ Types final-graph allowances do not waive those checks.
 
 Compare the final graph against the committed graph on which the decision is
 admitted. Revision-covered state is complete affiliation, properties, metadata and
-applicable captured owned-Link state; provenance alone does not cause a change.
+applicable captured owned-Link state, and for a Link its complete source/target
+References; provenance alone does not cause a change.
 Each affected live Resource gets **at most one** new revision, exactly when that
 final state differs. A new surviving Resource gets one creation revision. An
 existing deleted Resource gets no new revision: its final live published version

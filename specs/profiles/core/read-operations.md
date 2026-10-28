@@ -87,15 +87,12 @@ promises. Optional nonnegative `maximumDepth` bounds finite traversal requests;
 it does not reinterpret an admitted `unbounded` request as that finite depth.
 Operational work and result budgets may still cause an explicit refusal.
 
-Point projection is separately advertised by
-`https://github.com/gastownhall/bdp/capabilities/resource-projection`, exact version
-`"1"`, with closed detail `{current:true, exact:BOOLEAN}`. It needs no List endpoint
-or AST implementation. `exact:true` additionally requires actual complete
-application History; it does not advertise or weaken History itself. List/Query
-`projection:true` and this point capability use exactly the same mask semantics,
-without requiring a provider to offer both operations. Base clients may ignore
-these optional capabilities; their absence preserves the existing Core Selector,
-full point reads and native views.
+Native current/exact GET and ordinary inventory projection are separately selected
+by [Resource projection version 1](resource-projection.md). Its independent detail
+uses `current`, `exact` and `list`, and its native query selector is
+`projectionVersion=1`. This proposed POST binding's `projection:true` reuses that
+mask meaning but does not advertise or replace the native capability. Conversely,
+native projection does not advertise this proposed structured read operation.
 
 Initial requests use:
 
@@ -143,45 +140,18 @@ with an exact native continuation is ordinary paging, not a claim that the whole
 selection has been exhausted. Later pages can fail explicitly under the shared
 read contract; an earlier page does not promise future availability.
 
-## Point reads and field selection
+## Shared field selection
 
-For the separately advertised point-projection capability/version, a Resource
-GET/HEAD accepts once-only
-`readVersion=1` and optional `fields=ENCODED_JSON_OBJECT`. `fields` contains the
-existing nonempty `include` and/or `omit` arrays, with RFC 6901 pointers. Ordinary
-form-query decoding occurs once, followed by JSON decoding. Duplicate JSON object
-keys refuse; literal plus must be encoded `%2B`. The same object is the AST's
-`projection` on List/Query. `readVersion` without `fields` is a full point read under that selected capability.
-A current request needs `current:true`; an exact request also needs `exact:true`
-and actual History. Unsupported selection uses the same feature-local refusal
-with the point-projection capability identity.
+The selected [Resource projection](resource-projection.md) module owns current GET,
+exact saved GET and ordinary inventory transport, projected record arms, mask
+protection, array handling, `BDP-Projection`, validators and continuation rules.
+Those operations use `projectionVersion`, not this proposal's `readVersion`.
 
-Only current full Resource reads and exact `revision=TOKEN` full Resource reads
-admit these parameters initially. Properties view, incident view, included-Link
-aggregate, Versions, Events and Type inventories retain their own parameters and
-representations. This explicitly amends exact History's revision-only query rule
-for these two projection parameters, not its authorization or retention rules.
-An unsupported server rejects the new query members; it cannot mistake them for
-successful full-content service projection. An unsupported projection is an error,
-not a local display-only fallback.
-
-A successful projected Resource retains identity, actual Type and revision, plus
-whole endpoint References on a Link. Its outer HTTP field
-`BDP-Projection` contains the compact JSON mask object actually applied. A full
-response has no such field. The field is used only on these point GET/HEAD responses, never redundantly on
-List/Query wrappers. It is representation metadata, not a Resource property or a grant to reconstruct omitted content. Expose it under ordinary CORS
-rules. Masks must also fit ordinary request-target and response-header bounds;
-refuse before output if their required metadata cannot be carried intact. Never
-truncate a mask header. Representation validators cover the actual authorized representation;
-neither the service nor client manufactures ETags from Resource revisions.
-GET and same-edition List item use identical projection semantics. Unknown optional
-fields are no-ops, with advisory diagnostics only where the common rules allow.
-
-`properties`, `metadata`, provenance and owned-state may be absent because of a
-mask. The binding therefore requires explicit projected record/item schema arms;
-held full/stored-record schemas must not be globally loosened. The applied mask
-is carried by this operation's response or the point response's HTTP metadata.
-Full responses continue to satisfy their complete native record contract.
+This proposed POST operation carries the same logical mask in the AST's
+`projection` member. Its result envelope declares that applied mask. It must use
+projected item arms when a mask is present and complete native arms otherwise;
+no full/stored-record schema is globally loosened. Adoption of this POST operation
+still requires its own coherent capability, request/result and error binding.
 
 ## One sort field
 
