@@ -1,9 +1,9 @@
 {
   "status": "Finite authored examples and offline artifact checks, not a lookup provider, production bootstrap or Type registration",
   "commonSource": {
-    "commit": "6c3c421491adf8b7f6b3a0042c4d1196ce3c9115",
+    "commit": "a41128d97f4394addfd7204b12ffaf71d06643cb",
     "path": "specs/profiles/core/bdp-v0.1.schema.json",
-    "sha256": "72dd1837ad169114911b4ffcd9104c1aa2d1d02870e60b2ac7e8c4e950fc7d1d"
+    "sha256": "e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f"
   },
   "capability": "https://github.com/gastownhall/bdp/capabilities/type-definition-read",
   "advertisementDetail": {
@@ -240,7 +240,7 @@
       "query": {
         "capabilityVersion": "1",
         "uri": "https://example.org/types/beads/task",
-        "revision": "修訂-7"
+        "revision": "\u4fee\u8a02-7"
       }
     }
   ],
