@@ -1,11 +1,12 @@
-# Resource selection and graph queries: draft contract
+# Resource selection and graph queries
 
-**Status: focused design candidate, October 26, 2026.** This module records
-Donna's selected read/query semantics and proposes a minimal complete JSON AST.
-It does not amend a published contract, advertise a capability, assign a new
-endpoint, replace the existing bounded JSONPath Selector, or claim installed
-support. The exact node encoding and the initial profile rules are author
-proposals. Requirements below specify this candidate when adopted.
+**Status: JSON AST selected for implementation, October 28, 2026.** Donna chose
+this representation as the immediate BDP and CLI format. Clients can send the
+JSON AST directly while human expression syntax is deferred. The logical
+encoding and List/Graph/Query subsets below are the implementation target.
+This selection does not advertise an installed service, upgrade an existing
+service's Core binding, or establish implementation qualification. Remaining
+author-proposed policies are identified where they occur.
 
 This is the semantic source for the companion [complete CLI surface](../../../docs/cli-design/query-language.md),
 [proposed native binding](read-operations.md), [CLI and IR explanation](../../../docs/cli-design/query-ir.md),
@@ -14,7 +15,7 @@ This is the semantic source for the companion [complete CLI surface](../../../do
 logical requests only; scope binding, transport, delivery, and response framing
 reuse the applicable shared contracts once the integration points are selected.
 
-## Selected decisions and proposed encoding
+## Selected representation and semantics
 
 Donna selected a complete, small JSON AST as the starting representation. Clients
 parse surface syntax and expand conveniences. Services independently admit the
@@ -47,11 +48,13 @@ The selected semantics are:
   a service result mode shared by List and Query. Scalar top-level evaluation,
   computed records, and `select` are deferred.
 
-The proposed encoding uses tagged JSON nodes with an `op` member. This is an AST
+The encoding uses tagged JSON nodes with an `op` member. This is an AST
 discriminator, not a new Resource property or a replacement for Bead/Link Types.
 Requests declare `ir: "bdp-query-design-1"`, a `profile`, a `selection`, and a
 `result.form`. That design identifier MUST NOT be advertised as a released BDP
-version. Profile names and representation spellings remain reviewable.
+version. A service selecting this initial encoding binds its exact source and
+supported capabilities; future representation changes require explicit version
+selection rather than changing the meaning of existing requests.
 Here `profile` denotes an admitted AST subset; it does not change the native
 Core/Write discovery profile literal. Capability URI/version selection still
 requires the explicit discovery integration listed below.
@@ -341,7 +344,7 @@ continuations rather than client-invented cursors.
 
 ## Profiles: obvious structural subsets
 
-These initial admission profiles are author proposals over the same AST:
+These initial admission profiles are subsets of the same selected AST:
 
 | Profile | Admitted shape |
 | --- | --- |

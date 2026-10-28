@@ -1,11 +1,53 @@
 # List and Query: proposed native binding
 
-**Complete review proposal, October 26, 2026.** The selected meanings are in
+**Implementation binding candidate, October 28, 2026.** The selected meanings are in
 [Query](query.md) and [Resource projection](resource-projection.md). This module
 fills their transport, admission, sorting and result-carrier gaps. Its names,
 capability identifier and initial restrictions are author proposals for review.
 It does not change held schemas, advertise a service, or claim implementation.
-The [CLI grammar](../../../docs/cli-design/query-language.md) lowers to this binding.
+Donna selected direct JSON AST input as the immediate CLI path. The later
+[CLI grammar](../../../docs/cli-design/query-language.md) remains deferred.
+
+## Initial receiving implementation
+
+The first Beads implementation selects the existing logical AST and this
+request/result carrier through explicit service composition. Its configured
+operation URL can be the existing Scope root: selecting that URL does not reserve
+a new Resource ID. `POST S?readVersion=1&operation=list|query` uses the ordinary
+server authentication, Host checks, deadlines and admission controls. It is a
+read-only operation with the same shared executor as direct CLI AST input.
+
+The first receiving context is a complete bounded current Bead/Link inventory,
+captured in one checked transaction and projected using the existing Resource
+projector. It covers actual generic Beads, Issues and native Links, including
+dependency-backed Links. Legacy installed Type descriptors contribute checked
+family facts; this adapter does not manufacture them as revisioned Beads.
+Source, schema and supported shapes must be recorded beside the implementation.
+
+Its deliberate first limits are explicit refusal of projection, request sort,
+explicit paging, Batch operands and exact pinned acquisition. Stored endpoint
+pins still participate in current-edition applicability and remain available as
+raw field data. A one-hop Link-only selection need not acquire its opposite
+endpoint; acquiring a pinned endpoint requires the missing exact-acquisition
+capability and refuses before identity lookup. Even a pin equal to the current
+revision is not a shortcut around that capability. This is a receiving limit,
+not a change to the Reference union or its equality rules.
+
+Resource delivery is initially atomic within its operational result and byte
+bounds. `next:null` means the entire selection was established and returned.
+Exceeding a bound fails; it does not issue a guessed cursor, trim a successful
+answer or return a partial count. Later paging must meet the continuation
+contract below. A narrowed implementation must state this delivery limit rather
+than imply it implements the complete paging proposal.
+
+Direct operation configuration is distinct from discovery interoperability.
+The existing v0 discovery remains unchanged. A service that has not implemented
+the actual retained Core baseline, including Events, must not advertise a
+Query-only v0.1 Core discovery document. Negotiating v0.1 media does not waive
+those obligations. Such a receiver refuses v0.1 discovery until the common Core
+receiving dependency is complete; clients must not derive the new operation URL
+from an old discovery document or silently fall back to another query language.
+Generic discovery interoperability remains unfinished at this first cut.
 
 ## Two operations, one logical model
 
@@ -113,6 +155,14 @@ additionally requires the advertised `graph` profile, even when its AST says
 `profile:"query"`. The AST's existing
 `ir:"bdp-query-design-1"` is the draft encoding selected by capability version 1,
 not another protocol version. Before adoption it needs an immutable released name.
+
+An unsupported request Content-Type, Content-Type parameter or Content-Encoding
+returns bodyless HTTP 415 in this initial POST binding. It carries no invented
+old Problem code or partial result. Unsupported response negotiation returns
+bodyless 406; a wrong method returns bodyless 405 with the actual Allow value.
+These transport refusals retain `Vary: Accept` and no entity validator. Valid
+JSON with an invalid member, AST or parameter uses the selected Problem binding
+instead. This narrow POST rule does not change ordinary GET error framing.
 
 Authenticate and apply ordinary nondisclosure/request bounds, then dispatch on the
 once-only nonempty `readVersion`. Missing, repeated, empty or malformed selectors,
@@ -303,6 +353,12 @@ retry mappings above reuse the held Read Problem meanings. A
 must not identify which undisclosed endpoint, field or branch exists. Malformed JSON and
 duplicate keys use the inherited malformed-request diagnosis. HTTP 401/403,
 negotiation and rate-limit rules remain inherited; 406 is bodyless as before.
+
+An internal integrity failure or an unclassified implementation failure returns
+sanitized, bodyless HTTP 500. This narrow exception carries no successful
+payload, invented Problem code, retry promise, internal message or Resource
+identity. It is not `temporarily-unavailable`: a deterministic integrity defect
+does not become a temporary provider failure merely to fit a Problem arm.
 
 A heterogeneous optional value that fails a defined typed test is not a malformed
 query. For example, comparing a string field to a numeric literal uses the shared
