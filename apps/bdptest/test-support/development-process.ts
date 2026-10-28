@@ -23,7 +23,7 @@ const config = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const epoch = process.argv[3] === undefined ? undefined : Number(process.argv[3]);
 if (epoch !== undefined && (!Number.isSafeInteger(epoch) || epoch < 0))
   throw Error("invalid private retention epoch");
-if (process.version !== "v24.16.0") throw Error("wrong pinned Node");
+if (process.version !== "v24.22.1") throw Error("wrong pinned Node");
 const adapter = createNodeLifecycleScheduler();
 const send = (message) => process.send(message);
 let dispatch = 0, parked, closed = false;

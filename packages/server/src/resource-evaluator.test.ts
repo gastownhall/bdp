@@ -1762,7 +1762,7 @@ describe("allocator faults inside the durable owned-member boundary", () => {
       retainUntil: 86_400_000,
     });
     try {
-      expect(store.runtime.node).toBe("v24.16.0");
+      expect(store.runtime.node).toBe("v24.22.1");
       const setup = store.admit("alice", ["setup"]);
       store.executeMember(setup, "setup", (tx) => {
         tx.putAlias("reserved", seed.id);
@@ -2486,7 +2486,7 @@ describe("native context inside actual durable members", () => {
             const clock = vi.fn(() => milliseconds + 1000);
             try {
               expect(store.runtime).toMatchObject({
-                node: "v24.16.0",
+                node: "v24.22.1",
                 journalMode: "delete",
                 lockingMode: "exclusive",
                 synchronous: 3,
