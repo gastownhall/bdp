@@ -126,6 +126,9 @@ applies to the instance's `properties`, not to the whole common Resource envelop
 Within this profile, a Type definition is represented as a Bead. The instance's
 Type reference is interpreted as a Bead reference to that definition; its identity
 and revision identify the definition Bead and the selected Bead revision. The
+intrinsic-only local materialization distinction in §2.4 keeps a shared protocol
+definition separate from its locally owned inspection record; it does not change
+this identity equation for ordinary user-authored definitions. The
 abstract definition fields are specified in the [descriptor specification][descriptor-spec];
 §§2.1–2.3 define their interpretation and bootstrap. Unresolved choices remain
 marked for review.
@@ -370,6 +373,67 @@ writes. Ordinary client mutation of intrinsic definitions remains prohibited.
 This file is a **literal final-state example**, not a BDP transaction, installation
 API or package format. Its revision strings are illustrative, not permission for
 clients to assign server revisions. The separate packaging requirements are in §7.1.
+
+### 2.4 Ordinary local records for shared intrinsic definitions
+
+**Selected native bootstrap direction; mapping transport remains unselected.**
+The initial local command sequence uses real locally owned definition Beads while
+preserving global identity common and intrinsic to the protocol. A local record
+is an intrinsic **materialization**, not a new nominal intrinsic Type or an alias.
+Core's one-Scope canonical Resource identity and the ordinary user-definition
+identity equation in §2 remain unchanged.
+
+Distinguish an exact shared protocol definition `P@p` from an actual local Resource
+record `L@l`. These are explanatory variables, not new Reference syntax. Trusted
+initialization MUST retain a checked exact correspondence. One accepted `L@l`
+cannot bind conflicting `P@p` values. Within a frozen initialization/read context,
+each global pair used to project a local declaration target selects one exact
+local pair. Retained reconstruction uses those recorded bindings and target pins,
+never an arbitrary row, a current local head or an unversioned role map. Names,
+schema similarity and URI prefixes do not establish correspondence.
+
+Trusted initialization establishes the coherent four local definition records and
+any included two local declaration Links atomically, with actual local IDs and
+Resource revisions. Clients cannot assign the shared publication's opaque tokens
+through ordinary create. Local Type, BeadType and LinkType records have exact own
+affiliation with the shared BeadType definition; the local Refines definition has
+exact affiliation with shared LinkType. Their descriptor/schema properties retain
+the common intrinsic meaning. Ordinary clients cannot mutate or remove these
+intrinsic materializations or their projected declaration state.
+
+If materialized as local Links, the two declarations have real local identities,
+revisions and source owners, and exact local target pins selected through the
+checked correspondence. Owners capture the complete actual local Link records.
+Validate this correspondence field by field: changing local envelope identities,
+revisions and endpoints prevents whole-record byte equality with the global
+publication. Do not recursively rewrite schema resource IDs or semantic Type
+selectors. These Links are local graph facts over materializations; they neither
+re-author global intrinsic conformance nor create extra nominal Types. Global
+interpretation continues from the retained shared exact graph, not this mirror.
+
+Ordinary `show` addresses the actual local record and reports its genuine local
+identity, revision and ownership. Ordinary local Type-family and Refines lists
+include actual local records under their real affiliations. Global publication
+availability alone creates no such membership. A local materialization URI is
+not automatically a second nominal Type input for the shared definition; general
+aliasing remains deferred. User-authored Foo remains a normal definition Bead,
+with its own local identity as its Type identity. Storing Foo still neither
+registers Foo nor selects its default.
+
+Exact lookup of a shared global pair continues to return the unchanged shared
+record and complete lookup wrapper. The publication's absent original authoring
+Scope is not filled from a local materialization's actual owner. A literal global
+ID in ordinary `show` MUST NOT silently become a local ID or a definition lookup.
+Packs, public installation and aliases are separate decisions.
+
+Before producer authoring, define the concrete durable native correspondence
+interface and retained-state validation. No public JSON field, discovery operation,
+storage format or version number is selected by this subsection. A native preview
+may use explicit trusted initialization context with stated limits. It MUST NOT
+claim complete Types1 provider conformance until any interpreting consumer that
+needs the correspondence has an explicit selected carrier; generic consumers must
+not infer it from ordinary shapes. Core/schema validation or a fixed-publication
+validator alone does not discharge that obligation.
 
 ## 3. Conformance in plain language
 

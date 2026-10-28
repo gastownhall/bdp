@@ -70,6 +70,14 @@ still applies to actual canonical Resource reads, not to every operation respons
 containing a record. Later mutation routing needs independently verified owning
 context. Do not unwrap the result and treat its transport location as that proof.
 
+The Types profile's [intrinsic local-record direction](../types/types.md#24-ordinary-local-records-for-shared-intrinsic-definitions)
+does not change the requested-pair rule. Lookup of a shared global definition
+returns its original global record/wrapper; ordinary point reads of real local
+materializations retain their actual local Resource IDs, revisions and owners.
+No implicit global-to-local substitution, URI equality, local Type alias or
+publication-origin inference follows. That intrinsic correspondence needs its
+explicit selected interpretation context; this operation adds no mapping field.
+
 HEAD retains selection/authorization/negotiation/status with no body. HTTP conditions
 select this one native wrapper representation; auth/query/retained-state erasure
 checks precede 304. GET 304 and precondition 412 are bodyless; negotiation 406 is

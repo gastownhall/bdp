@@ -21,6 +21,25 @@ design is discussed. It is not a finalized registration/default workflow. The
 [Types1 source binding](../../specs/profiles/types/types-binding.md) describes the
 independent protocol-selection obligation; implementation remains separate.
 
+### Local intrinsic records and common protocol identity
+
+For the initial sequence, trusted initialization supplies actual local records for
+Type, BeadType, LinkType and Refines under the [intrinsic-only materialization
+contract](../../specs/profiles/types/types.md#24-ordinary-local-records-for-shared-intrinsic-definitions).
+Their local Resource IDs/revisions and ownership are real; their shared exact
+protocol meaning is retained through checked correspondence. Ordinary `show`
+addresses those local IDs. Family filters use the actual shared intrinsic Type
+identities; local materialization IDs are not silently alternate Type names.
+Included local Refines Links are real owned graph records, with exact projected
+targets, and do not re-author the global definition graph.
+
+This direction does not select a new alias, pack, public mapping field or storage
+version. Native mapping/producer support remains to be implemented, and full
+Types1 transport needs an explicit carrier for consumers requiring that context.
+The shared exact-definition lookup still returns the original global record and
+wrapper. It does not fill the publication's absent origin from the local owner or
+silently replace ordinary `show`.
+
 ## Using Types (informative)
 
 ### Start with an available contract

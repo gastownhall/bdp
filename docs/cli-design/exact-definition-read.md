@@ -44,6 +44,15 @@ wrapper/origin contract, then pair its usable command signature with this wire
 operation. That remaining CLI coverage is an explicit completion gate, not a hidden
 `type show` command or permission to revive Type lifecycle/CRUD design here.
 
+The [local intrinsic materializations](../../specs/profiles/types/types.md#24-ordinary-local-records-for-shared-intrinsic-definitions)
+selected for the first Types sequence do not change this lowering. Ordinary show
+of their actual local IDs reports genuine local Resource identity/ownership.
+Lookup of a shared global exact pair still returns that unchanged global definition
+and wrapper, with originScope absent when unrecorded. Checked correspondence is
+not URI equality or a local Type alias; neither operation silently substitutes for
+the other. Public correspondence transport remains unselected, and a native
+preview's trusted context is not a claim of complete Types1 provider support.
+
 ## Output and errors do not invent ownership
 
 The operation wrapper is neither `resource` nor `resource_collection`. It supplies no
