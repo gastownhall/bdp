@@ -6,7 +6,7 @@ import { type GraphBudget, SchemaGraphError, refuseGraph } from "./installed-sch
 // The pinned dependency closes over this registry in lib/schemes.js. Its public
 // SCHEMES export can be replaced independently, so inspect the original module's
 // data property and retain that reference. Never freeze or modify shared state.
-// This private path is an explicit reviewed coupling to fast-uri 3.1.5.
+// This private path is an explicit reviewed coupling to fast-uri 3.1.9.
 // A removed/export-blocked path refuses graph construction, not module loading.
 const registry: unknown = (() => {
   try {
