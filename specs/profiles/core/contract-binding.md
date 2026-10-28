@@ -6,13 +6,15 @@ version: "0.1"
 
 # BDP v0.1: selected contract and JSON binding
 
-Paired source under [#280](https://github.com/gastownhall/bdp/issues/280) and sole plan [#59](https://github.com/gastownhall/bdp/issues/59). This fixes the candidate's transport/artifact identity; it does not adopt the incomplete retained profile composition. The [CLI binding](../../../docs/cli-design/contract-binding.md) uses these same values. Existing runtime implementations and their BDP0 artifacts remain held at their actual pins.
+Paired source under [#280](https://github.com/gastownhall/bdp/issues/280) and sole plan [#59](https://github.com/gastownhall/bdp/issues/59). This fixes the selected transport/artifact identity; the [current source map](../../../docs/design/bdp-v0.1-current-source-map.md) identifies the assembled contract and its proposal boundaries. The [CLI binding](../../../docs/cli-design/contract-binding.md) uses these same values. Existing runtime implementations and their BDP0 artifacts remain held at their actual pins.
 
 The retained profile front door is [Core](retained-core.md) plus
 [Write](../write/retained-write.md), native `retainedDiscovery`. Earlier
 read/read-update/transactional helper shapes remain explicit staging inputs.
-Actual Types/source composition and qualification still prevent adoption;
-the selected [Event source](events.md) now has its accepted payload/replay minimum.
+The selected Types and common-source counterparts are assembled as described in
+the current source map. Implementation/runtime conformance and concrete consumer
+qualification remain separate requirements; source publication does not establish
+them. The selected [Event source](events.md) has its accepted payload/replay minimum.
 
 ## One selected identity
 
