@@ -156,8 +156,10 @@ Bead's recorded owned set also revises the source atomically with the Link (§5.
 For a batch these are changes between the prior and final published states, not
 each temporary operation state. The coordinated Write contract must carry this
 meaning and revalidate affected incident Links against the final atomic graph
-(§5.5). Endpoint movement remains separate contract work; an explicit endpoint pin
-retains its literal Reference meaning and is not an owner-membership witness.
+(§5.5). Correcting either endpoint preserves the Link's identity under the
+selected endpoint-mutation rule (§5.7); coordinated common request/result binding
+remains required. An explicit endpoint pin retains its literal Reference meaning
+and is not an owner-membership witness.
 
 A published change to either the Type identity or its pinned definition revision
 creates a new revision of the Bead or Link, even when properties and metadata are
@@ -1451,12 +1453,32 @@ revision token retains its Resource-qualified meaning. No transaction-wide token
 cross-Resource token equality or inequality, automatic endpoint repin or cascading
 transformation is required.
 
-Endpoint movement remains deferred. A supplied endpoint pin identifies that exact
-Bead revision under the common Reference contract; neither a new owner revision nor
-its owned capture silently replaces that pin or makes it float. Ownership selectors
-use the shared anyOf/any shape. Exact-definition evolution and operation-level
-lifecycle details remain separate. Registering a new definition alone does not rewrite
-an existing Resource revision or silently change its affiliation.
+Donna's [endpoint-identity ruling](https://github.com/gastownhall/bdp/issues/59#issuecomment-6457645585)
+selects correction of either source or target without replacing the Link's identity.
+The Link's own Resource kind and Scope remain fixed. The resulting endpoints and
+affected graph must satisfy the applicable exact contracts and ordinary authorization,
+Reference resolution and optional revision guards. This permits no new endpoint kind,
+Scope restriction bypass or authority to mutate a foreign origin.
+
+For a source correction from A to B, compare the initially and finally owned Link
+state under the respective sources' accepted exact Type authority. If A initially
+owns the Link, its final capture loses that Link; if B finally owns it, its final
+capture gains the Link's complete final record. Publish the effective Link change
+and every affected owner change atomically, with at most one new revision per
+Resource. If the source identity stays the same, compare that owner's complete
+initial and final capture once. Target correction can change a Link record captured
+by its source; the incoming citation does not itself version the target. Failure
+commits none of these changes. The complete common Write result must account for
+all actual induced owner outcomes; this profile does not choose a new result field.
+
+Earlier Link revisions and owner captures retain their recorded endpoints and
+exact Type affiliations. A supplied endpoint pin identifies that exact Bead revision
+under the common Reference contract; neither a new owner revision nor its owned
+capture silently replaces that pin or makes it float. Ownership selectors use the
+shared anyOf/any shape. Common CLI/Core/Write/schema/Event incorporation is required
+before claiming endpoint-edit service support. Exact-definition evolution and
+operation-level lifecycle details remain separate. Registering a new definition
+alone does not rewrite an existing Resource revision or silently change its affiliation.
 
 ### 5.8 Acyclicity is a per-Link promise
 
@@ -1587,6 +1609,10 @@ Product/ApprovedProduct are illustrative and do not add shipping domain Types.
 | Source Bead changes Type with a different effective ownership selection | Its new Bead revision records the recomputed set of existing outgoing Links; unchanged Links gain no new revisions |
 | Source-Bead retyping also explicitly edits an outgoing Link | Apply the explicit Link change atomically and validate the complete resulting graph; ownership recomputation alone does not mint Link revisions |
 | One batch changes two owned Links or edits the same owned Link repeatedly | Publish at most one revision per affected Resource; a changed owner records one final capture with final exact Link records and nominal grouping |
+| A Link's source is corrected from owning Bead A to owning Bead B | Keep the Link identity; atomically publish its final record, A's capture without it and B's capture with it; retain all earlier editions |
+| A Link's source correction leaves or enters ownership at only one boundary | Revise only sources whose final recorded state changes; do not invent another owner effect |
+| An owned Link's target is corrected to another admitted Reference | Keep Link identity; publish its effective change and changed source capture atomically; the citation does not itself version either target |
+| Endpoint correction makes the final graph invalid or fails ordinary authorization/guards | Refuse the complete atomic decision; leave Link and all affected owner revisions/captures unchanged |
 | Explicit owner edits are interleaved with owned-Link edits | Publish one complete final owner state, not intermediate definition revisions or captures |
 | Staged Link/retyping changes restore the complete prior state and cause no other durable effects | Keep original Resource and owner revisions; emit no lifecycle Event; retain the successful retry outcome |
 | A batch attempts a protected property edit, then restores the old value | Refuse; final-state publication does not make prohibited authored input legal |
@@ -1757,7 +1783,7 @@ The remaining decisions are narrower:
 
 | Area | Selected rule | Decision or contract work still needed |
 | --- | --- | --- |
-| Retyping and affected graph | Explicit whole-reference replacement under applicable Write preconditions; complete-result validation; published Type-only changes version; final ownership changes atomically revise the source; batch publishes at most one final revision per affected Resource, with net-zero rules in §5.7; history stays immutable | Coordinated Core/Write/schema, results, provenance and Event propagation and qualification; no extra mandatory guard. Endpoint movement remains deferred; literal pins gain no owner-membership or automatic-repin meaning |
+| Retyping, endpoint correction and affected graph | Explicit whole-reference replacement under applicable Write preconditions; complete-result validation; published Type-only changes version; endpoint correction preserves Link identity; changed initial/final ownership captures commit atomically; batch publishes at most one final revision per affected Resource, with net-zero rules in §5.7; history stays immutable | Coordinated Core/Write/schema, complete owner results, provenance and Event propagation and qualification; no extra mandatory guard. Literal pins gain no owner-membership or automatic-repin meaning |
 | Schema admission | JSON Schema 2020-12 validation and syntactic format enforcement; unknown/unsupported formats and required vocabularies refuse; immutable descriptor-contained schema map; inherited schemas all apply; bounded contradiction floor (§§3.12–3.13) | Implementation-supplied baseline, explicit application bases and retained map selected; general executable extensions deferred; no complete satisfiability proof |
 | Exact conformance closure | Exact target pins, no exact-revision cycles; ancestor requirements deduplicated by originating exact definition/location; distinct declaration restrictions retained | Concrete location/qualifier representation and diagnostics; distinct from once-per-instance-Link counting |
 | Constraint evolution | §§5.4, 5.6, 5.8 and 5.9 select local activation with cross-revision family populations, per-Link acyclicity and exact-affiliation self-link activation | Precise inherited-declaration activation and selector/diagnostic syntax; no Scope-wide minimum over installed definitions |
@@ -2068,7 +2094,7 @@ Beads behavior as implementing its proposed semantics.
 | Item | Design state | Remaining adoption or evidence |
 | --- | --- | --- |
 | Optional Scope-wide Types boundary | Selected direction with truthful live/retained activation and no grandfather boundary (§1) | Coordinated canonical Core/Write, discovery and activation-enforcement amendment |
-| Exact affiliations and explicit retyping | Selected for Beads and Links; whole-reference replacement, published Type-only revisions, atomic final ownership changes and at most one final revision per affected Resource per batch, including net-zero rules (§§2, 5.7) | Common CLI/Core/Write/schema/results/provenance/Event propagation, endpoint movement and runtime qualification |
+| Exact affiliations, explicit retyping and endpoint correction | Selected for Beads and Links; whole-reference replacement, published Type-only revisions, identity-preserving Link endpoint correction, atomic final ownership changes and at most one final revision per affected Resource per batch, including net-zero rules (§§2, 5.7) | Common CLI/Core/Write/schema/complete-owner-results/provenance/Event propagation and runtime qualification |
 | Conformance, structural and semantic | Selected foundation (§3), 2020-12 validation and format enforcement, refusal of unsupported required extensions and immutable schema closure; read/write responsibilities distinguished | Implementation-supplied baseline and explicit schema bases selected; bounded floor/warning and exact format-support qualification remain; executable extensions deferred |
 | Constraint matching and populations | Pair unions, inherited conjunction, exact/identity-wide selectors and identity-based populations selected (§§4.2, 5) | Common selector shape selected; inherited activation and local transition/availability checks; arbitrary external-resource validation excluded |
 | Arity, endpoint Type eligibility, uniqueness, acyclicity and self-links | Transaction-final arity/eligibility and aggregate checks with mixed-revision cases selected; self-link prohibition is an independent per-Link endpoint check (§§5.5–5.9) | General graph validator, atomic mutation and exact-source qualification NYI; self-link cases are written requirements, not runtime evidence |

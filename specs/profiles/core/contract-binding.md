@@ -6,13 +6,15 @@ version: "0.1"
 
 # BDP v0.1: selected contract and JSON binding
 
-Paired source under [#280](https://github.com/gastownhall/bdp/issues/280) and sole plan [#59](https://github.com/gastownhall/bdp/issues/59). This fixes the candidate's transport/artifact identity; it does not adopt the incomplete retained profile composition. The [CLI binding](../../../docs/cli-design/contract-binding.md) uses these same values. Existing runtime implementations and their BDP0 artifacts remain held at their actual pins.
+Paired source under [#280](https://github.com/gastownhall/bdp/issues/280) and sole plan [#59](https://github.com/gastownhall/bdp/issues/59). This fixes the selected transport/artifact identity; the [current source map](../../../docs/design/bdp-v0.1-current-source-map.md) identifies the assembled contract and its proposal boundaries. The [CLI binding](../../../docs/cli-design/contract-binding.md) uses these same values. Existing runtime implementations and their BDP0 artifacts remain held at their actual pins.
 
 The retained profile front door is [Core](retained-core.md) plus
 [Write](../write/retained-write.md), native `retainedDiscovery`. Earlier
 read/read-update/transactional helper shapes remain explicit staging inputs.
-Actual Types/source composition and qualification still prevent adoption;
-the selected [Event source](events.md) now has its accepted payload/replay minimum.
+The selected Types and common-source counterparts are assembled as described in
+the current source map. Implementation/runtime conformance and concrete consumer
+qualification remain separate requirements; source publication does not establish
+them. The selected [Event source](events.md) has its accepted payload/replay minimum.
 
 ## One selected identity
 
@@ -82,9 +84,9 @@ snapshot contains **163 definitions**. Later paired amendments can extend that
 artifact; this source-slice count is not a permanent definition count. See its [paired source record](../../../docs/design/bdp-v0.1-affiliation-port.md).
 
 Unreplaced native payload, profile-token and advanced definitions remain inherited
-**staging inputs**, not a decision to retain them. Retained Core/Write factoring,
-actual Types composition and the required Event contract remain adoption gates;
-the common affiliation port does not close every #279 seam. Copying inherited
-grammar does not revive Experimental facilities or make a staged bundle independently
-adoptable.
+**staging inputs**, not a decision to retain them. The selected retained Core/Write,
+Types and required Event source compose as recorded in the current source map;
+implementation and concrete consumer qualification remain separate. Copying
+inherited grammar does not revive Experimental facilities or make an unselected
+helper an advertised capability.
 The old [v0 artifact](bdp-v0.schema.json), its distribution copy and existing parsers remain byte-bound to their old contract. This is artifact isolation, not an additional implementation or compatibility campaign. New source/schema work targets the v0.1 artifact; PR284 is preserved as the accepted carrier input for that port, without silently upgrading v0 validators. Inherited v0 HTTP examples in Core/Write remain explicitly inherited until their corresponding retained sections are retargeted. No old test/report/catalog digest becomes a v0.1 PASS from these source changes.

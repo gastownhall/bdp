@@ -23,7 +23,8 @@ Types final-graph allowances do not waive those checks.
 
 Compare the final graph against the committed graph on which the decision is
 admitted. Revision-covered state is complete affiliation, properties, metadata and
-applicable captured owned-Link state; provenance alone does not cause a change.
+applicable captured owned-Link state, and for a Link its complete source/target
+References; provenance alone does not cause a change.
 Each affected live Resource gets **at most one** new revision, exactly when that
 final state differs. A new surviving Resource gets one creation revision. An
 existing deleted Resource gets no new revision: its final live published version
@@ -125,5 +126,6 @@ bounded result. Recovery returns that exact result under current disclosure, not
 a later GET, fresh Type default, new revision or another pass through members.
 Changing labels can reproject identity mappings by existing input index; it cannot
 change final state/outcomes. No public receipt, replica checkpoint or global
-revision mechanism is introduced. Normal Types/source integration and actual
-implementation qualification still precede adoption.
+revision mechanism is introduced. The [current source map](../../../docs/design/bdp-v0.1-current-source-map.md)
+records the assembled Types/common-source contract; implementation and concrete
+consumer qualification remain separate.

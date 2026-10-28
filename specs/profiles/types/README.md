@@ -26,6 +26,14 @@ do not adopt its wire format or qualify runtime behavior. Earlier artifact check
 remain bound to their recorded source. Unchanged descriptor/schema/fixture bytes
 do not establish execution of the new written acceptance cases.
 
+Donna's October27 [endpoint-identity ruling](https://github.com/gastownhall/bdp/issues/59#issuecomment-6457645585)
+also preserves Link identity when either endpoint is corrected. The [Types ownership
+counterpart](types.md#57-ownership-matches-through-conformance) accounts for both
+actually affected old/new source captures and immutable retained editions. Sybil
+owns the paired common input, complete multi-owner result, schema and Event binding;
+this Types-local propagation does not claim that an endpoint-edit operation is
+already implemented or adopted in a frozen consumer contract.
+
 | Artifact | Applies to | Status |
 | --- | --- | --- |
 | [type-definition.properties.schema.json](type-definition.properties.schema.json) | Common properties of Type-definition Beads | The properties schema of Type **is** the common descriptor schema |

@@ -1,0 +1,249 @@
+{
+  "status": "authored-example-state-checks-not-runtime",
+  "scope": "https://work.example/acme/",
+  "source": {
+    "readFixtureSha256": "facc9e30025d3cc752aa33e31e3c755937189d474f814824246f7a3d6c5d1400",
+    "revisionFixtureSha256": "e89ef396aef787b61cedf378d6c4e0b26d40ae0411c0379cfb87a3710f149326"
+  },
+  "exampleAllocations": {
+    "checks": "https://work.example/acme/p8k4m",
+    "connection": "https://work.example/acme/r6n2v"
+  },
+  "fixedIds": {
+    "memberIdentityMappings": [
+      {
+        "operationIndex": 0,
+        "operation": "createBead",
+        "ids": ["https://work.example/acme/csv-headings"]
+      },
+      {
+        "operationIndex": 1,
+        "operation": "createBead",
+        "ids": ["https://work.example/acme/csv-empty-output"]
+      },
+      {
+        "operationIndex": 2,
+        "operation": "createLink",
+        "ids": ["https://work.example/acme/csv-acceptance-order"]
+      }
+    ],
+    "changedIds": [
+      "https://work.example/acme/csv-acceptance-order",
+      "https://work.example/acme/csv-empty-output",
+      "https://work.example/acme/csv-headings"
+    ],
+    "expectedPublishedLifecycleFacts": 3
+  },
+  "guardedFailure": {
+    "expectedProblem": "revision-mismatch",
+    "expectedCreatedIds": [],
+    "originalGuideRevision": "guide-i",
+    "expectedResourceLifecycleFacts": 0
+  },
+  "bindingsOnly": {
+    "execution": "emitted-only",
+    "externalArguments": []
+  },
+  "arguments": {
+    "execution": "emitted-only",
+    "supplied": {
+      "guide": "csv-draft"
+    },
+    "sameCompiledRequestAs": "csv-bindings.batch.json",
+    "missingAndUnused": "reject"
+  },
+  "prepare": {
+    "bindings": {
+      "checks": {
+        "kind": "bead",
+        "shape": "identity",
+        "ids": ["https://work.example/acme/p8k4m"]
+      },
+      "connection": {
+        "kind": "link",
+        "shape": "identity",
+        "ids": ["https://work.example/acme/r6n2v"]
+      },
+      "draft-notes": {
+        "kind": "bead",
+        "shape": "set",
+        "ids": ["https://work.example/acme/csv-review", "https://work.example/acme/p8k4m"]
+      }
+    },
+    "memberIdentityMappings": [
+      {
+        "operationIndex": 0,
+        "operation": "createBead",
+        "ids": ["https://work.example/acme/p8k4m"]
+      },
+      {
+        "operationIndex": 1,
+        "operation": "createLink",
+        "ids": ["https://work.example/acme/r6n2v"]
+      },
+      {
+        "operationIndex": 2,
+        "operation": "select",
+        "ids": ["https://work.example/acme/csv-review", "https://work.example/acme/p8k4m"]
+      },
+      {
+        "operationIndex": 3,
+        "operation": "updateBead",
+        "ids": ["https://work.example/acme/csv-review", "https://work.example/acme/p8k4m"]
+      },
+      {
+        "operationIndex": 4,
+        "operation": "updateBead",
+        "ids": ["https://work.example/acme/csv-draft"]
+      }
+    ],
+    "changedIds": [
+      "https://work.example/acme/csv-draft",
+      "https://work.example/acme/csv-review",
+      "https://work.example/acme/p8k4m",
+      "https://work.example/acme/r6n2v"
+    ],
+    "expectedPublishedLifecycleFacts": 4,
+    "newCheckPublishedStates": 1
+  },
+  "cleanup": {
+    "bindings": {
+      "ready-links": {
+        "kind": "link",
+        "shape": "set",
+        "ids": ["https://work.example/acme/r6n2v"]
+      },
+      "ready-checks": {
+        "kind": "bead",
+        "shape": "set",
+        "ids": ["https://work.example/acme/p8k4m"]
+      }
+    },
+    "memberIdentityMappings": [
+      {
+        "operationIndex": 0,
+        "operation": "select",
+        "ids": ["https://work.example/acme/r6n2v"]
+      },
+      {
+        "operationIndex": 1,
+        "operation": "select",
+        "ids": ["https://work.example/acme/p8k4m"]
+      },
+      {
+        "operationIndex": 2,
+        "operation": "deleteLink",
+        "ids": ["https://work.example/acme/r6n2v"]
+      },
+      {
+        "operationIndex": 3,
+        "operation": "deleteBead",
+        "ids": ["https://work.example/acme/p8k4m"]
+      }
+    ],
+    "deletedIds": ["https://work.example/acme/p8k4m", "https://work.example/acme/r6n2v"],
+    "expectedPublishedLifecycleFacts": 2
+  },
+  "empty": {
+    "bindings": {
+      "draft-notes": {
+        "kind": "bead",
+        "shape": "set",
+        "ids": []
+      }
+    },
+    "memberIdentityMappings": [
+      {
+        "operationIndex": 0,
+        "operation": "select",
+        "ids": []
+      },
+      {
+        "operationIndex": 1,
+        "operation": "updateBead",
+        "ids": []
+      }
+    ],
+    "changedIds": [],
+    "expectedPublishedLifecycleFacts": 0
+  },
+  "finalGuideBusinessRecord": {
+    "id": "https://work.example/acme/csv-draft",
+    "kind": "bead",
+    "type": "https://work.example/acme/guide",
+    "properties": {
+      "title": "CSV export guide (approved)",
+      "body": "Include headings even for an empty selection. Check the exported file in a spreadsheet."
+    },
+    "metadata": {
+      "area": "export",
+      "ready": true,
+      "validation": "pending"
+    },
+    "revision": "guide-batch"
+  },
+  "finalReviewBusinessRecord": {
+    "id": "https://work.example/acme/csv-review",
+    "type": "https://work.example/acme/note",
+    "revision": "review-batch",
+    "properties": {
+      "status": "ready",
+      "title": "Spreadsheet review",
+      "body": "Open the exported file in spreadsheet tools."
+    },
+    "metadata": {}
+  },
+  "fixedIdsStillLive": [
+    "https://work.example/acme/csv-acceptance-order",
+    "https://work.example/acme/csv-empty-output",
+    "https://work.example/acme/csv-headings"
+  ],
+  "newDeletedIds": ["https://work.example/acme/p8k4m", "https://work.example/acme/r6n2v"],
+  "priorDeletedIds": ["csv-context", "csv-checks"],
+  "refusalExamplesChecked": [
+    "fixed-ID-creation-plus-stale-guide-guard",
+    "stale-guide-guard-before-publication",
+    "other-incident-Link-blocks-cleanup"
+  ],
+  "notExecuted": [
+    "actual CLI parser/compiler",
+    "actual BDP service",
+    "provider Query evaluator",
+    "database transaction/isolation",
+    "authorization",
+    "Event backend",
+    "idempotency replay"
+  ],
+  "readOnly": {
+    "memberIdentityMappings": [
+      {
+        "operationIndex": 0,
+        "operation": "select",
+        "ids": [
+          "https://work.example/acme/csv-empty-output",
+          "https://work.example/acme/csv-headings",
+          "https://work.example/acme/csv-review"
+        ]
+      }
+    ],
+    "bindings": {
+      "ready-notes": {
+        "kind": "bead",
+        "shape": "set",
+        "ids": [
+          "https://work.example/acme/csv-empty-output",
+          "https://work.example/acme/csv-headings",
+          "https://work.example/acme/csv-review"
+        ]
+      }
+    },
+    "changedIds": [],
+    "expectedResourceLifecycleFacts": 0,
+    "authoredResult": "examples/csv-read-only.result.json"
+  },
+  "selectedDecisionPass": {
+    "date": "2026-10-27",
+    "decisions": 25,
+    "runtimeQualification": false
+  }
+}

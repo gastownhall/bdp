@@ -19,12 +19,11 @@ Type, while update can omit it to preserve the complete existing affiliation.
 | `bdp update item --set-property title=new` | `bead:"item"`, properties patch, no `type` |
 | `bdp update item --type Task` | `bead:"item"`, `type:"https://work.example/acme/Task"` |
 | `bdp update item --type Task@=r2` | `bead:"item"`, `type:{uri:"https://work.example/acme/Task",revision:"r2"}` |
-| `bdp update item --type Task --type-revision r2` | Same exact affiliation |
-| `bdp link update rel --type Blocks@=r2 --if-revision link-r7` | `link:"rel"`, exact `type`, `expectedRevision:"link-r7"` |
+| `bdp link update rel --type Blocks@=r2 --if-revision =link-r7` | `link:"rel"`, exact `type`, `expectedRevision:"link-r7"` |
 
 Examples assume command Scope `https://work.example/acme/`. The singleton operation
 URL supplies its discriminator; a batch member includes `operation:"updateBead"`
-or `"updateLink"` using the same fields. `--emit-operation`/`--emit-batch` compile
+or `"updateLink"` using the same fields. `--dry-run-mode batch` compiles
 without execution: no fetch, registration, default selection or claimed validation
 success. No hand-authored whole-request JSON escape is needed for these inputs.
 Actual key allocation, framing and emission/batch details belong to the complete
@@ -33,16 +32,15 @@ canonical CLI design and do not follow from this bounded source subset alone.
 [Shared Reference parsing](scope-and-references.md#revision-selectors) uses
 `TYPE@=TOKEN` for an exact Type pin; `TYPE@N` is usable only with an actual selected
 store's Type-version ordinal mapping. It is not a definition inventory lookup or
-permission to guess Type history. Absolute URLs containing `://` remain literal,
-including raw @; use `--type-revision TOKEN` or an exact JSON Reference.
-Suffix plus `--type-revision` is an error even if equal; an already pinned exact
-field-value escape also conflicts with that option. `--type-revision` requires
-`--type`. Bare Type/endpoint input is unpinned; `@current` refuses as a durable pin.
-`json:JSON`, `json:@FILE` and `json:@-` preserve exact Reference/token values without
-broadening protocol URI grammar. Explicit token flags remain literal, including
-numeric/current strings. Historical read selection and `--if-revision` guards are
-distinct from the Type definition pin. Offline emission refuses unresolved local
-ordinals; it neither queries history nor invents a future/staged revision.
+permission to guess Type history. Absolute HTTP URLs remain literal, including
+raw @; use a quoted bracketed selector such as
+`--type '[https://work.example/acme/Task]@=r2'` for an exact pin.
+Bare Type/endpoint input is unpinned; `@current` refuses as a durable pin.
+Historical read selection and `--if-revision` guards are distinct from the Type
+definition pin. Guards use `N` or `=TOKEN`; no standalone canonical `--revision`,
+`--type-revision` or `json:` Reference escape is added. Offline emission refuses
+unresolved local ordinals; it neither queries history nor invents a future/staged
+revision.
 
 Under Types, the service resolves explicit unpinned input once to its eligible
 registered exact default. The CLI never resolves it during compilation. An omitted
@@ -54,9 +52,9 @@ Type change. Guards/provenance alone do not form an update. Authorization,
 optional guards, property-access policy, final validation and retry rules remain.
 
 > **Cleo — Type and revision flags:** `--type` sets an affiliation on writes.
-> Preserve `--revision` for historical reads and `--if-revision` for guards.
-> Exact Type pins use the existing suffix convention or `--type-revision`; the
-> wire has no separate `typeRevision`. This sidebar records the shared design;
+> Historical reads and exact Type pins use shared Reference selectors;
+> `--if-revision` guards use `N` or `=TOKEN`. The wire has no separate
+> `typeRevision`. This sidebar records the shared design;
 > it is not a request to interrupt your work.
 
 > **Cleo — Edits and rendering:** Keep singular `--set-property`/`--unset-property`
@@ -96,20 +94,30 @@ share one nominal bucket; a refinement has its own bucket. A new empty owned set
 is `{}` without empty selector/wildcard buckets. Earlier snapshots keep their
 recorded shape. See the [candidate postimages](../../fixtures/affiliations/candidate.json).
 
-Mutation results preserve the native `source`/`sourceRevision` pair when the Link
-is effectively owned before or after the operation. Leaving ownership still reports
-the induced source revision despite an unowned postimage Type; unrelated unowned
-operations omit the pair and owned-Link no-ops report the unchanged source revision.
-The CLI does not infer these fields from the resulting Type.
+Selected v0.1 Link mutation results preserve optional
+`ownerRevisions:[{id,revision}]`: exactly the distinct initially or finally owning
+source Beads, at most two, in ascending code-unit order of canonical URI.
+Each reports its actual final
+published revision. Omit the member when there are no owners; an empty array is
+not admitted. Bead and allocation-only results omit the member. Ownership exit
+reports the former owner's final revision, and an
+owned no-op reports its unchanged revision. The inherited result-level
+`source`/`sourceRevision` pair is not an alternative v0.1 spelling. The CLI never
+infers owners from the final Type alone. See
+[complete owner results](../../specs/profiles/write/link-updates.md#complete-owner-revision-context).
 
-Retyping a Link into/out of ownership changes its source atomically; retyping the
-source recomputes membership without inventing Link edits. Endpoints stay literal,
-including a source pin older than the new owning capture. These are provider rules,
-not client patch expansion. One atomic batch can express coordinated repairs;
-no per-Type pin policy, extra mandatory guard or new ownership command is added.
+`link update --from REF` and `--to REF` replace whole endpoints while preserving
+Link identity. Omission preserves the complete prior Reference and pin; an
+explicit unpinned Reference removes its preceding pin. At least one Type,
+endpoint or object input is required, without a new mandatory owner guard.
+Retyping or correcting endpoints updates every affected initial/final source's
+capture atomically. Retyping the source recomputes membership without inventing
+Link edits. An owner revision never silently repins a Link. One atomic batch can
+express coordinated repairs under the ordinary final-graph rules.
+
 The paired [Event source](events.md) now covers Type-only facts with required
 postimages and optional deltas under the [accepted D1/D2 minimum](event-decisions-20261022.md).
 Selected [final batch publication](../../specs/profiles/core/publication.md) uses one
-final Resource/owner outcome and at most one new revision. Batch source pairs refer
-to final owner context, with membership compared initially/finally. Literal pins
-remain unchanged. Actual Types integration/qualification remain gates.
+final Resource/owner outcome and at most one new revision. Batch `ownerRevisions`
+entries report final published owner context, with membership compared
+initially/finally. Omitted pins remain unchanged. Actual Types integration/qualification remain gates.

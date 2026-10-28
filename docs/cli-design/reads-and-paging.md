@@ -5,14 +5,22 @@ Paired #280 candidate, following [Scope/references](scope-and-references.md),
 [Output and masking](read-output.md) reuse Cleo schema 2. This is paper source,
 not shipped client/provider support or a new History/Type/Events capability.
 
+The selected [shared Resource projection](../../specs/profiles/core/resource-projection.md)
+applies server-side to current GET, exact saved GET and ordinary List items through
+its independent capability. Resource `--include`/`--omit` lower to
+`projectionVersion=1` and encoded `fields`; unsupported support refuses rather than
+silently fetching a full record. Properties-view masks remain local rendering.
+The [Query draft](../../specs/profiles/core/query.md) adds proposed structured AST
+and result modes without reinterpreting the retained raw Selector.
+
 ## One point or one population
 
 ```sh
-bdp show task-42
-bdp show https://work.example/acme/task-42 --properties-only
-bdp list --type Issue --exact-type Task
-bdp link list --endpoint 'json:"urn:example:external"'
-bdp link list --incident-to task-42 --direction out --type Relates
+bd show task-42
+bd show https://work.example/acme/task-42 --properties-only
+bd list --type Issue --exact-type Task
+bd link list --endpoint urn:example:external
+bd link list --incident-to task-42 --direction out --type Relates
 ```
 
 Default Scope applies once; absolute operands retain their own verified binding.
@@ -116,19 +124,22 @@ Server refusal for complexity/URI bounds remains a refusal; do not fetch a broad
 population, hide rows locally and reuse a misleading native cursor/count.
 
 Continuation retains the issued fully selected population, not a new ordinal/current
-lookup. Do not recompute applicability on later pages. Generic BDP has no native
-count request here; a product count uses its adapter or a complete same-snapshot
-enumeration, never the current page size or an unreported partial count.
+lookup. Do not recompute applicability on later pages. This native baseline has
+no count request. The selected [List/Query extension](../../specs/profiles/core/query.md#results-and-projection)
+uses a shared service count result mode over the same selected population before
+paging. A qualified product adapter or explicitly admitted coherent client fallback
+is separate; neither page length nor unreported partial enumeration is exact count.
 
 ## Existing exact reads and HTTP controls
 
-`ID@=TOKEN` and `--revision TOKEN` express exact application History reads;
-`ID@N` first requires an authoritative stable local ordinal mapping. Supplying a
-suffix and --revision is an error even if equal. The wire query is `revision`,
+`ID@=TOKEN` and quoted `'[URL]@=TOKEN'` express exact application History reads;
+`ID@N` first requires an authoritative stable local ordinal mapping. Historical
+selection is carried on the Reference, not a standalone `--revision` flag or
+`json:` Reference escape. The wire query is still `revision`,
 never an ordinal, guard or HTTP validator. Preserve opaque token/form-query encoding,
 including literal plus as `%2B`. No current/nearest fallback. Unwrapped HTTP URLs
-containing raw @ stay literal; use the explicit flag or exact JSON Reference.
-`@current` selects current; explicit `--revision current` is the literal token.
+containing raw @ stay literal; use quoted `'[URL]@REV'` for a selector.
+`@current` selects current; `@=current` is the exact literal token `current`.
 
 Actual advertised application History remains required for ordinary application
 exact reads. Its existing full-record-only query forbids properties-only/aggregate/
@@ -175,7 +186,11 @@ not a guessed cursor token. Establish owning Scope/authority from retained bindi
 or verified service-desc, never path stripping or an unrelated ambient default.
 An explicit Scope can verify that binding, not change it. No initial semantic
 filters, incident operand/direction or positional Scope may reselect the cursor;
-rendering/masks, per-fetch size and total delivery cap may change. Validate actual
+output format/detail, per-fetch size and total delivery cap may change. Native
+Resource masks are frozen in the issued continuation; new `--include`/`--omit`
+Resource masks cannot replace them on resume. Any additional local rendering mask
+must remain separate from the native applied-mask metadata and cannot recover
+omitted fields. Validate actual
 `BDP-Collection-Kind` against the command, including empty pages; subject kind and
 item kind remain distinct for incident views. Preserve credentials/authorization
 boundaries; a continuation is not an authorization grant.

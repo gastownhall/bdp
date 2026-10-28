@@ -54,7 +54,9 @@ describe("v0.1 affiliation artifact, without claiming stateful or CLI execution"
         true,
       );
       expect(valid(`update${kind}Request`, body, legacy)).toBe(false);
-      expect(valid(`update${kind}Request`, { ...body, source: "new-source" })).toBe(false);
+      expect(valid(`update${kind}Request`, { ...body, source: "new-source" })).toBe(
+        kind === "Link",
+      );
     },
   );
 
@@ -124,28 +126,28 @@ describe("v0.1 affiliation artifact, without claiming stateful or CLI execution"
       ).toBe(true);
     }
     expect(results.leavingOwnership.resource.type.uri).toBe(`${cases.commandScope}UnownedRelation`);
-    expect(results.leavingOwnership.sourceRevision).toBe("owner-r10");
+    expect(results.leavingOwnership.ownerRevisions[0].revision).toBe("owner-r10");
     expect(results.unrelatedUnowned).not.toHaveProperty("source");
-    expect(results.unrelatedUnowned).not.toHaveProperty("sourceRevision");
-    expect(results.ownedNoOp.sourceRevision).toBe("owner-r9");
-    const { changed: _changed, ...inheritedReceipt } = results.leavingOwnership;
+    expect(results.unrelatedUnowned).not.toHaveProperty("ownerRevisions");
+    expect(results.ownedNoOp.ownerRevisions[0].revision).toBe("owner-r9");
+    const { changed: _changed, ownerRevisions, ...legacyResourceResult } = results.leavingOwnership;
+    const inheritedReceipt = {
+      ...legacyResourceResult,
+      source: ownerRevisions[0].id,
+      sourceRevision: ownerRevisions[0].revision,
+    };
     expect(valid("receiptResult", { operationIndex: 0, ...inheritedReceipt })).toBe(true);
     expect(valid("receiptResult", { operationIndex: 0, ...results.leavingOwnership })).toBe(false);
     // Inherited receipt grammar stays separate; final batch rows carry changed.
 
-    for (const missing of ["source", "sourceRevision"]) {
-      const incomplete = { ...results.leavingOwnership };
-      delete incomplete[missing];
+    for (const missing of ["id", "revision"]) {
+      const owner = { ...results.leavingOwnership.ownerRevisions[0] };
+      delete owner[missing];
+      const incomplete = { ...results.leavingOwnership, ownerRevisions: [owner] };
       expect(valid("mutationResult", incomplete)).toBe(false);
-      expect(
-        valid("atomicBatchResultEntry", {
-          operationIndex: 0,
-          operation: "updateLink",
-          ...incomplete,
-        }),
-      ).toBe(false);
     }
-    // Grammar carries a truthful pair; actual pre/post membership remains a semantic case.
+    // Whether owner context must be present follows initial/final membership,
+    // not the final Link Type or JSON grammar alone.
   });
 
   it("preserves nominal identity and endpoint domains independently of Type carriers", () => {

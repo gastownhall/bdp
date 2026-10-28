@@ -11,8 +11,10 @@ under existing [#279](https://github.com/gastownhall/bdp/issues/279) and sole
 [#59](https://github.com/gastownhall/bdp/issues/59). This extends the shared
 ordinary update records in the [new v0.1 artifact](../core/bdp-v0.1.schema.json),
 not the held v0 schema/runtime. [Affiliation/revision rules](../core/affiliations.md)
-and [selected contract binding](../core/contract-binding.md) still apply. Actual
-Types composition and required Event representation remain adoption gates.
+and [selected contract binding](../core/contract-binding.md) still apply. The
+[current source map](../../../docs/design/bdp-v0.1-current-source-map.md) records
+paired Types/common-source and required Event composition. Implementation and
+concrete consumer qualification remain separate.
 
 ## One operation, independent object planes
 
@@ -28,7 +30,9 @@ On ordinary Bead or Link update, the request MAY supply:
 | `metadata` | Complete metadata-object replacement |
 | `metadataChange` | Ordered ordinary JSON Patch on metadata |
 
-At least one of these five mutation members MUST be present. `properties` and
+At least one of these five mutation members MUST be present unless a Link update
+supplies an [endpoint replacement](link-updates.md), which is independently
+sufficient mutation input. `properties` and
 `propertiesChange` MUST NOT both occur, even if empty; the same applies to
 `metadata` and `metadataChange`. The two object planes are independent, so a
 properties replacement and metadata patch MAY accompany one another and `type`
@@ -116,12 +120,15 @@ existing allowed final-graph batch repairs do not excuse input/path/guard checks
 Failure leaves no partial object, affiliation or induced-owner effects.
 
 The primary [revision/no-op rule](write.md#mutation-revisions-and-guards) compares
-complete affiliation, completed properties/metadata and applicable captured owned
+complete affiliation, applicable Link endpoint References, completed properties/metadata and captured owned
 state. Equal full state is a genuine no-op after checks; replacement alone is not
 a force-version operation. A different Type pin is an effect despite empty patches.
-The existing native result, original recorded source pair and provenance rules apply;
-this input slice adds no `changed` or new result carrier. Required committed Event
-facts remain required; their selected representation is still the separate D1/D2 gap.
+Selected retained results carry authoritative `changed` and complete
+[`ownerRevisions`](link-updates.md#complete-owner-revision-context) where applicable,
+with the existing provenance rules. This object-input slice itself creates no new
+result carrier. Required committed facts use the selected [Event contract](../core/events.md);
+the earlier D1/D2 representation questions are answered. Historical outcomes retain
+their literal recorded shape under their original contract.
 
 Execution identity MUST distinguish replacement, ordered patch and omission in each
 object plane. Even if two attempts happen to produce the same postimage, distinct

@@ -162,8 +162,13 @@ and actual concrete budget/error correspondence require shared qualification.
 [Local review aliases](exact-definition-read.schema.json) select the existing common
 query/selection/detail/record/result/Problem helpers from
 [the shared native schema](../core/bdp-v0.1.schema.json). The fixed input for this
-correspondence is commit `6c3c421491adf8b7f6b3a0042c4d1196ce3c9115`, shared schema
-SHA256 `72dd1837ad169114911b4ffcd9104c1aa2d1d02870e60b2ac7e8c4e950fc7d1d`.
+correspondence is commit `a41128d97f4394addfd7204b12ffaf71d06643cb`, shared schema
+SHA256 `e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f`.
+This refresh follows the endpoint/projection incorporation. The 30 transitive
+common definitions used by these aliases are JSON-value-identical to the preceding
+input `6c3c421491adf8b7f6b3a0042c4d1196ce3c9115` (schema SHA256
+`72dd1837ad169114911b4ffcd9104c1aa2d1d02870e60b2ac7e8c4e950fc7d1d`). Earlier validation
+retains that earlier subject; the current input requires its own fresh checker run.
 The checker enforces the schema byte digest; the named commit is source provenance
 verified separately. Resolve that exact local input with retrieval disabled. A schema change requires
 new correspondence review and fresh checks; schema IDs are not Type identities

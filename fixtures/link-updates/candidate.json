@@ -1,0 +1,1114 @@
+{
+  "status": "paper/schema/state correspondence only; no provider, CLI or transaction execution",
+  "scope": "https://work.example/acme/",
+  "transfer": {
+    "authored": {
+      "operation": "updateLink",
+      "link": "https://work.example/acme/relation",
+      "source": {
+        "uri": "https://work.example/acme/owner-b",
+        "revision": "b-r1"
+      }
+    },
+    "beforeLink": {
+      "id": "https://work.example/acme/relation",
+      "type": {
+        "uri": "https://work.example/acme/Relation",
+        "revision": "relation-type-r1"
+      },
+      "revision": "link-r1",
+      "source": {
+        "uri": "https://work.example/acme/owner-a",
+        "revision": "a-r0"
+      },
+      "target": "https://work.example/acme/target-c",
+      "properties": {
+        "weight": 1
+      },
+      "metadata": {
+        "note": "literal"
+      }
+    },
+    "beforeA": {
+      "id": "https://work.example/acme/owner-a",
+      "type": {
+        "uri": "https://work.example/acme/Owner",
+        "revision": "owner-type-r1"
+      },
+      "revision": "a-r1",
+      "properties": {
+        "title": "owner-a"
+      },
+      "metadata": {},
+      "ownedLinks": {
+        "https://work.example/acme/Relation": [
+          {
+            "id": "https://work.example/acme/relation",
+            "type": {
+              "uri": "https://work.example/acme/Relation",
+              "revision": "relation-type-r1"
+            },
+            "revision": "link-r1",
+            "source": {
+              "uri": "https://work.example/acme/owner-a",
+              "revision": "a-r0"
+            },
+            "target": "https://work.example/acme/target-c",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {
+              "note": "literal"
+            }
+          }
+        ]
+      }
+    },
+    "beforeB": {
+      "id": "https://work.example/acme/owner-b",
+      "type": {
+        "uri": "https://work.example/acme/Owner",
+        "revision": "owner-type-r1"
+      },
+      "revision": "b-r1",
+      "properties": {
+        "title": "owner-b"
+      },
+      "metadata": {},
+      "ownedLinks": {}
+    },
+    "finalLink": {
+      "id": "https://work.example/acme/relation",
+      "type": {
+        "uri": "https://work.example/acme/Relation",
+        "revision": "relation-type-r1"
+      },
+      "revision": "link-r2",
+      "source": {
+        "uri": "https://work.example/acme/owner-b",
+        "revision": "b-r1"
+      },
+      "target": "https://work.example/acme/target-c",
+      "properties": {
+        "weight": 1
+      },
+      "metadata": {
+        "note": "literal"
+      }
+    },
+    "fullA": {
+      "id": "https://work.example/acme/owner-a",
+      "type": {
+        "uri": "https://work.example/acme/Owner",
+        "revision": "owner-type-r1"
+      },
+      "revision": "a-r2",
+      "properties": {
+        "title": "owner-a"
+      },
+      "metadata": {},
+      "ownedLinks": {}
+    },
+    "fullB": {
+      "id": "https://work.example/acme/owner-b",
+      "type": {
+        "uri": "https://work.example/acme/Owner",
+        "revision": "owner-type-r1"
+      },
+      "revision": "b-r2",
+      "properties": {
+        "title": "owner-b"
+      },
+      "metadata": {},
+      "ownedLinks": {
+        "https://work.example/acme/Relation": [
+          {
+            "id": "https://work.example/acme/relation",
+            "type": {
+              "uri": "https://work.example/acme/Relation",
+              "revision": "relation-type-r1"
+            },
+            "revision": "link-r2",
+            "source": {
+              "uri": "https://work.example/acme/owner-b",
+              "revision": "b-r1"
+            },
+            "target": "https://work.example/acme/target-c",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {
+              "note": "literal"
+            }
+          }
+        ]
+      }
+    },
+    "result": {
+      "outcome": "updated",
+      "changed": true,
+      "resource": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r2",
+        "source": {
+          "uri": "https://work.example/acme/owner-b",
+          "revision": "b-r1"
+        },
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "ownerRevisions": [
+        {
+          "id": "https://work.example/acme/owner-a",
+          "revision": "a-r2"
+        },
+        {
+          "id": "https://work.example/acme/owner-b",
+          "revision": "b-r2"
+        }
+      ]
+    },
+    "batchResult": {
+      "capabilityVersion": "1",
+      "changed": true,
+      "transaction": "endpoint-transfer-commit",
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateLink",
+          "id": "https://work.example/acme/relation"
+        }
+      ],
+      "resources": [
+        {
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/owner-a",
+            "type": {
+              "uri": "https://work.example/acme/Owner",
+              "revision": "owner-type-r1"
+            },
+            "revision": "a-r2",
+            "properties": {
+              "title": "owner-a"
+            },
+            "metadata": {},
+            "ownedLinks": {}
+          },
+          "id": "https://work.example/acme/owner-a",
+          "resourceKind": "bead"
+        },
+        {
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/owner-b",
+            "type": {
+              "uri": "https://work.example/acme/Owner",
+              "revision": "owner-type-r1"
+            },
+            "revision": "b-r2",
+            "properties": {
+              "title": "owner-b"
+            },
+            "metadata": {},
+            "ownedLinks": {
+              "https://work.example/acme/Relation": [
+                {
+                  "id": "https://work.example/acme/relation",
+                  "type": {
+                    "uri": "https://work.example/acme/Relation",
+                    "revision": "relation-type-r1"
+                  },
+                  "revision": "link-r2",
+                  "source": {
+                    "uri": "https://work.example/acme/owner-b",
+                    "revision": "b-r1"
+                  },
+                  "target": "https://work.example/acme/target-c",
+                  "properties": {
+                    "weight": 1
+                  },
+                  "metadata": {
+                    "note": "literal"
+                  }
+                }
+              ]
+            }
+          },
+          "id": "https://work.example/acme/owner-b",
+          "resourceKind": "bead"
+        },
+        {
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://work.example/acme/relation",
+            "type": {
+              "uri": "https://work.example/acme/Relation",
+              "revision": "relation-type-r1"
+            },
+            "revision": "link-r2",
+            "source": {
+              "uri": "https://work.example/acme/owner-b",
+              "revision": "b-r1"
+            },
+            "target": "https://work.example/acme/target-c",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {
+              "note": "literal"
+            }
+          },
+          "ownerRevisions": [
+            {
+              "id": "https://work.example/acme/owner-a",
+              "revision": "a-r2"
+            },
+            {
+              "id": "https://work.example/acme/owner-b",
+              "revision": "b-r2"
+            }
+          ],
+          "id": "https://work.example/acme/relation",
+          "resourceKind": "link"
+        }
+      ]
+    },
+    "postimages": [
+      {
+        "id": "endpoint-event-1",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-27T12:00:00Z",
+        "origin": "write",
+        "transaction": "endpoint-transfer-commit",
+        "previousRevision": "a-r1",
+        "revision": "a-r2",
+        "representation": "postimage",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/owner-a",
+          "resource": {
+            "id": "https://work.example/acme/owner-a",
+            "type": {
+              "uri": "https://work.example/acme/Owner",
+              "revision": "owner-type-r1"
+            },
+            "revision": "a-r2",
+            "properties": {
+              "title": "owner-a"
+            },
+            "metadata": {},
+            "ownedLinks": {}
+          }
+        }
+      },
+      {
+        "id": "endpoint-event-2",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-27T12:00:00Z",
+        "origin": "write",
+        "transaction": "endpoint-transfer-commit",
+        "previousRevision": "b-r1",
+        "revision": "b-r2",
+        "representation": "postimage",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/owner-b",
+          "resource": {
+            "id": "https://work.example/acme/owner-b",
+            "type": {
+              "uri": "https://work.example/acme/Owner",
+              "revision": "owner-type-r1"
+            },
+            "revision": "b-r2",
+            "properties": {
+              "title": "owner-b"
+            },
+            "metadata": {},
+            "ownedLinks": {
+              "https://work.example/acme/Relation": [
+                {
+                  "id": "https://work.example/acme/relation",
+                  "type": {
+                    "uri": "https://work.example/acme/Relation",
+                    "revision": "relation-type-r1"
+                  },
+                  "revision": "link-r2",
+                  "source": {
+                    "uri": "https://work.example/acme/owner-b",
+                    "revision": "b-r1"
+                  },
+                  "target": "https://work.example/acme/target-c",
+                  "properties": {
+                    "weight": 1
+                  },
+                  "metadata": {
+                    "note": "literal"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "endpoint-event-3",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-27T12:00:00Z",
+        "origin": "write",
+        "transaction": "endpoint-transfer-commit",
+        "previousRevision": "link-r1",
+        "revision": "link-r2",
+        "representation": "postimage",
+        "effect": {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/relation",
+          "resource": {
+            "id": "https://work.example/acme/relation",
+            "type": {
+              "uri": "https://work.example/acme/Relation",
+              "revision": "relation-type-r1"
+            },
+            "revision": "link-r2",
+            "source": {
+              "uri": "https://work.example/acme/owner-b",
+              "revision": "b-r1"
+            },
+            "target": "https://work.example/acme/target-c",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {
+              "note": "literal"
+            }
+          }
+        }
+      }
+    ],
+    "deltas": [
+      {
+        "id": "endpoint-event-1",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-27T12:00:00Z",
+        "origin": "write",
+        "transaction": "endpoint-transfer-commit",
+        "previousRevision": "a-r1",
+        "revision": "a-r2",
+        "representation": "delta",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/owner-a"
+        },
+        "derived": {
+          "ownedLinks": {}
+        }
+      },
+      {
+        "id": "endpoint-event-2",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-27T12:00:00Z",
+        "origin": "write",
+        "transaction": "endpoint-transfer-commit",
+        "previousRevision": "b-r1",
+        "revision": "b-r2",
+        "representation": "delta",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/owner-b"
+        },
+        "derived": {
+          "ownedLinks": {
+            "https://work.example/acme/Relation": [
+              {
+                "id": "https://work.example/acme/relation",
+                "type": {
+                  "uri": "https://work.example/acme/Relation",
+                  "revision": "relation-type-r1"
+                },
+                "revision": "link-r2",
+                "source": {
+                  "uri": "https://work.example/acme/owner-b",
+                  "revision": "b-r1"
+                },
+                "target": "https://work.example/acme/target-c",
+                "properties": {
+                  "weight": 1
+                },
+                "metadata": {
+                  "note": "literal"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "endpoint-event-3",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-27T12:00:00Z",
+        "origin": "write",
+        "transaction": "endpoint-transfer-commit",
+        "previousRevision": "link-r1",
+        "revision": "link-r2",
+        "representation": "delta",
+        "effect": {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/relation",
+          "source": {
+            "uri": "https://work.example/acme/owner-b",
+            "revision": "b-r1"
+          }
+        }
+      }
+    ]
+  },
+  "variants": [
+    {
+      "id": "source-exits-only-owner",
+      "authored": {
+        "operation": "updateLink",
+        "link": "https://work.example/acme/relation",
+        "source": "https://work.example/acme/owner-b"
+      },
+      "beforeLink": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r1",
+        "source": {
+          "uri": "https://work.example/acme/owner-a",
+          "revision": "a-r0"
+        },
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "finalLink": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r2",
+        "source": "https://work.example/acme/owner-b",
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "result": {
+        "outcome": "updated",
+        "changed": true,
+        "resource": {
+          "id": "https://work.example/acme/relation",
+          "type": {
+            "uri": "https://work.example/acme/Relation",
+            "revision": "relation-type-r1"
+          },
+          "revision": "link-r2",
+          "source": "https://work.example/acme/owner-b",
+          "target": "https://work.example/acme/target-c",
+          "properties": {
+            "weight": 1
+          },
+          "metadata": {
+            "note": "literal"
+          }
+        },
+        "ownerRevisions": [
+          {
+            "id": "https://work.example/acme/owner-a",
+            "revision": "a-r2"
+          }
+        ]
+      },
+      "expectedOwnerIds": ["https://work.example/acme/owner-a"],
+      "boundaryOwnerIds": {
+        "initial": ["https://work.example/acme/owner-a"],
+        "final": []
+      },
+      "interpretation": "Declared ownership at committed boundaries; schema admission does not evaluate the Type rules that select it."
+    },
+    {
+      "id": "source-enters-only-owner",
+      "authored": {
+        "operation": "updateLink",
+        "link": "https://work.example/acme/relation",
+        "source": "https://work.example/acme/owner-b"
+      },
+      "beforeLink": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r1",
+        "source": {
+          "uri": "https://work.example/acme/owner-a",
+          "revision": "a-r0"
+        },
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "finalLink": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r2",
+        "source": "https://work.example/acme/owner-b",
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "result": {
+        "outcome": "updated",
+        "changed": true,
+        "resource": {
+          "id": "https://work.example/acme/relation",
+          "type": {
+            "uri": "https://work.example/acme/Relation",
+            "revision": "relation-type-r1"
+          },
+          "revision": "link-r2",
+          "source": "https://work.example/acme/owner-b",
+          "target": "https://work.example/acme/target-c",
+          "properties": {
+            "weight": 1
+          },
+          "metadata": {
+            "note": "literal"
+          }
+        },
+        "ownerRevisions": [
+          {
+            "id": "https://work.example/acme/owner-b",
+            "revision": "b-r2"
+          }
+        ]
+      },
+      "expectedOwnerIds": ["https://work.example/acme/owner-b"],
+      "boundaryOwnerIds": {
+        "initial": [],
+        "final": ["https://work.example/acme/owner-b"]
+      },
+      "interpretation": "Declared ownership at committed boundaries; schema admission does not evaluate the Type rules that select it."
+    },
+    {
+      "id": "source-moves-without-owner",
+      "authored": {
+        "operation": "updateLink",
+        "link": "https://work.example/acme/relation",
+        "source": "https://work.example/acme/owner-b"
+      },
+      "beforeLink": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r1",
+        "source": {
+          "uri": "https://work.example/acme/owner-a",
+          "revision": "a-r0"
+        },
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "finalLink": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r2",
+        "source": "https://work.example/acme/owner-b",
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "result": {
+        "outcome": "updated",
+        "changed": true,
+        "resource": {
+          "id": "https://work.example/acme/relation",
+          "type": {
+            "uri": "https://work.example/acme/Relation",
+            "revision": "relation-type-r1"
+          },
+          "revision": "link-r2",
+          "source": "https://work.example/acme/owner-b",
+          "target": "https://work.example/acme/target-c",
+          "properties": {
+            "weight": 1
+          },
+          "metadata": {
+            "note": "literal"
+          }
+        }
+      },
+      "expectedOwnerIds": [],
+      "boundaryOwnerIds": {
+        "initial": [],
+        "final": []
+      },
+      "interpretation": "Declared ownership at committed boundaries; schema admission does not evaluate the Type rules that select it."
+    },
+    {
+      "id": "target-correction-keeps-one-owner",
+      "authored": {
+        "operation": "updateLink",
+        "link": "https://work.example/acme/relation",
+        "target": "urn:example:correct-target"
+      },
+      "beforeLink": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r1",
+        "source": {
+          "uri": "https://work.example/acme/owner-a",
+          "revision": "a-r0"
+        },
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "finalLink": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r2",
+        "source": {
+          "uri": "https://work.example/acme/owner-a",
+          "revision": "a-r0"
+        },
+        "target": "urn:example:correct-target",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "result": {
+        "outcome": "updated",
+        "changed": true,
+        "resource": {
+          "id": "https://work.example/acme/relation",
+          "type": {
+            "uri": "https://work.example/acme/Relation",
+            "revision": "relation-type-r1"
+          },
+          "revision": "link-r2",
+          "source": {
+            "uri": "https://work.example/acme/owner-a",
+            "revision": "a-r0"
+          },
+          "target": "urn:example:correct-target",
+          "properties": {
+            "weight": 1
+          },
+          "metadata": {
+            "note": "literal"
+          }
+        },
+        "ownerRevisions": [
+          {
+            "id": "https://work.example/acme/owner-a",
+            "revision": "a-r2"
+          }
+        ]
+      },
+      "expectedOwnerIds": ["https://work.example/acme/owner-a"],
+      "boundaryOwnerIds": {
+        "initial": ["https://work.example/acme/owner-a"],
+        "final": ["https://work.example/acme/owner-a"]
+      },
+      "interpretation": "Declared ownership at committed boundaries; schema admission does not evaluate the Type rules that select it."
+    },
+    {
+      "id": "same-source-pin-correction",
+      "authored": {
+        "operation": "updateLink",
+        "link": "https://work.example/acme/relation",
+        "source": {
+          "uri": "https://work.example/acme/owner-a",
+          "revision": "a-older"
+        }
+      },
+      "beforeLink": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r1",
+        "source": {
+          "uri": "https://work.example/acme/owner-a",
+          "revision": "a-r0"
+        },
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "finalLink": {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r2",
+        "source": {
+          "uri": "https://work.example/acme/owner-a",
+          "revision": "a-older"
+        },
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      },
+      "result": {
+        "outcome": "updated",
+        "changed": true,
+        "resource": {
+          "id": "https://work.example/acme/relation",
+          "type": {
+            "uri": "https://work.example/acme/Relation",
+            "revision": "relation-type-r1"
+          },
+          "revision": "link-r2",
+          "source": {
+            "uri": "https://work.example/acme/owner-a",
+            "revision": "a-older"
+          },
+          "target": "https://work.example/acme/target-c",
+          "properties": {
+            "weight": 1
+          },
+          "metadata": {
+            "note": "literal"
+          }
+        },
+        "ownerRevisions": [
+          {
+            "id": "https://work.example/acme/owner-a",
+            "revision": "a-r2"
+          }
+        ]
+      },
+      "expectedOwnerIds": ["https://work.example/acme/owner-a"],
+      "boundaryOwnerIds": {
+        "initial": ["https://work.example/acme/owner-a"],
+        "final": ["https://work.example/acme/owner-a"]
+      },
+      "interpretation": "Declared ownership at committed boundaries; schema admission does not evaluate the Type rules that select it."
+    }
+  ],
+  "reversal": {
+    "authored": {
+      "capabilityVersion": "1",
+      "operations": [
+        {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/relation",
+          "source": "https://work.example/acme/owner-b"
+        },
+        {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/relation",
+          "source": {
+            "uri": "https://work.example/acme/owner-a",
+            "revision": "a-r0"
+          }
+        }
+      ]
+    },
+    "before": [
+      {
+        "id": "https://work.example/acme/owner-a",
+        "type": {
+          "uri": "https://work.example/acme/Owner",
+          "revision": "owner-type-r1"
+        },
+        "revision": "a-r1",
+        "properties": {
+          "title": "owner-a"
+        },
+        "metadata": {},
+        "ownedLinks": {
+          "https://work.example/acme/Relation": [
+            {
+              "id": "https://work.example/acme/relation",
+              "type": {
+                "uri": "https://work.example/acme/Relation",
+                "revision": "relation-type-r1"
+              },
+              "revision": "link-r1",
+              "source": {
+                "uri": "https://work.example/acme/owner-a",
+                "revision": "a-r0"
+              },
+              "target": "https://work.example/acme/target-c",
+              "properties": {
+                "weight": 1
+              },
+              "metadata": {
+                "note": "literal"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "https://work.example/acme/relation",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-type-r1"
+        },
+        "revision": "link-r1",
+        "source": {
+          "uri": "https://work.example/acme/owner-a",
+          "revision": "a-r0"
+        },
+        "target": "https://work.example/acme/target-c",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {
+          "note": "literal"
+        }
+      }
+    ],
+    "result": {
+      "capabilityVersion": "1",
+      "changed": false,
+      "results": [
+        {
+          "operationIndex": 0,
+          "operation": "updateLink",
+          "id": "https://work.example/acme/relation"
+        },
+        {
+          "operationIndex": 1,
+          "operation": "updateLink",
+          "id": "https://work.example/acme/relation"
+        }
+      ],
+      "resources": [
+        {
+          "outcome": "unchanged",
+          "changed": false,
+          "resource": {
+            "id": "https://work.example/acme/owner-a",
+            "type": {
+              "uri": "https://work.example/acme/Owner",
+              "revision": "owner-type-r1"
+            },
+            "revision": "a-r1",
+            "properties": {
+              "title": "owner-a"
+            },
+            "metadata": {},
+            "ownedLinks": {
+              "https://work.example/acme/Relation": [
+                {
+                  "id": "https://work.example/acme/relation",
+                  "type": {
+                    "uri": "https://work.example/acme/Relation",
+                    "revision": "relation-type-r1"
+                  },
+                  "revision": "link-r1",
+                  "source": {
+                    "uri": "https://work.example/acme/owner-a",
+                    "revision": "a-r0"
+                  },
+                  "target": "https://work.example/acme/target-c",
+                  "properties": {
+                    "weight": 1
+                  },
+                  "metadata": {
+                    "note": "literal"
+                  }
+                }
+              ]
+            }
+          },
+          "id": "https://work.example/acme/owner-a",
+          "resourceKind": "bead"
+        },
+        {
+          "outcome": "unchanged",
+          "changed": false,
+          "resource": {
+            "id": "https://work.example/acme/relation",
+            "type": {
+              "uri": "https://work.example/acme/Relation",
+              "revision": "relation-type-r1"
+            },
+            "revision": "link-r1",
+            "source": {
+              "uri": "https://work.example/acme/owner-a",
+              "revision": "a-r0"
+            },
+            "target": "https://work.example/acme/target-c",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {
+              "note": "literal"
+            }
+          },
+          "ownerRevisions": [
+            {
+              "id": "https://work.example/acme/owner-a",
+              "revision": "a-r1"
+            }
+          ],
+          "id": "https://work.example/acme/relation",
+          "resourceKind": "link"
+        }
+      ]
+    },
+    "facts": []
+  },
+  "historical": {
+    "link": {
+      "id": "https://work.example/acme/relation",
+      "type": {
+        "uri": "https://work.example/acme/Relation",
+        "revision": "relation-type-r1"
+      },
+      "revision": "link-r1",
+      "source": {
+        "uri": "https://work.example/acme/owner-a",
+        "revision": "a-r0"
+      },
+      "target": "https://work.example/acme/target-c",
+      "properties": {
+        "weight": 1
+      },
+      "metadata": {
+        "note": "literal"
+      }
+    },
+    "ownerA": {
+      "id": "https://work.example/acme/owner-a",
+      "type": {
+        "uri": "https://work.example/acme/Owner",
+        "revision": "owner-type-r1"
+      },
+      "revision": "a-r1",
+      "properties": {
+        "title": "owner-a"
+      },
+      "metadata": {},
+      "ownedLinks": {
+        "https://work.example/acme/Relation": [
+          {
+            "id": "https://work.example/acme/relation",
+            "type": {
+              "uri": "https://work.example/acme/Relation",
+              "revision": "relation-type-r1"
+            },
+            "revision": "link-r1",
+            "source": {
+              "uri": "https://work.example/acme/owner-a",
+              "revision": "a-r0"
+            },
+            "target": "https://work.example/acme/target-c",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {
+              "note": "literal"
+            }
+          }
+        ]
+      }
+    },
+    "ownerB": {
+      "id": "https://work.example/acme/owner-b",
+      "type": {
+        "uri": "https://work.example/acme/Owner",
+        "revision": "owner-type-r1"
+      },
+      "revision": "b-r1",
+      "properties": {
+        "title": "owner-b"
+      },
+      "metadata": {},
+      "ownedLinks": {}
+    }
+  },
+  "priorBinding": {
+    "capabilityVersion": "1",
+    "operations": [
+      {
+        "operation": "createBead",
+        "name": "new-owner",
+        "type": "https://work.example/acme/Owner"
+      },
+      {
+        "operation": "updateLink",
+        "link": "https://work.example/acme/relation",
+        "source": "@new-owner"
+      }
+    ]
+  }
+}

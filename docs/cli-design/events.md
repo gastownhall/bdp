@@ -16,8 +16,9 @@ bdp link events RESOURCE [same options]
 No Resource means the default/explicit Scope's discovered `events` URL. A Resource
 means its canonical URL with `view=events`; root is generic, `link` asserts Link.
 Scope defaults and whole Scope-defined names follow the existing Reference rules.
-The Resource operand must be unpinned: revision suffixes and `--revision` are not
-Event resume selectors. No fabricated `events/` path or stripping of kind prefixes.
+The Resource operand must be unpinned: revision suffixes are not Event resume
+selectors, and the canonical CLI has no standalone `--revision` flag. No fabricated
+`events/` path or stripping of kind prefixes.
 
 Default is `--from retained --representation postimage`, one finite native page.
 `--from now` captures the current boundary and returns an empty page plus its
@@ -60,7 +61,7 @@ batch member. Its surrounding envelope records an authority's published fact.
 | Mutation intent | Realized delta Event `effect` |
 | --- | --- |
 | `createBead` / `createLink` | Same name, allocated absolute `id`, recorded `type`, complete initial `properties`/`metadata`, and Link `source`/`target` |
-| `updateBead` / `updateLink` | Same name and absolute `bead`/`link`; changed `type`, `properties` or `propertiesChange`, `metadata` or `metadataChange` |
+| `updateBead` / `updateLink` | Same name and absolute `bead`/`link`; changed `type`, whole Link `source`/`target` References, `properties` or `propertiesChange`, `metadata` or `metadataChange` |
 | `deleteBead` / `deleteLink` | Same name and absolute `bead`/`link`, plus `deleted` identity/context |
 
 The envelope carries actual `previousRevision`/`revision`, Event identity, source,
@@ -73,7 +74,7 @@ CLI quoting or promises the author's original edit spelling.
 For example, the emitted batch operation for:
 
 ```text
-bdp update task-42 --type Task@=definition-r4 --if-revision resource-r7 --emit-operation
+bdp update task-42 --type Task@=definition-r4 --if-revision =resource-r7 --dry-run-mode batch
 ```
 
 contains the authored Type pin and `expectedRevision`. Its resulting delta fact is:
@@ -123,19 +124,25 @@ A Link effect can also publish an owner-Bead transition. That transition uses
 carries changed authored fields in `effect` and recorded derived state separately
 as `derived.ownedLinks`. This is a complete replacement of that captured map:
 `{}` means an owner with no captured Links, `null` means no longer an owner, and
-omission means unchanged. It handles Type changes and nominal-bucket entry/exit
+omission means unchanged. It handles Type or endpoint changes and nominal-bucket
+entry/exit
 without trying to express ownership exit as a fictitious Link deletion.
 
 A derived-only `updateBead` fact is not a legal authored update. `derived` is not
 a new CLI flag, public edit field or independent command. Link and owner facts
 share actual commit correlation, and consumers must not resubmit either fact as
 new intent. Under [selected final batch publication](../../specs/profiles/core/publication.md),
-one owner captures final Link records and gets at most one new revision. One final
-Resource transition produces one fact; no intermediate member has a published
+each affected initial/final owner captures final Link records and gets at most one
+new revision. A source correction can affect two distinct owners. The mutation
+result preserves their complete `ownerRevisions` final context; this is not an
+additional Event field. One final Resource transition produces one fact; no intermediate member has a published
 version. Net-zero and allocation-only decisions have no lifecycle facts. Ordinary
 per-version provenance conflicts refuse rather than silently selecting a member.
 
 A Bead Event source includes its lifecycle and incident Link lifecycle effects.
+An endpoint correction is included for incidence in the preceding OR resulting
+published Link state, so departing and arriving endpoints can observe the same
+fact. Deduplicate self-incidence without inventing linked/unlinked operations.
 The Link effect remains `createLink`, `updateLink` or `deleteLink`; no second
 `linked`/`unlinked` delta dialect is needed. A self-Link appears once in that
 source. This projection does not mutate the endpoint Bead. The complete Link

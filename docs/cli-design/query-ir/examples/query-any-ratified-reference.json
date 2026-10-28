@@ -1,0 +1,58 @@
+{
+  "ir": "bdp-query-design-1",
+  "profile": "query",
+  "selection": {
+    "op": "filter",
+    "input": {
+      "op": "scan",
+      "collection": "beads"
+    },
+    "bind": "b",
+    "predicate": {
+      "op": "any",
+      "input": {
+        "op": "walk",
+        "roots": {
+          "op": "binding",
+          "name": "b"
+        },
+        "direction": "outgoing",
+        "depth": 1,
+        "bind": "link",
+        "through": {
+          "op": "typeIs",
+          "of": {
+            "op": "binding",
+            "name": "link"
+          },
+          "type": "https://work.example/acme/references",
+          "match": "family"
+        }
+      },
+      "bind": "link",
+      "predicate": {
+        "op": "compare",
+        "operator": "eq",
+        "left": {
+          "op": "field",
+          "of": {
+            "op": "endpoint",
+            "of": {
+              "op": "binding",
+              "name": "link"
+            },
+            "side": "target"
+          },
+          "path": ["properties", "status"]
+        },
+        "right": {
+          "op": "literal",
+          "value": "ratified"
+        }
+      }
+    }
+  },
+  "result": {
+    "form": "resources"
+  }
+}

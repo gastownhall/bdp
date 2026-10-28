@@ -1511,6 +1511,18 @@
           "properties": {
             "metadata": true
           }
+        },
+        {
+          "required": ["source"],
+          "properties": {
+            "source": true
+          }
+        },
+        {
+          "required": ["target"],
+          "properties": {
+            "target": true
+          }
         }
       ],
       "properties": {
@@ -1537,6 +1549,12 @@
         },
         "metadata": {
           "$ref": "#/$defs/metadata"
+        },
+        "source": {
+          "$ref": "#/$defs/inputReference"
+        },
+        "target": {
+          "$ref": "#/$defs/inputReference"
         }
       },
       "allOf": [
@@ -1660,6 +1678,12 @@
       "properties": {
         "link": {
           "$ref": "#/$defs/durableResourceReference"
+        },
+        "source": {
+          "$ref": "#/$defs/durableInputReference"
+        },
+        "target": {
+          "$ref": "#/$defs/durableInputReference"
         }
       },
       "unevaluatedProperties": false
@@ -1950,15 +1974,11 @@
         "deleted": {
           "$ref": "#/$defs/deletedIdentity"
         },
-        "source": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "sourceRevision": {
-          "type": "string",
-          "minLength": 1
-        },
         "changed": {
           "type": "boolean"
+        },
+        "ownerRevisions": {
+          "$ref": "#/$defs/ownerRevisions"
         }
       },
       "allOf": [
@@ -2008,8 +2028,7 @@
           },
           "then": {
             "properties": {
-              "source": false,
-              "sourceRevision": false
+              "ownerRevisions": false
             }
           }
         },
@@ -2030,8 +2049,7 @@
           },
           "then": {
             "properties": {
-              "source": false,
-              "sourceRevision": false
+              "ownerRevisions": false
             }
           }
         },
@@ -2052,11 +2070,7 @@
             }
           }
         }
-      ],
-      "dependentRequired": {
-        "source": ["sourceRevision"],
-        "sourceRevision": ["source"]
-      }
+      ]
     },
     "mutationResult": {
       "title": "BDP Read+Update mutation result",
@@ -5751,6 +5765,21 @@
               }
             }
           ]
+        },
+        "https://github.com/gastownhall/bdp/capabilities/resource-projection": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/capabilityVersionAdvertisements"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "1": {
+                  "$ref": "#/$defs/resourceProjectionCapabilityV1"
+                }
+              }
+            }
+          ]
         }
       }
     },
@@ -7040,6 +7069,12 @@
             },
             "metadataChange": {
               "$ref": "#/$defs/propertyChange"
+            },
+            "source": {
+              "$ref": "#/$defs/reference"
+            },
+            "target": {
+              "$ref": "#/$defs/reference"
             }
           },
           "additionalProperties": false,
@@ -7099,6 +7134,20 @@
               "type": "object",
               "properties": {
                 "metadataChange": true
+              }
+            },
+            {
+              "required": ["source"],
+              "type": "object",
+              "properties": {
+                "source": true
+              }
+            },
+            {
+              "required": ["target"],
+              "type": "object",
+              "properties": {
+                "target": true
               }
             }
           ]
@@ -7638,16 +7687,9 @@
         "deleted": {
           "$ref": "#/$defs/deletedIdentity"
         },
-        "source": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "sourceRevision": {
-          "$ref": "#/$defs/revision"
+        "ownerRevisions": {
+          "$ref": "#/$defs/ownerRevisions"
         }
-      },
-      "dependentRequired": {
-        "source": ["sourceRevision"],
-        "sourceRevision": ["source"]
       },
       "oneOf": [
         {
@@ -7702,8 +7744,7 @@
             },
             "resource": false,
             "deleted": false,
-            "source": false,
-            "sourceRevision": false
+            "ownerRevisions": false
           }
         }
       ],
@@ -7731,8 +7772,7 @@
                   }
                 }
               },
-              "source": false,
-              "sourceRevision": false
+              "ownerRevisions": false
             }
           }
         },
@@ -7764,6 +7804,336 @@
         }
       ],
       "additionalProperties": false
+    },
+    "ownerRevision": {
+      "type": "object",
+      "required": ["id", "revision"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ownerRevisions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/ownerRevision"
+      }
+    },
+    "resourceProjectionCapabilityV1": {
+      "type": "object",
+      "required": ["current", "exact", "list"],
+      "properties": {
+        "current": {
+          "type": "boolean"
+        },
+        "exact": {
+          "type": "boolean"
+        },
+        "list": {
+          "type": "boolean"
+        }
+      },
+      "anyOf": [
+        {
+          "required": ["current"],
+          "properties": {
+            "current": {
+              "const": true
+            }
+          }
+        },
+        {
+          "required": ["exact"],
+          "properties": {
+            "exact": {
+              "const": true
+            }
+          }
+        },
+        {
+          "required": ["list"],
+          "properties": {
+            "list": {
+              "const": true
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "resourceProjectionMask": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/jsonPointer"
+          }
+        },
+        "omit": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/jsonPointer"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": ["include"],
+          "properties": {
+            "include": true
+          }
+        },
+        {
+          "required": ["omit"],
+          "properties": {
+            "omit": true
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "resourceProjectionSelection": {
+      "type": "object",
+      "required": ["projectionVersion"],
+      "properties": {
+        "projectionVersion": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "resourceProjectionPointQueryV1": {
+      "type": "object",
+      "required": ["projectionVersion"],
+      "properties": {
+        "projectionVersion": {
+          "const": "1"
+        },
+        "fields": {
+          "$ref": "#/$defs/resourceProjectionMask"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        }
+      },
+      "additionalProperties": false
+    },
+    "resourceProjectionInventoryQueryV1": {
+      "type": "object",
+      "required": ["projectionVersion"],
+      "properties": {
+        "projectionVersion": {
+          "const": "1"
+        },
+        "fields": {
+          "$ref": "#/$defs/resourceProjectionMask"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "conformsTo": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Raw native structural filter: canonical local Bead ID or absolute URI. Apply existing local-ID/URI validation and normalize local references before comparison."
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Raw native structural filter: canonical local Bead ID or absolute URI. Apply existing local-ID/URI validation and normalize local references before comparison."
+        },
+        "endpoint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Raw native structural filter: canonical local Bead ID or absolute URI. Apply existing local-ID/URI validation and normalize local references before comparison."
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limit": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "projectedBeadRecord": {
+      "type": "object",
+      "required": ["id", "type", "revision"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "ownedLinks": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/absoluteHttpUrl"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/linkRecord"
+            }
+          }
+        },
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenance"
+        }
+      },
+      "additionalProperties": false
+    },
+    "projectedBeadCollection": {
+      "type": "object",
+      "required": ["items", "next"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/projectedBeadRecord"
+          }
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "projectedLinkRecord": {
+      "type": "object",
+      "required": ["id", "type", "revision", "source", "target"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "$ref": "#/$defs/reference"
+        },
+        "target": {
+          "$ref": "#/$defs/reference"
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenance"
+        }
+      },
+      "additionalProperties": false
+    },
+    "projectedLinkCollection": {
+      "type": "object",
+      "required": ["items", "next"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/projectedLinkRecord"
+          }
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "resourceProjectionCapabilityProblem": {
+      "type": "object",
+      "required": ["type", "code", "retry", "status", "capability", "capabilityVersion"],
+      "properties": {
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request"
+        },
+        "code": {
+          "const": "capability-not-supported"
+        },
+        "retry": {
+          "const": "after-state-change"
+        },
+        "status": {
+          "const": 422
+        },
+        "capability": {
+          "const": "https://github.com/gastownhall/bdp/capabilities/resource-projection"
+        },
+        "capabilityVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "#/$defs/absoluteUri"
+        }
+      },
+      "additionalProperties": false
+    },
+    "resourceProjectionProblem": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/readProblem"
+        },
+        {
+          "$ref": "#/$defs/resourceProjectionCapabilityProblem"
+        }
+      ]
     }
   }
 }

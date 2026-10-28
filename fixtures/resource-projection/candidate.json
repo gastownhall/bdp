@@ -1,0 +1,1416 @@
+{
+  "status": "Static source obligations and paper/schema correspondence only; no provider, CLI, HTTP or concurrency execution.",
+  "capability": "https://github.com/gastownhall/bdp/capabilities/resource-projection",
+  "advertisement": {
+    "https://github.com/gastownhall/bdp/capabilities/resource-projection": {
+      "1": {
+        "current": true,
+        "exact": true,
+        "list": true
+      }
+    }
+  },
+  "current": {
+    "id": "https://work.example/acme/task-1",
+    "type": {
+      "uri": "https://work.example/acme/Task",
+      "revision": "task-type-r1"
+    },
+    "revision": "task-r2",
+    "properties": {
+      "title": "Current title",
+      "details": {
+        "status": "open",
+        "privateNote": "omit-me"
+      },
+      "nullable": null,
+      "items": ["red", "blue", "green"]
+    },
+    "metadata": {
+      "label": "current",
+      "nested": {
+        "visible": true,
+        "other": 7
+      }
+    },
+    "ownedLinks": {},
+    "revisionProvenance": {
+      "committedAt": {
+        "state": "present",
+        "value": "2026-10-27T12:00:00Z"
+      },
+      "agent": {
+        "state": "present",
+        "value": "paper-agent"
+      },
+      "message": {
+        "state": "present",
+        "value": "current edition"
+      }
+    }
+  },
+  "historical": {
+    "id": "https://work.example/acme/task-1",
+    "type": {
+      "uri": "https://work.example/acme/Task",
+      "revision": "task-type-r1"
+    },
+    "revision": "task-r1",
+    "properties": {
+      "title": "Historical title",
+      "details": {
+        "status": "closed"
+      },
+      "nullable": null,
+      "items": ["old-red", "old-blue", "old-green"]
+    },
+    "metadata": {
+      "label": "historical"
+    },
+    "ownedLinks": {},
+    "revisionProvenance": {
+      "committedAt": {
+        "state": "present",
+        "value": "2026-10-26T12:00:00Z"
+      },
+      "agent": {
+        "state": "present",
+        "value": "paper-agent"
+      },
+      "message": {
+        "state": "present",
+        "value": "historical edition"
+      }
+    }
+  },
+  "pairs": [
+    {
+      "id": "full-without-fields",
+      "pointQuery": {
+        "projectionVersion": "1"
+      },
+      "inventoryQuery": {
+        "projectionVersion": "1"
+      },
+      "pointResource": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "title": "Current title",
+          "details": {
+            "status": "open",
+            "privateNote": "omit-me"
+          },
+          "nullable": null,
+          "items": ["red", "blue", "green"]
+        },
+        "metadata": {
+          "label": "current",
+          "nested": {
+            "visible": true,
+            "other": 7
+          }
+        },
+        "ownedLinks": {},
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-27T12:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "paper-agent"
+          },
+          "message": {
+            "state": "present",
+            "value": "current edition"
+          }
+        }
+      },
+      "inventoryPage": {
+        "items": [
+          {
+            "id": "https://work.example/acme/task-1",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "task-type-r1"
+            },
+            "revision": "task-r2",
+            "properties": {
+              "title": "Current title",
+              "details": {
+                "status": "open",
+                "privateNote": "omit-me"
+              },
+              "nullable": null,
+              "items": ["red", "blue", "green"]
+            },
+            "metadata": {
+              "label": "current",
+              "nested": {
+                "visible": true,
+                "other": 7
+              }
+            },
+            "ownedLinks": {},
+            "revisionProvenance": {
+              "committedAt": {
+                "state": "present",
+                "value": "2026-10-27T12:00:00Z"
+              },
+              "agent": {
+                "state": "present",
+                "value": "paper-agent"
+              },
+              "message": {
+                "state": "present",
+                "value": "current edition"
+              }
+            }
+          }
+        ],
+        "next": null
+      }
+    },
+    {
+      "id": "nested-includes-and-omit",
+      "pointQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/properties/title", "/properties/details", "/metadata/nested/visible"],
+          "omit": ["/properties/details/privateNote"]
+        }
+      },
+      "inventoryQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/properties/title", "/properties/details", "/metadata/nested/visible"],
+          "omit": ["/properties/details/privateNote"]
+        }
+      },
+      "pointResource": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "title": "Current title",
+          "details": {
+            "status": "open"
+          }
+        },
+        "metadata": {
+          "nested": {
+            "visible": true
+          }
+        }
+      },
+      "inventoryPage": {
+        "items": [
+          {
+            "id": "https://work.example/acme/task-1",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "task-type-r1"
+            },
+            "revision": "task-r2",
+            "properties": {
+              "title": "Current title",
+              "details": {
+                "status": "open"
+              }
+            },
+            "metadata": {
+              "nested": {
+                "visible": true
+              }
+            }
+          }
+        ],
+        "next": null
+      }
+    },
+    {
+      "id": "omit-only",
+      "pointQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": ["/properties/details/privateNote", "/metadata/nested/other"]
+        }
+      },
+      "inventoryQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": ["/properties/details/privateNote", "/metadata/nested/other"]
+        }
+      },
+      "pointResource": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "title": "Current title",
+          "details": {
+            "status": "open"
+          },
+          "nullable": null,
+          "items": ["red", "blue", "green"]
+        },
+        "metadata": {
+          "label": "current",
+          "nested": {
+            "visible": true
+          }
+        },
+        "ownedLinks": {},
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-27T12:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "paper-agent"
+          },
+          "message": {
+            "state": "present",
+            "value": "current edition"
+          }
+        }
+      },
+      "inventoryPage": {
+        "items": [
+          {
+            "id": "https://work.example/acme/task-1",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "task-type-r1"
+            },
+            "revision": "task-r2",
+            "properties": {
+              "title": "Current title",
+              "details": {
+                "status": "open"
+              },
+              "nullable": null,
+              "items": ["red", "blue", "green"]
+            },
+            "metadata": {
+              "label": "current",
+              "nested": {
+                "visible": true
+              }
+            },
+            "ownedLinks": {},
+            "revisionProvenance": {
+              "committedAt": {
+                "state": "present",
+                "value": "2026-10-27T12:00:00Z"
+              },
+              "agent": {
+                "state": "present",
+                "value": "paper-agent"
+              },
+              "message": {
+                "state": "present",
+                "value": "current edition"
+              }
+            }
+          }
+        ],
+        "next": null
+      }
+    },
+    {
+      "id": "root-include",
+      "pointQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": [""]
+        }
+      },
+      "inventoryQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": [""]
+        }
+      },
+      "pointResource": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "title": "Current title",
+          "details": {
+            "status": "open",
+            "privateNote": "omit-me"
+          },
+          "nullable": null,
+          "items": ["red", "blue", "green"]
+        },
+        "metadata": {
+          "label": "current",
+          "nested": {
+            "visible": true,
+            "other": 7
+          }
+        },
+        "ownedLinks": {},
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-27T12:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "paper-agent"
+          },
+          "message": {
+            "state": "present",
+            "value": "current edition"
+          }
+        }
+      },
+      "inventoryPage": {
+        "items": [
+          {
+            "id": "https://work.example/acme/task-1",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "task-type-r1"
+            },
+            "revision": "task-r2",
+            "properties": {
+              "title": "Current title",
+              "details": {
+                "status": "open",
+                "privateNote": "omit-me"
+              },
+              "nullable": null,
+              "items": ["red", "blue", "green"]
+            },
+            "metadata": {
+              "label": "current",
+              "nested": {
+                "visible": true,
+                "other": 7
+              }
+            },
+            "ownedLinks": {},
+            "revisionProvenance": {
+              "committedAt": {
+                "state": "present",
+                "value": "2026-10-27T12:00:00Z"
+              },
+              "agent": {
+                "state": "present",
+                "value": "paper-agent"
+              },
+              "message": {
+                "state": "present",
+                "value": "current edition"
+              }
+            }
+          }
+        ],
+        "next": null
+      }
+    },
+    {
+      "id": "all-includes-absent",
+      "pointQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/properties/missing", "/metadata/missing"]
+        }
+      },
+      "inventoryQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/properties/missing", "/metadata/missing"]
+        }
+      },
+      "pointResource": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2"
+      },
+      "inventoryPage": {
+        "items": [
+          {
+            "id": "https://work.example/acme/task-1",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "task-type-r1"
+            },
+            "revision": "task-r2"
+          }
+        ],
+        "next": null
+      }
+    },
+    {
+      "id": "absent-omission",
+      "pointQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": ["/properties/missing"]
+        }
+      },
+      "inventoryQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": ["/properties/missing"]
+        }
+      },
+      "pointResource": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "title": "Current title",
+          "details": {
+            "status": "open",
+            "privateNote": "omit-me"
+          },
+          "nullable": null,
+          "items": ["red", "blue", "green"]
+        },
+        "metadata": {
+          "label": "current",
+          "nested": {
+            "visible": true,
+            "other": 7
+          }
+        },
+        "ownedLinks": {},
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-27T12:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "paper-agent"
+          },
+          "message": {
+            "state": "present",
+            "value": "current edition"
+          }
+        }
+      },
+      "inventoryPage": {
+        "items": [
+          {
+            "id": "https://work.example/acme/task-1",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "task-type-r1"
+            },
+            "revision": "task-r2",
+            "properties": {
+              "title": "Current title",
+              "details": {
+                "status": "open",
+                "privateNote": "omit-me"
+              },
+              "nullable": null,
+              "items": ["red", "blue", "green"]
+            },
+            "metadata": {
+              "label": "current",
+              "nested": {
+                "visible": true,
+                "other": 7
+              }
+            },
+            "ownedLinks": {},
+            "revisionProvenance": {
+              "committedAt": {
+                "state": "present",
+                "value": "2026-10-27T12:00:00Z"
+              },
+              "agent": {
+                "state": "present",
+                "value": "paper-agent"
+              },
+              "message": {
+                "state": "present",
+                "value": "current edition"
+              }
+            }
+          }
+        ],
+        "next": null
+      }
+    },
+    {
+      "id": "present-null-and-absent",
+      "pointQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/properties/nullable", "/properties/missing"]
+        }
+      },
+      "inventoryQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/properties/nullable", "/properties/missing"]
+        }
+      },
+      "pointResource": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "nullable": null
+        }
+      },
+      "inventoryPage": {
+        "items": [
+          {
+            "id": "https://work.example/acme/task-1",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "task-type-r1"
+            },
+            "revision": "task-r2",
+            "properties": {
+              "nullable": null
+            }
+          }
+        ],
+        "next": null
+      }
+    },
+    {
+      "id": "whole-provenance-and-owned-state",
+      "pointQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/revisionProvenance", "/ownedLinks"]
+        }
+      },
+      "inventoryQuery": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/revisionProvenance", "/ownedLinks"]
+        }
+      },
+      "pointResource": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-27T12:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "paper-agent"
+          },
+          "message": {
+            "state": "present",
+            "value": "current edition"
+          }
+        },
+        "ownedLinks": {}
+      },
+      "inventoryPage": {
+        "items": [
+          {
+            "id": "https://work.example/acme/task-1",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "task-type-r1"
+            },
+            "revision": "task-r2",
+            "revisionProvenance": {
+              "committedAt": {
+                "state": "present",
+                "value": "2026-10-27T12:00:00Z"
+              },
+              "agent": {
+                "state": "present",
+                "value": "paper-agent"
+              },
+              "message": {
+                "state": "present",
+                "value": "current edition"
+              }
+            },
+            "ownedLinks": {}
+          }
+        ],
+        "next": null
+      }
+    }
+  ],
+  "link": {
+    "id": "https://work.example/acme/link-1",
+    "type": {
+      "uri": "https://work.example/acme/Relation",
+      "revision": "relation-type-r1"
+    },
+    "revision": "link-r7",
+    "source": {
+      "uri": "https://work.example/acme/task-1",
+      "revision": "task-r1"
+    },
+    "target": {
+      "uri": "urn:example:external",
+      "revision": "external-old"
+    },
+    "properties": {
+      "weight": 1
+    },
+    "metadata": {}
+  },
+  "linkPair": {
+    "id": "whole-pinned-link-references",
+    "pointQuery": {
+      "projectionVersion": "1",
+      "fields": {
+        "include": ["/properties/missing"]
+      }
+    },
+    "inventoryQuery": {
+      "projectionVersion": "1",
+      "fields": {
+        "include": ["/properties/missing"]
+      }
+    },
+    "pointResource": {
+      "id": "https://work.example/acme/link-1",
+      "type": {
+        "uri": "https://work.example/acme/Relation",
+        "revision": "relation-type-r1"
+      },
+      "revision": "link-r7",
+      "source": {
+        "uri": "https://work.example/acme/task-1",
+        "revision": "task-r1"
+      },
+      "target": {
+        "uri": "urn:example:external",
+        "revision": "external-old"
+      }
+    },
+    "inventoryPage": {
+      "items": [
+        {
+          "id": "https://work.example/acme/link-1",
+          "type": {
+            "uri": "https://work.example/acme/Relation",
+            "revision": "relation-type-r1"
+          },
+          "revision": "link-r7",
+          "source": {
+            "uri": "https://work.example/acme/task-1",
+            "revision": "task-r1"
+          },
+          "target": {
+            "uri": "urn:example:external",
+            "revision": "external-old"
+          }
+        }
+      ],
+      "next": null
+    }
+  },
+  "exact": {
+    "query": {
+      "projectionVersion": "1",
+      "revision": "task-r1",
+      "fields": {
+        "include": ["/properties/title"]
+      }
+    },
+    "selected": {
+      "id": "https://work.example/acme/task-1",
+      "type": {
+        "uri": "https://work.example/acme/Task",
+        "revision": "task-type-r1"
+      },
+      "revision": "task-r1",
+      "properties": {
+        "title": "Historical title",
+        "details": {
+          "status": "closed"
+        },
+        "nullable": null,
+        "items": ["old-red", "old-blue", "old-green"]
+      },
+      "metadata": {
+        "label": "historical"
+      },
+      "ownedLinks": {},
+      "revisionProvenance": {
+        "committedAt": {
+          "state": "present",
+          "value": "2026-10-26T12:00:00Z"
+        },
+        "agent": {
+          "state": "present",
+          "value": "paper-agent"
+        },
+        "message": {
+          "state": "present",
+          "value": "historical edition"
+        }
+      }
+    },
+    "current": {
+      "id": "https://work.example/acme/task-1",
+      "type": {
+        "uri": "https://work.example/acme/Task",
+        "revision": "task-type-r1"
+      },
+      "revision": "task-r2",
+      "properties": {
+        "title": "Current title",
+        "details": {
+          "status": "open",
+          "privateNote": "omit-me"
+        },
+        "nullable": null,
+        "items": ["red", "blue", "green"]
+      },
+      "metadata": {
+        "label": "current",
+        "nested": {
+          "visible": true,
+          "other": 7
+        }
+      },
+      "ownedLinks": {},
+      "revisionProvenance": {
+        "committedAt": {
+          "state": "present",
+          "value": "2026-10-27T12:00:00Z"
+        },
+        "agent": {
+          "state": "present",
+          "value": "paper-agent"
+        },
+        "message": {
+          "state": "present",
+          "value": "current edition"
+        }
+      }
+    },
+    "projected": {
+      "id": "https://work.example/acme/task-1",
+      "type": {
+        "uri": "https://work.example/acme/Task",
+        "revision": "task-type-r1"
+      },
+      "revision": "task-r1",
+      "properties": {
+        "title": "Historical title"
+      }
+    }
+  },
+  "arrays": [
+    {
+      "id": "include-original-one",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/properties/items/1"]
+        }
+      },
+      "original": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "title": "Current title",
+          "details": {
+            "status": "open",
+            "privateNote": "omit-me"
+          },
+          "nullable": null,
+          "items": ["red", "blue", "green"]
+        },
+        "metadata": {
+          "label": "current",
+          "nested": {
+            "visible": true,
+            "other": 7
+          }
+        },
+        "ownedLinks": {},
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-27T12:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "paper-agent"
+          },
+          "message": {
+            "state": "present",
+            "value": "current edition"
+          }
+        }
+      },
+      "selectedOriginalIndices": [1],
+      "projected": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "items": ["blue"]
+        }
+      }
+    },
+    {
+      "id": "omit-original-one",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": ["/properties/items/1"]
+        }
+      },
+      "original": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "title": "Current title",
+          "details": {
+            "status": "open",
+            "privateNote": "omit-me"
+          },
+          "nullable": null,
+          "items": ["red", "blue", "green"]
+        },
+        "metadata": {
+          "label": "current",
+          "nested": {
+            "visible": true,
+            "other": 7
+          }
+        },
+        "ownedLinks": {},
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-27T12:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "paper-agent"
+          },
+          "message": {
+            "state": "present",
+            "value": "current edition"
+          }
+        }
+      },
+      "selectedOriginalIndices": [0, 2],
+      "projected": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "title": "Current title",
+          "details": {
+            "status": "open",
+            "privateNote": "omit-me"
+          },
+          "nullable": null,
+          "items": ["red", "green"]
+        },
+        "metadata": {
+          "label": "current",
+          "nested": {
+            "visible": true,
+            "other": 7
+          }
+        },
+        "ownedLinks": {},
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-27T12:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "paper-agent"
+          },
+          "message": {
+            "state": "present",
+            "value": "current edition"
+          }
+        }
+      }
+    },
+    {
+      "id": "include-one-two-then-omit-original-one",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/properties/items/1", "/properties/items/2"],
+          "omit": ["/properties/items/1"]
+        }
+      },
+      "original": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "title": "Current title",
+          "details": {
+            "status": "open",
+            "privateNote": "omit-me"
+          },
+          "nullable": null,
+          "items": ["red", "blue", "green"]
+        },
+        "metadata": {
+          "label": "current",
+          "nested": {
+            "visible": true,
+            "other": 7
+          }
+        },
+        "ownedLinks": {},
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-27T12:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "paper-agent"
+          },
+          "message": {
+            "state": "present",
+            "value": "current edition"
+          }
+        }
+      },
+      "selectedOriginalIndices": [2],
+      "projected": {
+        "id": "https://work.example/acme/task-1",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "task-type-r1"
+        },
+        "revision": "task-r2",
+        "properties": {
+          "items": ["green"]
+        }
+      }
+    }
+  ],
+  "semanticRefusals": [
+    {
+      "id": "omit-root",
+      "resourceKind": "bead",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": [""]
+        }
+      },
+      "expected": {
+        "outcome": "refused",
+        "reason": "invalid-parameter",
+        "fullFallback": false
+      }
+    },
+    {
+      "id": "omit-id",
+      "resourceKind": "bead",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": ["/id"]
+        }
+      },
+      "expected": {
+        "outcome": "refused",
+        "reason": "invalid-parameter",
+        "fullFallback": false
+      }
+    },
+    {
+      "id": "omit-type",
+      "resourceKind": "bead",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": ["/type"]
+        }
+      },
+      "expected": {
+        "outcome": "refused",
+        "reason": "invalid-parameter",
+        "fullFallback": false
+      }
+    },
+    {
+      "id": "omit-revision",
+      "resourceKind": "bead",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": ["/revision"]
+        }
+      },
+      "expected": {
+        "outcome": "refused",
+        "reason": "invalid-parameter",
+        "fullFallback": false
+      }
+    },
+    {
+      "id": "slice-type",
+      "resourceKind": "bead",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/type/uri"]
+        }
+      },
+      "expected": {
+        "outcome": "refused",
+        "reason": "invalid-parameter",
+        "fullFallback": false
+      }
+    },
+    {
+      "id": "omit-link-source",
+      "resourceKind": "link",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": ["/source"]
+        }
+      },
+      "expected": {
+        "outcome": "refused",
+        "reason": "invalid-parameter",
+        "fullFallback": false
+      }
+    },
+    {
+      "id": "omit-link-target-pin",
+      "resourceKind": "link",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "omit": ["/target/revision"]
+        }
+      },
+      "expected": {
+        "outcome": "refused",
+        "reason": "invalid-parameter",
+        "fullFallback": false
+      }
+    },
+    {
+      "id": "slice-link-source",
+      "resourceKind": "link",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/source/uri"]
+        }
+      },
+      "expected": {
+        "outcome": "refused",
+        "reason": "invalid-parameter",
+        "fullFallback": false
+      }
+    },
+    {
+      "id": "slice-provenance",
+      "resourceKind": "bead",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/revisionProvenance/message"]
+        }
+      },
+      "expected": {
+        "outcome": "refused",
+        "reason": "invalid-parameter",
+        "fullFallback": false
+      }
+    },
+    {
+      "id": "slice-owned-plane",
+      "resourceKind": "bead",
+      "query": {
+        "projectionVersion": "1",
+        "fields": {
+          "include": ["/ownedLinks/anything"]
+        }
+      },
+      "expected": {
+        "outcome": "refused",
+        "reason": "invalid-parameter",
+        "fullFallback": false
+      }
+    }
+  ],
+  "unsupportedVersion": {
+    "query": {
+      "projectionVersion": "2",
+      "fields": {
+        "include": ["/properties/title"]
+      }
+    },
+    "problem": {
+      "type": "https://github.com/gastownhall/bdp/problems/request",
+      "code": "capability-not-supported",
+      "retry": "after-state-change",
+      "status": 422,
+      "capability": "https://github.com/gastownhall/bdp/capabilities/resource-projection",
+      "capabilityVersion": "2"
+    },
+    "fullFallback": false
+  },
+  "unsupportedExact": {
+    "capability": {
+      "current": true,
+      "exact": false,
+      "list": true
+    },
+    "query": {
+      "projectionVersion": "1",
+      "revision": "task-r1",
+      "fields": {
+        "include": ["/properties/title"]
+      }
+    },
+    "problem": {
+      "type": "https://github.com/gastownhall/bdp/problems/request",
+      "code": "capability-not-supported",
+      "retry": "after-state-change",
+      "status": 422,
+      "capability": "https://github.com/gastownhall/bdp/capabilities/resource-projection",
+      "capabilityVersion": "1"
+    },
+    "fullFallback": false
+  },
+  "historyDenied": {
+    "query": {
+      "projectionVersion": "1",
+      "revision": "task-r1",
+      "fields": {
+        "include": ["/properties/title"]
+      }
+    },
+    "expected": {
+      "outcome": "refused",
+      "reason": "resource-not-found",
+      "fullFallback": false,
+      "substituteCurrent": false,
+      "status": 404
+    }
+  },
+  "framing": [
+    {
+      "operation": "point",
+      "method": "GET",
+      "status": 200,
+      "appliedMask": {
+        "include": ["/properties/title", "/properties/details", "/metadata/nested/visible"],
+        "omit": ["/properties/details/privateNote"]
+      },
+      "headers": {
+        "BDP-Projection": "{\"include\":[\"/properties/title\",\"/properties/details\",\"/metadata/nested/visible\"],\"omit\":[\"/properties/details/privateNote\"]}"
+      },
+      "bodyPresent": true
+    },
+    {
+      "operation": "point",
+      "method": "HEAD",
+      "status": 200,
+      "appliedMask": {
+        "include": ["/properties/title", "/properties/details", "/metadata/nested/visible"],
+        "omit": ["/properties/details/privateNote"]
+      },
+      "headers": {
+        "BDP-Projection": "{\"include\":[\"/properties/title\",\"/properties/details\",\"/metadata/nested/visible\"],\"omit\":[\"/properties/details/privateNote\"]}"
+      },
+      "bodyPresent": false
+    },
+    {
+      "operation": "point",
+      "method": "GET",
+      "status": 304,
+      "appliedMask": {
+        "include": ["/properties/title", "/properties/details", "/metadata/nested/visible"],
+        "omit": ["/properties/details/privateNote"]
+      },
+      "headers": {
+        "BDP-Projection": "{\"include\":[\"/properties/title\",\"/properties/details\",\"/metadata/nested/visible\"],\"omit\":[\"/properties/details/privateNote\"]}"
+      },
+      "bodyPresent": false
+    },
+    {
+      "operation": "point",
+      "method": "HEAD",
+      "status": 304,
+      "appliedMask": {
+        "include": ["/properties/title", "/properties/details", "/metadata/nested/visible"],
+        "omit": ["/properties/details/privateNote"]
+      },
+      "headers": {
+        "BDP-Projection": "{\"include\":[\"/properties/title\",\"/properties/details\",\"/metadata/nested/visible\"],\"omit\":[\"/properties/details/privateNote\"]}"
+      },
+      "bodyPresent": false
+    },
+    {
+      "operation": "inventory",
+      "method": "GET",
+      "status": 200,
+      "appliedMask": {
+        "include": ["/properties/title", "/properties/details", "/metadata/nested/visible"],
+        "omit": ["/properties/details/privateNote"]
+      },
+      "headers": {
+        "BDP-Projection": "{\"include\":[\"/properties/title\",\"/properties/details\",\"/metadata/nested/visible\"],\"omit\":[\"/properties/details/privateNote\"]}"
+      },
+      "bodyPresent": true
+    },
+    {
+      "operation": "inventory",
+      "method": "HEAD",
+      "status": 200,
+      "appliedMask": {
+        "include": ["/properties/title", "/properties/details", "/metadata/nested/visible"],
+        "omit": ["/properties/details/privateNote"]
+      },
+      "headers": {
+        "BDP-Projection": "{\"include\":[\"/properties/title\",\"/properties/details\",\"/metadata/nested/visible\"],\"omit\":[\"/properties/details/privateNote\"]}"
+      },
+      "bodyPresent": false
+    },
+    {
+      "operation": "inventory",
+      "method": "GET",
+      "status": 304,
+      "appliedMask": {
+        "include": ["/properties/title", "/properties/details", "/metadata/nested/visible"],
+        "omit": ["/properties/details/privateNote"]
+      },
+      "headers": {
+        "BDP-Projection": "{\"include\":[\"/properties/title\",\"/properties/details\",\"/metadata/nested/visible\"],\"omit\":[\"/properties/details/privateNote\"]}"
+      },
+      "bodyPresent": false
+    },
+    {
+      "operation": "inventory",
+      "method": "HEAD",
+      "status": 304,
+      "appliedMask": {
+        "include": ["/properties/title", "/properties/details", "/metadata/nested/visible"],
+        "omit": ["/properties/details/privateNote"]
+      },
+      "headers": {
+        "BDP-Projection": "{\"include\":[\"/properties/title\",\"/properties/details\",\"/metadata/nested/visible\"],\"omit\":[\"/properties/details/privateNote\"]}"
+      },
+      "bodyPresent": false
+    }
+  ],
+  "versionsRow": {
+    "revision": "task-r1",
+    "lineage": "current",
+    "body": "complete"
+  },
+  "beadAbsentSource": {
+    "query": {
+      "projectionVersion": "1",
+      "fields": {
+        "omit": ["/source"]
+      }
+    },
+    "projected": {
+      "id": "https://work.example/acme/task-1",
+      "type": {
+        "uri": "https://work.example/acme/Task",
+        "revision": "task-type-r1"
+      },
+      "revision": "task-r2",
+      "properties": {
+        "title": "Current title",
+        "details": {
+          "status": "open",
+          "privateNote": "omit-me"
+        },
+        "nullable": null,
+        "items": ["red", "blue", "green"]
+      },
+      "metadata": {
+        "label": "current",
+        "nested": {
+          "visible": true,
+          "other": 7
+        }
+      },
+      "ownedLinks": {},
+      "revisionProvenance": {
+        "committedAt": {
+          "state": "present",
+          "value": "2026-10-27T12:00:00Z"
+        },
+        "agent": {
+          "state": "present",
+          "value": "paper-agent"
+        },
+        "message": {
+          "state": "present",
+          "value": "current edition"
+        }
+      }
+    }
+  }
+}

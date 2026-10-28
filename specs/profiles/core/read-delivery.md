@@ -16,8 +16,13 @@ on every embedded Resource. Current record/aggregate validators retain their
 actual native meaning.
 
 Ordinary Bead and Link inventories return full records in the existing stable
-snapshot order. Structural `type` and `conformsTo` MAY combine and mean AND:
+snapshot order. An explicitly selected [Resource projection](resource-projection.md)
+invocation may mask those items under its independent capability; selection and
+snapshot order remain unchanged. Structural `type` and `conformsTo` MAY combine and mean AND:
 nominal identity and recorded exact family membership are separate predicates.
+Family matching is reflexive: the named nominal Type itself and its recorded
+refinements match `conformsTo`. This does not remove the recorded authority
+requirement or turn nominal matching into a definition-revision comparison.
 Type operands MUST be unpinned absolute identities. Missing family authority
 MUST refuse, never silently switch to nominal equality. Raw Selectors see the
 actual Type Reference union; they do not dereference or flatten it.
@@ -84,7 +89,7 @@ permitted by this rule. Issuers, including URL-signing schemes, MUST support
 this advertised-contract resizing without invalidating the continuation's
 snapshot or authorization fence. Duplicate/invalid limit still refuses.
 
-This lets a client request `min(pageSize, remainingTotal)` for each fetch and
+This lets a client request `min(limit, remainingTotal)` for each fetch and
 stop at a native boundary without dropping an overfetched tail. The response's
 issued `next` is the lossless continuation at that page's end; `null` means
 authoritative end. A total cap cannot justify returning a token after rows
@@ -107,8 +112,9 @@ every captured revision.
 
 The existing advertised application History capability selects a complete
 record with `GET`/`HEAD RESOURCE?revision=TOKEN`. Query decoding is the existing
-form-query convention, once; literal plus is `%2B`. No other query member may
-combine with `revision`. Actual properties/aggregate/collection queries do
+form-query convention, once; literal plus is `%2B`. Only an explicitly selected [Resource projection](resource-projection.md)
+invocation additionally admits `projectionVersion` and `fields`, returning the
+projected saved edition. Otherwise no other query member may combine with `revision`. Actual properties/aggregate/collection queries do
 not become exact reads by fetching a full record and extracting it. Unsupported
 History remains an explicit refusal; no current/nearest revision fallback.
 Narrow exact Type-definition transport remains separately owned; this source

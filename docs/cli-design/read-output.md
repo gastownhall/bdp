@@ -30,7 +30,7 @@ other declared default/detail/json/jsonl forms; table is collection-only here.
 | http_metadata | HEAD response `{httpStatus,headers}`, not a fake Resource |
 
 Context declares effective subject URL and primary `resource_kind:bead|link` for
-Resource/collection/properties values when successful or retained as data. This is
+Resource/collection/properties/aggregate values when successful or retained as data. This is
 a CLI descriptor discriminator, not a new Resource field. It follows the represented
 unit: incident collections are link even though HTTP BDP-Resource-Kind identifies
 the Bead subject. Actual BDP-Collection-Kind establishes item kind, including empty
@@ -59,7 +59,11 @@ validation merely by carrying a Problem object.
 ## Common human documents and rows
 
 Bead and Link point output use one layout: `ID [declared concrete Type]`, optional
-title, selected revision/context, exact stored body, then metadata. Links add source
+title, selected revision/context, exact stored body, remaining Properties, then
+Metadata. String `properties.title` is the optional title; string `properties.body`
+is the body convention. Do not lift a nonstring value into text: keep it in the
+Properties section. Other properties render in that section as exact data.
+Links add source
 and target with authored pins visible. Current and retained reads use that layout;
 never fill a historical document with current comments/relationships. Omit empty
 sections; `--long` exposes administrative detail and full URI/token/affiliation.
@@ -67,6 +71,10 @@ An abstract base must not be relabeled as a concrete declaration for appearance.
 
 Collection and creation rows share helpers and begin ID then [Type]; native Issue
 status/priority remain useful product columns, and Link rows add exact endpoints.
+The generic Bead table columns are ID, TYPE, TITLE; generic Link tables add
+SOURCE and TARGET, and may show optional `properties.status` as STATUS when that
+column is present in the selected records. Missing values render as an empty cell,
+not a synthesized stored value. JSON retains absence and null distinctly.
 Creation success is a brief acknowledgement plus those rows. All five product Memory
 authoring verbs consume the same Link result renderer, without default JSON or
 separate Link/source revision chatter. This is human rendering, not a change to the
@@ -108,8 +116,15 @@ Explicit masks add outer/header `projection:{include?:[...],omit?:[...]}` using
 requested original-value paths. Protected context is implicit, not added to include
 metadata; `envelope` is not a Resource pointer. No explicit mask means no projection
 object. Projected output need not validate as complete native state and cannot claim
-to be a full write replacement or transfer package. Masks do not change selection,
-order, revision/context, auth or transmitted native bytes. Reference stays Reference.
+to be a full write replacement or transfer package. Masks do not change selection, order, revision/context or authorization. Under
+the selected native projection capability the transferred Resource is already
+projected; the renderer preserves that declared projection and never fills omitted
+fields from another read. Earlier display-only adapters do not establish that
+service capability. Resource point and ordinary List masks lower to
+`projectionVersion=1` plus encoded `fields`; unsupported native capability refuses.
+Properties-view masks remain client rendering of that distinct native view.
+Incident and included-Link views have no native Resource mask in this version;
+explicit client rendering there must not claim the native capability. Reference stays Reference.
 
 ## Finite/stream completion
 
@@ -142,3 +157,73 @@ format or coverage is adopted by these examples.
 > **Cleo — Descriptors:** Schema 2, projection metadata and header/item/terminal are
 > reused. Resource-kind context and bodyless descriptors make this adapter precise;
 > they are explicit candidate additions, not claims about current executable pins.
+
+
+## Query, graph and count correspondence
+
+The [complete read CLI](query-language.md) and [native binding proposal](../../specs/profiles/core/read-operations.md)
+reuse schema 2 and the common rendering implementation. The native operation
+wrapper is decoded into an existing descriptor; it is not nested as an invented
+Resource or serialized as a second CLI envelope.
+
+- Resource results use `resource_collection`: its existing `data.items`/`next`
+  receive the native result's items/next, with actual item kind in context.
+  Applied native projection is the outer projection metadata; a renderer must not
+  apply original array-index masks a second time to already compacted data.
+- Count uses the existing `aggregate` descriptor, with data `{count:N}` and
+  explicit Bead/Link unit in context. No new result kind or schema version is
+  introduced. This aggregate's human default is the exact decimal count plus
+  newline. There are no Resource rows or item-page completion counts.
+- Graph uses the existing `graph` descriptor, with data equal to the native graph
+  value (roots, Beads, Links and endpoint mappings, without the native `form` tag).
+  Render through the shared graph human layout; retain actual Link IDs and
+  selected edition mapping in structured data. No component paging, data masks
+  or path-count interpretation is introduced by this candidate.
+
+For this extension, context adds `evaluation` with the native evaluation object
+unchanged, with its explicit `scope:"response"`. For assembled multi-page output
+it describes the associated native response, not an invented merged trace or a
+claim that all pages share one evaluator execution. Ordinary collection completion
+separately reports the delivered prefix and exhaustion. This is a proposed descriptor-context addition to register with the
+common framing owner, not a new frame type or an addition to every installed
+command. It accompanies successful finite values, the JSONL header and any
+retained valid data after delivery failure. A transport/delivery failure must not
+rewrite an established evaluation as a false query answer. A failure before an
+evaluation is established has no successful evaluation context.
+
+Graph/count JSONL use one item for the whole value between the ordinary header
+and terminal. Resources keep one item per primary Resource. Human layout,
+projection metadata and completion are separate from evaluator completeness.
+An incomplete delivery stream is still incomplete even when its selection was
+fully evaluated. The six-descriptor schema in this directory remains its older
+ordinary-read subset until these explicit graph/aggregate/context additions are
+ported; schema checks against that older subset do not qualify these extensions.
+
+
+### Format admission for the new result descriptors
+
+These rows complete the extension's format matrix; they are adoption proposals
+for the shared renderer registry, not runtime registration here.
+
+| Descriptor | Admitted formats | Default / context |
+| --- | --- | --- |
+| `aggregate` (exact count) | default, detail, json, jsonl | Default prints decimal count and newline; detail prints `Count (beads): N` or `Count (links): N`; `context.resource_kind` names that unit |
+| `graph` | default, table, detail, json, jsonl | Default is table; context identifies the operation/Scope and evaluation, with no single `resource_kind` for mixed components |
+
+Graph table output has a Beads section (ID, TYPE, TITLE) and a Links section
+(ID, TYPE, SOURCE, TARGET), in the native component order. Isolated roots remain
+in Beads. Detail is the rooted tree illustration used in the overview: each
+represented edge appears once per displayed root expansion, with `[cycle]` or
+`[already shown]` marking stopped repeated expansion. Preserve direction and
+parallel Links. `--long` includes edge IDs/full context; machine output always
+retains them. A tree cannot replace the underlying selected graph or its mappings.
+A graph with multiple editions of one identity displays revision qualification
+where needed to distinguish them; it never merges their content.
+
+Counts and graphs are finite compound values. Table count output refuses because
+it has no Resource rows. `--omit envelope` remains a presentation-only escape for
+admitted JSON output, including count; the bare token differs from data pointer
+`/envelope` and never enters the native mask. Resource-mask conflict rules do not
+forbid this framing escape. Versions retains its separate subject-summary layout:
+Subject, Population, Participation, Window, summary table and Next, with truthful
+unknown/unavailable metadata and elision of optional detail explicitly marked.

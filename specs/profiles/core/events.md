@@ -193,7 +193,8 @@ cannot be returned as an invented complete postimage. Ordinary deletion retains
 its selected context rather than fetching an already deleted Link.
 
 In optional delta mode, creation carries `type`, complete `properties`/`metadata`
-and Link endpoints; update carries actual changed `type`, `properties` or
+and Link endpoints; update carries actual changed whole Link `source`/`target`
+References, `type`, `properties` or
 `propertiesChange`, and `metadata` or `metadataChange`. Each object's replacement
 and patch are exclusive, exactly as in ordinary input. Patches share native
 `propertyChange` items/semantics. They need not reproduce the author's edit syntax,
@@ -226,7 +227,11 @@ endpoint would be new intent and is not Event consumption or replica replay.
 
 Scope source covers authorized Resource transitions. Link source projects its
 lifecycle; Bead source projects its lifecycle and lifecycle effects of incident
-Links, including a Link Type-only change. Keep the same Link operation/fact
+Links, including a Link Type-only change. For an endpoint correction, incidence
+is the union of preceding and resulting published endpoints, so a departing Bead
+can observe the same correction. Apply the existing authorization/disclosure gate
+to this projection; visibility of a new endpoint does not grant disclosure of
+former endpoint state. Keep the same Link operation/fact
 vocabulary rather than adding duplicate linked/unlinked payload kinds. A self-Link
 appears once per source. Incidence alone does not version an endpoint Bead. Actual
 owned-state transitions are separate Resource facts under the selected commit model.
@@ -263,8 +268,9 @@ failed decision rolls back normally. Provenance, final owner context and complet
 results follow that amendment and the [batch contract](../write/atomic-batch.md).
 Two separately committed singleton writes still retain their two facts.
 
-Types activation/intrinsics source propagation, normal integration and qualification
-also remain gates. The inherited Transactional `event`/`updatedData`/`ownedLinkDelta`
+The [current source map](../../../docs/design/bdp-v0.1-current-source-map.md) records
+the paired Types/common-source composition. Actual activation/intrinsics execution
+and provider/consumer qualification remain separate. The inherited Transactional `event`/`updatedData`/`ownedLinkDelta`
 definitions and old `linked`/`unlinked` examples remain staging input, not this
 entry. No runtime, provider, CLI, SSE or installed/full-suite proof is claimed by
 the accompanying grammar and paper cases.

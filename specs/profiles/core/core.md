@@ -345,14 +345,16 @@ Link {
 }
 ```
 
-For a Bead, `id` is immutable. For a Link, `id`, `source` and `target`
-(including endpoint pins) are immutable. Under the selected v0.1 amendment,
+Every Resource's `id` and kind are immutable. Under retained v0.1, a Link's
+`source` and `target` are replaceable whole References under
+[endpoint corrections](../write/link-updates.md), including identity or pin changes.
+The inherited v0 contract keeps its immutable endpoints. Under selected v0.1,
 `type` is replaceable as a whole, alongside explicit `properties` and common
 `metadata` edits; the [common affiliation rules](affiliations.md) define omission,
 validation, revision and retry behavior. Derived `ownedLinks` can change through
 owned-Link effects or source-Bead retyping, never by direct assignment. Repointing
-or re-pinning a Link remains delete-and-create. Deleting and creating Resources
-are distinct operations. The held v0 artifact/runtime retains its actual contract.
+or re-pinning a Link under retained v0.1 preserves its identity; it is not
+delete-and-create. Deleting and creating Resources remain distinct operations. The held v0 artifact/runtime retains its actual contract.
 
 Every Link has independent Resource identity. Its `type`, `source`, and
 `target` describe it but do not identify it. BDP v0 permits multiple Links
@@ -476,14 +478,16 @@ a record.
 
 Every mutation of an owned Link versions the source Bead. Only effectful
 transitions are mutations; entry into and exit from ownership count under the
-selected v0.1 affiliation rules. A Link's identity and endpoints/pins stay immutable, while affiliation, properties and
-metadata can change. An incoming Link never versions its
+selected v0.1 affiliation rules. A Link's identity stays fixed while its complete
+endpoint References, affiliation, properties and metadata can change under the
+[endpoint amendment](../write/link-updates.md). An incoming Link never versions its
 target, whatever its type, so reverse projections such as cited-by remain
 computed views. An owned Link remains a first-class Link with its own URL
 and its own revision: a caller addresses, reads, and updates it there
 like any other Link. Its complete captured state is covered by the source's
 revision. Source-Bead retyping recomputes the owned set without inventing edits to the Links. No new endpoint
-movement, pin-policy or revision-allocation mechanism is selected here.
+pin-policy or revision-allocation mechanism is selected here; endpoint corrections
+follow their paired common amendment.
 
 To say it as plainly as possible: there is no reference entity in the
 model, and no second graph. An owned Link is an ordinary first-class
@@ -849,8 +853,10 @@ out-of-Scope endpoint is opaque and does not independently gate Link
 visibility. A visible Bead need not expose hidden incident Links — a latitude
 confined to incoming and unowned Links: a visible source's owned Links,
 covered by its revision, are never withheld, and the view includes their
-in-Scope targets, under [Owned Links](#owned-links). The
-authority still evaluates referential integrity, Scope aggregate
+in-Scope targets, under [Owned Links](#owned-links). Explicit selected v0.1
+[Resource projection](resource-projection.md) may omit that whole recorded plane
+from a representation; this does not change the authorization view's closure or
+represent omitted content as absent in storage. The authority still evaluates referential integrity, Scope aggregate
 constraints, deletion safety, and other Scope invariants against its
 complete authoritative state. A non-disclosing constraint failure may
 withhold the hidden Resources that caused it.
@@ -1414,6 +1420,8 @@ Optional revision-specific reads and versions pages are defined under
 [Historical resolution](#historical-resolution).
 
 The default `GET` of a Bead or Link URL returns its complete Resource record.
+Selected v0.1 [Resource projection](resource-projection.md) explicitly amends this
+representation only when its independent capability and request are selected.
 BDP-owned query parameters select a derived view, or request one bounded
 aggregate anchored at that same Resource URL:
 
@@ -1682,7 +1690,8 @@ distinction are in [ordinary read delivery](read-delivery.md). These amendments
 do not silently extend Type inventory, History or Event cursor contracts.
 
 Collection responses do not accept Resource `view` or `include` parameters.
-Their `items` are always complete Resource records. In particular, a Bead
+Their `items` are complete Resource records unless an explicitly selected v0.1
+[Resource projection](resource-projection.md) invocation selects projected items. In particular, a Bead
 collection cannot embed each Bead's incident Links. Clients select Links from
 the discovered Link inventory or use the Link view on one Bead. Services may
 advertise a maximum encoded request-target length and Selector complexity, but must not silently
@@ -1760,6 +1769,14 @@ grants no target body access and does not relax the current-plane closure
 under [Authorization views](#authorization-views).
 
 #### Exact historical reads
+
+The following query and full-record clauses describe the unextended History
+request. An explicitly selected v0.1 [Resource projection](resource-projection.md)
+invocation additionally admits `projectionVersion` and `fields` and represents
+that same authorized saved edition through the projected record arm. This is the
+only projection exception to those clauses; historical permission, retention and
+no-substitution rules remain unchanged. The unextended request, including v0,
+retains the literal full-read contract below.
 
 `GET` or `HEAD canonical-resource?revision=token` selects exactly one
 nonempty opaque revision. Query components follow the existing form-query
