@@ -1,0 +1,2 @@
+{"record":"manifest","format":"bdp-transfer","formatVersion":1,"resourceContract":"urn:bdp:wip:core-carrier:d7197e97a29bff8f075028419afad05388e2e655","sourceScope":"https://example.invalid/project/","idEncoding":"absolute","selection":{"state":"current","history":"required-pins","memoryBodies":true}}
+{"record":"complete","resources":0,"versions":0,"sha256":"c4fe8648de45623d8d7badb75326ed3a6276034b48080874769cebd7bd2a713f"}

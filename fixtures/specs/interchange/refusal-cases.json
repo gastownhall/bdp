@@ -1,0 +1,163 @@
+[
+  {
+    "name": "missing-endpoint",
+    "mutation": "remove-task",
+    "expected": "refuse"
+  },
+  {
+    "name": "missing-pin",
+    "mutation": "remove-old-memory",
+    "expected": "refuse"
+  },
+  {
+    "name": "duplicate-version",
+    "mutation": "duplicate-version",
+    "expected": "refuse"
+  },
+  {
+    "name": "multiple-heads",
+    "mutation": "multiple-heads",
+    "expected": "refuse"
+  },
+  {
+    "name": "missing-head",
+    "mutation": "missing-head",
+    "expected": "refuse"
+  },
+  {
+    "name": "owned-copy-disagrees",
+    "mutation": "owned-copy",
+    "expected": "refuse"
+  },
+  {
+    "name": "endpoint-is-link",
+    "mutation": "link-endpoint",
+    "expected": "refuse"
+  },
+  {
+    "name": "unsupported-format",
+    "mutation": "format",
+    "expected": "refuse"
+  },
+  {
+    "name": "unsupported-contract",
+    "mutation": "contract",
+    "expected": "refuse"
+  },
+  {
+    "name": "unknown-record",
+    "mutation": "record",
+    "expected": "refuse"
+  },
+  {
+    "name": "foreign-resource-id",
+    "mutation": "foreign-id",
+    "expected": "refuse"
+  },
+  {
+    "name": "unknown-wrapper-member",
+    "mutation": "wrapper-member",
+    "expected": "refuse"
+  },
+  {
+    "name": "bad-count",
+    "mutation": "count",
+    "expected": "refuse"
+  },
+  {
+    "name": "tampered-bytes",
+    "mutation": "tamper",
+    "expected": "refuse"
+  },
+  {
+    "name": "missing-completion",
+    "mutation": "truncate",
+    "expected": "refuse"
+  },
+  {
+    "name": "trailing-record",
+    "mutation": "trailing",
+    "expected": "refuse"
+  },
+  {
+    "name": "duplicate-json-member",
+    "mutation": "duplicate-json",
+    "expected": "refuse"
+  },
+  {
+    "name": "invalid-unicode-scalar",
+    "mutation": "surrogate",
+    "expected": "refuse"
+  },
+  {
+    "name": "non-json-number",
+    "mutation": "nan",
+    "expected": "refuse"
+  },
+  {
+    "name": "missing-final-lf",
+    "mutation": "final-lf",
+    "expected": "refuse"
+  },
+  {
+    "name": "incomplete-provenance",
+    "mutation": "provenance",
+    "expected": "refuse"
+  },
+  {
+    "name": "first-class-owned-link-missing-inline",
+    "mutation": "missing-inline-owned",
+    "expected": "refuse"
+  },
+  {
+    "name": "prefix-sharing-foreign-scope",
+    "mutation": "scope-prefix",
+    "expected": "refuse"
+  },
+  {
+    "name": "scope-without-trailing-slash",
+    "mutation": "scope-no-slash",
+    "expected": "refuse"
+  },
+  {
+    "name": "alias-is-not-bead",
+    "mutation": "wrong-bead-root",
+    "expected": "refuse"
+  },
+  {
+    "name": "wrong-link-root",
+    "mutation": "wrong-link-root",
+    "expected": "refuse"
+  },
+  {
+    "name": "derived-incident-page",
+    "mutation": "derived-links",
+    "expected": "refuse"
+  },
+  {
+    "name": "missing-complete-metadata",
+    "mutation": "missing-metadata",
+    "expected": "refuse"
+  },
+  {
+    "name": "inadmissible-exact-integer",
+    "mutation": "inadmissible-integer",
+    "expected": "refuse"
+  },
+  {
+    "name": "inadmissible-exact-decimal",
+    "mutation": "inadmissible-decimal",
+    "expected": "refuse"
+  },
+  {
+    "name": "memory-without-consent",
+    "mutation": "no-memory-consent",
+    "expected": "refuse"
+  },
+  {
+    "name": "missing-historical-owned-version",
+    "mutation": "missing-historical-owned",
+    "package": "historical-owned",
+    "expected": "refuse"
+  }
+]
