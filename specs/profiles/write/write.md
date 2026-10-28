@@ -164,10 +164,13 @@ at most one final revision per affected Resource. Singleton behavior is unchange
 
 Every successful create produces a fresh opaque Resource revision. Under the
 selected v0.1 amendment, every update that changes the complete Type affiliation,
-`properties`, common `metadata`, applicable captured owned-Link state, or complete
-Link endpoint References under [endpoint corrections](link-updates.md), produces
-a fresh Resource revision. A client compares revisions only for equality and
-must not derive meaning from their spelling.
+`properties`, common `metadata` or applicable captured owned-Link state produces
+a fresh Resource revision.
+Complete Link endpoint References are also revision-covered state under
+[endpoint corrections](link-updates.md): an effectful replacement produces a new
+Link revision. Every no-op comparison in this section additionally requires those
+complete endpoint References to remain equal. A client compares revisions only
+for equality and must not derive meaning from their spelling.
 
 After applicable admission and validation, an update retains the existing revision
 only when the complete affiliation and applicable captured owned state are unchanged

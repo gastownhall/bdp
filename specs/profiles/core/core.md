@@ -852,11 +852,11 @@ visible only when the Link and every in-Scope endpoint Bead are visible. An
 out-of-Scope endpoint is opaque and does not independently gate Link
 visibility. A visible Bead need not expose hidden incident Links — a latitude
 confined to incoming and unowned Links: a visible source's owned Links,
-covered by its revision, are never withheld by authorization. Explicit selected
-v0.1 Resource projection may omit their whole recorded plane; that is declared
-representation selection, not hidden state. The authorization view includes their
-in-Scope targets, under [Owned Links](#owned-links). The
-authority still evaluates referential integrity, Scope aggregate
+covered by its revision, are never withheld, and the view includes their
+in-Scope targets, under [Owned Links](#owned-links). Explicit selected v0.1
+[Resource projection](resource-projection.md) may omit that whole recorded plane
+from a representation; this does not change the authorization view's closure or
+represent omitted content as absent in storage. The authority still evaluates referential integrity, Scope aggregate
 constraints, deletion safety, and other Scope invariants against its
 complete authoritative state. A non-disclosing constraint failure may
 withhold the hidden Resources that caused it.
@@ -1770,20 +1770,27 @@ under [Authorization views](#authorization-views).
 
 #### Exact historical reads
 
+The following query and full-record clauses describe the unextended History
+request. An explicitly selected v0.1 [Resource projection](resource-projection.md)
+invocation additionally admits `projectionVersion` and `fields` and represents
+that same authorized saved edition through the projected record arm. This is the
+only projection exception to those clauses; historical permission, retention and
+no-substitution rules remain unchanged. The unextended request, including v0,
+retains the literal full-read contract below.
+
 `GET` or `HEAD canonical-resource?revision=token` selects exactly one
 nonempty opaque revision. Query components follow the existing form-query
 convention (`URLSearchParams`): decode percent escapes once and decode `+` as
 space. A literal plus in a token MUST be encoded as `%2B`; a space may be encoded
 as `%20` or `+`. Percent-encoded reserved characters and Unicode are data, not
 checkpoint-token syntax. Repeated or
-empty `revision`, any additional query member (except the explicitly selected
-v0.1 [Resource projection](resource-projection.md) parameters; including `view`, `include`,
+empty `revision`, any additional query member (including `view`, `include`,
 selection or pagination), and unsupported History queries on a non-advertising
 authority fail as `invalid-parameter`. Alias queries retain uniform
 `resource-not-found` / 404 and gain no History semantics. Normal authentication
 and non-disclosure precedence applies before condition-specific disclosure.
 
-Without that explicit projection selection, a successful exact read returns the ordinary complete Resource record with
+A successful exact read returns the ordinary complete Resource record with
 exactly the requested `id` and `revision`, carried attribution and change
 context when recorded, and the complete historical owned-Link state. Use
 `historicalBeadRecord` or `historicalLinkRecord`; the Bead shape excludes the
