@@ -29,10 +29,7 @@
               "op": "binding",
               "name": "b"
             },
-            "path": [
-              "properties",
-              "status"
-            ]
+            "path": ["properties", "status"]
           },
           "right": {
             "op": "literal",

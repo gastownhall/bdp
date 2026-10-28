@@ -32,16 +32,10 @@
           "pattern": "^(/([^/~]|~[01])*)*$"
         },
         "direction": {
-          "enum": [
-            "asc",
-            "desc"
-          ]
+          "enum": ["asc", "desc"]
         }
       },
-      "required": [
-        "path",
-        "direction"
-      ],
+      "required": ["path", "direction"],
       "additionalProperties": false
     },
     "request": {
@@ -59,9 +53,7 @@
           "maximum": 9007199254740991
         }
       },
-      "required": [
-        "query"
-      ],
+      "required": ["query"],
       "additionalProperties": false,
       "allOf": [
         {
@@ -72,10 +64,7 @@
                   "result": {
                     "properties": {
                       "form": {
-                        "enum": [
-                          "count",
-                          "graph"
-                        ]
+                        "enum": ["count", "graph"]
                       }
                     }
                   }
@@ -85,9 +74,7 @@
           },
           "then": {
             "not": {
-              "required": [
-                "limit"
-              ]
+              "required": ["limit"]
             }
           }
         },
@@ -109,9 +96,7 @@
           },
           "then": {
             "not": {
-              "required": [
-                "sort"
-              ]
+              "required": ["sort"]
             }
           }
         }
@@ -128,11 +113,7 @@
         "profiles": {
           "type": "array",
           "items": {
-            "enum": [
-              "list",
-              "graph",
-              "query"
-            ]
+            "enum": ["list", "graph", "query"]
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -165,11 +146,7 @@
               "maximum": 9007199254740991
             }
           },
-          "required": [
-            "requestBytes",
-            "nodes",
-            "nesting"
-          ],
+          "required": ["requestBytes", "nodes", "nesting"],
           "additionalProperties": false
         },
         "maximumDepth": {
@@ -209,10 +186,7 @@
               "profiles": {
                 "not": {
                   "contains": {
-                    "enum": [
-                      "graph",
-                      "query"
-                    ]
+                    "enum": ["graph", "query"]
                   }
                 }
               }
@@ -241,19 +215,12 @@
           "minLength": 1
         }
       },
-      "required": [
-        "id",
-        "revision"
-      ],
+      "required": ["id", "revision"],
       "additionalProperties": false
     },
     "projectedBead": {
       "type": "object",
-      "required": [
-        "id",
-        "type",
-        "revision"
-      ],
+      "required": ["id", "type", "revision"],
       "properties": {
         "id": {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
@@ -304,13 +271,7 @@
     },
     "projectedLink": {
       "type": "object",
-      "required": [
-        "id",
-        "type",
-        "revision",
-        "source",
-        "target"
-      ],
+      "required": ["id", "type", "revision", "source", "target"],
       "properties": {
         "id": {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
@@ -370,26 +331,13 @@
           ]
         },
         "completion": {
-          "enum": [
-            "exhausted",
-            "depth",
-            "proof"
-          ]
+          "enum": ["exhausted", "depth", "proof"]
         },
         "closure": {
-          "enum": [
-            "complete",
-            "not-complete",
-            "unknown"
-          ]
+          "enum": ["complete", "not-complete", "unknown"]
         }
       },
-      "required": [
-        "at",
-        "depth",
-        "completion",
-        "closure"
-      ],
+      "required": ["at", "depth", "completion", "closure"],
       "additionalProperties": false
     },
     "evaluation": {
@@ -409,11 +357,7 @@
           "const": "response"
         }
       },
-      "required": [
-        "scope",
-        "complete",
-        "traversals"
-      ],
+      "required": ["scope", "complete", "traversals"],
       "additionalProperties": false
     },
     "beadResources": {
@@ -448,20 +392,13 @@
           "$ref": "#/$defs/mask"
         }
       },
-      "required": [
-        "form",
-        "resourceKind",
-        "items",
-        "next"
-      ],
+      "required": ["form", "resourceKind", "items", "next"],
       "additionalProperties": false,
       "allOf": [
         {
           "if": {
             "not": {
-              "required": [
-                "projection"
-              ]
+              "required": ["projection"]
             }
           },
           "then": {
@@ -492,11 +429,7 @@
           "maximum": 9007199254740991
         }
       },
-      "required": [
-        "form",
-        "resourceKind",
-        "count"
-      ],
+      "required": ["form", "resourceKind", "count"],
       "additionalProperties": false
     },
     "linkResources": {
@@ -531,20 +464,13 @@
           "$ref": "#/$defs/mask"
         }
       },
-      "required": [
-        "form",
-        "resourceKind",
-        "items",
-        "next"
-      ],
+      "required": ["form", "resourceKind", "items", "next"],
       "additionalProperties": false,
       "allOf": [
         {
           "if": {
             "not": {
-              "required": [
-                "projection"
-              ]
+              "required": ["projection"]
             }
           },
           "then": {
@@ -575,11 +501,7 @@
           "maximum": 9007199254740991
         }
       },
-      "required": [
-        "form",
-        "resourceKind",
-        "count"
-      ],
+      "required": ["form", "resourceKind", "count"],
       "additionalProperties": false
     },
     "endpointMapping": {
@@ -595,11 +517,7 @@
           "$ref": "#/$defs/edition"
         }
       },
-      "required": [
-        "link",
-        "source",
-        "target"
-      ],
+      "required": ["link", "source", "target"],
       "additionalProperties": false
     },
     "graph": {
@@ -637,13 +555,7 @@
           "minItems": 0
         }
       },
-      "required": [
-        "form",
-        "roots",
-        "beads",
-        "links",
-        "endpoints"
-      ],
+      "required": ["form", "roots", "beads", "links", "endpoints"],
       "additionalProperties": false
     },
     "response": {
@@ -672,10 +584,7 @@
           "$ref": "#/$defs/evaluation"
         }
       },
-      "required": [
-        "result",
-        "evaluation"
-      ],
+      "required": ["result", "evaluation"],
       "additionalProperties": false
     },
     "pointProjectionCapability": {
@@ -688,20 +597,13 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "current",
-        "exact"
-      ],
+      "required": ["current", "exact"],
       "additionalProperties": false
     },
     "problem": {
       "title": "BDP Read Problem Details",
       "type": "object",
-      "required": [
-        "type",
-        "code",
-        "retry"
-      ],
+      "required": ["type", "code", "retry"],
       "properties": {
         "type": {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
@@ -711,18 +613,7 @@
         },
         "status": {
           "type": "integer",
-          "enum": [
-            400,
-            401,
-            403,
-            404,
-            409,
-            410,
-            413,
-            429,
-            503,
-            422
-          ]
+          "enum": [400, 401, 403, 404, 409, 410, 413, 429, 503, 422]
         },
         "detail": {
           "type": "string"
@@ -779,9 +670,7 @@
                 "const": "malformed-request"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -804,9 +693,7 @@
                 "const": "invalid-parameter"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -829,9 +716,7 @@
                 "const": "unauthenticated"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -854,9 +739,7 @@
                 "const": "forbidden"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -879,9 +762,7 @@
                 "const": "resource-not-found"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -904,9 +785,7 @@
                 "const": "foreign-view"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -929,9 +808,7 @@
                 "const": "cursor-expired"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -954,9 +831,7 @@
                 "const": "request-too-large"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -979,9 +854,7 @@
                 "const": "limit-exceeded"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1004,9 +877,7 @@
                 "const": "rate-limited"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1029,9 +900,7 @@
                 "const": "temporarily-unavailable"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1054,9 +923,7 @@
                 "const": "resource-pruned"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1079,9 +946,7 @@
                 "const": "resource-erased"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1104,9 +969,7 @@
                 "const": "revision-unknown"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1129,9 +992,7 @@
                 "const": "revision-unretained"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1154,9 +1015,7 @@
                 "const": "revision-reorganized"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1179,9 +1038,7 @@
                 "const": "revision-not-tracked"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1204,9 +1061,7 @@
                 "const": "revision-unrepresentable"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1229,9 +1084,7 @@
                 "const": "resource-pruned"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1249,9 +1102,7 @@
                   "const": "resource-pruned"
                 }
               },
-              "required": [
-                "code"
-              ]
+              "required": ["code"]
             }
           },
           "then": {
@@ -1267,9 +1118,7 @@
                 "const": "resource-erased"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1284,14 +1133,10 @@
                 "const": "revision-unretained"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
-            "required": [
-              "missing"
-            ],
+            "required": ["missing"],
             "properties": {
               "missing": {
                 "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/historyMissing"
@@ -1317,9 +1162,7 @@
                 ]
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1341,9 +1184,7 @@
                 "const": "capability-not-supported"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "properties": {
@@ -1357,10 +1198,7 @@
                 "const": "after-state-change"
               }
             },
-            "required": [
-              "capability",
-              "capabilityVersion"
-            ]
+            "required": ["capability", "capabilityVersion"]
           }
         },
         {
@@ -1370,15 +1208,11 @@
                 "const": "resource-not-found"
               }
             },
-            "required": [
-              "code"
-            ]
+            "required": ["code"]
           },
           "then": {
             "not": {
-              "required": [
-                "at"
-              ]
+              "required": ["at"]
             }
           }
         }

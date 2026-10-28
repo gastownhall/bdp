@@ -21,9 +21,9 @@
     "recovery"
   ],
   "sha256": {
-    "query.schema.json": "0e0576bcccc2f19a743531f343d683ba91ae7529ab0d5246167ce87d889ffa15",
-    "batch-selection.schema.json": "d28aa150edb190ca890f0312470ab071f433b010e71eae2a80b7eb18b6eaa2a0",
-    "batch-selection-cases.json": "bb96e6a0bacecc933fcc940804a5a79ad78d127ce497eab354e19be0086bc630",
+    "query.schema.json": "bf5fbf0b89f74273122c28b944907dd3e0fdb057d9266fdee4de9c0dfcbaeaa8",
+    "batch-selection.schema.json": "aa68ffa2fc0586e17fc788a72416084426df50fe07f24241fe0b39ea151269c8",
+    "batch-selection-cases.json": "04a37387f80aa89aa554505be0c4b24bfc4acdd15f1be18adb6f270bf96ab7e5",
     "validate.py": "0ebc2963fbc59a6490dd04a2688f7f2e8df22cd9d2ec206c830f2f42c1527048",
     "validate-batch-selection.py": "5ddc8f78ac11c4d312b7d3d1043271d4cb2102566b1c41f94139aa05efa48de8",
     "transaction-selection-inputs.md": "ef9783241391a8f2e2f3b9bf38858ee1bad0e1055f58eebb03834dd92bbb2c87"

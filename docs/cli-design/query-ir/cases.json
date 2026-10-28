@@ -25,10 +25,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -42,9 +39,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "C"
-        ]
+        "ids": ["C"]
       },
       "note": "",
       "outcome": "result"
@@ -71,10 +66,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -122,12 +114,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A",
-          "B",
-          "C",
-          "D"
-        ]
+        "ids": ["A", "B", "C", "D"]
       },
       "note": "",
       "outcome": "result"
@@ -161,9 +148,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A"
-        ]
+        "ids": ["A"]
       },
       "note": "",
       "outcome": "result"
@@ -190,10 +175,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "field",
@@ -201,10 +183,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "title"
-              ]
+              "path": ["properties", "title"]
             }
           }
         },
@@ -245,10 +224,7 @@
                 },
                 "side": "target"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -292,9 +268,7 @@
                     "op": "binding",
                     "name": "l"
                   },
-                  "path": [
-                    "source"
-                  ]
+                  "path": ["source"]
                 },
                 "right": {
                   "op": "literal",
@@ -310,10 +284,7 @@
                     "op": "binding",
                     "name": "l"
                   },
-                  "path": [
-                    "source",
-                    "uri"
-                  ]
+                  "path": ["source", "uri"]
                 },
                 "right": {
                   "op": "literal",
@@ -329,11 +300,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "L1",
-          "L5",
-          "LX"
-        ]
+        "ids": ["L1", "L5", "LX"]
       },
       "note": "Stored Reference identity tests acquire no endpoint bodies.",
       "outcome": "result"
@@ -349,9 +316,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing",
           "depth": 1,
@@ -372,17 +337,9 @@
       },
       "admission": "accept",
       "expected": {
-        "roots": [
-          "A"
-        ],
-        "links": [
-          "L1",
-          "L5"
-        ],
-        "beads": [
-          "A",
-          "B"
-        ]
+        "roots": ["A"],
+        "links": ["L1", "L5"],
+        "beads": ["A", "B"]
       },
       "note": "",
       "outcome": "result"
@@ -398,9 +355,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing",
           "depth": 0,
@@ -421,13 +376,9 @@
       },
       "admission": "accept",
       "expected": {
-        "roots": [
-          "A"
-        ],
+        "roots": ["A"],
         "links": [],
-        "beads": [
-          "A"
-        ]
+        "beads": ["A"]
       },
       "note": "",
       "outcome": "result"
@@ -443,9 +394,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/U"
-            ]
+            "references": ["https://work.example/acme/U"]
           },
           "direction": "outgoing",
           "depth": 1,
@@ -466,13 +415,9 @@
       },
       "admission": "accept",
       "expected": {
-        "roots": [
-          "U"
-        ],
+        "roots": ["U"],
         "links": [],
-        "beads": [
-          "U"
-        ]
+        "beads": ["U"]
       },
       "note": "",
       "outcome": "result"
@@ -488,10 +433,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A",
-              "https://work.example/acme/U"
-            ]
+            "references": ["https://work.example/acme/A", "https://work.example/acme/U"]
           },
           "direction": "outgoing",
           "depth": 1,
@@ -512,19 +454,9 @@
       },
       "admission": "accept",
       "expected": {
-        "roots": [
-          "A",
-          "U"
-        ],
-        "links": [
-          "L1",
-          "L5"
-        ],
-        "beads": [
-          "A",
-          "B",
-          "U"
-        ]
+        "roots": ["A", "U"],
+        "links": ["L1", "L5"],
+        "beads": ["A", "B", "U"]
       },
       "note": "",
       "outcome": "result"
@@ -540,9 +472,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing",
           "depth": "unbounded",
@@ -563,21 +493,9 @@
       },
       "admission": "accept",
       "expected": {
-        "roots": [
-          "A"
-        ],
-        "links": [
-          "L1",
-          "L2",
-          "L4",
-          "L5",
-          "LS"
-        ],
-        "beads": [
-          "A",
-          "B",
-          "C"
-        ]
+        "roots": ["A"],
+        "links": ["L1", "L2", "L4", "L5", "LS"],
+        "beads": ["A", "B", "C"]
       },
       "note": "Defines refines Requires; cycle, parallel, and self Links survive once each.",
       "outcome": "result"
@@ -593,9 +511,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing",
           "depth": "unbounded",
@@ -616,18 +532,9 @@
       },
       "admission": "accept",
       "expected": {
-        "roots": [
-          "A"
-        ],
-        "links": [
-          "L1",
-          "L5",
-          "LS"
-        ],
-        "beads": [
-          "A",
-          "B"
-        ]
+        "roots": ["A"],
+        "links": ["L1", "L5", "LS"],
+        "beads": ["A", "B"]
       },
       "note": "",
       "outcome": "result"
@@ -643,9 +550,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing",
           "depth": 1,
@@ -671,10 +576,7 @@
                     "op": "binding",
                     "name": "link"
                   },
-                  "path": [
-                    "properties",
-                    "status"
-                  ]
+                  "path": ["properties", "status"]
                 },
                 "right": {
                   "op": "literal",
@@ -708,9 +610,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/A"
-              ]
+              "references": ["https://work.example/acme/A"]
             },
             "direction": "outgoing",
             "depth": 1,
@@ -735,10 +635,7 @@
                 "op": "binding",
                 "name": "link"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -768,9 +665,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing"
         },
@@ -780,11 +675,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "L1",
-          "L5",
-          "LX"
-        ]
+        "ids": ["L1", "L5", "LX"]
       },
       "note": "",
       "outcome": "result"
@@ -800,9 +691,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "incoming",
           "depth": 1,
@@ -823,9 +712,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "L4"
-        ]
+        "ids": ["L4"]
       },
       "note": "",
       "outcome": "result"
@@ -841,9 +728,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "connected",
           "depth": 1,
@@ -864,11 +749,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "L1",
-          "L4",
-          "L5"
-        ]
+        "ids": ["L1", "L4", "L5"]
       },
       "note": "",
       "outcome": "result"
@@ -886,9 +767,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/A"
-              ]
+              "references": ["https://work.example/acme/A"]
             },
             "direction": "outgoing",
             "depth": 2
@@ -915,10 +794,7 @@
                     "op": "binding",
                     "name": "link"
                   },
-                  "path": [
-                    "properties",
-                    "status"
-                  ]
+                  "path": ["properties", "status"]
                 },
                 "right": {
                   "op": "literal",
@@ -934,10 +810,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "L3",
-          "L5"
-        ]
+        "ids": ["L3", "L5"]
       },
       "note": "Unrestricted traversal crosses LX and discovers L3.",
       "outcome": "result"
@@ -955,9 +828,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/A"
-              ]
+              "references": ["https://work.example/acme/A"]
             },
             "direction": "outgoing",
             "depth": 2,
@@ -982,10 +853,7 @@
                 "op": "binding",
                 "name": "link"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -999,9 +867,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "L5"
-        ]
+        "ids": ["L5"]
       },
       "note": "Requires-only traversal cannot cross LX to reach L3.",
       "outcome": "result"
@@ -1019,9 +885,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/A"
-              ]
+              "references": ["https://work.example/acme/A"]
             },
             "direction": "outgoing",
             "depth": 2,
@@ -1050,10 +914,7 @@
                 },
                 "side": "target"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -1067,9 +928,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "L2"
-        ]
+        "ids": ["L2"]
       },
       "note": "May traverse met B before returning B\u2192C.",
       "outcome": "result"
@@ -1085,9 +944,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing",
           "depth": 2,
@@ -1117,10 +974,7 @@
                     },
                     "side": "target"
                   },
-                  "path": [
-                    "properties",
-                    "status"
-                  ]
+                  "path": ["properties", "status"]
                 },
                 "right": {
                   "op": "literal",
@@ -1154,9 +1008,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/A"
-              ]
+              "references": ["https://work.example/acme/A"]
             },
             "direction": "outgoing",
             "depth": 1,
@@ -1179,9 +1031,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "B"
-        ]
+        "ids": ["B"]
       },
       "note": "",
       "outcome": "result"
@@ -1199,9 +1049,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/A"
-              ]
+              "references": ["https://work.example/acme/A"]
             },
             "direction": "incoming",
             "depth": 1,
@@ -1224,9 +1072,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "C"
-        ]
+        "ids": ["C"]
       },
       "note": "",
       "outcome": "result"
@@ -1242,9 +1088,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -1254,9 +1098,7 @@
               "roots": {
                 "op": "refs",
                 "collection": "beads",
-                "references": [
-                  "https://work.example/acme/A"
-                ]
+                "references": ["https://work.example/acme/A"]
               },
               "direction": "outgoing",
               "depth": 1,
@@ -1279,9 +1121,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A"
-        ]
+        "ids": ["A"]
       },
       "note": "",
       "outcome": "result"
@@ -1297,9 +1137,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/U"
-            ]
+            "references": ["https://work.example/acme/U"]
           },
           "bind": "b",
           "predicate": {
@@ -1309,9 +1147,7 @@
               "roots": {
                 "op": "refs",
                 "collection": "beads",
-                "references": [
-                  "https://work.example/acme/U"
-                ]
+                "references": ["https://work.example/acme/U"]
               },
               "direction": "outgoing",
               "depth": 1,
@@ -1350,9 +1186,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/U"
-            ]
+            "references": ["https://work.example/acme/U"]
           },
           "bind": "b",
           "predicate": {
@@ -1362,9 +1196,7 @@
               "roots": {
                 "op": "refs",
                 "collection": "beads",
-                "references": [
-                  "https://work.example/acme/U"
-                ]
+                "references": ["https://work.example/acme/U"]
               },
               "direction": "outgoing",
               "depth": 1,
@@ -1389,9 +1221,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "U"
-        ]
+        "ids": ["U"]
       },
       "note": "",
       "outcome": "result"
@@ -1407,9 +1237,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -1447,10 +1275,7 @@
                   },
                   "side": "target"
                 },
-                "path": [
-                  "properties",
-                  "status"
-                ]
+                "path": ["properties", "status"]
               },
               "right": {
                 "op": "literal",
@@ -1465,9 +1290,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A"
-        ]
+        "ids": ["A"]
       },
       "note": "",
       "outcome": "result"
@@ -1483,9 +1306,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -1495,9 +1316,7 @@
               "roots": {
                 "op": "refs",
                 "collection": "beads",
-                "references": [
-                  "https://work.example/acme/A"
-                ]
+                "references": ["https://work.example/acme/A"]
               },
               "direction": "outgoing",
               "depth": "unbounded",
@@ -1526,10 +1345,7 @@
                   },
                   "side": "target"
                 },
-                "path": [
-                  "properties",
-                  "status"
-                ]
+                "path": ["properties", "status"]
               },
               "right": {
                 "op": "literal",
@@ -1560,9 +1376,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -1600,10 +1414,7 @@
                   },
                   "side": "target"
                 },
-                "path": [
-                  "properties",
-                  "team"
-                ]
+                "path": ["properties", "team"]
               },
               "right": {
                 "op": "field",
@@ -1611,10 +1422,7 @@
                   "op": "binding",
                   "name": "b"
                 },
-                "path": [
-                  "properties",
-                  "team"
-                ]
+                "path": ["properties", "team"]
               }
             }
           }
@@ -1625,9 +1433,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A"
-        ]
+        "ids": ["A"]
       },
       "note": "",
       "outcome": "result"
@@ -1643,9 +1449,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -1679,10 +1483,7 @@
                   "op": "binding",
                   "name": "b"
                 },
-                "path": [
-                  "properties",
-                  "status"
-                ]
+                "path": ["properties", "status"]
               },
               "right": {
                 "op": "literal",
@@ -1697,9 +1498,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A"
-        ]
+        "ids": ["A"]
       },
       "note": "Inner b is the traversed Link; outer b is intentionally shadowed.",
       "outcome": "result"
@@ -1715,9 +1514,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -1729,10 +1526,7 @@
                 "op": "binding",
                 "name": "unknown"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -1762,9 +1556,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -1813,9 +1605,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing",
           "depth": -1
@@ -1896,10 +1686,7 @@
                 },
                 "side": "target"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -1929,9 +1716,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -1943,10 +1728,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "missing"
-              ]
+              "path": ["properties", "missing"]
             },
             "right": {
               "op": "literal",
@@ -1976,9 +1758,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -1990,10 +1770,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "missing"
-              ]
+              "path": ["properties", "missing"]
             },
             "right": {
               "op": "literal",
@@ -2007,9 +1784,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A"
-        ]
+        "ids": ["A"]
       },
       "note": "",
       "outcome": "result"
@@ -2025,9 +1800,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -2038,10 +1811,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "nullable"
-              ]
+              "path": ["properties", "nullable"]
             }
           }
         },
@@ -2051,9 +1821,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A"
-        ]
+        "ids": ["A"]
       },
       "note": "",
       "outcome": "result"
@@ -2069,9 +1837,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -2082,10 +1848,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "title"
-              ]
+              "path": ["properties", "title"]
             },
             "substring": {
               "op": "literal",
@@ -2115,9 +1878,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -2128,10 +1889,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "title"
-              ]
+              "path": ["properties", "title"]
             },
             "substring": {
               "op": "literal",
@@ -2161,9 +1919,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -2178,10 +1934,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "labels"
-              ]
+              "path": ["properties", "labels"]
             }
           }
         },
@@ -2191,9 +1944,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A"
-        ]
+        "ids": ["A"]
       },
       "note": "",
       "outcome": "result"
@@ -2209,9 +1960,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -2223,10 +1972,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "priority"
-              ]
+              "path": ["properties", "priority"]
             },
             "right": {
               "op": "literal",
@@ -2258,9 +2004,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/pin-root"
-              ]
+              "references": ["https://work.example/acme/pin-root"]
             },
             "direction": "outgoing",
             "depth": 1
@@ -2273,10 +2017,7 @@
       },
       "admission": "accept",
       "expected": {
-        "editions": [
-          "P@r1",
-          "P@r2"
-        ]
+        "editions": ["P@r1", "P@r2"]
       },
       "note": "Pinned and floating target Links select different editions of P in one read context.",
       "outcome": "result"
@@ -2296,9 +2037,7 @@
               "roots": {
                 "op": "refs",
                 "collection": "beads",
-                "references": [
-                  "https://work.example/acme/pin-root"
-                ]
+                "references": ["https://work.example/acme/pin-root"]
               },
               "direction": "outgoing",
               "depth": 1
@@ -2328,9 +2067,7 @@
       },
       "admission": "accept",
       "expected": {
-        "editions": [
-          "P@r1"
-        ]
+        "editions": ["P@r1"]
       },
       "note": "",
       "outcome": "result"
@@ -2348,9 +2085,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/external-root"
-              ]
+              "references": ["https://work.example/acme/external-root"]
             },
             "direction": "outgoing",
             "depth": 1
@@ -2369,10 +2104,7 @@
                 },
                 "side": "target"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -2404,9 +2136,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/A"
-              ]
+              "references": ["https://work.example/acme/A"]
             },
             "direction": "outgoing",
             "depth": 2,
@@ -2446,9 +2176,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/U"
-            ]
+            "references": ["https://work.example/acme/U"]
           },
           "direction": "outgoing",
           "depth": 1
@@ -2498,10 +2226,7 @@
                     "op": "binding",
                     "name": "b"
                   },
-                  "path": [
-                    "properties",
-                    "status"
-                  ]
+                  "path": ["properties", "status"]
                 },
                 "right": {
                   "op": "literal",
@@ -2517,9 +2242,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "csv-review"
-        ]
+        "ids": ["csv-review"]
       },
       "note": "",
       "outcome": "result"
@@ -2535,9 +2258,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/csv-plan"
-            ]
+            "references": ["https://work.example/acme/csv-plan"]
           },
           "direction": "outgoing",
           "depth": 2,
@@ -2558,19 +2279,9 @@
       },
       "admission": "accept",
       "expected": {
-        "roots": [
-          "csv-plan"
-        ],
-        "links": [
-          "csv-format-review",
-          "csv-plan-format",
-          "csv-plan-format-alt"
-        ],
-        "beads": [
-          "csv-format",
-          "csv-plan",
-          "csv-review"
-        ]
+        "roots": ["csv-plan"],
+        "links": ["csv-format-review", "csv-plan-format", "csv-plan-format-alt"],
+        "beads": ["csv-format", "csv-plan", "csv-review"]
       },
       "note": "",
       "outcome": "result"
@@ -2623,10 +2334,7 @@
                   },
                   "side": "target"
                 },
-                "path": [
-                  "properties",
-                  "status"
-                ]
+                "path": ["properties", "status"]
               },
               "right": {
                 "op": "literal",
@@ -2641,9 +2349,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "csv-plan"
-        ]
+        "ids": ["csv-plan"]
       },
       "note": "",
       "outcome": "result"
@@ -2659,9 +2365,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -2699,10 +2403,7 @@
                   },
                   "side": "target"
                 },
-                "path": [
-                  "properties",
-                  "status"
-                ]
+                "path": ["properties", "status"]
               },
               "right": {
                 "op": "literal",
@@ -2733,9 +2434,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/csv-plan"
-            ]
+            "references": ["https://work.example/acme/csv-plan"]
           },
           "direction": "outgoing",
           "depth": 3,
@@ -2756,20 +2455,9 @@
       },
       "admission": "accept",
       "expected": {
-        "roots": [
-          "csv-plan"
-        ],
-        "links": [
-          "csv-format-review",
-          "csv-plan-format",
-          "csv-plan-format-alt",
-          "csv-review-plan"
-        ],
-        "beads": [
-          "csv-format",
-          "csv-plan",
-          "csv-review"
-        ]
+        "roots": ["csv-plan"],
+        "links": ["csv-format-review", "csv-plan-format", "csv-plan-format-alt", "csv-review-plan"],
+        "beads": ["csv-format", "csv-plan", "csv-review"]
       },
       "note": "",
       "outcome": "result"
@@ -2803,11 +2491,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "csv-encoding",
-          "csv-format",
-          "csv-review"
-        ]
+        "ids": ["csv-encoding", "csv-format", "csv-review"]
       },
       "note": "",
       "outcome": "result"
@@ -2841,10 +2525,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "csv-format",
-          "csv-review"
-        ]
+        "ids": ["csv-format", "csv-review"]
       },
       "note": "",
       "outcome": "result"
@@ -2920,10 +2601,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pin-current-source",
-          "pin-old-source"
-        ]
+        "ids": ["pin-current-source", "pin-old-source"]
       },
       "note": "",
       "outcome": "result"
@@ -3005,12 +2683,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pin-current-source",
-          "pin-fixed",
-          "pin-floating",
-          "pin-old-source"
-        ]
+        "ids": ["pin-current-source", "pin-fixed", "pin-floating", "pin-old-source"]
       },
       "note": "",
       "outcome": "result"
@@ -3108,9 +2781,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -3122,10 +2793,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "missingOne"
-              ]
+              "path": ["properties", "missingOne"]
             },
             "right": {
               "op": "field",
@@ -3133,10 +2801,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "missingTwo"
-              ]
+              "path": ["properties", "missingTwo"]
             }
           }
         },
@@ -3146,9 +2811,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A"
-        ]
+        "ids": ["A"]
       },
       "note": "",
       "outcome": "result"
@@ -3238,10 +2901,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -3253,9 +2913,7 @@
           "form": "count"
         },
         "projection": {
-          "include": [
-            "/properties/title"
-          ]
+          "include": ["/properties/title"]
         }
       },
       "admission": "accept",
@@ -3287,9 +2945,7 @@
       },
       "admission": "accept",
       "expected": {
-        "editions": [
-          "P@current"
-        ]
+        "editions": ["P@current"]
       },
       "note": "The pinned native object uses the exact opaque token current. It must not select current P@r2.",
       "outcome": "result"
@@ -3316,9 +2972,7 @@
       },
       "admission": "accept",
       "expected": {
-        "editions": [
-          "P@r1"
-        ]
+        "editions": ["P@r1"]
       },
       "note": "Assumes actual complete application History and required authorization/closure; no historical Link inventory inferred.",
       "outcome": "result"
@@ -3394,9 +3048,7 @@
         "selection": {
           "op": "refs",
           "collection": "beads",
-          "references": [
-            "https://work.example/acme/unavailable-root"
-          ]
+          "references": ["https://work.example/acme/unavailable-root"]
         },
         "result": {
           "form": "resources"
@@ -3418,9 +3070,7 @@
         "selection": {
           "op": "refs",
           "collection": "beads",
-          "references": [
-            "https://work.example/acme/B"
-          ]
+          "references": ["https://work.example/acme/B"]
         },
         "result": {
           "form": "resources"
@@ -3433,9 +3083,7 @@
       "note": "Authorization-hidden root has the same uniform outcome as absent.",
       "outcome": "runtime-refusal",
       "contextOverrides": {
-        "hiddenIdentities": [
-          "https://work.example/acme/B"
-        ]
+        "hiddenIdentities": ["https://work.example/acme/B"]
       }
     },
     {
@@ -3447,9 +3095,7 @@
         "selection": {
           "op": "refs",
           "collection": "links",
-          "references": [
-            "https://work.example/acme/A"
-          ]
+          "references": ["https://work.example/acme/A"]
         },
         "result": {
           "form": "resources"
@@ -3475,9 +3121,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/A"
-              ]
+              "references": ["https://work.example/acme/A"]
             },
             "direction": "outgoing",
             "depth": 1
@@ -3496,10 +3140,7 @@
                 },
                 "side": "target"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -3518,9 +3159,7 @@
       "note": "Use a view where a visible Link target is hidden. Required acquisition uses uniform not-found; it cannot become an absent property.",
       "outcome": "runtime-refusal",
       "contextOverrides": {
-        "hiddenIdentities": [
-          "https://work.example/acme/B"
-        ],
+        "hiddenIdentities": ["https://work.example/acme/B"],
         "visibleLinkIdentities": [
           "https://work.example/acme/L1",
           "https://work.example/acme/L5",
@@ -3539,9 +3178,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/external-root"
-            ]
+            "references": ["https://work.example/acme/external-root"]
           },
           "direction": "outgoing",
           "depth": 1
@@ -3552,9 +3189,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "external-link"
-        ]
+        "ids": ["external-link"]
       },
       "note": "No body is needed to retain this Link; through/result predicates do not acquire target content.",
       "outcome": "result"
@@ -3570,9 +3205,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/external-root"
-            ]
+            "references": ["https://work.example/acme/external-root"]
           },
           "direction": "outgoing",
           "depth": 2
@@ -3599,9 +3232,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/external-root"
-            ]
+            "references": ["https://work.example/acme/external-root"]
           },
           "direction": "outgoing",
           "depth": 1
@@ -3630,9 +3261,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/external-root"
-              ]
+              "references": ["https://work.example/acme/external-root"]
             },
             "direction": "outgoing",
             "depth": 1
@@ -3661,9 +3290,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing",
           "depth": 1,
@@ -3682,9 +3309,7 @@
           "form": "graph"
         },
         "projection": {
-          "include": [
-            "/properties/title"
-          ]
+          "include": ["/properties/title"]
         }
       },
       "admission": "reject-semantic",
@@ -3715,17 +3340,11 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "array": {
               "op": "literal",
-              "value": [
-                "draft",
-                "ratified"
-              ]
+              "value": ["draft", "ratified"]
             }
           }
         },
@@ -3735,10 +3354,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A",
-          "C"
-        ]
+        "ids": ["A", "C"]
       },
       "note": "",
       "outcome": "result"
@@ -3764,10 +3380,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "array": {
               "op": "field",
@@ -3775,10 +3388,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "labels"
-              ]
+              "path": ["properties", "labels"]
             }
           }
         },
@@ -3822,9 +3432,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pinned-note"
-        ]
+        "ids": ["pinned-note"]
       },
       "note": "",
       "outcome": "result"
@@ -3858,9 +3466,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pinned-note"
-        ]
+        "ids": ["pinned-note"]
       },
       "note": "",
       "outcome": "result"
@@ -3887,10 +3493,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "type",
-                "uri"
-              ]
+              "path": ["type", "uri"]
             },
             "right": {
               "op": "literal",
@@ -3904,9 +3507,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pinned-note"
-        ]
+        "ids": ["pinned-note"]
       },
       "note": "",
       "outcome": "result"
@@ -3933,9 +3534,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "type"
-              ]
+              "path": ["type"]
             },
             "right": {
               "op": "literal",
@@ -3965,9 +3564,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/R"
-            ]
+            "references": ["https://work.example/acme/R"]
           },
           "direction": "outgoing",
           "depth": 2
@@ -3978,12 +3575,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "RX",
-          "RY",
-          "XZ",
-          "YX"
-        ]
+        "ids": ["RX", "RY", "XZ", "YX"]
       },
       "note": "",
       "outcome": "result"
@@ -4002,20 +3594,12 @@
           "form": "resources"
         },
         "projection": {
-          "include": [
-            ""
-          ]
+          "include": [""]
         }
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A",
-          "B",
-          "C",
-          "D",
-          "U"
-        ]
+        "ids": ["A", "B", "C", "D", "U"]
       },
       "note": "",
       "outcome": "result"
@@ -4034,9 +3618,7 @@
           "form": "resources"
         },
         "projection": {
-          "omit": [
-            "/id"
-          ]
+          "omit": ["/id"]
         }
       },
       "admission": "reject-semantic",
@@ -4060,9 +3642,7 @@
           "form": "resources"
         },
         "projection": {
-          "include": [
-            "/ownedLinks/anything"
-          ]
+          "include": ["/ownedLinks/anything"]
         }
       },
       "admission": "reject-semantic",
@@ -4086,20 +3666,12 @@
           "form": "resources"
         },
         "projection": {
-          "omit": [
-            "/ownedLinks"
-          ]
+          "omit": ["/ownedLinks"]
         }
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "A",
-          "B",
-          "C",
-          "D",
-          "U"
-        ]
+        "ids": ["A", "B", "C", "D", "U"]
       },
       "note": "Representation omission only; content membership/count unchanged and full-record claims must be projected.",
       "outcome": "result"
@@ -4118,9 +3690,7 @@
           "form": "resources"
         },
         "projection": {
-          "include": [
-            "/a~2b"
-          ]
+          "include": ["/a~2b"]
         }
       },
       "admission": "reject-schema",
@@ -4144,9 +3714,7 @@
           "form": "resources"
         },
         "projection": {
-          "omit": [
-            ""
-          ]
+          "omit": [""]
         }
       },
       "admission": "reject-schema",
@@ -4246,9 +3814,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing",
           "depth": 1,
@@ -4276,9 +3842,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "direction": "outgoing",
           "depth": 1,
@@ -4345,10 +3909,7 @@
         "selection": {
           "op": "refs",
           "collection": "beads",
-          "references": [
-            "https://work.example/acme/A",
-            "https://work.example/acme/A"
-          ]
+          "references": ["https://work.example/acme/A", "https://work.example/acme/A"]
         },
         "result": {
           "form": "resources"
@@ -4392,9 +3953,7 @@
         "selection": {
           "op": "refs",
           "collection": "beads",
-          "references": [
-            "relative-root"
-          ]
+          "references": ["relative-root"]
         },
         "result": {
           "form": "resources"
@@ -4463,10 +4022,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "target",
-                "uri"
-              ]
+              "path": ["target", "uri"]
             },
             "right": {
               "op": "literal",
@@ -4480,9 +4036,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pin-fixed"
-        ]
+        "ids": ["pin-fixed"]
       },
       "note": "",
       "outcome": "result"
@@ -4509,9 +4063,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "target"
-              ]
+              "path": ["target"]
             },
             "right": {
               "op": "literal",
@@ -4525,9 +4077,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pin-floating"
-        ]
+        "ids": ["pin-floating"]
       },
       "note": "",
       "outcome": "result"
@@ -4545,9 +4095,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/A"
-              ]
+              "references": ["https://work.example/acme/A"]
             },
             "direction": "outgoing",
             "depth": "unbounded",
@@ -4576,10 +4124,7 @@
                 },
                 "side": "target"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -4594,9 +4139,7 @@
       "admission": "accept",
       "outcome": "result",
       "expected": {
-        "ids": [
-          "L2"
-        ]
+        "ids": ["L2"]
       },
       "note": "Exact complete AST printed in query-ir.md; unbounded Requires closure then target draft selection."
     },
@@ -4611,10 +4154,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A",
-              "https://work.example/acme/B"
-            ]
+            "references": ["https://work.example/acme/A", "https://work.example/acme/B"]
           },
           "direction": "outgoing",
           "depth": 1
@@ -4624,9 +4164,7 @@
         }
       },
       "contextOverrides": {
-        "hiddenIdentities": [
-          "https://work.example/acme/B"
-        ]
+        "hiddenIdentities": ["https://work.example/acme/B"]
       },
       "admission": "accept",
       "outcome": "runtime-refusal",
@@ -4649,21 +4187,13 @@
           "form": "resources"
         },
         "projection": {
-          "omit": [
-            "/source"
-          ]
+          "omit": ["/source"]
         }
       },
       "admission": "accept",
       "outcome": "result",
       "expected": {
-        "ids": [
-          "A",
-          "B",
-          "C",
-          "D",
-          "U"
-        ]
+        "ids": ["A", "B", "C", "D", "U"]
       },
       "note": ""
     },
@@ -4681,9 +4211,7 @@
           "form": "resources"
         },
         "projection": {
-          "omit": [
-            "/source"
-          ]
+          "omit": ["/source"]
         }
       },
       "admission": "reject-semantic",
@@ -4707,9 +4235,7 @@
           "form": "resources"
         },
         "projection": {
-          "include": [
-            "/source/uri"
-          ]
+          "include": ["/source/uri"]
         }
       },
       "admission": "reject-semantic",
@@ -4733,9 +4259,7 @@
           "form": "resources"
         },
         "projection": {
-          "include": [
-            "/type/uri"
-          ]
+          "include": ["/type/uri"]
         }
       },
       "admission": "reject-semantic",
@@ -4778,9 +4302,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -4828,10 +4350,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "team"
-              ]
+              "path": ["properties", "team"]
             }
           }
         },
@@ -4879,22 +4398,14 @@
           "form": "resources"
         },
         "projection": {
-          "include": [
-            "",
-            "/properties/title"
-          ],
-          "omit": [
-            "/properties/labels",
-            "/ownedLinks"
-          ]
+          "include": ["", "/properties/title"],
+          "omit": ["/properties/labels", "/ownedLinks"]
         }
       },
       "admission": "accept",
       "outcome": "result",
       "expected": {
-        "ids": [
-          "A"
-        ]
+        "ids": ["A"]
       },
       "note": "Root include selects whole; omit then subtracts labels and absent ownedLinks. Bodies are authored expected data, not executed projection.",
       "expectedProjection": {
@@ -4922,9 +4433,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -4952,10 +4461,7 @@
                   },
                   "side": "target"
                 },
-                "path": [
-                  "properties",
-                  "status"
-                ]
+                "path": ["properties", "status"]
               },
               "right": {
                 "op": "literal",
@@ -4973,9 +4479,7 @@
       "expected": {
         "allowedOutcomes": [
           {
-            "ids": [
-              "A"
-            ]
+            "ids": ["A"]
           },
           {
             "runtimeError": "resource-not-found"
@@ -4984,9 +4488,7 @@
       },
       "note": "AUTHOR-PROPOSED fail-fast policy. LX\u2192D can prove the quantifier; L1/L5\u2192hidden B can fail first. Allowed outcomes are whole-query success/refusal, not a third Boolean.",
       "contextOverrides": {
-        "hiddenIdentities": [
-          "https://work.example/acme/B"
-        ]
+        "hiddenIdentities": ["https://work.example/acme/B"]
       }
     },
     {
@@ -5000,9 +4502,7 @@
           "input": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/A"
-            ]
+            "references": ["https://work.example/acme/A"]
           },
           "bind": "b",
           "predicate": {
@@ -5030,10 +4530,7 @@
                   },
                   "side": "target"
                 },
-                "path": [
-                  "properties",
-                  "status"
-                ]
+                "path": ["properties", "status"]
               },
               "right": {
                 "op": "literal",
@@ -5060,9 +4557,7 @@
       },
       "note": "AUTHOR-PROPOSED fail-fast policy. LX\u2192D can prove the quantifier; L1/L5\u2192hidden B can fail first. Allowed outcomes are whole-query success/refusal, not a third Boolean.",
       "contextOverrides": {
-        "hiddenIdentities": [
-          "https://work.example/acme/B"
-        ]
+        "hiddenIdentities": ["https://work.example/acme/B"]
       }
     },
     {
@@ -5076,9 +4571,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/pin-root"
-            ]
+            "references": ["https://work.example/acme/pin-root"]
           },
           "direction": "outgoing",
           "depth": 2
@@ -5115,10 +4608,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "title"
-              ]
+              "path": ["properties", "title"]
             },
             "substring": {
               "op": "literal",
@@ -5158,10 +4648,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "title"
-              ]
+              "path": ["properties", "title"]
             },
             "substring": {
               "op": "literal",
@@ -5201,10 +4688,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "title"
-              ]
+              "path": ["properties", "title"]
             },
             "substring": {
               "op": "literal",
@@ -5244,10 +4728,7 @@
                 "op": "binding",
                 "name": "b"
               },
-              "path": [
-                "properties",
-                "title"
-              ]
+              "path": ["properties", "title"]
             },
             "substring": {
               "op": "literal",
@@ -5277,9 +4758,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/P"
-            ]
+            "references": ["https://work.example/acme/P"]
           },
           "direction": "incoming",
           "depth": 1
@@ -5290,9 +4769,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pin-floating"
-        ]
+        "ids": ["pin-floating"]
       },
       "outcome": "result",
       "note": "Author proposal: current P@r2 matches floating endpoints, excluding stored pins to P@r1; bare Query roots select editions."
@@ -5308,9 +4785,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/P"
-            ]
+            "references": ["https://work.example/acme/P"]
           },
           "direction": "outgoing",
           "depth": 1
@@ -5321,9 +4796,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pin-current-source"
-        ]
+        "ids": ["pin-current-source"]
       },
       "outcome": "result",
       "note": "Author proposal: current P@r2 matches floating endpoints, excluding stored pins to P@r1; bare Query roots select editions."
@@ -5339,9 +4812,7 @@
           "roots": {
             "op": "refs",
             "collection": "beads",
-            "references": [
-              "https://work.example/acme/P"
-            ]
+            "references": ["https://work.example/acme/P"]
           },
           "direction": "connected",
           "depth": 1
@@ -5352,10 +4823,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pin-current-source",
-          "pin-floating"
-        ]
+        "ids": ["pin-current-source", "pin-floating"]
       },
       "outcome": "result",
       "note": "Author proposal: current P@r2 matches floating endpoints, excluding stored pins to P@r1; bare Query roots select editions."
@@ -5376,12 +4844,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "csv-encoding",
-          "csv-format",
-          "csv-plan",
-          "csv-review"
-        ]
+        "ids": ["csv-encoding", "csv-format", "csv-plan", "csv-review"]
       },
       "outcome": "result",
       "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
@@ -5423,9 +4886,7 @@
                         "op": "binding",
                         "name": "b"
                       },
-                      "path": [
-                        "source"
-                      ]
+                      "path": ["source"]
                     },
                     "right": {
                       "op": "literal",
@@ -5441,10 +4902,7 @@
                         "op": "binding",
                         "name": "b"
                       },
-                      "path": [
-                        "source",
-                        "uri"
-                      ]
+                      "path": ["source", "uri"]
                     },
                     "right": {
                       "op": "literal",
@@ -5462,10 +4920,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "csv-plan-format",
-          "csv-plan-format-alt"
-        ]
+        "ids": ["csv-plan-format", "csv-plan-format-alt"]
       },
       "outcome": "result",
       "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
@@ -5497,18 +4952,12 @@
           "form": "resources"
         },
         "projection": {
-          "include": [
-            "/properties/title"
-          ]
+          "include": ["/properties/title"]
         }
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "csv-encoding",
-          "csv-format",
-          "csv-review"
-        ]
+        "ids": ["csv-encoding", "csv-format", "csv-review"]
       },
       "outcome": "result",
       "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
@@ -5547,10 +4996,7 @@
                     "op": "binding",
                     "name": "b"
                   },
-                  "path": [
-                    "properties",
-                    "status"
-                  ]
+                  "path": ["properties", "status"]
                 },
                 "right": {
                   "op": "literal",
@@ -5566,10 +5012,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "csv-encoding",
-          "csv-format"
-        ]
+        "ids": ["csv-encoding", "csv-format"]
       },
       "outcome": "result",
       "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
@@ -5599,10 +5042,7 @@
                     "op": "binding",
                     "name": "b"
                   },
-                  "path": [
-                    "properties",
-                    "status"
-                  ]
+                  "path": ["properties", "status"]
                 },
                 "right": {
                   "op": "literal",
@@ -5618,10 +5058,7 @@
                     "op": "binding",
                     "name": "b"
                   },
-                  "path": [
-                    "properties",
-                    "status"
-                  ]
+                  "path": ["properties", "status"]
                 },
                 "right": {
                   "op": "literal",
@@ -5667,9 +5104,7 @@
                     "op": "binding",
                     "name": "b"
                   },
-                  "path": [
-                    "source"
-                  ]
+                  "path": ["source"]
                 },
                 "right": {
                   "op": "literal",
@@ -5685,10 +5120,7 @@
                     "op": "binding",
                     "name": "b"
                   },
-                  "path": [
-                    "source",
-                    "uri"
-                  ]
+                  "path": ["source", "uri"]
                 },
                 "right": {
                   "op": "literal",
@@ -5704,10 +5136,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "pin-current-source",
-          "pin-old-source"
-        ]
+        "ids": ["pin-current-source", "pin-old-source"]
       },
       "outcome": "result",
       "note": "Authored canonical List lowering/result obligation; not an executed CLI test."
@@ -5749,9 +5178,7 @@
                         "op": "binding",
                         "name": "_candidate"
                       },
-                      "path": [
-                        "source"
-                      ]
+                      "path": ["source"]
                     },
                     "right": {
                       "op": "literal",
@@ -5767,10 +5194,7 @@
                         "op": "binding",
                         "name": "_candidate"
                       },
-                      "path": [
-                        "source",
-                        "uri"
-                      ]
+                      "path": ["source", "uri"]
                     },
                     "right": {
                       "op": "literal",
@@ -5788,10 +5212,7 @@
                     "op": "binding",
                     "name": "_candidate"
                   },
-                  "path": [
-                    "properties",
-                    "status"
-                  ]
+                  "path": ["properties", "status"]
                 },
                 "right": {
                   "op": "literal",
@@ -5807,10 +5228,7 @@
                     "op": "binding",
                     "name": "_candidate"
                   },
-                  "path": [
-                    "metadata",
-                    "team"
-                  ]
+                  "path": ["metadata", "team"]
                 },
                 "right": {
                   "op": "literal",
@@ -5825,10 +5243,7 @@
                     "op": "binding",
                     "name": "_candidate"
                   },
-                  "path": [
-                    "properties",
-                    "body"
-                  ]
+                  "path": ["properties", "body"]
                 }
               }
             ]
@@ -5840,9 +5255,7 @@
       },
       "admission": "accept",
       "expected": {
-        "ids": [
-          "csv-plan-format"
-        ]
+        "ids": ["csv-plan-format"]
       },
       "outcome": "result",
       "note": "Authored canonical List lowering/result obligation; not an executed CLI test."

@@ -14,9 +14,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/csv-draft"
-              ]
+              "references": ["https://work.example/acme/csv-draft"]
             },
             "direction": "outgoing",
             "depth": 1,
@@ -45,10 +43,7 @@
                 },
                 "side": "target"
               },
-              "path": [
-                "properties",
-                "status"
-              ]
+              "path": ["properties", "status"]
             },
             "right": {
               "op": "literal",
@@ -73,9 +68,7 @@
               "roots": {
                 "op": "refs",
                 "collection": "beads",
-                "references": [
-                  "https://work.example/acme/csv-draft"
-                ]
+                "references": ["https://work.example/acme/csv-draft"]
               },
               "direction": "outgoing",
               "depth": 1,
@@ -104,10 +97,7 @@
                   },
                   "side": "target"
                 },
-                "path": [
-                  "properties",
-                  "status"
-                ]
+                "path": ["properties", "status"]
               },
               "right": {
                 "op": "literal",

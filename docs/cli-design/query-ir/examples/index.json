@@ -8,9 +8,7 @@
       "surface_expression": "beads as b where b is note and b.status = \"draft\"",
       "surface_status": "selected constructs; full lexical grammar and command/file spelling remain draft",
       "expected": {
-        "ids": [
-          "csv-review"
-        ]
+        "ids": ["csv-review"]
       }
     },
     {
@@ -20,19 +18,9 @@
       "surface_expression": "outgoing(\"csv-plan\", depth: 2) as link through link is references; request graph result",
       "surface_status": "selected constructs; full lexical grammar and command/file spelling remain draft",
       "expected": {
-        "roots": [
-          "csv-plan"
-        ],
-        "links": [
-          "csv-format-review",
-          "csv-plan-format",
-          "csv-plan-format-alt"
-        ],
-        "beads": [
-          "csv-format",
-          "csv-plan",
-          "csv-review"
-        ]
+        "roots": ["csv-plan"],
+        "links": ["csv-format-review", "csv-plan-format", "csv-plan-format-alt"],
+        "beads": ["csv-format", "csv-plan", "csv-review"]
       }
     },
     {
@@ -42,9 +30,7 @@
       "surface_expression": "beads as b where (any outgoing(b) as link through link is references where link.target.status = \"ratified\")",
       "surface_status": "selected constructs; full lexical grammar and command/file spelling remain draft",
       "expected": {
-        "ids": [
-          "csv-plan"
-        ]
+        "ids": ["csv-plan"]
       }
     },
     {

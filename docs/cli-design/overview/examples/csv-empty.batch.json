@@ -35,10 +35,7 @@
                     "op": "binding",
                     "name": "_candidate"
                   },
-                  "path": [
-                    "properties",
-                    "status"
-                  ]
+                  "path": ["properties", "status"]
                 },
                 "right": {
                   "op": "literal",

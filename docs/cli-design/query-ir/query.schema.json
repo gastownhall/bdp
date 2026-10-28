@@ -9,11 +9,7 @@
       "const": "bdp-query-design-1"
     },
     "profile": {
-      "enum": [
-        "list",
-        "graph",
-        "query"
-      ]
+      "enum": ["list", "graph", "query"]
     },
     "selection": {
       "$ref": "#/$defs/collection"
@@ -22,16 +18,10 @@
       "type": "object",
       "properties": {
         "form": {
-          "enum": [
-            "resources",
-            "graph",
-            "count"
-          ]
+          "enum": ["resources", "graph", "count"]
         }
       },
-      "required": [
-        "form"
-      ],
+      "required": ["form"],
       "additionalProperties": false
     },
     "projection": {
@@ -60,12 +50,7 @@
       "minProperties": 1
     }
   },
-  "required": [
-    "ir",
-    "profile",
-    "selection",
-    "result"
-  ],
+  "required": ["ir", "profile", "selection", "result"],
   "additionalProperties": false,
   "$defs": {
     "binding": {
@@ -79,10 +64,7 @@
           "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
         }
       },
-      "required": [
-        "op",
-        "name"
-      ],
+      "required": ["op", "name"],
       "additionalProperties": false
     },
     "endpoint": {
@@ -95,17 +77,10 @@
           "$ref": "#/$defs/resource"
         },
         "side": {
-          "enum": [
-            "source",
-            "target"
-          ]
+          "enum": ["source", "target"]
         }
       },
-      "required": [
-        "op",
-        "of",
-        "side"
-      ],
+      "required": ["op", "of", "side"],
       "additionalProperties": false
     },
     "resource": {
@@ -126,10 +101,7 @@
         },
         "value": {}
       },
-      "required": [
-        "op",
-        "value"
-      ],
+      "required": ["op", "value"],
       "additionalProperties": false
     },
     "field": {
@@ -157,11 +129,7 @@
           }
         }
       },
-      "required": [
-        "op",
-        "of",
-        "path"
-      ],
+      "required": ["op", "of", "path"],
       "additionalProperties": false
     },
     "id": {
@@ -174,10 +142,7 @@
           "$ref": "#/$defs/resource"
         }
       },
-      "required": [
-        "op",
-        "of"
-      ],
+      "required": ["op", "of"],
       "additionalProperties": false
     },
     "rev": {
@@ -190,10 +155,7 @@
           "$ref": "#/$defs/resource"
         }
       },
-      "required": [
-        "op",
-        "of"
-      ],
+      "required": ["op", "of"],
       "additionalProperties": false
     },
     "value": {
@@ -236,10 +198,7 @@
           }
         }
       },
-      "required": [
-        "op",
-        "operands"
-      ],
+      "required": ["op", "operands"],
       "additionalProperties": false
     },
     "or": {
@@ -256,10 +215,7 @@
           }
         }
       },
-      "required": [
-        "op",
-        "operands"
-      ],
+      "required": ["op", "operands"],
       "additionalProperties": false
     },
     "not": {
@@ -272,10 +228,7 @@
           "$ref": "#/$defs/predicate"
         }
       },
-      "required": [
-        "op",
-        "predicate"
-      ],
+      "required": ["op", "predicate"],
       "additionalProperties": false
     },
     "compare": {
@@ -285,14 +238,7 @@
           "const": "compare"
         },
         "operator": {
-          "enum": [
-            "eq",
-            "ne",
-            "lt",
-            "le",
-            "gt",
-            "ge"
-          ]
+          "enum": ["eq", "ne", "lt", "le", "gt", "ge"]
         },
         "left": {
           "$ref": "#/$defs/operand"
@@ -301,12 +247,7 @@
           "$ref": "#/$defs/operand"
         }
       },
-      "required": [
-        "op",
-        "operator",
-        "left",
-        "right"
-      ],
+      "required": ["op", "operator", "left", "right"],
       "additionalProperties": false
     },
     "present": {
@@ -319,10 +260,7 @@
           "$ref": "#/$defs/field"
         }
       },
-      "required": [
-        "op",
-        "value"
-      ],
+      "required": ["op", "value"],
       "additionalProperties": false
     },
     "contains": {
@@ -338,11 +276,7 @@
           "$ref": "#/$defs/value"
         }
       },
-      "required": [
-        "op",
-        "text",
-        "substring"
-      ],
+      "required": ["op", "text", "substring"],
       "additionalProperties": false
     },
     "member": {
@@ -358,11 +292,7 @@
           "$ref": "#/$defs/value"
         }
       },
-      "required": [
-        "op",
-        "value",
-        "array"
-      ],
+      "required": ["op", "value", "array"],
       "additionalProperties": false
     },
     "typeIs": {
@@ -380,18 +310,10 @@
           "minLength": 1
         },
         "match": {
-          "enum": [
-            "family",
-            "exact"
-          ]
+          "enum": ["family", "exact"]
         }
       },
-      "required": [
-        "op",
-        "of",
-        "type",
-        "match"
-      ],
+      "required": ["op", "of", "type", "match"],
       "additionalProperties": false
     },
     "any": {
@@ -411,18 +333,11 @@
           "$ref": "#/$defs/predicate"
         }
       },
-      "required": [
-        "op",
-        "input"
-      ],
+      "required": ["op", "input"],
       "additionalProperties": false,
       "dependentRequired": {
-        "predicate": [
-          "bind"
-        ],
-        "bind": [
-          "predicate"
-        ]
+        "predicate": ["bind"],
+        "bind": ["predicate"]
       }
     },
     "all": {
@@ -442,12 +357,7 @@
           "$ref": "#/$defs/predicate"
         }
       },
-      "required": [
-        "op",
-        "input",
-        "bind",
-        "predicate"
-      ],
+      "required": ["op", "input", "bind", "predicate"],
       "additionalProperties": false
     },
     "predicate": {
@@ -494,16 +404,10 @@
           "const": "scan"
         },
         "collection": {
-          "enum": [
-            "beads",
-            "links"
-          ]
+          "enum": ["beads", "links"]
         }
       },
-      "required": [
-        "op",
-        "collection"
-      ],
+      "required": ["op", "collection"],
       "additionalProperties": false
     },
     "refs": {
@@ -513,10 +417,7 @@
           "const": "refs"
         },
         "collection": {
-          "enum": [
-            "beads",
-            "links"
-          ]
+          "enum": ["beads", "links"]
         },
         "references": {
           "oneOf": [
@@ -542,10 +443,7 @@
                         "minLength": 1
                       }
                     },
-                    "required": [
-                      "uri",
-                      "revision"
-                    ],
+                    "required": ["uri", "revision"],
                     "additionalProperties": false
                   }
                 ]
@@ -558,11 +456,7 @@
           ]
         }
       },
-      "required": [
-        "op",
-        "collection",
-        "references"
-      ],
+      "required": ["op", "collection", "references"],
       "additionalProperties": false
     },
     "filter": {
@@ -582,12 +476,7 @@
           "$ref": "#/$defs/predicate"
         }
       },
-      "required": [
-        "op",
-        "input",
-        "bind",
-        "predicate"
-      ],
+      "required": ["op", "input", "bind", "predicate"],
       "additionalProperties": false
     },
     "walk": {
@@ -600,11 +489,7 @@
           "$ref": "#/$defs/roots"
         },
         "direction": {
-          "enum": [
-            "incoming",
-            "outgoing",
-            "connected"
-          ]
+          "enum": ["incoming", "outgoing", "connected"]
         },
         "depth": {
           "oneOf": [
@@ -625,19 +510,11 @@
           "$ref": "#/$defs/predicate"
         }
       },
-      "required": [
-        "op",
-        "roots",
-        "direction"
-      ],
+      "required": ["op", "roots", "direction"],
       "additionalProperties": false,
       "dependentRequired": {
-        "through": [
-          "bind"
-        ],
-        "bind": [
-          "through"
-        ]
+        "through": ["bind"],
+        "bind": ["through"]
       }
     },
     "endpoints": {
@@ -650,17 +527,10 @@
           "$ref": "#/$defs/collection"
         },
         "side": {
-          "enum": [
-            "source",
-            "target"
-          ]
+          "enum": ["source", "target"]
         }
       },
-      "required": [
-        "op",
-        "input",
-        "side"
-      ],
+      "required": ["op", "input", "side"],
       "additionalProperties": false
     },
     "collection": {
@@ -701,9 +571,7 @@
           "minLength": 1
         }
       },
-      "required": [
-        "binding"
-      ],
+      "required": ["binding"],
       "additionalProperties": false
     }
   }

@@ -13,9 +13,7 @@
             "title": "Cache design",
             "team": "platform",
             "nullable": null,
-            "labels": [
-              "memory"
-            ],
+            "labels": ["memory"],
             "priority": 1
           },
           "metadata": {}
@@ -136,15 +134,9 @@
         }
       ],
       "typeParents": {
-        "https://work.example/acme/policy": [
-          "https://work.example/acme/constraint"
-        ],
-        "https://work.example/acme/requirement": [
-          "https://work.example/acme/constraint"
-        ],
-        "https://work.example/acme/defines": [
-          "https://work.example/acme/requires"
-        ]
+        "https://work.example/acme/policy": ["https://work.example/acme/constraint"],
+        "https://work.example/acme/requirement": ["https://work.example/acme/constraint"],
+        "https://work.example/acme/defines": ["https://work.example/acme/requires"]
       }
     },
     "pins": {
@@ -356,12 +348,8 @@
         }
       ],
       "typeParents": {
-        "https://work.example/acme/encoding-note": [
-          "https://work.example/acme/note"
-        ],
-        "https://work.example/acme/explains": [
-          "https://work.example/acme/references"
-        ]
+        "https://work.example/acme/encoding-note": ["https://work.example/acme/note"],
+        "https://work.example/acme/explains": ["https://work.example/acme/references"]
       },
       "notes": [
         "Scope-local fixture Types; no provider installation or standard Type package is implied.",
@@ -386,9 +374,7 @@
       ],
       "links": [],
       "typeParents": {
-        "https://work.example/acme/encoding-note": [
-          "https://work.example/acme/note"
-        ]
+        "https://work.example/acme/encoding-note": ["https://work.example/acme/note"]
       },
       "interpretationNote": "Fixture assumes the recorded exact encoding-definition-1 declares the note parent in the authoritative interpreting context; nominal exact matching ignores this pin."
     },
@@ -565,12 +551,8 @@
         }
       ],
       "typeParents": {
-        "https://work.example/acme/encoding-note": [
-          "https://work.example/acme/note"
-        ],
-        "https://work.example/acme/explains": [
-          "https://work.example/acme/references"
-        ]
+        "https://work.example/acme/encoding-note": ["https://work.example/acme/note"],
+        "https://work.example/acme/explains": ["https://work.example/acme/references"]
       },
       "notes": [
         "Scope-local fixture Types; no provider installation or standard Type package is implied.",

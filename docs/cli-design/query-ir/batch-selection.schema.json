@@ -9,19 +9,12 @@
       "const": "bdp-query-design-1"
     },
     "profile": {
-      "enum": [
-        "list",
-        "query"
-      ]
+      "enum": ["list", "query"]
     },
     "selection": {
       "$ref": "https://example.invalid/bdp-query-design-1.schema.json#/$defs/collection"
     }
   },
-  "required": [
-    "ir",
-    "profile",
-    "selection"
-  ],
+  "required": ["ir", "profile", "selection"],
   "additionalProperties": false
 }

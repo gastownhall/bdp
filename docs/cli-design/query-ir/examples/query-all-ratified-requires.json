@@ -6,9 +6,7 @@
     "input": {
       "op": "refs",
       "collection": "beads",
-      "references": [
-        "https://work.example/acme/A"
-      ]
+      "references": ["https://work.example/acme/A"]
     },
     "bind": "b",
     "predicate": {
@@ -46,10 +44,7 @@
             },
             "side": "target"
           },
-          "path": [
-            "properties",
-            "status"
-          ]
+          "path": ["properties", "status"]
         },
         "right": {
           "op": "literal",

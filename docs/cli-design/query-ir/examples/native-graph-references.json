@@ -7,9 +7,7 @@
       "roots": {
         "op": "refs",
         "collection": "beads",
-        "references": [
-          "https://work.example/acme/csv-plan"
-        ]
+        "references": ["https://work.example/acme/csv-plan"]
       },
       "direction": "outgoing",
       "depth": 2,

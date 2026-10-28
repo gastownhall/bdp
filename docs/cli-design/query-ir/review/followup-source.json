@@ -37,12 +37,6 @@
     }
   ],
   "stdoutSha256": "14bdf31575c211d685cdcf419a2d40699cd9fb09302be5bbb2862a60cb834f92",
-  "notExecuted": [
-    "validator",
-    "Query evaluator",
-    "bd CLI",
-    "HTTP transport",
-    "backend"
-  ],
+  "notExecuted": ["validator", "Query evaluator", "bd CLI", "HTTP transport", "backend"],
   "subsequentFixes": "Recorded in review/README.md; static checks refreshed separately."
 }

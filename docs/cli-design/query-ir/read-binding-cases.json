@@ -6,11 +6,7 @@
       "kind": "capability",
       "value": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list",
-          "graph",
-          "query"
-        ],
+        "profiles": ["list", "graph", "query"],
         "sort": true,
         "unboundedTraversal": true,
         "limits": {
@@ -30,9 +26,7 @@
       "kind": "capability",
       "value": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list"
-        ],
+        "profiles": ["list"],
         "sort": false,
         "unboundedTraversal": false,
         "limits": {
@@ -52,9 +46,7 @@
       "kind": "capability",
       "value": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "query"
-        ],
+        "profiles": ["query"],
         "sort": true,
         "unboundedTraversal": true,
         "limits": {
@@ -127,9 +119,7 @@
             "form": "count"
           },
           "projection": {
-            "include": [
-              "/properties/title"
-            ]
+            "include": ["/properties/title"]
           }
         },
         "sort": {
@@ -155,9 +145,7 @@
             "form": "count"
           },
           "projection": {
-            "include": [
-              "/properties/title"
-            ]
+            "include": ["/properties/title"]
           }
         },
         "limit": 25
@@ -196,9 +184,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/csv-plan"
-              ]
+              "references": ["https://work.example/acme/csv-plan"]
             },
             "direction": "outgoing",
             "depth": 2,
@@ -233,9 +219,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/csv-plan"
-              ]
+              "references": ["https://work.example/acme/csv-plan"]
             },
             "direction": "outgoing",
             "depth": 2,
@@ -344,9 +328,7 @@
           ],
           "next": null,
           "projection": {
-            "include": [
-              "/properties/absent"
-            ]
+            "include": ["/properties/absent"]
           }
         },
         "evaluation": {
@@ -892,9 +874,7 @@
       "kind": "capability",
       "value": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list"
-        ],
+        "profiles": ["list"],
         "sort": false,
         "unboundedTraversal": true,
         "limits": {
@@ -915,10 +895,7 @@
       "kind": "capability",
       "value": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list",
-          "graph"
-        ],
+        "profiles": ["list", "graph"],
         "sort": false,
         "unboundedTraversal": true,
         "limits": {
@@ -1101,10 +1078,7 @@
                       "op": "binding",
                       "name": "b"
                     },
-                    "path": [
-                      "properties",
-                      "status"
-                    ]
+                    "path": ["properties", "status"]
                   },
                   "right": {
                     "op": "literal",
@@ -1123,11 +1097,7 @@
       "operation": "list",
       "capability": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list",
-          "graph",
-          "query"
-        ],
+        "profiles": ["list", "graph", "query"],
         "sort": true,
         "unboundedTraversal": true,
         "limits": {
@@ -1176,10 +1146,7 @@
                       "op": "binding",
                       "name": "b"
                     },
-                    "path": [
-                      "properties",
-                      "status"
-                    ]
+                    "path": ["properties", "status"]
                   },
                   "right": {
                     "op": "literal",
@@ -1193,9 +1160,7 @@
             "form": "resources"
           },
           "projection": {
-            "include": [
-              "/properties/title"
-            ]
+            "include": ["/properties/title"]
           }
         }
       },
@@ -1203,11 +1168,7 @@
       "operation": "list",
       "capability": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list",
-          "graph",
-          "query"
-        ],
+        "profiles": ["list", "graph", "query"],
         "sort": true,
         "unboundedTraversal": true,
         "limits": {
@@ -1256,10 +1217,7 @@
                       "op": "binding",
                       "name": "b"
                     },
-                    "path": [
-                      "properties",
-                      "status"
-                    ]
+                    "path": ["properties", "status"]
                   },
                   "right": {
                     "op": "literal",
@@ -1278,11 +1236,7 @@
       "operation": "list",
       "capability": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list",
-          "graph",
-          "query"
-        ],
+        "profiles": ["list", "graph", "query"],
         "sort": true,
         "unboundedTraversal": true,
         "limits": {
@@ -1331,10 +1285,7 @@
                       "op": "binding",
                       "name": "b"
                     },
-                    "path": [
-                      "properties",
-                      "status"
-                    ]
+                    "path": ["properties", "status"]
                   },
                   "right": {
                     "op": "literal",
@@ -1357,11 +1308,7 @@
       "operation": "list",
       "capability": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list",
-          "graph",
-          "query"
-        ],
+        "profiles": ["list", "graph", "query"],
         "sort": false,
         "unboundedTraversal": true,
         "limits": {
@@ -1387,9 +1334,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/csv-plan"
-              ]
+              "references": ["https://work.example/acme/csv-plan"]
             },
             "direction": "outgoing",
             "depth": "unbounded",
@@ -1413,11 +1358,7 @@
       "operation": "query",
       "capability": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list",
-          "graph",
-          "query"
-        ],
+        "profiles": ["list", "graph", "query"],
         "sort": true,
         "unboundedTraversal": false,
         "limits": {
@@ -1443,9 +1384,7 @@
             "roots": {
               "op": "refs",
               "collection": "beads",
-              "references": [
-                "https://work.example/acme/csv-plan"
-              ]
+              "references": ["https://work.example/acme/csv-plan"]
             },
             "direction": "outgoing",
             "depth": 2,
@@ -1469,10 +1408,7 @@
       "operation": "query",
       "capability": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list",
-          "graph"
-        ],
+        "profiles": ["list", "graph"],
         "sort": true,
         "unboundedTraversal": true,
         "limits": {
@@ -1512,11 +1448,7 @@
       "operation": "query",
       "capability": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list",
-          "graph",
-          "query"
-        ],
+        "profiles": ["list", "graph", "query"],
         "sort": true,
         "unboundedTraversal": true,
         "limits": {
@@ -1553,10 +1485,7 @@
                   "op": "binding",
                   "name": "b"
                 },
-                "path": [
-                  "properties",
-                  "data"
-                ]
+                "path": ["properties", "data"]
               },
               "right": {
                 "op": "literal",
@@ -1576,9 +1505,7 @@
       "operation": "list",
       "capability": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list"
-        ],
+        "profiles": ["list"],
         "sort": false,
         "unboundedTraversal": false,
         "limits": {
@@ -1615,10 +1542,7 @@
                   "op": "binding",
                   "name": "b"
                 },
-                "path": [
-                  "properties",
-                  "data"
-                ]
+                "path": ["properties", "data"]
               },
               "right": {
                 "op": "literal",
@@ -1637,9 +1561,7 @@
       "operation": "list",
       "capability": {
         "operation": "https://work.example/acme/operations/read",
-        "profiles": [
-          "list"
-        ],
+        "profiles": ["list"],
         "sort": false,
         "unboundedTraversal": false,
         "limits": {

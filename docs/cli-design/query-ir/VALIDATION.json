@@ -73,15 +73,15 @@
     },
     {
       "path": "docs/cli-design/query-ir/query.schema.json",
-      "sha256": "0e0576bcccc2f19a743531f343d683ba91ae7529ab0d5246167ce87d889ffa15"
+      "sha256": "bf5fbf0b89f74273122c28b944907dd3e0fdb057d9266fdee4de9c0dfcbaeaa8"
     },
     {
       "path": "docs/cli-design/query-ir/cases.json",
-      "sha256": "c6552a42d8cfeb13bc76705e0cc7c4b2b745f69bbba477efcee3df7a9cd226f5"
+      "sha256": "923c0bf5e75affc7f53101edc9e9a70808a102d4a713cdbe24da30043ca48d9e"
     },
     {
       "path": "docs/cli-design/query-ir/fixtures.json",
-      "sha256": "facc9e30025d3cc752aa33e31e3c755937189d474f814824246f7a3d6c5d1400"
+      "sha256": "e54d9a585e6b77af14191fc4a20bdd21bc2c232f13c400f08991963ec164e06e"
     },
     {
       "path": "docs/cli-design/query-ir/validate.py",
@@ -89,23 +89,23 @@
     },
     {
       "path": "docs/cli-design/query-ir/examples/list-draft-notes.json",
-      "sha256": "4b21f80027a59e0ce79ea5dbd89e64e92e748985847469947228dbd984b4bfc0"
+      "sha256": "198f41086dca83d7a1a10a9cf85c00a1f7e9835526d2f232865d1bfa8be2529a"
     },
     {
       "path": "docs/cli-design/query-ir/examples/graph-references.json",
-      "sha256": "50266862c08c0d6d7dfc44cfa5f83ff5715c83271966844d61fa63a7aa6834f9"
+      "sha256": "1264135835719c7d33f0aac1c4e95c2425e1a9cd931bd4693a03e28d31647ee6"
     },
     {
       "path": "docs/cli-design/query-ir/examples/query-any-ratified-reference.json",
-      "sha256": "02913f8942b507b825731bce3c2cc9b5be6374e22ce36c77ab0b7e3e7415e954"
+      "sha256": "faa68242e5863d77f7a32b3cee2524897ec5c1282779f508a0a85062d4f5f34e"
     },
     {
       "path": "docs/cli-design/query-ir/examples/query-all-ratified-requires.json",
-      "sha256": "92a1633ace90f8001426bc0da9682350ad0cfbf8aea0e3c8e0bdd75e9bb45625"
+      "sha256": "160139bd3c93318b1787e0a5f3e575fd214a28a1caaed250d1a0483eec8b987b"
     },
     {
       "path": "docs/cli-design/query-ir/examples/index.json",
-      "sha256": "fa751f19b08a5323263e840cb64c44f892eb17a87375e3bce779e4ef649fe1d3"
+      "sha256": "02497fd3b91374274cab073be52cddcec5aec257a485c78675ba8ef7a40418c7"
     },
     {
       "path": "docs/cli-design/query-ir/syntax-cases.json",
@@ -121,11 +121,11 @@
     },
     {
       "path": "docs/cli-design/query-ir/review/followup-source.json",
-      "sha256": "74b346609bf5856e89ed62e5b6e38afad1c10e7c23483dafd8b2b2a4c4c60c85"
+      "sha256": "15ed59cc5685646775b194d90aab4b2152d1b4f1758e750ccdf76fe992979fa8"
     },
     {
       "path": "docs/cli-design/overview/05-revisions.fixture.json",
-      "sha256": "e89ef396aef787b61cedf378d6c4e0b26d40ae0411c0379cfb87a3710f149326"
+      "sha256": "d7202c9e1fcf429bb35e2a6eacebeff251699164f7a77df284c978a56f323909"
     }
   ]
 }

@@ -234,8 +234,5 @@
     },
     "requires": "authoritative historical-content adapter, not GET plus replacement"
   },
-  "deletedIds": [
-    "csv-context",
-    "csv-checks"
-  ]
+  "deletedIds": ["csv-context", "csv-checks"]
 }

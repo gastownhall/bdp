@@ -14,23 +14,17 @@
       {
         "operationIndex": 0,
         "operation": "createBead",
-        "ids": [
-          "https://work.example/acme/csv-headings"
-        ]
+        "ids": ["https://work.example/acme/csv-headings"]
       },
       {
         "operationIndex": 1,
         "operation": "createBead",
-        "ids": [
-          "https://work.example/acme/csv-empty-output"
-        ]
+        "ids": ["https://work.example/acme/csv-empty-output"]
       },
       {
         "operationIndex": 2,
         "operation": "createLink",
-        "ids": [
-          "https://work.example/acme/csv-acceptance-order"
-        ]
+        "ids": ["https://work.example/acme/csv-acceptance-order"]
       }
     ],
     "changedIds": [
@@ -63,63 +57,44 @@
       "checks": {
         "kind": "bead",
         "shape": "identity",
-        "ids": [
-          "https://work.example/acme/p8k4m"
-        ]
+        "ids": ["https://work.example/acme/p8k4m"]
       },
       "connection": {
         "kind": "link",
         "shape": "identity",
-        "ids": [
-          "https://work.example/acme/r6n2v"
-        ]
+        "ids": ["https://work.example/acme/r6n2v"]
       },
       "draft-notes": {
         "kind": "bead",
         "shape": "set",
-        "ids": [
-          "https://work.example/acme/csv-review",
-          "https://work.example/acme/p8k4m"
-        ]
+        "ids": ["https://work.example/acme/csv-review", "https://work.example/acme/p8k4m"]
       }
     },
     "memberIdentityMappings": [
       {
         "operationIndex": 0,
         "operation": "createBead",
-        "ids": [
-          "https://work.example/acme/p8k4m"
-        ]
+        "ids": ["https://work.example/acme/p8k4m"]
       },
       {
         "operationIndex": 1,
         "operation": "createLink",
-        "ids": [
-          "https://work.example/acme/r6n2v"
-        ]
+        "ids": ["https://work.example/acme/r6n2v"]
       },
       {
         "operationIndex": 2,
         "operation": "select",
-        "ids": [
-          "https://work.example/acme/csv-review",
-          "https://work.example/acme/p8k4m"
-        ]
+        "ids": ["https://work.example/acme/csv-review", "https://work.example/acme/p8k4m"]
       },
       {
         "operationIndex": 3,
         "operation": "updateBead",
-        "ids": [
-          "https://work.example/acme/csv-review",
-          "https://work.example/acme/p8k4m"
-        ]
+        "ids": ["https://work.example/acme/csv-review", "https://work.example/acme/p8k4m"]
       },
       {
         "operationIndex": 4,
         "operation": "updateBead",
-        "ids": [
-          "https://work.example/acme/csv-draft"
-        ]
+        "ids": ["https://work.example/acme/csv-draft"]
       }
     ],
     "changedIds": [
@@ -136,52 +111,37 @@
       "ready-links": {
         "kind": "link",
         "shape": "set",
-        "ids": [
-          "https://work.example/acme/r6n2v"
-        ]
+        "ids": ["https://work.example/acme/r6n2v"]
       },
       "ready-checks": {
         "kind": "bead",
         "shape": "set",
-        "ids": [
-          "https://work.example/acme/p8k4m"
-        ]
+        "ids": ["https://work.example/acme/p8k4m"]
       }
     },
     "memberIdentityMappings": [
       {
         "operationIndex": 0,
         "operation": "select",
-        "ids": [
-          "https://work.example/acme/r6n2v"
-        ]
+        "ids": ["https://work.example/acme/r6n2v"]
       },
       {
         "operationIndex": 1,
         "operation": "select",
-        "ids": [
-          "https://work.example/acme/p8k4m"
-        ]
+        "ids": ["https://work.example/acme/p8k4m"]
       },
       {
         "operationIndex": 2,
         "operation": "deleteLink",
-        "ids": [
-          "https://work.example/acme/r6n2v"
-        ]
+        "ids": ["https://work.example/acme/r6n2v"]
       },
       {
         "operationIndex": 3,
         "operation": "deleteBead",
-        "ids": [
-          "https://work.example/acme/p8k4m"
-        ]
+        "ids": ["https://work.example/acme/p8k4m"]
       }
     ],
-    "deletedIds": [
-      "https://work.example/acme/p8k4m",
-      "https://work.example/acme/r6n2v"
-    ],
+    "deletedIds": ["https://work.example/acme/p8k4m", "https://work.example/acme/r6n2v"],
     "expectedPublishedLifecycleFacts": 2
   },
   "empty": {
@@ -238,14 +198,8 @@
     "https://work.example/acme/csv-empty-output",
     "https://work.example/acme/csv-headings"
   ],
-  "newDeletedIds": [
-    "https://work.example/acme/p8k4m",
-    "https://work.example/acme/r6n2v"
-  ],
-  "priorDeletedIds": [
-    "csv-context",
-    "csv-checks"
-  ],
+  "newDeletedIds": ["https://work.example/acme/p8k4m", "https://work.example/acme/r6n2v"],
+  "priorDeletedIds": ["csv-context", "csv-checks"],
   "refusalExamplesChecked": [
     "fixed-ID-creation-plus-stale-guide-guard",
     "stale-guide-guard-before-publication",
