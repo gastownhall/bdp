@@ -1895,7 +1895,7 @@ import {openRecoveryStore} from ${JSON.stringify(emittedStore)};
 import {parseTypeDescriptor,prepareReadUpdateSequence,stringifyJsonValue} from ${JSON.stringify(emittedProtocol)};
 import {writeSync} from 'node:fs';
 const [directory,mode]=process.argv.slice(2);
-if(process.version!=='v24.16.0')throw Error('wrong pinned interpreter: '+process.version);
+if(process.version!=='v24.22.1')throw Error('wrong pinned interpreter: '+process.version);
 const scope=${JSON.stringify(scope)},type=${JSON.stringify(type)},day=${day},start=${start};
 const descriptor=parseTypeDescriptor({id:type,name:'child Bead',describes:'bead',conformsTo:[]});
 const bytes=stringifyJsonValue(descriptor);
@@ -1947,7 +1947,7 @@ interface ChildFixture {
   exited: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
 }
 function startSequenceChild(dir: string, mode: string): ChildFixture {
-  expect(process.version).toBe("v24.16.0");
+  expect(process.version).toBe("v24.22.1");
   const filename = path.join(directory(), "sequence-child.mjs");
   writeFileSync(filename, childProgram);
   const child = spawn(process.execPath, [filename, dir, mode], {
@@ -2109,7 +2109,7 @@ describe("real event loop and emitted child ownership", () => {
     const dir = directory(),
       child = startSequenceChild(dir, "crash");
     const ready = await child.wait("ready");
-    expect(ready.ready).toMatchObject({ node: "v24.16.0", lockingMode: "exclusive" });
+    expect(ready.ready).toMatchObject({ node: "v24.22.1", lockingMode: "exclusive" });
     const barrier = await child.wait("barrier");
     expect(barrier).toMatchObject({ barrier: "after-two", dispatch: 3 });
     child.child.kill("SIGKILL");
