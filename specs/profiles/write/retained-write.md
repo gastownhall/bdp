@@ -10,8 +10,9 @@ Write inherits [retained Core](../core/retained-core.md) and adds individually a
 Resource CRUD and aliases, safe retry outcomes and committed required Event facts.
 The [canonical CLI](../../../docs/cli-design/bdp-cli.md) expresses the same operations.
 This is selected v0.1 source, not the inherited Read+Update/Transactional contract
-or an implementation claim. Events and final batch publication have paired source;
-actual Types/source integration and qualification remain gates.
+or an implementation claim. Events, final publication and Types/common-source
+counterparts have paired source in the [current source map](../../../docs/design/bdp-v0.1-current-source-map.md).
+Implementation and consumer qualification remain separate.
 
 ## Eight ordinary targets, one Scope and complete outcomes
 
@@ -155,7 +156,8 @@ Required [Event facts](../core/events.md) become durable with effects. Donna has
 selected required postimages/optional deltas and declared coverage/bounded replay/
 explicit gaps. Final publication, owner context and Events agree under the selected
 amendment; earlier operation-local batch examples are superseded. Replica
-Event/epoch/receipt machinery is not imported. This entry cannot
-be advertised as complete until actual composition and qualification finish.
+Event/epoch/receipt machinery is not imported. Paired selected source is assembled;
+a service may advertise this entry only after its own complete implementation and
+consumer-facing qualification.
 Ordinary reads retain Core semantics: no cross-replica freshness
 checkpoint/read-your-writes guarantee or hot-tier absence shortcut is added.

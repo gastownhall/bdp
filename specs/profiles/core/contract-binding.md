@@ -84,9 +84,9 @@ snapshot contains **163 definitions**. Later paired amendments can extend that
 artifact; this source-slice count is not a permanent definition count. See its [paired source record](../../../docs/design/bdp-v0.1-affiliation-port.md).
 
 Unreplaced native payload, profile-token and advanced definitions remain inherited
-**staging inputs**, not a decision to retain them. Retained Core/Write factoring,
-actual Types composition and the required Event contract remain adoption gates;
-the common affiliation port does not close every #279 seam. Copying inherited
-grammar does not revive Experimental facilities or make a staged bundle independently
-adoptable.
+**staging inputs**, not a decision to retain them. The selected retained Core/Write,
+Types and required Event source compose as recorded in the current source map;
+implementation and concrete consumer qualification remain separate. Copying
+inherited grammar does not revive Experimental facilities or make an unselected
+helper an advertised capability.
 The old [v0 artifact](bdp-v0.schema.json), its distribution copy and existing parsers remain byte-bound to their old contract. This is artifact isolation, not an additional implementation or compatibility campaign. New source/schema work targets the v0.1 artifact; PR284 is preserved as the accepted carrier input for that port, without silently upgrading v0 validators. Inherited v0 HTTP examples in Core/Write remain explicitly inherited until their corresponding retained sections are retargeted. No old test/report/catalog digest becomes a v0.1 PASS from these source changes.

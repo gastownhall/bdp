@@ -268,8 +268,9 @@ failed decision rolls back normally. Provenance, final owner context and complet
 results follow that amendment and the [batch contract](../write/atomic-batch.md).
 Two separately committed singleton writes still retain their two facts.
 
-Types activation/intrinsics source propagation, normal integration and qualification
-also remain gates. The inherited Transactional `event`/`updatedData`/`ownedLinkDelta`
+The [current source map](../../../docs/design/bdp-v0.1-current-source-map.md) records
+the paired Types/common-source composition. Actual activation/intrinsics execution
+and provider/consumer qualification remain separate. The inherited Transactional `event`/`updatedData`/`ownedLinkDelta`
 definitions and old `linked`/`unlinked` examples remain staging input, not this
 entry. No runtime, provider, CLI, SSE or installed/full-suite proof is claimed by
 the accompanying grammar and paper cases.

@@ -11,8 +11,9 @@ paired with the [canonical CLI](../../../docs/cli-design/bdp-cli.md). It replace
 inherited cumulative Read/Read+Update/Transactional **selection model** for this
 candidate, not the old v0 contract. The required [Event source](events.md) uses
 Donna's accepted postimage/replay minimum. The [publication amendment](publication.md)
-defines final batch/owner states. Actual Types/profile integration and normal
-qualification remain adoption gates.
+defines final batch/owner states. The [current source map](../../../docs/design/bdp-v0.1-current-source-map.md)
+records the assembled Types/common-source counterparts; implementation and consumer
+qualification remain separate from this specification source.
 
 ## Closed responsibility boundary
 

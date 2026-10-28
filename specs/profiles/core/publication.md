@@ -126,5 +126,6 @@ bounded result. Recovery returns that exact result under current disclosure, not
 a later GET, fresh Type default, new revision or another pass through members.
 Changing labels can reproject identity mappings by existing input index; it cannot
 change final state/outcomes. No public receipt, replica checkpoint or global
-revision mechanism is introduced. Normal Types/source integration and actual
-implementation qualification still precede adoption.
+revision mechanism is introduced. The [current source map](../../../docs/design/bdp-v0.1-current-source-map.md)
+records the assembled Types/common-source contract; implementation and concrete
+consumer qualification remain separate.
