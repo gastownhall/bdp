@@ -1,6 +1,6 @@
 # BDPv0.1 decision/status register
 
-**NON-NORMATIVE INDEX — WORKING-POR BASELINE REVIEWED; ENGAGEMENT APPROVED.**
+**NON-NORMATIVE INDEX — CURRENT SOURCE DISPOSITIONS, WITH HISTORICAL RECEIPTS.**
 This register links existing concrete issues and human-ruling receipts. It is
 not a specification, competing tracker, runtime support matrix or adoption ACK.
 Start at [the specs front door](../../specs/README.md) and
@@ -8,12 +8,42 @@ Start at [the specs front door](../../specs/README.md) and
 Donna reviewed the front door/register at
 [`2265a640ec594235334752244d8a799f93f12ece`](https://github.com/gastownhall/bdp/commit/2265a640ec594235334752244d8a799f93f12ece)
 and [approved engagement through Trish on October22](https://github.com/gastownhall/bdp/pull/285#issuecomment-6349188134).
-This editorial successor
-resolves her inline comments and records that approval. Trish owns phase3
-communication and owner-impact requests. The linked semantic drafts remain
-unadopted; engagement does not lift implementation holds.
+That approval concerns the original working-POR baseline. Donna's October27
+instruction now authorizes aligning Core/Read/Write with the canonical CLI and
+ordinary reviewed main landing. Semantic selection, source incorporation,
+publication and executed runtime conformance remain distinct. This index records
+their status; it does not select an unaccepted proposal by describing it.
 
-## Source, authority and coverage boundary
+## Current incorporation October27
+
+Main is the canonical published source; `codex/bdp-v0.1` remains the single
+assembly route. Read the [selected entries and status map](../../specs/README.md)
+at the same exact source revision. The dated rows below preserve the original
+recovery record: their former pending markers and CLI syntax are not current
+requirements where the following source/status table supersedes them. No second
+29-case historical audit or consumer census is implied.
+
+| Family / existing record | Current source disposition | Remaining boundary / owner |
+| --- | --- | --- |
+| Mutable exact affiliations /279 | [Affiliations](../../specs/profiles/core/affiliations.md), ordinary Write and canonical/distribution v0.1 schema physically composed through300/301; Type-only edits are no longer just284 grammar preparation | Sybil owns current endpoint/multi-owner/result correspondence; Trish exact Type interpretation. Provider conformance remains separate |
+| Scope paths, namespace and discovery /280 | [Core](../../specs/profiles/core/core.md) and paired scope/reference/read-delivery source carry rootless Scope-defined paths; path spelling does not establish kind | Exact consumer pins retain their own behavior; no general relocation/trust contract inferred |
+| Ordinary object edits /279 | [Object edits](../../specs/profiles/write/object-edits.md), explicit affiliation and optional revision guards compose with final validation | Existing property-access and authorization constraints apply; no new mandatory guard |
+| Final publication and batch /152 | [Publication](../../specs/profiles/core/publication.md), [retained Write](../../specs/profiles/write/retained-write.md), [atomic batch](../../specs/profiles/write/atomic-batch.md) and matched artifacts physically composed | Six-CRUD v1 remains distinct from richer transaction-selection/Query/set extension; selected outcomes do not silently adopt every proposed encoding |
+| Required lifecycle Events /153 | [Events](../../specs/profiles/core/events.md) supplies the integrated final-state baseline, postimages and mutation vocabulary; the old delta-only/payload-open snapshots below are superseded | Current endpoint correction needs matching incident/context/result propagation; actual Event producer qualification is separate |
+| Types, descriptors and exact definition reads /282 | [Types](../../specs/profiles/types/types.md), [descriptor](../../specs/types/type-system/type-system.md), complete exact-read binding and fixtures physically composed from283/301 and later editorial source | General lifecycle verbs/acquisition and broader alias cases remain outside the adopted cut; narrow exact reads do not require general application History |
+| Correct either Link endpoint, preserving identity /279 | [Direct ruling](https://github.com/gastownhall/bdp/issues/59#issuecomment-6457645585) selected; Types ownership counterpart accounts for initial/final source captures and literal retained editions | Sybil's paired whole-Reference input, complete owner result/schema/Event source must be incorporated before claiming service support; no repeat identity vote |
+| Shared Resource projection for GET/exact GET/List | Selected Read decision; preserve selected saved edition, protected identity/Type/revision/whole endpoints and authorization | Melinda supplies exact Read correspondence to Sybil's common writer; Versions summaries/historical List population are not added by implication |
+| Current canonical CLI syntax | [CLI entry](../cli-design/bdp-cli.md) and paired helpers at this same source revision are the current informative correspondence | Historical R05/early helpers must not restore superseded standalone revision flags or Reference escapes. Sybil owns reconciliation; CLI publication is not an executed compiler |
+| All retained-data export/restore | Donna selected complete retained data, including unreferenced History and retained deleted content; source must preserve per-edition interpretation | Iris transfer with Melinda/Sybil/Polly/Trish/Janet at their seams; native carrier and actual writable-recovery continuity remain concrete work, not generic profile prerequisites |
+| Broader aliases /299 | Deliberately deferred; current in-Scope Bead alias contract retained | Foreign, Link and exact-revision aliases do not enter via an old Types sketch |
+| Provenance, Query and richer extension proposals | Keep actual accepted outcomes separate from unselected mechanism/encoding drafts and Experimental | Existing family owners provide residual disposition; ordinary source mechanics do not require a new blanket human approval |
+
+Existing issue/PR source receipts and actual main adoption commits remain the
+closure evidence. An open historical PR can be incorporated or superseded without
+merging its ancestry. A listed remaining source seam is not a reason to reopen an
+accepted semantic choice or silently advertise an unimplemented provider feature.
+
+## Historical source, authority and coverage boundary
 
 Source branch is `codex/bdp-v0.1`, curation base
 [`365f337fd161e0c888b0ab6dc3a632bfbcb28581`](https://github.com/gastownhall/bdp/commit/365f337fd161e0c888b0ab6dc3a632bfbcb28581).
@@ -34,7 +64,7 @@ Conversely an accepted rule can remain unincorporated. Preserve the contract
 actually pinned by a consumer and record discrepancies against the selected
 target instead of inferring implementation support.
 
-## Decision, specification, communication and implementation coverage
+## Historical decision and coverage snapshot
 
 The29 original recovery IDs below remain stable for comparison. **A** means an
 accepted direction with the stated propagation status; **O** an open decision;
@@ -118,12 +148,12 @@ positional URI grammar remain proposals. Product Issue-family defaults and
 a special full-URI `/any` exception. Preserve the relevant product owner record
 without adopting those broader meanings here.
 
-### Later candidate source pointers; decision dispositions unchanged
+### Historical candidate source pointers
 
 Draft [PR286](https://github.com/gastownhall/bdp/pull/286) at `453a37ac` and
 draft [PR287](https://github.com/gastownhall/bdp/pull/287) at `5c3f9090` now pair
 the relevant CLI subsets with namespace and contract-binding source. The
-[front-door candidate section](../../specs/README.md#unmerged-candidate-sources-after-the-reviewed-snapshot)
+[front-door historical inputs](../../specs/README.md#historical-source-inputs)
 records exact heads, paired files and staged schema artifacts. Both remain
 unmerged and incomplete; PR287 includes PR286 ancestry. These are later source
 pointers, not new rulings, incorporation or adoption. All 29 original rows,
@@ -157,10 +187,11 @@ complete at that cut; the unmerged draft retains Event D1/D2/composition,
 Trish's owner/Types/intrinsic and normal qualification gates. This changes no
 original row's ruling, propagation/adoption state or implementation evidence.
 
-## Genuine unresolved work and deliberate exclusions
+## Historical unresolved-work snapshot and exclusions
 
-Trish/Sybil should derive settled cases before sending another question to
-Donna. Current concrete gaps are:
+The following was the original recovery's gap list. Use the current table above
+and owning issue for its later incorporated/selected/proposed disposition; do not
+present the whole historical list as still awaiting Donna. Original gaps were:
 
 - Required Event read-only/production/observation baseline, Type-only and induced
   owner transitions, payload/version/subscription/replay/retention semantics.
@@ -183,7 +214,7 @@ Events, ordinary safe writes, guards and durable retry outcomes remain retained.
 Parameterized batches, predicate Event filtering, property-path Event projection,
 full Type CLI and native Issue/Dependency purity rewrites are not added here.
 
-## Bounded affected-owner coverage
+## Historical bounded affected-owner coverage
 
 This is a proposed communication set from existing work pointers, **not a fresh
 implementation-impact audit**. Trish owns the stage1 receipt history and phase3
@@ -221,7 +252,7 @@ human/design inputs, not established additional implementation owners in this
 bounded source set. Propose another recipient only with a concrete owned
 consumer/source dependency; absence of a launch file does not remove an owner.
 
-## Omissions and communication record to complete
+## Original curation omissions and communication limits
 
 No complete consumer census, runtime discrepancy audit, new provenance/Memory
 adoption, broad history reread or additional review campaign was performed.
