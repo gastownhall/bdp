@@ -74,11 +74,14 @@ refused, never ignored. Known capability detail is feature-owned. Atomic-batch
 version 1 requires Write
 and cannot be advertised on the Core-service arm. Unknown capability versions
 remain opaque base metadata until their owning semantics are selected.
-A future Types capability must qualify earlier URI-only/uninterpreted records
-explicitly; a flag cannot retrofit pins or rewrite retained addresses.
-Advertising the narrow definition operation alone does not advertise all Types semantics. The final
-Types advertisement/inventory remains coordinated with the Types owner and cannot
-add required root members that break already published base clients.
+The selected draft [Types1 binding](../types/types-binding.md) supplies its
+feature-owned advertisement, activation and rejectable ordinary-operation selection.
+It covers all live/retained Scope records: earlier URI-only affiliations cannot be
+retrofitted, guessed or grandfathered, so a Scope unable to establish the claim refuses
+activation. The feature-owned schema supplements the unchanged common bundle;
+base clients may ignore unfamiliar entries while preserving base behavior. Narrow
+definition lookup alone does not advertise Types. No required root discovery member
+or public Type inventory/lifecycle operation is added.
 
 Core limits contain only page, request, resource, selector and pagination lifetime.
 They expose no replica retention/checkpoint obligation. Omitted bounds have their

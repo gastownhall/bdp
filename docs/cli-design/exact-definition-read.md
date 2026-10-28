@@ -31,7 +31,7 @@ and guard semantics are unchanged; this read is not a new default-acquisition st
 
 ## Keep ordinary show meaningful
 
-`show ID@=TOKEN` / `show URI --revision TOKEN` remains an ordinary exact Resource read
+`show ID@=TOKEN` remains an ordinary exact Resource read
 under its advertised application History contract. Missing History MUST NOT silently
 route that generic command to a different interpreting Scope's definition lookup.
 A configured Scope is not proof of ownership or Type-definition intent. `@current`

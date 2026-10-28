@@ -13,6 +13,14 @@ contracts. `bd type list` is an agreed command location with an incomplete comma
 contract; this document makes that gap visible. It does not select lifecycle
 commands or claim support in a particular build.
 
+The [first local authoring sequence](types-first-sequence.md) orders inspection
+of BeadType, LinkType, Refines and Type, then the all-Type family view and
+BeadType/LinkType-filtered local views, local Refines reads and creation of Foo.
+Its step5 is deliberately a disposable placeholder while the broader instance-use
+design is discussed. It is not a finalized registration/default workflow. The
+[Types1 source binding](../../specs/profiles/types/types-binding.md) describes the
+independent protocol-selection obligation; implementation remains separate.
+
 ## Using Types (informative)
 
 ### Start with an available contract

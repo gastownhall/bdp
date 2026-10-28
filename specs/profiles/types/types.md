@@ -1,12 +1,14 @@
 # BDP Types
 
-Work-in-progress BDPv0.1 design specification, reconciled October 22, 2026. This document records
-agreed design rules and explicit open decisions for an optional, Scope-wide Types profile. It is not yet
-an adopted protocol specification, an installable definition format, or a claim
-that Beads implements these rules. The [current BDP specifications](../../README.md)
-remain the protocol authority until coordinated amendments land. Landing this
-document on the v0.1 integration branch makes the evolving design available for collaboration; it does
-not adopt its candidate wire shapes or require implementation of unfinished rules.
+Selected BDP v0.1 draft source, reconciled October 28, 2026. This profile and the
+[descriptor](../../types/type-system/type-system.md) specify the optional Scope-wide
+Types semantics. The [Types1 binding](types-binding.md) selects its capability and
+rejectable ordinary-operation representation; [intrinsic publication1](intrinsic-publication.md)
+assigns the shared exact bootstrap graph. The [current source map](../../../docs/design/bdp-v0.1-current-source-map.md)
+identifies paired common contracts and remaining proposals. Source selection is not
+released protocol adoption, an installable package format or evidence that Beads
+implements the profile. Public lifecycle/registry operations and runtime obligations
+remain explicit below.
 
 The [Issue and Dependency draft](../../types/issue/issue.md) and
 [Memory draft](https://github.com/gastownhall/bdp/blob/21fa91d3e189bff3832bd977c3d6be49f2b5d93c/specs/types/memory/memory.md)
@@ -20,9 +22,10 @@ product choices and implementation status belong to its
 [decision and dependency record](https://github.com/gastownhall/beads/issues/7656).
 The earlier [Type lifecycle exploration](https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/docs/design/type-lifecycle-preview2.md)
 is background. Where it conflicts, this document records the current design
-position: this Types profile represents definitions as Beads; the proposed Core
-boundary does not require that representation. The current Core/Write contracts
-remain unchanged until coordinated amendments adopt that boundary.
+position: this Types profile represents definitions as Beads. Selected retained
+Core carries affiliations without requiring definition interpretation; the optional
+Types contract adds that interpretation. Old v0 artifacts and their implementations
+keep their actual meaning and qualification.
 
 For a guided introduction, read the [Type definitions](../../types/type-system/type-system.md#overview-informative)
 and their [worked example](../../types/type-system/type-system.md#a-worked-example-informative).
@@ -31,11 +34,13 @@ command presentation from the detailed semantic rules in this profile.
 
 ## 1. Scope and responsibilities
 
-This section defines the intended profile boundary. Structural extraction of
-Core and Write is complete; their current normative contracts have not thereby
-adopted optional Types or the new definition model. Existing immutable-affiliation,
-descriptor, installation and update rules require coordinated semantic amendments
-before an implementation can claim the new behavior.
+This section defines the selected draft profile boundary. Retained Core/Write,
+[affiliations](../core/affiliations.md), [Link updates](../write/link-updates.md) and
+[publication](../core/publication.md) supply its common operation contracts. These
+paired source clauses do not upgrade old runtime contracts or establish provider
+conformance. The [Types1 binding](types-binding.md) specifies exact discovery,
+activation and rejectable selection; its feature-owned schema references the
+unchanged common bundle.
 
 Under the proposed boundary, Core defines the common Resource envelope, references,
 revisions, ownership behavior and recognizable constraint errors. A Type reference
@@ -49,7 +54,7 @@ Advertising this Types profile, however, promises this profile's semantics.
 
 The optional Types profile applies Scope-wide. Advertising it promises that all
 Bead and Link affiliations follow its rules. It supplies definition and conformance
-semantics, properties validation, and eventually declarative graph constraints.
+semantics, properties validation and the declarative graph constraints specified here.
 Read-only implementations can support it; its write obligations apply when writes
 are supported. A client need not understand Type definitions to read the graph.
 
@@ -135,8 +140,9 @@ The selected common affiliation carrier is an absolute HTTP(S) Type identity URI
 string or an object containing exactly `uri` (that URI) and `revision` (a nonempty
 opaque revision token). This does not admit relative references or document-local
 bindings as stored Type identities. Core-only carrying does not interpret the
-reference as this profile's definition language. Coordinated Core/Write schema
-and operation propagation is separate from selecting this representation.
+reference as this profile's definition language. The paired common affiliation
+schema/operation source carries this representation; provider enforcement remains
+separate from that source selection.
 
 An instance saved or returned under the Types profile pins its exact Type definition revision.
 Explicit unpinned Type input selects the Scope's explicitly chosen installed exact
@@ -285,9 +291,10 @@ Endpoint eligibility does not grant write authority. A descriptor arm that can m
 a registered foreign definition does not authorize revising that definition or its
 owned declarations. Retained origin declarations preserve their original identities,
 Scopes and exact owned-source context; exposing or admitting their retained semantic
-closure is distinct from creating new receiver-Scope Links. The precise source-Scope
-and pinned-owned-source operation seam remains deferred (§5.7); this distinction
-adds no endpoint restriction bypass.
+closure is distinct from creating new receiver-Scope Links. Section5.7 pairs the
+literal source-pin and captured owning-edition rules with common affiliation and
+Link-update authority. Public acquisition/provisioning and foreign mutation routing
+remain separate; this distinction adds no endpoint restriction bypass.
 
 The descriptor supplies the abstract Refines field format; the intrinsic seed
 selects the values discussed here. Its
@@ -311,13 +318,15 @@ are different. The example deliberately does not turn on the general constraint:
 it would prohibit the permitted explicit T@2 → T@1 conformance as an identity
 self-loop. Every inherited promise still applies, and exact-revision cycles remain
 prohibited (§§3.8, 4). This corrects the earlier illustrative suggestion to set
-`acyclic: true` directly on Refines. Source-pin operation details and installation
-mechanics remain open; registered exact definition endpoint checks follow the common
-rule in §5.1.
+`acyclic: true` directly on Refines. A literal source pin remains a Reference to that exact source edition under
+[common affiliations](../core/affiliations.md); it is neither an ownership witness
+nor permission to substitute that edition for the declaration state captured in the
+definition edition being interpreted. Registered exact definition endpoint checks
+follow the common rule in §5.1. Public installation operations remain separate.
 Stored target pins are an intrinsic Refines semantic requirement, not a generic
 endpoint pin-mode constraint added to the descriptor language.
 
-### 2.3 Literal graph and bootstrap candidate
+### 2.3 Shared intrinsic publication and illustrative graph
 
 The candidate trusted seed establishes these exact affiliation relationships:
 
@@ -349,11 +358,14 @@ pretending ordinary create can know its future opaque revision. An intrinsic upg
 publishes a coherent new exact graph and retains earlier versions so existing pins
 keep their meaning; it does not overwrite content at an existing exact identity.
 
-The fixture's IDs and revision tokens remain illustrative placeholders, not the
-production publication. Production namespace, publication artifact and upgrade
-activation details remain to finalize. No particular hashing or revision-allocation
-algorithm is selected for ordinary writes. The shared bootstrap direction does not
-reopen ordinary client mutation of intrinsic definitions.
+The separate [intrinsic-1 publication](intrinsic-1.json), described in
+[intrinsic publication](intrinsic-publication.md), supplies the shared four-definition,
+two-declaration exact graph. Its [publication record](intrinsic-1.publication.json)
+identifies its complete artifact bytes. These values are distinct from the eight/four
+illustrative graph above, whose IDs, schema resources and historical receipts remain
+unchanged. Publication does not establish provider initialization or a live owning
+Scope. No particular hashing or revision-allocation algorithm is selected for ordinary
+writes. Ordinary client mutation of intrinsic definitions remains prohibited.
 
 This file is a **literal final-state example**, not a BDP transaction, installation
 API or package format. Its revision strings are illustrative, not permission for
@@ -450,9 +462,10 @@ not be mistaken for overriding a parent's closed-record rule. Standard 2020-12
 composition applies (§3.12). The following finite examples validate every inherited
 and local schema unchanged against the same complete properties object. They do not
 merge property declarations or change the scope of any closure keyword. The retained
-reference-binding representation remains separate work. These closed-root examples
-require the Core amendment listed in [the profile delta inventory](README.md#changes-from-the-current-descriptor);
-adopted Core currently requires open instance-properties roots.
+reference-binding representation is the immutable descriptor-contained schema map
+in §3.12. These closed-root examples belong to the selected Types interpretation;
+they do not rewrite old adopted descriptor/root rules. The common Resource carrier
+continues carrying the complete properties object without merging inherited schemas.
 
 **Open Product, then an additional requirement.** Product allows extensions:
 
@@ -726,9 +739,10 @@ Direct conformance declarations are represented by owned Refines Links from
 one Type-definition Bead to another. The source declares conformance to the exact
 pinned target definition revision. Conforming specializations of Refines also
 participate, under the tightening-only rule in §3.9 and transitive ownership
-matching in §5.7. The name here describes the selected relationship; production
-identity and bootstrap publication mechanics remain open; §2 supplies a candidate
-properties schema and seed definition.
+matching in §5.7. The selected draft [intrinsic publication](intrinsic-publication.md)
+assigns its exact identity and bootstrap records (§2.3). Provider provisioning,
+public operations and runtime qualification remain separate; publication alone
+does not establish a live owning route or implementation support.
 
 A declaration's exact Link Type must already be accepted before the declaration
 is used to admit a candidate Type. The candidate cannot use an unproven relationship
@@ -988,21 +1002,25 @@ not a new owned-state pagination protocol or invented semantic maxima on Refines
 Memory or every Type. Admission must reject an oversized state before acceptance.
 Tightening configuration must preserve promised complete reads of accepted states
 or refuse the configuration change; it must not strand definitions or truncate
-ordinary records. The exact budgets and coordinated Core read/admission contract
-remain source and implementation work.
+ordinary records. The common exact-read contract selects which actual operational
+bounds apply; exact configured values and provider enforcement need their own evidence.
 
 A Types-supporting Scope must provide authorized narrow exact reads of the
 definitions retained for interpretation, including intrinsic definitions and
-registered foreign definitions with their original identity, Scope and recorded
-ownership context. This does not require exposing general application History or
+registered foreign definitions with their original identity and recorded ownership
+context, and original Scope where recorded. The intrinsic publication records no
+original Scope; omit unknown context honestly, never substitute the receiver or
+infer it from the URI. A case requiring known original authority remains unqualified
+when that context is unavailable. This does not require exposing general application History or
 inserting retained foreign copies into ordinary local graph inventory. Readability
 alone grants neither creation/affiliation permission nor a promise of inclusion in
 ordinary product Type lists. Category, abstractness and authorization rules still
 apply; BeadType and LinkType remain usable metatypes under §2.1.
 The [Types-local exact lookup candidate](exact-definition-read.md) now pairs with
 the staged [common read binding](../core/type-definition-read.md) and its native
-schema helpers. Complete intrinsic example wrappers and exact-pair fixture walks
-provide finite source correspondence, not adopted transport or provider qualification.
+schema helpers. Types1 requires actual lookup1 support under the
+[Types binding](types-binding.md). Complete illustrative wrappers and exact-pair
+fixture walks provide finite source correspondence, not provider qualification.
 This section does not adopt History for every
 Resource. A lookup miss does not authorize fetch-and-register.
 
@@ -1397,11 +1415,26 @@ specialization is grouped under its own nominal identity, not under each ancesto
 selector. Wildcard selectors create no wildcard key. An empty owned set is `{}`;
 there are no empty buckets for selectors that currently match no Links.
 
-These projection rules require a coordinated Core amendment: adopted Core's explicitly
-declared ownership keys and empty-entry convention are not silently changed by this
-profile. The literal fixture uses the proposed grouping and empty-set shape. Exact
-Link records retain their own Type revision pins; grouping does not erase those pins
-or reinterpret historical owned snapshots.
+The selected v0.1 [common affiliation contract](../core/affiliations.md)
+already specifies this nominal grouping and empty-set shape. Earlier adopted Core
+and old v0 artifacts keep their actual meaning; this profile does not relabel them.
+Exact Link records retain their own Type revision pins; grouping does not erase those
+pins or reinterpret historical owned snapshots.
+
+For interpretation of T@r, the complete owned declaration state recorded in that
+exact definition edition is authoritative. Live incident-Link adjacency is a different
+view. A declaration's literal source pin does not choose a different owning edition,
+replace the captured declaration set, or require automatic repinning when the owner
+gets a new revision. Walk exact target pins from that recorded set, retaining each
+origin's schema environment; never substitute current definitions or current adjacency.
+
+Creating a new declaration, changing its endpoints or Type, or deleting it requires
+the actual storing Scope's ordinary operation authority, including the initial/final
+source-owner obligations in [Link updates](../write/link-updates.md). Having a registered
+foreign definition supplies semantic facts for validation, not authority to create or
+mutate a Link at its origin. Retaining a foreign definition's original declarations
+is not creation of receiver-local Links or a transfer of publication authority.
+The already-accepted declaration-Link-Type rule in §3.8 remains mandatory.
 
 Creating, modifying or deleting a matching owned Link has the source-revision
 effects required by Core ownership semantics. Conformance establishes membership;
@@ -1475,8 +1508,8 @@ Earlier Link revisions and owner captures retain their recorded endpoints and
 exact Type affiliations. A supplied endpoint pin identifies that exact Bead revision
 under the common Reference contract; neither a new owner revision nor its owned
 capture silently replaces that pin or makes it float. Ownership selectors use the
-shared anyOf/any shape. Common CLI/Core/Write/schema/Event incorporation is required
-before claiming endpoint-edit service support. Exact-definition evolution and
+shared anyOf/any shape. The selected common CLI/Core/Write/schema/Event source supplies this correspondence;
+actual endpoint-edit service support requires independent provider qualification. Exact-definition evolution and
 operation-level lifecycle details remain separate. Registering a new definition
 alone does not rewrite an existing Resource revision or silently change its affiliation.
 
@@ -1783,13 +1816,13 @@ The remaining decisions are narrower:
 
 | Area | Selected rule | Decision or contract work still needed |
 | --- | --- | --- |
-| Retyping, endpoint correction and affected graph | Explicit whole-reference replacement under applicable Write preconditions; complete-result validation; published Type-only changes version; endpoint correction preserves Link identity; changed initial/final ownership captures commit atomically; batch publishes at most one final revision per affected Resource, with net-zero rules in §5.7; history stays immutable | Coordinated Core/Write/schema, complete owner results, provenance and Event propagation and qualification; no extra mandatory guard. Literal pins gain no owner-membership or automatic-repin meaning |
+| Retyping, endpoint correction and affected graph | Explicit whole-reference replacement under applicable Write preconditions; complete-result validation; published Type-only changes version; endpoint correction preserves Link identity; changed initial/final ownership captures commit atomically; batch publishes at most one final revision per affected Resource, with net-zero rules in §5.7; history stays immutable | Paired common source is selected; provider enforcement and complete owner/provenance/Event qualification remain. No extra mandatory guard; literal pins gain no owner-membership or automatic-repin meaning |
 | Schema admission | JSON Schema 2020-12 validation and syntactic format enforcement; unknown/unsupported formats and required vocabularies refuse; immutable descriptor-contained schema map; inherited schemas all apply; bounded contradiction floor (§§3.12–3.13) | Implementation-supplied baseline, explicit application bases and retained map selected; general executable extensions deferred; no complete satisfiability proof |
 | Exact conformance closure | Exact target pins, no exact-revision cycles; ancestor requirements deduplicated by originating exact definition/location; distinct declaration restrictions retained | Concrete location/qualifier representation and diagnostics; distinct from once-per-instance-Link counting |
 | Constraint evolution | §§5.4, 5.6, 5.8 and 5.9 select local activation with cross-revision family populations, per-Link acyclicity and exact-affiliation self-link activation | Precise inherited-declaration activation and selector/diagnostic syntax; no Scope-wide minimum over installed definitions |
 | Definition resolution | Registered exact global definitions satisfy endpoint Type checks for any Link, with explicit endpoint pins and Scope restrictions intact; arbitrary external resources remain opaque | Installation operation mechanics, Scope classification and inventory/read projection; locally retained available inventory does not rewrite origin identity/authority |
 | Complete exact definition reads | Full records within operational admission bounds; exact retained closure; narrow definition access without mandatory full application History; no legacy view obligation (§3.14) | Staged common read/admission/discovery/error binding exists; exact-candidate correspondence, operational budgets and runtime qualification remain |
-| Bootstrap and declaration admission | Shared published exact intrinsic graph loaded by trusted initialization; prior versions retained on upgrade; no client mutation; declaration Link Type accepted before use | Production namespace/publication artifact, upgrade activation and operation/batch/import admission ordering |
+| Bootstrap and declaration admission | [intrinsic-1 publication](intrinsic-publication.md), explicit trusted initialization, prior exact versions retained, no client mutation; grounded declaration Link Type and captured owned state (§§2.3, 3.8, 5.7) | Provider initialization/admission enforcement and public provisioning/upgrade operations remain unqualified |
 | Availability and lifecycle | Truthful Scope-wide activation covers live/retained records without grandfathering (§1); explicit atomic exact-graph registration distinct from definition presence; initial use/import requires existing registration; explicit local default; retirement preserves existing use/history | Activation enforcement and exact source correspondence; concrete registration/retirement verbs, permissions, broader acquisition and physical-removal retention deferred |
 | Revision compatibility | Conformance only initially, including explicit same-identity revision conformance; none inferred from age/SemVer; no migration guarantee | Reusable informational labels selected; no version-range resolution |
 | Property write/read boundary | Replacement covers ordinary writable fields, preserves init-only values, rejects changes to them, and completes service read-only fields before validation; live observations are separate | PropertyAccess and init-only retyping selected; nested-policy enforcement qualification, observation representation and shared signing/provenance contracts remain |
@@ -1821,6 +1854,15 @@ is historical planning material, not an additional normative source or a current
 list of undecided rules. The current open decisions are recorded in this section.
 
 ### 7.0 Local authoring and explicit registration
+
+The [first local sequence](../../../docs/cli-design/types-first-sequence.md) starts
+with inspection of BeadType, LinkType, Refines and Type, then ordinary all-Type
+and BeadType/LinkType-filtered local family views, local Refines reads and creation
+of a definition Bead. Each category view follows the definition Bead's own affiliation.
+Donna selected an isolated, explicitly temporary step-5 instance-creation placeholder
+while its broader design is discussed. That stub selects no registration/default
+policy, public operation or conformance result. The real semantic requirements below
+remain literal; do not build the deferred lifecycle around the placeholder.
 
 Creating or storing a valid Type-definition Bead does **not** register the Type it
 describes for instantiation. A Scope may be a repository of definitions without
@@ -2093,23 +2135,22 @@ Beads behavior as implementing its proposed semantics.
 
 | Item | Design state | Remaining adoption or evidence |
 | --- | --- | --- |
-| Optional Scope-wide Types boundary | Selected direction with truthful live/retained activation and no grandfather boundary (§1) | Coordinated canonical Core/Write, discovery and activation-enforcement amendment |
-| Exact affiliations, explicit retyping and endpoint correction | Selected for Beads and Links; whole-reference replacement, published Type-only revisions, identity-preserving Link endpoint correction, atomic final ownership changes and at most one final revision per affected Resource per batch, including net-zero rules (§§2, 5.7) | Common CLI/Core/Write/schema/complete-owner-results/provenance/Event propagation and runtime qualification |
+| Optional Scope-wide Types boundary | [Types1 binding](types-binding.md), exact capability/detail, rejectable ordinary subtype, all live/retained coverage and no grandfather boundary (§1) | Actual discovery, activation, negotiation, predispatch and durable recovery enforcement; source artifacts are not runtime evidence |
+| Exact affiliations, explicit retyping and endpoint correction | Selected for Beads and Links; whole-reference replacement, stable Link identity, complete initial/final owner effects and final publication including net-zero rules (§§2, 5.7; paired common source) | Provider enforcement and runtime qualification; old implementation pins do not inherit selected source |
 | Conformance, structural and semantic | Selected foundation (§3), 2020-12 validation and format enforcement, refusal of unsupported required extensions and immutable schema closure; read/write responsibilities distinguished | Implementation-supplied baseline and explicit schema bases selected; bounded floor/warning and exact format-support qualification remain; executable extensions deferred |
 | Constraint matching and populations | Pair unions, inherited conjunction, exact/identity-wide selectors and identity-based populations selected (§§4.2, 5) | Common selector shape selected; inherited activation and local transition/availability checks; arbitrary external-resource validation excluded |
 | Arity, endpoint Type eligibility, uniqueness, acyclicity and self-links | Transaction-final arity/eligibility and aggregate checks with mixed-revision cases selected; self-link prohibition is an independent per-Link endpoint check (§§5.5–5.9) | General graph validator, atomic mutation and exact-source qualification NYI; self-link cases are written requirements, not runtime evidence |
-| Definition representation and descriptor split | Descriptor owns abstract fields/local meanings; profile owns detailed enforcement (§1.1); shared exact bootstrap selected; candidate schemas/seed present (§2) | Working descriptor deliberately relocated into BDP from exact `01beba80`; original source PR3/bytes/digest recorded in the artifact README. Exact-candidate correspondence and focused artifact qualification remain required; prior evidence retains its historical scope. Production bootstrap publication, lifecycle operations and resolution qualification remain open |
+| Definition representation and descriptor split | Descriptor owns abstract fields/local meanings; profile owns detailed enforcement (§1.1); shared exact bootstrap selected; candidate schemas/seed present (§2) | Working descriptor deliberately relocated into BDP from exact `01beba80`; original source PR3/bytes/digest recorded in the artifact README. Exact-candidate correspondence and focused artifact qualification remain required; prior evidence retains its historical scope. [Intrinsic publication1](intrinsic-publication.md) supplies actual source values; trusted provisioning, public lifecycle operations and resolution qualification remain separate |
 | Property write/read boundary | Writable replacement, init-only preservation/change refusal, service read-only completion and separate live observations selected (§3.6) | PropertyAccess and init-only retyping selected; enforcement, observation representation, shared Write adoption and provenance-owned signing mechanisms remain |
-| Conformance graph operations | Owned historical declaration authority, tightening-only specialization and already-accepted declaration Link Types selected | Core amendment for nominal-identity grouping/empty-set projection, source-pin/traversal/admission-ordering operation contract, performance and historical-query qualification |
+| Conformance graph operations | Owned historical declaration authority, literal source pins, nominal grouping/empty projection, tightening-only specialization and grounded declaration Link Types (§§3.8, 5.7; common affiliations/Link updates) | Provider enforcement, graph performance and historical-query qualification; public lifecycle operations remain separate |
 | Acceptance cases (§6) | Written review cases | Property/example checks cover only their documented shape/finite-graph subset; runtime cases remain unqualified |
 | Exact definition read boundary | Complete records, retained exact closure and operational admission bounds selected; narrow definition access independent of full application History (§3.14) | Common binding and intrinsic read examples are authored; actual retained-read, authorization and bound qualification remain; no new pagination or legacy compatibility obligation |
 | Shared provenance and recovery | Shared owners and accepted product direction identified (§7) | Shared schema/operation adoption; no parallel Types implementation |
 | Fixed Memory product | Separate product proposal; fixed catalog/compiled validation need not expose Type definitions | Native catalog, properties/history, pins, mutation and release evidence tracked in Beads #7656 |
-| General Type lifecycle and packaging | Authority, retained meaning, explicit atomic registration separate from definition presence, already-registered initial use/import, explicit local defaults and retirement with preserved use selected (§7) | Operation syntax/permissions, exact registration/retirement enforcement, physical retention/removal, bootstrap publication and portable format |
+| General Type lifecycle and packaging | Authority, retained meaning, explicit atomic registration separate from definition presence, already-registered initial use/import, explicit local defaults and retirement with preserved use selected (§7) | Operation syntax/permissions, exact registration/retirement enforcement, physical retention/removal, trusted provisioning execution and portable format |
 
 Continue through focused branches and coordinated, bounded amendments against current
 BDP and Beads sources, with acceptance cases and explicit implementation status. Do
-not merge accumulated design work as an implicit runtime migration. The structural
-Core/Write split is complete; their semantic propagation is separate from finishing
-this draft. Pending batch, lifecycle Event and interchange proposals do not become
+not merge accumulated design work as an implicit runtime migration. The paired retained Core/Write semantic source is identified in the current source
+map; actual provider adoption and qualification remain separate from this draft. Pending batch, lifecycle Event and interchange proposals do not become
 adopted wire contracts through references in this document.

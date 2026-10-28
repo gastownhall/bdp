@@ -1,5 +1,16 @@
 # Draft Types review artifacts
 
+Selected October28 source adds the [Types1 binding](types-binding.md), its
+[feature-owned schema](types-v1.schema.json) and separate [intrinsic publication1](intrinsic-publication.md).
+The common v0.1 schema/mirror, old illustrative graph and historical exact-read receipts
+remain unchanged. The [first CLI sequence](../../../docs/cli-design/types-first-sequence.md)
+keeps steps1–4 distinct from Donna's deliberately disposable step5. These source
+artifacts do not establish provider enforcement, public provisioning or a live
+owning intrinsic service. Earlier inspected-runtime and original-port facts below
+retain their literal historical subjects; stale references to missing common
+incorporation are superseded only by the paired current source identified above.
+
+
 The working descriptor, profile, schemas and candidate graph use **Refines** for
 Type-to-Type refinement. The October 20 amendment adds the selected `abstract`
 marker and `propertyAccess` map, uses one common Type selector shape, and specifies
@@ -21,8 +32,8 @@ and retain the smaller in-Scope Bead alias contract. See [§1](types.md#1-scope-
 [§7.4](types.md#74-local-aliases-for-canonical-references). Broader aliases are
 [deferred in issue299](https://github.com/gastownhall/bdp/issues/299).
 A shared transaction-wide revision token is not required. Sybil owns the paired
-common CLI/Core/Write/result/Event propagation; these Types-local prose changes
-do not adopt its wire format or qualify runtime behavior. Earlier artifact checks
+common CLI/Core/Write/result/Event source now identified by the current source map;
+its incorporation does not qualify runtime behavior or upgrade frozen consumers. Earlier artifact checks
 remain bound to their recorded source. Unchanged descriptor/schema/fixture bytes
 do not establish execution of the new written acceptance cases.
 
@@ -36,6 +47,9 @@ already implemented or adopted in a frozen consumer contract.
 
 | Artifact | Applies to | Status |
 | --- | --- | --- |
+| [types-v1.schema.json](types-v1.schema.json) | Types1 discovery and full typed record projections | Feature-owned supplement to the unchanged common v0.1 bundle; structural checks only |
+| [intrinsic-1.json](intrinsic-1.json) | Four assigned intrinsic definitions and two captured declarations | Immutable source publication; no live origin or installed runtime inferred |
+| [intrinsic-1.publication.json](intrinsic-1.publication.json) | Complete intrinsic artifact identity | SHA256/count/exact-pin record, not authentication or a public package/install protocol |
 | [type-definition.properties.schema.json](type-definition.properties.schema.json) | Common properties of Type-definition Beads | The properties schema of Type **is** the common descriptor schema |
 | [bead-type-definition.properties.schema.json](bead-type-definition.properties.schema.json) | BeadType instances (definitions of Bead Types) | Includes common schema, allows participation/ownership rules, prohibits Link constraints |
 | [link-type-definition.properties.schema.json](link-type-definition.properties.schema.json) | LinkType instances (definitions of Link Types) | Includes common schema and requires endpoint-pair constraints |
@@ -90,9 +104,10 @@ This v0.1 correspondence starts from integration commit
 not a merge of that accumulated branch or its Memory domain catalog. The local
 profile also incorporates later accepted registration, final-graph endpoint
 eligibility, complete exact-definition reads and affiliation-carrier decisions.
-Core/Write/distribution-schema propagation is a separate coordinated lane under
-[issue279](https://github.com/gastownhall/bdp/issues/279); this file port does not
-qualify a runtime. The Memory product
+The later common affiliation/schema port and endpoint/publication amendments are
+recorded in the current source map under
+[issue279](https://github.com/gastownhall/bdp/issues/279); neither that source nor this
+original file port qualifies a runtime. The Memory product
 proposal is independent of this definition encoding; its fixed supplied catalog
 need not expose definition Beads or ship the general Types profile. See
 [Memory proposal #7661](https://github.com/gastownhall/beads/issues/7661) and its
@@ -169,8 +184,10 @@ ownership and arity in this proposal does not adopt an unbounded canonical view.
 The selected v0.1 direction preserves full exact definition records through
 explicit operational byte/count admission bounds. These are not semantic family
 maxima; accepted definitions must not become unreadable after limits tighten.
-Core/Types read and admission correspondence remains necessary. Proposed actual-nominal-Type grouping and
-empty owned set `{}` also require a coordinated Core amendment.
+The selected common exact-read contract supplies the admission/bound correspondence;
+provider execution remains unqualified. Common affiliations now supplies actual
+nominal-Type grouping and empty owned set `{}`; old adopted contracts retain their
+actual meaning.
 
 Endpoint, ownership and participation Type selectors share `{anyOf: [...]}` or
 `{any: true}`. Correlated endpoint pairs retain their conjunction/union meanings;
@@ -279,3 +296,18 @@ entries for Type, BeadType, LinkType and Refines. The
 [canonical Types CLI companion](../../../docs/cli-design/types-cli.md) uses the same
 overview/walkthrough/command-reference structure as the Memory companion. It makes
 unselected Type-command contracts visible without assigning lifecycle behavior.
+
+## Selected publication and capability checks
+
+Run `python scripts/check_types_selected.py` with the same offline jsonschema
+2020-12/format dependencies as the checker above. It validates the feature-owned
+sidecar against common discovery and full record shapes, and the assigned intrinsic
+publication under its exact retained metatypes/schema environments. Negative cases
+exercise missing/future-only dependencies, malformed closed details, URI-only full
+affiliations including owned/incident Links, inconsistent captured copies, exact graph
+cycles/targets, conflicting/missing schema resources and the full artifact digest.
+The repository's `types-profile-artifact.test.ts` also runs structural and publication
+correspondence checks through the normal test runner. Counts belong to actual run
+receipts, not permanent specification requirements. Neither checker executes HTTP,
+CLI, provider admission/authorization, registration/default selection, instance creation
+or the deliberately disposable step5 stub.

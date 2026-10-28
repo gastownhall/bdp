@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/schemas/types-v1.schema.json",
+  "title": "BDP Types version 1 structural projections",
+  "$comment": "Feature-owned supplement to unchanged BDP v0.1. Shape validation does not establish activation, registration, authority, exact closure or request admission. See types-binding.md for the selected binding status.",
+  "$defs": {
+    "typesCapabilityV1": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "discovery": {
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/retainedDiscovery"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "capabilities": {
+              "type": "object",
+              "properties": {
+                "https://github.com/gastownhall/bdp/capabilities/types": {
+                  "type": "object",
+                  "properties": {
+                    "1": {
+                      "$ref": "#/$defs/typesCapabilityV1"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "capabilities": {
+                "type": "object",
+                "properties": {
+                  "https://github.com/gastownhall/bdp/capabilities/types": {
+                    "type": "object",
+                    "properties": {
+                      "1": {}
+                    },
+                    "required": ["1"]
+                  }
+                },
+                "required": ["https://github.com/gastownhall/bdp/capabilities/types"]
+              }
+            },
+            "required": ["capabilities"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "capabilities": {
+                "type": "object",
+                "properties": {
+                  "https://github.com/gastownhall/bdp/capabilities/type-definition-read": {
+                    "type": "object",
+                    "properties": {
+                      "1": {
+                        "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeDefinitionReadCapabilityV1"
+                      }
+                    },
+                    "required": ["1"]
+                  }
+                },
+                "required": ["https://github.com/gastownhall/bdp/capabilities/type-definition-read"]
+              }
+            },
+            "required": ["capabilities"]
+          }
+        }
+      ]
+    },
+    "typesDiscovery": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/discovery"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "capabilities": {
+              "type": "object",
+              "properties": {
+                "https://github.com/gastownhall/bdp/capabilities/types": {
+                  "type": "object",
+                  "properties": {
+                    "1": {}
+                  },
+                  "required": ["1"]
+                }
+              },
+              "required": ["https://github.com/gastownhall/bdp/capabilities/types"]
+            }
+          },
+          "required": ["capabilities"]
+        }
+      ]
+    },
+    "linkRecord": {
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/linkRecord"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference"
+            }
+          }
+        }
+      ]
+    },
+    "beadRecord": {
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/beadRecord"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference"
+            },
+            "ownedLinks": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/linkRecord"
+                }
+              }
+            },
+            "links": {
+              "$ref": "#/$defs/linkCollection"
+            }
+          }
+        }
+      ]
+    },
+    "beadCollection": {
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/beadCollection"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/beadRecord"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "linkCollection": {
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/linkCollection"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/linkRecord"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
