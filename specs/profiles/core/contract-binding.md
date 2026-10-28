@@ -37,9 +37,9 @@ Once v0.1 is adopted, machine discovery and successful BDP JSON representations 
 
 Clients request the selected JSON type in `Accept`; mutation bodies declare it in `Content-Type`. An old BDP0 endpoint accepting only `application/json` rejects the new body type with 415 before interpreting the payload, claiming a key or making effects. A v0.1 endpoint likewise rejects a generic-JSON mutation body as unsupported media rather than guessing which contract the caller intended. Missing mutation Content-Type is not a version selection. Existing request bounds, authentication, non-disclosure and endpoint admission ordering remain applicable.
 
-`+json` permits JSON decoding; it does not make `application/json` and the version-specific subtype equivalent for negotiation. Media parameters do not select protocol meaning: `application/json; bdp=0.1` is especially unsafe because an old endpoint can ignore that parameter and execute under old semantics. The version is therefore in the subtype. Ordinary HTTP matching, quality weights and exclusions apply. An otherwise valid read accepting no successful offered representation receives the existing bodyless 406; an unsupported mutation body uses415 with the existing Problem diagnosis. A client MUST NOT retry either rejection under generic JSON as a way to force execution.
+`+json` permits JSON decoding; it does not make `application/json` and the version-specific subtype equivalent for negotiation. Media parameters do not select protocol meaning: `application/json; bdp=0.1` is especially unsafe because an old endpoint can ignore that parameter and execute under old semantics. The version is therefore in the subtype. Ordinary HTTP matching, quality weights and exclusions apply. An otherwise valid read accepting no successful offered representation receives the existing bodyless 406; an unsupported mutation body uses 415 with the existing Problem diagnosis. A client MUST NOT retry either rejection under generic JSON as a way to force execution.
 
-Problems retain `application/problem+json`; machine schema documents retain `application/schema+json`. HEAD and304 remain bodyless, preserve the selected read context and obey the existing metadata rules; any supplied representation Content-Type must agree with that context. These controls do not change Resource revisions, revision guards or HTTP validators into protocol-version tokens.
+Problems retain `application/problem+json`; machine schema documents retain `application/schema+json`. HEAD and 304 remain bodyless, preserve the selected read context and obey the existing metadata rules; any supplied representation Content-Type must agree with that context. These controls do not change Resource revisions, revision guards or HTTP validators into protocol-version tokens.
 
 Non-JSON transports must explicitly bind the same selected contract before their payload is consumed. In particular, unversioned `text/event-stream` alone is not proof of v0.1 Event compatibility. The selected [Event source](events.md) requires finite v0.1 JSON and confirms representation/coverage in each page. CLI follow polls that source; no SSE binding is silently selected or qualified.
 
@@ -62,6 +62,16 @@ This is a discovery fragment with a fictional capability, not an assigned BDP fe
 
 Using an optional capability is explicit in its operation/subscription contract. A client requesting unsupported semantics refuses rather than silently omitting them; an authority refuses an unsupported new mutation before effects, including atomic preflight where required. Critical capability/version selection MUST use an admission discriminator that an implementation lacking it rejects; it MUST NOT rely only on an ignorable HTTP field/media parameter or reinterpret literal base data. Advertisement alone is not request selection. A richer service preserves the selected base behavior. If a feature cannot provide that behavior, advertising a flag is insufficient: it needs a separately selected contract or a truthful refusal. This is a bounded discovery extension point, not a template system, general executable extension mechanism or permission to add arbitrary base envelope fields.
 
+The selected draft [Types1 binding](../types/types-binding.md) adds the strict
+`application/vnd.bdp.v0.1.types.v1+json` representation for Types-required ordinary
+Resource/collection reads and singleton/batch mutations. This feature-owned subtype
+is an explicit exception to the ordinary base-only representation list above;
+promised base representations remain supported. It preserves v0.1 payloads and
+Problems, independently selects Types1, and freezes that context with ordinary retry
+identity. Unsupported new mutation media rejects before effects/key claim; admitted
+retained-key handling precedes fresh feature/default checks. It does not relabel
+schema, discovery, Event or exact-definition wrapper operations.
+
 The selected [exact Type-definition lookup](type-definition-read.md) uses this
 capability map and a rejectable query selector. Its wrapper/ownership and narrow
 missing-state permission are operation-specific, not new base or History behavior.
@@ -75,11 +85,11 @@ Continuations, conditional-read context and Event resume context remain bound to
 ## Staging and adoption boundary
 
 The separately named v0.1 schema began with the **original PR287 binding-slice
-snapshot**: 159 inherited definitions, four amended definitions (`bdpVersion` and
-the capability-map property on three discovery definitions), and two capability
+snapshot**: 159 inherited definitions, with four amended in place (`bdpVersion` and
+the capability-map property on three discovery definitions), plus two new capability
 helpers, for 161. Those statistics describe that source slice, not the composed
 artifact forever. The subsequent [#279 common affiliation/ownership amendment](affiliations.md)
-ports ten carrier amendments and two more helpers into the new slot; the PR289 carrier-port
+ports ten carrier amendments in place and two more new helpers into the new slot; the PR289 carrier-port
 snapshot contains **163 definitions**. Later paired amendments can extend that
 artifact; this source-slice count is not a permanent definition count. See its [paired source record](../../../docs/design/bdp-v0.1-affiliation-port.md).
 

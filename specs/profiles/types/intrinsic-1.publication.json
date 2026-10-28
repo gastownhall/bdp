@@ -1,0 +1,27 @@
+{
+  "publication": "intrinsic-1",
+  "artifact": "intrinsic-1.json",
+  "sha256": "73b16c93b6963f9657be3569ba9d16f722edbf6f49090803e748c907c39aab7e",
+  "definitionCount": 4,
+  "declarationCount": 2,
+  "originScopeRecorded": false,
+  "definitionPins": [
+    {
+      "uri": "https://github.com/gastownhall/bdp/types/type-system/type",
+      "revision": "type-1"
+    },
+    {
+      "uri": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+      "revision": "bead-type-1"
+    },
+    {
+      "uri": "https://github.com/gastownhall/bdp/types/type-system/link-type",
+      "revision": "link-type-1"
+    },
+    {
+      "uri": "https://github.com/gastownhall/bdp/types/type-system/refines",
+      "revision": "refines-1"
+    }
+  ],
+  "status": "selected-source; provider provisioning and runtime qualification are separate"
+}

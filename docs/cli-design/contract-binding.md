@@ -11,7 +11,14 @@ bdp update task-42 --if-revision saved-r1 --set-property status=closed
 
 The user need not repeat a protocol-version flag. The client verifies discovery, chooses a contract it actually implements and binds the request/response to it. For the proposed v0.1 client, discovery `bdpVersion:"0.1"` maps to `https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json` and `application/vnd.bdp.v0.1+json`. An old-only client or service is not silently upgraded by similar JSON or by the presence of a new schema file.
 
-The CLI sends the selected JSON media in Accept and, for writes, Content-Type. Unsupported/contradictory binding produces local `unsupported_contract` or the received BDP/HTTP refusal before mutation. The CLI never retries415/406 using generic JSON, a different contract or a fresh key. Type/History/optional-operation capability checks still apply independently; knowing the protocol version is not permission to execute every operation.
+The CLI sends the selected JSON media in Accept and, for writes, Content-Type.
+For Types-required ordinary operations, the paired [Types1 binding](../../specs/profiles/types/types-binding.md)
+selects `application/vnd.bdp.v0.1.types.v1+json` in Accept for reads and mutations
+and in Content-Type for mutation bodies, with no base/wildcard fallback.
+This is a feature-owned subtype selection preserving the base payload;
+`bdp_spec` alone does not assert Types1. Freeze the actual capability/version/media
+with native/dry-run/journal context and verify it before executable dispatch.
+Exact-definition lookup keeps its separate wrapper/query binding. Unsupported/contradictory binding produces local `unsupported_contract` or the received BDP/HTTP refusal before mutation. The CLI never retries 415/406 using generic JSON, a different contract or a fresh key. Type/History/optional-operation capability checks still apply independently; knowing the protocol version is not permission to execute every operation.
 
 ## One output identity
 

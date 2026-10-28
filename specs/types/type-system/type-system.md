@@ -10,7 +10,7 @@ subjects:
 
 # BDP Type descriptors
 
-This **Specification** is the working descriptor contract for the proposed BDP Types design. It defines abstract descriptor fields, shapes, requiredness, defaults, local restrictions and concise field meanings. The [BDP Types profile](../../profiles/types/types.md) owns detailed composition, conformance, enforcement, constraint populations, lifecycle, revision and transaction rules. Both documents specify parts of the proposed design; neither adopts it into the released protocol.
+This **Specification** is the working descriptor contract for the selected draft BDP Types design. It defines abstract descriptor fields, shapes, requiredness, defaults, local restrictions and concise field meanings. The [BDP Types profile](../../profiles/types/types.md) owns detailed composition, conformance, enforcement, constraint populations, lifecycle, revision and transaction rules. Both documents specify parts of the proposed design; neither adopts it into the released protocol.
 
 Sections marked **informative**, including their examples, explain the design without
 adding requirements. Other contract text specifies this proposed design; publication
@@ -87,6 +87,11 @@ If Product later gains another revision, the declaration above still names revis
 revision rules. Existing product records keep their exact affiliations until an
 explicit valid update changes them. Exact definition reads follow retained records;
 live adjacency is a different view.
+
+The [intrinsic-1 publication](../../profiles/types/intrinsic-publication.md) assigns
+shared exact definition/declaration values separately from these illustrative examples.
+The descriptor schemas and retained schema closure in that publication have their own
+versioned resource identities; publication does not prove installed provider support.
 
 ## Types and the CLI (informative)
 

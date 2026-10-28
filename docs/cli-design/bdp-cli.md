@@ -394,6 +394,14 @@ See the [URL revision example](#show-examples).
 
 #### Types: `--type` and `--exact-type`
 
+The [Types companion](types-cli.md) presents the ordinary operations together;
+its [first local sequence](types-first-sequence.md) separates real metatype/definition
+work from the explicitly temporary instance-creation placeholder. The selected
+[Types1 binding](../../specs/profiles/types/types-binding.md) requires rejectable
+feature selection when an operation depends on Types semantics; no new user version
+flag or Type lifecycle command is implied.
+
+
 On create and update, `--type` chooses the Type of the Bead or Link being
 written. On a read command, Type flags filter the results.
 
