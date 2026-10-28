@@ -18,6 +18,7 @@ implementation comparison. Publishing this specification changes none of them.
 | Surface | Entry point | Boundary |
 | --- | --- | --- |
 | Core | [Retained Core](profiles/core/retained-core.md) | Positive common discovery, reads, references, affiliations and required observation contract |
+| Resource projection | [Shared projection](profiles/core/resource-projection.md) | Independently selected current GET, exact saved GET and ordinary List masks; full records remain the base contract |
 | Write | [Retained Write](profiles/write/retained-write.md) | Ordinary atomic writes, safe retry and complete outcomes; batch is optional |
 | Atomic publication | [Publication](profiles/core/publication.md), [batch](profiles/write/atomic-batch.md), [Events](profiles/core/events.md) | Final states per Resource, exact final ownership captures, net-zero and allocation distinctions |
 | Types | [Types profile](profiles/types/types.md), [descriptor](types/type-system/type-system.md), [artifact status](profiles/types/README.md) | Optional Scope-wide interpretation; definition presence does not register a Type |
@@ -46,6 +47,7 @@ an unqualified normative link or an existing capability/version.
 | Family | Source status and boundary |
 | --- | --- |
 | Retained Core/Read and ordinary Write | Selected entries above; preserve independent Resource identity, exact References, authorization, ordinary optional guards, final committed outcomes and retry semantics |
+| Resource projection | Optional selected version1 capability for current GET, exact saved GET and List; `projectionVersion`/`fields` and separate projected arms preserve the full-read baseline |
 | Atomic batch | Optional selected six-CRUD contract; richer transaction-scoped selection/Query/set composition requires a coherent distinct binding and does not silently widen version1 |
 | Types and exact-definition access | Optional selected semantics; registration/default selection differ from presence, and narrow definition access does not require general application History |
 | Canonical CLI and overview | Informative correspondence to the selected protocol; proposed command/encoding sections retain their explicit status rather than acquire normative authority by publication |
@@ -91,6 +93,8 @@ status. Donna also selected shared current/exact GET/List Resource projection an
 [Link identity across correction of either endpoint](https://github.com/gastownhall/bdp/issues/59#issuecomment-6457645585).
 The [current incorporation table](../docs/design/bdp-v0.1-decision-register.md#current-incorporation-october27)
 separates those decisions, their paired source work and runtime qualification.
+The [current source map](../docs/design/bdp-v0.1-current-source-map.md) supplies
+paired prose/schema/CLI/example/case pointers and residual PR284/293 dispositions.
 The current main-alignment instruction permits ordinary reviewed main landing;
 it is not another vote on already selected semantics.
 
