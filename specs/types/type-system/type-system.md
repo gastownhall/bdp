@@ -88,8 +88,10 @@ revision rules. Existing product records keep their exact affiliations until an
 explicit valid update changes them. Exact definition reads follow retained records;
 live adjacency is a different view.
 
-The [intrinsic-1 publication](../../profiles/types/intrinsic-publication.md) assigns
-shared exact definition/declaration values separately from these illustrative examples.
+The [intrinsic-2 publication](../../profiles/types/intrinsic-publication-2.md) assigns
+current shared exact definition/declaration values separately from these illustrative examples.
+The [intrinsic-1 publication](../../profiles/types/intrinsic-publication.md) remains
+unchanged and retains its own exact descriptor requirements.
 The descriptor schemas and retained schema closure in that publication have their own
 versioned resource identities; publication does not prove installed provider support.
 
@@ -236,12 +238,12 @@ These are addressable Type-definition Beads affiliated with BeadType in the prop
 
 **Refines (direct conformance).** No parent Type in this package.
 
-**Properties.** The [candidate common properties schema](../../profiles/types/type-definition.properties.schema.json) is a companion validation projection. The tables here own abstract field meanings; the profile owns detailed interpretation. Shape validation does not prove those semantics. The common authored fields are:
+**Properties.** The [current common properties schema](../../profiles/types/intrinsic-2/type-definition.properties.schema.json) is a companion validation projection. The tables here own abstract field meanings; the profile owns detailed interpretation. Shape validation does not prove those semantics. The common authored fields are:
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | `description` | text | no | Type | Explains the definition's meaning; the Bead ID remains its identity. |
-| `propertiesSchema` | embedded Draft 2020-12 JSON Schema, object or boolean | yes | Type | Validates the `properties` of instances described by this definition; not a schema URL. |
+| `propertiesSchema` | embedded Draft 2020-12 JSON Schema, object or boolean | no | Type | Adds local constraints on instance `properties`; omission adds none. All inherited constraints still apply. A supplied schema never replaces an ancestor schema; `null` is invalid. |
 | `schemaResources` | map from absolute fragment-free retrieval URI to embedded Draft 2020-12 schema | no | Type | Retains exact additional schema resources with the definition revision; omission supplies no additional resources. |
 | `version` | SemVer text | no | Type | Informational author label; may repeat across definition revisions, not a Resource revision or conformance proof. |
 | `abstract` | boolean | no | Type | Defaults to false. True forbids direct affiliation with this exact definition; concrete refinements remain permitted. |
@@ -264,12 +266,12 @@ These are addressable Type-definition Beads affiliated with BeadType in the prop
 
 **Refines (direct conformance).** Type.
 
-**Properties.** The table includes the fields inherited from Type and the participation and ownership fields introduced by BeadType. The [candidate BeadType properties schema](../../profiles/types/bead-type-definition.properties.schema.json) composes the common Type schema with its category-specific fields; it is a companion validation projection, not an independent field authority:
+**Properties.** The table includes the fields inherited from Type and the participation and ownership fields introduced by BeadType. The [current BeadType properties schema](../../profiles/types/intrinsic-2/bead-type-definition.properties.schema.json) composes the common Type schema with its category-specific fields; it is a companion validation projection, not an independent field authority:
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | `description` | text | no | Type | Explains the definition's meaning; the Bead ID remains its identity. |
-| `propertiesSchema` | embedded Draft 2020-12 JSON Schema, object or boolean | yes | Type | Validates the `properties` of instances described by this definition; not a schema URL. |
+| `propertiesSchema` | embedded Draft 2020-12 JSON Schema, object or boolean | no | Type | Adds local constraints on instance `properties`; omission adds none. All inherited constraints still apply. A supplied schema never replaces an ancestor schema; `null` is invalid. |
 | `schemaResources` | map from absolute fragment-free retrieval URI to embedded Draft 2020-12 schema | no | Type | Retains exact additional schema resources with the definition revision; omission supplies no additional resources. |
 | `version` | SemVer text | no | Type | Informational author label; may repeat across definition revisions, not a Resource revision or conformance proof. |
 | `abstract` | boolean | no | Type | Defaults to false. True forbids direct affiliation with this exact definition; concrete refinements remain permitted. |
@@ -295,12 +297,12 @@ This descriptor prohibits `linkConstraints` on a BeadType definition. Owned dire
 
 **Refines (direct conformance).** Type. LinkType does not conform to BeadType; both are Bead Types with separate category-specific meanings.
 
-**Properties.** The table includes the fields inherited from Type and the endpoint and graph constraints introduced by LinkType. The [candidate LinkType properties schema](../../profiles/types/link-type-definition.properties.schema.json) composes the common Type schema with its category-specific fields; it is a companion validation projection, not an independent field authority:
+**Properties.** The table includes the fields inherited from Type and the endpoint and graph constraints introduced by LinkType. The [current LinkType properties schema](../../profiles/types/intrinsic-2/link-type-definition.properties.schema.json) composes the common Type schema with its category-specific fields; it is a companion validation projection, not an independent field authority:
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | `description` | text | no | Type | Explains the definition's meaning; the Bead ID remains its identity. |
-| `propertiesSchema` | embedded Draft 2020-12 JSON Schema, object or boolean | yes | Type | Validates the `properties` of instances described by this definition; not a schema URL. |
+| `propertiesSchema` | embedded Draft 2020-12 JSON Schema, object or boolean | no | Type | Adds local constraints on instance `properties`; omission adds none. All inherited constraints still apply. A supplied schema never replaces an ancestor schema; `null` is invalid. |
 | `schemaResources` | map from absolute fragment-free retrieval URI to embedded Draft 2020-12 schema | no | Type | Retains exact additional schema resources with the definition revision; omission supplies no additional resources. |
 | `version` | SemVer text | no | Type | Informational author label; may repeat across definition revisions, not a Resource revision or conformance proof. |
 | `abstract` | boolean | no | Type | Defaults to false. True forbids direct affiliation with this exact definition; concrete refinements remain permitted. |
@@ -339,7 +341,7 @@ The Refines definition would be an addressable Type-definition Bead affiliated w
 | BeadType | BeadType |
 | LinkType | LinkType |
 
-**Properties.** The [companion Refines properties schema](../../profiles/types/refines.properties.schema.json) uses the selected name; the Refines properties contract is an open object with no required relationship-specific fields. A specialized Link may add descriptive evidence and restrictions expressed by the specified schema, graph and property-policy mechanisms, but cannot weaken the base promise. No general executable qualifier language is selected. Common Link envelope fields and revision provenance are not duplicated as authored properties.
+**Properties.** The [current Refines properties schema](../../profiles/types/intrinsic-2/refines.properties.schema.json) uses the selected name; the Refines properties contract is an open object with no required relationship-specific fields. A specialized Link may add descriptive evidence and restrictions expressed by the specified schema, graph and property-policy mechanisms, but cannot weaken the base promise. No general executable qualifier language is selected. Common Link envelope fields and revision provenance are not duplicated as authored properties.
 
 **Other constraints.** Exact-revision conformance declarations form a directed acyclic graph. This is different from the generic `acyclic: true` rule over Bead identity: the source draft deliberately does not set that flag on Refines because it would also forbid a declaration from one revision of a Type to an earlier revision of the same Type identity. The draft imposes no arbitrary maximum. Across the entire Refines family, a source definition state may have at most one direct declaration to the same exact target definition revision. A plain declaration and a specialized declaration to that same exact target are duplicates and refuse atomically. Different exact revisions of the same target identity remain permitted, each imposing its requirements; diamond inheritance remains permitted. This intrinsic exact-target rule is not the generic identity-based `unique` flag. Kind agreement, exact target pinning, ownership and semantic compatibility need checks beyond the properties schema.
 

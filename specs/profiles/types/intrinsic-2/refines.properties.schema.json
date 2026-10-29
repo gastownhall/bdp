@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/refines.properties.schema.json",
+  "title": "Draft Refines Link properties",
+  "$comment": "Base relationship requires no own properties. Descriptive metadata is allowed; no general executable qualifier language is selected initially. Required unsupported enforcement semantics refuse. Endpoints, exact-target family uniqueness, pins, ownership, kind equality and exact-revision cycles require semantic checks. Common revision provenance is not duplicated here.",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": true
+}
