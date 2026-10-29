@@ -73,10 +73,41 @@ function isEntrypoint(): boolean {
     return false;
   }
 }
+// Private qualification diagnostics contain only fixed categories. Never send
+// exception messages, paths, credentials, configuration or arbitrary error codes.
+function qualificationFailureCode(error: unknown): string {
+  const code =
+    error instanceof Error ? Object.getOwnPropertyDescriptor(error, "code")?.value : undefined;
+  switch (code) {
+    case "EADDRINUSE":
+    case "EACCES":
+    case "EMFILE":
+    case "ENFILE":
+    case "ENOSPC":
+    case "ENOMEM":
+    case "ENOENT":
+    case "EIO":
+      return code;
+    default:
+      return "REFUSED";
+  }
+}
 if (isEntrypoint())
-  void main().catch(() => {
+  void main().catch(async (error: unknown) => {
     // Never echo credentials, input configuration or callback exceptions.
     process.stderr.write("installed reference qualification failed\n");
     process.exitCode = 2;
+    if (process.connected && process.send) {
+      const send = process.send.bind(process);
+      await new Promise<void>((resolve) => {
+        try {
+          send({ event: "qualification.failed", code: qualificationFailureCode(error) }, () =>
+            resolve(),
+          );
+        } catch {
+          resolve();
+        }
+      });
+    }
     if (process.connected) process.disconnect();
   });
