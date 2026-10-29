@@ -52,14 +52,20 @@ What's in this repository:
 - the selected specification entries and their canonical
   [v0.1 grammar](specs/profiles/core/bdp-v0.1.schema.json), alongside the
   separately retained [v0 schema](specs/profiles/core/bdp-v0.schema.json);
-- a Node/TypeScript reference stack: a generic client (`bdp`), a
-  deterministic test server (`bdptest`), and a server that adapts the `bd`
-  CLI (`bdpbd`);
-- a black-box conformance suite, and a sealed evidence artifact proving the
-  Read profile against both implementations (see [STATUS.md](STATUS.md)).
+- a Node/TypeScript stack implementing inherited v0 contracts: a client (`bdp`),
+  a deterministic test server (`bdptest`), and the
+  [frozen legacy `bd` projection (`bdpbd`)](apps/bdpbd/README.md);
+- a black-box conformance suite and sealed two-target Read evidence bound to
+  its recorded source and payloads (see [STATUS.md](STATUS.md)).
 
-Try the [three-minute BDP Read walkthrough](docs/read-demo.md) to follow Links
-and run the same readiness client against both servers.
+`bdpbd` is preserved for historical comparison and is no longer recommended for
+new deployments. Existing SQLite write/transaction machinery is also an inherited
+implementation; it has not been qualified against the selected retained v0.1
+Core/Write contract. The [implementation inventory and staged milestones](docs/design/bdp-reference-service-milestones.md)
+describe the replacement work under [BDP #59](https://github.com/gastownhall/bdp/issues/59).
+
+The [three-minute BDP Read walkthrough](docs/read-demo.md) preserves the legacy
+Link traversal and two-server readiness demonstration at its recorded boundary.
 The [controlled History client walkthrough](docs/history-client-demo.md) follows
 versions pages and requests old Beads and Links through the actual SDK against
 an explicit HTTP fixture.
