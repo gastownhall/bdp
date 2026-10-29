@@ -24,6 +24,7 @@ implementation comparison. Publishing this specification changes none of them.
 | Types | [Types profile](profiles/types/types.md), [descriptor](types/type-system/type-system.md), [artifact status](profiles/types/README.md) | Optional Scope-wide interpretation; definition presence does not register a Type |
 | Exact definition access | [Core binding](profiles/core/type-definition-read.md), [Types interpretation](profiles/types/exact-definition-read.md) | Complete exact records in explicit interpreting context; no general History or public Type CLI implied |
 | Common grammar | [v0.1 schema](profiles/core/bdp-v0.1.schema.json), [distribution mirror](../packages/protocol/schemas/bdp-v0.1.schema.json) | Retained entries determine selected semantics; inherited staging helpers do not add capabilities |
+| Informative HTTP catalog | [OpenAPI operation catalog](openapi/README.md), [coverage](openapi/coverage.md) | Generated signatures reference the unchanged common grammar; discovered URLs still require a navigation adapter, and the synthetic tooling fixture is not a deployment API |
 | Canonical CLI | [CLI entry](../docs/cli-design/bdp-cli.md) | Paired design and worked correspondence; not a claim that product CLI/compiler/adapter exists |
 
 The selected entries compose one contract. A field carrier or helper schema alone does not
