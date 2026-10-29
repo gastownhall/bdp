@@ -1,0 +1,181 @@
+{
+  "status": "SYNTHETIC_TOOLING_ONLY",
+  "description": "Logical target binding examples only. Exact URL metadata includes opaque query text; no real discovery/network adapter.",
+  "bindings": [
+    {
+      "pathItem": "scopeLanding",
+      "path": "/fixture/scopeLanding",
+      "url": "https://bdp-tooling.invalid/fixture/scopeLanding"
+    },
+    {
+      "pathItem": "discovery",
+      "path": "/fixture/discovery",
+      "url": "https://bdp-tooling.invalid/fixture/discovery"
+    },
+    {
+      "pathItem": "writeDirectory",
+      "path": "/fixture/writeDirectory",
+      "url": "https://bdp-tooling.invalid/fixture/writeDirectory"
+    },
+    {
+      "pathItem": "currentBead",
+      "path": "/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+      "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25"
+    },
+    {
+      "pathItem": "beadProperties",
+      "path": "/fixture/beadProperties",
+      "url": "https://bdp-tooling.invalid/fixture/beadProperties?view=properties"
+    },
+    {
+      "pathItem": "beadInventory",
+      "path": "/fixture/beadInventory",
+      "url": "https://bdp-tooling.invalid/fixture/beadInventory"
+    },
+    {
+      "pathItem": "historicalBead",
+      "path": "/fixture/historicalBead",
+      "url": "https://bdp-tooling.invalid/fixture/historicalBead?revision=saved%2B%2F%25%3D%20edition"
+    },
+    {
+      "pathItem": "beadVersions",
+      "path": "/fixture/beadVersions",
+      "url": "https://bdp-tooling.invalid/fixture/beadVersions?view=versions"
+    },
+    {
+      "pathItem": "beadEvents",
+      "path": "/fixture/beadEvents",
+      "url": "https://bdp-tooling.invalid/fixture/beadEvents?view=events"
+    },
+    {
+      "pathItem": "projectedBead",
+      "path": "/fixture/projectedBead",
+      "url": "https://bdp-tooling.invalid/fixture/projectedBead?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D"
+    },
+    {
+      "pathItem": "projectedHistoricalBead",
+      "path": "/fixture/projectedHistoricalBead",
+      "url": "https://bdp-tooling.invalid/fixture/projectedHistoricalBead?revision=saved%2B%2F%25%3D%20edition&projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D"
+    },
+    {
+      "pathItem": "projectedBeadInventory",
+      "path": "/fixture/projectedBeadInventory",
+      "url": "https://bdp-tooling.invalid/fixture/projectedBeadInventory?projectionVersion=1"
+    },
+    {
+      "pathItem": "currentLink",
+      "path": "/fixture/currentLink",
+      "url": "https://bdp-tooling.invalid/fixture/currentLink"
+    },
+    {
+      "pathItem": "linkProperties",
+      "path": "/fixture/linkProperties",
+      "url": "https://bdp-tooling.invalid/fixture/linkProperties?view=properties"
+    },
+    {
+      "pathItem": "linkInventory",
+      "path": "/fixture/linkInventory",
+      "url": "https://bdp-tooling.invalid/fixture/linkInventory"
+    },
+    {
+      "pathItem": "historicalLink",
+      "path": "/fixture/historicalLink",
+      "url": "https://bdp-tooling.invalid/fixture/historicalLink?revision=saved%2B%2F%25%3D%20edition"
+    },
+    {
+      "pathItem": "linkVersions",
+      "path": "/fixture/linkVersions",
+      "url": "https://bdp-tooling.invalid/fixture/linkVersions?view=versions"
+    },
+    {
+      "pathItem": "linkEvents",
+      "path": "/fixture/linkEvents",
+      "url": "https://bdp-tooling.invalid/fixture/linkEvents?view=events"
+    },
+    {
+      "pathItem": "projectedLink",
+      "path": "/fixture/projectedLink",
+      "url": "https://bdp-tooling.invalid/fixture/projectedLink?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D"
+    },
+    {
+      "pathItem": "projectedHistoricalLink",
+      "path": "/fixture/projectedHistoricalLink",
+      "url": "https://bdp-tooling.invalid/fixture/projectedHistoricalLink?revision=saved%2B%2F%25%3D%20edition&projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D"
+    },
+    {
+      "pathItem": "projectedLinkInventory",
+      "path": "/fixture/projectedLinkInventory",
+      "url": "https://bdp-tooling.invalid/fixture/projectedLinkInventory?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D"
+    },
+    {
+      "pathItem": "incidentLinks",
+      "path": "/fixture/incidentLinks",
+      "url": "https://bdp-tooling.invalid/fixture/incidentLinks?view=links"
+    },
+    {
+      "pathItem": "beadAggregate",
+      "path": "/fixture/beadAggregate",
+      "url": "https://bdp-tooling.invalid/fixture/beadAggregate?include=links"
+    },
+    {
+      "pathItem": "aliasResolve",
+      "path": "/fixture/aliasResolve",
+      "url": "https://bdp-tooling.invalid/fixture/aliasResolve"
+    },
+    {
+      "pathItem": "scopeEvents",
+      "path": "/fixture/scopeEvents",
+      "url": "https://bdp-tooling.invalid/fixture/scopeEvents"
+    },
+    {
+      "pathItem": "exactDefinition",
+      "path": "/fixture/exactDefinition",
+      "url": "https://bdp-tooling.invalid/fixture/exactDefinition?capabilityVersion=1&uri=https%3A%2F%2Ftypes.invalid%2Ftask&revision=exact%2B%2F%25%3D"
+    },
+    {
+      "pathItem": "createBead",
+      "path": "/fixture/createBead",
+      "url": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f"
+    },
+    {
+      "pathItem": "updateBead",
+      "path": "/fixture/updateBead",
+      "url": "https://bdp-tooling.invalid/fixture/updateBead"
+    },
+    {
+      "pathItem": "deleteBead",
+      "path": "/fixture/deleteBead",
+      "url": "https://bdp-tooling.invalid/fixture/deleteBead"
+    },
+    {
+      "pathItem": "createLink",
+      "path": "/fixture/createLink",
+      "url": "https://bdp-tooling.invalid/fixture/createLink"
+    },
+    {
+      "pathItem": "updateLink",
+      "path": "/fixture/updateLink",
+      "url": "https://bdp-tooling.invalid/fixture/updateLink"
+    },
+    {
+      "pathItem": "deleteLink",
+      "path": "/fixture/deleteLink",
+      "url": "https://bdp-tooling.invalid/fixture/deleteLink"
+    },
+    {
+      "pathItem": "putAlias",
+      "path": "/fixture/putAlias",
+      "url": "https://bdp-tooling.invalid/fixture/putAlias"
+    },
+    {
+      "pathItem": "deleteAlias",
+      "path": "/fixture/deleteAlias",
+      "url": "https://bdp-tooling.invalid/fixture/deleteAlias"
+    },
+    {
+      "pathItem": "atomicBatch",
+      "path": "/fixture/atomicBatch",
+      "url": "https://bdp-tooling.invalid/fixture/atomicBatch"
+    }
+  ]
+}
