@@ -422,13 +422,35 @@ it("refuses a second IPC start and occupied listener without leaving another own
   const first = await helpers.launchInstalledReference(entry, config);
   children.push(first);
   const second = { ...config, directory: directory() };
-  await expect(helpers.launchInstalledReference(entry, second)).rejects.toThrow("exited");
+  await expect(helpers.launchInstalledReference(entry, second)).rejects.toThrow(
+    /installed child exited: installed reference qualification failed\s+\(startup code EADDRINUSE\)/,
+  );
   first.child.send({ configuration: config });
   expect(await first.wait()).toEqual({ code: 2, signal: null });
   config.create = false;
   const reopened = await helpers.launchInstalledReference(entry, config);
   children.push(reopened);
   expect((await helpers.requestInstalled(config, token, config.scope)).status).toBe(204);
+});
+
+it("reports only a bounded startup refusal category without configuration over private IPC", async () => {
+  const store = path.join(directory(), "unprovisioned");
+  const config = helpers.referenceConfiguration(store, await helpers.availablePort(), token);
+  const refused = { ...config, listener: { host: "untrusted.invalid", port: -1 } };
+  const error = await helpers.launchInstalledReference(entry, refused).then(
+    () => {
+      throw Error("unexpected startup success");
+    },
+    (failure: unknown) => failure,
+  );
+  expect(error).toBeInstanceOf(Error);
+  expect((error as Error).message).toMatch(
+    /installed child exited: installed reference qualification failed\s+\(startup code REFUSED\)/,
+  );
+  for (const privateValue of [token, store, "untrusted.invalid"]) {
+    expect((error as Error).message).not.toContain(privateValue);
+  }
+  expect(existsSync(store)).toBe(false);
 });
 
 function isolatedPayload() {

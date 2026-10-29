@@ -1,0 +1,266 @@
+{
+  "_comment": "Finite descriptor-shape and unchanged-object constraint composition cases for publication2. Inherited names select fixture schemas, not a Type registry or provider. No admission/lifecycle/runtime claim.",
+  "schemas": {
+    "product": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": ["name", "price"],
+      "additionalProperties": true
+    },
+    "approval": {
+      "type": "object",
+      "properties": {
+        "approvalCode": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["approvalCode"],
+      "additionalProperties": true
+    },
+    "withDefault": {
+      "type": "object",
+      "properties": {
+        "note": {
+          "type": "string",
+          "default": "annotation only"
+        }
+      }
+    },
+    "rejectAll": false
+  },
+  "cases": [
+    {
+      "label": "omitted local schema adds nothing",
+      "inherited": [],
+      "descriptor": {},
+      "instance": {
+        "anything": [1, 2]
+      },
+      "descriptorValid": true,
+      "valid": true
+    },
+    {
+      "label": "omitted child retains required parent",
+      "inherited": ["product"],
+      "descriptor": {},
+      "instance": {},
+      "descriptorValid": true,
+      "valid": false
+    },
+    {
+      "label": "omitted child satisfies parent",
+      "inherited": ["product"],
+      "descriptor": {},
+      "instance": {
+        "name": "Pump",
+        "price": 25
+      },
+      "descriptorValid": true,
+      "valid": true
+    },
+    {
+      "label": "local child adds approval requirement",
+      "inherited": ["product"],
+      "descriptor": {
+        "propertiesSchema": {
+          "type": "object",
+          "properties": {
+            "approvalCode": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["approvalCode"],
+          "additionalProperties": true
+        }
+      },
+      "instance": {
+        "name": "Pump",
+        "price": 25,
+        "approvalCode": "A-17"
+      },
+      "descriptorValid": true,
+      "valid": true
+    },
+    {
+      "label": "local child cannot relax parent",
+      "inherited": ["product"],
+      "descriptor": {
+        "propertiesSchema": {
+          "type": "object",
+          "properties": {
+            "approvalCode": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["approvalCode"],
+          "additionalProperties": true
+        }
+      },
+      "instance": {
+        "name": "Pump",
+        "price": -1,
+        "approvalCode": "A-17"
+      },
+      "descriptorValid": true,
+      "valid": false
+    },
+    {
+      "label": "local child requirement remains binding",
+      "inherited": ["product"],
+      "descriptor": {
+        "propertiesSchema": {
+          "type": "object",
+          "properties": {
+            "approvalCode": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["approvalCode"],
+          "additionalProperties": true
+        }
+      },
+      "instance": {
+        "name": "Pump",
+        "price": 25
+      },
+      "descriptorValid": true,
+      "valid": false
+    },
+    {
+      "label": "omitted child satisfies both parents",
+      "inherited": ["product", "approval"],
+      "descriptor": {},
+      "instance": {
+        "name": "Pump",
+        "price": 25,
+        "approvalCode": "A-17"
+      },
+      "descriptorValid": true,
+      "valid": true
+    },
+    {
+      "label": "omitted child cannot select one parent",
+      "inherited": ["product", "approval"],
+      "descriptor": {},
+      "instance": {
+        "name": "Pump",
+        "price": 25
+      },
+      "descriptorValid": true,
+      "valid": false
+    },
+    {
+      "label": "omitted schema does not insert annotated defaults",
+      "inherited": ["withDefault"],
+      "descriptor": {},
+      "instance": {},
+      "descriptorValid": true,
+      "valid": true
+    },
+    {
+      "label": "explicit empty schema remains explicit",
+      "inherited": [],
+      "descriptor": {
+        "propertiesSchema": {}
+      },
+      "instance": {},
+      "descriptorValid": true,
+      "valid": true
+    },
+    {
+      "label": "explicit true schema remains explicit",
+      "inherited": [],
+      "descriptor": {
+        "propertiesSchema": true
+      },
+      "instance": {},
+      "descriptorValid": true,
+      "valid": true
+    },
+    {
+      "label": "explicit false schema denies the object",
+      "inherited": [],
+      "descriptor": {
+        "propertiesSchema": false
+      },
+      "instance": {},
+      "descriptorValid": true,
+      "valid": false
+    },
+    {
+      "label": "omission cannot remove false ancestor",
+      "inherited": ["rejectAll"],
+      "descriptor": {},
+      "instance": {},
+      "descriptorValid": true,
+      "valid": false
+    },
+    {
+      "label": "supplied null is not omission",
+      "inherited": [],
+      "descriptor": {
+        "propertiesSchema": null
+      },
+      "instance": {},
+      "descriptorValid": false,
+      "valid": false
+    },
+    {
+      "label": "supplied array is not omission",
+      "inherited": [],
+      "descriptor": {
+        "propertiesSchema": []
+      },
+      "instance": {},
+      "descriptorValid": false,
+      "valid": false
+    },
+    {
+      "label": "supplied number is not omission",
+      "inherited": [],
+      "descriptor": {
+        "propertiesSchema": 42
+      },
+      "instance": {},
+      "descriptorValid": false,
+      "valid": false
+    },
+    {
+      "label": "supplied string is not omission",
+      "inherited": [],
+      "descriptor": {
+        "propertiesSchema": "schema"
+      },
+      "instance": {},
+      "descriptorValid": false,
+      "valid": false
+    },
+    {
+      "label": "omission does not hide malformed retained resource",
+      "inherited": [],
+      "descriptor": {
+        "schemaResources": {
+          "https://example.test/bad": {
+            "type": 42
+          }
+        }
+      },
+      "instance": {},
+      "descriptorValid": false,
+      "valid": false
+    }
+  ]
+}
