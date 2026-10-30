@@ -11,6 +11,7 @@ This is the parking area for deferred BDP ideas during the BDPv0.1 consolidation
 | [Synchronization](synchronization.md) | How could a consumer bootstrap and maintain a complete authorized replica? | Snapshot/bootstrap, replica state feed, history/view fences, applied checkpoints and distributed recovery |
 | [Public mutation receipts](mutation-receipts.md) | When would independently readable/paged/pending outcomes be useful? | A public receipt service; durable retry/non-reexecution foundations remain required by retained Write |
 | [Set writes](set-writes.md) | How could update/delete select a bounded set atomically? | Generalized predicate-selected writes; ordinary CRUD and optional always-atomic batch are independent |
+| [Markdown instance authoring](formats/README.md) | Could a readable Markdown bundle author Beads, owned Links and defined children? | Nascent v0.1 authoring DSL; identity binding, revision pins and mutation/publication mechanics remain open |
 
 The [Core/Write disposition map](../docs/design/bdp-v0.1-core-write-disposition.md) accounts for the pinned source and separates shared foundations from these experiments. That initial parking patch created exploration/navigation and accounting only. The later [retained cutline](../docs/design/bdp-v0.1-retained-cutline.md) records positive Core/Write entries and discovery extraction; it does not promote these explorations or qualify an implementation.
 
