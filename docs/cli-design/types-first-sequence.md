@@ -37,6 +37,15 @@ the profile's availability and exact-default requirements.
 
 ## Increment 1: ordinary Type Beads and existing functionality
 
+Generic graph services must include a Type-definition Bead because it is an
+ordinary Bead, without checking for `bead-type` or `link-type` to grant graph
+membership. The same Resource acquisition, selection, projection, traversal and
+Count paths apply to definition Beads and other records. Generic Type/family
+predicates may interpret each record's exact affiliation and captured ancestry
+uniformly; descriptor compilation and admission remain separate responsibilities.
+A specialized Type query engine or definition-only service enrollment path does
+not satisfy this increment.
+
 This increment is independently useful. Complete it before authoring new Types,
 new refinement chains or custom instances.
 
@@ -135,6 +144,20 @@ selected source, complete actual outputs, persistence/reopen results and known
 unsupported behavior. Distinguish source-only checks, tested candidates, installed
 builds and actual main qualification. A shortcut, cached result or successful
 unrelated workflow cannot close an unexecuted acceptance step.
+
+The canonical CLI corpus must exercise one mixed population through shared
+assertions, rather than testing Type definitions only through a separate command:
+
+| Corpus dimension | Required coverage |
+| --- | --- |
+| Population | Existing Task and Memory records, all installed definition Beads, ordinary Links and Refines. Add an ordinary Bead with descriptor-shaped application properties, so shape alone cannot confer Type status. |
+| Operations | Ordinary Show/List/Count/Graph and generic AST Query, with unfiltered reads, exact/family selectors, nested property projections, ordering and supported paging or honest completeness refusal. |
+| Record fidelity | Complete properties, metadata, exact affiliation, identity/revision, endpoint pins and captured owned Links; retain their meaning after reopen. Count agrees with the complete matching List. |
+| Uniform behavior | Use the same canonical result/projection checks across Resource categories. Traversing Refines must use ordinary Link handling. Do not add a test-only whitelist, alternate inventory or weakened descriptor to make the corpus pass. |
+| Later increments | Extend that same corpus with authored definitions and persisted custom instances when their increments are implemented, including atomic refusal and batch rollback. |
+
+These are required future observations, not a claim that this document's examples
+or any current build have executed the complete corpus.
 
 The four intrinsic definitions' category facts remain unchanged: Type, BeadType
 and LinkType definition records affiliate with BeadType; Refines affiliates with

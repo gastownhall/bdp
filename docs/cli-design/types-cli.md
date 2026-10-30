@@ -23,6 +23,14 @@ requirements, not claims about the current executable or a finalized public
 lifecycle API. The [Types1 source binding](../../specs/profiles/types/types-binding.md)
 remains an independent protocol-selection obligation.
 
+Generic graph services treat definition Beads as ordinary Beads. Query, filtering,
+traversal and Count must not require a definition-Type whitelist to include them.
+Generic exact-Type and refinement predicates apply uniformly to every record;
+compiling or validating a Type descriptor is a different responsibility. The
+[first-increment corpus](types-first-sequence.md#completion-evidence-and-spec-coherence)
+requires mixed native records, definitions and Links through the same canonical
+CLI assertions; examples here do not establish that execution.
+
 ### Local intrinsic records and common protocol identity
 
 For the initial sequence, trusted initialization prepopulates actual ordinary
