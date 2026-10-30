@@ -115,3 +115,7 @@ The old readDiscovery/readUpdateDiscovery/transactionalDiscovery definitions rem
 staging/evidence inputs in the bundle. They are not this candidate's entry and do
 not authorize serving v0.1 with those old profile literals. No old runtime/schema
 slot, installed client or past acceptance report is silently upgraded.
+
+## Markdown schema contracts
+
+The [Read schema contracts](read-contracts.md) index the selected request/response shapes using the [Markdown JSON Schema DSL](../../formats/markdown-json-schema.md). The [complete schema companion](bdp-v0.1.schema.md) projects the unchanged common JSON bundle without splitting its identity or reference graph. Only this retained entry selects protocol meaning; inherited helper definitions in the bundle do not add operations. Operational read/authorization/HTTP rules above remain explicit protocol obligations.

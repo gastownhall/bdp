@@ -1,6 +1,6 @@
 # Generated informative HTTP coverage
 
-Fixed source base: c6dfb3c05fe707cf605030c5661123e8dda0d8f8. Do not edit; run scripts/generate-openapi.mjs.
+Fixed source base: e23aec722763e967d3bde08caf96657069b39ead. Do not edit; run scripts/generate-openapi.mjs.
 
 Paths are discovered runtime URLs. Source fingerprints require mapping review on change. HEAD is bodyless, including Problems. Generation and the Node unit do not perform external OpenAPI meta-validation; separate evidence is required. They do not execute a code generator or provider.
 

@@ -150,9 +150,9 @@
   },
   "x-bdp-navigation": {
     "status": "draft authoring/tooling metadata, not a wire capability",
-    "baseCommit": "c6dfb3c05fe707cf605030c5661123e8dda0d8f8",
+    "baseCommit": "e23aec722763e967d3bde08caf96657069b39ead",
     "sourceFingerprints": {
-      "specs/profiles/core/retained-core.md": "a758b6db79493d71f54384ef7f514bd01760dec50127e563ad71c03cc1885a82",
+      "specs/profiles/core/retained-core.md": "da0f5d73ec5a415a1eedc696ebae014425b94031a6ff1589595069fda0463c4e",
       "specs/profiles/core/core.md": "da6c574ed41cfde803a80b35ae2ac4bdc07368faf4e907a837cdf1f21d69141a",
       "specs/profiles/core/contract-binding.md": "4cea2ef5ce44ff66ed0da93a738f01713ab4fbbd9434e9e2ea098cc626001527",
       "specs/profiles/core/read-delivery.md": "9ea7095d58280eb700f1cdd44e028d9407847b20025d3ebda9a90bdbaab3993d",
@@ -163,7 +163,7 @@
       "specs/profiles/core/type-definition-read.md": "e122e6eaab3618e4f88c8a94325df73b956b94fbded0ca785a66e9f78e56104c",
       "specs/profiles/core/bdp-v0.1.schema.json": "e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f",
       "specs/profiles/core/bdp-v0.schema.json": "15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327",
-      "specs/profiles/write/retained-write.md": "c1f8763d08916ec909d0ba24483c64652bb12b9415000a983679fafd847ec868",
+      "specs/profiles/write/retained-write.md": "b00039cc2939aa3e0fef14a0b2ae4e9407170f99ba486fc6abf31bdf1a3aff3c",
       "specs/profiles/write/write.md": "6b0fa7090066aff9d0a5994fb0899d9a3e77b4a8ce168d36c69564c71221fdb6",
       "specs/profiles/write/atomic-batch.md": "46208d32069ef4902565a5a48adf322d40e992e6c6236649de5682a5c0f573c9",
       "specs/profiles/write/link-updates.md": "4d3b3154f76527fcc42e8534872f61851f53fad4280fba6775c056bdc466462e",

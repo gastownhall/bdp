@@ -62,6 +62,8 @@ jobs:
       - run: pnpm check:boundaries
       - run: pnpm openapi:check
       - run: pnpm test:openapi
+      - run: pnpm markdown:check
+      - run: pnpm test:markdown
       - run: pnpm typecheck
       # Real Node child-process tests resolve workspace package exports from dist.
       - run: pnpm build

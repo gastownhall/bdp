@@ -161,3 +161,7 @@ a service may advertise this entry only after its own complete implementation an
 consumer-facing qualification.
 Ordinary reads retain Core semantics: no cross-replica freshness
 checkpoint/read-your-writes guarantee or hot-tier absence shortcut is added.
+
+## Markdown schema contracts
+
+The [Write schema contracts](write-contracts.md) index ordinary mutation and separately selected batch shapes using the [Markdown JSON Schema DSL](../../formats/markdown-json-schema.md). The [complete common schema companion](../core/bdp-v0.1.schema.md) preserves the canonical bundle's identity, references, conditions and closure. Schema notation does not replace atomic admission, authorization, final publication or retained-key rules. It adds no operations or capability support.

@@ -13,7 +13,7 @@ This is a **Specification** work product. Its Bead title is the heading above an
 
 ## Purpose and boundary
 
-This sister format gives people a compact, editable view of ordinary HTTP operations while translating a deliberately small subset of [OpenAPI 3.1.2](https://spec.openapis.org/oas/v3.1.2.html) in both directions. It **uses the Type-expression and schema-table rules** in [Markdown schema tables for JSON Schema version 0.5](markdown-json-schema.md); it does not redefine JSON Schema. OpenAPI 3.1's Schema Objects align with JSON Schema Draft 2020-12. A feature outside this subset is reported as unsupported, never omitted or guessed.
+This sister format gives people a compact, editable view of ordinary HTTP operations while translating a deliberately small subset of [OpenAPI 3.1.2](https://spec.openapis.org/oas/v3.1.2.html) in both directions. It **uses the Type-expression and schema-table rules** in [Markdown schema tables for JSON Schema version 0.5](markdown-json-schema-v0.5.md); it does not redefine JSON Schema. OpenAPI 3.1's Schema Objects align with JSON Schema Draft 2020-12. A feature outside this subset is reported as unsupported, never omitted or guessed.
 
 The first cut covers API title/version/description, static server URLs, operations, simple path/query/header/cookie parameters, JSON or other single-schema request and response media types, response headers, and reusable component schemas. It intentionally leaves authentication mechanisms, callbacks, webhooks, operation links, custom parameter serialization, examples, XML and multipart encoding, and behavioral rules such as HTTP decision precedence to their source specifications. This is a projection format; a rendered OpenAPI file does not become normative merely because it exists.
 
@@ -170,7 +170,7 @@ The [combined stress-test review](https://github.com/donnabox/memory-beads/blob/
 
 | Title | Target | Status | Body |
 | --- | --- | --- | --- |
-| Schema table grammar | [Markdown schema tables for JSON Schema](markdown-json-schema.md) | draft | Reuses the companion Type expressions and table grammar; this row is an authoring draft, not a live Link. |
+| Schema table grammar | [Markdown schema tables for JSON Schema](markdown-json-schema-v0.5.md) | draft | Reuses the companion Type expressions and table grammar; this row is an authoring draft, not a live Link. |
 
 ## External sources
 

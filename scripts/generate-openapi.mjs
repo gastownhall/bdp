@@ -10,12 +10,12 @@ export const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const media = "application/vnd.bdp.v0.1+json";
 export const schemaFile = "specs/profiles/core/bdp-v0.1.schema.json";
 const external = "../profiles/core/bdp-v0.1.schema.json#/$defs/";
-const baseCommit = "c6dfb3c05fe707cf605030c5661123e8dda0d8f8";
+const baseCommit = "e23aec722763e967d3bde08caf96657069b39ead";
 // Source drift stops generation. Updating a digest requires paired mapping review;
 // this script intentionally has no refresh-fingerprints or moving-HEAD mode.
 const approvedSources = {
   "specs/profiles/core/retained-core.md":
-    "a758b6db79493d71f54384ef7f514bd01760dec50127e563ad71c03cc1885a82",
+    "da0f5d73ec5a415a1eedc696ebae014425b94031a6ff1589595069fda0463c4e",
   "specs/profiles/core/core.md": "da6c574ed41cfde803a80b35ae2ac4bdc07368faf4e907a837cdf1f21d69141a",
   "specs/profiles/core/contract-binding.md":
     "4cea2ef5ce44ff66ed0da93a738f01713ab4fbbd9434e9e2ea098cc626001527",
@@ -36,7 +36,7 @@ const approvedSources = {
   "specs/profiles/core/bdp-v0.schema.json":
     "15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327",
   "specs/profiles/write/retained-write.md":
-    "c1f8763d08916ec909d0ba24483c64652bb12b9415000a983679fafd847ec868",
+    "b00039cc2939aa3e0fef14a0b2ae4e9407170f99ba486fc6abf31bdf1a3aff3c",
   "specs/profiles/write/write.md":
     "6b0fa7090066aff9d0a5994fb0899d9a3e77b4a8ce168d36c69564c71221fdb6",
   "specs/profiles/write/atomic-batch.md":

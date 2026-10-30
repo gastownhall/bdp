@@ -101,7 +101,7 @@ it is not another vote on already selected semantics.
 
 ## Authoring formats
 
-The [Markdown format drafts](formats/README.md) collect the schema and OpenAPI table DSLs from the Memory experiment. They support document authoring and review; their restricted conversion subsets do not replace the selected BDP contract or qualify a converter. The more nascent Bead/Link instance DSL remains under [Experimental](../experimental/formats/README.md).
+The [Markdown format drafts](formats/README.md) collect schema, OpenAPI and Type-definition authoring notation. The proposed schema0.6 edition supplies a complete common-schema companion and selected [Read](profiles/core/read-contracts.md)/[Write](profiles/write/write-contracts.md) indexes, while preserving the canonical schema and protocol meanings. The [Type-definition draft](formats/markdown-type-definitions.md) composes property schemas with existing descriptors and owned exact Refines declarations; Trish owns descriptor adoption. The more nascent Bead/Link instance DSL remains under [Experimental](../experimental/formats/README.md).
 
 ## Beads Preview3 comparison
 
