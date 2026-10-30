@@ -142,8 +142,8 @@ may add another read carrier if implementation evidence requires it.
 A Resource's canonical ID is established at creation and never changes. A
 creator MAY supply the local ID — one or more safe segments, so a memorable
 or hierarchical name is identity from birth — or omit it, in which case the
-authority allocates one. An authority-allocated local ID is a single opaque
-segment, and for either Resource kind never a live alias URL under
+authority allocates one. By default it chooses one opaque segment; selected
+[v0.1 id-root1](id-root.md) adds a caller-chosen prefix. Either kind is never a live alias URL under
 [Aliases](../core/core.md#aliases): hierarchy is a
 creator affordance, and an authority MUST NOT encode
 meaning into segments it mints. A supplied spelling that is not already

@@ -148,10 +148,108 @@
       "x-bdp-exact-fixture-url": "https://bdp-tooling.invalid/fixture/atomicBatch"
     }
   },
+  "x-bdp-cli-surface": {
+    "status": "Informative semantic grouping, not a generated SDK interface",
+    "commands": [
+      {
+        "command": "bd create",
+        "signatures": ["createBead"]
+      },
+      {
+        "command": "bd show",
+        "signatures": [
+          "currentBead",
+          "historicalBead",
+          "beadProperties",
+          "projectedBead",
+          "projectedHistoricalBead",
+          "beadAggregate"
+        ]
+      },
+      {
+        "command": "bd update",
+        "signatures": ["updateBead"]
+      },
+      {
+        "command": "bd delete",
+        "signatures": ["deleteBead"]
+      },
+      {
+        "command": "bd list",
+        "signatures": ["beadInventory", "projectedBeadInventory"]
+      },
+      {
+        "command": "bd versions",
+        "signatures": ["beadVersions"]
+      },
+      {
+        "command": "bd link create",
+        "signatures": ["createLink"]
+      },
+      {
+        "command": "bd link show",
+        "signatures": [
+          "currentLink",
+          "historicalLink",
+          "linkProperties",
+          "projectedLink",
+          "projectedHistoricalLink"
+        ]
+      },
+      {
+        "command": "bd link update",
+        "signatures": ["updateLink"]
+      },
+      {
+        "command": "bd link delete",
+        "signatures": ["deleteLink"]
+      },
+      {
+        "command": "bd link list",
+        "signatures": ["linkInventory", "projectedLinkInventory", "incidentLinks"]
+      },
+      {
+        "command": "bd link versions",
+        "signatures": ["linkVersions"]
+      },
+      {
+        "command": "bd events",
+        "signatures": ["scopeEvents", "beadEvents"]
+      },
+      {
+        "command": "bd link events",
+        "signatures": ["linkEvents"]
+      },
+      {
+        "command": "bd scope inspect",
+        "signatures": ["discovery"]
+      },
+      {
+        "command": "bd alias resolve",
+        "signatures": ["aliasResolve"]
+      },
+      {
+        "command": "bd alias put",
+        "signatures": ["putAlias"]
+      },
+      {
+        "command": "bd alias delete",
+        "signatures": ["deleteAlias"]
+      },
+      {
+        "command": "bd batch",
+        "signatures": ["atomicBatch"]
+      }
+    ],
+    "transport": ["scopeLanding", "writeDirectory"],
+    "deferredPublicCLI": ["exactDefinition"]
+  },
   "x-bdp-navigation": {
     "status": "draft authoring/tooling metadata, not a wire capability",
-    "baseCommit": "c6dfb3c05fe707cf605030c5661123e8dda0d8f8",
+    "baseCommit": "e23aec722763e967d3bde08caf96657069b39ead",
     "sourceFingerprints": {
+      "specs/profiles/write/id-root-v1.schema.json": "0f4c2a7cc57fefb29dc5ff6dc4139bd1e465feb6e0551021db16a5775ed73d8f",
+      "specs/profiles/write/id-root.md": "c7c34478f2d03cd39da4b9cffc7bfefdb6902f9d41caea67552d48faa7143563",
       "specs/profiles/core/retained-core.md": "a758b6db79493d71f54384ef7f514bd01760dec50127e563ad71c03cc1885a82",
       "specs/profiles/core/core.md": "da6c574ed41cfde803a80b35ae2ac4bdc07368faf4e907a837cdf1f21d69141a",
       "specs/profiles/core/contract-binding.md": "4cea2ef5ce44ff66ed0da93a738f01713ab4fbbd9434e9e2ea098cc626001527",
@@ -163,12 +261,12 @@
       "specs/profiles/core/type-definition-read.md": "e122e6eaab3618e4f88c8a94325df73b956b94fbded0ca785a66e9f78e56104c",
       "specs/profiles/core/bdp-v0.1.schema.json": "e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f",
       "specs/profiles/core/bdp-v0.schema.json": "15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327",
-      "specs/profiles/write/retained-write.md": "c1f8763d08916ec909d0ba24483c64652bb12b9415000a983679fafd847ec868",
-      "specs/profiles/write/write.md": "6b0fa7090066aff9d0a5994fb0899d9a3e77b4a8ce168d36c69564c71221fdb6",
-      "specs/profiles/write/atomic-batch.md": "46208d32069ef4902565a5a48adf322d40e992e6c6236649de5682a5c0f573c9",
+      "specs/profiles/write/retained-write.md": "fd4588686bf74ffac17a42018793ff9f3696a0b448d4eae32293f97359a979c8",
+      "specs/profiles/write/write.md": "335e4b0aa6ce6d3b2ea7db1f4dd1db56bf4372453dd6c98cf709e2e1580b9349",
+      "specs/profiles/write/atomic-batch.md": "4037788ecb5942c7ac291214efff3f8e451f73edfa4784fdec09e072e9f5c4d6",
       "specs/profiles/write/link-updates.md": "4d3b3154f76527fcc42e8534872f61851f53fad4280fba6775c056bdc466462e",
       "specs/profiles/write/object-edits.md": "9470123de75e3c1970a067cb1be4f5bd78ccd78bf271b0611cf1663ee45750fd",
-      "docs/cli-design/bdp-cli.md": "910070ca73013ade6acbea3b49c78a0973efe8d40ba6214acc70f9827acd1838",
+      "docs/cli-design/bdp-cli.md": "408eb3677baf69b2047ad4e9de9292d835c93ae2810b6d6a4402248ef967666b",
       "docs/cli-design/retained-profiles.md": "f64e71432a61b6b9416332884da6e52196883880bdd268117f3f57242980fb11",
       "docs/cli-design/reads-and-paging.md": "2e8c800192b7abf3a254c3ecc7ab4d9b9997f6994749284625d405c99a586de2",
       "docs/cli-design/events.md": "9fd4dae988c24ccd54260a6c4d6f8703bec2f29a0b3efd73493502f97c08fc22",
@@ -12774,7 +12872,8 @@
             "idempotency-conflict",
             "idempotency-in-progress",
             "idempotency-expired",
-            "revision-allocation-unsafe"
+            "revision-allocation-unsafe",
+            "capability-not-supported"
           ],
           "x-bdp-query-rules": "Once-only admitted query members; reject unknown/repeated/conflicting inputs. Follow cited view and capability constraints.",
           "parameters": [
@@ -12855,7 +12954,7 @@
               "content": {
                 "application/problem+json": {
                   "schema": {
-                    "$ref": "../profiles/core/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
+                    "$ref": "../profiles/write/id-root-v1.schema.json#/$defs/idRootCreateProblem"
                   }
                 }
               }
@@ -12866,10 +12965,26 @@
             "content": {
               "application/vnd.bdp.v0.1+json": {
                 "schema": {
-                  "$ref": "../profiles/core/bdp-v0.1.schema.json#/$defs/createBeadRequest"
+                  "oneOf": [
+                    {
+                      "$ref": "../profiles/core/bdp-v0.1.schema.json#/$defs/createBeadRequest"
+                    },
+                    {
+                      "$ref": "../profiles/write/id-root-v1.schema.json#/$defs/idRootCreateBeadRequest"
+                    }
+                  ]
                 }
               }
             }
+          },
+          "x-bdp-request-selection": {
+            "capability": "https://github.com/gastownhall/bdp/capabilities/id-root",
+            "version": "1",
+            "selector": "idRoot present on this create body",
+            "absence": "Unchanged base request; no implicit feature selection",
+            "requiredComposition": "Write plus id-root1",
+            "operation": "Same existing operation URL, media and result; no client-side allocation",
+            "grammar": "specs/profiles/write/id-root.md"
           },
           "x-bdp-forbidden-response-headers": ["ETag", "Location"]
         }
@@ -13236,7 +13351,8 @@
             "idempotency-conflict",
             "idempotency-in-progress",
             "idempotency-expired",
-            "revision-allocation-unsafe"
+            "revision-allocation-unsafe",
+            "capability-not-supported"
           ],
           "x-bdp-query-rules": "Once-only admitted query members; reject unknown/repeated/conflicting inputs. Follow cited view and capability constraints.",
           "parameters": [
@@ -13317,7 +13433,7 @@
               "content": {
                 "application/problem+json": {
                   "schema": {
-                    "$ref": "../profiles/core/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
+                    "$ref": "../profiles/write/id-root-v1.schema.json#/$defs/idRootCreateProblem"
                   }
                 }
               }
@@ -13328,10 +13444,26 @@
             "content": {
               "application/vnd.bdp.v0.1+json": {
                 "schema": {
-                  "$ref": "../profiles/core/bdp-v0.1.schema.json#/$defs/createLinkRequest"
+                  "oneOf": [
+                    {
+                      "$ref": "../profiles/core/bdp-v0.1.schema.json#/$defs/createLinkRequest"
+                    },
+                    {
+                      "$ref": "../profiles/write/id-root-v1.schema.json#/$defs/idRootCreateLinkRequest"
+                    }
+                  ]
                 }
               }
             }
+          },
+          "x-bdp-request-selection": {
+            "capability": "https://github.com/gastownhall/bdp/capabilities/id-root",
+            "version": "1",
+            "selector": "idRoot present on this create body",
+            "absence": "Unchanged base request; no implicit feature selection",
+            "requiredComposition": "Write plus id-root1",
+            "operation": "Same existing operation URL, media and result; no client-side allocation",
+            "grammar": "specs/profiles/write/id-root.md"
           },
           "x-bdp-forbidden-response-headers": ["ETag", "Location"]
         }
@@ -14090,7 +14222,7 @@
               "content": {
                 "application/problem+json": {
                   "schema": {
-                    "$ref": "../profiles/core/bdp-v0.1.schema.json#/$defs/atomicBatchProblem"
+                    "$ref": "../profiles/write/id-root-v1.schema.json#/$defs/idRootBatchProblem"
                   }
                 }
               }
@@ -14101,10 +14233,26 @@
             "content": {
               "application/vnd.bdp.v0.1+json": {
                 "schema": {
-                  "$ref": "../profiles/core/bdp-v0.1.schema.json#/$defs/batchRequest"
+                  "oneOf": [
+                    {
+                      "$ref": "../profiles/core/bdp-v0.1.schema.json#/$defs/batchRequest"
+                    },
+                    {
+                      "$ref": "../profiles/write/id-root-v1.schema.json#/$defs/idRootBatchRequest"
+                    }
+                  ]
                 }
               }
             }
+          },
+          "x-bdp-request-selection": {
+            "capability": "https://github.com/gastownhall/bdp/capabilities/id-root",
+            "version": "1",
+            "selector": "idRoot present at a createBead/createLink member",
+            "absence": "Unchanged base request; no implicit feature selection",
+            "requiredComposition": "atomic-batch1 plus id-root1",
+            "operation": "Same existing operation URL, media and result; no client-side allocation",
+            "grammar": "specs/profiles/write/id-root.md"
           },
           "x-bdp-forbidden-response-headers": ["ETag", "Location"]
         }
