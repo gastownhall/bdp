@@ -193,6 +193,31 @@ The complete [properties-schema companion](callables/callables.properties.schema
 
 A supported isolated schema or future API slice may be authored in those DSLs. No complete DSL translation, compiler or lossless round trip is claimed for this draft. The JSON companion is a structural projection, not an installable Type graph; its effective helpers do not create Refines Links or enforce abstractness/registration. The Specification remains the drafting home for semantic decisions the schema cannot enforce.
 
+## CLI invocation and command tree
+
+Donna accepted placing client options before the callable; arguments after the callable belong to its CLI projection. The generic invocation spelling below is a working proposal she found plausible:
+
+```text
+bd [client options] call CALLABLE [callable arguments]
+```
+
+For example, a callable created at chris/sells/laughs can be invoked directly as bd call chris/sells/laughs. A projected --times flag would give bd call chris/sells/laughs --times 3. Callable-specific help can be fetched without executing it; the exact help control and generic JSON-argument input still need a spelling/collision pass. Both CallableBatch and CallableQuery use this generic entry; actual BDP invocation follows the selected callable contract.
+
+**Command-tree proposal, not yet selected:** make explicit CLI registrations independent of Packs. A Scope service advertises accepted registrations in its command catalog; Pack installation contributes registrations through that same facility. Creating a callable alone does not claim a catalog path. Pack ownership is not a prerequisite for a service-accepted standalone registration, and no client-local alias installation is implied.
+
+| Registration fact | Proposed meaning |
+| --- | --- |
+| Command path | Ordered string segments, such as [chris, sells, laughs], independently chosen from the callable ID. |
+| Target | A selected callable definition/contract; exact target/closure evidence remains part of the invocation design. |
+| Argument projection | Uses the callable's declarative parameter/CLI mapping; no second argument signature in the registration. |
+| Optional Pack provenance | Records the declaring/installed Pack when present, without inventing a Pack for a standalone registration. |
+
+The service projects accepted flat path bindings into a tree by common prefixes. A registration for [chris, sells, laughs] exposes bd chris sells laughs; another registration may expose the same callable as bd laugh. The slashes in the Bead ID do not create either route. Implicit groups allow navigation and generated help; richer group descriptions and whether a group may also invoke are still open.
+
+Registration admission must check command/group conflicts and reserved built-in paths, and reject ambiguous bindings before publishing a catalog. Exact reserved/extendable groups, catalog atomicity, registration ownership/retention, removal on Pack uninstall, profiles and authorization-sensitive discovery remain design work. Standalone and Pack-origin registrations use the same rules. Accepted registration/catalog state, rather than every stored candidate binding, determines the client tree.
+
+This proposal needs its own uniquely named registration Bead/Link Types or equivalent catalog contract before adoption. It does not add fields to the current Callable properties schema, choose a relationship carrier, or authorize a new registration implementation. Direct invocation remains available independently of friendly command placement.
+
 ## Implementation and parameter binding
 
 Arguments are typed data, and AST/Go implementations share the declared callable boundary. The binding representation remains unselected. Predicate binders, Batch prior-creation handles, transaction captured sets and invocation parameters are different concepts.
