@@ -1,0 +1,116 @@
+{
+  "status": "NON_NORMATIVE_STRUCTURAL_EXAMPLES_NOT_EXECUTION",
+  "examples": {
+    "queryBody": {
+      "schema": "CallableQuery",
+      "properties": {
+        "description": "List current Beads.",
+        "parameters": [],
+        "body": {
+          "ir": "bdp-query-design-1",
+          "profile": "list",
+          "selection": {
+            "op": "scan",
+            "collection": "beads"
+          },
+          "result": {
+            "form": "resources"
+          }
+        }
+      }
+    },
+    "queryExtern": {
+      "schema": "CallableQuery",
+      "properties": {
+        "description": "Recall matching Memory records.",
+        "parameters": [
+          {
+            "name": "text",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Text to find."
+          },
+          {
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "default": 20,
+            "description": "Maximum records."
+          }
+        ],
+        "cliMapping": {
+          "flags": [
+            {
+              "names": [
+                "--limit",
+                "-l"
+              ],
+              "parameter": "limit"
+            }
+          ],
+          "positionals": [
+            {
+              "position": 0,
+              "parameter": "text"
+            }
+          ]
+        },
+        "extern": {
+          "binding": "memory.recall"
+        }
+      }
+    },
+    "batchExtern": {
+      "schema": "CallableBatch",
+      "properties": {
+        "description": "Close one Issue.",
+        "parameters": [
+          {
+            "name": "issue",
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            },
+            "required": true
+          }
+        ],
+        "cliMapping": {
+          "positionals": [
+            {
+              "position": 0,
+              "parameter": "issue"
+            }
+          ]
+        },
+        "extern": {
+          "binding": "issues.close"
+        }
+      }
+    },
+    "batchBody": {
+      "schema": "CallableBatch",
+      "properties": {
+        "description": "Delete one fixed example Bead in a single atomic Batch.",
+        "parameters": [],
+        "body": {
+          "capabilityVersion": "1",
+          "operations": [
+            {
+              "operation": "deleteBead",
+              "bead": "https://example.org/work/item"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "limits": [
+    "Schema checks shapes and literal body grammar, not embedded parameter schema validity, duplicate parameter-name semantics, mapping referential integrity, Refines/abstractness, executable availability, argument binding, authorization, closure, HTTP or transaction behavior.",
+    "Resource IDs and Type IDs are not assigned by these examples.",
+    "Existing Query and batch bodies are validated only at their exact source grammar; they do not establish parameter nodes."
+  ]
+}
