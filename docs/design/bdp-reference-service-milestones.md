@@ -7,6 +7,65 @@ Claudia owns this implementation work; Trish coordinates the subordinate tracker
 review and ordinary BDP landing. The [selected specification front door](../../specs/README.md)
 governs semantics. This inventory supplies no runtime conformance claim.
 
+## October 30 delivery and current staging
+
+[PR #321](https://github.com/gastownhall/bdp/pull/321) now contains the private
+retained client/HTTP/SQLite increment at
+[bb515165](https://github.com/gastownhall/bdp/commit/bb5151653b54ef193e3b8b44ab07860b9a9b3c16),
+composed from the reviewed 37-file implementation delta. The dated October 29
+inventory, assessments and proposed slice order below remain historical records.
+This section records the current delivery and implementation order.
+
+The [retained client](../../packages/client/src/retained-read.ts) supports selected
+discovery, current full/properties GET and HEAD, conditional reads, native Problems
+and original response bytes. [Native Write preparation and submission](../../packages/client/src/retained-write.ts)
+retain the selected invocation through the
+[bounded HTTP transport](../../packages/client/src/bounded-http-transport.ts).
+The private reference path has its own
+[HTTP composition](../../packages/server/src/retained-v01/http.ts),
+[SQLite owner](../../packages/server/src/retained-v01/store.ts),
+[Event handling](../../packages/server/src/retained-v01/events.ts) and
+[recovery](../../packages/server/src/retained-v01/recovery.ts), with Bead, Link,
+edit and alias slices. The
+[point-read HTTP tests](../../apps/bdptest/src/retained-v01-point-read.test.ts)
+include an actual generic-client to HTTP to SQLite preparation/submission/read
+case. This delivery remains private. It establishes no complete Core/Write
+profile, canonical CLI activation, Go implementation or production TLS/auth
+qualification. Query/List, exact History and pinned Reference objects,
+projection, aggregates and a caller-owned durable journal remain outside this
+increment. The non-HTTP URI/local-path overlap remains a known fixture gap.
+
+On the received implementation subject, formatting, lint, dependency boundaries,
+typecheck and a fresh normal build passed. The original eight-file focused run
+remains **301 executions: 297 PASS and 4 FAIL**, with no pending cases. Two
+fixture-only literal corrections changed no assertions or production code:
+bodyless-response fixtures use `null` instead of an empty string, and the Link
+read seed uses an unambiguous HTTPS target. Separately, exactly those **4 repaired
+cases passed**, followed by **3 previously unrun HTTP controls passing**. The
+other 53 and 44 cases respectively were filtered. This is no all-301-green rerun
+or full conformance result. These results precede composition; the actual
+composed-head CI verdict remains separate. This documentation amendment runs
+only link and whitespace checks.
+
+Donna's current staging is:
+
+1. Finish the selected non-Types canonical CLI surface and independently validate
+   its dry-run HTTP requests. Implement the matching SQLite semantic surface and
+   establish live success, failure and recovery coverage alongside it. SQL
+   lowering may be staged behind a correct reference execution path; atomic
+   effects, guards, key recovery and required Event facts remain obligations.
+   Core/Write Type affiliations and exact pins remain required while Types-profile
+   implementation is deferred.
+2. Once those gates are complete or in bounded final closure, Types-profile work
+   can proceed in parallel with the Go service library and its integration into
+   `donnabox/beads` through `bd serve`.
+3. Implement the Go canonical CLI client later; the completed existing-language
+   CLI supplies the bootstrap client and acceptance harness.
+
+Types-profile and generic Go implementation in Claudia's lane remain deferred
+while the first-stage gates are open. Legacy default build/test participation
+and historical evidence retain the retirement obligations recorded below.
+
 ## First change and preserved behavior
 
 Freeze `bdpbd` as a legacy v0 Read projection and stop recommending it for new
