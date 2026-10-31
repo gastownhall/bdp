@@ -53,9 +53,9 @@ Donna selected separate concepts for the reusable Package definition and a Scope
 | --- | --- | --- |
 | Package definition | Describes declared members, explicit dependencies and authored command/shortcut aliases. | Package is the selected Bead Type name; its concrete propertiesSchema is not yet selected. |
 | Declared member relation | Identifies a definition's single defining Package. | PackDeclares remains the working Link Type name; Package to definition Bead is the proposed endpoint shape. |
-| Import relation | Expresses a dependency on definitions supplied by another Package. | PackImports remains the working Link Type name; whole-Package versus selected-member import detail remains open. |
+| Import relation | Selects named exports supplied by another Package. | Named-export selection chosen; PackImports remains the working Link Type name, with concrete endpoint/fields still open. |
 | Export relation | Gives an original definition a name in the exporting Package. | Named Link selected; exact Type name, name property schema, ownership and uniqueness rules remain open. |
-| Installation | Binds a selected Package definition and exact resolved member/dependency closure to an installing Scope, CLI mount and effective bound/unbound exposures. | Installation Link selected. Presence of its current live admitted record means installed; absence means no such installation. Exact properties, admission and cardinality remain open. |
+| Installation | Binds a selected Package definition and exact resolved member/dependency closure to an installing Scope, CLI mount and effective bound/unbound exposures. | Installation Link selected, at most one live installation per Package identity per Scope. Presence means installed; absence means no such installation. Exact properties and admission remain open. |
 
 For example, the same reusable Memory Package can be installed at CLI mount memory in one Scope and notes in another. Its cliCommands/remember alias then exposes bd memory remember or bd notes remember, respectively, using the same selected Callable contract. Root shortcut bindings and collision diagnoses are installation results; they are not edits to the reusable Package's authored command tree. This example does not choose cross-Scope transport, copy/identity or retention mechanics.
 
@@ -70,7 +70,7 @@ Scope installation --selects--> exact Package/member/dependency closure
 Scope installation --exposes--> CLI mount + bound routes + unbound optional shortcuts
 ```
 
-Package membership remains explicit. Donna selected requiring a Package's declared definition Beads to be subordinate to its own ID. Containment constrains where a declared member may live; it does not make every Bead sharing a prefix a declared member. Exact endpoint constraints, relation ownership, import selections and whether a Scope permits multiple installations of the same Package remain to settle.
+Package membership remains explicit. Donna selected requiring a Package's declared definition Beads to be subordinate to its own ID. Containment constrains where a declared member may live; it does not make every Bead sharing a prefix a declared member. Exact endpoint constraints, relation ownership and import fields remain to settle.
 
 ### Definition ID space
 
@@ -92,6 +92,14 @@ For example, Package acme/tools declares acme/tools/actions/laugh and may export
 
 Ordinary aliases under exports/ were not selected as the authoritative export table. They would reuse the hierarchical CLI naming approach but need inventory/snapshot evidence: existing aliases are unrevisioned, repointable in-Scope Bead locators with no collection membership and no alias chains. Derived convenience aliases may be considered later; no second independently authored export authority is selected. The selected CLI alias convention is unchanged.
 
+### Imports select named exports
+
+Donna selected explicit named-export imports rather than importing every export of a Package. Each import selection identifies its supplying Package and the export names it uses. It does not automatically include all current exports or acquire newly added exports. Imports preserve the original definition identities and defining homes, including through re-exports.
+
+For example, a consumer may select chuckle from acme/tools without importing another export named cry. Its exact closure must retain the selected export binding, original target definition and required transitive dependencies. An unselected export is not an explicit import merely because it exists in the dependency Package; whether closure also retains unreferenced definitions is a separate coverage decision.
+
+The concrete import Link endpoint/fields, one-Link-per-name versus grouped selections, local-name aliasing, missing/ambiguous-name diagnostics and exact selection/admission mechanics remain open. This import rule is not a visibility policy for direct bd call invocation. The treatment of differing exact dependency revisions across installed Packages remains a closure decision; one installation per Package identity does not silently select a version solver or per-consumer snapshot execution.
+
 ## Installed-package discovery and system data
 
 Donna selected the installation-Link representation: a real registry Bead at the working location sys/packages has typed outgoing installation Links to selected Package definitions. A current live installation Link is the installation fact. Its presence means installed; its absence means there is no corresponding installation. No separate installed boolean, installation Bead or hidden status table is required by this model.
@@ -106,7 +114,9 @@ sys/packages [registry Bead]
     selected exact Package definition
 ```
 
-An installation Link binds its selected Package/closure, CLI mount and effective exposure choices. Exact property names/carriers remain open. A target Package revision alone is not a complete member/import/alias/extern closure. Installation cardinality is still undecided: one Link per Package identity in a Scope versus multiple exact installations at distinct mounts/versions.
+An installation Link binds its selected Package/closure, CLI mount and effective exposure choices. Exact property names/carriers remain open. A target Package revision alone is not a complete member/import/alias/extern closure.
+
+**Selected cardinality:** a Scope has at most one current live installation Link per Package identity, regardless of selected revision or CLI mount. A second Link cannot create a simultaneous installation of the same Package at another revision or mount. The registry/Package identity pair must be unique for live admitted installation Links; concrete Type constraints and duplicate-request behavior remain to be specified. Different Package identities can coexist, subject to ordinary closure and command collision rules. Updates change the existing installation selection through the admission protocol still to be defined. This does not remove retained historical revisions or decide dependency-version conflict policy.
 
 Once admitted and published, the Link is authoritative installation state. Creating/deleting its live record is the model's install/uninstall transition. The command/transport and atomic validation/publication rules remain open: incomplete closure or conflicting required mounts must be dispositioned before a successful installation is published, rather than relying on a second installed flag. A Package definition or convenience alias alone does not establish installation, and an installed Link does not grant invocation permission or prove handler availability.
 
@@ -208,14 +218,16 @@ Status: draft
 
 Under the selected registry-Link model, a real registry Bead has one admitted installation Link to a selected Package/closure with its own Scope-specific mount. The outgoing typed-Link query returns that installation even if the Package's canonical ID is outside sys/packages. The admitted Link's presence means installed, and deleting that live Link removes the corresponding installation. A convenient alias under packages/ does not make the Package appear under that prefix in a normal Bead inventory. Removing or repointing a convenience alias does not by itself install or uninstall the Package. Current loaded/available state requires the separately agreed service observation contract; the durable installation Link alone does not establish it.
 
+A second requested installation of the same Package identity at another revision or mount cannot publish another live installation Link in this Scope. A distinct Package identity is not prohibited by this cardinality rule; its closure and CLI bindings still require validation.
+
 ## Open package decisions
 
 These are the five active design decisions. Installation representation is now selected; the remaining parts still need decisions and complete Type descriptors.
 
 | Issue | Decision area | Selected foundation | Still to decide |
 | --- | --- | --- | --- |
-| PKG-O1 | Installation shape and cardinality | Installation is a Link; current live presence/absence is installed/not installed. | One installation per Package identity per Scope, or multiple exact versions/mounts; registry/Link properties and endpoint/cardinality constraints. |
-| PKG-O2 | Declarations, imports and exports | One defining Package; explicit imports; subordinate declared definition Bead IDs under arbitrary discoverable Package roots; named export Links. | Member eligibility/ownership, whole-Package versus selected-member imports, export name/schema/uniqueness/ownership, containment boundary details and any graph-root materialization/rebasing. |
+| PKG-O1 | Installation shape and cardinality | Installation is a Link; live presence/absence is installed/not installed; at most one live installation per Package identity per Scope. | Registry/Link properties, endpoint/uniqueness descriptors and duplicate-request behavior. |
+| PKG-O2 | Declarations, imports and exports | One defining Package; imports explicitly select named exports; subordinate declared definition Bead IDs under arbitrary discoverable Package roots; named export Links. | Member eligibility/ownership, import endpoint/fields/grouping/local-name aliasing, export name/schema/uniqueness/ownership, containment boundary details and any graph-root materialization/rebasing. |
 | PKG-O3 | Exact closure | Explicit exact member/dependency closure retained by installation. | Coverage/carrier/selection/retention, alias and Type/schema evidence, conflicting dependency versions and reconciliation with deferred CALL-O3 extern identity. |
 | PKG-O4 | Installation lifecycle and admission | Accepted Link creation/deletion changes installation presence; no extra installed boolean. | bd pack subcommands or CRUD transport, atomic admission/publication, update/uninstall effects, authorization and any externally meaningful loaded availability. |
 | PKG-O5 | Registry and CLI catalog | sys/ namespace, Package mounts, cliCommands/cliShortcuts and optional-shortcut collision fallback. | Registry discovery/reservation and owning Type, effective catalog carrier/revisions, required-tree conflicts, collision equivalence/ownership, group behavior, explicit rebinding and help/completion/cache rules. |
