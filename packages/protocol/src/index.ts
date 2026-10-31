@@ -5,6 +5,17 @@ export type {
   PropertyValidator,
 } from "./property-validation.js";
 export { snapshotJsonValue, stringifyJsonValue } from "./json-values.js";
+export {
+  RETAINED_V01_SPECIFICATION,
+  RETAINED_V01_MEDIA_TYPE,
+  RETAINED_WRITE_OPERATIONS,
+  parseRetainedWriteDiscovery,
+  parseRetainedWriteDirectory,
+  parseRetainedWriteInput,
+  type RetainedWriteOperation,
+  type RetainedWriteDirectory,
+  type RetainedWriteDiscovery,
+} from "./retained-write-values.js";
 import { parseHistoryMissing } from "./history-values.js";
 import type { RevisionProvenance, HistoryCapability, HistoryMissing } from "./history-values.js";
 export * from "./history-values.js";
@@ -639,3 +650,14 @@ export {
   type TransactionalDiscovery,
   type TransactionalOperationDirectory,
 } from "./transaction-discovery-values.js";
+
+export {
+  parseRetainedDiscovery,
+  parseRetainedResource,
+  parseRetainedProperties,
+  parseRetainedProblem,
+  parseRetainedWriteResult,
+  type RetainedDiscovery,
+  type RetainedJsonObject,
+  type RetainedResourceKind,
+} from "./retained-read-values.js";
