@@ -50,7 +50,7 @@ Donna selected separate concepts for the reusable Pack definition and a Scope's 
 | Pack definition | Describes declared members, explicit dependencies and authored command/shortcut aliases. | Pack remains the working Bead Type name; its concrete propertiesSchema is not yet selected. |
 | Declared member relation | Identifies a definition's single defining Pack. | PackDeclares remains the working Link Type name; Pack to definition Bead is the proposed endpoint shape. |
 | Import relation | Expresses a dependency on definitions supplied by another Pack. | PackImports remains the working Link Type name; whole-Pack versus selected-member import detail remains open. |
-| Installation | Binds a selected Pack definition and exact resolved member/dependency closure to an installing Scope, CLI mount and effective bound/unbound exposures. | Separate installation concept selected; representation as a Bead, a service-owned record or a catalog structure remains open. |
+| Installation | Binds a selected Pack definition and exact resolved member/dependency closure to an installing Scope, CLI mount and effective bound/unbound exposures. | Separate installation concept selected; representation as a Bead, a typed Link, a service-owned record or a catalog structure remains open. |
 
 For example, the same reusable Memory Pack can be installed at CLI mount memory in one Scope and notes in another. Its cliCommands/remember alias then exposes bd memory remember or bd notes remember, respectively, using the same selected Callable contract. Root shortcut bindings and collision diagnoses are installation results; they are not edits to the reusable Pack's authored command tree. This example does not choose cross-Scope transport, copy/identity or retention mechanics.
 
@@ -66,6 +66,47 @@ Scope installation --exposes--> CLI mount + bound routes + unbound optional shor
 ```
 
 Pack membership is explicit rather than inferred from every Bead whose ID shares a path prefix. Hierarchical IDs have a selected role in the cliCommands/cliShortcuts convention; the member/import graph still supplies definition and dependency meaning. Exact endpoint constraints, relation ownership, import selections and whether a Scope permits multiple installations of the same Pack remain to settle.
+
+## Installed-package discovery and system data
+
+Donna requires a distinguished way to query installed packages and, if externally meaningful, loaded/available packages. She proposed either aliases under a well-known packages root or typed installation Links from a well-known registry Bead. Representation, root name/reservation and installed-versus-loaded lifecycle semantics are not selected yet.
+
+### Alias and Link alternatives
+
+These are design sketches, not implemented CLI claims:
+
+| Candidate query | Meaning and current constraint |
+| --- | --- |
+| bd list --type package with an ID-prefix filter under packages/ | Finds matching canonical Beads. Existing BDP aliases are not Resources and have no collection membership, so aliases under this prefix do not appear in a normal Bead list or change the target Bead's canonical ID. This query would require actual installation/package Beads or an explicit new alias-inventory contract. |
+| bd link list system/packages --type installed-package --direction out | Uses an actual in-Scope registry Bead as the incident source and returns typed installation Links. Links already have identity, Type, properties and revisions, so a Link can represent the installation relationship without requiring a separate installation Bead. Type/root spellings are working proposals. |
+
+**Pacabel recommendation, not selected:** use a real registry Bead and typed outgoing installation Links as the authoritative graph representation. Aliases may provide convenient locators without defining installation truth. The registry Type could own the installation-Link family so membership changes have the ordinary owning-Bead revision behavior; exact Type descriptors and admitted install/update operations remain open.
+
+```text
+system/packages [registry Bead]
+    --installed-package [installation Link, own identity/revision]-->
+    selected exact Pack definition
+
+installation Link properties: Scope-specific mount and exact closure selection
+```
+
+The property names/carriers are not selected by this sketch. A target Pack revision alone is not a complete member/import/alias/extern closure. The Link must carry or reference the agreed complete selection evidence and effective exposure binding. Presence of a Pack definition, an alias or an arbitrary typed Link is not by itself a claim of service admission or executable availability.
+
+This preserves the selected separation between reusable Pack definition and installation. The installation simply uses a Link rather than another Bead. If installations need their own ordinary outgoing relationships, a reified installation Bead may be necessary: existing endpoint rules do not permit treating a local Link as a Bead endpoint. That is a real modeling tradeoff, not a lossless storage substitution. Installation cardinality and update/uninstall semantics remain open.
+
+### Graph-data namespace and protocol navigation
+
+The service's chosen bdp/ prefix holds protocol navigation and is reserved from ordinary Bead allocation in the current design. Those HTTP endpoints are addressable; they are not ordinary graph Beads. Existing Core more generally protects the actual advertised navigation addresses against conflicting Resource/alias allocation and does not mandate the same literal prefix for every service.
+
+**Namespace recommendation, not selected:** use a service-owned graph-data namespace conventionally rooted at system/, with system/packages as a real registry Bead. Service-managed Beads and Links there use ordinary typed Resource reads, queries, revisions and authorization. Path spelling does not confer authority, Type membership or containment, and does not create a parent Bead automatically.
+
+The supporting extension should advertise the actual registry URI so clients do not infer it by stripping/adding path segments. Exact discovery carrier and whether system/ is a reserved prefix or a default placement are still open; no new field is silently added to the existing closed Core discovery schema. An existing ordinary identity cannot be overwritten or repurposed just to establish the convention.
+
+### Installed versus loaded
+
+Proposed distinction: installed is a durable Scope binding to a selected Pack/closure; loaded or available is the service's current ability to activate/use that binding, including implementation availability. Do not treat a persistent installation Link as proof that Go code is currently loaded or that invocation is authorized/supported.
+
+Start with a durable installation query and explicit service availability reporting if callers need it. A separate loaded lifecycle, a second Link Type, state field values and persistence/observation rules are not selected. Runtime observation must not be disguised as an evergreen stored boolean. These package questions do not resolve the deferred Callable invocation/extern contracts by implication.
 
 ## Current design sequence
 
@@ -127,6 +168,7 @@ These embedded draft expectations are authoring content, not executed package/cl
 | --- | --- |
 | [S1. Mount a Pack alias tree](#s1-mount-a-pack-alias-tree) | Alias suffixes become a tree below the selected CLI mount. |
 | [S2. Keep grouped commands when a shortcut conflicts](#s2-keep-grouped-commands-when-a-shortcut-conflicts) | An optional root collision reports an unbound shortcut while valid grouped commands remain usable. |
+| [S3. Discover installations through the graph](#s3-discover-installations-through-the-graph) | Compare the proposed typed installation-Link query with alias locators and actual runtime availability. |
 
 ### S1. Mount a Pack alias tree
 
@@ -140,9 +182,15 @@ Status: draft
 
 Given a valid Memory Pack grouped tree and an optional requested bd remember shortcut whose path is already bound, installation keeps bd memory remember and reports Memory's shortcut as unbound. The existing bd remember binding keeps its meaning. No optional collision turns the grouped operation into a failure or silently overrides another binding. Required grouped-tree conflicts and root-exposure encoding remain separate design questions.
 
+### S3. Discover installations through the graph
+
+Status: draft
+
+Under the proposed registry-Link model, a real registry Bead has one admitted installation Link to a selected Pack/closure with its own Scope-specific mount. The outgoing typed-Link query returns that installation even if the Pack's canonical ID is outside system/packages. A convenient alias under packages/ does not make the Pack appear under that prefix in a normal Bead inventory. Removing or repointing a convenience alias does not by itself install or uninstall the Pack. Current loaded/available state requires the separately agreed service observation contract; the durable installation Link alone does not establish it.
+
 ## Remaining package design work
 
-Complete Pack/PackDeclares/PackImports descriptors and concrete exact import/member closure, alias inventory and installed catalog binding contracts. Settle mount admission, shortcut catalog encoding, collision equivalence/ownership, reserved built-ins, executable/extendable groups, updates/uninstall, explicit rebinding and help/completion/cache revalidation. These are package decisions; they must not be added as prerequisites to the standalone Callable Type contract.
+Choose the installation registry representation, advertised graph-data root and installed/loaded observation semantics. Complete Pack/PackDeclares/PackImports descriptors and concrete exact import/member closure, alias inventory and installed catalog binding contracts. Settle mount admission, shortcut catalog encoding, collision equivalence/ownership, reserved built-ins, executable/extendable groups, updates/uninstall, explicit rebinding and help/completion/cache revalidation. These are package decisions; they must not be added as prerequisites to the standalone Callable Type contract.
 
 ## Depends on
 
