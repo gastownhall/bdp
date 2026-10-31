@@ -8,7 +8,7 @@ It does not change held schemas, advertise a service, or claim implementation.
 Donna selected direct JSON AST input as the immediate CLI path. The later
 [CLI grammar](../../../docs/cli-design/query-language.md) remains deferred.
 
-## Initial receiving implementation
+## Receiving implementation boundaries
 
 The first Beads implementation selects the existing logical AST and this
 request/result carrier through explicit service composition. Its configured
@@ -17,21 +17,33 @@ a new Resource ID. `POST S?readVersion=1&operation=list|query` uses the ordinary
 server authentication, Host checks, deadlines and admission controls. It is a
 read-only operation with the same shared executor as direct CLI AST input.
 
-The first receiving context is a complete bounded current Bead/Link inventory,
-captured in one checked transaction and projected using the existing Resource
-projector. It covers actual generic Beads, Issues and native Links, including
-dependency-backed Links. Legacy installed Type descriptors contribute checked
-family facts; this adapter does not manufacture them as revisioned Beads.
-Source, schema and supported shapes must be recorded beside the implementation.
+The default Beads layout-11 receiver uses a complete bounded current Bead/Link
+inventory, captured in one checked transaction and projected through the existing
+Resource path. It includes generic Beads, Issues and native Links, including
+dependency-backed Links. Its legacy installed Type descriptors contribute checked
+family facts; it does not manufacture them as revisioned Beads.
 
-Its deliberate first limits are explicit refusal of projection, request sort,
-explicit paging, Batch operands and exact pinned acquisition. Stored endpoint
-pins still participate in current-edition applicability and remain available as
-raw field data. A one-hop Link-only selection need not acquire its opposite
-endpoint; acquiring a pinned endpoint requires the missing exact-acquisition
-capability and refuses before identity lookup. Even a pin equal to the current
-revision is not a shortcut around that capability. This is a receiving limit,
-not a change to the Reference union or its equality rules.
+The joined Types layout-14 receiver also captures stored Type-definition Beads as
+ordinary Resources. Those records use the same inventory, predicates, Type
+interpretation and result path as other Beads. This source correspondence is
+recorded in Beads commit `0a56b5a142e1f2c7a4ebdd02f994ca1af5a3fd81`; it does not
+establish a complete native HTTP binding or change the default layout. Record the
+actual profile, source, schema and supported shapes beside every qualification.
+
+The initial implementations refuse projection, request sort, explicit paging,
+Batch operands and explicit pinned request acquisition. Static admission still
+refuses a pinned request even if its token happens to equal a current revision.
+Stored endpoint pins remain authored field data and participate in current-edition
+applicability. A Link-only selection need not acquire its opposite endpoint.
+
+When endpoint content is required, the joined receiver may use a pinned current
+edition only if the SAME checked capture supplies authoritative edition evidence
+for that Resource and pin. Matching a token from a separate current read is not
+such evidence; neither is rewriting the authored pin. A receiver without that
+evidence refuses the required acquisition before identity lookup. Noncurrent or
+otherwise unavailable historical acquisition still requires the missing
+capability and refuses. These are explicit implementation boundaries, preserving
+the Reference union, its equality rules and exact History semantics.
 
 Resource delivery is initially atomic within its operational result and byte
 bounds. `next:null` means the entire selection was established and returned.

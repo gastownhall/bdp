@@ -1,38 +1,43 @@
 {
-  "status": "schema-and-bounded-static-binding-checks-passed",
-  "cases": 54,
+  "status": "focused-projection-schema-passed-full-binding-blocked",
+  "authored_binding_cases": 64,
+  "focused_projection_cases_executed": 13,
   "checks": {
-    "accept": 28,
-    "reject-schema": 15,
-    "reject-semantic": 11
+    "focused_accept": 7,
+    "focused_reject_schema": 6
   },
-  "not_executed": [
-    "HTTP request dispatch",
-    "CLI parser",
-    "service evaluator",
-    "response header and native cursor behavior",
-    "provider lowering"
-  ],
+  "full_binding_harness": {
+    "status": "blocked-before-case-execution",
+    "reason": "existing interpreter lacks jsonschema URI format checker; unchanged mandatory assertion retained",
+    "exit_code": 1,
+    "natural_terminal_reaped_group_gone": true,
+    "dependency_installation_or_validator_weakening": false
+  },
+  "historical_full_receipt": "https://github.com/gastownhall/bdp/blob/0624a9ebef0402b310de86635f9f94d1428678b2/docs/cli-design/query-ir/BINDING-VALIDATION.json",
   "files": [
     {
       "path": "docs/cli-design/query-ir/read-binding.schema.json",
-      "sha256": "ba95b57ad9bedc49b97858f53aae288f10d16575203aa94771a94200a8ed205f"
-    },
-    {
-      "path": "docs/cli-design/query-ir/query.schema.json",
-      "sha256": "bf5fbf0b89f74273122c28b944907dd3e0fdb057d9266fdee4de9c0dfcbaeaa8"
-    },
-    {
-      "path": "specs/profiles/core/bdp-v0.1.schema.json",
-      "sha256": "72dd1837ad169114911b4ffcd9104c1aa2d1d02870e60b2ac7e8c4e950fc7d1d"
+      "sha256": "f6a8e9d12eab2bef4c681776633ecab55b96c425303458a3b7283772fc11f21b"
     },
     {
       "path": "docs/cli-design/query-ir/read-binding-cases.json",
-      "sha256": "b7b45740f14086b2c1109417890719d0546f54b70ea4bcac12c09b7554bc12d8"
+      "sha256": "128a5446c8ff1cf963c08a887f03f73b123361b20caa7d6d5c4dc6b29e6eba4a"
     },
     {
-      "path": "docs/cli-design/query-ir/validate-binding.py",
-      "sha256": "e5359ab58e1da4e923ba36adbca586871a4edda82dbe5efe3d6c37204959df7a"
+      "path": "specs/profiles/core/resource-projection.md",
+      "sha256": "934d607e30f48813de6a1ff0b863add9e515c948d70ec9013bb62e683bcb4e9e"
+    },
+    {
+      "path": "specs/profiles/core/bdp-v0.1.schema.json",
+      "sha256": "e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f"
     }
+  ],
+  "not_executed": [
+    "full64bindingcase suite",
+    "Queryevaluator",
+    "CLI",
+    "HTTP",
+    "providerlowering",
+    "wireadoption"
   ]
 }
