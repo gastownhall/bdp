@@ -193,6 +193,39 @@ The integration branch brings Memory creation and editing, mixed Issue/Memory Li
 
 Try the workflow on a small project and tell us where it helps—or gets in your way. Join the conversation in the Gas Town Hall Discord's `#beads` and `#memory-beads` channels, or [file a Beads issue](https://github.com/gastownhall/beads/issues) with a `[Memory]` or `[BDP]` prefix. Include the integration commit you tried so we can reproduce what you saw.
 
+## Historical agent memory-capture results
+
+Stephanie Jarmak (`sjarmak`) reported the following setup and results in [BDP PR #58](https://github.com/gastownhall/bdp/pull/58), whose source commit was authored on September 30, 2026. These are historical reported measurements, not a benchmark of the integration build in the walkthrough above; the commit date does not establish when the experiments ran.
+
+The experiment's instruction was to put this paragraph at the **top of `AGENTS.md`**. On Claude Code, it went in **`CLAUDE.md` instead, unless `CLAUDE.md` imported `AGENTS.md`**:
+
+```markdown
+## Durable storage
+
+You have your own memory. It lives in beads: `bd remember` stores a fact and `bd recall` or `bd memories` reads it back, and its contents are available to you in later sessions in this project.
+```
+
+The report described `bd prime`, run at session start by `bd setup claude`, as loading saved memories into the agent's context. It measured the harder step—saving memories—with short project tasks in which an agent learned a fact that a later session would need, counting sessions where it saved something with `bd remember`.
+
+The column “Beads' current text” below means the text current in that historical report:
+
+| Agent                    | Beads' current text | With the paragraph | Paragraph and Stop hook |
+| ------------------------ | ------------------- | ------------------ | ----------------------- |
+| Claude Code, Opus        | 48 of 48            | not tested         | not tested              |
+| Claude Code, Haiku       | 16 of 48            | not tested         | not tested              |
+| Claude Code, Sonnet      | 1 of 48             | 56 of 96           | 96 of 96                |
+| Codex CLI, default model | 6 of 6              | 6 of 6             | no hook yet             |
+
+Sonnet's reported count rose from 1 of 48 with the existing text to 56 of 96 with the paragraph; the report noted that the count varied between runs. Adding the Claude Code Stop hook brought it to 96 of 96. When the agent tried to finish, that hook blocked it once with this reminder:
+
+> Before you finish: if this session produced anything a later session in this project will need, save it now with `bd remember "<fact>"`. If there is nothing to save, just finish.
+
+The reported hook fired at the first finish of every session, and afterward only when the agent had used a tool since the last reminder, so plain back-and-forth chat did not get repeated reminders. The hook had been tested **only on Sonnet**, the model that needed it most; the other models' untested cells are not hook results.
+
+The Codex pilot comprised **12 sessions on Codex CLI 0.158.0**: 6 of 6 saved a memory without the paragraph and 6 of 6 with it. The report cautioned that twelve sessions were too few to call the result settled, and reported no Codex hook. These counts do not establish current agent or model performance.
+
+The original contribution linked the paragraph to [versioned-beads/beads#43](https://github.com/versioned-beads/beads/pull/43) and the hook to [versioned-beads/beads#61](https://github.com/versioned-beads/beads/pull/61). Its promise that `bd setup claude` would install both “once both merge” was conditional historical setup guidance, not evidence of either PR's landing or of a setup run. For the current preview's installation and commands, use the newer walkthrough above; the instruction text and results here document the experiment rather than independently verify current setup behavior.
+
 ---
 
 ## Working references
