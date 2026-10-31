@@ -33,6 +33,20 @@ A Package does not add a second callable signature or executor. Command paths se
 
 Donna selected Package as the Bead Type name and bd pack as the package-management CLI prefix. Management subcommands are still to be specified. Generated package commands retain their chosen mounts, such as bd memory remember; bd pack is not an extra prefix on those commands. PackDeclares and PackImports remain provisional relation names pending concrete Link Type declarations.
 
+### Global identity, declared version and exact revision
+
+Donna selected designing global Package identity first; loose/local package identity is later work. A generally deployed Memory Package must have a stable logical identity independent of the local Scope, canonical deployment URL, graph root or CLI mount. The concrete identity scheme, publisher/authority and relationship to a source repository remain open following comparison with Gas City and Lumen.
+
+Declared SemVer and exact revision/commit are distinct. A declared version expresses the Package author's version label; it is not by itself an immutable selection of source or deployed graph content. A source commit and a BDP Resource revision also identify different things. Exact installation evidence must identify the selected content under the eventual identity/resolution contract, rather than treating a version string, repository locator, CLI spelling or local Bead URL as interchangeable evidence.
+
+One live installation per Package identity per Scope applies to the selected global logical identity. Where a global identity can have different local deployment URLs, endpoint-pair uniqueness alone does not enforce that rule. The global identity carrier and admission constraint must be specified together. Same-version/different-revision publication and dependency-conflict policy remain open; this distinction does not select a version solver or side-by-side snapshot execution.
+
+Research against exact current sources found useful separations rather than a complete global identity design to copy. Gas City distinguishes source/version requests, registry release version, commit and pack-content hash; its import identity remains source-based despite its scoped publishing-name convention. See [Gas City import coordinates](https://github.com/gastownhall/gascity/blob/cdfa7791c731cbd2283628ace9866afc2075bcfa/docs/reference/specs/pack-spec.md#L240-L272), [publishing namespace](https://github.com/gastownhall/gascity/blob/cdfa7791c731cbd2283628ace9866afc2075bcfa/docs/guides/shareable-packs.md#L138-L143) and [release fields](https://github.com/gastownhall/gascity/blob/cdfa7791c731cbd2283628ace9866afc2075bcfa/internal/packregistry/catalog.go#L83-L91).
+
+Lumen separates local names/bindings and source/version requests from an opaque exact PackageRef that reopens an immutable snapshot without resolving again. Its global publisher identity, package SemVer and publication/version-solving policies remain host work. See [exact PackageRef](https://github.com/donnabox/formula-language/blob/95e4db3b043a4332b7a8bd8ab7a91bc66f4c0e74/docs/spec/ir.lumen#L170-L204) and [explicit package deferrals](https://github.com/donnabox/formula-language/blob/95e4db3b043a4332b7a8bd8ab7a91bc66f4c0e74/docs/spec/packages.md#L784-L813). Its multiple-exact-reference partition rule is not adopted into BDP by this research.
+
+Open recommendation: use a stable authority-qualified global Package ID, with declared SemVer, source provenance and exact published selection carried separately. An explicit publisher URI preserves identity through source-host moves; repository-plus-subdirectory identity is a simpler alternative with different migration costs. No URI scheme, actual Memory publisher namespace or field spelling is selected. Likewise, binding each published global-ID/SemVer pair immutably to one exact selection is a recommendation, not a ruling. Source commits are provenance when applicable; Packages authored as Beads need not originate in Git. The exact graph-selection mechanism remains deferred.
+
 ## Composition contract
 
 The selected Bead Type name is Package; PackDeclares and PackImports remain working Link Type names. Use distinct uniquely named Bead/Link Types for this round; their complete descriptors, properties and endpoint constraints remain to be authored. This vocabulary does not install definitions or broaden Memory's defines/references constraints.
@@ -61,14 +75,15 @@ For example, the same reusable Memory Package can be installed at CLI mount memo
 
 An installation must retain enough exact selection evidence to avoid drifting when authoring definitions/imports/aliases later change. The closure carrier, validation point and update protocol remain open. Definitions and installation bindings are distinct from the ordinary runtime data the operations read or mutate; installed exact definitions do not create a separate business-data store or imply historical data capability.
 
-Starting graph proposal, pending concrete Type descriptors:
+Selected relationship roles, pending concrete Type descriptors:
 
 ```text
 Package --PackDeclares--> definition Bead
-Package --PackImports--> dependency Package/member selection
-Scope installation --selects--> exact Package/member/dependency closure
-Scope installation --exposes--> CLI mount + bound routes + unbound optional shortcuts
+Package --named export [export name]--> original definition Bead
+registry --installed-package [installation selection properties]--> deployed Package
 ```
+
+Imports select a supplying Package and named exports; concrete import endpoints/fields remain open. The installation Link carries or references exact selection evidence, CLI mount and effective bound/unbound exposures. It is not itself a Bead endpoint for additional relationships.
 
 Package membership remains explicit. Donna selected requiring a Package's declared definition Beads to be subordinate to its own ID. Containment constrains where a declared member may live; it does not make every Bead sharing a prefix a declared member. Exact endpoint constraints, relation ownership and import fields remain to settle.
 
@@ -82,11 +97,13 @@ This is a selected Package-specific admission rule; it does not change Core's ru
 
 Authoring root, installation selection and CLI mount remain distinct. A different CLI mount does not rename canonical member IDs. If mounting also means materializing a Package beneath a different graph ID root, reference rebasing, resulting identities and exact closure must be specified; canonical Resource identities are immutable, so this cannot be treated as renaming the original Resources.
 
+Donna selected this stable-placement model as the long-term direction: create/install at an arbitrary initial graph root, register the installation through sys/packages, and preserve the resulting canonical IDs. Implicit graph relocation/rebasing is not selected. Global Package identity remains distinct from that deployment location; the global identity scheme is still to be designed.
+
 ### Named exports
 
 Export names expose bindings to existing definitions; they do not create another defining home or an access-control boundary. Internal/external visibility remains deferred. A re-export requires the importing Package's explicit import and preserves the original definition identity and provenance.
 
-Donna selected named export Links from the exporting Package to the original definition. Each Link carries an export name, and multiple names may target the same definition. Ordinary outgoing-Link enumeration and Link revisions apply. Package ownership of this Link family is a proposal that could revision-cover its export table; concrete Type name, property schema, name uniqueness/normalization, ownership, import provenance and exact target-selection rules remain open. Exact target pinning does not by itself capture transitive closure.
+Donna selected named export Links from the exporting Package to the original definition. Each Link carries an export name, and multiple names may target the same definition. Ordinary outgoing-Link enumeration and Link revisions apply. Donna selected Package ownership/revision coverage of its outgoing declaration/import/export tables. Concrete Type name, property schema, name uniqueness/normalization, descriptor representation, import provenance and exact target-selection rules remain open. Exact target pinning does not by itself capture transitive closure.
 
 For example, Package acme/tools declares acme/tools/actions/laugh and may export it as chuckle. The export Link's source is acme/tools, its target is the original definition and its export name is chuckle. An illustrative Link ID is acme/tools/exports/chuckle; this subordinate Link-ID convention is not itself required. Reading that Link URL returns the relationship, not an alias redirect to the definition. A consumer may explicitly import and re-export the same definition under another name without becoming its defining Package. Export names need not equal canonical definition suffixes or CLI command paths.
 
@@ -116,13 +133,19 @@ sys/packages [registry Bead]
 
 An installation Link binds its selected Package/closure, CLI mount and effective exposure choices. Exact property names/carriers remain open. A target Package revision alone is not a complete member/import/alias/extern closure.
 
-**Selected cardinality:** a Scope has at most one current live installation Link per Package identity, regardless of selected revision or CLI mount. A second Link cannot create a simultaneous installation of the same Package at another revision or mount. The registry/Package identity pair must be unique for live admitted installation Links; concrete Type constraints and duplicate-request behavior remain to be specified. Different Package identities can coexist, subject to ordinary closure and command collision rules. Updates change the existing installation selection through the admission protocol still to be defined. This does not remove retained historical revisions or decide dependency-version conflict policy.
+**Selected cardinality:** a Scope has at most one current live installation Link per global Package identity, regardless of selected revision, local deployment URL or CLI mount. A second Link cannot create a simultaneous installation of the same global Package at another revision or mount. Concrete identity fields, uniqueness enforcement and duplicate-request behavior remain to be specified. Different global Package identities can coexist, subject to ordinary closure and command collision rules. Updates change the existing installation selection through the admission protocol still to be defined. This does not remove retained historical revisions or decide dependency-version conflict policy.
 
-Once admitted and published, the Link is authoritative installation state. Creating/deleting its live record is the model's install/uninstall transition. The command/transport and atomic validation/publication rules remain open: incomplete closure or conflicting required mounts must be dispositioned before a successful installation is published, rather than relying on a second installed flag. A Package definition or convenience alias alone does not establish installation, and an installed Link does not grant invocation permission or prove handler availability.
+Once admitted and published, the Link is authoritative installation state. Creating/deleting its live record is the model's install/uninstall transition. Donna selected validating/staging a proposed selection and required CLI bindings before atomically publishing the installation change and effective catalog generation. Failed updates retain the prior admitted selection. Required-tree conflicts reject the proposed change; optional shortcuts retain their selected unbound fallback. Removing a dependency still required by an active installation initially refuses rather than implicitly cascading. Concrete transport, admission transaction/concurrency and in-flight invocation rules remain open. A Package definition or convenience alias alone does not establish installation, and an installed Link does not grant invocation permission or prove handler availability.
 
-Ordinary BDP aliases are locators, not Resources, and have no collection membership. An alias-prefix Bead inventory therefore cannot replace this installation-Link query. A registry Type could own the installation-Link family so membership changes have ordinary owning-Bead revision behavior; the registry Type and ownership descriptor remain to be authored.
+Ordinary BDP aliases are locators, not Resources, and have no collection membership. An alias-prefix Bead inventory therefore cannot replace this installation-Link query. Donna selected registry ownership/revision coverage of the installation-Link family. The registry Type and concrete ownership descriptor remain to be authored alongside the generic ownership/publication work.
 
 The representation choice is now settled as a Link. Any supplementary exact-closure object or graph must preserve that installation fact; it cannot rely on local Links being Bead endpoints. Exact closure representation and update/uninstall effects remain open.
+
+### Ownership, labelled revisions and deferred closure representation
+
+Package composition-table ownership/revision coverage is selected, but this does not settle the generic owned-Link replacement or the representation of a frozen graph. Donna explicitly deferred the closure-carrier decision until the other Package identity/version/placement/ownership/publication issues are reconciled. A PackageClosure Bead was an author recommendation, not an adopted Type.
+
+The next comparison must include generic labelled revisions or Editions that select exact Bead AND Link revisions without mutating their members. It must also establish a complete immutable membership boundary and exact endpoint selections for captured Links whose original References float, plus the graph context needed for ordinary traversal. Olivia's ownership/publication exploration is the consultation source; no generic Edition/label mechanism or retained Core/Types amendment is adopted here. Concrete descriptor/mechanism choices remain open rather than silently hard-coding today's ownsOutgoing implementation.
 
 ### Graph-data namespace and protocol navigation
 
@@ -178,12 +201,12 @@ A Package can also request explicit top-level CLI shortcuts. Donna's motivating 
 | bd memory remember | Grouped Memory tree is valid | Install/retain the grouped command. |
 | bd remember | Path already belongs to another binding | Keep that binding; report Memory's optional shortcut as unbound, with bd memory remember as its usable alternative. |
 
-Collision recommendations awaiting detailed adoption:
+Collision rules and remaining recommendations:
 
 | Case | Proposed rule |
 | --- | --- |
 | General built-in or bootstrap path | Reserve it explicitly; a Package may not replace call, general CRUD or bootstrap/help controls through ordinary exposure. |
-| Required main Package mount or command conflicts | Require a different mount/explicit resolution before activating the conflicting required tree. The optional-shortcut fallback does not waive required-tree conflicts. |
+| Required main Package mount or command conflicts | Selected admission gate: reject a conflicting required tree. Different-mount/explicit-resolution controls remain to be specified; optional-shortcut fallback does not waive the gate. |
 | New candidates request the same optional root path | Publish no arbitrary winner based on load/enumeration order; leave conflicting optional candidates unbound unless there is an explicit selected owner. |
 | Shared prefixes or executable group conflicts | Distinguish grouping from callable leaves and validate complete token paths before publishing. Extendable groups and executable groups still need a rule. |
 | Unbound shortcut diagnosis | Identify requested path, requesting Package, current owner/conflict and the usable grouped alternative in installation/catalog diagnostics. |
@@ -218,7 +241,7 @@ Status: draft
 
 Under the selected registry-Link model, a real registry Bead has one admitted installation Link to a selected Package/closure with its own Scope-specific mount. The outgoing typed-Link query returns that installation even if the Package's canonical ID is outside sys/packages. The admitted Link's presence means installed, and deleting that live Link removes the corresponding installation. A convenient alias under packages/ does not make the Package appear under that prefix in a normal Bead inventory. Removing or repointing a convenience alias does not by itself install or uninstall the Package. Current loaded/available state requires the separately agreed service observation contract; the durable installation Link alone does not establish it.
 
-A second requested installation of the same Package identity at another revision or mount cannot publish another live installation Link in this Scope. A distinct Package identity is not prohibited by this cardinality rule; its closure and CLI bindings still require validation.
+A second requested installation of the same global Package identity at another revision, local deployment URL or mount cannot publish another live installation Link in this Scope. A distinct global Package identity is not prohibited by this cardinality rule; its closure and CLI bindings still require validation.
 
 ## Open package decisions
 
@@ -226,17 +249,17 @@ These are the five active design decisions. Installation representation is now s
 
 | Issue | Decision area | Selected foundation | Still to decide |
 | --- | --- | --- | --- |
-| PKG-O1 | Installation shape and cardinality | Installation is a Link; live presence/absence is installed/not installed; at most one live installation per Package identity per Scope. | Registry/Link properties, endpoint/uniqueness descriptors and duplicate-request behavior. |
-| PKG-O2 | Declarations, imports and exports | One defining Package; imports explicitly select named exports; subordinate declared definition Bead IDs under arbitrary discoverable Package roots; named export Links. | Member eligibility/ownership, import endpoint/fields/grouping/local-name aliasing, export name/schema/uniqueness/ownership, containment boundary details and any graph-root materialization/rebasing. |
-| PKG-O3 | Exact closure | Explicit exact member/dependency closure retained by installation. | Coverage/carrier/selection/retention, alias and Type/schema evidence, conflicting dependency versions and reconciliation with deferred CALL-O3 extern identity. |
-| PKG-O4 | Installation lifecycle and admission | Accepted Link creation/deletion changes installation presence; no extra installed boolean. | bd pack subcommands or CRUD transport, atomic admission/publication, update/uninstall effects, authorization and any externally meaningful loaded availability. |
+| PKG-O1 | Installation shape and cardinality | Installation is a Link; live presence/absence is installed/not installed; at most one live installation per global Package identity per Scope; registry owns its installation table. | Global identity carrier, registry/Link properties, uniqueness/ownership descriptors and duplicate-request behavior. |
+| PKG-O2 | Declarations, imports and exports | Global identity first; arbitrary initial graph root with stable canonical IDs; one defining Package; imports select named exports; subordinate declared Bead IDs; named export Links; Package owns its composition tables. | Global identity/authority scheme, member eligibility, import endpoint/fields/grouping/local aliases, export name/schema/uniqueness, containment boundary and concrete ownership representation. |
+| PKG-O3 | Exact closure | Explicit exact member/dependency closure retained; declared SemVer distinct from exact revision/commit. | Identity/version research and dependency conflicts first; then coverage/carrier/selection/retention, generic labelled Bead-and-Link revisions/Edition traversal and deferred CALL-O3 extern identity. |
+| PKG-O4 | Installation lifecycle and admission | Live Link presence is installation; staged validation and atomic installation/catalog publication; failed updates retain old selection; required dependencies prevent implicit uninstall cascade. | bd pack subcommands/transport, transaction/concurrency and in-flight rules, authorization and any externally meaningful loaded availability. |
 | PKG-O5 | Registry and CLI catalog | sys/ namespace, Package mounts, cliCommands/cliShortcuts and optional-shortcut collision fallback. | Registry discovery/reservation and owning Type, effective catalog carrier/revisions, required-tree conflicts, collision equivalence/ownership, group behavior, explicit rebinding and help/completion/cache rules. |
 
 Concrete Package, PackDeclares, PackImports, registry and installation-Link descriptors remain incomplete. The reusable Package definition remains separate from installation. CALL-O1/O2/O3 stay open for the return after package shape, rather than being silently resolved by these conventions.
 
 ## Next five design questions
 
-This is the next discussion agenda, in recommended order. All recommendations below are proposals, not additional Donna rulings. The selected Package Type/name, bd pack prefix, subordinate declared Bead IDs, named export Links, explicit named-export imports, one live installation per Package identity per Scope, and optional-shortcut fallback remain settled.
+Current disposition after Donna's replies: question1 requires identity/version choices informed by Gas City/Lumen research before choosing dependency-conflict behavior; question2 A is selected as the long-term placement model; question3 A composition ownership/revision coverage is selected; question4 is deferred for iteration with generic owned-Link replacement/labelled revisions; question5 A atomic publication is selected. Recommendations still open below are explicitly marked. The selected Package Type/name, bd pack prefix, subordinate declared Bead IDs, named export Links, explicit named-export imports, one live installation per global Package identity per Scope, and optional-shortcut fallback remain settled.
 
 ### 1. Conflicting exact dependency revisions — PKG-O3
 
@@ -244,7 +267,7 @@ Context: installed Package A selects dependency D at revision r1 while Package B
 
 Option A rejects conflicting exact dependency selections across active installation closures. It gives a Scope one consistent selected revision per dependency identity and simpler invocation/Type resolution, but a dependency update may require coordinated updates of its consumers. Option B permits separate exact dependency snapshots per consumer. It allows more independent updates, but execution, Type/schema bindings and inspection must carry the consumer's closure context; retention and diagnostics become more involved.
 
-Recommendation: A for this round. Report the requesting Packages, dependency identity and conflicting exact revisions; do not silently upgrade, choose latest or add a version solver. Retaining historical revisions is still permitted. Deliberately distinct Package identities may coexist, subject to the same ordinary validation rules.
+Open recommendation: A, not selected. Donna requires declared SemVer to be distinguished from actual revision/commit, and global Package identity to be designed first using Gas City/Lumen as research inputs. Revisit this conflict example using the resulting distinct identity/version/exact-selection concepts before ruling. No silent latest selection or version solver is inferred.
 
 ### 2. Does installing under another graph root create new identities? — PKG-O2
 
@@ -252,7 +275,7 @@ Context: a Package's declared Beads must be subordinate to its root, and that ro
 
 Option A chooses an arbitrary graph root when the Package and members are first created, then preserves their canonical IDs through installation and CLI remounting. It uses existing identity rules and requires no implicit rewriting, but does not provide transparent graph relocation. Option B materializes a fresh Package/member graph beneath an installation-supplied root. It offers portable placement, but needs explicit relative-reference/rebasing rules, provenance and a decision about how the new Package identity relates to installation deduplication. It is not a rename of the original Resources.
 
-Recommendation: A initially. Promise arbitrary initial placement and independent CLI mounts; make graph rebasing a separate explicit future operation unless portable graph materialization is required now. This leaves physical distribution out of scope rather than inventing identity translation implicitly.
+Selected: A as the long-term direction. Promise arbitrary initial placement, registration through the sys/packages installation Link and independent CLI mounts, preserving the deployed canonical IDs. Design the global Package identity independently of that placement before loose/local cases. No implicit graph rebasing or identity translation is selected.
 
 ### 3. What changes are covered by the Package's own revision? — PKG-O1/PKG-O2
 
@@ -260,7 +283,7 @@ Context: declarations, named imports and named exports are separate Links. We ne
 
 Option A makes Package own the outgoing declaration/import/export Link families. Existing owned-Link semantics then revision-cover those tables and support coherent reads and concurrency checks; the cost is more Package-revision changes and shared concurrency on composition edits. Option B keeps the Links independently versioned without Package ownership. It allows more independent edits, but Package revision alone does not identify its tables, and every reader/installer needs a separate complete composition snapshot.
 
-Recommendation: A. Also make the registry own the installation-Link family so its revision covers installed membership. Neither choice pins target member bodies: exact closure must still select those revisions. Multiple export names may target one definition; export-name uniqueness therefore needs its own per-Package rule rather than endpoint-pair uniqueness.
+Selected: A, including registry ownership/revision coverage of the installation table. These are the selected composition-history semantics; concrete descriptors and their relationship to the generic owned-Link replacement remain to be reconciled. Neither choice alone pins target member bodies. Multiple export names may target one definition; export-name uniqueness needs its own per-Package rule rather than endpoint-pair uniqueness.
 
 ### 4. Where is the exact installed closure retained? — PKG-O3
 
@@ -268,7 +291,7 @@ Context: exact closure is selected, but its carrier and detailed coverage remain
 
 Option A retains an immutable closure Bead referenced exactly by the installation Link. It gives the snapshot ordinary graph identity/readability and permits sharing between installations or updates, at the cost of another Type and retention policy. Option B embeds the complete manifest in the installation Link's properties. It avoids a separate Resource and makes the binding self-contained, but enlarges Link reads/revisions and duplicates shared closure data. Neither option changes the selected installation fact: that remains the live installation Link.
 
-Recommendation: A, using PackageClosure only as a proposed Type name. Snapshot the installed Package's declared members, selected named imports and required transitive definition dependencies, exact Type/schema bindings, and authored CLI binding inputs. Unselected dependency exports need not be swept in. Runtime business data is outside this closure. The manifest must retain required definition content or a guaranteed retained source, not merely a list of revisions that may disappear. Concrete extern identity remains deferred CALL-O3 work; effective bound/unbound CLI routes remain installation/catalog results rather than reusable Package definition state.
+Deferred: neither carrier is selected. Donna asks to iterate after the other four issues, consulting Olivia and comparing generic labelled revisions/Edition membership for BOTH Beads and Links. PackageClosure remains a former author proposal. Coverage, endpoint selection, traversal and retention need explicit design. Runtime business data remains outside definition closure; concrete extern identity remains deferred CALL-O3 work. Effective bound/unbound CLI routes remain installation/catalog results rather than reusable Package definition state.
 
 ### 5. What is the publication boundary for install, update and uninstall? — PKG-O4/PKG-O5
 
@@ -276,9 +299,9 @@ Context: installation-Link presence is the installation fact, and clients derive
 
 Option A validates/stages the closure and required CLI bindings, then publishes the installation change and effective catalog generation atomically. It provides one coherent visible state and clear failures, but requires an admission path that handles graph/catalog effects together. Option B accepts ordinary installation-Link CRUD first and reconciles the catalog later. It makes asynchronous processing easier, but needs pending/error/availability semantics and allows installed state to precede its usable command surface.
 
-Recommendation: A. bd pack can provide the management affordance while mutations use the same admission rules, without another installed boolean or installation record. Required-tree conflicts reject the proposed change; the already selected optional-shortcut fallback still keeps valid grouped commands and reports an unbound shortcut. Updates retain the prior admitted selection if validation fails. Removing a dependency still needed by an active installation should initially refuse rather than implicitly cascade. Runtime handler availability and in-flight invocation behavior remain distinct contracts; no unresolved Callable carrier or retry behavior is selected here.
+Selected: A. bd pack provides the management affordance while mutations follow the agreed admission rules, without another installed boolean or installation record. Required-tree conflicts reject the proposed change; optional-shortcut fallback still keeps grouped commands and reports an unbound shortcut. Failed updates retain the prior selection. Removing a dependency still needed by an active installation initially refuses rather than implicitly cascading. Concrete transport/transaction and in-flight invocation rules remain open; runtime handler availability and unresolved Callable retry behavior remain distinct contracts.
 
-After these decisions, author the concrete Package/member/import/export/registry/installation/closure descriptors and required admission rules. Detailed naming, local import aliases, namespace discovery and CLI normalization/group/cache behavior still need an explicit pass; this agenda is the next five decisions, not a claim that five answers finish the complete Specification.
+After the identity/version choices and deferred graph-capture comparison, author the concrete Package/member/import/export/registry/installation descriptors and required admission rules. Detailed naming, local import aliases, namespace discovery and CLI normalization/group/cache behavior still need an explicit pass; the selected dispositions do not yet complete the Specification.
 
 ## Depends on
 
