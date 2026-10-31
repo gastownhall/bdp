@@ -69,7 +69,7 @@ Pack membership is explicit rather than inferred from every Bead whose ID shares
 
 ## Installed-package discovery and system data
 
-Donna requires a distinguished way to query installed packages and, if externally meaningful, loaded/available packages. She proposed either aliases under a well-known packages root or typed installation Links from a well-known registry Bead. Representation, root name/reservation and installed-versus-loaded lifecycle semantics are not selected yet.
+Donna requires a distinguished way to query installed packages and, if externally meaningful, loaded/available packages. She proposed either aliases under a well-known packages root or typed installation Links from a well-known registry Bead. Donna selected sys/ as the service graph-data namespace name. Registry representation, prefix reservation/discovery and installed-versus-loaded lifecycle semantics remain open.
 
 ### Alias and Link alternatives
 
@@ -78,12 +78,12 @@ These are design sketches, not implemented CLI claims:
 | Candidate query | Meaning and current constraint |
 | --- | --- |
 | bd list --type package with an ID-prefix filter under packages/ | Finds matching canonical Beads. Existing BDP aliases are not Resources and have no collection membership, so aliases under this prefix do not appear in a normal Bead list or change the target Bead's canonical ID. This query would require actual installation/package Beads or an explicit new alias-inventory contract. |
-| bd link list system/packages --type installed-package --direction out | Uses an actual in-Scope registry Bead as the incident source and returns typed installation Links. Links already have identity, Type, properties and revisions, so a Link can represent the installation relationship without requiring a separate installation Bead. Type/root spellings are working proposals. |
+| bd link list sys/packages --type installed-package --direction out | Uses an actual in-Scope registry Bead as the incident source and returns typed installation Links. Links already have identity, Type, properties and revisions, so a Link can represent the installation relationship without requiring a separate installation Bead. The sys/ namespace spelling is selected; registry/Link Type spellings and representation remain proposals. |
 
 **Pacabel recommendation, not selected:** use a real registry Bead and typed outgoing installation Links as the authoritative graph representation. Aliases may provide convenient locators without defining installation truth. The registry Type could own the installation-Link family so membership changes have the ordinary owning-Bead revision behavior; exact Type descriptors and admitted install/update operations remain open.
 
 ```text
-system/packages [registry Bead]
+sys/packages [registry Bead]
     --installed-package [installation Link, own identity/revision]-->
     selected exact Pack definition
 
@@ -98,9 +98,9 @@ This preserves the selected separation between reusable Pack definition and inst
 
 The service's chosen bdp/ prefix holds protocol navigation and is reserved from ordinary Bead allocation in the current design. Those HTTP endpoints are addressable; they are not ordinary graph Beads. Existing Core more generally protects the actual advertised navigation addresses against conflicting Resource/alias allocation and does not mandate the same literal prefix for every service.
 
-**Namespace recommendation, not selected:** use a service-owned graph-data namespace conventionally rooted at system/, with system/packages as a real registry Bead. Service-managed Beads and Links there use ordinary typed Resource reads, queries, revisions and authorization. Path spelling does not confer authority, Type membership or containment, and does not create a parent Bead automatically.
+**Selected namespace:** service-managed graph data uses the name sys/. Under the registry-Link proposal, sys/packages would be a real registry Bead; selecting the namespace does not select that representation. Service-managed Beads and Links there use ordinary typed Resource reads, queries, revisions and authorization. Path spelling does not confer authority, Type membership or containment, and does not create a parent Bead automatically.
 
-The supporting extension should advertise the actual registry URI so clients do not infer it by stripping/adding path segments. Exact discovery carrier and whether system/ is a reserved prefix or a default placement are still open; no new field is silently added to the existing closed Core discovery schema. An existing ordinary identity cannot be overwritten or repurposed just to establish the convention.
+The supporting extension should advertise the actual registry URI so clients do not infer it by stripping/adding path segments. Exact discovery carrier and whether sys/ is a reserved prefix or a default placement are still open; no new field is silently added to the existing closed Core discovery schema. An existing ordinary identity cannot be overwritten or repurposed just to establish the convention.
 
 ### Installed versus loaded
 
@@ -186,11 +186,11 @@ Given a valid Memory Pack grouped tree and an optional requested bd remember sho
 
 Status: draft
 
-Under the proposed registry-Link model, a real registry Bead has one admitted installation Link to a selected Pack/closure with its own Scope-specific mount. The outgoing typed-Link query returns that installation even if the Pack's canonical ID is outside system/packages. A convenient alias under packages/ does not make the Pack appear under that prefix in a normal Bead inventory. Removing or repointing a convenience alias does not by itself install or uninstall the Pack. Current loaded/available state requires the separately agreed service observation contract; the durable installation Link alone does not establish it.
+Under the proposed registry-Link model, a real registry Bead has one admitted installation Link to a selected Pack/closure with its own Scope-specific mount. The outgoing typed-Link query returns that installation even if the Pack's canonical ID is outside sys/packages. A convenient alias under packages/ does not make the Pack appear under that prefix in a normal Bead inventory. Removing or repointing a convenience alias does not by itself install or uninstall the Pack. Current loaded/available state requires the separately agreed service observation contract; the durable installation Link alone does not establish it.
 
 ## Remaining package design work
 
-Choose the installation registry representation, advertised graph-data root and installed/loaded observation semantics. Complete Pack/PackDeclares/PackImports descriptors and concrete exact import/member closure, alias inventory and installed catalog binding contracts. Settle mount admission, shortcut catalog encoding, collision equivalence/ownership, reserved built-ins, executable/extendable groups, updates/uninstall, explicit rebinding and help/completion/cache revalidation. These are package decisions; they must not be added as prerequisites to the standalone Callable Type contract.
+Choose the installation registry representation, actual registry URI/discovery under the selected sys/ namespace and installed/loaded observation semantics. Complete Pack/PackDeclares/PackImports descriptors and concrete exact import/member closure, alias inventory and installed catalog binding contracts. Settle mount admission, shortcut catalog encoding, collision equivalence/ownership, reserved built-ins, executable/extendable groups, updates/uninstall, explicit rebinding and help/completion/cache revalidation. These are package decisions; they must not be added as prerequisites to the standalone Callable Type contract.
 
 ## Depends on
 
