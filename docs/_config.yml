@@ -1,0 +1,24 @@
+# GitHub Pages site for beadsprotocol.org
+#
+# The publishing source is this docs/ directory, so the Jekyll build never sees
+# the pnpm workspace at the repository root and does not interact with ci.yml.
+#
+# The sole specification authority is specs/ at the repository root, which is
+# outside this publishing source. Nothing served from here is normative: the
+# landing page links to the authority rather than republishing it.
+
+title: Beads Protocol
+description: An HTTP-based protocol for interacting with beads and the links between beads
+theme: jekyll-theme-cayman
+
+# Everything below is design context, inherited v0 material or informative
+# correspondence. Serving any of it at the domain would present material from
+# outside specs/ as though it carried protocol authority.
+exclude:
+  - cli-design/
+  - design/
+  - releases/
+  - research/
+  - specs/
+  - history-client-demo.md
+  - read-demo.md

@@ -1,5 +1,12 @@
 # A three-minute BDP Read demo
 
+This walkthrough preserves an inherited v0 Read demonstration. Its `bdpbd`
+realization is [legacy and frozen](../apps/bdpbd/README.md); it is no longer
+recommended for new deployments. The recorded toolchain, fixture and executable
+restrictions below belong to that capture. This is historical comparison evidence;
+selected retained v0.1 Core/Write qualification is tracked separately in the
+[implementation inventory](design/bdp-reference-service-milestones.md).
+
 BDP gives tools a common way to read records and follow their relationships.
 This demonstration asks a practical question: **which tasks can we work on now?**
 The same client can answer it against two different server implementations.
@@ -84,7 +91,7 @@ Read controls as `bdpbd`, plus an explicit isolated child environment. This is
 an in-process composition; the `bdpbd` CLI itself is not launched. It does not substitute a fake bd executable or a canned transport.
 The separate CLI is the actual built `apps/bdp` executable in both modes.
 
-**This demonstrates BDP Read and dependency-Link traversal today.** It does not
+**This capture demonstrates legacy BDP Read and dependency-Link traversal.** It does not
 show BDP writes, transactions, retained History, new graph Memory records, or the
 new managed engine. Fixture data is seeded through native bd commands. Ordinary
 Read here does not specifically exercise PR54's dynamic schema-reference work.

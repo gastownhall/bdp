@@ -3,9 +3,9 @@
  * waits; continuation minimums, receipt serving and replication Snapshots are
  * separate contracts. */
 import {
-  checkTransactionMinimum,
+  checkCurrentReadMinimum,
+  snapshotCurrentReadMinimum,
   TransactionMinimumFailure,
-  snapshotTransactionMinimum,
   type TransactionMinimum,
 } from "./transaction-consistency.js";
 import { isProxy } from "node:util/types";
@@ -57,6 +57,72 @@ export function isCurrentTransactionMinimumRead(request: ReadRequest, scope: str
     default:
       return false;
   }
+}
+
+/** Capture route fields before any receiving signal callback can mutate the caller's
+ * request. Preserve rejected descriptors/prototypes for the authority's own
+ * receiving path; never invoke a getter while making this private snapshot. */
+export function captureTransactionReadRequest<O extends ReadRequest>(request: O): O {
+  if (request === null || typeof request !== "object" || isProxy(request)) return request;
+  return Object.freeze(
+    Object.create(Object.getPrototypeOf(request), Object.getOwnPropertyDescriptors(request)),
+  ) as O;
+}
+
+function dataOnlyReadRequest(request: ReadRequest): boolean {
+  if (request === null || typeof request !== "object" || isProxy(request) || Array.isArray(request))
+    return false;
+  const prototype = Object.getPrototypeOf(request);
+  return (
+    (prototype === Object.prototype || prototype === null) &&
+    Reflect.ownKeys(request).every((key) => {
+      const field = Object.getOwnPropertyDescriptor(request, key);
+      return typeof key === "string" && field !== undefined && "value" in field;
+    })
+  );
+}
+
+/** Classify only own data fields. Authority receiving still validates the full request. */
+export function currentReadMinimumKind(
+  request: ReadRequest,
+): "resource" | "missing" | "initial-collection" | "strict" {
+  if (isProxy(request) || !request || typeof request !== "object") return "strict";
+  const fields = Object.getOwnPropertyDescriptors(request);
+  const data = (key: string): unknown => {
+    const field = fields[key];
+    return field && "value" in field ? field.value : undefined;
+  };
+  if (
+    (data("kind") === "resource" || data("kind") === "properties") &&
+    (data("resource") === "bead" || data("resource") === "link")
+  )
+    return "resource";
+  if (data("kind") === "bead-links" && data("continuation") === undefined) return "missing";
+  if (
+    data("kind") === "collection" &&
+    (data("collection") === "beads" || data("collection") === "links") &&
+    data("continuation") === undefined
+  )
+    return "initial-collection";
+  return "strict";
+}
+type MinimumCondition = Readonly<{
+  minimum: TransactionMinimum;
+  kind: ReturnType<typeof currentReadMinimumKind>;
+}>;
+const minimumConditions = new WeakSet<object>();
+function minimumCondition(
+  minimum: TransactionMinimum,
+  kind: MinimumCondition["kind"],
+): MinimumCondition {
+  const condition = Object.freeze({ minimum, kind });
+  minimumConditions.add(condition);
+  return condition;
+}
+function capturedCondition(value: unknown): MinimumCondition {
+  if (!value || typeof value !== "object" || !minimumConditions.has(value))
+    throw new TypeError("unrecognized private minimum condition");
+  return value as MinimumCondition;
 }
 
 /** Preserve the authority's data-only option boundary while ignoring only the
@@ -144,11 +210,12 @@ export function createTransactionReadPlane(
       // Preserve the initial collection's already-materialized request-control
       // Problem. It is not a representation whose minimum can be satisfied.
       if (refusal?.code === "invalid-parameter" || refusal?.code === "limit-exceeded") return;
-      const minimum = snapshotTransactionMinimum(condition);
+      const { minimum, kind } = capturedCondition(condition);
       const current = transactionReadContexts(observation).current;
       if (refusal?.code === "resource-not-found") {
+        if (kind === "resource" || kind === "missing") return;
         try {
-          checkTransactionMinimum(minimum, current);
+          checkCurrentReadMinimum(minimum, current, false);
           return;
         } catch (error) {
           // Only simultaneous missing/consistency failures remain unqualified.
@@ -164,7 +231,11 @@ export function createTransactionReadPlane(
           throw error;
         }
       }
-      checkTransactionMinimum(minimum, current);
+      checkCurrentReadMinimum(
+        minimum,
+        current,
+        kind === "resource" || kind === "initial-collection",
+      );
     },
     captureReadAuthorization: (reader, principal) => {
       const policy = owner.captureReadAuthorization(reader, principal);
@@ -228,27 +299,36 @@ export function createTransactionReadPlane(
       principal: Parameters<AuthorityReadPlane["readFor"]>[0],
       supplied: TransactionMinimum,
     ): AuthorityReadFacet {
-      const minimum = snapshotTransactionMinimum(supplied),
+      const minimum = snapshotCurrentReadMinimum(supplied),
         facet = plane.readFor(principal);
       return Object.freeze({
         perform: (request, options) => {
-          if (!isCurrentTransactionMinimumRead(request, owner.scope))
+          const capturedRequest = captureTransactionReadRequest(request);
+          if (!dataOnlyReadRequest(capturedRequest))
+            return observe(
+              facet.perform(capturedRequest, options).then((result) => checked(result)),
+            );
+          if (!isCurrentTransactionMinimumRead(capturedRequest, owner.scope))
             return Promise.reject(new TypeError("minimum-read route outside supported subset"));
+          const condition = minimumCondition(minimum, currentReadMinimumKind(capturedRequest));
           let captured: AuthorityReadDeliveryOptions | undefined;
           try {
             captured = captureTransactionReadDeliveryOptions(options);
           } catch {
             // Capture rejects only shapes the authority also rejects. Preserve
             // its observed Promise and closed/reentrant receiving precedence.
-            return observe(facet.perform(request, options).then((result) => checked(result)));
+            return observe(
+              facet.perform(capturedRequest, options).then((result) => checked(result)),
+            );
           }
           return observe(
             facet
-              .perform(request, { ...captured, sourceCondition: minimum })
+              .perform(capturedRequest, { ...captured, sourceCondition: condition })
               .then((result) => checked(result)),
           );
         },
         resolveAlias: (url, options) => {
+          const condition = minimumCondition(minimum, "missing");
           let captured: AuthorityReadDeliveryOptions | undefined;
           try {
             captured = captureTransactionReadDeliveryOptions(options);
@@ -259,7 +339,7 @@ export function createTransactionReadPlane(
           }
           return observe(
             facet
-              .resolveAlias(url, { ...captured, sourceCondition: minimum })
+              .resolveAlias(url, { ...captured, sourceCondition: condition })
               .then((result) => checked(result)),
           );
         },

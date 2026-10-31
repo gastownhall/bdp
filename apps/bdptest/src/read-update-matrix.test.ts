@@ -2984,7 +2984,35 @@ it.each(["properties", "collection", "condition"] as const)(
     else assertion.equals = 200;
     const report = await run(manifest, ["read.discovery.scope-service-desc", id]);
     const observed = report.result.scenarios.find((row) => row.id === id);
-    expect(observed?.state).toBe("fail");
+    // Fixed-fixture projection only: no bodies, headers, URLs, errors or child output.
+    const diagnostic = JSON.stringify({
+      expectedScenario: id,
+      expectedAction: action.id,
+      sessions: report.sessions.length,
+      seedObservations: report.setupObservations.length,
+      nativeReadObservations: report.nativeReadObservations.length,
+      cleanupComplete: report.cleanupComplete,
+      scenarios: report.result.scenarios.slice(0, 2).map((row) => ({
+        id: row.id,
+        state: row.state,
+        category: row.category,
+        cleanupFailed: row.cleanupError !== undefined,
+        exchanges: row.exchanges.slice(0, 16).map((exchange) => ({
+          id: exchange.request.id,
+          status: exchange.response?.status,
+          failedAssertions: exchange.assertions
+            .filter((check) => !check.passed)
+            .slice(0, 16)
+            .map((check) => check.id),
+          transportCategory: exchange.transportError?.category,
+          harnessCategory: exchange.harnessError?.category,
+          writeState: exchange.transportError?.writeState ?? exchange.harnessError?.writeState,
+        })),
+      })),
+    })
+      .replaceAll(token, "<redacted>")
+      .replaceAll(wrongToken, "<redacted>");
+    expect(observed?.state, diagnostic).toBe("fail");
     expect(
       observed?.exchanges
         .find((row) => row.request.id === action.id)

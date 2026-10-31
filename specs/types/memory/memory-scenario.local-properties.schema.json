@@ -1,9 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.org/memory-types/schemas/memory-scenario.local-properties.schema.json",
-  "title": "Scenario local properties requirements",
-  "$comment": "Project-driven Memory specialization fragment. Also validate common title/body and optional open-string status. Body carries primary content. A concrete situation, actors, actions and relevant outcomes illustrating behavior; not proof of test execution.",
-  "type": "object",
-  "properties": {},
-  "additionalProperties": true
-}

@@ -280,10 +280,10 @@ export function isKnownNetworkFilesystem(platform: NodeJS.Platform, type: number
  * no logical import/export API; opening a partial restore does not certify it.
  */
 export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore {
-  if (process.version !== "v24.16.0")
+  if (process.version !== "v24.22.1")
     throw new RecoveryStoreError(
       "unsupported-runtime",
-      "durable reference storage requires Node v24.16.0",
+      "durable reference storage requires Node v24.22.1",
     );
   if (isProxy(options))
     throw new RecoveryStoreError("invalid-input", "plain recovery options required");

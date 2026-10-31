@@ -1,3 +1,4 @@
+import { jsonValueEqual } from "./json-value-equality.js";
 import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -407,6 +408,11 @@ describe("pure member Resource evaluation", () => {
     failure(f.createLink("edge"), "identity-taken");
   });
   it("normalizes accepted numeric spellings and preserves revisions and metadata on semantic no-ops", () => {
+    expect(jsonValueEqual({ a: -0, b: [1, 2] }, { b: [1, 2], a: 0 })).toBe(true);
+    expect(jsonValueEqual([1, 2], [2, 1])).toBe(false);
+    expect(jsonValueEqual({ a: null }, {})).toBe(false);
+    expect(jsonValueEqual([], {})).toBe(false);
+    expect(jsonValueEqual({ a: { b: [1] } }, { a: { b: [2] } })).toBe(false);
     const f = fixture();
     f.createBead(
       "a",
@@ -1756,7 +1762,7 @@ describe("allocator faults inside the durable owned-member boundary", () => {
       retainUntil: 86_400_000,
     });
     try {
-      expect(store.runtime.node).toBe("v24.16.0");
+      expect(store.runtime.node).toBe("v24.22.1");
       const setup = store.admit("alice", ["setup"]);
       store.executeMember(setup, "setup", (tx) => {
         tx.putAlias("reserved", seed.id);
@@ -2480,7 +2486,7 @@ describe("native context inside actual durable members", () => {
             const clock = vi.fn(() => milliseconds + 1000);
             try {
               expect(store.runtime).toMatchObject({
-                node: "v24.16.0",
+                node: "v24.22.1",
                 journalMode: "delete",
                 lockingMode: "exclusive",
                 synchronous: 3,

@@ -675,9 +675,8 @@ it("new private Snapshot entry points do not escape package public exports", () 
   const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   expect(Object.keys(manifest.exports).sort()).toEqual([".", "./development"]);
   for (const file of ["index.ts", "development.ts"])
-    expect(readFileSync(new URL(file, import.meta.url), "utf8")).not.toContain(
-      "transaction-snapshot",
-    );
+    for (const privateModule of ["transaction-snapshot", "json-value-equality"])
+      expect(readFileSync(new URL(file, import.meta.url), "utf8")).not.toContain(privateModule);
 });
 it("retains bounded recognition of issued page tokens after expiry/reopen, while unknown or borrowed continuations stay 404", () => {
   const f = fixture();
@@ -1283,3 +1282,144 @@ it("does not expire retained Snapshot details on an ineligible fresh attempt", (
     ).toBe(false);
   });
 });
+
+// Compare the complete admitted JSON graph without recursive matcher diagnostics.
+function assertDeepSnapshotValue(actual: unknown, expected: unknown) {
+  const pending: [unknown, unknown][] = [[actual, expected]];
+  while (pending.length) {
+    const [a, b] = pending.pop()!;
+    if (a === b) continue;
+    if (a === null || b === null || typeof a !== "object" || typeof b !== "object")
+      throw new Error("deep Snapshot primitive mismatch");
+    expect(Array.isArray(a)).toBe(Array.isArray(b));
+    const ak = Object.keys(a),
+      bk = Object.keys(b);
+    expect(ak.sort()).toEqual(bk.sort());
+    for (const key of ak)
+      pending.push([(a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]]);
+  }
+}
+async function deepSnapshotWitness(emitted: boolean, corrupt: boolean) {
+  const started = performance.now();
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-snapshot-deep-"));
+  const errors: unknown[] = [];
+  let owner: ReturnType<typeof openTransactionStore> | undefined;
+  try {
+    const open = emitted
+      ? (
+          (await import(
+            new URL("../dist/transaction-store.js", import.meta.url).href
+          )) as typeof import("./transaction-store.js")
+        ).openTransactionStore
+      : openTransactionStore;
+    const prepare = emitted
+      ? (
+          (await import(
+            new URL("../dist/transaction-batch.js", import.meta.url).href
+          )) as typeof import("./transaction-batch.js")
+        ).prepareTransactionSetCore
+      : prepareTransactionSetCore;
+    const options = {
+      file: path.join(directory, "store.sqlite"),
+      scope,
+      types,
+      create: true,
+      clock: () => 1000000,
+    };
+    owner = open(options);
+    const deep = "[".repeat(12000) + "1" + "]".repeat(12000);
+    const body = `{"operations":[${JSON.stringify(create("a"))},${JSON.stringify(create("b"))},{"operation":"createLink","id":"links/deep","type":"${linkType}","source":"beads/a","target":"beads/b","properties":{"deep":${deep}}}]}`;
+    expect(Buffer.byteLength(body)).toBeLessThanOrEqual(65536);
+    const admitted = owner.admit("p", "deep-snapshot", prepare(scope, body));
+    if (admitted.kind !== "owned") throw new Error("deep Snapshot admission");
+    const receipt = owner.execute(admitted.claim);
+    expect(receipt.status).toBe("completed");
+    const entries = receipt.results as { resource: Record<string, unknown> }[];
+    const link = entries[2]!.resource;
+    const expectedLink = JSON.parse(
+      `{"id":"${scope}links/deep","type":"${linkType}","revision":${JSON.stringify(link.revision)},"source":"${scope}beads/a","target":"${scope}beads/b","properties":{"deep":${deep}},"metadata":{}}`,
+    );
+    assertDeepSnapshotValue(link, expectedLink);
+    if (corrupt) {
+      owner.close();
+      owner = undefined;
+      const db = new DatabaseSync(options.file);
+      try {
+        const row = db.prepare("SELECT body FROM resources WHERE id=?").get("beads/a");
+        const value = JSON.parse(String(row?.body));
+        const inline = value.ownedLinks[linkType][0];
+        let cursor = inline.properties.deep;
+        for (let n = 1; n < 12000; n++) cursor = cursor[0];
+        cursor[0] = 2;
+        db.prepare("UPDATE resources SET body=? WHERE id=?").run(
+          stringifyJsonValue(value),
+          "beads/a",
+        );
+        expect(db.prepare("SELECT count(*) AS n FROM snapshots").get()?.n).toBe(0);
+      } finally {
+        db.close();
+      }
+      owner = open({ ...options, create: false });
+      expect(() => owner!.captureSnapshot()).toThrow("owned Link differs from first-class record");
+      assertDeepSnapshotValue(owner.receipt("p", receipt.id), receipt);
+      const storedLink = owner
+        .inspect()
+        .resources.find((r) => (r as { id: string }).id === `${scope}links/deep`);
+      assertDeepSnapshotValue(storedLink, expectedLink);
+      owner.close();
+      owner = undefined;
+      const inspect = new DatabaseSync(options.file);
+      try {
+        for (const table of ["snapshots", "snapshot_records", "snapshot_pages"])
+          expect(inspect.prepare(`SELECT count(*) AS n FROM ${table}`).get()?.n).toBe(0);
+      } finally {
+        inspect.close();
+      }
+    } else {
+      let captured: ReturnType<typeof owner.captureSnapshot>;
+      try {
+        captured = owner.captureSnapshot();
+      } catch (cause) {
+        throw new Error("fresh-depth:snapshot-capture", { cause });
+      }
+      const manifest = captured.manifest;
+      expect(manifestSchema(manifest)).toBe(true);
+      expect(manifest.beads.items.length).toBe(2);
+      expect(manifest.links.items.length).toBe(1);
+      expect(manifest.beads.next).toBeNull();
+      expect(manifest.links.next).toBeNull();
+      assertDeepSnapshotValue(manifest.links.items[0], expectedLink);
+      const first = manifest.beads.items[0]!;
+      if (!("ownedLinks" in first)) throw new Error("deep Snapshot owned plane missing");
+      assertDeepSnapshotValue(first.ownedLinks?.[linkType], [expectedLink]);
+      owner.close();
+      owner = undefined;
+      owner = open({ ...options, create: false });
+      assertDeepSnapshotValue(owner.readSnapshot(handle(manifest)).manifest, manifest);
+      assertDeepSnapshotValue(owner.receipt("p", receipt.id), receipt);
+    }
+    expect(performance.now() - started).toBeLessThan(20000);
+  } catch (error) {
+    errors.push(error);
+  }
+  const cleaning = performance.now();
+  try {
+    owner?.close();
+  } catch (error) {
+    errors.push(error);
+  }
+  try {
+    rmSync(directory, { recursive: true, force: true });
+  } catch (error) {
+    errors.push(error);
+  }
+  if (performance.now() - cleaning >= 5000)
+    errors.push(new Error("deep Snapshot cleanup deadline"));
+  if (errors.length) throw new AggregateError(errors, "deep Snapshot witness failed");
+}
+it("captures and reopens deep owned Links without losing JSON value equality", async () => {
+  await deepSnapshotWitness(true, false);
+}, 30000);
+it("rejects deep owned-Link divergence before Snapshot issuance", async () => {
+  await deepSnapshotWitness(false, true);
+}, 30000);

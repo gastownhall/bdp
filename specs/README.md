@@ -1,106 +1,126 @@
-# BDP specifications
+# BDP specification
 
-> **This directory is the ONLY source of truth for BDP specifications.**
-> If a requirement is not defined under `specs/`, it is not part of the BDP
-> specification. No issue, PR discussion, design note, old monolith, vendored copy,
-> test or implementation outside this directory can add to or override it.
+**Main is the canonical specification source.** The entries below identify the
+selected BDP v0.1 contract and its explicit proposal boundaries at the source
+revision being read. `codex/bdp-v0.1` is the existing assembly branch for the
+current CLI/Core/Read/Write reconciliation; an unmerged branch or PR is not
+published main. A release label is not another wire version or evidence that a
+product implements every profile.
 
-Use the applicable specification at the **named branch, commit or release**.
-The `specs/` tree on a design branch contains proposed changes; its existence
-does not amend an older implementation target or establish adoption. Within that
-tree, respect each document's status: a WIP Types or domain draft does not silently
-replace the current Core/Write contract. Conflicts between documents or between
-prose and schemas must be resolved in the owning specification, not by selecting
-whichever copy or implementation is convenient.
+Consumers and release notes use an exact **commit SHA**, not a moving branch.
+Selecting a main commit does not require another blanket approval or a new tag;
+its concrete receiving change still needs normal review and qualification.
+Separate product source, build and conformance-evidence pins accompany an
+implementation comparison. Publishing this specification changes none of them.
 
-Material elsewhere is non-normative and may be stale or wrong about the contract.
-Implementation reports and test results are evidence of observed behavior, not
-additional requirements. Publication, adoption, implementation and release
-qualification are separate milestones.
+## Read the selected contract
 
-## Specification status
+| Surface | Entry point | Boundary |
+| --- | --- | --- |
+| Core | [Retained Core](profiles/core/retained-core.md) | Positive common discovery, reads, references, affiliations and required observation contract |
+| Resource projection | [Shared projection](profiles/core/resource-projection.md) | Independently selected current GET, exact saved GET and ordinary List masks; full records remain the base contract |
+| Write | [Retained Write](profiles/write/retained-write.md) | Ordinary atomic writes, safe retry and complete outcomes; batch is optional |
+| Atomic publication | [Publication](profiles/core/publication.md), [batch](profiles/write/atomic-batch.md), [Events](profiles/core/events.md) | Final states per Resource, exact final ownership captures, net-zero and allocation distinctions |
+| Types | [Types profile](profiles/types/types.md), [descriptor](types/type-system/type-system.md), [artifact status](profiles/types/README.md) | Optional Scope-wide interpretation; definition presence does not register a Type |
+| Exact definition access | [Core binding](profiles/core/type-definition-read.md), [Types interpretation](profiles/types/exact-definition-read.md) | Complete exact records in explicit interpreting context; no general History or public Type CLI implied |
+| Rooted allocation draft | [id-root1](profiles/write/id-root.md), [feature schema](profiles/write/id-root-v1.schema.json) | Optional server allocation on existing create/batch URLs; base carriers and result meanings remain unchanged |
+| Common grammar | [v0.1 schema](profiles/core/bdp-v0.1.schema.json), [distribution mirror](../packages/protocol/schemas/bdp-v0.1.schema.json) | Retained entries determine selected semantics; inherited staging helpers do not add capabilities |
+| Informative HTTP catalog | [OpenAPI operation catalog](openapi/README.md), [coverage](openapi/coverage.md) | Generated signatures reference the unchanged common grammar; discovered URLs still require a navigation adapter, and the synthetic tooling fixture is not a deployment API |
+| Canonical CLI | [CLI entry](../docs/cli-design/bdp-cli.md), [command/wire correspondence](../docs/cli-design/wire-correspondence.md) | Paired design and worked correspondence; not a claim that product CLI/compiler/adapter exists |
 
-**Evidence snapshot: October 16, 2026.** This table summarizes design and evidence
-recorded at the frozen BDP main baseline `8d6671ed19b0c0406428ccc2d2161768d01e8b9b` and the separately identified
-domain drafts and source snapshots. Test observations retain their original
-source/build identities; they are not new observations of the frozen main commit.
-This is not a certification of the latest `bd` release or of ongoing implementation
-branches. Reference implementation means this repository's
-`bdp` client, `bdptest` server and `bdpbd` adapter; `bd` means the Beads product.
-Serving BDP through `bdpbd` is distinct from native BDP support in `bd`.
+The selected entries compose one contract. A field carrier or helper schema alone does not
+establish Type interpretation, ownership, required Events or runtime conformance.
+Scope-defined paths have no mandatory `beads/`, `links/` or `types/` prefixes, and
+path spelling does not establish Resource kind. Exact Type affiliations, explicit
+retyping and literal endpoint pins retain their selected meanings. Atomic batches
+publish at most one final new revision per affected Resource; no shared token or
+automatic endpoint repin is required. Public Type lifecycle/inventory commands,
+broader aliases and general lifecycle operations remain explicitly deferred.
 
-| Specification | Design stage | Reference implementation | Implementation in `bd` |
-| --- | --- | --- | --- |
-| [Core and Read](profiles/core/core.md) | Current BDP v0 draft: shared model, existing Type contract, discovery and reads. | **Read evidence verified**, including both packaged and in-process self-certified cases, for `bdptest` and `bdpbd`; see [Read evidence](../STATUS.md). This does not qualify every optional capability. | **Read via adapter**, against pinned [`bd` 1.0.5](../docs/design/evidence/bd-baseline/README.md). Native BDP serving and other `bd` builds are not established by that result. |
-| [Write: Read+Update](profiles/write/write.md#part-iii--readupdate) | Current BDP v0 draft; depends on Core/Read. | **Partial / in progress:** client and runtime components exist; complete served-profile qualification remains open. See [implementation evidence](../STATUS.md). | Existing native commands can write Issues and Dependencies; **BDP Read+Update conformance is not established**. |
-| [Write: Transactional](profiles/write/write.md#part-iv--transactional) | Current BDP v0 draft; extends Read+Update. | **Partial / in progress:** wire, runtime components and tests exist; no complete Transactional capability claim. Active work remains on Vickie's branches. | **Not qualified** for this BDP profile. A native batch operation alone does not establish BDP atomicity, receipts, Events or recovery behavior. |
-| Optional History — within [Core/Read](profiles/core/core.md) and [Write](profiles/write/write.md) | Specified in the current draft; optional across the profiles, not a separate document. | **Partial:** historical-read client and controlled fixture walkthrough exist. A History server/adapter and full capability qualification are not established by the cited baseline. | **Not qualified** for BDP History. Native journals/history are not evidence of the full protocol contract. |
-| [Types profile](profiles/types/types.md) | **WIP design:** optional profile, Type Beads and conformance. Does not yet replace Core's existing Type contract. | Candidate schemas, literals and offline checks only; **profile implementation not established**. The existing Type Descriptor implementation is a different contract. | **Proposed profile not established.** Existing built-in Types and isolated groundwork do not implement its installation, versioning, conformance and migration contract. See [readiness](profiles/types/types.md#8-readiness-and-landing). |
-| [Issue/Dependency library](types/issue/issue.md) | **WIP design:** preserves existing domain semantics while specifying the proposed Type representation. | Existing Issue/Dependency Read projection is exercised; **this proposed library is not qualified**. Property-schema checks do not establish runtime admission. | **Existing domain behavior, partial mapping:** Preview 2 CLI classification shims are recorded; the new Type graph and full mapping are not qualified. Planned Preview 3 work is not a completion claim. See [domain readiness](types/issue/issue.md#10-ready--pending--nyi). |
-| [Memory library](types/memory/memory.md) | **WIP nine-Bead/nine-Link review catalog:** selected Evaluation with exact subject references, evaluation-owned claims and identity-lifetime subject-group binding. [Publication scope and historical-artifact boundary](types/memory/README.md); review tracked in [PR143](https://github.com/gastownhall/bdp/pull/143). No adoption claim. | Historical schemas, literals and offline cases remain separately identified; **this publication supplies no runtime qualification**. | **Existing precursor:** [Preview 2 source](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/schema.go#L53) defines title/body Memory and [informational Links](https://github.com/donnabox/beads/blob/703bb13e91aa2cab2092443319139006d74242c8/internal/storage/graphstore/informational_types.go). Current product candidates and exact qualification remain in [Beads7656](https://github.com/gastownhall/beads/issues/7656); this historical source is not new runtime evidence. |
-| [Conformance index](conformance.md) | Current draft's shared requirement/case index; applies by advertised profile. | **Read executable evidence exists.** Catalog entries for other profiles are not proof those profiles passed. See [evidence rules](../packages/conformance/matrices/README.md). | Not a separate product feature. Only the named targets, builds, cases and qualifications in a recorded run are covered. |
+## Status and optional extensions
 
-**Not qualified / not established** means sufficient evidence is absent here; it
-does not assert that every underlying feature is missing. In this inventory,
-**NYI** is reserved for a specifically identified unimplemented feature. Update a
-status when there is evidence, citing the implementation revision and its validation limits;
-do not promote a row because a date passed, a PR exists or a schema check passed.
+The source uses **selected**, **informative**, **proposed** and **deferred** to
+distinguish requirements from supporting or unselected material. Optional is a
+capability property of a selected feature, not a synonym for proposed. A helper
+in a shared schema does not advertise a service capability or override its
+selected entry point. A proposed module must not become a requirement through
+an unqualified normative link or an existing capability/version.
 
-[STATUS.md](../STATUS.md) owns the detailed evidence summary and coverage counts.
-The Read cohort includes packaged observations and **in-process self-certified
-cases**; the latter do not establish black-box conformance of the packaged target.
-Its observed source is `e5f7d0c43c151426350ceededdc77fe7e372db9b`; the editorial
-split did not rerun or relabel that cohort. See the
-[sealed report](../docs/design/evidence/read-cohort/read-v1.json) and
-[pinned bd baseline](../docs/design/evidence/bd-baseline/README.md). That baseline's
-binary identity check is a separate local check, not a CI certification of every
-`bd` installation.
+| Family | Source status and boundary |
+| --- | --- |
+| Retained Core/Read and ordinary Write | Selected entries above; preserve independent Resource identity, exact References, authorization, ordinary optional guards, final committed outcomes and retry semantics |
+| Resource projection | Optional selected version1 capability for current GET, exact saved GET and List; `projectionVersion`/`fields` and separate projected arms preserve the full-read baseline |
+| Atomic batch | Optional selected six-CRUD contract; richer transaction-scoped selection/Query/set composition requires a coherent distinct binding and does not silently widen version1 |
+| Types and exact-definition access | Optional selected semantics; registration/default selection differ from presence, and narrow definition access does not require general application History |
+| Canonical CLI and overview | Informative correspondence to the selected protocol; proposed command/encoding sections retain their explicit status rather than acquire normative authority by publication |
+| General Query and richer batch encodings | Separate selected semantic decisions and remaining proposed mechanisms; only an explicitly incorporated native contract/capability is advertised |
+| Replica synchronization, public retained receipts and broader aliases | Experimental/proposed or deliberately deferred; not prerequisites to ordinary retained profiles |
 
-## Branch and authority boundary
+Document/schema status is distinct from executed conformance. Authored acceptance
+cases and offline schema checks are useful evidence within their scope; they do
+not qualify a CLI compiler, provider, History service or database transaction.
 
-This section records project process, not protocol requirements;
-[BDP #59](https://github.com/gastownhall/bdp/issues/59) owns the current policy.
+## Historical source inputs
 
-Further specification merges to `main` are on hold. Trish and Melinda integrate
-design work into `codex/trish-spec-integration`; Memory PR143 targets that branch.
-Vickie continues against her existing branch/specification without a rebase or a
-merge of our new designs. Her completed work and this design branch will be
-reconciled explicitly before the hold ends. This supersedes the earlier landing
-note in [Types §8](profiles/types/types.md#8-readiness-and-landing) that suggests
-starting new design work from main. The hold is a coordination agreement, not
-an installed GitHub branch-protection rule.
+The existing assembly physically composed these reviewed source lines:
 
-## Files and supporting artifacts
+- CLI/Core/Write/batch/Events: [PR300 f4eb1a5](https://github.com/gastownhall/bdp/pull/300), including the separately reviewed prior increments and Event R1 repair.
+- Types/descriptor/exact-definition access: [PR283 b924d08](https://github.com/gastownhall/bdp/pull/283).
+- Published front-door/process input: [2cfc8d2](https://github.com/gastownhall/bdp/commit/2cfc8d2d249814dad8f27dfabc0245514fd12237).
 
-The Issue draft links its source audit at an immutable authoring commit. That
-audit remains unmerged historical evidence outside this specification tree; it
-is not a new normative source or a current-build qualification.
+These are historical input identities, not a claim that they are the latest main
+commit. Their integrated successors and later accepted CLI/Read/endpoint decisions
+are reconciled through the existing plan and ordinary reviewed source changes.
+Clean composition is not combined-source qualification: actual incoming and
+landed subjects retain their own checks. Prior checks remain bound to their
+inputs; absent hosted checks are not green. No specification source activates
+runtime behavior by itself.
 
-`core`, `write`, and `types` directory names organize documents. This editorial
-move does not change discovery values, profile inheritance, operation semantics,
-or capability advertisements. In particular Read+Update `sequence` is still
-non-atomic and Transactional `batch` is still atomic. Removing the existing
-Type contract from Core awaits explicit adoption of the Types profile.
+[BDP#59](https://github.com/gastownhall/bdp/issues/59) remains the sole plan. Concrete
+BDP issues are the amendment front door; accepted rulings, pending proposals and
+intentional deferrals remain distinguishable in the [decision register](../docs/design/bdp-v0.1-decision-register.md).
+Trish owns integration, Types and this front door; Sybil owns paired common
+Core/Write/schema/CLI source; Melinda owns Read/History/Versions semantics and
+their exact handoff to the shared writer.
+Molly's requested curation unit is complete. The [historical POR snapshot](history/working-por-20261022.md)
+preserves the prior approval, source and communication record without making old
+pending markers current.
 
-Each profile or domain directory keeps its prose and property schemas together,
-along with any definition graph. Future OpenAPI documents belong alongside the
-profile they describe (`profiles/core/openapi.yaml`, `profiles/write/openapi.yaml`),
-not in a separate protocol tree. No OpenAPI contract has been authored here yet.
+## Changes since the stage-1 notice
 
-The existing [BDP v0 schema bundle](profiles/core/bdp-v0.schema.json) remains one
-bundle shared by Core and Write. It lives in Core because both use the same model;
-splitting its public definitions is not part of this editorial change. Its `$id`
-and all `$defs` are unchanged. `packages/protocol/schemas/bdp-v0.schema.json` is a
-byte-identical distribution artifact, verified against this source by tests; edit
-the source here and refresh the distribution copy together. It has no independent
-normative authority.
+The retained Core/Write, affiliation, namespace, object-edit, final-publication,
+Event and exact-definition source families have been physically composed; their
+old draft-only markers in the historical register are not current incorporation
+status. Donna also selected shared current/exact GET/List Resource projection and
+[Link identity across correction of either endpoint](https://github.com/gastownhall/bdp/issues/59#issuecomment-6457645585).
+The [current incorporation table](../docs/design/bdp-v0.1-decision-register.md#current-incorporation-october27)
+separates those decisions, their paired source work and runtime qualification.
+The [current source map](../docs/design/bdp-v0.1-current-source-map.md) supplies
+paired prose/schema/CLI/example/case pointers and residual PR284/293 dispositions.
+The current main-alignment instruction permits ordinary reviewed main landing;
+it is not another vote on already selected semantics.
 
-The Types [schema notes](profiles/types/README.md) explain the candidate artifacts.
-`profiles/types/definitions.json` is an illustrative foundation graph, including
-Issue examples, not production bootstrap IDs or an installable package. Test
-checkers live in `scripts/` and test datasets in `fixtures/specs/`.
+## Authoring formats
 
-Legacy document links lead to a navigation-only page. Sealed catalogs retain
-historical source names and hashes; citation tests assemble the current files in
-memory to check their excerpts. That compatibility mechanism is not a second
-specification. New requirements and authoring should cite the files here directly.
+The [Markdown format drafts](formats/README.md) collect schema, OpenAPI and Type-definition authoring notation. The proposed schema0.6 edition supplies a complete common-schema companion and selected [Read](profiles/core/read-contracts.md)/[Write](profiles/write/write-contracts.md) indexes, while preserving the canonical schema and protocol meanings. The [Type-definition draft](formats/markdown-type-definitions.md) composes property schemas with existing descriptors and owned exact Refines declarations; Trish owns descriptor adoption. The more nascent Bead/Link instance DSL remains under [Experimental](../experimental/formats/README.md).
+
+## Beads Preview3 comparison
+
+Use the [release conformance record](../docs/releases/beads-preview3-conformance.md)
+to bind the BDP commit to a separate Beads source/build and known gaps. Shipping
+Beads Preview3 does not require a passing grade for every BDP profile. It requires
+an honest, reproducible comparison with explicit untested and unsupported areas.
+
+The existing [v0 schema](profiles/core/bdp-v0.schema.json) and [v0 conformance accounting](conformance.md)
+remain historical/implementation comparison sources at their own pins. They do not
+silently become v0.1 evidence. [Issue/Dependency](types/issue/issue.md) remains a domain
+library input. The [Memory and Assessment domain design](types/memory/README.md)
+records its exact combined source and historical publication boundary; Memory
+product evidence is tracked separately in [Beads7656](https://github.com/gastownhall/beads/issues/7656).
+Domain publication does not imply runtime/catalog adoption.
+
+[Experimental](../experimental/README.md) is non-normative exploration, not POR or a
+product commitment. No retained Core/Write/Types obligation depends on implementing
+replication, set writes or public receipt services. Product/runtime/`serve` work
+and paused timers retain their separately authorized scope. This specification
+landing neither restarts them nor adopts every open implementation PR.

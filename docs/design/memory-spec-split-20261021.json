@@ -1,4 +1,6 @@
 {
+  "record_scope": "Historical split-validation record for the immutable original publication; not validation of the current branch head.",
+  "subject_public_commit": "8cbfd4b4eafbd4fd1dd50202f67b65a4976a694f",
   "result": "PASS",
   "memory_bead_types": 8,
   "memory_link_types": 5,

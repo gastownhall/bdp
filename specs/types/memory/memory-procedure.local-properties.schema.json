@@ -1,9 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.org/memory-types/schemas/memory-procedure.local-properties.schema.json",
-  "title": "Procedure local properties requirements",
-  "$comment": "Memory Release specialization fragment. Also validate the common Memory schema. Body carries primary content; optional properties add distinct information. Empty body remains representable with an explicit title.",
-  "type": "object",
-  "properties": {},
-  "additionalProperties": true
-}

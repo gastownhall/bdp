@@ -611,6 +611,122 @@ it("checks visible point rows and their minimum in the same entry and leaves the
 });
 
 describe("initial collection minimums", () => {
+  it("bounds unrecognized initial collection minima without retaining state or holding the owner", async () => {
+    const f = fixture();
+    const seeded = f.write([
+      ...seed,
+      {
+        operation: "createLink",
+        id: "links/out",
+        type: link,
+        source: "beads/a",
+        target: "beads/b",
+      },
+    ]);
+    expect(seeded.status).toBe("completed");
+    let entries = 0,
+      allocations = 0,
+      tick = 0,
+      ownerChecks = 0;
+    const waits: number[] = [];
+    let abortDuringWait: AbortController | undefined;
+    const owner: typeof f.store = {
+      ...f.store,
+      withRead: (callback) => {
+        entries++;
+        return f.store.withRead(callback);
+      },
+    };
+    const service = createTransactionService(owner, {
+      ownerLifetime: "service",
+      read: {
+        ...f.readOptions,
+        advertisedLimits: {
+          ...f.readOptions.advertisedLimits,
+          page: { defaultItems: 2, maximumItems: 32 },
+        },
+        pagination: {
+          ...f.readOptions.pagination,
+          maxPageItems: 32,
+          generateOpaqueToken: () => `unknown_minimum_${++allocations}`,
+        },
+      },
+      minimumReads: {
+        budgetMs: 7,
+        now: () => tick,
+        wait: async (ms) => {
+          waits.push(ms);
+          tick += ms;
+          // Bypass the attempt counter: an actual raw owner entry must work between attempts.
+          expect(f.store.withRead((_reader, context) => context.scopePosition)).toEqual({
+            kind: "read",
+            value: "pos-1",
+          });
+          ownerChecks++;
+          abortDuringWait?.abort();
+        },
+      },
+    });
+    const principal = { kind: "authenticated" as const, principal: { id: "principal" } };
+    const minimum = {
+      scopeEpoch: f.store.scopeEpoch,
+      authorizationView: "development-all-visible",
+      minimumPosition: "opaque",
+    };
+    try {
+      const initialEntries = entries;
+      for (const collection of ["beads", "links"] as const) {
+        for (const token of ["opaque", "pos-01", "pos-9007199254740992"]) {
+          const beforeEntries = entries,
+            beforeWaits = waits.length,
+            beforeTick = tick,
+            beforeOwnerChecks = ownerChecks;
+          await expect(
+            service
+              .readAtMinimum(principal, { ...minimum, minimumPosition: token })
+              .perform({ kind: "collection", collection, limit: 1 }),
+          ).rejects.toMatchObject({
+            reason: "catch-up-timeout",
+            context: {
+              scopeEpoch: minimum.scopeEpoch,
+              authorizationView: minimum.authorizationView,
+              scopePosition: "pos-1",
+            },
+          });
+          expect(entries - beforeEntries).toBe(3);
+          expect(waits.slice(beforeWaits)).toEqual([5, 2]);
+          expect(tick - beforeTick).toBe(7);
+          expect(ownerChecks - beforeOwnerChecks).toBe(2);
+          expect(allocations).toBe(0);
+        }
+      }
+      expect(entries - initialEntries).toBe(18);
+      expect(waits).toHaveLength(12);
+      const request = { kind: "collection", collection: "beads", limit: 1 } as const;
+      const preabort = new AbortController();
+      preabort.abort();
+      const beforeAbortEntries = entries,
+        beforeAbortWaits = waits.length;
+      await expect(
+        service.readAtMinimum(principal, minimum).perform(request, { signal: preabort.signal }),
+      ).rejects.toThrow("abort");
+      expect(entries).toBe(beforeAbortEntries);
+      expect(waits).toHaveLength(beforeAbortWaits);
+      abortDuringWait = new AbortController();
+      await expect(
+        service
+          .readAtMinimum(principal, minimum)
+          .perform(request, { signal: abortDuringWait.signal }),
+      ).rejects.toThrow("abort");
+      expect(entries - beforeAbortEntries).toBe(1);
+      expect(waits.slice(beforeAbortWaits)).toEqual([5]);
+      expect(ownerChecks).toBe(13);
+      expect(allocations).toBe(0);
+    } finally {
+      await service.close();
+    }
+  });
+
   it("preserves behind-minimum control refusals without allocating retained state", async () => {
     const f = fixture();
     f.write(seed);
@@ -933,7 +1049,7 @@ describe("compatible missing Resource minimum", () => {
         .scopePosition,
     ).toBe("pos-3");
   });
-  it("preserves missing behind and foreign collisions as visibility gaps", async () => {
+  it("returns observed missing Resources before behind and foreign minimum collisions", async () => {
     const f = fixture();
     f.write(seed);
     const { plane } = f.open(),
@@ -953,7 +1069,11 @@ describe("compatible missing Resource minimum", () => {
           plane
             .minimumFor({ kind: "anonymous" }, { ...minimum, ...patch })
             .perform(resource(`${kind}s/never`, kind)),
-        ).rejects.toBeInstanceOf(TransactionMinimumVisibilityGap);
+        ).resolves.toMatchObject({
+          kind: "problem",
+          phase: "observed",
+          problem: { code: "resource-not-found", status: 404 },
+        });
   });
   it("propagates invalid string context and provider errors rather than masking integrity", async () => {
     const f = fixture();
@@ -1251,7 +1371,21 @@ describe("current Type and incident-Link minimums", () => {
         delivery = minimum.perform(malformed[kind] as ReadRequest);
       }).not.toThrow();
       expect(delivery).toBeInstanceOf(Promise);
-      await expect(delivery).rejects.toThrow("outside supported subset");
+      const requestShapeMessage =
+        kind === "accessor"
+          ? "Read request cannot have accessors"
+          : kind === "inherited"
+            ? "Read request must have a plain prototype"
+            : kind === "proxy" || kind === "revoked"
+              ? "Read request must be a plain data object"
+              : undefined;
+      if (requestShapeMessage !== undefined) {
+        await expect(delivery).rejects.toBeInstanceOf(AuthorityReadError);
+        await expect(delivery).rejects.toMatchObject({
+          reason: "invalid-input",
+          message: requestShapeMessage,
+        });
+      } else await expect(delivery).rejects.toThrow("outside supported subset");
       expect(invoked).not.toHaveBeenCalled();
       expect(body(await minimum.perform(requests[0]!))).toEqual(descriptor);
       const external = { kind: "resource", resource: "type", id: link } as ReadRequest;
@@ -1541,9 +1675,20 @@ describe("current Type and incident-Link minimums", () => {
         { scopeEpoch: "foreign" },
         { authorizationView: "foreign" },
       ])
-        await expect(
-          plane.minimumFor(principal, { ...f.minimum(), ...patch }).perform(request),
-        ).rejects.toBeInstanceOf(TransactionMinimumVisibilityGap);
+        if (request.kind === "resource") {
+          await expect(
+            plane.minimumFor(principal, { ...f.minimum(), ...patch }).perform(request),
+          ).rejects.toBeInstanceOf(TransactionMinimumVisibilityGap);
+        } else {
+          const missing = await plane
+            .minimumFor(principal, { ...f.minimum(), ...patch })
+            .perform(request);
+          expect(missing).toMatchObject({
+            kind: "problem",
+            problem: { status: 404, code: "resource-not-found" },
+          });
+          expect(contexts(missing).current.scopePosition).toBe("pos-3");
+        }
     }
     f.write([{ operation: "createBead", id: "beads/empty", type: bead, properties: {} }]);
     expect(
@@ -1824,12 +1969,18 @@ describe("current alias minimum subset", () => {
       expect(contexts(result).current.scopePosition).toBe(position);
       await expect(
         service.readAtMinimum(principal, f.minimum("pos-99")).resolveAlias(url(suffix)),
-      ).rejects.toBeInstanceOf(TransactionMinimumVisibilityGap);
+      ).resolves.toMatchObject({
+        kind: "problem",
+        problem: { status: 404, code: "resource-not-found" },
+      });
       await expect(
         service
           .readAtMinimum(principal, { ...f.minimum(position), authorizationView: "foreign" })
           .resolveAlias(url(suffix)),
-      ).rejects.toBeInstanceOf(TransactionMinimumVisibilityGap);
+      ).resolves.toMatchObject({
+        kind: "problem",
+        problem: { status: 404, code: "resource-not-found" },
+      });
     };
     await checkMissing("alias/never", "pos-1");
     expect(f.alias("deleteAlias", { alias: "alias/work" }).status).toBe("completed");
@@ -2154,4 +2305,203 @@ describe("current minimum perform receiving", () => {
       expect(invoked).not.toHaveBeenCalled();
     },
   );
+});
+
+it("uses actual current policy for missing-first and unproved Resource attempts", async () => {
+  const f = fixture();
+  f.write([
+    { operation: "createBead", id: "beads/a", type: bead, properties: { title: "a" } },
+    { operation: "createLink", id: "links/self", type: link, source: "beads/a", target: "beads/a" },
+  ]);
+  f.alias("putAlias", { alias: "alias/work", target: "beads/a" });
+  let entries = 0,
+    waits = 0,
+    tick = 0,
+    transition = false;
+  const owner: typeof f.store = {
+    ...f.store,
+    withRead: (callback) => {
+      entries++;
+      return f.store.withRead(callback);
+    },
+  };
+  const service = createTransactionService(owner, {
+    ownerLifetime: "service",
+    read: {
+      ...f.readOptions,
+      advertisedLimits: {
+        ...f.readOptions.advertisedLimits,
+        page: { defaultItems: 2, maximumItems: 32 },
+      },
+      pagination: { ...f.readOptions.pagination, maxPageItems: 32 },
+    },
+    minimumReads: {
+      budgetMs: 7,
+      now: () => tick,
+      wait: async (ms) => {
+        waits++;
+        tick += ms;
+        if (transition) {
+          transition = false;
+          await service.replaceAuthorizationPolicy({ timeoutMs: 1000 });
+        }
+      },
+    },
+  });
+  cleanup.push(() => service.close());
+  const principal = { kind: "authenticated" as const, principal: { id: "principal" } };
+  const minimum = {
+    scopeEpoch: f.store.scopeEpoch,
+    authorizationView: "development-all-visible",
+    minimumPosition: "opaque",
+  };
+  // A genuine signal can have an own getter. Its receiving callback must
+  // not redirect the request after the private minimum route was captured.
+  const originalBody = body(await service.readFor(principal).perform(resource("beads/a")));
+  const mutableRequest: Record<string, unknown> = { ...resource("beads/a") };
+  const mutatingSignal = new AbortController().signal;
+  let signalReads = 0;
+  Object.defineProperty(mutatingSignal, "aborted", {
+    get() {
+      signalReads++;
+      delete mutableRequest.resource;
+      delete mutableRequest.id;
+      mutableRequest.kind = "collection";
+      mutableRequest.collection = "types";
+      return false;
+    },
+  });
+  const capturedResult = await service
+    .readAtMinimum(principal, { ...minimum, minimumPosition: "pos-1" })
+    .perform(mutableRequest as unknown as ReadRequest, { signal: mutatingSignal });
+  expect(signalReads).toBeGreaterThan(0);
+  expect(mutableRequest.kind).toBe("collection");
+  expect(body(capturedResult)).toEqual(originalBody);
+  let requestGetterCalls = 0;
+  const invalidRequest = Object.defineProperty({ ...resource("beads/a") }, "id", {
+    get() {
+      requestGetterCalls++;
+      return url("beads/a");
+    },
+  });
+  await expect(
+    service.readAtMinimum(principal, minimum).perform(invalidRequest),
+  ).rejects.toMatchObject({ reason: "invalid-input" });
+  expect(requestGetterCalls).toBe(0);
+  for (const token of ["opaque", "pos-01", "pos-9007199254740992"]) {
+    const start = entries;
+    await expect(
+      service
+        .readAtMinimum(principal, { ...minimum, minimumPosition: token })
+        .perform(resource("beads/a")),
+    ).rejects.toMatchObject({ reason: "catch-up-timeout", context: { scopePosition: "pos-1" } });
+    expect(entries - start).toBe(3);
+  }
+  const beforeMissing = waits;
+  for (const request of [
+    resource("beads/missing"),
+    { kind: "properties", resource: "link", id: url("links/missing") },
+    { kind: "bead-links", bead: url("beads/missing") },
+  ] as const) {
+    const before = entries;
+    const result = await service
+      .readAtMinimum(principal, { ...minimum, scopeEpoch: "foreign" })
+      .perform(request);
+    expect(result).toMatchObject({
+      kind: "problem",
+      phase: "observed",
+      problem: { status: 404, code: "resource-not-found" },
+    });
+    expect(contexts(result).current).toEqual({
+      scopeEpoch: minimum.scopeEpoch,
+      authorizationView: minimum.authorizationView,
+      scopePosition: "pos-1",
+    });
+    expect(entries - before).toBe(1);
+  }
+  expect(waits).toBe(beforeMissing);
+  transition = true;
+  const hidden = await service.readAtMinimum(principal, minimum).perform(resource("beads/a"));
+  expect(hidden).toMatchObject({
+    kind: "problem",
+    problem: { status: 404, code: "resource-not-found" },
+  });
+  const current = contexts(hidden).current;
+  expect(current.authorizationView).not.toBe(minimum.authorizationView);
+  const missing = await service
+    .readAtMinimum(principal, { ...minimum, authorizationView: current.authorizationView })
+    .perform(resource("beads/missing"));
+  expect((missing as { problem: unknown }).problem).toEqual(
+    (hidden as { problem: unknown }).problem,
+  );
+  expect(contexts(missing).current).toEqual(current);
+  for (const request of [
+    resource("links/self", "link"),
+    { kind: "properties", resource: "bead", id: url("beads/a") },
+    { kind: "bead-links", bead: url("beads/a") },
+  ] as const) {
+    const start = entries,
+      priorWaits = waits;
+    const result = await service.readAtMinimum(principal, minimum).perform(request);
+    expect(result).toMatchObject({
+      kind: "problem",
+      problem: { status: 404, code: "resource-not-found" },
+    });
+    expect(contexts(result).current).toEqual(current);
+    expect(entries - start).toBe(1);
+    expect(waits).toBe(priorWaits);
+  }
+  const start = entries,
+    priorWaits = waits;
+  const alias = await service.readAtMinimum(principal, minimum).resolveAlias(url("alias/work"));
+  expect(alias).toMatchObject({
+    kind: "problem",
+    problem: { status: 404, code: "resource-not-found" },
+  });
+  expect(contexts(alias).current).toEqual(current);
+  expect(entries - start).toBe(1);
+  expect(waits).toBe(priorWaits);
+});
+it("drains an admitted unknown minimum to timeout and rejects new reads while closing", async () => {
+  const f = fixture();
+  f.write([{ operation: "createBead", id: "beads/a", type: bead }]);
+  const entered = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>();
+  let tick = 0;
+  const service = createTransactionService(f.store, {
+    ownerLifetime: "service",
+    read: {
+      ...f.readOptions,
+      advertisedLimits: {
+        ...f.readOptions.advertisedLimits,
+        page: { defaultItems: 2, maximumItems: 32 },
+      },
+      pagination: { ...f.readOptions.pagination, maxPageItems: 32 },
+    },
+    minimumReads: {
+      budgetMs: 2,
+      now: () => tick,
+      wait: async (ms) => {
+        entered.resolve();
+        await release.promise;
+        tick += ms;
+      },
+    },
+  });
+  cleanup.push(() => service.close());
+  cleanup.push(() => release.resolve());
+  const principal = { kind: "anonymous" as const };
+  const minimum = {
+    scopeEpoch: f.store.scopeEpoch,
+    authorizationView: "development-all-visible",
+    minimumPosition: "opaque",
+  };
+  const pending = service.readAtMinimum(principal, minimum).perform(resource("beads/a"));
+  const rejected = expect(pending).rejects.toMatchObject({ reason: "catch-up-timeout" });
+  await entered.promise;
+  const closing = service.close();
+  expect(() => service.readAtMinimum(principal, minimum)).toThrow("closing");
+  release.resolve();
+  await rejected;
+  await closing;
 });

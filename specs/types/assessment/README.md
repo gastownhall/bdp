@@ -1,3 +1,3 @@
-# Assessment design
+# Assessment design home
 
-[Evaluation and Conformance Types](assessment.md) is an independent future design draft: one Evaluation Bead Type and four Link Types. Its base knowledge and obligation model is a one-way dependency on [Memory](../memory/memory.md). This directory is not an installation manifest, release commitment or runtime capability claim.
+The current Evaluation and Conformance-family definitions are included in the exact accepted [combined Memory and Assessment design](../memory/memory.md), whose [source identity and publication boundary](../memory/README.md) are recorded together. The adjacent [Assessment pointer](assessment.md) identifies the historical split companion; it supplies no separate current or unspecified future definition. Publication does not install Types, select a release or qualify a runtime.

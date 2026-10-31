@@ -591,7 +591,7 @@ describe("source-private actual Transactional HTTP", () => {
     expect(after.status).toBe(307);
     expect(after.headers.get("location")).toBe(`${f.runtime.scope}beads/other`);
   });
-  it("rejects invalid set Selector grammar and preserves private depth refusal without key capture or partial effects", async () => {
+  it("rejects invalid set Selector grammar and admits valid deep content without partial effects", async () => {
     const f = await fixture();
     const set = await f.post(
       batch([
@@ -615,13 +615,14 @@ describe("source-private actual Transactional HTTP", () => {
     let nested: unknown = "leaf";
     for (let depth = 0; depth < 40; depth++) nested = { nested };
     const depth = await f.post(batch([{ ...create("c"), properties: { nested } }]), "deep");
-    expect(depth.status).toBe(500);
-    expect(depth.headers.get("x-bdp-development-limit")).toBe(
-      "unsupported-transaction-composition",
-    );
-    expect(await depth.text()).toBe("");
-    expect((await f.get(`${f.runtime.scope}beads/c`)).status).toBe(404);
-    expect((await f.post(batch([create("c")]), "deep")).status).toBe(200);
+    expect(depth.status).toBe(200);
+    expect(depth.headers.has("x-bdp-development-limit")).toBe(false);
+    expect(await body(depth)).toMatchObject({
+      status: "completed",
+      results: [{ outcome: "created", resource: { properties: { nested } } }],
+    });
+    expect((await f.get(`${f.runtime.scope}beads/c`)).status).toBe(200);
+    expect((await f.post(batch([create("c")]), "deep")).status).toBe(409);
   });
   it("preserves retained receipt identities across actual listener close/reopen and detail expiry", async () => {
     const f = await fixture(),
@@ -1622,7 +1623,7 @@ it("does not invent a Read method table for unrouted or noncanonical operation U
   expect((await f.post(batch(), "unrouted")).status).toBe(200);
 });
 
-it("labels sequence depth gaps honestly and keeps sequence capacity distinct from direct transaction capacity", async () => {
+it("accepts byte-bounded deep sequences and keeps sequence capacity distinct from direct transaction capacity", async () => {
   const f = await fixture({ maximumOperations: 1 });
   let nested: unknown = "leaf";
   for (let depth = 0; depth < 40; depth++) nested = { nested };
@@ -1631,12 +1632,12 @@ it("labels sequence depth gaps honestly and keeps sequence capacity distinct fro
     null,
     "sequence",
   );
-  expect(refused.status).toBe(500);
-  expect(refused.headers.get("x-bdp-development-limit")).toBe(
-    "unsupported-transaction-composition",
-  );
-  expect(await refused.text()).toBe("");
-  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+  expect(refused.status).toBe(200);
+  expect(refused.headers.has("x-bdp-development-limit")).toBe(false);
+  expect(await body(refused)).toMatchObject({
+    results: [{ outcome: "created", resource: { properties: { nested } } }],
+  });
+  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(200);
   const sequence = await f.post(
     batch([
       { ...create("a"), idempotencyKey: "deep_sequence" },
@@ -1647,6 +1648,14 @@ it("labels sequence depth gaps honestly and keeps sequence capacity distinct fro
   );
   expect(sequence.status).toBe(200);
   expect(sequence.headers.get("bdp-scope-position")).toBe("pos-2");
+  // Both members are processed despite the one-operation direct-transaction limit.
+  // The first reuses the earlier deep key with a different body; the second commits.
+  expect(await body(sequence)).toMatchObject({
+    results: [
+      { code: "idempotency-conflict", status: 409 },
+      { outcome: "created", resource: { id: `${f.runtime.scope}beads/b` } },
+    ],
+  });
   const direct = await f.post(batch([create("c"), create("d")]), "direct");
   expect(direct.status).toBe(413);
   expect(await body(direct)).toMatchObject({ limit: "transaction.operations" });
@@ -1781,13 +1790,15 @@ it("uses actual epoch/view decisions and an exhausted wait before conditional or
     expect(unsupported.status).toBe(500);
     expect(unsupported.headers.get("x-bdp-development-limit")).toBe("minimum-position-route");
   }
-  expect(
-    (
-      await f.get(`${f.runtime.scope}beads/a`, {
-        headers: { ...headers, "bdp-minimum-scope-position": "opaque-unknown" },
-      })
-    ).status,
-  ).toBe(500);
+  const unknown = await f.get(f.runtime.scope + "beads/a", {
+    headers: { ...headers, "bdp-minimum-scope-position": "opaque-unknown" },
+  });
+  expect(unknown.status).toBe(503);
+  expect(checkedProblem(await body(unknown))).toMatchObject({
+    code: "catch-up-timeout",
+    status: 503,
+    retry: "after-delay",
+  });
 });
 
 it("preserves authentication on commands carrying copied read controls without reserving keys", async () => {
@@ -1823,7 +1834,7 @@ it("preserves authentication on commands carrying copied read controls without r
   }
 });
 
-it("serves compatible missing Resource404 with context and preserves incompatible gaps without waiting", async () => {
+it("serves missing Resource404 with current context before semantic minimum comparisons", async () => {
   const wait = vi.fn(async () => {});
   const f = await fixture({ minimumReads: { budgetMs: 2, wait } });
   const created = await f.post(
@@ -1906,18 +1917,27 @@ it("serves compatible missing Resource404 with context and preserves incompatibl
           method,
           headers: { ...minimumHeaders(removed), ...extra },
         });
-        expect(response.status).toBe(500);
-        expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
+        expect(response.status).toBe(404);
+        expect(response.headers.has("x-bdp-development-limit")).toBe(false);
         for (const name of ["bdp-scope-position", "bdp-scope-epoch", "bdp-authorization-view"])
-          expect(response.headers.has(name)).toBe(false);
-        expect(await response.text()).toBe("");
+          expect(response.headers.get(name)).toBe(removed.headers.get(name));
+        if (method === "HEAD") expect(await response.text()).toBe("");
+        else
+          expect(checkedProblem(await body(response))).toMatchObject({
+            code: "resource-not-found",
+            status: 404,
+          });
       }
   expect(wait).not.toHaveBeenCalled();
   const malformed = await f.get(`${f.runtime.scope}beads/missing`, {
     headers: minimumHeaders(removed, "unissued"),
   });
-  expect(malformed.status).toBe(500);
-  expect(malformed.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+  expect(malformed.status).toBe(404);
+  expect(malformed.headers.has("x-bdp-development-limit")).toBe(false);
+  expect(checkedProblem(await body(malformed))).toMatchObject({
+    code: "resource-not-found",
+    status: 404,
+  });
   const anonymous = await f.get(`${f.runtime.scope}beads/missing`, {
     headers: { ...minimumHeaders(removed), authorization: "" },
   });
@@ -2569,7 +2589,7 @@ it.each(["updateWhere", "deleteWhere"] as const)(
   },
 );
 
-it("preserves actual singleton bytes and wrapper-equivalent depth without accepting a body operation override", async () => {
+it("preserves actual singleton bytes and wrapper-equivalent deep content without accepting a body operation override", async () => {
   const f = await fixture();
   const invalid = await f.post(
     JSON.stringify({ operation: "deleteWhere", collection: "beads", selector: "$[?@.id]" }),
@@ -2580,7 +2600,7 @@ it("preserves actual singleton bytes and wrapper-equivalent depth without accept
   expect(await f.receiptRows("override")).toEqual([]);
   for (const [depth, status] of [
     [27, 200],
-    [28, 500],
+    [28, 200],
   ] as const) {
     let value: unknown = 0;
     for (let i = 0; i < depth; i++) value = { nested: value };
@@ -2599,17 +2619,11 @@ it("preserves actual singleton bytes and wrapper-equivalent depth without accept
         target,
       );
       expect(response.status).toBe(status);
-      if (status === 500) {
-        expect(response.headers.get("x-bdp-development-limit")).toBe(
-          "unsupported-transaction-composition",
-        );
-        expect(await response.text()).toBe("");
-        expect(await f.receiptRows(key)).toEqual([]);
-      } else
-        expect(await body(response)).toMatchObject({
-          status: "completed",
-          results: [{ outcome: "matched", count: 0 }],
-        });
+      expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+      expect(await body(response)).toMatchObject({
+        status: "completed",
+        results: [{ outcome: "matched", count: 0 }],
+      });
     }
   }
   const template = {
@@ -3028,9 +3042,15 @@ it("serves canonical current Type and incident minimums with truthful context an
       { "bdp-authorization-view": "foreign" },
     ]) {
       const refused = await send(suffix, { ...headers, ...patch });
-      expect(refused.status).toBe(500);
-      expect(refused.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
-      expect(refused.headers.has("bdp-scope-position")).toBe(false);
+      if (suffix === "types/absent") {
+        expect(refused.status).toBe(500);
+        expect(refused.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
+        expect(refused.headers.has("bdp-scope-position")).toBe(false);
+      } else {
+        expect(refused.status).toBe(404);
+        assertContext(refused);
+        expect(checkedProblem(await body(refused))).toMatchObject({ code: "resource-not-found" });
+      }
     }
   }
 });
@@ -3102,12 +3122,7 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
   expect(context(missing)).toEqual(context(created));
   expect(checkedProblem(await body(missing))).toMatchObject({ code: "resource-not-found" });
   for (const [suffix, supplied, status, marker] of [
-    [
-      "alias/missing",
-      { ...headers, "bdp-minimum-scope-position": "pos-2" },
-      500,
-      "minimum-position-visibility",
-    ],
+    ["alias/missing", { ...headers, "bdp-minimum-scope-position": "pos-2" }, 404, null],
     ["alias/work?invalid=1", { ...headers, "bdp-minimum-scope-position": "pos-2" }, 404, null],
     ["alias/work", { "bdp-minimum-scope-position": "pos-1" }, 400, null],
     [
@@ -3127,8 +3142,13 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
         retry: "never",
       });
     expect(response.headers.has("location")).toBe(false);
-    for (const name of Object.keys(context(created)))
-      expect(response.headers.has(name)).toBe(false);
+    if (suffix === "alias/missing") {
+      expect(context(response)).toEqual(context(created));
+      expect(checkedProblem(await body(response))).toMatchObject({ code: "resource-not-found" });
+    } else {
+      for (const name of Object.keys(context(created)))
+        expect(response.headers.has(name)).toBe(false);
+    }
   }
   const anonymous = await fetch(target, { headers, redirect: "manual" });
   expect(anonymous.status).toBe(401);
@@ -4099,7 +4119,7 @@ it("serves current missing receipt root and page context without changing nondis
     throw new AggregateError(failures, "receipt context observation and cleanup failed");
 }, 60000);
 
-it("serves retained direct key conflicts before private depth and preserves fresh refusal", async () => {
+it("serves retained direct key conflicts and genuine fresh deep effects", async () => {
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(new Error("depth-key work deadline")), 25000);
   const cleanupStart = cleanup.length;
@@ -4239,7 +4259,13 @@ it("serves retained direct key conflicts before private depth and preserves fres
       }
     }
   }
-  function completed(response: Observed, name: string, key: string, position: string) {
+  function completed(
+    response: Observed,
+    name: string,
+    key: string,
+    position: string,
+    metadata: unknown = {},
+  ) {
     expect(response.status).toBe(200);
     const value = record(JSON.parse(response.text));
     expect(validateSelectorReceipt(value), JSON.stringify(validateSelectorReceipt.errors)).toBe(
@@ -4266,7 +4292,7 @@ it("serves retained direct key conflicts before private depth and preserves fres
       id: `${f?.runtime.scope}beads/${name}`,
       type: bead,
       properties: { title: name },
-      metadata: {},
+      metadata,
       revision: resource.revision,
     });
     if (!expectedContext) {
@@ -4320,7 +4346,7 @@ it("serves retained direct key conflicts before private depth and preserves fres
         key,
         "text/plain",
       );
-      expect(conflict.status, `depth-key:${kind}:conflict-before-depth`).toBe(409);
+      expect(conflict.status, `depth-key:${kind}:conflict-before-negotiation`).toBe(409);
       expect(checkedProblem(record(JSON.parse(conflict.text)))).toEqual({
         type: "https://github.com/gastownhall/bdp/problems/conflict",
         code: "idempotency-conflict",
@@ -4339,18 +4365,16 @@ it("serves retained direct key conflicts before private depth and preserves fres
         fresh,
         "text/plain",
       );
-      expect(refused.status).toBe(500);
+      expect(refused.status).toBe(406);
       expect(refused.text).toBe("");
-      expect(refused.headers.get("x-bdp-development-limit")).toBe(
-        "unsupported-transaction-composition",
-      );
-      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-        expect(refused.headers.get(name)).toBeNull();
+      expect(refused.headers.get("x-bdp-development-limit")).toBeNull();
+      checkedContext(refused, `pos-${position}`);
       completed(
-        await exchange(`${kind}-fresh-reuse`, target, input(b), fresh),
+        await exchange(`${kind}-fresh-reuse`, target, input(b, true), fresh),
         b,
         fresh,
         `pos-${position + 1}`,
+        { nested },
       );
       const point = await exchange(`${kind}-point-unchanged`, `${f.runtime.scope}beads/${a}`);
       expect(point.status).toBe(200);
@@ -4791,3 +4815,533 @@ it("enforces the minimum-receiving-malformed-request boundary over the emitted l
     });
   });
 }, 20000);
+
+it("waits for current Resources and initial collections with unknown minima and preserves residual refusals", async () => {
+  let tick = 0,
+    waits = 0;
+  const f = await fixture({
+    minimumReads: {
+      budgetMs: 2,
+      now: () => tick,
+      wait: async (ms) => {
+        tick += ms;
+        waits++;
+      },
+    },
+  });
+  const seed = await f.post(batch([create("a")]), "minimum-current-source");
+  expect(seed.status).toBe(200);
+  const seedReceipt = await body(seed);
+  expect(validateSelectorReceipt(seedReceipt), JSON.stringify(validateSelectorReceipt.errors)).toBe(
+    true,
+  );
+  expect(seedReceipt).toMatchObject({ status: "completed", requiredPosition: "pos-1" });
+
+  const tuple = minimumHeaders(seed, "opaque");
+  for (const suffix of ["beads/a", "beads/a?view=properties"]) {
+    const response = await f.get(f.runtime.scope + suffix, {
+      headers: { ...tuple, "if-none-match": "*" },
+    });
+    expect(response.status).toBe(503);
+    expect(checkedProblem(await body(response))).toEqual({
+      type: "https://github.com/gastownhall/bdp/problems/unavailable",
+      status: 503,
+      code: "catch-up-timeout",
+      retry: "after-delay",
+    });
+    expect(response.headers.get("retry-after")).toBe("1");
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+  }
+  const timeoutProblem = {
+    type: "https://github.com/gastownhall/bdp/problems/unavailable",
+    status: 503,
+    code: "catch-up-timeout",
+    retry: "after-delay",
+  };
+  for (const collection of ["beads", "links"]) {
+    let getBody = "";
+    for (const method of ["GET", "HEAD"] as const) {
+      const response = await f.get(`${f.runtime.scope}${collection}/?limit=1`, {
+        method,
+        headers: {
+          ...tuple,
+          ...(method === "GET" ? { "if-none-match": "*" } : { "if-match": '"wrong"' }),
+        },
+      });
+      expect(response.status).toBe(503);
+      expect(response.headers.get("content-type")).toBe("application/problem+json");
+      expect(response.headers.get("retry-after")).toBe("1");
+      expect(response.headers.get("bdp-scope-epoch")).toBe(tuple["bdp-scope-epoch"]);
+      expect(response.headers.get("bdp-authorization-view")).toBe(tuple["bdp-authorization-view"]);
+      expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+      expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+      const text = await response.text();
+      if (method === "GET") {
+        getBody = text;
+        expect(checkedProblem(record(JSON.parse(text)))).toEqual(timeoutProblem);
+      } else expect(text).toBe("");
+      expect(response.headers.get("content-length")).toBe(String(Buffer.byteLength(getBody)));
+    }
+  }
+  for (const token of ["pos-01", "pos-9007199254740992"]) {
+    const response = await f.get(`${f.runtime.scope}beads/?limit=1`, {
+      headers: { ...minimumHeaders(seed, token), "if-none-match": "*" },
+    });
+    expect(response.status).toBe(503);
+    expect(checkedProblem(await body(response))).toEqual(timeoutProblem);
+    expect(response.headers.get("retry-after")).toBe("1");
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+    expect(response.headers.get("bdp-scope-epoch")).toBe(tuple["bdp-scope-epoch"]);
+    expect(response.headers.get("bdp-authorization-view")).toBe(tuple["bdp-authorization-view"]);
+    expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+  }
+  expect(waits).toBe(8);
+  // Excluded residuals: strict/parser-rejected routes stop at the early unknown-token gap;
+  // the incident-Link route is refused after classification. Both retain the private label.
+  for (const suffix of [
+    "types/",
+    "beads/a?view=links",
+    "beads/?limit=0",
+    "beads/?limit=1&limit=2",
+  ]) {
+    const response = await f.get(f.runtime.scope + suffix, { headers: tuple });
+    expect(response.status).toBe(500);
+    expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+    expect(response.headers.has("bdp-scope-position")).toBe(false);
+    expect(await response.text()).toBe("");
+  }
+  for (const [query, status, code] of [
+    ["limit=33", 413, "limit-exceeded"],
+    [`selector=${encodeURIComponent("$[?")}`, 400, "invalid-parameter"],
+  ] as const) {
+    const response = await f.get(`${f.runtime.scope}beads/?${query}`, { headers: tuple });
+    expect(response.status).toBe(status);
+    expect(checkedProblem(await body(response))).toMatchObject({ status, code, retry: "never" });
+    expect(response.headers.get("bdp-scope-epoch")).toBe(tuple["bdp-scope-epoch"]);
+    expect(response.headers.get("bdp-authorization-view")).toBe(tuple["bdp-authorization-view"]);
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+    expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+  }
+  expect(waits).toBe(8);
+  const published = await f.runtime.replaceAuthorizationPolicy({ timeoutMs: 1000 });
+  let expectedBody: unknown;
+  for (const suffix of ["beads/a", "beads/missing", "beads/a?view=links"]) {
+    const response = await f.get(f.runtime.scope + suffix, {
+      headers: {
+        ...tuple,
+        "bdp-authorization-view": published.authorizationView,
+      },
+    });
+    expect(response.status).toBe(404);
+    const value = checkedProblem(await body(response));
+    if (expectedBody === undefined) expectedBody = value;
+    expect(value).toEqual(expectedBody);
+    expect(response.headers.get("bdp-authorization-view")).toBe(published.authorizationView);
+    expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
+  }
+  expect(waits).toBe(8);
+});
+
+it("compares retained sequence members and accepts deep input while preserving receiving failures", async () => {
+  const boundary = cleanup.length;
+  const controller = new AbortController();
+  const failures: unknown[] = [];
+  const observations: Record<string, unknown>[] = [];
+  const deadlineReason = new Error("sequence depth work deadline");
+  let deadlineExceeded = false;
+  const deadline = setTimeout(() => {
+    deadlineExceeded = true;
+    controller.abort(deadlineReason);
+  }, 25000);
+  let f: Awaited<ReturnType<typeof fixture>> | undefined;
+  let attempts = 0,
+    cleanupCompleted = false,
+    cleanupExceeded = false;
+  let expectedContext: readonly [string, string] | undefined;
+  const contextNames = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
+  const validBead = ajv.compile({ $ref: `${schema.$id}#/$defs/beadRecord` });
+  type Wire = { status: number; headers: Headers; text: string };
+  function parse(response: Wire, validate: typeof validateSequence) {
+    const value = record(JSON.parse(response.text));
+    expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
+    return value;
+  }
+  function tuple(response: Wire, position: string) {
+    if (!expectedContext) throw new Error("sequence seed context missing");
+    expect(contextNames.map((name) => response.headers.get(name))).toStrictEqual([
+      ...expectedContext,
+      position,
+    ]);
+  }
+  function resource(value: unknown, name: string, metadata: unknown = {}) {
+    const result = record(value);
+    expect(typeof result.revision).toBe("string");
+    expect(result.revision).not.toBe("");
+    expect(result).toStrictEqual({
+      id: `${f!.runtime.scope}beads/${name}`,
+      type: bead,
+      revision: result.revision,
+      properties: { title: name },
+      metadata,
+    });
+    return result;
+  }
+  async function exchange(
+    label: string,
+    url: string,
+    text?: string,
+    key?: string,
+    accept = "application/json",
+    credential: "operator" | "reader" | "none" = "operator",
+  ): Promise<Wire> {
+    if (!f) throw new Error("sequence listener missing");
+    controller.signal.throwIfAborted();
+    expect(++attempts, "sequence depth exact dispatch bound").toBeLessThanOrEqual(11);
+    const method = text === undefined ? "GET" : "POST";
+    expect(
+      [
+        ["POST", f.runtime.targets.createBead],
+        ["POST", f.runtime.targets.sequence],
+        ["GET", `${f.runtime.scope}beads/sequence-a`],
+      ].some(([m, target]) => m === method && target === url),
+    ).toBe(true);
+    const headers = {
+      accept,
+      ...(credential === "none"
+        ? {}
+        : { authorization: `Bearer ${credential === "reader" ? readToken : token}` }),
+      ...(text === undefined ? {} : { "content-type": "application/json" }),
+      ...(key === undefined ? {} : { "idempotency-key": key }),
+    };
+    expect(Buffer.byteLength(text ?? "")).toBeLessThanOrEqual(65536);
+    expect(
+      Object.entries(headers).reduce(
+        (sum, [name, value]) => sum + Buffer.byteLength(name + value) + 4,
+        0,
+      ),
+    ).toBeLessThanOrEqual(16384);
+    const request = new AbortController();
+    const timer = setTimeout(() => request.abort(new Error("sequence request deadline")), 5000);
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let complete = false;
+    try {
+      const response = await fetch(url, {
+        method,
+        headers,
+        ...(text === undefined ? {} : { body: text }),
+        redirect: "error",
+        signal: AbortSignal.any([controller.signal, request.signal]),
+      });
+      expect(
+        [...response.headers].reduce(
+          (sum, [name, value]) => sum + Buffer.byteLength(name + value) + 4,
+          0,
+        ),
+      ).toBeLessThanOrEqual(65536);
+      const chunks: Uint8Array[] = [];
+      let bytes = 0;
+      reader = response.body?.getReader();
+      if (reader)
+        for (;;) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          bytes += chunk.value.byteLength;
+          if (bytes > 131072) throw new Error("sequence response body ceiling");
+          chunks.push(chunk.value);
+        }
+      complete = true;
+      const result = {
+        status: response.status,
+        headers: response.headers,
+        text: Buffer.concat(chunks).toString("utf8"),
+      };
+      observations.push({
+        ordinal: attempts,
+        label,
+        method,
+        url,
+        credential,
+        accept,
+        requestBodyBytes: Buffer.byteLength(text ?? ""),
+        requestBodySha256: createHash("sha256")
+          .update(text ?? "")
+          .digest("hex"),
+        status: result.status,
+        responseBodyBytes: bytes,
+        responseBodySha256: createHash("sha256").update(result.text).digest("hex"),
+        headers: Object.fromEntries(
+          [
+            ...contextNames,
+            "x-bdp-development",
+            "x-bdp-development-limit",
+            "content-type",
+            "content-length",
+          ].map((name) => [name, result.headers.get(name)]),
+        ),
+      });
+      return result;
+    } finally {
+      clearTimeout(timer);
+      request.abort();
+      if (reader) {
+        try {
+          if (!complete) await reader.cancel();
+        } catch (error) {
+          failures.push(error);
+        }
+        try {
+          reader.releaseLock();
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+    }
+  }
+  try {
+    f = await fixture();
+    let nested: unknown = "leaf";
+    for (let i = 0; i < 40; i++) nested = { nested };
+    const input = (name: string, deep = false) => ({
+      id: `beads/${name}`,
+      type: bead,
+      properties: { title: name },
+      metadata: deep ? { nested } : {},
+    });
+    const sequenceBody = (name: string, key: string, deep = false) =>
+      JSON.stringify({
+        operations: [
+          { operation: "createBead", ...input(name, deep), idempotencyKey: key, name: "present" },
+        ],
+      });
+    const seedText = JSON.stringify(input("sequence-a"));
+    const seed = await exchange(
+      "seed",
+      f.runtime.targets.createBead,
+      seedText,
+      "sequence-retained",
+    );
+    expect(seed.status).toBe(200);
+    const receipt = parse(seed, validateSelectorReceipt);
+    expect(typeof receipt.scopeEpoch).toBe("string");
+    expect(receipt.scopeEpoch).not.toBe("");
+    expect(typeof receipt.authorizationView).toBe("string");
+    expect(receipt.authorizationView).not.toBe("");
+    expectedContext = [receipt.scopeEpoch as string, receipt.authorizationView as string];
+    tuple(seed, "pos-1");
+    const savedResource = resource(
+      record((receipt.results as unknown[])[0]).resource,
+      "sequence-a",
+    );
+    expect(receipt).toStrictEqual({
+      id: receipt.id,
+      status: "completed",
+      detail: "available",
+      idempotencyKey: "sequence-retained",
+      scopeEpoch: expectedContext[0],
+      authorizationView: expectedContext[1],
+      transaction: receipt.transaction,
+      requiredPosition: "pos-1",
+      effectPosition: "pos-1",
+      results: [{ operationIndex: 0, outcome: "created", resource: savedResource }],
+      next: null,
+      expiresAt: receipt.expiresAt,
+    });
+    const deep = sequenceBody("sequence-a", "sequence-retained", true);
+    const conflict = await exchange("retained-deep", f.runtime.targets.sequence, deep);
+    // First oracle for C1: a preparation throw is generic500, without the private marker.
+    expect(conflict.status, "sequence-depth:retained-member-conflict").toBe(200);
+    expect(parse(conflict, validateSequence)).toStrictEqual({
+      results: [
+        {
+          type: "https://github.com/gastownhall/bdp/problems/conflict",
+          code: "idempotency-conflict",
+          status: 409,
+          retry: "never",
+          operationIndex: 0,
+          operationName: "present",
+        },
+      ],
+    });
+    expect(conflict.headers.get("x-bdp-development-limit")).toBeNull();
+    tuple(conflict, "pos-1");
+    const replay = await exchange(
+      "original-replay",
+      f.runtime.targets.createBead,
+      seedText,
+      "sequence-retained",
+    );
+    expect(replay.status).toBe(200);
+    expect(parse(replay, validateSelectorReceipt)).toStrictEqual(receipt);
+    tuple(replay, "pos-1");
+    const point = await exchange("original-resource", `${f.runtime.scope}beads/sequence-a`);
+    expect(point.status).toBe(200);
+    expect(parse(point, validBead)).toStrictEqual(savedResource);
+    tuple(point, "pos-1");
+    const fresh = await exchange(
+      "fresh-deep",
+      f.runtime.targets.sequence,
+      sequenceBody("sequence-b", "sequence-fresh", true),
+    );
+    expect(fresh.status).toBe(200);
+    expect(fresh.headers.get("x-bdp-development-limit")).toBeNull();
+    const created = parse(fresh, validateSequence),
+      createdEntry = record((created.results as unknown[])[0]);
+    expect(created).toStrictEqual({
+      results: [
+        {
+          operationIndex: 0,
+          operationName: "present",
+          outcome: "created",
+          resource: resource(createdEntry.resource, "sequence-b", { nested }),
+        },
+      ],
+    });
+    tuple(fresh, "pos-2");
+    const reuse = await exchange(
+      "fresh-key-reuse",
+      f.runtime.targets.sequence,
+      sequenceBody("sequence-b", "sequence-fresh"),
+    );
+    expect(reuse.status).toBe(200);
+    expect(parse(reuse, validateSequence)).toStrictEqual({
+      results: [
+        {
+          type: "https://github.com/gastownhall/bdp/problems/conflict",
+          code: "idempotency-conflict",
+          status: 409,
+          retry: "never",
+          operationIndex: 0,
+          operationName: "present",
+        },
+      ],
+    });
+    tuple(reuse, "pos-2");
+    for (const [label, text] of [
+      ["retained-deep-negotiation", deep],
+      ["fresh-deep-negotiation", sequenceBody("sequence-c", "sequence-negotiation", true)],
+    ] as const) {
+      const refused = await exchange(
+        label,
+        f.runtime.targets.sequence,
+        text,
+        undefined,
+        "text/plain",
+      );
+      expect(refused.status).toBe(406);
+      expect(refused.text).toBe("");
+      expect(refused.headers.get("x-bdp-development-limit")).toBeNull();
+      tuple(refused, "pos-2");
+    }
+    for (const [credential, status, code] of [
+      ["none", 401, "unauthenticated"],
+      ["reader", 403, "forbidden"],
+    ] as const) {
+      const refused = await exchange(
+        credential,
+        f.runtime.targets.sequence,
+        deep,
+        undefined,
+        "application/json",
+        credential,
+      );
+      expect(refused.status).toBe(status);
+      expect(parse(refused, validateTransactionalProblem)).toStrictEqual({
+        type: `https://github.com/gastownhall/bdp/problems/${status === 401 ? "authentication" : "authorization"}`,
+        code,
+        status,
+        retry: "after-state-change",
+      });
+      expect(contextNames.map((name) => refused.headers.get(name))).toStrictEqual([
+        null,
+        null,
+        null,
+      ]);
+    }
+    const member = record((record(JSON.parse(deep)).operations as unknown[])[0]);
+    const malformed = await exchange(
+      "duplicate-key",
+      f.runtime.targets.sequence,
+      JSON.stringify({
+        operations: [
+          { ...member, name: "first" },
+          { ...member, name: "second" },
+        ],
+      }),
+    );
+    expect(malformed.status).toBe(400);
+    expect(parse(malformed, validateTransactionalProblem)).toStrictEqual({
+      type: "https://github.com/gastownhall/bdp/problems/request",
+      code: "malformed-request",
+      status: 400,
+      retry: "never",
+    });
+    expect(contextNames.map((name) => malformed.headers.get(name))).toStrictEqual([
+      null,
+      null,
+      null,
+    ]);
+    expect(attempts).toBe(11);
+    expect(observations).toHaveLength(11);
+    controller.signal.throwIfAborted();
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    controller.abort();
+    const callbacks = cleanup.splice(boundary).reverse();
+    const cleanupReason = new Error("sequence cleanup deadline");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      // A startup failure has no returned owner handle: retain its directory.
+      const close = f ? callbacks.shift() : undefined;
+      if (!f) failures.push(new Error("sequence startup stop state unknown"));
+      else if (!close) failures.push(new Error("sequence close callback missing"));
+      else {
+        await Promise.race([
+          Promise.resolve().then(close),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => {
+              cleanupExceeded = true;
+              reject(cleanupReason);
+            }, 5000);
+          }),
+        ]);
+        for (const remove of callbacks) {
+          try {
+            await remove();
+          } catch (error) {
+            failures.push(error);
+          }
+        }
+        cleanupCompleted = true;
+      }
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      if (timer) clearTimeout(timer);
+      clearTimeout(deadline);
+    }
+    if (deadlineExceeded && !failures.includes(deadlineReason)) failures.push(deadlineReason);
+    try {
+      console.log(
+        JSON.stringify({
+          observation: "private-source-sequence-depth",
+          outcome: failures.length ? "failed" : "passed",
+          attempts,
+          completedResponses: observations,
+          deadlineExceeded,
+          cleanupExceeded,
+          cleanupCompleted,
+          failureCount: failures.length,
+          claimEligible: false,
+          retention:
+            "safe response headers/fingerprints; full schema/body equality in memory; no authorization retained",
+        }),
+      );
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, "sequence HTTP witness and cleanup failed");
+}, 30000);

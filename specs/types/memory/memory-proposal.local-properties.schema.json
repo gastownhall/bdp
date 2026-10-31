@@ -1,9 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.org/memory-types/schemas/memory-proposal.local-properties.schema.json",
-  "title": "Proposal local properties requirements",
-  "$comment": "Project-driven Memory specialization fragment. Also validate common title/body and optional open-string status. Body carries primary content. A candidate change or course of action offered for consideration.",
-  "type": "object",
-  "properties": {},
-  "additionalProperties": true
-}
