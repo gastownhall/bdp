@@ -1,7 +1,9 @@
 # Draft Types review artifacts
 
-Selected October28 source adds the [Types1 binding](types-binding.md), its
-[feature-owned schema](types-v1.schema.json) and separate [intrinsic publication1](intrinsic-publication.md).
+Selected October29 source retains the [Types1 binding](types-binding.md) and its
+[feature-owned schema](types-v1.schema.json), and selects [intrinsic publication2](intrinsic-publication-2.md).
+An omitted `propertiesSchema` adds no local constraints; inherited constraints still apply.
+Publication1 and the older illustrative schemas remain unchanged for their exact editions.
 The common v0.1 schema/mirror, old illustrative graph and historical exact-read receipts
 remain unchanged. The [first CLI sequence](../../../docs/cli-design/types-first-sequence.md)
 keeps steps1–4 distinct from Donna's deliberately disposable step5. These source
@@ -48,11 +50,14 @@ already implemented or adopted in a frozen consumer contract.
 | Artifact | Applies to | Status |
 | --- | --- | --- |
 | [types-v1.schema.json](types-v1.schema.json) | Types1 discovery and full typed record projections | Feature-owned supplement to the unchanged common v0.1 bundle; structural checks only |
+| [intrinsic-2.json](intrinsic-2.json) and [publication record](intrinsic-2.publication.json) | Current four-definition/two-declaration exact graph | New exact editions admit omitted local propertiesSchema; no runtime or install claim |
+| [intrinsic-2 schemas](intrinsic-2/) | Current Type/BeadType/LinkType/Refines property schemas | Match publication2 roots; descriptor omission does not relax ancestors or other fields |
+| [schema-omission-cases.json](schema-omission-cases.json) | Missing/present/null local schema and inherited conjunction | Finite descriptor-shape and unchanged-object examples, not a provider |
 | [intrinsic-1.json](intrinsic-1.json) | Four assigned intrinsic definitions and two captured declarations | Immutable source publication; no live origin or installed runtime inferred |
 | [intrinsic-1.publication.json](intrinsic-1.publication.json) | Complete intrinsic artifact identity | SHA256/count/exact-pin record, not authentication or a public package/install protocol |
-| [type-definition.properties.schema.json](type-definition.properties.schema.json) | Common properties of Type-definition Beads | The properties schema of Type **is** the common descriptor schema |
-| [bead-type-definition.properties.schema.json](bead-type-definition.properties.schema.json) | BeadType instances (definitions of Bead Types) | Includes common schema, allows participation/ownership rules, prohibits Link constraints |
-| [link-type-definition.properties.schema.json](link-type-definition.properties.schema.json) | LinkType instances (definitions of Link Types) | Includes common schema and requires endpoint-pair constraints |
+| [type-definition.properties.schema.json](type-definition.properties.schema.json) | Historical illustrative Type-definition properties | Retained required field; current descriptor uses the versioned publication2 schema |
+| [bead-type-definition.properties.schema.json](bead-type-definition.properties.schema.json) | Historical illustrative BeadType instances | Retained with its original common-schema dependency |
+| [link-type-definition.properties.schema.json](link-type-definition.properties.schema.json) | Historical illustrative LinkType instances | Retained with its original common-schema dependency |
 | [refines.properties.schema.json](refines.properties.schema.json) | Refines Link properties | Open descriptive properties; general executable qualifiers are deferred |
 | [schema-composition-cases.json](schema-composition-cases.json) | Product/ApprovedProduct conjunction and closure examples | Finite independent-schema cases; no property merge or closure rewriting |
 | [issue.properties.schema.json](../../types/issue/issue.properties.schema.json) | Issue instance properties | Base review fragment; not full domain/write validation |
@@ -129,7 +134,7 @@ do not prove enforcement.
 
 Referenced schema resources and resolution bindings must be retained immutably with
 the Type revision, without fetching newer remote content during validation. Their
-descriptor representation is a root `propertiesSchema` plus a proposed `schemaResources`
+descriptor representation permits a local `propertiesSchema` plus `schemaResources`
 URI-to-resource map, immutable with its revision. The seed includes reachable descriptor
 and standard 2020-12 meta-schema copies at their original IDs. Implementations supply the standard 2020-12 meta-schema resources for both
 written and omitted dialects; a definition need not embed copies. The fixture
@@ -302,7 +307,10 @@ unselected Type-command contracts visible without assigning lifecycle behavior.
 Run `python scripts/check_types_selected.py` with the same offline jsonschema
 2020-12/format dependencies as the checker above. It validates the feature-owned
 sidecar against common discovery and full record shapes, and the assigned intrinsic
-publication under its exact retained metatypes/schema environments. Negative cases
+publications under their own exact retained metatypes/schema environments. Publication1
+bytes and standard resources stay fixed; publication2 has new exact pins and schema
+resource identities. Finite omission cases check missing versus null, inherited and
+local conjunction, multiple parents, unchanged values and retained Link constraints. Negative cases
 exercise missing/future-only dependencies, malformed closed details, URI-only full
 affiliations including owned/incident Links, inconsistent captured copies, exact graph
 cycles/targets, conflicting/missing schema resources and the full artifact digest.

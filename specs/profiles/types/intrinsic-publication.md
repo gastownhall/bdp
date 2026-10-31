@@ -31,6 +31,8 @@ A later intrinsic publication uses new exact editions and retains prior exact me
 
 This publication records **no original authoring Scope**. An exact-definition lookup serving these records MUST omit `originScope`; it MUST NOT use the GitHub namespace, the repository URL or the interpreting Scope as a fabricated origin. If a later separately recorded origin fact exists, the common lookup's actual recorded-context rules apply. Availability of retained bytes does not establish ordinary Resource point ownership or local graph membership.
 
+The selected [local materialization direction](types.md#24-ordinary-local-records-for-shared-intrinsic-definitions) provides genuinely local definition records through trusted initialization, with an explicit exact correspondence to this shared publication. Their local IDs/revisions and ownership are distinct from the shared protocol identities; their own affiliations retain the shared metatypes. Included local declaration Links have real local allocations and owned captures. Local mirror state does not re-author global intrinsic conformance, and no schema URI is rewritten. Public mapping transport and producer implementation remain separate obligations.
+
 Consequently, this artifact alone does not make `bd show INTRINSIC-ID` an executable ordinary Resource read. Such a read needs an actual owning route under the common contract. The [first vertical sequence](../../../docs/cli-design/types-first-sequence.md) records that inspection mapping explicitly. An interpreting exact-definition lookup must keep its complete `{definition, originScope?}` wrapper; it cannot silently become ordinary `show` output. No fake live intrinsic service is selected here.
 
 ## Source validation limits

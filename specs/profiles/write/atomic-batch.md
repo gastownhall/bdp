@@ -266,3 +266,12 @@ verify this atomic feature before effects and invoke one atomic owner for the wh
 document. Detailed hosting/`serve` remains deferred. Required [Events](../core/events.md),
 actual Types/source composition and qualification precede any advertisement or
 implementation adoption. Old v0 artifacts/runtime/evidence remain at their actual pins.
+
+## Independently selected rooted-allocation composition
+
+[id-root1](id-root.md) defines an explicit extension carrier on this same batch
+operation: `idRoot` in a create member selects both features. Its supplement
+extends the selected create-member grammar; the closed unextended version-1
+schema and requests remain unchanged. This composition adds no selection, set
+mutation or version-2 claim. Both feature advertisements and each member
+operation remain required, with the same final publication and retained outcome.

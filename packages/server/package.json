@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "!dist/retained-v01"
   ],
   "exports": {
     ".": {

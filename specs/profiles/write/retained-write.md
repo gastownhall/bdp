@@ -161,3 +161,12 @@ a service may advertise this entry only after its own complete implementation an
 consumer-facing qualification.
 Ordinary reads retain Core semantics: no cross-replica freshness
 checkpoint/read-your-writes guarantee or hot-tier absence shortcut is added.
+
+## Optional rooted identity allocation
+
+The independently selected [id-root1 amendment](id-root.md) adds `idRoot` to
+Bead/Link creation on these same operation URLs. Its feature-owned carrier and
+explicit atomic-batch1 composition leave unextended common requests unchanged.
+Presence selects rooted allocation; advertisement alone never changes a base
+request. Type default pinning stays service-side under Types; it needs no client
+definition lookup. Wire References remain URI/exact-token values, not local ordinals.

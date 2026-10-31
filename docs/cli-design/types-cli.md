@@ -13,13 +13,44 @@ contracts. `bd type list` is an agreed command location with an incomplete comma
 contract; this document makes that gap visible. It does not select lifecycle
 commands or claim support in a particular build.
 
-The [first local authoring sequence](types-first-sequence.md) orders inspection
-of BeadType, LinkType, Refines and Type, then the all-Type family view and
-BeadType/LinkType-filtered local views, local Refines reads and creation of Foo.
-Its step5 is deliberately a disposable placeholder while the broader instance-use
-design is discussed. It is not a finalized registration/default workflow. The
-[Types1 source binding](../../specs/profiles/types/types-binding.md) describes the
-independent protocol-selection obligation; implementation remains separate.
+The [five-increment acceptance sequence](types-first-sequence.md) first requires
+all installed Types, including existing native families, as ordinary definition
+Beads through Show/List/Count/Graph and generic AST Query while preserving supported
+native creation. Only then come real BeadType/LinkType authoring, user-authored
+Refines Links, persisted custom-instance create/update and the whole sequence in
+batch. The earlier unsaved-instance placeholder is superseded. These are delivery
+requirements, not claims about the current executable or a finalized public
+lifecycle API. The [Types1 source binding](../../specs/profiles/types/types-binding.md)
+remains an independent protocol-selection obligation.
+
+Generic graph services treat definition Beads as ordinary Beads. Query, filtering,
+traversal and Count must not require a definition-Type whitelist to include them.
+Generic exact-Type and refinement predicates apply uniformly to every record;
+compiling or validating a Type descriptor is a different responsibility. The
+[first-increment corpus](types-first-sequence.md#completion-evidence-and-spec-coherence)
+requires mixed native records, definitions and Links through the same canonical
+CLI assertions; examples here do not establish that execution.
+
+### Local intrinsic records and common protocol identity
+
+For the initial sequence, trusted initialization prepopulates actual ordinary
+local records for all installed Types, including existing native classifications
+and Memory. The four intrinsic Type, BeadType, LinkType and Refines records follow
+the [intrinsic-only materialization contract](../../specs/profiles/types/types.md#24-ordinary-local-records-for-shared-intrinsic-definitions).
+Their local Resource IDs/revisions and ownership are real; their shared exact
+protocol meaning is retained through checked correspondence. Ordinary `show`
+addresses those local IDs. Family filters use the actual shared intrinsic Type
+identities; local materialization IDs are not silently alternate Type names.
+Included local Refines Links are real owned graph records, with exact projected
+targets, and do not re-author the global definition graph.
+
+This direction does not select a new alias, pack, public mapping field or storage
+version. Native mapping/producer support and each command need separate
+implementation qualification; this design document does not infer their completion. Full Types1
+transport needs an explicit carrier for consumers requiring that context.
+The shared exact-definition lookup still returns the original global record and
+wrapper. It does not fill the publication's absent origin from the local owner or
+silently replace ordinary `show`.
 
 ## Using Types (informative)
 
@@ -193,9 +224,12 @@ matching protocol source when its command signature is selected.
 
 #### `bd type list` — command contract still open
 
-The one agreed Type command location is for Type discovery. Its complete
-invocation and result contract have not been selected. The headings below record
-what must be supplied before this can be a complete canonical command entry.
+The retained general inventory reserves this Type-discovery location; its complete
+invocation and result contract have not been selected. The local authoring
+acceptance sequence additionally requests `bd type create --type bead-type/link-type`.
+That requested convenience requires a complete shared-operation mapping; the
+unfinished discovery entry below is not a claim that authoring is forbidden or
+that ordinary Type Beads need a separate read path.
 
 ##### Usage
 
@@ -266,7 +300,9 @@ example can serve as an implementation target.
 | --- | --- | --- |
 | Type inventory | Available definitions differ from local graph inventory and cache presence. | Complete list invocation, population, flags, paging, results and protocol binding. |
 | Exact definition inspection | An exact Reference and explicit interpreting Scope select a complete definition/origin result. | Public command signature and honest output descriptor; ordinary show/History remains distinct. |
-| Local definition authoring | Definition Beads use the ordinary model; storage alone does not register them. | Any specialized command conveniences and their exact general-operation mapping. |
+| Local definition authoring | Real definition Beads use ordinary storage/read paths; availability requirements remain explicit. | Complete the accepted `bd type create --type bead-type/link-type` convenience and exact general-operation mapping. |
+| Refines authoring | Stored direction is derived source to exact base target. | Reconcile requested `BASE DERIVED` convenience with general `SOURCE TARGET` Link positionals before claiming executable syntax. |
+| Custom instances and batch | Real writes preserve exact affiliations, inherited constraints, history and atomicity. | Complete persisted create/update and the entire five-increment sequence in batch; no unsaved placeholder. |
 | Acquisition and registration | Required exact closure is admitted explicitly and atomically; initial use/import requires registration. | Operation syntax, permissions, diagnostics and any deliberately combined operation. |
 | Local write default | Explicit selection affects future unpinned writes, not stored affiliations. | Selection and removal operations and their permission contract. |
 | Retirement and removal | Retirement preserves retained meaning and existing use; removal has retention obligations. | Concrete operations, authorization and retention policy. |

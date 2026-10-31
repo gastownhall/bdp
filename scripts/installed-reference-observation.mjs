@@ -22,6 +22,7 @@ export async function launchInstalledReference(entry, configuration) {
   });
   let stdout = "",
     stderr = "";
+  let startupCode;
   child.stdout.on("data", (b) => {
     stdout += b;
     if (stdout.length > 65536) child.kill("SIGKILL");
@@ -53,8 +54,36 @@ export async function launchInstalledReference(entry, configuration) {
     const ready = await bounded(
       new Promise((resolve, reject) => {
         child.once("error", reject);
-        child.once("message", resolve);
-        void exited.then(() => reject(Error(`installed child exited: ${stderr}`)));
+        child.once("message", (message) => {
+          if (
+            message !== null &&
+            typeof message === "object" &&
+            Object.keys(message).length === 2 &&
+            message.event === "qualification.failed" &&
+            [
+              "EADDRINUSE",
+              "EACCES",
+              "EMFILE",
+              "ENFILE",
+              "ENOSPC",
+              "ENOMEM",
+              "ENOENT",
+              "EIO",
+              "REFUSED",
+            ].includes(message.code)
+          ) {
+            startupCode = message.code;
+            return; // Failure is reported only after observing the actual exit.
+          }
+          resolve(message);
+        });
+        void exited.then(() =>
+          reject(
+            Error(
+              `installed child exited: ${stderr}${startupCode === undefined ? "" : ` (startup code ${startupCode})`}`,
+            ),
+          ),
+        );
         child.send({ configuration });
       }),
     );

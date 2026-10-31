@@ -1,10 +1,11 @@
 # BDP Types
 
-Selected BDP v0.1 draft source, reconciled October 28, 2026. This profile and the
+Selected BDP v0.1 draft source, reconciled October 29, 2026. This profile and the
 [descriptor](../../types/type-system/type-system.md) specify the optional Scope-wide
 Types semantics. The [Types1 binding](types-binding.md) selects its capability and
-rejectable ordinary-operation representation; [intrinsic publication1](intrinsic-publication.md)
-assigns the shared exact bootstrap graph. The [current source map](../../../docs/design/bdp-v0.1-current-source-map.md)
+rejectable ordinary-operation representation; [intrinsic publication2](intrinsic-publication-2.md)
+assigns the current shared exact bootstrap graph. [Publication1](intrinsic-publication.md)
+retains its original exact meaning. The [current source map](../../../docs/design/bdp-v0.1-current-source-map.md)
 identifies paired common contracts and remaining proposals. Source selection is not
 released protocol adoption, an installable package format or evidence that Beads
 implements the profile. Public lifecycle/registry operations and runtime obligations
@@ -120,12 +121,15 @@ the origin digest is not a digest of the amended local document.
 
 ## 2. Definitions, identity and affiliation
 
-A Type definition has a stable identity, an immutable revision, a properties
-schema, and semantic promises. It describes Bead or Link instances. Its schema
+A Type definition has a stable identity, an immutable revision, an optional local
+properties schema, and semantic promises. It describes Bead or Link instances. Its schema
 applies to the instance's `properties`, not to the whole common Resource envelope.
 Within this profile, a Type definition is represented as a Bead. The instance's
 Type reference is interpreted as a Bead reference to that definition; its identity
 and revision identify the definition Bead and the selected Bead revision. The
+intrinsic-only local materialization distinction in §2.4 keeps a shared protocol
+definition separate from its locally owned inspection record; it does not change
+this identity equation for ordinary user-authored definitions. The
 abstract definition fields are specified in the [descriptor specification][descriptor-spec];
 §§2.1–2.3 define their interpretation and bootstrap. Unresolved choices remain
 marked for review.
@@ -303,7 +307,7 @@ validation belongs to §3.8, and recorded source ownership/declaration admission
 belongs to §3.10. Common Link revision provenance applies; later Activities may
 reference an exact declaration revision when the shared mechanism is supported.
 
-The [Refines properties schema](refines.properties.schema.json)
+The [current Refines properties schema](intrinsic-2/refines.properties.schema.json)
 is an open object with no required relationship-specific fields. No conditional
 membership, confidence or method semantics are invented. No arbitrary maximum is added. Across Refines and every accepted specialization,
 one source definition state may contain at most one direct declaration to a given
@@ -358,9 +362,9 @@ pretending ordinary create can know its future opaque revision. An intrinsic upg
 publishes a coherent new exact graph and retains earlier versions so existing pins
 keep their meaning; it does not overwrite content at an existing exact identity.
 
-The separate [intrinsic-1 publication](intrinsic-1.json), described in
-[intrinsic publication](intrinsic-publication.md), supplies the shared four-definition,
-two-declaration exact graph. Its [publication record](intrinsic-1.publication.json)
+The current [intrinsic-2 publication](intrinsic-2.json), described in
+[publication2](intrinsic-publication-2.md), supplies the shared four-definition,
+two-declaration exact graph. Its [publication record](intrinsic-2.publication.json)
 identifies its complete artifact bytes. These values are distinct from the eight/four
 illustrative graph above, whose IDs, schema resources and historical receipts remain
 unchanged. Publication does not establish provider initialization or a live owning
@@ -370,6 +374,67 @@ writes. Ordinary client mutation of intrinsic definitions remains prohibited.
 This file is a **literal final-state example**, not a BDP transaction, installation
 API or package format. Its revision strings are illustrative, not permission for
 clients to assign server revisions. The separate packaging requirements are in §7.1.
+
+### 2.4 Ordinary local records for shared intrinsic definitions
+
+**Selected native bootstrap direction; mapping transport remains unselected.**
+The initial local command sequence uses real locally owned definition Beads while
+preserving global identity common and intrinsic to the protocol. A local record
+is an intrinsic **materialization**, not a new nominal intrinsic Type or an alias.
+Core's one-Scope canonical Resource identity and the ordinary user-definition
+identity equation in §2 remain unchanged.
+
+Distinguish an exact shared protocol definition `P@p` from an actual local Resource
+record `L@l`. These are explanatory variables, not new Reference syntax. Trusted
+initialization MUST retain a checked exact correspondence. One accepted `L@l`
+cannot bind conflicting `P@p` values. Within a frozen initialization/read context,
+each global pair used to project a local declaration target selects one exact
+local pair. Retained reconstruction uses those recorded bindings and target pins,
+never an arbitrary row, a current local head or an unversioned role map. Names,
+schema similarity and URI prefixes do not establish correspondence.
+
+Trusted initialization establishes the coherent four local definition records and
+any included two local declaration Links atomically, with actual local IDs and
+Resource revisions. Clients cannot assign the shared publication's opaque tokens
+through ordinary create. Local Type, BeadType and LinkType records have exact own
+affiliation with the shared BeadType definition; the local Refines definition has
+exact affiliation with shared LinkType. Their descriptor/schema properties retain
+the common intrinsic meaning. Ordinary clients cannot mutate or remove these
+intrinsic materializations or their projected declaration state.
+
+If materialized as local Links, the two declarations have real local identities,
+revisions and source owners, and exact local target pins selected through the
+checked correspondence. Owners capture the complete actual local Link records.
+Validate this correspondence field by field: changing local envelope identities,
+revisions and endpoints prevents whole-record byte equality with the global
+publication. Do not recursively rewrite schema resource IDs or semantic Type
+selectors. These Links are local graph facts over materializations; they neither
+re-author global intrinsic conformance nor create extra nominal Types. Global
+interpretation continues from the retained shared exact graph, not this mirror.
+
+Ordinary `show` addresses the actual local record and reports its genuine local
+identity, revision and ownership. Ordinary local Type-family and Refines lists
+include actual local records under their real affiliations. Global publication
+availability alone creates no such membership. A local materialization URI is
+not automatically a second nominal Type input for the shared definition; general
+aliasing remains deferred. User-authored Foo remains a normal definition Bead,
+with its own local identity as its Type identity. Storing Foo still neither
+registers Foo nor selects its default.
+
+Exact lookup of a shared global pair continues to return the unchanged shared
+record and complete lookup wrapper. The publication's absent original authoring
+Scope is not filled from a local materialization's actual owner. A literal global
+ID in ordinary `show` MUST NOT silently become a local ID or a definition lookup.
+Packs, public installation and aliases are separate decisions.
+
+Before producer authoring, define the concrete durable native correspondence
+interface and retained-state validation. No public JSON field, discovery operation,
+storage format or version number is selected by this subsection. A native preview
+may use explicit trusted initialization context with stated limits. It MUST NOT
+claim complete Types1 provider conformance until any interpreting consumer that
+needs the correspondence has an explicit selected carrier; generic consumers must
+not infer it from ordinary shapes. Core/schema validation or a fixed-publication
+validator alone does not discharge that obligation.
 
 ## 3. Conformance in plain language
 
@@ -407,6 +472,16 @@ ApprovedProduct must satisfy its own schema and every schema it transitively
 conforms to. No schema overrides another. Inherited requirements become part of
 the effective definition; authors need not repeat them in their local schemas.
 This is conjunction of requirements, not a field-by-field merge with precedence.
+
+An omitted `propertiesSchema` contributes no additional local constraints. The
+complete instance properties object must still satisfy every inherited constraint.
+A supplied local schema adds constraints; it cannot replace or relax an ancestor's
+schema. Other local descriptor constraints remain binding. Omission does not copy
+a parent schema, insert a schema value into the
+descriptor, or choose one parent over another. Explicit `null` is not omission
+and is not a valid JSON Schema. See the [finite omission cases](schema-omission-cases.json).
+This rule governs definitions whose exact metatype edition admits omission;
+it does not change the required fields of retained older metatype editions.
 
 If the requirements cannot be satisfied together, the definition is invalid.
 This validity rule does not claim that an implementation can decide every possible
@@ -873,8 +948,12 @@ for review, but their presence is not a per-definition requirement. Application
 schema resources and their exact reference bindings remain retained with each
 Type revision and do not permit live retrieval during validation.
 
-The definition descriptor contains both `propertiesSchema` and a referenced-schema
-map, proposed as `schemaResources`. This map is immutable with the Type revision;
+The definition descriptor may contain a local `propertiesSchema` and a
+referenced-schema map, `schemaResources`. An absent local schema adds no local
+constraint (§3.4); it requires no invented root schema or root retrieval URI.
+Supplied schemas and retained resources still undergo the same dialect, format,
+vocabulary and offline-resolution admission checks. Omission is not permission to
+ignore a malformed supplied resource. The map is immutable with the Type revision;
 validation needs neither separate Schema Beads nor a separately mutable sidecar. It
 contains the exact referenced application-schema resources needed for offline
 evaluation of that definition's root. The standard meta-schema baseline is
@@ -1822,7 +1901,7 @@ The remaining decisions are narrower:
 | Constraint evolution | §§5.4, 5.6, 5.8 and 5.9 select local activation with cross-revision family populations, per-Link acyclicity and exact-affiliation self-link activation | Precise inherited-declaration activation and selector/diagnostic syntax; no Scope-wide minimum over installed definitions |
 | Definition resolution | Registered exact global definitions satisfy endpoint Type checks for any Link, with explicit endpoint pins and Scope restrictions intact; arbitrary external resources remain opaque | Installation operation mechanics, Scope classification and inventory/read projection; locally retained available inventory does not rewrite origin identity/authority |
 | Complete exact definition reads | Full records within operational admission bounds; exact retained closure; narrow definition access without mandatory full application History; no legacy view obligation (§3.14) | Staged common read/admission/discovery/error binding exists; exact-candidate correspondence, operational budgets and runtime qualification remain |
-| Bootstrap and declaration admission | [intrinsic-1 publication](intrinsic-publication.md), explicit trusted initialization, prior exact versions retained, no client mutation; grounded declaration Link Type and captured owned state (§§2.3, 3.8, 5.7) | Provider initialization/admission enforcement and public provisioning/upgrade operations remain unqualified |
+| Bootstrap and declaration admission | [intrinsic-2 publication](intrinsic-publication-2.md), explicit trusted initialization, prior exact versions retained, no client mutation; grounded declaration Link Type and captured owned state (§§2.3, 3.8, 5.7) | Provider initialization/admission enforcement and public provisioning/upgrade operations remain unqualified |
 | Availability and lifecycle | Truthful Scope-wide activation covers live/retained records without grandfathering (§1); explicit atomic exact-graph registration distinct from definition presence; initial use/import requires existing registration; explicit local default; retirement preserves existing use/history | Activation enforcement and exact source correspondence; concrete registration/retirement verbs, permissions, broader acquisition and physical-removal retention deferred |
 | Revision compatibility | Conformance only initially, including explicit same-identity revision conformance; none inferred from age/SemVer; no migration guarantee | Reusable informational labels selected; no version-range resolution |
 | Property write/read boundary | Replacement covers ordinary writable fields, preserves init-only values, rejects changes to them, and completes service read-only fields before validation; live observations are separate | PropertyAccess and init-only retyping selected; nested-policy enforcement qualification, observation representation and shared signing/provenance contracts remain |
@@ -2140,7 +2219,7 @@ Beads behavior as implementing its proposed semantics.
 | Conformance, structural and semantic | Selected foundation (§3), 2020-12 validation and format enforcement, refusal of unsupported required extensions and immutable schema closure; read/write responsibilities distinguished | Implementation-supplied baseline and explicit schema bases selected; bounded floor/warning and exact format-support qualification remain; executable extensions deferred |
 | Constraint matching and populations | Pair unions, inherited conjunction, exact/identity-wide selectors and identity-based populations selected (§§4.2, 5) | Common selector shape selected; inherited activation and local transition/availability checks; arbitrary external-resource validation excluded |
 | Arity, endpoint Type eligibility, uniqueness, acyclicity and self-links | Transaction-final arity/eligibility and aggregate checks with mixed-revision cases selected; self-link prohibition is an independent per-Link endpoint check (§§5.5–5.9) | General graph validator, atomic mutation and exact-source qualification NYI; self-link cases are written requirements, not runtime evidence |
-| Definition representation and descriptor split | Descriptor owns abstract fields/local meanings; profile owns detailed enforcement (§1.1); shared exact bootstrap selected; candidate schemas/seed present (§2) | Working descriptor deliberately relocated into BDP from exact `01beba80`; original source PR3/bytes/digest recorded in the artifact README. Exact-candidate correspondence and focused artifact qualification remain required; prior evidence retains its historical scope. [Intrinsic publication1](intrinsic-publication.md) supplies actual source values; trusted provisioning, public lifecycle operations and resolution qualification remain separate |
+| Definition representation and descriptor split | Descriptor owns abstract fields/local meanings; profile owns detailed enforcement (§1.1); shared exact bootstrap selected; candidate schemas/seed present (§2) | Working descriptor deliberately relocated into BDP from exact `01beba80`; original source PR3/bytes/digest recorded in the artifact README. Exact-candidate correspondence and focused artifact qualification remain required; prior evidence retains its historical scope. [Intrinsic publication2](intrinsic-publication-2.md) supplies current source values; publication1 remains retained. Trusted provisioning, public lifecycle operations and resolution qualification remain separate |
 | Property write/read boundary | Writable replacement, init-only preservation/change refusal, service read-only completion and separate live observations selected (§3.6) | PropertyAccess and init-only retyping selected; enforcement, observation representation, shared Write adoption and provenance-owned signing mechanisms remain |
 | Conformance graph operations | Owned historical declaration authority, literal source pins, nominal grouping/empty projection, tightening-only specialization and grounded declaration Link Types (§§3.8, 5.7; common affiliations/Link updates) | Provider enforcement, graph performance and historical-query qualification; public lifecycle operations remain separate |
 | Acceptance cases (§6) | Written review cases | Property/example checks cover only their documented shape/finite-graph subset; runtime cases remain unqualified |

@@ -23,8 +23,10 @@ implementation comparison. Publishing this specification changes none of them.
 | Atomic publication | [Publication](profiles/core/publication.md), [batch](profiles/write/atomic-batch.md), [Events](profiles/core/events.md) | Final states per Resource, exact final ownership captures, net-zero and allocation distinctions |
 | Types | [Types profile](profiles/types/types.md), [descriptor](types/type-system/type-system.md), [artifact status](profiles/types/README.md) | Optional Scope-wide interpretation; definition presence does not register a Type |
 | Exact definition access | [Core binding](profiles/core/type-definition-read.md), [Types interpretation](profiles/types/exact-definition-read.md) | Complete exact records in explicit interpreting context; no general History or public Type CLI implied |
+| Rooted allocation draft | [id-root1](profiles/write/id-root.md), [feature schema](profiles/write/id-root-v1.schema.json) | Optional server allocation on existing create/batch URLs; base carriers and result meanings remain unchanged |
 | Common grammar | [v0.1 schema](profiles/core/bdp-v0.1.schema.json), [distribution mirror](../packages/protocol/schemas/bdp-v0.1.schema.json) | Retained entries determine selected semantics; inherited staging helpers do not add capabilities |
-| Canonical CLI | [CLI entry](../docs/cli-design/bdp-cli.md) | Paired design and worked correspondence; not a claim that product CLI/compiler/adapter exists |
+| Informative HTTP catalog | [OpenAPI operation catalog](openapi/README.md), [coverage](openapi/coverage.md) | Generated signatures reference the unchanged common grammar; discovered URLs still require a navigation adapter, and the synthetic tooling fixture is not a deployment API |
+| Canonical CLI | [CLI entry](../docs/cli-design/bdp-cli.md), [command/wire correspondence](../docs/cli-design/wire-correspondence.md) | Paired design and worked correspondence; not a claim that product CLI/compiler/adapter exists |
 
 The selected entries compose one contract. A field carrier or helper schema alone does not
 establish Type interpretation, ownership, required Events or runtime conformance.
@@ -97,6 +99,10 @@ The [current source map](../docs/design/bdp-v0.1-current-source-map.md) supplies
 paired prose/schema/CLI/example/case pointers and residual PR284/293 dispositions.
 The current main-alignment instruction permits ordinary reviewed main landing;
 it is not another vote on already selected semantics.
+
+## Authoring formats
+
+The [Markdown format drafts](formats/README.md) collect the schema and OpenAPI table DSLs from the Memory experiment. They support document authoring and review; their restricted conversion subsets do not replace the selected BDP contract or qualify a converter. The more nascent Bead/Link instance DSL remains under [Experimental](../experimental/formats/README.md).
 
 ## Beads Preview3 comparison
 
