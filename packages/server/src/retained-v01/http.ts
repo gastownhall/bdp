@@ -71,6 +71,45 @@ function empty(response: ServerResponse, status: number, allow?: string): void {
   });
   response.end();
 }
+function conditionalRead(
+  request: IncomingMessage,
+  response: ServerResponse,
+  headers: Record<string, string>,
+): boolean {
+  const etag = headers.etag;
+  const ifMatch = request.headers["if-match"];
+  const ifNone = request.headers["if-none-match"];
+  let status: 304 | 412 | undefined;
+  if (
+    typeof ifMatch === "string" &&
+    ifMatch !== "*" &&
+    (etag === undefined ||
+      !ifMatch
+        .split(",")
+        .map((v) => v.trim())
+        .includes(etag))
+  )
+    status = 412;
+  else if (
+    typeof ifNone === "string" &&
+    (ifNone === "*" ||
+      (etag !== undefined &&
+        ifNone
+          .split(",")
+          .map((v) => v.trim().replace(/^W\//, ""))
+          .includes(etag)))
+  )
+    status = 304;
+  if (status === undefined) return false;
+  response.writeHead(status, {
+    ...headers,
+    "cache-control": "private, no-store",
+    "x-bdp-private-fixture": "incomplete",
+    ...(status === 304 ? { "content-type": RETAINED_MEDIA } : { "content-length": "0" }),
+  });
+  response.end();
+  return true;
+}
 function json(
   response: ServerResponse,
   status: number,
@@ -254,18 +293,20 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
       const isSubjectEvents = resource !== undefined && url.searchParams.get("view") === "events";
       if (scopeEventRoute || isSubjectEvents) {
         const source = scopeEventRoute ? navigation.events : `${resource}?view=events`;
-        json(
-          response,
-          200,
-          serialized(
-            store.events(
-              principal,
-              source,
-              isSubjectEvents ? (resource as string) : "",
-              parseEventSelection(scopeEventRoute ? scopeEventQuery : url, isSubjectEvents),
-            ),
+        // Resolve the authorized selection/cursor before a conditional shortcut.
+        const body = serialized(
+          store.events(
+            principal,
+            source,
+            isSubjectEvents ? (resource as string) : "",
+            parseEventSelection(scopeEventRoute ? scopeEventQuery : url, isSubjectEvents),
           ),
         );
+        const headers = {
+          link: `<${navigation.description}>; rel="service-desc"; type="${RETAINED_MEDIA}"`,
+        };
+        if (conditionalRead(request, response, headers)) return;
+        json(response, 200, body, headers);
         return;
       }
       if (resource === undefined)
@@ -293,35 +334,7 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
         "bdp-resource-kind": record.kind,
         link: `<${navigation.description}>; rel="service-desc"; type="${RETAINED_MEDIA}"`,
       };
-      const ifMatch = request.headers["if-match"];
-      if (
-        typeof ifMatch === "string" &&
-        ifMatch !== "*" &&
-        !ifMatch
-          .split(",")
-          .map((v) => v.trim())
-          .includes(etag)
-      ) {
-        empty(response, 412);
-        return;
-      }
-      const ifNone = request.headers["if-none-match"];
-      if (
-        typeof ifNone === "string" &&
-        (ifNone === "*" ||
-          ifNone
-            .split(",")
-            .map((v) => v.trim().replace(/^W\//, ""))
-            .includes(etag))
-      ) {
-        response.writeHead(304, {
-          ...headers,
-          "cache-control": "private, no-store",
-          "content-type": RETAINED_MEDIA,
-        });
-        response.end();
-        return;
-      }
+      if (conditionalRead(request, response, headers)) return;
       json(response, 200, body, headers);
     } catch (error) {
       if (response.destroyed) return;

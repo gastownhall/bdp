@@ -515,6 +515,71 @@ describe("private retained fixture: targeted wire interactions, no profile quali
     );
     expect(JSON.parse(wrong.text).code).toBe("foreign-view");
   });
+  it.each(
+    ["GET", "HEAD"].flatMap((method) =>
+      ["Scope", "Resource"].map((source) => [source, method] as const),
+    ),
+  )("applies finite Event HTTP conditions to %s %s without validators", async (source, method) => {
+    const server = await fixture();
+    const created = JSON.parse(
+      (
+        await wire(server.listenUrl, navigation.targets.createBead, "POST", payload(), {
+          "idempotency-key": "event-condition",
+        })
+      ).text,
+    );
+    const target = source === "Scope" ? navigation.events : `${created.resource.id}?view=events`;
+    const conditions: [Record<string, string>, number][] = [
+      [{ "if-none-match": "*" }, 304],
+      [{ "if-match": '"unavailable-validator"' }, 412],
+      [{ "if-match": '"unavailable-validator"', "if-none-match": "*" }, 412],
+      [{ "if-match": "*", "if-none-match": "*" }, 304],
+      [{ "if-match": "*" }, 200],
+      [{ "if-none-match": '"unavailable-validator"' }, 200],
+    ];
+    for (const [headers, status] of conditions) {
+      const received = await wire(server.listenUrl, target, method, undefined, headers);
+      expect(received.status).toBe(status);
+      expect(received.headers.etag).toBeUndefined();
+      expect(received.headers["last-modified"]).toBeUndefined();
+      expect(received.headers["cache-control"]).toContain("private");
+      expect(received.headers["cache-control"]).toContain("no-store");
+      if (method === "HEAD" || status !== 200) expect(received.text).toBe("");
+      else
+        expect(validator.validate("#/$defs/retainedEventPage", JSON.parse(received.text))).toEqual(
+          [],
+        );
+    }
+    const after = JSON.parse((await wire(server.listenUrl, target)).text);
+    expect(after.events).toHaveLength(1);
+  });
+  it.each(["GET", "HEAD"])(
+    "keeps Event refusals ahead of HTTP conditions for %s",
+    async (method) => {
+      const server = await fixture();
+      const page = JSON.parse((await wire(server.listenUrl, navigation.events)).text);
+      const cases: [string, Record<string, string>, number][] = [
+        [`${navigation.events}&unknown=true`, {}, 400],
+        [`${scope}missing?view=events`, {}, 404],
+        [
+          `${navigation.events}&after=${page.cursor}`,
+          { authorization: `Bearer ${thirdToken}` },
+          409,
+        ],
+        [navigation.events, { authorization: "Bearer wrong", accept: "application/json" }, 401],
+        [navigation.events, { accept: "application/json" }, 406],
+      ];
+      for (const [target, headers, status] of cases) {
+        const received = await wire(server.listenUrl, target, method, undefined, {
+          "if-match": '"unavailable-validator"',
+          "if-none-match": "*",
+          ...headers,
+        });
+        expect(received.status).toBe(status);
+        if (method === "HEAD" || status === 406) expect(received.text).toBe("");
+      }
+    },
+  );
   it("keeps HEAD/304/405/412 bodyless and requires authentication before negotiation", async () => {
     const server = await fixture();
     const created = JSON.parse(
