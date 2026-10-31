@@ -1,3 +1,4 @@
+import { observeInstalledReference } from "./installed-reference-observation.mjs";
 import { createRequire } from "node:module";
 import { assertServerExports, isolatedWorkspace } from "./smoke-safety.mjs";
 import { spawn } from "node:child_process";
@@ -131,10 +132,35 @@ async function installPackedWorkspace() {
     // Intentional package-surface tripwire: adding or removing a shipped server
     // module is a deliberate reviewed change, not an incidental build artifact.
     const expectedServerOutput = new Set([
+      "installed-payload.d.ts",
+      "installed-payload.d.ts.map",
+      "installed-payload.js",
+      "installed-payload.js.map",
+      "transaction-installed-configuration.d.ts",
+      "transaction-installed-configuration.d.ts.map",
+      "transaction-installed-configuration.js",
+      "transaction-installed-configuration.js.map",
+      "transaction-installed.d.ts",
+      "transaction-installed.d.ts.map",
+      "transaction-installed.js",
+      "transaction-installed.js.map",
+      "transaction-installed-process.d.ts",
+      "transaction-installed-process.d.ts.map",
+      "transaction-installed-process.js",
+      "transaction-installed-process.js.map",
+
       "alias-evaluator.d.ts",
       "alias-evaluator.d.ts.map",
       "alias-evaluator.js",
       "alias-evaluator.js.map",
+      "development-composition.d.ts",
+      "development-composition.d.ts.map",
+      "development-composition.js",
+      "development-composition.js.map",
+      "read-http-routing.d.ts",
+      "read-http-routing.d.ts.map",
+      "read-http-routing.js",
+      "read-http-routing.js.map",
       "authority-read.d.ts",
       "authority-read.d.ts.map",
       "authority-read.js",
@@ -187,6 +213,10 @@ async function installPackedWorkspace() {
       "member-identity.d.ts.map",
       "member-identity.js",
       "member-identity.js.map",
+      "member-numeric-diagnostics.d.ts",
+      "member-numeric-diagnostics.d.ts.map",
+      "member-numeric-diagnostics.js",
+      "member-numeric-diagnostics.js.map",
       "recovery-store.d.ts",
       "recovery-store.d.ts.map",
       "recovery-store.js",
@@ -195,6 +225,10 @@ async function installPackedWorkspace() {
       "resource-evaluator.d.ts.map",
       "resource-evaluator.js",
       "resource-evaluator.js.map",
+      "json-value-equality.d.ts",
+      "json-value-equality.d.ts.map",
+      "json-value-equality.js",
+      "json-value-equality.js.map",
       "retained-disclosure.d.ts",
       "retained-disclosure.d.ts.map",
       "retained-disclosure.js",
@@ -203,10 +237,122 @@ async function installPackedWorkspace() {
       "semantic-identity.d.ts.map",
       "semantic-identity.js",
       "semantic-identity.js.map",
+      "transaction-set.d.ts",
+      "transaction-set.d.ts.map",
+      "transaction-set.js",
+      "transaction-set.js.map",
+      "transaction-batch.d.ts",
+      "transaction-batch.d.ts.map",
+      "transaction-batch.js",
+      "transaction-batch.js.map",
+      "transaction-comparison.d.ts",
+      "transaction-comparison.d.ts.map",
+      "transaction-comparison.js",
+      "transaction-comparison.js.map",
+      "transaction-dependencies.d.ts",
+      "transaction-dependencies.d.ts.map",
+      "transaction-dependencies.js",
+      "transaction-dependencies.js.map",
+      "transaction-sse.d.ts",
+      "transaction-sse.d.ts.map",
+      "transaction-sse.js",
+      "transaction-sse.js.map",
+      "node-http-disconnect.d.ts",
+      "node-http-disconnect.d.ts.map",
+      "node-http-disconnect.js",
+      "node-http-disconnect.js.map",
+      "transaction-authorization.d.ts",
+      "transaction-authorization.d.ts.map",
+      "transaction-authorization.js",
+      "transaction-authorization.js.map",
+      "transaction-changefeed.d.ts",
+      "transaction-changefeed.d.ts.map",
+      "transaction-changefeed.js",
+      "transaction-changefeed.js.map",
+      "transaction-events.d.ts",
+      "transaction-events.d.ts.map",
+      "transaction-events.js",
+      "transaction-events.js.map",
+      "transaction-snapshot.d.ts",
+      "transaction-snapshot.d.ts.map",
+      "transaction-snapshot.js",
+      "transaction-snapshot.js.map",
+      "transaction-read.d.ts",
+      "transaction-read.d.ts.map",
+      "transaction-read.js",
+      "transaction-read.js.map",
+      "transaction-sequence.d.ts",
+      "transaction-sequence.d.ts.map",
+      "transaction-sequence.js",
+      "transaction-sequence.js.map",
+      "transaction-store.d.ts",
+      "transaction-store.d.ts.map",
+      "transaction-store.js",
+      "transaction-store.js.map",
+      "transaction-schema-http.d.ts",
+      "transaction-schema-http.d.ts.map",
+      "transaction-schema-http.js",
+      "transaction-schema-http.js.map",
+      "transaction-http.d.ts",
+      "transaction-http.d.ts.map",
+      "transaction-http.js",
+      "transaction-http.js.map",
+      "transaction-runtime-configuration.d.ts",
+      "transaction-runtime-configuration.d.ts.map",
+      "transaction-runtime-configuration.js",
+      "transaction-runtime-configuration.js.map",
+      "transaction-runtime.d.ts",
+      "transaction-runtime.d.ts.map",
+      "transaction-runtime.js",
+      "transaction-runtime.js.map",
+      "transaction-consistency.d.ts",
+      "transaction-consistency.d.ts.map",
+      "transaction-consistency.js",
+      "transaction-consistency.js.map",
+      "transaction-discovery.d.ts",
+      "transaction-discovery.d.ts.map",
+      "transaction-discovery.js",
+      "transaction-discovery.js.map",
+      "transaction-service.d.ts",
+      "transaction-service.d.ts.map",
+      "transaction-service.js",
+      "transaction-service.js.map",
+      "transaction-submission.d.ts",
+      "transaction-submission.d.ts.map",
+      "transaction-submission.js",
+      "transaction-submission.js.map",
       "sequence-executor.d.ts",
       "sequence-executor.d.ts.map",
       "sequence-executor.js",
       "sequence-executor.js.map",
+      "development.d.ts",
+      "development.d.ts.map",
+      "development.js",
+      "development.js.map",
+      "installed-reference-configuration.d.ts",
+      "installed-reference-configuration.d.ts.map",
+      "installed-reference-configuration.js",
+      "installed-reference-configuration.js.map",
+      "installed-reference.d.ts",
+      "installed-reference.d.ts.map",
+      "installed-reference.js",
+      "installed-reference.js.map",
+      "installed-reference-process.d.ts",
+      "installed-reference-process.d.ts.map",
+      "installed-reference-process.js",
+      "installed-reference-process.js.map",
+      "development-contracts.d.ts",
+      "development-contracts.d.ts.map",
+      "development-contracts.js",
+      "development-contracts.js.map",
+      "development-runtime.d.ts",
+      "development-runtime.d.ts.map",
+      "development-runtime.js",
+      "development-runtime.js.map",
+      "development-authority.d.ts",
+      "development-authority.d.ts.map",
+      "development-authority.js",
+      "development-authority.js.map",
       "index.d.ts",
       "index.d.ts.map",
       "index.js",
@@ -215,6 +361,10 @@ async function installPackedWorkspace() {
       "read-conformance-capability.d.ts.map",
       "read-conformance-capability.js",
       "read-conformance-capability.js.map",
+      "node-http-target.d.ts",
+      "node-http-target.d.ts.map",
+      "node-http-target.js",
+      "node-http-target.js.map",
       "read-http.d.ts",
       "read-http.d.ts.map",
       "read-http.js",
@@ -265,16 +415,163 @@ async function installPackedWorkspace() {
       (await realpath(path.join(installedServerRoot, "dist", "index.js")))
     )
       throw new Error("packed server public root does not resolve to its approved entry");
+    if (
+      (await realpath(consumer.resolve("@bdp/server/development"))) !==
+      (await realpath(path.join(installedServerRoot, "dist", "development.js")))
+    )
+      throw new Error("packed development facade does not resolve to its explicit entry");
+    const protocol = await import(pathToFileURL(consumer.resolve("@bdp/protocol")).href);
+    const transactionFixture = JSON.parse(
+      await readFile(path.join(workspaceRoot, "fixtures/transactional/discovery.json"), "utf8"),
+    );
+    for (const [name, body] of [
+      ["parseTransactionalDiscovery", transactionFixture.exchanges[0].response.body],
+      ["parseTransactionalOperationDirectory", transactionFixture.exchanges[1].response.body],
+    ]) {
+      const parsed = protocol[name](body);
+      if (JSON.stringify(parsed) !== JSON.stringify(body) || !Object.isFrozen(parsed))
+        throw new Error("packed Transactional parser changed its structural fixture");
+      let rejected = false;
+      try {
+        protocol[name]({ ...body, unsupported: true });
+      } catch {
+        rejected = true;
+      }
+      if (!rejected) throw new Error("packed Transactional parser accepted an unknown member");
+    }
+    // The public root must preserve its original pagination surface even though
+    // the same private engine also supports Transactional source context.
+    const publicServer = await import(pathToFileURL(consumer.resolve("@bdp/server")).href);
+    if (
+      "assembleTransactionDiscovery" in publicServer ||
+      "TRANSACTION_HTTP_OPERATIONS" in publicServer ||
+      "createTransactionService" in publicServer ||
+      "createTransactionHttpHandler" in publicServer ||
+      "startTransactionRuntime" in publicServer ||
+      "snapshotTransactionMinimum" in publicServer ||
+      "waitForTransactionMinimum" in publicServer ||
+      "checkTransactionMinimum" in publicServer ||
+      "transactionReceiptMaximum" in publicServer ||
+      "prepareTransactionSetCore" in publicServer ||
+      "prepareSetCore" in publicServer
+    )
+      throw new Error("packed root exposes private transaction service");
+    if ("createContextualReadPagination" in publicServer)
+      throw new Error("packed root exposes private contextual pagination factory");
+    const pagination = publicServer.createReadPagination({
+      scope: "https://example.test/s/",
+      defaultPageItems: 1,
+      maxPageItems: 2,
+      cursorTtlMs: 1000,
+      retainedStateCapacity: 10,
+      maxRetainedCursorPositionsPerSnapshot: 5,
+      retainedSnapshotByteCapacity: 5,
+      retainedSnapshotNodeCapacity: 3,
+      maxOpaqueTokenLength: 40,
+      tokenGenerationAttempts: 2,
+      idleCleanup: "on-demand",
+      clock: () => 0,
+      generateOpaqueToken: () => "cursor",
+    });
+    try {
+      if (
+        Object.keys(pagination).sort().join(",") !==
+        "cleanupExpired,close,continuePage,firstPage,limits,validateLimit"
+      )
+        throw new Error("packed public pagination API changed");
+      const input = {
+        items: [1, 2],
+        authorizationView: "v",
+        scopeEpoch: "e",
+        projection: "p",
+        continuationUrl: "https://example.test/s/beads/",
+      };
+      Object.defineProperty(input, "sourceContext", {
+        enumerable: true,
+        get() {
+          throw new Error("public context getter executed");
+        },
+      });
+      const extra = new Proxy(
+        {},
+        {
+          ownKeys() {
+            throw new Error("public extra argument inspected");
+          },
+        },
+      );
+      const page = Reflect.apply(pagination.firstPage, pagination, [input, extra]);
+      if (page.items.length !== 1 || page.items[0] !== 1 || typeof page.next !== "string")
+        throw new Error("packed public pagination result changed");
+    } finally {
+      pagination.close();
+    }
     for (const module of installedServerOutput.filter(
-      (name) => name.startsWith("installed-schema-") && name.endsWith(".js"),
+      (name) =>
+        (name.startsWith("installed-schema-") || name.startsWith("transaction-")) &&
+        name.endsWith(".js"),
     )) {
       try {
         consumer.resolve(`@bdp/server/dist/${module}`);
-        throw new Error("packed private schema module unexpectedly resolves");
+        throw new Error("packed private implementation module unexpectedly resolves");
       } catch (error) {
         if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
       }
     }
+
+    for (const specifier of [
+      "@bdp/conformance/transactional-observation",
+      "@bdp/conformance/dist/transactional-observation.js",
+      "@bdp/server/development-composition",
+      "@bdp/server/dist/development-composition.js",
+      "@bdp/server/installed-payload",
+      "@bdp/server/dist/installed-payload.js",
+      "@bdp/server/transaction-installed-configuration",
+      "@bdp/server/dist/transaction-installed-configuration.js",
+      "@bdp/server/transaction-installed",
+      "@bdp/server/dist/transaction-installed.js",
+      "@bdp/server/transaction-installed-process",
+      "@bdp/server/dist/transaction-installed-process.js",
+      "@bdp/server/transaction-runtime-configuration",
+      "@bdp/server/dist/transaction-runtime-configuration.js",
+      "@bdp/server/transaction-snapshot",
+      "@bdp/server/dist/transaction-snapshot.js",
+      "@bdp/server/transaction-sse",
+      "@bdp/server/dist/transaction-sse.js",
+      "@bdp/server/node-http-disconnect",
+      "@bdp/server/dist/node-http-disconnect.js",
+      "@bdp/server/transaction-changefeed",
+      "@bdp/server/dist/transaction-changefeed.js",
+      "@bdp/server/read-http-routing",
+      "@bdp/server/dist/read-http-routing.js",
+      "@bdp/server/read-pagination",
+      "@bdp/server/dist/read-pagination.js",
+      "@bdp/server/installed-reference-configuration",
+      "@bdp/server/dist/installed-reference-configuration.js",
+      "@bdp/server/installed-reference",
+      "@bdp/server/dist/installed-reference.js",
+      "@bdp/server/installed-reference-process",
+      "@bdp/server/dist/installed-reference-process.js",
+      "@bdp/server/development-contracts",
+      "@bdp/server/dist/development-contracts.js",
+      "@bdp/server/development-runtime",
+      "@bdp/server/dist/development-runtime.js",
+      "@bdp/server/development-authority",
+    ]) {
+      try {
+        consumer.resolve(specifier);
+        throw new Error("packed private development runtime unexpectedly resolves");
+      } catch (error) {
+        if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
+      }
+    }
+
+    const conformanceOutput = await readdir(
+      path.join(installRoot, "node_modules", "@bdp", "conformance", "dist"),
+    );
+    for (const suffix of [".js", ".js.map", ".d.ts", ".d.ts.map"])
+      if (!conformanceOutput.includes(`transactional-observation${suffix}`))
+        throw new Error("packed private receipt recorder output missing");
 
     const capabilityUrl = pathToFileURL(
       path.join(
@@ -293,6 +590,11 @@ async function installPackedWorkspace() {
         return path.join(installRoot, "node_modules", ".bin", executable);
       },
       temporaryRoot,
+      installedReferenceEntry: path.join(
+        installedServerRoot,
+        "dist",
+        "installed-reference-process.js",
+      ),
       hasReadConformanceEvidence,
       async version(executable) {
         const manifestPath = path.join(
@@ -792,6 +1094,12 @@ try {
     }
     console.log(`${executable}: public profile admission fails closed before bind`);
   }
+
+  const installedObservation = await observeInstalledReference(
+    installed.installedReferenceEntry,
+    installed.temporaryRoot,
+  );
+  console.log(JSON.stringify({ event: "installed.reference.observed", ...installedObservation }));
 
   // Role isolation: an invalid value in a section this role does not read
   // must not block startup. `--version` short-circuits before loadStartupConfig

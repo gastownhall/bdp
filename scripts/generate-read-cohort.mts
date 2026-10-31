@@ -39,6 +39,7 @@ import {
   controlledReadCapability,
   controlledReadProblemCapability,
   controlledReadScopeRestoreCapability,
+  createCurrentReadWireValidator,
   resolveBdExecutable,
   runBdWorkspaceCommand,
   seedBdWorkspacePair,
@@ -232,10 +233,9 @@ async function runPackagedTarget(
   };
   const faultResource = new URL(requireBinding(fixture, "bead.demo-a"), SCOPE).href;
   const schemaValidator = createJsonSchemaValidator(
-    JSON.parse(new TextDecoder().decode(readRepoBytes("schemas/bdp-v0.schema.json"))) as Record<
-      string,
-      unknown
-    >,
+    JSON.parse(
+      new TextDecoder().decode(readRepoBytes("specs/profiles/core/bdp-v0.schema.json")),
+    ) as Record<string, unknown>,
   );
   const descriptors = fixture.typeDescriptors;
   if (!Array.isArray(descriptors)) throw new Error("fixture Type Descriptors are required");
@@ -264,6 +264,7 @@ async function runPackagedTarget(
   });
   try {
     const clientActions = createBdpClientScenarioActionExecutor({
+      validateReadWire: createCurrentReadWireValidator(schemaValidator),
       fetchImplementation: scenarioTarget.fetch,
       externalTypeDescriptorFetchImplementation: publisher.fetch,
     });
@@ -328,7 +329,7 @@ function loadBundle(fixtureRelativePath: string): ConformanceArtifactBundle {
  * provenance checked for format alone.
  */
 const BINDING_SOURCES = {
-  schema: "schemas/bdp-v0.schema.json",
+  schema: "specs/profiles/core/bdp-v0.schema.json",
   validator: "packages/conformance/src/schema-validator.ts",
   runner: "packages/conformance/src/runner.ts",
 } as const;

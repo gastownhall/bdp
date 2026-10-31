@@ -1,3 +1,10 @@
+import { createServer as createHttpServer } from "node:http";
+import {
+  parseBeadRecord,
+  parseLinkRecord,
+  parseBeadCollection,
+  parseLinkCollection,
+} from "@bdp/protocol";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +38,7 @@ import {
   controlledReadUnauthenticatedChallenge,
   controlledReadViewHeader,
   createControlledReadActionExecutor,
+  createCurrentReadWireValidator,
   emitMatrixRunForCohort,
   startControlledTypeDescriptorPublisher,
   successorDescriptorBodies,
@@ -172,6 +180,191 @@ describe("bdptest reference target Read matrix", () => {
     expect(portableReferenceFixtureAliases(scope, fixture)).toEqual(referenceFixtureAliases(scope));
   });
 
+  it.each([
+    ["bead record", "read.resource.bead-record", "bead", "record"],
+    ["Link record", "read.resource.link-record", "link", "record"],
+    ["Bead collection", "read.collections.beads", "beads", "collection"],
+    ["Link collection", "read.collections.links", "links", "collection"],
+    ["inline owned Link", "read.resource.bead-record", "bead", "owned"],
+  ] as const)(
+    "fails the actual Read matrix when %s wire metadata is omitted",
+    async (_label, scenario, requestId, plane) => {
+      const withdrawEvidence = establishReadConformanceEvidenceForTesting("bdptest");
+      const artifactBundle = createConformanceArtifactBundle({
+        catalog: {
+          bytes: readBytes("packages/conformance/catalog/read-v1.json"),
+          label: "catalog",
+        },
+        manifest: {
+          bytes: readBytes("packages/conformance/matrices/read-v1.json"),
+          label: "manifest",
+        },
+        fixture: {
+          bytes: readBytes("packages/conformance/fixtures/read-reference-v1.json"),
+          label: "fixture",
+        },
+      });
+      const schemaValidator = createJsonSchemaValidator(
+        JSON.parse(readText("specs/profiles/core/bdp-v0.schema.json")),
+      );
+      const port = createPortableReferenceFixturePort(scope, artifactBundle.fixture);
+      try {
+        for (const omit of [false, true]) {
+          let observedWire: unknown;
+          const target = createRawHttpScenarioTarget(async (_scenario, _scope, _seed, fixture) => {
+            const upstream = await startReferenceSession(port, fixture);
+            const dial = createSemanticDialFetch(upstream.dialRoute.port);
+            const proxy = createHttpServer(async (request, response) => {
+              try {
+                const result = await dial(new URL(request.url ?? "/", scope), {
+                  headers: { accept: "application/json" },
+                });
+                const headers = Object.fromEntries(result.headers);
+                delete headers["content-length"];
+                delete headers["keep-alive"];
+                headers.connection = "close";
+                let text = await result.text();
+                if (
+                  result.status === 200 &&
+                  headers["content-type"]?.includes("application/json")
+                ) {
+                  const body = JSON.parse(text);
+                  const resource = plane === "collection" ? body.items?.[0] : body;
+                  if (resource?.properties !== undefined) {
+                    if (plane === "owned") {
+                      resource.ownedLinks = {
+                        "https://work.example/types/blocks": [
+                          {
+                            id: new URL("links/inline", scope).href,
+                            type: "https://work.example/types/blocks",
+                            revision: "inline-r1",
+                            source: resource.id,
+                            target: new URL("beads/demo-b", scope).href,
+                            properties: {},
+                            metadata: {},
+                          },
+                        ],
+                      };
+                      if (omit)
+                        delete resource.ownedLinks["https://work.example/types/blocks"][0].metadata;
+                    } else if (omit) delete resource.metadata;
+                    observedWire = body;
+                    text = JSON.stringify(body);
+                  }
+                }
+                response.writeHead(result.status, headers).end(text);
+              } catch {
+                response.writeHead(500).end();
+              }
+            });
+            await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+            const address = proxy.address();
+            if (address === null || typeof address === "string")
+              throw new Error("missing proxy port");
+            return {
+              ...upstream,
+              dialRoute: { ...upstream.dialRoute, port: address.port },
+              close: async (signal: AbortSignal) => {
+                proxy.closeAllConnections();
+                await new Promise<void>((resolve, reject) =>
+                  proxy.close((error) => (error ? reject(error) : resolve())),
+                );
+                await upstream.close(signal);
+              },
+            };
+          });
+          try {
+            const result = await runConformanceMatrix({
+              scope,
+              profile: "read",
+              seed: 0,
+              artifactBundle,
+              scenarioSelection: [
+                "read.discovery.scope-service-desc",
+                "read.discovery.document",
+                scenario,
+              ],
+              execute: target.execute,
+              harness: target.harness,
+              schemaValidator,
+              declaredTargetLabel: "metadata-wire-negative-control",
+            });
+            const row = result.scenarios.find(({ id }) => id === scenario);
+            expect(row?.state, JSON.stringify(row)).toBe(omit ? "fail" : "pass");
+            const exchange = row?.exchanges.find(({ request }) => request.id === requestId);
+            expect(exchange?.assertions.find(({ id }) => id === "schema")?.passed).toBe(!omit);
+            expect(
+              exchange?.assertions.filter(({ id, passed }) => id !== "schema" && !passed),
+            ).toEqual([]);
+            // Public client compatibility remains permissive; it cannot manufacture wire evidence.
+            const parse =
+              requestId === "bead"
+                ? parseBeadRecord
+                : requestId === "link"
+                  ? parseLinkRecord
+                  : requestId === "beads"
+                    ? parseBeadCollection
+                    : parseLinkCollection;
+            expect(() => parse(observedWire)).not.toThrow();
+          } finally {
+            await target.close();
+          }
+        }
+      } finally {
+        withdrawEvidence();
+      }
+    },
+  );
+
+  it("checks client-action wire records before legacy metadata projection", async () => {
+    const withdrawEvidence = establishReadConformanceEvidenceForTesting("bdptest");
+    const fixture = JSON.parse(
+      readText("packages/conformance/fixtures/read-reference-v1.json"),
+    ) as ConformanceFixture;
+    const port = createPortableReferenceFixturePort(scope, fixture);
+    const session = await startReferenceSession(port, fixture);
+    const dial = createSemanticDialFetch(session.dialRoute.port);
+    let omittedBodies = 0;
+    const missingMetadata: typeof fetch = async (input, init) => {
+      const response = await dial(input, init);
+      if (!response.url.includes("/beads/")) return response;
+      const body = (await response.json()) as Record<string, unknown>;
+      delete body.metadata;
+      omittedBodies += 1;
+      const headers = new Headers(response.headers);
+      headers.delete("content-length");
+      const changed = new Response(JSON.stringify(body), { status: response.status, headers });
+      Object.defineProperty(changed, "url", { value: response.url });
+      return changed;
+    };
+    const execution = {
+      family: "client",
+      operation: "owned-links",
+      scope,
+      input: { bead: "beads/demo-a" },
+      signal: new AbortController().signal,
+    };
+    try {
+      // Same response is accepted by the compatibility client without the wire observer.
+      await expect(
+        createBdpClientScenarioActionExecutor({ fetchImplementation: missingMetadata })(execution),
+      ).resolves.toMatchObject({ outcome: "success" });
+      const validator = createCurrentReadWireValidator(
+        createJsonSchemaValidator(JSON.parse(readText("specs/profiles/core/bdp-v0.schema.json"))),
+      );
+      await expect(
+        createBdpClientScenarioActionExecutor({
+          fetchImplementation: missingMetadata,
+          validateReadWire: validator,
+        })(execution),
+      ).rejects.toThrow();
+      expect(omittedBodies).toBe(2);
+    } finally {
+      await session.close(new AbortController().signal);
+      withdrawEvidence();
+    }
+  });
+
   it("passes every checked-in plan with Read admission evidence explicitly stubbed", async () => {
     const withdrawEvidence = establishReadConformanceEvidenceForTesting("bdptest");
     let scenarioTarget: ReturnType<typeof createRawHttpScenarioTarget> | undefined;
@@ -194,7 +387,10 @@ describe("bdptest reference target Read matrix", () => {
           label: "fixtures/read-reference-v1.json",
         },
       });
-      const schema = JSON.parse(readText("schemas/bdp-v0.schema.json")) as Record<string, unknown>;
+      const schema = JSON.parse(readText("specs/profiles/core/bdp-v0.schema.json")) as Record<
+        string,
+        unknown
+      >;
       const schemaValidator = createJsonSchemaValidator(schema);
       const portablePort = createPortableReferenceFixturePort(scope, artifactBundle.fixture);
       await expectReferenceFixtureParity(portablePort);
@@ -232,6 +428,7 @@ describe("bdptest reference target Read matrix", () => {
         ...successorDescriptorBodies(artifactBundle.fixture),
       ]);
       const clientActions = createBdpClientScenarioActionExecutor({
+        validateReadWire: createCurrentReadWireValidator(schemaValidator),
         fetchImplementation: scenarioTarget.fetch,
         externalTypeDescriptorFetchImplementation: descriptorPublisher.fetch,
       });

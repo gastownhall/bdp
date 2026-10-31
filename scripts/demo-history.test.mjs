@@ -122,7 +122,13 @@ describe.skipIf(!entries.every((entry) => existsSync(path.join(root, entry))))(
         expect(urls[5].searchParams.getAll("revision")).toEqual(["link-old"]);
         expect(urls[6].searchParams.getAll("revision")).toEqual(["r2"]);
         const values = evidence.observations.map((observation) => observation.value);
-        expect(values).toEqual(http.slice(2).map((row) => row.body));
+        expect(values).toEqual(
+          http
+            .slice(2)
+            .map((row, index) =>
+              index === 2 || index === 3 ? { ...row.body, metadata: {} } : row.body,
+            ),
+        );
         expect(values).toHaveLength(5);
         expect(
           [...values[0].items, ...values[1].items].map((row) => [
@@ -140,7 +146,7 @@ describe.skipIf(!entries.every((entry) => existsSync(path.join(root, entry))))(
         expect(values[2].properties.title).toBe("Original plan: launch on Monday");
         expect(values[2].links).toBeUndefined();
         expect(values[2].ownedLinks).toBeUndefined();
-        expect(values[2].changeContext.agent.value).toBe("assistant-a");
+        expect(values[2].revisionProvenance.agent.value).toBe("assistant-a");
         expect(values[3].target.revision).toBe("target%2Fold");
         expect(values[3].source).toBe(`${evidence.scope}beads/decision`);
         expect(values[4]).toMatchObject({

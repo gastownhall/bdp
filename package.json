@@ -6,7 +6,7 @@
   "type": "module",
   "packageManager": "pnpm@11.20.0",
   "engines": {
-    "node": "24.16.0"
+    "node": "24.22.1"
   },
   "scripts": {
     "baseline:capture": "node scripts/bd-baseline.mjs capture",
@@ -18,13 +18,20 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "biome lint .",
+    "openapi:generate": "node scripts/generate-openapi.mjs",
+    "openapi:check": "node scripts/generate-openapi.mjs --check",
+    "test:openapi": "node --test scripts/openapi.node-test.mjs",
+    "markdown:generate": "node scripts/generate-markdown-contracts.mjs",
+    "markdown:check": "node scripts/generate-markdown-contracts.mjs --check",
+    "test:markdown": "node --test scripts/markdown-schema.node-test.mjs scripts/markdown-contracts.node-test.mjs",
     "smoke": "node scripts/smoke-executables.mjs",
     "e2e:ready:preflight": "vitest run scripts/e2e-ready.test.mjs --reporter=verbose",
     "e2e:ready": "node scripts/e2e-ready.mjs",
     "evidence:generate": "vitest run --config vitest.evidence.config.ts",
     "evidence:verify": "node scripts/read-cohort-evidence.mjs",
     "test": "vitest run --reporter=verbose",
-    "typecheck": "tsc -p tsconfig.check.json"
+    "typecheck": "tsc -p tsconfig.check.json",
+    "smoke:development": "node scripts/smoke-development.mjs"
   },
   "devDependencies": {
     "@babel/parser": "8.0.4",

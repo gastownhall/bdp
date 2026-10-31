@@ -1,0 +1,578 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/bdp-query-design-1.schema.json",
+  "title": "BDP query logical AST \u2014 review-only design schema",
+  "description": "Proposed encoding. Not a released protocol schema, runtime capability, HTTP request binding, or implementation qualification. Semantic admission and profile checks are additionally required. URI format checkers must be enabled by implementations; shape validation alone does not enforce semantic admission or capabilities.",
+  "type": "object",
+  "properties": {
+    "ir": {
+      "const": "bdp-query-design-1"
+    },
+    "profile": {
+      "enum": ["list", "graph", "query"]
+    },
+    "selection": {
+      "$ref": "#/$defs/collection"
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "form": {
+          "enum": ["resources", "graph", "count"]
+        }
+      },
+      "required": ["form"],
+      "additionalProperties": false
+    },
+    "projection": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(/([^/~]|~[01])*)*$"
+          },
+          "minItems": 1
+        },
+        "omit": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(/([^/~]|~[01])*)*$",
+            "minLength": 1
+          },
+          "minItems": 1
+        }
+      },
+      "required": [],
+      "additionalProperties": false,
+      "minProperties": 1
+    }
+  },
+  "required": ["ir", "profile", "selection", "result"],
+  "additionalProperties": false,
+  "$defs": {
+    "binding": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "binding"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        }
+      },
+      "required": ["op", "name"],
+      "additionalProperties": false
+    },
+    "endpoint": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "endpoint"
+        },
+        "of": {
+          "$ref": "#/$defs/resource"
+        },
+        "side": {
+          "enum": ["source", "target"]
+        }
+      },
+      "required": ["op", "of", "side"],
+      "additionalProperties": false
+    },
+    "resource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/binding"
+        },
+        {
+          "$ref": "#/$defs/endpoint"
+        }
+      ]
+    },
+    "literal": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "literal"
+        },
+        "value": {}
+      },
+      "required": ["op", "value"],
+      "additionalProperties": false
+    },
+    "field": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "field"
+        },
+        "of": {
+          "$ref": "#/$defs/resource"
+        },
+        "path": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer",
+                "minimum": 0
+              }
+            ]
+          }
+        }
+      },
+      "required": ["op", "of", "path"],
+      "additionalProperties": false
+    },
+    "id": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "id"
+        },
+        "of": {
+          "$ref": "#/$defs/resource"
+        }
+      },
+      "required": ["op", "of"],
+      "additionalProperties": false
+    },
+    "rev": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "rev"
+        },
+        "of": {
+          "$ref": "#/$defs/resource"
+        }
+      },
+      "required": ["op", "of"],
+      "additionalProperties": false
+    },
+    "value": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/literal"
+        },
+        {
+          "$ref": "#/$defs/field"
+        },
+        {
+          "$ref": "#/$defs/id"
+        },
+        {
+          "$ref": "#/$defs/rev"
+        }
+      ]
+    },
+    "operand": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/value"
+        },
+        {
+          "$ref": "#/$defs/resource"
+        }
+      ]
+    },
+    "and": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "and"
+        },
+        "operands": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/predicate"
+          }
+        }
+      },
+      "required": ["op", "operands"],
+      "additionalProperties": false
+    },
+    "or": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "or"
+        },
+        "operands": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/predicate"
+          }
+        }
+      },
+      "required": ["op", "operands"],
+      "additionalProperties": false
+    },
+    "not": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "not"
+        },
+        "predicate": {
+          "$ref": "#/$defs/predicate"
+        }
+      },
+      "required": ["op", "predicate"],
+      "additionalProperties": false
+    },
+    "compare": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "compare"
+        },
+        "operator": {
+          "enum": ["eq", "ne", "lt", "le", "gt", "ge"]
+        },
+        "left": {
+          "$ref": "#/$defs/operand"
+        },
+        "right": {
+          "$ref": "#/$defs/operand"
+        }
+      },
+      "required": ["op", "operator", "left", "right"],
+      "additionalProperties": false
+    },
+    "present": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "present"
+        },
+        "value": {
+          "$ref": "#/$defs/field"
+        }
+      },
+      "required": ["op", "value"],
+      "additionalProperties": false
+    },
+    "contains": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "contains"
+        },
+        "text": {
+          "$ref": "#/$defs/value"
+        },
+        "substring": {
+          "$ref": "#/$defs/value"
+        }
+      },
+      "required": ["op", "text", "substring"],
+      "additionalProperties": false
+    },
+    "member": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "member"
+        },
+        "value": {
+          "$ref": "#/$defs/value"
+        },
+        "array": {
+          "$ref": "#/$defs/value"
+        }
+      },
+      "required": ["op", "value", "array"],
+      "additionalProperties": false
+    },
+    "typeIs": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "typeIs"
+        },
+        "of": {
+          "$ref": "#/$defs/resource"
+        },
+        "type": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "match": {
+          "enum": ["family", "exact"]
+        }
+      },
+      "required": ["op", "of", "type", "match"],
+      "additionalProperties": false
+    },
+    "any": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "any"
+        },
+        "input": {
+          "$ref": "#/$defs/collection"
+        },
+        "bind": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "predicate": {
+          "$ref": "#/$defs/predicate"
+        }
+      },
+      "required": ["op", "input"],
+      "additionalProperties": false,
+      "dependentRequired": {
+        "predicate": ["bind"],
+        "bind": ["predicate"]
+      }
+    },
+    "all": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "all"
+        },
+        "input": {
+          "$ref": "#/$defs/collection"
+        },
+        "bind": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "predicate": {
+          "$ref": "#/$defs/predicate"
+        }
+      },
+      "required": ["op", "input", "bind", "predicate"],
+      "additionalProperties": false
+    },
+    "predicate": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/and"
+        },
+        {
+          "$ref": "#/$defs/or"
+        },
+        {
+          "$ref": "#/$defs/not"
+        },
+        {
+          "$ref": "#/$defs/compare"
+        },
+        {
+          "$ref": "#/$defs/present"
+        },
+        {
+          "$ref": "#/$defs/contains"
+        },
+        {
+          "$ref": "#/$defs/member"
+        },
+        {
+          "$ref": "#/$defs/typeIs"
+        },
+        {
+          "$ref": "#/$defs/any"
+        },
+        {
+          "$ref": "#/$defs/all"
+        }
+      ]
+    },
+    "scan": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "scan"
+        },
+        "collection": {
+          "enum": ["beads", "links"]
+        }
+      },
+      "required": ["op", "collection"],
+      "additionalProperties": false
+    },
+    "refs": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "refs"
+        },
+        "collection": {
+          "enum": ["beads", "links"]
+        },
+        "references": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "uri": {
+                        "type": "string",
+                        "format": "uri",
+                        "minLength": 1
+                      },
+                      "revision": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": ["uri", "revision"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "uniqueItems": true
+            },
+            {
+              "$ref": "#/$defs/batchReference"
+            }
+          ]
+        }
+      },
+      "required": ["op", "collection", "references"],
+      "additionalProperties": false
+    },
+    "filter": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "filter"
+        },
+        "input": {
+          "$ref": "#/$defs/collection"
+        },
+        "bind": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "predicate": {
+          "$ref": "#/$defs/predicate"
+        }
+      },
+      "required": ["op", "input", "bind", "predicate"],
+      "additionalProperties": false
+    },
+    "walk": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "walk"
+        },
+        "roots": {
+          "$ref": "#/$defs/roots"
+        },
+        "direction": {
+          "enum": ["incoming", "outgoing", "connected"]
+        },
+        "depth": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "const": "unbounded"
+            }
+          ]
+        },
+        "bind": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "through": {
+          "$ref": "#/$defs/predicate"
+        }
+      },
+      "required": ["op", "roots", "direction"],
+      "additionalProperties": false,
+      "dependentRequired": {
+        "through": ["bind"],
+        "bind": ["through"]
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "endpoints"
+        },
+        "input": {
+          "$ref": "#/$defs/collection"
+        },
+        "side": {
+          "enum": ["source", "target"]
+        }
+      },
+      "required": ["op", "input", "side"],
+      "additionalProperties": false
+    },
+    "collection": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/scan"
+        },
+        {
+          "$ref": "#/$defs/refs"
+        },
+        {
+          "$ref": "#/$defs/filter"
+        },
+        {
+          "$ref": "#/$defs/walk"
+        },
+        {
+          "$ref": "#/$defs/endpoints"
+        }
+      ]
+    },
+    "roots": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/collection"
+        },
+        {
+          "$ref": "#/$defs/resource"
+        }
+      ]
+    },
+    "batchReference": {
+      "description": "Author-proposed transaction-selection input only. Standalone reads refuse. Shared Batch grammar owns names and binding resolution.",
+      "type": "object",
+      "properties": {
+        "binding": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["binding"],
+      "additionalProperties": false
+    }
+  }
+}

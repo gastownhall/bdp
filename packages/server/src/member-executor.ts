@@ -23,6 +23,7 @@ import {
   type CreationBinding,
   type MemberCreatorBinding,
   type MemberMetadata,
+  type PreparedMemberDependencies,
   capturedMemberAlias,
   normalizePreparedMemberIdentity,
   parseMemberMetadata,
@@ -96,10 +97,10 @@ export class MemberIntegrityError extends Error {
 const envelopeFormat = "ru-member-outcome-1";
 const operations: readonly ReadUpdateOperation[] = [
   "createBead",
-  "updateBeadProperties",
+  "updateBead",
   "deleteBead",
   "createLink",
-  "updateLinkProperties",
+  "updateLink",
   "deleteLink",
   "putAlias",
   "deleteAlias",
@@ -700,55 +701,117 @@ export function runMember(
     const state = reader.key(principalId, key);
     if (!sameState(expected, state) || (state.kind !== "retained" && state.kind !== "expired"))
       throw new MemberIntegrityError("existing key changed across synchronous ownership");
-    const metadata = parseMemberMetadata(state.resolutionsJson, options.scope);
-    let envelope: Envelope | undefined;
-    if (state.kind === "retained") {
-      envelope = parseEnvelope(state.outcomeJson, state.effect, options.scope);
-      coherent(metadata, envelope);
-      identityOperation(state.semanticIdentityJson, metadata, envelope);
-      if (recoveryIdentityFingerprint(state.semanticIdentityJson) !== state.fingerprint)
-        throw new MemberIntegrityError("retained fingerprint differs from exact identity");
-    } else {
-      assertSuccessfulWitnesses(metadata);
-      if (creation(metadata.operation) && !metadata.creation)
-        throw new MemberIntegrityError("expired creator has no successful creation fact");
-    }
-    const context = capture(options, reader, principal, principalId);
-    if (metadata.operation !== operation)
-      return turn(problem("idempotency-conflict"), "conflict", operation);
-    // Only this callable and Scope enter retry normalization. Its witnesses are
-    // comparison input; no retry identity reaches executable preparation.
-    const scope = options.scope;
-    const readAlias = reader.alias.bind(reader);
-    const identityJson = normalizePreparedMemberIdentity(
+    return compareExistingMember(
+      reader,
+      state,
+      principal,
+      principalId,
       carrier,
       index,
-      {
-        scope,
-        prior: metadata,
-        resolveAlias(locator) {
-          const target = readAlias(locator.slice(scope.length + 6));
-          return target === undefined ? undefined : `${scope}${target}`;
-        },
-      },
+      operation,
       prepared,
-    ).identityJson;
-    const equal =
-      state.kind === "retained"
-        ? identityJson === state.semanticIdentityJson
-        : recoveryIdentityFingerprint(identityJson) === state.fingerprint;
-    if (!equal) return turn(problem("idempotency-conflict"), "conflict", operation);
-    if (state.kind === "expired")
-      return turn(problem("idempotency-expired"), "expired", operation, metadata.creation);
-    if (!envelope) throw new MemberIntegrityError("lost retained envelope");
-    const result = envelope.disposition;
-    const disposition =
-      !("code" in result) &&
-      "resource" in result &&
-      result.resource &&
-      !mayDiscloseRetainedResource(reader, result.resource, options.scope, context.policy)
-        ? problem("forbidden")
-        : result;
-    return turn(disposition, "replayed", operation, metadata.creation);
+      options,
+    );
   });
+}
+
+/** Pure retained-key comparison/disclosure; shared by replay and pre-admission
+ * media refusal. Never claims keys, evaluates mutations or renews retention. */
+function compareExistingMember(
+  reader: StoreReader,
+  state: Extract<KeyState, { kind: "retained" | "expired" }>,
+  principal: StablePrincipal,
+  principalId: string,
+  carrier: PreparedReadUpdateCarrier,
+  index: number,
+  operation: ReadUpdateOperation,
+  prepared: PreparedMemberDependencies,
+  options: MemberExecutorOptions,
+): MemberTurn {
+  const metadata = parseMemberMetadata(state.resolutionsJson, options.scope);
+  let envelope: Envelope | undefined;
+  if (state.kind === "retained") {
+    envelope = parseEnvelope(state.outcomeJson, state.effect, options.scope);
+    coherent(metadata, envelope);
+    identityOperation(state.semanticIdentityJson, metadata, envelope);
+    if (recoveryIdentityFingerprint(state.semanticIdentityJson) !== state.fingerprint)
+      throw new MemberIntegrityError("retained fingerprint differs from exact identity");
+  } else {
+    assertSuccessfulWitnesses(metadata);
+    if (creation(metadata.operation) && !metadata.creation)
+      throw new MemberIntegrityError("expired creator has no successful creation fact");
+  }
+  const context = capture(options, reader, principal, principalId);
+  if (metadata.operation !== operation)
+    return turn(problem("idempotency-conflict"), "conflict", operation);
+  // Only this callable and Scope enter retry normalization. Its witnesses are
+  // comparison input; no retry identity reaches executable preparation.
+  const scope = options.scope;
+  const readAlias = reader.alias.bind(reader);
+  const identityJson = normalizePreparedMemberIdentity(
+    carrier,
+    index,
+    {
+      scope,
+      prior: metadata,
+      resolveAlias(locator) {
+        const target = readAlias(locator.slice(scope.length + 6));
+        return target === undefined ? undefined : `${scope}${target}`;
+      },
+    },
+    prepared,
+  ).identityJson;
+  const equal =
+    state.kind === "retained"
+      ? identityJson === state.semanticIdentityJson
+      : recoveryIdentityFingerprint(identityJson) === state.fingerprint;
+  if (!equal) return turn(problem("idempotency-conflict"), "conflict", operation);
+  if (state.kind === "expired")
+    return turn(problem("idempotency-expired"), "expired", operation, metadata.creation);
+  if (!envelope) throw new MemberIntegrityError("lost retained envelope");
+  const result = envelope.disposition;
+  const disposition =
+    !("code" in result) &&
+    "resource" in result &&
+    result.resource &&
+    !mayDiscloseRetainedResource(reader, result.resource, options.scope, context.policy)
+      ? problem("forbidden")
+      : result;
+  return turn(disposition, "replayed", operation, metadata.creation);
+}
+
+/** Called only under the same exclusive synchronous owner as runMember. */
+export function inspectExistingMember(
+  reader: StoreReader,
+  principal: StablePrincipal,
+  carrier: PreparedReadUpdateCarrier,
+  index: number,
+  creators: (earlierIndex: number) => MemberCreatorBinding,
+  supplied: MemberExecutorOptions,
+): MemberTurn | undefined {
+  const options = snapshotOptions(supplied);
+  const principalId = principal.id;
+  text(principalId, "authenticated principal");
+  assertPreparedReadUpdateCarrier(carrier, options.scope);
+  const original = carrier.operations[index];
+  const key = carrier.keys[index];
+  if (!original || key === undefined) throw new TypeError("prepared carrier lost its member");
+  const prepared = prepareMemberDependencies(carrier, index, options.scope, creators);
+  if (prepared.kind === "transient-dependency")
+    return turn(problem("idempotency-in-progress"), "in-progress", original.operation);
+  const state = reader.key(principalId, key);
+  if (state.kind === "unknown") return undefined;
+  if (state.kind === "claimed")
+    return turn(problem("idempotency-in-progress"), "in-progress", original.operation);
+  return compareExistingMember(
+    reader,
+    state,
+    principal,
+    principalId,
+    carrier,
+    index,
+    original.operation,
+    prepared,
+    options,
+  );
 }

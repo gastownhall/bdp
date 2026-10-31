@@ -1,9 +1,7 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
-import { describe, expect, it } from "vitest";
-
 import {
   deriveReadCohortNotApplicableRows,
   deriveReadCohortRequiredScenarioIds,
@@ -12,19 +10,20 @@ import {
   loadExecutableScenarioManifestJson,
   loadScenarioCatalogJson,
   projectReadSchemaBundle,
-  readCohortEvidenceConstant,
   ReadCohortVerificationError,
+  readCohortEvidenceConstant,
   serializeReadCohortArtifact,
   verifyReadCohortEvidence,
 } from "@bdp/conformance";
+import { describe, expect, it } from "vitest";
 
 import { assertIdentityPin } from "./bd-baseline.mjs";
 import {
   ALLOWED_EVIDENCE_DELTA_PATHS,
   assembleVerificationInput,
-  deriveReadInputBindings,
   assertDistMatchesCommittedConstants,
   classifyEvidenceClaim,
+  deriveReadInputBindings,
   EvidenceGateError,
   gatherGitFacts,
   READ_COHORT_ARTIFACT_PATH,
@@ -294,16 +293,28 @@ describe("Read schema projection drift over the committed cohort", () => {
   const committed = existsSync(path.join(root, READ_COHORT_ARTIFACT_PATH));
   const readText = (relative) => readFileSync(path.join(root, relative), "utf8");
   const parseJson = (relative) => JSON.parse(readText(relative));
-  const committedBundle = () => parseJson("schemas/bdp-v0.schema.json");
+  const artifact = committed ? parseJson(READ_COHORT_ARTIFACT_PATH) : undefined;
+  // Positive projection controls bind the exact historical inputs observed by
+  // this seal. They must not claim that those observations cover today's tree.
+  const sealedText = (relative) => {
+    if (!/^[0-9a-f]{40}$/.test(artifact?.runHead ?? ""))
+      throw new Error("committed cohort requires an exact historical run head");
+    return execFileSync("git", ["show", `${artifact.runHead}:${relative}`], {
+      cwd: root,
+      encoding: "utf8",
+    });
+  };
+  const committedBundle = () =>
+    JSON.parse(sealedText("packages/protocol/schemas/bdp-v0.schema.json"));
 
-  function committedInput(bundle) {
+  function committedInput(bundle, inputText = sealedText) {
     const catalogPath = "packages/conformance/catalog/read-v1.json";
     const manifestPath = "packages/conformance/matrices/read-v1.json";
     const artifactBytes = readFileSync(path.join(root, READ_COHORT_ARTIFACT_PATH));
-    const catalog = loadScenarioCatalogJson(readText(catalogPath), catalogPath);
-    const manifest = loadExecutableScenarioManifestJson(readText(manifestPath), manifestPath);
+    const catalog = loadScenarioCatalogJson(inputText(catalogPath), catalogPath);
+    const manifest = loadExecutableScenarioManifestJson(inputText(manifestPath), manifestPath);
     const requiredScenarioIds = deriveReadCohortRequiredScenarioIds(catalog);
-    const capabilitiesOf = (relative) => parseJson(relative).capabilities ?? [];
+    const capabilitiesOf = (relative) => JSON.parse(inputText(relative)).capabilities ?? [];
     const notApplicableFor = (fixture) =>
       deriveReadCohortNotApplicableRows(manifest, requiredScenarioIds, capabilitiesOf(fixture));
     const pinned = assertIdentityPin();
@@ -322,11 +333,11 @@ describe("Read schema projection drift over the committed cohort", () => {
         deriveReadSchemaProjectionRoots(manifest),
       ).digest,
       derivedInputBindings: deriveReadInputBindings({
-        catalogBytes: readText(catalogPath),
-        manifestBytes: readText(manifestPath),
+        catalogBytes: inputText(catalogPath),
+        manifestBytes: inputText(manifestPath),
         fixtureBytesByTarget: {
-          bdptest: readText("packages/conformance/fixtures/read-reference-v1.json"),
-          bdpbd: readText("packages/conformance/fixtures/read-bdpbd-v1.json"),
+          bdptest: inputText("packages/conformance/fixtures/read-reference-v1.json"),
+          bdpbd: inputText("packages/conformance/fixtures/read-bdpbd-v1.json"),
         },
       }),
       expectedBdIdentity: {
@@ -343,9 +354,28 @@ describe("Read schema projection drift over the committed cohort", () => {
   }
 
   it.skipIf(!committed)(
-    "verifies the sealed cohort against the committed bundle's Read projection",
+    "verifies the sealed cohort against its exact historical inputs and Read projection",
     () => {
       expect(() => verifyReadCohortEvidence(committedInput(committedBundle()))).not.toThrow();
+    },
+  );
+
+  it.skipIf(!committed)(
+    "refuses current catalog drift rather than borrowing a historical seal",
+    () => {
+      const currentCatalog = readText("packages/conformance/catalog/read-v1.json");
+      const historicalCatalog = sealedText("packages/conformance/catalog/read-v1.json");
+      // Keep this a decisive current-tree negative while the selected catalog
+      // differs. If a genuine successor is sealed, mutation still proves refusal.
+      const changedCatalog =
+        currentCatalog === historicalCatalog ? `${currentCatalog}\n` : currentCatalog;
+      const changedInput = (relative) =>
+        relative === "packages/conformance/catalog/read-v1.json"
+          ? changedCatalog
+          : sealedText(relative);
+      expect(() =>
+        verifyReadCohortEvidence(committedInput(committedBundle(), changedInput)),
+      ).toThrow(/current catalog bytes drift.*re-seal required/);
     },
   );
 
@@ -408,7 +438,7 @@ describe("Read schema projection drift over the committed cohort", () => {
         required: ["operations"],
         properties: {
           operations: { type: "array", items: { $ref: "#/$defs/beadRecord" } },
-          attribution: { $ref: "#/$defs/attribution" },
+          revisionProvenance: { $ref: "#/$defs/revisionProvenance" },
         },
         additionalProperties: false,
       };

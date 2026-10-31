@@ -3,7 +3,7 @@ import { createRawHttpScenarioTarget } from "./raw-http-scenario-target.js";
 import { createHash } from "node:crypto";
 import { HttpTransportError } from "./http-executor.js";
 import { describe, expect, it, vi } from "vitest";
-import schemaBundle from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import schemaBundle from "../../../specs/profiles/core/bdp-v0.schema.json" with { type: "json" };
 import readManifest from "../matrices/read-v1.json" with { type: "json" };
 import {
   type ConformanceArtifactBundle,
@@ -2835,111 +2835,114 @@ describe("black-box conformance runner", () => {
     });
   });
 
-  it("compares HEAD status and stable metadata with an earlier GET exchange", async () => {
-    const base = inputs([{ id: "status", kind: "status", equals: 200 }]);
-    const scenario = requestScenario(base.artifactBundle.manifest.scenarios[0]);
-    const request = scenario?.requests[0];
-    if (scenario === undefined || request === undefined)
-      throw new Error("test inputs unexpectedly empty");
-    const manifest = parseExecutableScenarioManifest({
-      ...base.artifactBundle.manifest,
-      scenarios: [
-        {
-          ...scenario,
-          requests: [
-            request,
-            {
-              ...request,
-              id: "head",
-              method: "HEAD",
-              assertions: [
-                {
-                  id: "metadata",
-                  kind: "response-metadata-equals",
-                  request: request.id,
-                  headers: ["content-length", "content-type"],
-                },
-                { id: "body", kind: "body-absent" },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-    const execute = vi.fn(
-      async ({ method }: { readonly method: string }): Promise<HttpExchangeResponse> => ({
+  it.each(["content-length", "bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])(
+    "compares HEAD stable metadata %s with earlier GET",
+    async (header) => {
+      const base = inputs([{ id: "status", kind: "status", equals: 200 }]);
+      const scenario = requestScenario(base.artifactBundle.manifest.scenarios[0]);
+      const request = scenario?.requests[0];
+      if (scenario === undefined || request === undefined)
+        throw new Error("test inputs unexpectedly empty");
+      const manifest = parseExecutableScenarioManifest({
+        ...base.artifactBundle.manifest,
+        scenarios: [
+          {
+            ...scenario,
+            requests: [
+              request,
+              {
+                ...request,
+                id: "head",
+                method: "HEAD",
+                assertions: [
+                  {
+                    id: "metadata",
+                    kind: "response-metadata-equals",
+                    request: request.id,
+                    headers: [header],
+                  },
+                  { id: "body", kind: "body-absent" },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      const execute = vi.fn(
+        async ({ method }: { readonly method: string }): Promise<HttpExchangeResponse> => ({
+          url: "https://scope.example/",
+          status: 200,
+          headers: { [header]: "2" },
+          bodyText: method === "HEAD" ? "" : "{}",
+          bodyOctets: method === "HEAD" ? 0 : 2,
+        }),
+      );
+
+      const passing = await runConformanceMatrix({
+        ...base,
+        artifactBundle: replaceArtifacts(base, { manifest }),
+        scope: "https://scope.example/",
+        profile: "read",
+        seed: 0,
+        execute,
+        harness: harness(),
+      });
+      expect(passing.scenarios[0]).toMatchObject({ state: "pass" });
+
+      execute.mockResolvedValueOnce({
         url: "https://scope.example/",
         status: 200,
-        headers: { "content-length": "2", "content-type": "application/json" },
-        bodyText: method === "HEAD" ? "" : "{}",
-        bodyOctets: method === "HEAD" ? 0 : 2,
-      }),
-    );
+        headers: {},
+        bodyText: "{}",
+        bodyOctets: 2,
+      });
+      execute.mockResolvedValueOnce({
+        url: "https://scope.example/",
+        status: 200,
+        headers: {},
+        bodyText: "",
+        bodyOctets: 0,
+      });
+      const mutuallyAbsent = await runConformanceMatrix({
+        ...base,
+        artifactBundle: replaceArtifacts(base, { manifest }),
+        scope: "https://scope.example/",
+        profile: "read",
+        seed: 0,
+        execute,
+        harness: harness(),
+      });
+      expect(mutuallyAbsent.scenarios[0]).toMatchObject({ state: "pass" });
 
-    const passing = await runConformanceMatrix({
-      ...base,
-      artifactBundle: replaceArtifacts(base, { manifest }),
-      scope: "https://scope.example/",
-      profile: "read",
-      seed: 0,
-      execute,
-      harness: harness(),
-    });
-    expect(passing.scenarios[0]).toMatchObject({ state: "pass" });
-
-    execute.mockResolvedValueOnce({
-      url: "https://scope.example/",
-      status: 200,
-      headers: {},
-      bodyText: "{}",
-      bodyOctets: 2,
-    });
-    execute.mockResolvedValueOnce({
-      url: "https://scope.example/",
-      status: 200,
-      headers: {},
-      bodyText: "",
-      bodyOctets: 0,
-    });
-    const mutuallyAbsent = await runConformanceMatrix({
-      ...base,
-      artifactBundle: replaceArtifacts(base, { manifest }),
-      scope: "https://scope.example/",
-      profile: "read",
-      seed: 0,
-      execute,
-      harness: harness(),
-    });
-    expect(mutuallyAbsent.scenarios[0]).toMatchObject({ state: "pass" });
-
-    execute.mockResolvedValueOnce({
-      url: "https://scope.example/",
-      status: 200,
-      headers: { "content-length": "2", "content-type": "application/json" },
-      bodyText: "{}",
-      bodyOctets: 2,
-    });
-    execute.mockResolvedValueOnce({
-      url: "https://scope.example/",
-      status: 200,
-      headers: { "content-length": "3", "content-type": "application/json" },
-      bodyText: "",
-      bodyOctets: 0,
-    });
-    const failing = await runConformanceMatrix({
-      ...base,
-      artifactBundle: replaceArtifacts(base, { manifest }),
-      scope: "https://scope.example/",
-      profile: "read",
-      seed: 0,
-      execute,
-      harness: harness(),
-    });
-    expect(failing.scenarios[0]).toMatchObject({
-      state: "fail",
-      reason: "response metadata did not match request 'scope'",
-    });
-  });
+      execute.mockResolvedValueOnce({
+        url: "https://scope.example/",
+        status: 200,
+        headers: { [header]: "2" },
+        bodyText: "{}",
+        bodyOctets: 2,
+      });
+      execute.mockResolvedValueOnce({
+        url: "https://scope.example/",
+        status: 200,
+        headers: { [header]: "3" },
+        bodyText: "",
+        bodyOctets: 0,
+      });
+      const failing = await runConformanceMatrix({
+        ...base,
+        artifactBundle: replaceArtifacts(base, { manifest }),
+        scope: "https://scope.example/",
+        profile: "read",
+        seed: 0,
+        execute,
+        harness: harness(),
+      });
+      expect(failing.scenarios[0]).toMatchObject({
+        state: "fail",
+        reason: "response metadata did not match request 'scope'",
+      });
+    },
+  );
 
   it.each([
     {
@@ -5569,6 +5572,68 @@ describe("version 2 exact HTTP receiving", () => {
       expect(report.scenarios[0]?.exchanges[0]?.response?.status).toBe(401);
     },
   );
+  it("keeps admitted authorization-view values out of report projections", async () => {
+    const headerLines = [
+      { name: "bdp-authorization-view", value: "CONTEXT-SENTINEL" },
+      { name: "BDP-Authorization-View", value: "" },
+    ];
+    const options = setup({ raw: { headerLines } });
+    const configuration = {
+      ...options.exactExecution.configuration,
+      defaultCredentialRef: "writer",
+      credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
+    };
+    const good = options.exactExecution.execute.getMockImplementation();
+    options.exactExecution.execute.mockImplementation(async (request) => {
+      if (good === undefined) throw new Error();
+      const response = await good(request);
+      if (response.exactRequest === undefined) throw new Error();
+      const lines = [...response.exactRequest.headerLines];
+      lines.splice(headerLines.length, 0, { name: "Authorization", value: "CREDENTIAL-SENTINEL" });
+      return {
+        ...response,
+        headers: {
+          "bdp-authorization-view": "CONTEXT-SENTINEL",
+          authorization: "CREDENTIAL-SENTINEL",
+        },
+        effectiveRequest: {
+          url: response.url,
+          headers: {
+            "bdp-authorization-view": "CONTEXT-SENTINEL",
+            authorization: "CREDENTIAL-SENTINEL",
+          },
+        },
+        exactRequest: { ...response.exactRequest, headerLines: lines },
+      };
+    });
+    const report = await runConformanceMatrix({
+      ...options,
+      exactExecution: { ...options.exactExecution, configuration },
+    });
+    expect(report.scenarios[0]?.state).toBe("pass");
+    const exchange = report.scenarios[0]?.exchanges[0];
+    expect(exchange?.assertions.find(({ id }) => id === "authored-head")?.passed).toBe(true);
+    expect(exchange?.request.exact?.elidedHeaderLines).toBe(4);
+    expect(
+      exchange?.request.exact?.headerLines.some(
+        ({ name }) => name.toLowerCase() === "bdp-authorization-view",
+      ),
+    ).toBe(false);
+    // Exact evidence owns the request projection; the lossy compatibility map stays ignored.
+    expect(exchange?.request.headers).toEqual({});
+    expect(exchange?.request.exact?.headerLines).toContainEqual({
+      name: "Authorization",
+      value: "<redacted>",
+    });
+    expect(exchange?.response?.headers).toHaveProperty("authorization", "<redacted>");
+    expect(exchange?.response?.headers).not.toHaveProperty("bdp-authorization-view");
+    const text = serializeConformanceReport(report);
+    expect(text).not.toContain("CONTEXT-SENTINEL");
+    expect(text).not.toContain("CREDENTIAL-SENTINEL");
+    expect(options.execute).not.toHaveBeenCalled();
+    expect(options.exactExecution.execute).toHaveBeenCalledOnce();
+  });
+
   it("accepts registered credential decoration and authored defaults without resolving credentials again", async () => {
     const options = setup({
       raw: { headerLines: [{ name: "aCcEpT", value: "application/json" }] },
@@ -5914,4 +5979,333 @@ describe("version 2 exact HTTP receiving", () => {
     expect(report.scenarios[0]?.state).toBe("pass");
     expect(report.declarations).not.toHaveProperty("exactConfigurationDigest");
   });
+});
+
+// Source-private gate: public root does not export this assertion helper.
+it.each([
+  "dynamicExactConfiguration",
+  "dynamicExactConfigurationDigest",
+  "sourceReceiptObservation",
+  "servedSession",
+])("refuses private %s fields in the runner legacy boundary", async (field) => {
+  const { assertLegacyScenario } = await import("./runner.js");
+  const scenario = {
+    id: "read.discovery",
+    requiredProfile: "read",
+    state: "pass",
+    requirements: [],
+    exchanges: [
+      {
+        request: { id: "get", method: "GET", url: "https://example.test/", headers: {} },
+        assertions: [],
+        [field]: {},
+      },
+    ],
+  } as unknown as import("./runner.js").ScenarioRunResult;
+  expect(() => assertLegacyScenario(scenario)).toThrow("legacy report");
+});
+
+it("excludes all private Transactional metadata from the legacy exchange type", () => {
+  type Legacy = import("./runner.js").LegacyObservedExchange;
+  type Fields = import("./transactional-observation.js").TransactionalExchangeFields;
+  const closed: [NonNullable<Legacy[keyof Fields]>] extends [never] ? true : false = true;
+  expect(closed).toBe(true);
+});
+
+it.each(["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])(
+  "requires explicit %s presence even when metadata equality sees two absent values",
+  async (name) => {
+    const base = { family: "http", target: { binding: "scope" }, headers: {}, captures: [] };
+    const options = actionInputs([
+      {
+        ...base,
+        id: "prior",
+        method: "GET",
+        assertions: [{ id: "status", kind: "status", equals: 200 }],
+      },
+      {
+        ...base,
+        id: "events",
+        method: "GET",
+        assertions: [
+          { id: "same", kind: "response-metadata-equals", request: "prior", headers: [name] },
+          { id: "present", kind: "header", name, absent: false },
+        ],
+      },
+    ]);
+    const observed = await runConformanceMatrix({
+      ...options,
+      scope: "https://scope.example/",
+      profile: "read",
+      seed: 0,
+      harness: harness(),
+      execute: async (request) => ({
+        url: request.url,
+        status: 200,
+        headers: {},
+        bodyText: "",
+        bodyOctets: 0,
+      }),
+    });
+    const row = observed.scenarios[0]!;
+    expect(row.state).toBe("fail");
+    expect(row.exchanges[1]?.assertions.find((a) => a.id === "same")?.passed).toBe(true);
+    expect(row.exchanges[1]?.assertions.find((a) => a.id === "present")?.passed).toBe(false);
+  },
+);
+
+// Private receipt continuations remain actual one-target wire observations.
+it.each([
+  "id-first",
+  "page-first",
+  "wrong-parent",
+  "empty-page",
+  "changed-page",
+  "cancel-page",
+  "null-next",
+  "absent-next",
+] as const)("observes private first-page authority over actual HTTP: %s", async (kind) => {
+  const { readFileSync } = await import("node:fs");
+  const { createCumulativeTransactionalArtifactBundle } = await import("./artifact-bundle.js");
+  const { loadProfileContractSelection } = await import("./profile-contract-selection.js");
+  const { runCumulativeTransactionalMatrix } = await import("./runner.js");
+  const { createRawHttpExchangeExecutor } = await import("./http-executor.js");
+  const fixture = JSON.parse(
+    readFileSync(new URL("../test-support/transactional/fixture-v1.json", import.meta.url), "utf8"),
+  );
+  const manifest = JSON.parse(
+    readFileSync(
+      new URL("../test-support/transactional/manifest-v1.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const scope = fixture.scope as string,
+    id = `${scope}receipts/r1`,
+    page = `${id}/pages/p1`;
+  const root = {
+    id,
+    status: "completed",
+    detail: "available",
+    idempotencyKey: "key",
+    scopeEpoch: "epoch",
+    authorizationView: "view",
+    transaction: "tx",
+    requiredPosition: "pos-0",
+    results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+    ...(kind === "absent-next" ? {} : { next: kind === "null-next" ? null : page }),
+    expiresAt: "2030-01-01T00:00:00Z",
+  };
+  let pageGets = 0,
+    generation = 1;
+  const requests: string[] = [];
+  const sessionAbort = new AbortController();
+  const pending = new Set<Promise<unknown>>();
+  const server = createHttpServer((request, response) => {
+    request.resume();
+    requests.push(`${request.method} ${request.url}`);
+    const isPage = request.url === "/acme/receipts/r1/pages/p1";
+    if (isPage && request.method === "GET") pageGets++;
+    if (isPage && request.method === "GET" && kind === "cancel-page") {
+      sessionAbort.abort(new Error("private page cancellation"));
+      return;
+    }
+    const body = isPage
+      ? {
+          receipt: kind === "wrong-parent" ? `${scope}receipts/wrong` : id,
+          results:
+            kind === "empty-page"
+              ? []
+              : [
+                  {
+                    operationIndex: 0,
+                    outcome: "matched",
+                    count: kind === "changed-page" && pageGets > 1 ? 1 : 0,
+                  },
+                ],
+          next: null,
+        }
+      : root;
+    const text = JSON.stringify(body);
+    response.writeHead(200, {
+      "content-type": "application/json",
+      "content-length": Buffer.byteLength(text),
+      connection: "close",
+    });
+    response.end(request.method === "HEAD" ? undefined : text);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw Error("missing address");
+  const dialRoute = { transport: "plain" as const, host: "127.0.0.1", port: address.port };
+  const mode = {
+    scope,
+    profile: "transactional" as const,
+    routes: [{ method: "POST" as const, url: fixture.bindings.batch as string }],
+    maximumRequestHeaderBytes: 16384,
+    maximumRequestBodyBytes: 65536,
+    defaultCredentialRef: "operator",
+    credentialHandles: [{ id: "operator", headerNames: [] as string[] }],
+    resolveCredentials: () => ({}),
+  };
+  const { resolveCredentials: _resolver, ...configuration } = mode;
+  const captures = [
+    { binding: "root", from: { kind: "json-pointer", pointer: "/id" } },
+    { binding: "page", from: { kind: "json-pointer", pointer: "/next" } },
+  ];
+  if (kind === "page-first") captures.reverse();
+  const read = (name: string, binding: string, method = "GET") => ({
+    id: name,
+    family: "client",
+    operation: "transactional.receipt-read",
+    input: { binding, method },
+    captures: [],
+    assertions: [
+      { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 200 },
+    ],
+  });
+  const row = {
+    ...manifest.scenarios[0],
+    actions: [
+      {
+        id: "source",
+        family: "http",
+        method: "POST",
+        target: { binding: "batch" },
+        raw: { headerLines: [], body: { encoding: "utf8", value: "{}" } },
+        captures,
+        assertions: [{ id: "status", kind: "status", equals: 200 }],
+      },
+      read("root-read", "root"),
+      read("page-head", "page", "HEAD"),
+      read("page-read", "page"),
+      {
+        id: "reopen",
+        family: "client",
+        operation: "transactional.reopen",
+        input: {},
+        captures: [],
+        assertions: [
+          {
+            id: "reopened",
+            kind: "json-pointer",
+            pointer: "/reopened",
+            exists: true,
+            equals: true,
+          },
+        ],
+      },
+      read("page-again", "page"),
+    ],
+  };
+  try {
+    const result = await runCumulativeTransactionalMatrix(
+      {
+        artifactBundle: createCumulativeTransactionalArtifactBundle(
+          loadProfileContractSelection("transactional"),
+          {
+            fixture: { bytes: Buffer.from(JSON.stringify(fixture)) },
+            manifest: { bytes: Buffer.from(JSON.stringify({ ...manifest, scenarios: [row] })) },
+          },
+        ),
+        profile: "transactional",
+        seed: 0,
+        declaredTargetLabel: "private-page-test",
+        scope,
+        harness: {
+          prepare: async () => ({
+            capabilities: fixture.capabilities,
+            bindings: fixture.bindings,
+          }),
+          cleanup: async () => {},
+        },
+        execute: async () => {
+          throw Error("must use raw transport");
+        },
+        schemaValidator: createJsonSchemaValidator(schemaBundle),
+        exactExecution: {
+          configuration,
+          execute: createRawHttpExchangeExecutor(dialRoute, {
+            exactMode: mode,
+            requestTimeoutMs: 5000,
+          }),
+        },
+      },
+      {
+        current: (scenario) => ({
+          binding: {
+            scenario,
+            generation,
+            listenUrl: `http://127.0.0.1:${address.port}/`,
+            runtimeConfigurationIdentity: "a".repeat(64),
+            configurationDigest: "b".repeat(64),
+            responseLimits: { headerBytes: 65536, bodyBytes: 1048576, wireBytes: 2097152 },
+          },
+          dialRoute,
+          signal: sessionAbort.signal,
+          resolveCredentials: () => ({}),
+          register: (p) => {
+            pending.add(p);
+            return p.finally(() => pending.delete(p));
+          },
+        }),
+        reopen: async () => {
+          generation++;
+        },
+      },
+    );
+    const actual = result.scenarios.find((s) => s.id === row.id)!;
+    if (kind === "id-first" || kind === "page-first") {
+      expect(actual, JSON.stringify(actual)).toMatchObject({ state: "pass" });
+      expect(pageGets).toBe(2);
+      const observed = actual.exchanges.find((e) => e.request.id === "page-again")!;
+      expect(observed.sourceReceiptObservation).toMatchObject({
+        pointer: "/next",
+        receipt: id,
+        page,
+        session: { generation: 1 },
+      });
+      expect(observed.servedSession?.generation).toBe(2);
+      expect(observed.dynamicExactConfiguration?.routes).toEqual([{ method: "GET", url: page }]);
+    } else if (kind === "null-next" || kind === "absent-next") {
+      expect(actual).toMatchObject({
+        state: "fail",
+        reason:
+          kind === "null-next"
+            ? "source receipt page unavailable"
+            : "source receipt schema invalid",
+      });
+      expect(actual.exchanges).toHaveLength(1);
+      expect(actual.exchanges[0]?.response?.status).toBe(200);
+      expect(pageGets).toBe(0);
+    } else if (kind === "cancel-page") {
+      expect(sessionAbort.signal.aborted).toBe(true);
+      expect(actual.state).not.toBe("pass");
+      expect(pageGets).toBe(1);
+      expect(actual.exchanges.some((e) => e.request.id === "page-again")).toBe(false);
+      expect(pending.size).toBe(0);
+    } else {
+      expect(actual).toMatchObject({
+        state: "fail",
+        reason:
+          kind === "changed-page"
+            ? "retained receipt page differs from original wire facts"
+            : "retained receipt page schema or identity mismatch",
+      });
+      expect(actual.exchanges.at(-1)?.sourceReceiptObservation?.pointer).toBe("/next");
+    }
+    expect(requests.slice(0, 3)).toEqual(
+      kind === "null-next" || kind === "absent-next"
+        ? ["POST /acme/operations/batch"]
+        : [
+            "POST /acme/operations/batch",
+            "GET /acme/receipts/r1",
+            "HEAD /acme/receipts/r1/pages/p1",
+          ],
+    );
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
 });

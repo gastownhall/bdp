@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
+import { readProtocolSpecification } from "../../conformance/test-support/spec-source.js";
 
 import { BDP_PROBLEM_FAMILY_PREFIX, BDP_V0_SCHEMA_ID, READ_PROBLEM_DEFINITIONS } from "./index.js";
 import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
@@ -25,9 +25,9 @@ import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
  */
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const schema = JSON.parse(
-  readFileSync(path.join(workspaceRoot, "schemas", "bdp-v0.schema.json"), "utf8"),
+  readFileSync(path.join(workspaceRoot, "specs", "profiles", "core", "bdp-v0.schema.json"), "utf8"),
 ) as SchemaRecord;
-const specification = readFileSync(path.join(workspaceRoot, "docs", "specs", "bdp.md"), "utf8");
+const specification = readProtocolSpecification();
 const fixturesDirectory = path.join(workspaceRoot, "fixtures", "transactional");
 
 type SchemaRecord = Record<string, unknown>;
@@ -125,12 +125,27 @@ const digestVectors = fixtureFiles.find(
 ) as DigestVectorsFixture | undefined;
 
 describe("Transactional problem rows", () => {
-  const tableRows = problemTableRows(markdownSection(specification, "Problem details"));
-  const inheritedRowCount = READ_PROBLEM_DEFINITIONS.length + READ_UPDATE_ROW_COUNT;
-
-  it("adds exactly the three drafted rows after the Read and Read+Update rows", () => {
-    expect(tableRows.length).toBe(inheritedRowCount + TRANSACTIONAL_PROBLEM_ROWS.length);
-    expect(tableRows.slice(inheritedRowCount)).toEqual(TRANSACTIONAL_PROBLEM_ROWS);
+  it("keeps inherited rows in their owning tables and exactly three additions in Transactional", () => {
+    const readRows = problemTableRows(markdownSection(specification, "Problem details"));
+    const updateRows = problemTableRows(
+      markdownSection(specification, "Read+Update problem details"),
+    );
+    const transactionRows = problemTableRows(
+      markdownSection(specification, "Transactional problem details"),
+    );
+    expect(readRows).toEqual(
+      READ_PROBLEM_DEFINITIONS.map(({ code, family, status, retry }) => [
+        code,
+        family,
+        status,
+        retry,
+      ]),
+    );
+    expect(updateRows).toHaveLength(READ_UPDATE_ROW_COUNT);
+    expect([...readRows, ...updateRows].map(([code]) => code)).toEqual(
+      def("readUpdateProblemCode").enum,
+    );
+    expect(transactionRows).toEqual(TRANSACTIONAL_PROBLEM_ROWS);
   });
 
   it("mirrors the rows in the bundle's Transactional problem branches", () => {
@@ -262,7 +277,7 @@ describe("Transactional wire fixtures", () => {
       "operations/delete-where",
       "operations/put-alias",
       "operations/sequence",
-      "operations/update-bead-properties",
+      "operations/update-bead",
       "operations/update-where",
       "receipts/",
       "receipts/rcpt-0",
@@ -876,10 +891,10 @@ describe("Transactional discovery and limits", () => {
   it("pins all twelve Operation Directory targets", () => {
     const entries = [
       ["createBead", "create-bead"],
-      ["updateBeadProperties", "update-bead-properties"],
+      ["updateBead", "update-bead"],
       ["deleteBead", "delete-bead"],
       ["createLink", "create-link"],
-      ["updateLinkProperties", "update-link-properties"],
+      ["updateLink", "update-link"],
       ["deleteLink", "delete-link"],
       ["putAlias", "put-alias"],
       ["deleteAlias", "delete-alias"],
@@ -902,10 +917,10 @@ describe("Transactional discovery and limits", () => {
     );
     expect(union).toEqual([
       "#/$defs/createBeadOperation",
-      "#/$defs/updateBeadPropertiesOperation",
+      "#/$defs/updateBeadOperation",
       "#/$defs/deleteBeadOperation",
       "#/$defs/createLinkOperation",
-      "#/$defs/updateLinkPropertiesOperation",
+      "#/$defs/updateLinkOperation",
       "#/$defs/deleteLinkOperation",
       "#/$defs/updateWhereOperation",
       "#/$defs/deleteWhereOperation",
@@ -920,7 +935,7 @@ describe("Transactional discovery and limits", () => {
       expect(record.required, name).toEqual(["operation"]);
     }
     expect(propertiesOf("createBeadOperation").name).toEqual({ $ref: "#/$defs/localName" });
-    expect(propertiesOf("updateBeadPropertiesOperation").name).toBeUndefined();
+    expect(propertiesOf("updateBeadOperation").name).toBeUndefined();
     // The receipt entry's deleted identity is the Read+Update record (X1).
     expect(propertiesOf("receiptResult").deleted).toEqual({ $ref: "#/$defs/deletedIdentity" });
     expect(propertiesOf("receiptResult").erased).toEqual({ $ref: "#/$defs/resourceIdentity" });
@@ -1330,10 +1345,10 @@ describe("shapes the bundle now rejects", () => {
       "a directory without the alias targets",
       {
         createBead: "create-bead",
-        updateBeadProperties: "update-bead-properties",
+        updateBead: "update-bead",
         deleteBead: "delete-bead",
         createLink: "create-link",
-        updateLinkProperties: "update-link-properties",
+        updateLink: "update-link",
         deleteLink: "delete-link",
         sequence: "sequence",
         updateWhere: "update-where",
@@ -1439,10 +1454,10 @@ describe("shapes the bundle now rejects", () => {
 
 const SINGLETON_OPERATIONS: ReadonlyMap<string, string> = new Map([
   ["operations/create-bead", "createBead"],
-  ["operations/update-bead-properties", "updateBeadProperties"],
+  ["operations/update-bead", "updateBead"],
   ["operations/delete-bead", "deleteBead"],
   ["operations/create-link", "createLink"],
-  ["operations/update-link-properties", "updateLinkProperties"],
+  ["operations/update-link", "updateLink"],
   ["operations/delete-link", "deleteLink"],
   ["operations/update-where", "updateWhere"],
   ["operations/delete-where", "deleteWhere"],
@@ -1648,7 +1663,7 @@ function expectEntriesCorrespond(
       const identity = entry.erased as JsonRecord;
       const isBead =
         kind === "createBead" ||
-        kind === "updateBeadProperties" ||
+        kind === "updateBead" ||
         (kind === "updateWhere" && operation.collection === "beads");
       // Kind comes from the originating operation; ownership comes from
       // this fixture domain's declared Type, never from a new wire member.
@@ -1708,7 +1723,7 @@ function expectEntriesCorrespond(
       // Prove the request is a no-op before examining the returned revision.
       expect(kind, entryLabel).toMatch(/^update/);
       expect(operation.expectedRevision, entryLabel).toBe(prior.revision);
-      const patches = operation.change as readonly JsonRecord[];
+      const patches = operation.propertiesChange as readonly JsonRecord[];
       expect(patches.length, entryLabel).toBeGreaterThan(0);
       for (const patch of patches) {
         expect(patch.op, entryLabel).toBe("replace");
@@ -1727,8 +1742,8 @@ function expectEntriesCorrespond(
         expect(resource.revision, `${entryLabel}: no-op needs a before-state oracle`).not.toBe(
           operation.expectedRevision,
         );
-      if (operation.attribution !== undefined)
-        expect(resource.attribution, entryLabel).toEqual(operation.attribution);
+      if (operation.revisionProvenance !== undefined)
+        expect(resource.revisionProvenance, entryLabel).toEqual(operation.revisionProvenance);
     }
     if (resource.type === OWNED_LINK_TYPE) {
       expect(entry.source, entryLabel).toBe(resource.source);
@@ -1789,9 +1804,11 @@ function expectChangeGroup(group: JsonRecord, label: string): void {
           (change.resource as JsonRecord).revision === data.revision,
       )?.resource as JsonRecord | undefined;
       // Groups contain all ordered Events, but only final postimages;
-      // compare attribution only when the exact version is present.
+      // compare revisionProvenance only when the exact version is present.
       if (postimage !== undefined) {
-        expect(data.attribution, `${label}: Event attribution`).toEqual(postimage.attribution);
+        expect(data.revisionProvenance, `${label}: Event revisionProvenance`).toEqual(
+          postimage.revisionProvenance,
+        );
       }
       const owned = data.ownedLink as JsonRecord | undefined;
       if (owned !== undefined && owned.operation !== "deleted") {
@@ -1803,8 +1820,8 @@ function expectChangeGroup(group: JsonRecord, label: string): void {
             (change.resource as JsonRecord).revision === link.revision,
         )?.resource as JsonRecord | undefined;
         if (linkPostimage !== undefined)
-          expect(link.attribution, `${label}: nested Link attribution`).toEqual(
-            linkPostimage.attribution,
+          expect(link.revisionProvenance, `${label}: nested Link revisionProvenance`).toEqual(
+            linkPostimage.revisionProvenance,
           );
       }
     }
@@ -1933,12 +1950,13 @@ function expectSortedMembers(value: unknown, label: string): void {
 function expectProblemRow(problem: JsonRecord, label: string): void {
   const code = problem.code as string;
   const readRow = READ_PROBLEM_DEFINITIONS.find((definition) => definition.code === code);
-  const readUpdateRows = problemTableRows(markdownSection(specification, "Problem details")).slice(
-    READ_PROBLEM_DEFINITIONS.length,
-  );
+  const mutationRows = [
+    ...problemTableRows(markdownSection(specification, "Read+Update problem details")),
+    ...problemTableRows(markdownSection(specification, "Transactional problem details")),
+  ];
   const row =
     readRow === undefined
-      ? readUpdateRows.find(([candidate]) => candidate === code)
+      ? mutationRows.find(([candidate]) => candidate === code)
       : ([readRow.code, readRow.family, readRow.status, readRow.retry] as const);
   if (row === undefined) throw new Error(`${label}: unknown problem code ${code}`);
   expect(problem.type, label).toBe(`${BDP_PROBLEM_FAMILY_PREFIX}${row[1]}`);
@@ -2037,7 +2055,7 @@ describe("Transactional correction regression probes", () => {
     },
   );
 
-  it("rejects a no-op response that mints a revision or replaces prior attribution", () => {
+  it("rejects a no-op response that mints a revision or replaces prior revisionProvenance", () => {
     const fixture = fixtures.find((candidate) =>
       candidate.exchanges.some(
         (exchange) => exchange.id === "no-op-preserves-existing-attribution",
@@ -2053,8 +2071,8 @@ describe("Transactional correction regression probes", () => {
     ).not.toThrow();
     for (const mutation of [
       { revision: "noop-r2" },
-      { attribution: operations[0]?.attribution },
-      { revision: "noop-r2", attribution: operations[0]?.attribution },
+      { revisionProvenance: operations[0]?.revisionProvenance },
+      { revision: "noop-r2", revisionProvenance: operations[0]?.revisionProvenance },
     ]) {
       const corrupt = structuredClone(entries) as JsonRecord[];
       corrupt[0] = {
@@ -2067,27 +2085,27 @@ describe("Transactional correction regression probes", () => {
     }
   });
 
-  it("rejects omitted attribution in either successor Event and its nested Link delta", () => {
+  it("rejects omitted revisionProvenance in either successor Event and its nested Link delta", () => {
     const example = fixtures
       .flatMap((fixture) => fixture.groupExamples ?? [])
       .find((candidate) => candidate.id === "isolated-live-owned-link-erasure");
     expect(example).toBeDefined();
     const group = example?.body as JsonRecord;
     expect(() => expectChangeGroup(group, "valid erasure successor")).not.toThrow();
-    // Equality is required only when attribution was recorded. Omitting it
+    // Equality is required only when revisionProvenance was recorded. Omitting it
     // consistently is valid too; this probe imposes no administrative policy.
     const unattributed = JSON.parse(JSON.stringify(group), (key, value: unknown) =>
-      key === "attribution" ? undefined : value,
+      key === "revisionProvenance" ? undefined : value,
     ) as JsonRecord;
-    expect(() => expectChangeGroup(unattributed, "no attribution recorded")).not.toThrow();
+    expect(() => expectChangeGroup(unattributed, "no revisionProvenance recorded")).not.toThrow();
     for (const target of ["link", "source", "nested"]) {
       const corrupt = structuredClone(group);
       const events = corrupt.events as JsonRecord[];
       const data = events[target === "link" ? 0 : 1]?.data as JsonRecord;
       if (target === "nested")
-        delete ((data.ownedLink as JsonRecord).link as JsonRecord).attribution;
-      else delete data.attribution;
-      expect(() => expectChangeGroup(corrupt, `missing ${target} attribution`)).toThrow();
+        delete ((data.ownedLink as JsonRecord).link as JsonRecord).revisionProvenance;
+      else delete data.revisionProvenance;
+      expect(() => expectChangeGroup(corrupt, `missing ${target} revisionProvenance`)).toThrow();
     }
   });
 
@@ -2115,7 +2133,7 @@ describe("Transactional correction regression probes", () => {
     expect(() => expectReceiptPagination(pageOverflow, 3)).toThrow();
   });
 
-  it("compares attribution only for the Event's exact version, including nested Link versions", () => {
+  it("compares revisionProvenance only for the Event's exact version, including nested Link versions", () => {
     const example = fixtures
       .flatMap((fixture) => fixture.groupExamples ?? [])
       .find((candidate) => candidate.id === "isolated-live-owned-link-erasure");
@@ -2127,17 +2145,17 @@ describe("Transactional correction regression probes", () => {
       event.id = `${event.id}-earlier`;
       data.previousRevision = `${data.previousRevision}-before`;
       data.revision = `${data.revision}-intermediate`;
-      data.attribution = { principal: "human:earlier-author", status: "claimed" };
+      data.revisionProvenance = { actor: { id: "human:earlier-author", basis: "writer-supplied" } };
       const owned = data.ownedLink as JsonRecord | undefined;
       if (owned !== undefined) {
         const link = owned.link as JsonRecord;
         link.previousRevision = `${link.previousRevision}-before`;
         link.revision = `${link.revision}-intermediate`;
-        link.attribution = data.attribution;
+        link.revisionProvenance = data.revisionProvenance;
       }
     }
     // Only the final postimages appear in changes; ordered earlier facts
-    // retain their own version's attribution and must not be compared to them.
+    // retain their own version's revisionProvenance and must not be compared to them.
     for (const [index, event] of finalEvents.entries()) {
       const data = event.data as JsonRecord;
       const earlier = (earlierEvents[index] as JsonRecord).data as JsonRecord;
@@ -2153,7 +2171,7 @@ describe("Transactional correction regression probes", () => {
       ordinal,
     }));
     group.eventCount = 4;
-    expect(() => expectChangeGroup(group, "intermediate attribution")).not.toThrow();
+    expect(() => expectChangeGroup(group, "intermediate revisionProvenance")).not.toThrow();
   });
 
   it("rejects missing or duplicate singleton outcomes across the complete receipt page chain", () => {

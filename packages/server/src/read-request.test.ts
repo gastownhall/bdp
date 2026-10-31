@@ -38,6 +38,7 @@ const bead: BeadRecord = {
   type: `${scope}types/task`,
   revision: "r1",
   properties: { title: "A" },
+  metadata: {},
 };
 const link: LinkRecord = {
   id: `${scope}links/l`,
@@ -46,6 +47,7 @@ const link: LinkRecord = {
   source: bead.id,
   target: "urn:example:outside",
   properties: {},
+  metadata: {},
 };
 
 // Independent complete inventory of the existing wire operations, not derived

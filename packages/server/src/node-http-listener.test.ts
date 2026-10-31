@@ -238,7 +238,7 @@ describe("Node HTTP listener", () => {
       const get = await rawRequest(base, "GET", "/local-test/beads/a");
       const head = await rawRequest(base, "HEAD", "/local-test/beads/a");
       expect(get.status).toBe(200);
-      expect(JSON.parse(get.body)).toEqual(record);
+      expect(JSON.parse(get.body)).toEqual({ ...(record as typeof bead), metadata: {} });
       expect(head.status).toBe(200);
       expect(head.body).toBe("");
       expect(get.etag).toBeDefined();

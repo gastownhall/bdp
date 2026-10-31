@@ -4,7 +4,7 @@ Prepared 2026-09-08 on main baseline `0b7d86e7cfec47f88cd1ec22314a73f39763bcf8`.
 This is a bounded implementation correction, pending council review and
 integration. It grants no new profile capability or conformance claim.
 
-[Reads after deletion](../specs/bdp.md#reads-after-deletion) already prohibits
+[Reads after deletion](../../specs/profiles/core/core.md#reads-after-deletion) already prohibits
 condition-specific pointers on `resource-erased`. The inherited `readProblem`
 schema rejects `archivedAt` but previously admitted `pointer` through its open
 RFC 9457 extension surface. The existing `read.disclosure.gone` executable

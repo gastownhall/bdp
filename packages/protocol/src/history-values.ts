@@ -1,6 +1,6 @@
 import { ProtocolArtifactValidationError } from "./protocol-errors.js";
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
-import type { Attribution, BeadRecord, LinkRecord } from "./index.js";
+import type { RevisionActor, BeadRecord, LinkRecord } from "./index.js";
 import {
   parseBeadRecord,
   parseCanonicalHttpUrl,
@@ -14,7 +14,7 @@ import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
 /** Owning History parser roots. Evidence integration is separate from parser support. */
 export const HISTORY_VALUE_SCHEMA_REFS = Object.freeze({
   capability: "#/$defs/historyCapability",
-  context: "#/$defs/changeContext",
+  context: "#/$defs/revisionProvenance",
   missing: "#/$defs/historyMissing",
   versions: "#/$defs/historyVersionsPage",
   bead: "#/$defs/historicalBeadRecord",
@@ -23,7 +23,7 @@ export const HISTORY_VALUE_SCHEMA_REFS = Object.freeze({
 
 /** Write-only roots; they are not Read parser/evidence roots. */
 export const HISTORY_WRITE_VALUE_SCHEMA_REFS = Object.freeze({
-  contextInput: "#/$defs/changeContextInput",
+  contextInput: "#/$defs/revisionProvenanceInput",
   allocation: "#/$defs/revisionAllocationUnsafeProblem",
 } as const);
 const HISTORY_SCHEMA_REFS = {
@@ -47,15 +47,24 @@ export interface HistoryCapability {
 export type ContextValue<T> =
   | { readonly state: "present"; readonly value: T }
   | { readonly state: "absent" | "undetermined" };
-export interface ChangeContext {
-  readonly committedAt:
-    | { readonly state: "present"; readonly value: string }
-    | { readonly state: "undetermined" };
-  readonly agent: ContextValue<string>;
-  readonly message: ContextValue<string>;
-}
+export type RevisionProvenance =
+  | {
+      readonly actor?: RevisionActor;
+      readonly committedAt:
+        | { readonly state: "present"; readonly value: string }
+        | { readonly state: "undetermined" };
+      readonly agent: ContextValue<string>;
+      readonly message: ContextValue<string>;
+    }
+  | {
+      readonly actor: RevisionActor;
+      readonly committedAt?: never;
+      readonly agent?: never;
+      readonly message?: never;
+    };
 /** Omission is undetermined; explicit null records known absence. No caller timestamp. */
-export interface ChangeContextInput {
+export interface RevisionProvenanceInput {
+  readonly actor?: RevisionActor;
   readonly agent?: string | null;
   readonly message?: string | null;
 }
@@ -69,8 +78,7 @@ export interface HistoryMissing {
 }
 export interface HistoryVersionRow {
   readonly revision: string;
-  readonly attribution?: Attribution;
-  readonly changeContext?: ChangeContext;
+  readonly revisionProvenance?: RevisionProvenance;
   readonly lineage: "current" | "replaced";
   readonly body: "complete" | "incomplete";
 }
@@ -117,16 +125,16 @@ function ajvError(validate: ValidateFunction): string {
 export function parseHistoryCapability(value: unknown): HistoryCapability {
   return parseShape(value, "capability") as unknown as HistoryCapability;
 }
-export function parseChangeContext(value: unknown): ChangeContext {
-  return parseShape(value, "context") as unknown as ChangeContext;
+export function parseRevisionProvenance(value: unknown): RevisionProvenance {
+  return parseShape(value, "context") as unknown as RevisionProvenance;
 }
 export function parseRevisionAllocationUnsafeProblem(
   value: unknown,
 ): RevisionAllocationUnsafeProblem {
   return parseShape(value, "allocation") as unknown as RevisionAllocationUnsafeProblem;
 }
-export function parseChangeContextInput(value: unknown): ChangeContextInput {
-  return parseShape(value, "contextInput") as unknown as ChangeContextInput;
+export function parseRevisionProvenanceInput(value: unknown): RevisionProvenanceInput {
+  return parseShape(value, "contextInput") as unknown as RevisionProvenanceInput;
 }
 export function parseHistoryMissing(value: unknown): HistoryMissing {
   return parseShape(value, "missing") as unknown as HistoryMissing;

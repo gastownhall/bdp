@@ -1,0 +1,31 @@
+{
+  "status": "static-checks-passed-not-executed-selections",
+  "cases": 30,
+  "counts": {
+    "accept": 13,
+    "schema-refusal": 4,
+    "static-refusal": 13
+  },
+  "standaloneBatchInputRefusalChecked": true,
+  "markdownJsonBlocksParsed": 3,
+  "shellCommandsLexicallyCheckedNotExecuted": 4,
+  "notRun": [
+    "CLI parser",
+    "Batch execution",
+    "Query execution",
+    "staged visibility",
+    "provider admission",
+    "backend lowering",
+    "concurrency",
+    "publication",
+    "recovery"
+  ],
+  "sha256": {
+    "query.schema.json": "bf5fbf0b89f74273122c28b944907dd3e0fdb057d9266fdee4de9c0dfcbaeaa8",
+    "batch-selection.schema.json": "aa68ffa2fc0586e17fc788a72416084426df50fe07f24241fe0b39ea151269c8",
+    "batch-selection-cases.json": "04a37387f80aa89aa554505be0c4b24bfc4acdd15f1be18adb6f270bf96ab7e5",
+    "validate.py": "0ebc2963fbc59a6490dd04a2688f7f2e8df22cd9d2ec206c830f2f42c1527048",
+    "validate-batch-selection.py": "5ddc8f78ac11c4d312b7d3d1043271d4cb2102566b1c41f94139aa05efa48de8",
+    "transaction-selection-inputs.md": "ef9783241391a8f2e2f3b9bf38858ee1bad0e1055f58eebb03834dd92bbb2c87"
+  }
+}

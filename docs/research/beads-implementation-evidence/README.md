@@ -33,7 +33,7 @@ conformance target. Pending PRs are not treated here as merged draft text.
 | Tuple uniqueness, acyclicity and additional aggregate policies | The specification [defers these beyond v0][deferred], rather than making them optional implicit behavior. Its maximum-endpoint-multiplicity policy does not select those additional promises. |
 | Offline multi-writer merge / per-constraint merge semantics | The draft defines one logical mutation authority at a time and snapshot/changefeed consumption, not independently writable replicas or multi-authority merge. The papers’ offline-merge premise is outside that model. [Scope history][history]. |
 
-The [repository specification](../../specs/bdp.md) remains the owning protocol document.
+The [repository specification](../../../specs/profiles/core/core.md) remains the owning protocol document.
 This archive adds no normative rule, runtime support or conformance evidence.
 
 [pr595]: https://github.com/donnabox/formula-language/pull/595

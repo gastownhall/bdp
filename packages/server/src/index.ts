@@ -1,5 +1,4 @@
 import {
-  requestFromUrl,
   notFound,
   invalidParameter,
   isPageOperation,
@@ -8,7 +7,6 @@ import {
   continuationDetails,
   inCanonicalUriOrder,
   resolveReadRequestVariant,
-  classifyAliasPath,
   ScopeServerLocalError,
   ScopeServerClosedError,
   ScopeServerOperationAbortedError,
@@ -22,6 +20,7 @@ export {
   ScopeServerOperationAbortedError,
   type ScopeServerLocalErrorCode,
 } from "./read-request.js";
+import { createNodeHttpDisconnectSignal } from "./node-http-disconnect.js";
 import { randomBytes } from "node:crypto";
 import {
   createServer as createNodeServer,
@@ -65,6 +64,8 @@ import {
   type ReadPaginationOptions,
 } from "./read-pagination.js";
 import { applyReadHttpSemantics } from "./read-http.js";
+import { createReadHttpRoute, jsonResponse, scopeDataResponse } from "./read-http-routing.js";
+import { normalizationSafeRawRequestPath } from "./node-http-target.js";
 import {
   ReadSelectorError,
   type ReadSelectorLimits,
@@ -233,18 +234,6 @@ interface NodeHttpRequestOptions {
   readonly method?: string;
   readonly signal?: AbortSignal;
   readonly headers?: Headers;
-}
-
-const RAW_AUTHORITY_REG_NAME = /^(?:[A-Za-z0-9._~!$&'()*+,;=-]|%[0-9A-Fa-f]{2})+$/;
-const RAW_AUTHORITY_IP_LITERAL = /^(?:[A-Za-z0-9._~!$&'()*+,;=:-]|%[0-9A-Fa-f]{2})+$/;
-
-interface NodeHttpDisconnectSource {
-  once(event: "aborted", listener: () => void): unknown;
-}
-
-interface NodeHttpResponseCloseSource {
-  readonly writableFinished: boolean;
-  once(event: "close", listener: () => void): unknown;
 }
 
 export interface ReadServer {
@@ -441,69 +430,6 @@ function nodeRequestHeaders(rawHeaders: readonly string[]): Headers {
     if (name !== undefined && value !== undefined) headers.append(name, value);
   }
   return headers;
-}
-
-function normalizationSafeRawRequestPath(target: string): string | undefined {
-  if (target.includes("#")) return undefined;
-  const queryIndex = target.indexOf("?");
-  const withoutQuery = queryIndex === -1 ? target : target.slice(0, queryIndex);
-  const search = queryIndex === -1 ? "" : target.slice(queryIndex);
-  const schemeAuthority = /^https?:\/\//i.exec(withoutQuery);
-  if (!withoutQuery.startsWith("/") && schemeAuthority === null) return undefined;
-  const authorityStart =
-    schemeAuthority !== null
-      ? schemeAuthority[0].length
-      : withoutQuery.startsWith("//")
-        ? 2
-        : undefined;
-  const pathStart =
-    authorityStart === undefined ? 0 : Math.max(withoutQuery.indexOf("/", authorityStart), 0);
-  if (authorityStart !== undefined) {
-    const authorityEnd = pathStart === 0 ? withoutQuery.length : pathStart;
-    const authority = withoutQuery.slice(authorityStart, authorityEnd);
-    if (!isNormalizationSafeRawAuthority(authority)) return undefined;
-  }
-  const pathname =
-    pathStart === 0 && authorityStart !== undefined ? "/" : withoutQuery.slice(pathStart);
-  if (target.includes("\\") || /%5c/i.test(pathname)) return undefined;
-  if (!pathname.split("/").every((segment) => ![".", ".."].includes(segment.replace(/%2e/gi, "."))))
-    return undefined;
-  try {
-    const parsed = new URL(target, "http://request.invalid");
-    const pathAndQuery = `${pathname}${search}`;
-    return `${parsed.pathname}${parsed.search}` === pathAndQuery ? pathAndQuery : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function isNormalizationSafeRawAuthority(authority: string): boolean {
-  if (authority.length === 0 || authority.includes("@")) return false;
-  if (authority.startsWith("[")) {
-    const closingBracket = authority.indexOf("]");
-    if (closingBracket === -1) return false;
-    const literal = authority.slice(1, closingBracket);
-    const port = authority.slice(closingBracket + 1);
-    return RAW_AUTHORITY_IP_LITERAL.test(literal) && (port === "" || /^:[0-9]+$/.test(port));
-  }
-  const portSeparator = authority.lastIndexOf(":");
-  const host = portSeparator === -1 ? authority : authority.slice(0, portSeparator);
-  const port = portSeparator === -1 ? undefined : authority.slice(portSeparator + 1);
-  return RAW_AUTHORITY_REG_NAME.test(host) && (port === undefined || /^[0-9]+$/.test(port));
-}
-
-/** Propagates either Node-side disconnect signal into one Web AbortSignal. */
-function createNodeHttpDisconnectSignal(
-  incoming: NodeHttpDisconnectSource,
-  outgoing: NodeHttpResponseCloseSource,
-): AbortSignal {
-  const controller = new AbortController();
-  const abort = (): void => controller.abort(new Error("client disconnected"));
-  incoming.once("aborted", abort);
-  outgoing.once("close", () => {
-    if (!outgoing.writableFinished) abort();
-  });
-  return controller.signal;
 }
 
 /**
@@ -749,59 +675,31 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
   if (!verifiedReadServers.has(server)) {
     throw new TypeError("createHttpHandler requires a server created by createReadServer");
   }
-  const route: HttpHandler = async (request) => {
-    try {
-      if (request.method !== "GET" && request.method !== "HEAD") {
-        return {
-          status: 405,
-          headers: new Headers({ allow: "GET, HEAD", "content-length": "0" }),
-        };
-      }
-      const url = new URL(request.url);
-      const scopeUrl = new URL(server.scope);
-      if (url.origin !== scopeUrl.origin) return problemResponse(notFound());
-      const probe = await server.probe({ signal: request.signal, httpRequest: request });
-      const aliasPath = classifyAliasPath(url, server.scope);
-      if (aliasPath !== undefined) {
-        // Alias resolution runs inside the same authorization projection as
-        // any read at this Scope, and strictly in this order: classify the
-        // URL (no table access), apply the identity gate, and only then
-        // consult the table — so neither the response nor its timing can
-        // disclose alias existence to a caller the projection refuses.
-        // Alias routing also precedes every representation-bearing route:
-        // nothing is ever served at an alias URL.
-        const gate = await server.perform(
-          { kind: "scope-discovery", scope: server.scope },
-          { signal: request.signal, httpRequest: request },
-        );
-        if (isReadServerProblem(gate)) return problemResponse(gate);
-        if (isReadProblem(aliasPath)) return problemResponse(aliasPath);
-        const aliasTarget = server.aliases?.get(aliasPath) ?? notFound();
-        if (isReadProblem(aliasTarget)) return problemResponse(aliasTarget);
-        return {
-          status: 307,
-          headers: new Headers({ location: aliasTarget, "content-length": "0" }),
-        };
-      }
-      if (url.pathname === scopeUrl.pathname) {
-        return {
-          status: 204,
-          headers: new Headers({
-            link: `<${probe.serviceDescription}>; rel="service-desc"; type="application/json"`,
-          }),
-        };
-      }
-      if (url.href === probe.serviceDescription) {
-        const discovery = await server.perform(
-          { kind: "scope-discovery", scope: server.scope },
-          { signal: request.signal, httpRequest: request },
-        );
-        return isReadServerProblem(discovery)
-          ? problemResponse(discovery)
-          : jsonResponse(discovery);
-      }
-      const parsed = requestFromUrl(url, server.scope);
-      if (isReadProblem(parsed)) return problemResponse(parsed);
+  const route = createReadHttpRoute({
+    scope: server.scope,
+    probe: (request) => server.probe({ signal: request.signal, httpRequest: request }),
+    problem: problemResponse,
+    async discover(request) {
+      const result = await server.perform(
+        { kind: "scope-discovery", scope: server.scope },
+        { signal: request.signal, httpRequest: request },
+      );
+      return isReadServerProblem(result) ? problemResponse(result) : jsonResponse(result);
+    },
+    async alias(aliasPath, request) {
+      // Gate before consulting the static table, even for invalid alias paths.
+      const gate = await server.perform(
+        { kind: "scope-discovery", scope: server.scope },
+        { signal: request.signal, httpRequest: request },
+      );
+      if (isReadServerProblem(gate)) return problemResponse(gate);
+      if (isReadProblem(aliasPath)) return problemResponse(aliasPath);
+      const target = server.aliases?.get(aliasPath) ?? notFound();
+      return isReadProblem(target)
+        ? problemResponse(target)
+        : { status: 307, headers: new Headers({ location: target, "content-length": "0" }) };
+    },
+    async perform(parsed, request) {
       const result = await server.perform(parsed, {
         signal: request.signal,
         httpRequest: request,
@@ -809,85 +707,22 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
       return isReadServerProblem(result)
         ? problemResponse(result)
         : scopeDataResponse(parsed, result);
+    },
+  });
+  return async (request) => {
+    let response: HttpResponse;
+    try {
+      response = await route(request);
     } catch (error) {
       if (error instanceof ScopeServerLocalError) {
         if (error.code === "operation-aborted") {
           throw error;
         }
-        return problemResponse(readProblem("temporarily-unavailable", error.message));
-      }
-      throw error;
+        response = problemResponse(readProblem("temporarily-unavailable", error.message));
+      } else throw error;
     }
+    return applyReadHttpSemantics(request, response);
   };
-  return async (request) => applyReadHttpSemantics(request, await route(request));
-}
-
-function jsonResponse(body: unknown): HttpResponse {
-  return {
-    status: 200,
-    headers: new Headers({
-      "content-type": "application/json",
-      "cache-control": "private, no-store",
-    }),
-    body,
-  };
-}
-
-function scopeDataResponse(operation: ReadRequest, body: unknown): HttpResponse {
-  const response = jsonResponse(body);
-  if (
-    operation.kind === "resource" &&
-    operation.resource !== "type" &&
-    typeof body === "object" &&
-    body !== null &&
-    "revision" in body &&
-    typeof body.revision === "string"
-  ) {
-    response.headers.set("etag", resourceRevisionEtag(body.revision));
-  }
-  return response;
-}
-
-function resourceRevisionEtag(revision: string): string {
-  // RFC 9110 entity tags are quoted opaque byte sequences, not HTTP quoted-
-  // strings: a quote or control byte cannot be escaped inside the tag. BDP's
-  // ordinary ASCII revisions are emitted unchanged as shown in the spec. For
-  // revisions outside the entity-tag character profile, use an unambiguous
-  // base64url projection whose marker cannot collide with an unchanged tag.
-  const bytes = Buffer.from(revision, "utf8");
-  const unchanged =
-    bytes.length === revision.length &&
-    bytes.every((byte) => byte === 0x21 || (byte >= 0x23 && byte <= 0x7e));
-  let opaque: string;
-  if (unchanged && !revision.startsWith("bdp-b64_") && !revision.startsWith("bdp-u16_")) {
-    opaque = revision;
-  } else if (isWellFormedUnicode(revision)) {
-    opaque = `bdp-b64_${bytes.toString("base64url")}`;
-  } else {
-    // JavaScript can represent lone UTF-16 surrogates, for which UTF-8's
-    // replacement encoding is not injective. Preserve those otherwise-valid
-    // JSON strings with a separate code-unit projection.
-    const codeUnits = Buffer.allocUnsafe(revision.length * 2);
-    for (let index = 0; index < revision.length; index += 1) {
-      codeUnits.writeUInt16BE(revision.charCodeAt(index), index * 2);
-    }
-    opaque = `bdp-u16_${codeUnits.toString("base64url")}`;
-  }
-  return `"${opaque}"`;
-}
-
-function isWellFormedUnicode(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code >= 0xd800 && code <= 0xdbff) {
-      const following = value.charCodeAt(index + 1);
-      if (index + 1 >= value.length || following < 0xdc00 || following > 0xdfff) return false;
-      index += 1;
-    } else if (code >= 0xdc00 && code <= 0xdfff) {
-      return false;
-    }
-  }
-  return true;
 }
 
 function problemResponse(problem: ReadProblem): HttpResponse {

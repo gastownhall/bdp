@@ -1,3 +1,4 @@
+import { TRANSACTIONAL_EXCHANGE_FIELDS } from "./transactional-observation.js";
 import type { ConformanceRunResult } from "./runner.js";
 
 /** Byte-stable JSON for machine comparison; no time or duration fields are introduced. */
@@ -12,6 +13,7 @@ export function serializeConformanceReport(report: ConformanceRunResult): string
           (exchange) =>
             Object.hasOwn(exchange.request, "exact") ||
             Object.hasOwn(exchange, "harnessError") ||
+            TRANSACTIONAL_EXCHANGE_FIELDS.some((key) => Object.hasOwn(exchange, key)) ||
             (exchange.transportError !== undefined &&
               Object.hasOwn(exchange.transportError, "writeState")),
         ),

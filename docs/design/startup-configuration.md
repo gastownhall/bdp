@@ -41,7 +41,7 @@ remains closed until that complete behavior has executable evidence.
 `ProtocolProfile` — the wire vocabulary `read`, `read-update`, `transactional`
 — lives in `@bdp/protocol`, not `@bdp/config`. Config imports the type and its
 validator so no consumer invents its own spelling. See **Scope discovery and
-human documentation** in `docs/specs/bdp.md` for the normative source of these
+human documentation** in [Core](../../specs/profiles/core/core.md#scope-discovery-and-human-documentation) for the normative source of these
 three tokens; the
 human label `read+update` is not a wire token and is refused.
 
@@ -153,7 +153,7 @@ the server module's responsibility to reject.
 
 The three enumerated profile values — `read`, `read-update`, `transactional`
 — are the exact wire tokens defined under **Scope discovery and human
-documentation** in the normative draft (`docs/specs/bdp.md`). They are the only strings accepted for either
+documentation** in the normative draft ([Core](../../specs/profiles/core/core.md#scope-discovery-and-human-documentation)). They are the only strings accepted for either
 `server.advertisedProfile` or `conformance.profile`. The human label
 `read+update` is not a wire token and is refused; the type union and the
 runtime validator both live in `@bdp/protocol`, so no consumer invents its own

@@ -1,0 +1,25 @@
+{
+  "capabilityVersion": "2",
+  "operations": [
+    {
+      "operation": "createBead",
+      "id": "csv-review-attempt",
+      "type": "https://work.example/acme/note",
+      "properties": {
+        "title": "Another CSV review"
+      }
+    },
+    {
+      "operation": "updateBead",
+      "bead": "https://work.example/acme/csv-draft",
+      "metadataChange": [
+        {
+          "op": "add",
+          "path": "/validation",
+          "value": "pending"
+        }
+      ],
+      "expectedRevision": "guide-h"
+    }
+  ]
+}

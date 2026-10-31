@@ -9,8 +9,28 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#scope-discovery-and-human-documentation",
+          "anchor": "#discovery-profile-membership",
           "selectedText": "The history, receipt, snapshot, changefeed, and Event members are required only in Transactional and prohibited in both lower profiles."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#discovery-profile-membership",
+          "selectedText": "| `operations` | prohibited | required | required |"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#discovery-profile-membership",
+          "selectedText": "| `aliases` | optional | required | required |"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "The optional `limits`, `maximumEndpointMultiplicity`, `order`, and `historicalResolution` members apply under their contracts."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "An omitted `order` means `canonical-uri`."
         }
       ],
       "retires": ["read-update.discovery.document"]
@@ -37,12 +57,12 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#advertised-limits",
+          "anchor": "#transactional-limits",
           "selectedText": "`retention.idempotency`, `retention.receipt`, `retention.maximumSnapshotLifetime`, and `retention.replay` are ISO 8601 durations."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#advertised-limits",
+          "anchor": "#transactional-limits",
           "selectedText": "`retention.receipt` bounds how long detailed outcomes and failed receipts remain"
         }
       ],
@@ -56,7 +76,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#advertised-limits",
+          "anchor": "#transactional-limits",
           "selectedText": "a Transactional discovery document MUST NOT advertise it"
         }
       ],
@@ -248,8 +268,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
-          "selectedText": "The authority applies the operation only if the Resource still has that revision. A mismatch fails the complete Mutation Transaction."
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "The authority applies the operation only if the Resource still has that revision. A mismatch fails the individual operation without changing state."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-revision-visibility",
+          "selectedText": "In an atomic batch, a revision mismatch fails the complete Mutation Transaction."
         }
       ]
     },
@@ -261,7 +286,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#scope-aggregate-constraints",
+          "anchor": "#aggregate-constraint-enforcement",
           "selectedText": "Authorities MUST produce serializable outcomes when concurrent mutations could cross a maximum."
         }
       ]
@@ -315,7 +340,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#transactional-problem-details",
           "selectedText": "`cardinality-violated`: a set operation's matched count is outside its `cardinality`"
         }
       ]
@@ -342,7 +367,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#set-mutation",
-          "selectedText": "An `attribution` supplied to a set mutation fans out exactly as the corresponding singleton operations would record it"
+          "selectedText": "A `revisionProvenance` supplied to a set mutation fans out exactly as the corresponding singleton operations would record it"
         }
       ]
     },
@@ -354,7 +379,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#operation-directory-and-singleton-targets",
+          "anchor": "#transactional-operation-directory-and-singletons",
           "selectedText": "The request executes as a one-operation Mutation Transaction."
         },
         {
@@ -373,8 +398,8 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#operation-directory-and-singleton-targets",
-          "selectedText": "Within the Transactional profile, the singleton and batch forms have identical allocation, patch, validation, authorization, idempotency, concurrency, event, and deletion semantics."
+          "anchor": "#transactional-operation-directory-and-singletons",
+          "selectedText": "Within the inherited v0 Transactional profile, the singleton and batch forms have identical allocation, patch, validation, authorization, idempotency, concurrency, event, and deletion semantics."
         }
       ]
     },
@@ -564,7 +589,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-receipt-responses",
-          "selectedText": "An entry for an operation on an owned Link additionally carries `source`, the source Bead's canonical URL, and `sourceRevision`, the source Bead's resulting revision, on creation, update, and deletion alike"
+          "selectedText": "An entry for a Link operation carries `source` and `sourceRevision` under the common [Mutation results](#mutation-results) rule: effective ownership immediately before OR after, including a Link leaving ownership. The fields report that operation's actual source revision; an owned-Link no-op reports the unchanged current source revision."
         }
       ]
     },
@@ -620,7 +645,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#transactional-problem-details",
           "selectedText": "A `failed` receipt never carries `temporarily-unavailable`"
         }
       ]
@@ -715,7 +740,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
-          "selectedText": "A one-operation batch, the equivalent singleton request, and the equivalent sequence member therefore present one semantic request, and any of them retrieves the receipt the others created."
+          "selectedText": "In this inherited v0 Transactional contract, a one-operation batch, the equivalent singleton request, and the equivalent sequence member therefore present one semantic request, and any of them retrieves the receipt the others created."
         }
       ],
       "retires": ["read-update.singleton.idempotent-retry"]
@@ -957,7 +982,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#events-and-event-sources",
-          "selectedText": "Exactly one of the two members is present in any `updated` delta."
+          "selectedText": "its delta carries `ownedLink` in place of `change` and `metadataChange`"
         }
       ]
     },
@@ -970,7 +995,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#events-and-event-sources",
-          "selectedText": "For `updated`, it is the owned Link's delta — the Link's `id` and `type`, its `previousRevision` and fresh `revision`, the committed `change`, and the Link's new version's `attribution` when one was recorded"
+          "selectedText": "For `updated`, it is the owned Link's delta — the Link's `id` and `type`, its `previousRevision` and fresh `revision`, the committed `change` and/or `metadataChange`, and the Link's new version's `revisionProvenance` when one was recorded"
         }
       ]
     },
@@ -1060,7 +1085,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#reads-after-deletion",
+          "anchor": "#events-after-resource-deletion",
           "selectedText": "an authority may return `410` `event-history-expired` only to a principal authorized for that subject's retained history and only when its policy permits disclosing that the history elapsed."
         }
       ]
@@ -1151,7 +1176,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#http-consistency-caching-and-cors-fields",
+          "anchor": "#transactional-http-consistency",
           "selectedText": "It never reports success with an older position."
         }
       ]
@@ -1164,7 +1189,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#transactional-problem-details",
           "selectedText": "`catch-up-timeout`: a read carrying `BDP-Minimum-Scope-Position` could not be served at or after that position within the authority's wait bound"
         }
       ]
@@ -1191,7 +1216,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-changefeed",
-          "selectedText": "On automatic reconnect, `Last-Event-ID` overrides the original `after` value."
+          "selectedText": "On automatic reconnect, `Last-Event-ID` overrides the original `after` value or `start=now` intent; replay begins exclusively after that checkpoint."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1356,7 +1381,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#version-erasure",
-          "selectedText": "For the owning Bead's successor induced by an owned Link's correction or deletion, its `updated` fact instead carries only `ownedLink`, never both delta forms."
+          "selectedText": "For the owning Bead's successor induced by an owned Link's correction or deletion, its `updated` fact instead carries only `ownedLink`, never a direct object delta."
         }
       ]
     },
@@ -1560,13 +1585,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
-          "selectedText": "The code table for later-profile failures is completed with each later profile's schema bundle and conformance material."
+          "anchor": "#transactional-problem-details",
+          "selectedText": "The Transactional profile inherits the Read table and the Read+Update rows above and adds three rows:"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
-          "selectedText": "The Transactional profile inherits the Read table and the Read+Update rows above and adds three rows:"
+          "anchor": "#profile-schema-inventory",
+          "selectedText": "They include every profile's discovery and operation directory, request/result/problem shapes, and the Transactional Events, batch/set operations, receipts, change groups, changefeed pages and snapshot manifests."
         }
       ]
     },
@@ -1578,7 +1603,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#transactional-problem-details",
           "selectedText": "On a Transactional Scope every code occurs in one of two contexts, and the bundle closes each context to its codes."
         }
       ]
@@ -1630,8 +1655,8 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#bdp-json-and-http-protocol",
-          "selectedText": "These string and object violations are carrier syntax rejected before\nexecution with `malformed-request` in every profile."
+          "anchor": "#json-mutation-admission",
+          "selectedText": "String and object violations are carrier syntax rejected before execution with `malformed-request`."
         }
       ]
     },
@@ -1657,7 +1682,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-history",
-          "selectedText": "**Retained-address amendment, 2026-09-09.** Each Scope history has an opaque,\nunguessable **Scope epoch**. The epoch remains stable across ordinary restart\nand failover that preserve identical committed history. It changes whenever\nrestore, destructive reinitialization, or authority replacement may discard,\nrewrite, or replace history. The epoch is not part of canonical Scope or\nResource identity. Retained Resource-version addresses follow [Revisions](#revisions).\nEvery other history-dependent token remains fenced by that epoch, including\nScope positions, transaction identifiers, snapshots and handles, read and Event\ncursors, changefeed checkpoints, minimum-read barriers, receipts, and the\nidempotency-key namespace and its bound dispositions. Individual token contracts\nstill apply. Cached representations retain their epoch and Authorization View\nbindings under Authorization views. An epoch change in the same logical Scope\npreserves canonical Scope and Resource URLs. Prior-epoch uses retain their own\nhandling: a prior-epoch idempotency key is unbound in the new namespace, so a\nsubmission under the new epoch executes anew rather than replaying its prior\ndisposition. Read/Read+Update do not gain exposed epoch fields."
+          "selectedText": "Each Scope history has an opaque,\nunguessable **Scope epoch**. The epoch remains stable across ordinary restart\nand failover that preserve identical committed history. It changes whenever\nrestore, destructive reinitialization, or authority replacement may discard,\nrewrite, or replace history. The epoch is not part of canonical Scope or\nResource identity. Retained Resource-version addresses follow [Revisions](#revisions).\nEvery other history-dependent token remains fenced by that epoch, including\nScope positions, transaction identifiers, snapshots and handles, read and Event\ncursors, changefeed checkpoints, minimum-read barriers, receipts, and the\nidempotency-key namespace and its bound dispositions. Individual token contracts\nstill apply. Cached representations retain their epoch and Authorization View\nbindings under Authorization views. An epoch change in the same logical Scope\npreserves canonical Scope and Resource URLs. Prior-epoch uses retain their own\nhandling: a prior-epoch idempotency key is unbound in the new namespace, so a\nsubmission under the new epoch executes anew rather than replaying its prior\ndisposition. Read/Read+Update do not gain exposed epoch fields."
         }
       ]
     },
@@ -1975,7 +2000,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#mutation-response-negotiation",
           "selectedText": "For a new mutation submission this refusal occurs before durable admission, key binding, receipt creation, or state change."
         }
       ]
@@ -2020,7 +2045,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
-          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut."
+          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, and applicable History erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-conditional-reads",
+          "selectedText": "Scope epoch/view, minimum-position and erasure/expiry checks MUST precede any conditional shortcut. Required current Scope context remains required on 304 and 412 responses."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -2029,7 +2059,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#conditional-reads-and-head",
+          "anchor": "#transactional-conditional-reads",
           "selectedText": "A `304` is not delivery or application of a change group or erasure record and MUST NOT advance a client's durable checkpoint."
         }
       ]
@@ -2047,8 +2077,8 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#conditional-reads-and-head",
-          "selectedText": "For an acceptable SSE representation, HEAD returns the corresponding response metadata and ends without SSE frames; it MUST NOT remain open merely to stream events."
+          "anchor": "#transactional-conditional-reads",
+          "selectedText": "For acceptable SSE, HEAD returns the response metadata and ends without frames; it MUST NOT remain open merely to stream events."
         }
       ]
     }

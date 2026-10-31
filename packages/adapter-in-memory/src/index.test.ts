@@ -124,6 +124,7 @@ describe("reference fixture Scope port", () => {
             type: task.id,
             revision: "7",
             properties: { title: "Reviewed fixture", status: "open" },
+            metadata: {},
           },
         ],
         next: null,
@@ -674,6 +675,7 @@ describe("reference fixture Scope port", () => {
           source: `${scope}beads/d`,
           target: `${scope}beads/e`,
           properties: {},
+          metadata: {},
         },
         {
           id: `${scope}links/two`,
@@ -682,6 +684,7 @@ describe("reference fixture Scope port", () => {
           source: `${scope}beads/d`,
           target: { uri: "urn:external:w", revision: "w-9" },
           properties: {},
+          metadata: {},
         },
       ],
     });
@@ -709,7 +712,7 @@ describe("reference fixture Scope port", () => {
     ).toThrow("exceed the declared bound");
   });
 
-  it("parses carried attribution structurally and preserves its bytes", async () => {
+  it("parses carried revisionProvenance structurally and preserves its bytes", async () => {
     const base = {
       types: [{ id: "https://work.example/types/task", name: "Task", describes: "bead" }],
       typeDescriptors: [
@@ -717,24 +720,24 @@ describe("reference fixture Scope port", () => {
       ],
       links: [],
     };
-    const bead = (attribution: unknown) => ({
+    const bead = (revisionProvenance: unknown) => ({
       localId: "beads/attributed",
       type: "https://work.example/types/task",
       revision: "1",
       properties: {},
-      ...(attribution === undefined ? {} : { attribution }),
+      ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
     });
-    const load = (attribution: unknown) => () =>
-      createPortableReferenceFixturePort(scope, { ...base, beads: [bead(attribution)] });
+    const load = (revisionProvenance: unknown) => () =>
+      createPortableReferenceFixturePort(scope, { ...base, beads: [bead(revisionProvenance)] });
     // The principal's bytes survive untouched, including whitespace and
     // combining marks; `unknown` is admissible; the member is optional.
     const odd = " Ångström\u0301 \t";
-    const port = load({ principal: odd, status: "unknown" })();
+    const port = load({ actor: { id: odd, basis: "unknown" } })();
     await expect(
       port.perform({ kind: "resource", resource: "bead", id: `${scope}beads/attributed` }, options),
     ).resolves.toMatchObject({
       kind: "success",
-      body: { attribution: { principal: odd, status: "unknown" } },
+      body: { revisionProvenance: { actor: { id: odd, basis: "unknown" } } },
     });
     await expect(
       load(undefined)().perform(
@@ -742,13 +745,16 @@ describe("reference fixture Scope port", () => {
         options,
       ),
     ).resolves.toSatisfy(
-      (r: { body?: { attribution?: unknown } }) => r.body?.attribution === undefined,
+      (r: { body?: { revisionProvenance?: unknown } }) => r.body?.revisionProvenance === undefined,
     );
     // Junk shapes refuse.
-    expect(load({ principal: "", status: "claimed" })).toThrow();
-    expect(load({ principal: "agent:x", status: "verified" })).toThrow("status must be one of");
-    expect(load({ principal: "agent:x" })).toThrow();
-    expect(load({ principal: "agent:x", status: "claimed", extra: 1 })).toThrow();
+    expect(load({ actor: { id: "", basis: "writer-supplied" } })).toThrow();
+    expect(load({ actor: { id: "agent:x", basis: "verified" } })).toThrow(
+      "invalid revision provenance",
+    );
+    expect(load({ actor: { id: "agent:x", status: "claimed" } })).toThrow();
+    expect(load({ actor: { id: "agent:x" } })).toThrow();
+    expect(load({ actor: { id: "agent:x", basis: "writer-supplied", extra: 1 } })).toThrow();
     expect(load("agent:x")).toThrow();
   });
 

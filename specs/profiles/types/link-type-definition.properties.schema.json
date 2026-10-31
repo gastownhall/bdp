@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/bdp-draft/schemas/link-type-definition.properties.schema.json",
+  "title": "Link Type descriptor properties",
+  "allOf": [
+    {
+      "$ref": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json"
+    }
+  ],
+  "type": "object",
+  "properties": {
+    "linkConstraints": {
+      "$ref": "https://example.org/bdp-draft/schemas/type-definition.properties.schema.json#/$defs/linkConstraints"
+    },
+    "ownsOutgoing": false,
+    "incoming": false,
+    "outgoing": false
+  },
+  "additionalProperties": true,
+  "required": ["linkConstraints"]
+}

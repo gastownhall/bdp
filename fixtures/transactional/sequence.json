@@ -26,16 +26,18 @@
                 "title": "Adopt sequence envelopes",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
               "idempotencyKey": "w1-task-42-close",
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/task-42",
-              "change": [
+              "propertiesChange": [
                 {
                   "op": "replace",
                   "path": "/status",
@@ -76,16 +78,18 @@
                 "id": "https://beads.example/acme/beads/adr-104",
                 "type": "https://work.example/types/decision",
                 "revision": "adr-104-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Adopt sequence envelopes",
                   "status": "proposed"
                 },
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -139,10 +143,10 @@
               }
             },
             {
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "idempotencyKey": "w1-task-77-dependent",
               "bead": "@task",
-              "change": [
+              "propertiesChange": [
                 {
                   "op": "replace",
                   "path": "/status",
@@ -211,10 +215,10 @@
               }
             },
             {
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "idempotencyKey": "w1-task-77-dependent",
               "bead": "@task",
-              "change": [
+              "propertiesChange": [
                 {
                   "op": "replace",
                   "path": "/status",

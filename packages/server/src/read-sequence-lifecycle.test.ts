@@ -15,7 +15,7 @@ import {
   type MaximumEndpointMultiplicityPolicy,
 } from "@bdp/protocol";
 import * as protocolModule from "@bdp/protocol";
-import { openRecoveryStore, RecoveryStoreError, type StoreReader } from "./recovery-store.js";
+import { openRecoveryStore, RecoveryStoreError } from "./recovery-store.js";
 import {
   createSequenceLifecycle,
   SequenceLifecycleError,
@@ -26,6 +26,7 @@ import { type MemberExecutorOptions, type StablePrincipal } from "./member-execu
 import {
   AuthorityReadError,
   type AuthorityReadOptions,
+  type AuthorityReadReader,
   type AuthorityReadFacet,
   type AuthorityReadPlane,
   type ScopeReadConfiguration,
@@ -145,9 +146,9 @@ function makeFixture(owned: boolean) {
     hidden: new Set<string>(),
     memberSources: [] as ScopeReadConfiguration[],
     readSources: [] as ScopeReadConfiguration[],
-    readers: [] as StoreReader[],
+    readers: [] as AuthorityReadReader[],
     captures: 0,
-    hook: undefined as ((phase: string, reader?: StoreReader) => void) | undefined,
+    hook: undefined as ((phase: string, reader?: AuthorityReadReader) => void) | undefined,
     configuration: Object.freeze({
       policyIdentity: "policy-1",
       configurationIdentity: "configuration-1",
@@ -157,7 +158,7 @@ function makeFixture(owned: boolean) {
     }) as ScopeReadConfiguration,
   };
   const source = {
-    capture(reader: StoreReader) {
+    capture(reader: AuthorityReadReader) {
       expect(this).toBe(source);
       reader.policy("fixture");
       if (state.readers.at(-1) === reader) state.readSources.push(state.configuration);
@@ -424,8 +425,11 @@ describe("G11 actual committed prefixes, shared source and delivery", () => {
     const facet = lifecycle.readFor({ kind: "authenticated", principal: alice });
     await execute(f, sequence([create("a"), create("b")]));
     await singleton(f, "putAlias", { alias: "alias/original", target: "beads/a" }, "original");
-    const input = { bead: "alias/original", change: [{ op: "replace", path: "/n", value: 7 }] };
-    const made = await singleton(f, "updateBeadProperties", input, "update");
+    const input = {
+      bead: "alias/original",
+      propertiesChange: [{ op: "replace", path: "/n", value: 7 }],
+    };
+    const made = await singleton(f, "updateBead", input, "update");
     expect(made).toMatchObject({ kind: "singleton", disposition: { outcome: "updated" } });
     const original = f.store.read((reader) => reader.key("alice", "update"));
     const repoint = submission(
@@ -456,28 +460,23 @@ describe("G11 actual committed prefixes, shared source and delivery", () => {
       hooks.push(phase);
     };
     expect(
-      await singleton(
-        f,
-        "updateBeadProperties",
-        { ...input, bead: url("alias/original") },
-        "update",
-      ),
+      await singleton(f, "updateBead", { ...input, bead: url("alias/original") }, "update"),
     ).toEqual(made);
-    expect(
-      await singleton(f, "updateBeadProperties", { ...input, bead: "alias/new" }, "update"),
-    ).toEqual(made);
+    expect(await singleton(f, "updateBead", { ...input, bead: "alias/new" }, "update")).toEqual(
+      made,
+    );
     expect(hooks).not.toContain("member-clock");
     expect(hooks).not.toContain("contract");
     f.state.hidden.add(url("beads/a"));
     expect(
-      await singleton(f, "updateBeadProperties", { ...input, bead: "alias/new" }, "update"),
+      await singleton(f, "updateBead", { ...input, bead: "alias/new" }, "update"),
     ).toMatchObject({ kind: "singleton", disposition: { code: "forbidden" } });
     f.state.hidden.clear();
     await singleton(f, "putAlias", { alias: "alias/new", target: "beads/b" }, "new-repoint");
     expect(
-      await singleton(f, "updateBeadProperties", { ...input, bead: "alias/new" }, "update"),
+      await singleton(f, "updateBead", { ...input, bead: "alias/new" }, "update"),
     ).toMatchObject({ kind: "singleton", disposition: { code: "idempotency-conflict" } });
-    expect(await singleton(f, "updateBeadProperties", input, "update")).toEqual(made);
+    expect(await singleton(f, "updateBead", input, "update")).toEqual(made);
     expect(f.store.read((reader) => reader.key("alice", "update"))).toEqual(original);
     expect(f.state.memberSources.at(-1)).toBe(f.state.configuration);
     expect(f.state.readSources.at(-1)).toBe(f.state.configuration);
@@ -504,9 +503,9 @@ describe("G11 actual committed prefixes, shared source and delivery", () => {
       },
       { operation: "putAlias", alias: "alias/current", target: "beads/a", idempotencyKey: "alias" },
       {
-        operation: "updateBeadProperties",
+        operation: "updateBead",
         bead: "beads/a",
-        change: [{ op: "replace", path: "/n", value: 2 }],
+        propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
         idempotencyKey: "update",
       },
     ]);
@@ -530,7 +529,7 @@ describe("G11 actual committed prefixes, shared source and delivery", () => {
       await facet.perform({ kind: "resource", resource: "link", id: url("links/l") }),
     );
     expect((linked.ownedLinks as Record<string, unknown[]>)[linkType]).toEqual([edge]);
-    expect(linked.changeContext).toEqual(edge.changeContext);
+    expect(linked.revisionProvenance).toEqual(edge.revisionProvenance);
     f.queue.step();
     expect(await facet.resolveAlias(url("alias/current"))).toMatchObject({
       kind: "target",
@@ -670,9 +669,9 @@ describe("G11 every active entry and timer phase", () => {
         lifecycle,
         sequence([
           {
-            operation: "updateBeadProperties",
+            operation: "updateBead",
             bead: "beads/a",
-            change: [{ op: "replace", path: "/n", value: 1 }],
+            propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
             idempotencyKey: "one",
           },
         ]),
@@ -1043,7 +1042,7 @@ function controlledClosures(
   },
 ) {
   const actualPlane = planeModule.createAuthorityReadPlane,
-    actualPagination = paginationModule.createReadPagination;
+    actualPagination = paginationModule.createContextualReadPagination;
   const calls = { owner: 0, read: 0, disposed: 0, released: [] as unknown[] };
   if (mode.ownerCompletion) {
     const close = f.store.close.bind(f.store);
@@ -1052,7 +1051,7 @@ function controlledClosures(
       throw mode.ownerCompletion;
     });
   }
-  vi.spyOn(paginationModule, "createReadPagination").mockImplementation((options) => {
+  vi.spyOn(paginationModule, "createContextualReadPagination").mockImplementation((options) => {
     const engine = actualPagination(options);
     return {
       ...engine,
@@ -1526,7 +1525,7 @@ describe("G11 source qualification and private containment", () => {
     expect(pending).toHaveLength(1);
     await Promise.all(pending);
   });
-  it("exposes only frozen lifecycle/facet handles and preserves the package public export map", async () => {
+  it("keeps lifecycle internals private alongside the explicit development facade", async () => {
     const f = fixture(),
       actual = planeModule.createAuthorityReadPlane;
     let privatePlane: AuthorityReadPlane | undefined;
@@ -1548,6 +1547,7 @@ describe("G11 source qualification and private containment", () => {
     ) as { exports: unknown };
     expect(manifest.exports).toEqual({
       ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
+      "./development": { types: "./dist/development.d.ts", default: "./dist/development.js" },
     });
   });
 });

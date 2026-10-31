@@ -130,23 +130,6 @@
         "properties": {
           "title": "historical"
         },
-        "attribution": {
-          "principal": "donna",
-          "status": "claimed"
-        },
-        "changeContext": {
-          "committedAt": {
-            "state": "present",
-            "value": "2026-09-09T14:00:00Z"
-          },
-          "agent": {
-            "state": "present",
-            "value": "assistant-a"
-          },
-          "message": {
-            "state": "absent"
-          }
-        },
         "ownedLinks": {
           "https://work.example/types/cites": [
             {
@@ -163,11 +146,11 @@
                   "$ref": "not-a-protocol-reference"
                 }
               },
-              "attribution": {
-                "principal": "donna",
-                "status": "claimed"
-              },
-              "changeContext": {
+              "revisionProvenance": {
+                "actor": {
+                  "id": "donna",
+                  "basis": "writer-supplied"
+                },
                 "committedAt": {
                   "state": "present",
                   "value": "2026-09-09T14:00:00Z"
@@ -182,6 +165,23 @@
               }
             }
           ]
+        },
+        "revisionProvenance": {
+          "actor": {
+            "id": "donna",
+            "basis": "writer-supplied"
+          },
+          "committedAt": {
+            "state": "present",
+            "value": "2026-09-09T14:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "assistant-a"
+          },
+          "message": {
+            "state": "absent"
+          }
         }
       }
     },
@@ -203,11 +203,11 @@
             "$ref": "not-a-protocol-reference"
           }
         },
-        "attribution": {
-          "principal": "donna",
-          "status": "claimed"
-        },
-        "changeContext": {
+        "revisionProvenance": {
+          "actor": {
+            "id": "donna",
+            "basis": "writer-supplied"
+          },
           "committedAt": {
             "state": "present",
             "value": "2026-09-09T14:00:00Z"
@@ -260,7 +260,7 @@
             "revision": "r4",
             "lineage": "current",
             "body": "complete",
-            "changeContext": {
+            "revisionProvenance": {
               "committedAt": {
                 "state": "present",
                 "value": "2026-09-09T14:00:00Z"
@@ -345,7 +345,7 @@
             "revision": "r4",
             "lineage": "current",
             "body": "complete",
-            "changeContext": {
+            "revisionProvenance": {
               "committedAt": {
                 "state": "present",
                 "value": "2026-09-09T14:00:00Z"
@@ -555,7 +555,7 @@
     },
     {
       "id": "native-context",
-      "schema": "#/$defs/changeContext",
+      "schema": "#/$defs/revisionProvenance",
       "condition": "Authority-observed commit instant; no authentication claim.",
       "body": {
         "committedAt": {
@@ -573,7 +573,7 @@
     },
     {
       "id": "import-unknown-context",
-      "schema": "#/$defs/changeContext",
+      "schema": "#/$defs/revisionProvenance",
       "condition": "Original imported time unavailable; do not substitute import time.",
       "body": {
         "committedAt": {
@@ -590,10 +590,11 @@
     {
       "id": "create-bead-input",
       "schema": "#/$defs/createBeadRequest",
-      "condition": "Optional operation-level context input; timestamps and actor overrides prohibited.",
+      "condition": "Optional operation-level provenance input; caller timestamps prohibited, an optional actor may be supplied.",
       "body": {
         "type": "https://work.example/types/decision",
-        "changeContext": {
+        "revisionProvenance": {
+          "actor": { "id": "human:donna", "basis": "writer-supplied" },
           "agent": "assistant-a",
           "message": null
         }
@@ -602,10 +603,10 @@
     {
       "id": "delete-owned-link-input",
       "schema": "#/$defs/deleteLinkRequest",
-      "condition": "Optional operation-level context input; timestamps and actor overrides prohibited.",
+      "condition": "Optional operation-level provenance input; caller timestamps prohibited, an optional actor may be supplied.",
       "body": {
         "link": "https://work.example/scope/links/citation",
-        "changeContext": {
+        "revisionProvenance": {
           "agent": null,
           "message": "removed citation"
         }
@@ -620,7 +621,7 @@
           {
             "operation": "createBead",
             "type": "https://work.example/types/decision",
-            "changeContext": {
+            "revisionProvenance": {
               "agent": null,
               "message": "one"
             }
@@ -628,7 +629,7 @@
           {
             "operation": "createBead",
             "type": "https://work.example/types/decision",
-            "changeContext": {
+            "revisionProvenance": {
               "agent": "assistant-b",
               "message": "two"
             }
@@ -646,7 +647,7 @@
             "operation": "createBead",
             "type": "https://work.example/types/decision",
             "idempotencyKey": "history-one",
-            "changeContext": {
+            "revisionProvenance": {
               "message": null
             }
           }
@@ -662,7 +663,7 @@
         "properties": {
           "title": "historical"
         },
-        "changeContext": {
+        "revisionProvenance": {
           "committedAt": {
             "state": "present",
             "value": "2026-09-09T14:00:00Z"
@@ -691,7 +692,7 @@
             "value": "updated"
           }
         ],
-        "changeContext": {
+        "revisionProvenance": {
           "message": "set change"
         }
       }
@@ -703,7 +704,7 @@
       "body": {
         "collection": "links",
         "selector": "$[?@.type == \"https://work.example/types/cites\"]",
-        "changeContext": {
+        "revisionProvenance": {
           "agent": null
         }
       }
@@ -728,11 +729,11 @@
               "$ref": "not-a-protocol-reference"
             }
           },
-          "attribution": {
-            "principal": "donna",
-            "status": "claimed"
-          },
-          "changeContext": {
+          "revisionProvenance": {
+            "actor": {
+              "id": "donna",
+              "basis": "writer-supplied"
+            },
             "committedAt": {
               "state": "present",
               "value": "2026-09-09T14:00:00Z"
@@ -771,11 +772,11 @@
               "$ref": "not-a-protocol-reference"
             }
           },
-          "attribution": {
-            "principal": "donna",
-            "status": "claimed"
-          },
-          "changeContext": {
+          "revisionProvenance": {
+            "actor": {
+              "id": "donna",
+              "basis": "writer-supplied"
+            },
             "committedAt": {
               "state": "present",
               "value": "2026-09-09T14:00:00Z"
@@ -809,7 +810,7 @@
             "value": "updated"
           }
         ],
-        "changeContext": {
+        "revisionProvenance": {
           "committedAt": {
             "state": "present",
             "value": "2026-09-09T14:00:00Z"
@@ -862,7 +863,7 @@
                 "value": "updated"
               }
             ],
-            "changeContext": {
+            "revisionProvenance": {
               "committedAt": {
                 "state": "present",
                 "value": "2026-09-09T14:00:00Z"
@@ -877,7 +878,7 @@
             }
           }
         },
-        "changeContext": {
+        "revisionProvenance": {
           "committedAt": {
             "state": "present",
             "value": "2026-09-09T14:00:00Z"
@@ -906,7 +907,7 @@
             "value": "Updated"
           }
         ],
-        "changeContext": {
+        "revisionProvenance": {
           "committedAt": {
             "state": "present",
             "value": "2026-09-09T14:00:00Z"
@@ -923,18 +924,18 @@
     },
     {
       "id": "update-bead-input-context",
-      "schema": "#/$defs/updateBeadPropertiesRequest",
+      "schema": "#/$defs/updateBeadRequest",
       "condition": "Singleton update input supplies agent/message only; native commit time is authority-owned.",
       "body": {
         "bead": "https://work.example/scope/beads/decision",
-        "change": [
+        "propertiesChange": [
           {
             "op": "replace",
             "path": "/title",
             "value": "Updated"
           }
         ],
-        "changeContext": {
+        "revisionProvenance": {
           "agent": "assistant-a",
           "message": "Revise decision"
         }
@@ -942,18 +943,18 @@
     },
     {
       "id": "update-link-input-context",
-      "schema": "#/$defs/updateLinkPropertiesRequest",
+      "schema": "#/$defs/updateLinkRequest",
       "condition": "Singleton Link update context also fans out to its source when ownership actually versions that source.",
       "body": {
         "link": "https://work.example/scope/links/citation",
-        "change": [
+        "propertiesChange": [
           {
             "op": "replace",
             "path": "/note",
             "value": "Updated"
           }
         ],
-        "changeContext": {
+        "revisionProvenance": {
           "agent": null,
           "message": "Revise citation"
         }

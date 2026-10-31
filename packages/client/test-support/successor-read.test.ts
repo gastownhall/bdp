@@ -106,11 +106,13 @@ describe("successor Read observations", () => {
       id: `${scope}beads/a`,
       type: "https://work.example/types/task",
       properties: { priority: 2 },
+      metadata: {},
     };
     const l = {
       id: `${scope}links/a-b`,
       type: "https://work.example/types/blocks",
       properties: {},
+      metadata: {},
       source: `${scope}beads/a`,
       target: `${scope}beads/b`,
     };
@@ -118,13 +120,13 @@ describe("successor Read observations", () => {
     const bt =
       "sha256_" +
       createHash("sha256")
-        .update(`{"id":"${b.id}","properties":{"priority":2},"type":"${b.type}"}`)
+        .update(`{"id":"${b.id}","metadata":{},"properties":{"priority":2},"type":"${b.type}"}`)
         .digest("base64url");
     const lt =
       "sha256_" +
       createHash("sha256")
         .update(
-          `{"id":"${l.id}","properties":{},"source":"${l.source}","target":"${l.target}","type":"${l.type}"}`,
+          `{"id":"${l.id}","metadata":{},"properties":{},"source":"${l.source}","target":"${l.target}","type":"${l.type}"}`,
         )
         .digest("base64url");
     const resources = { [b.id]: { ...b, revision: bt }, [l.id]: { ...l, revision: lt } };

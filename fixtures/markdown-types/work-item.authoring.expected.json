@@ -1,0 +1,63 @@
+{
+  "format": "bdp-type-markdown-0.1",
+  "mode": "authoring",
+  "instanceKind": "bead",
+  "definition": {
+    "id": "https://types.example/work-item",
+    "type": {
+      "uri": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+      "revision": "bead-type-2"
+    },
+    "properties": {
+      "description": "",
+      "version": "1.0.0-draft+types",
+      "abstract": false,
+      "x-review": { "stage": "draft", "notes": [] },
+      "propertiesSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "WorkItemProperties",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "A short human-readable name.",
+            "x-definedBy": "WorkItem"
+          },
+          "referenceCode": {
+            "type": "string",
+            "description": "The caller's initial reference code.",
+            "x-definedBy": "WorkItem"
+          },
+          "computedScore": {
+            "type": "number",
+            "description": "A value supplied by the service.",
+            "x-definedBy": "WorkItem"
+          }
+        },
+        "required": ["name"]
+      },
+      "schemaResources": {},
+      "propertyAccess": {
+        "/referenceCode": "init-only",
+        "/computedScore": "service-managed"
+      },
+      "incoming": [
+        { "linkTypes": { "anyOf": ["https://types.example/reference"] }, "min": 0, "max": 5 }
+      ],
+      "outgoing": [{ "linkTypes": { "anyOf": ["https://types.example/reference"] }, "min": 1 }],
+      "ownsOutgoing": [{ "anyOf": ["https://types.example/reference"] }]
+    },
+    "metadata": {}
+  },
+  "refines": [
+    {
+      "type": {
+        "uri": "https://github.com/gastownhall/bdp/types/type-system/refines",
+        "revision": "refines-2"
+      },
+      "target": { "uri": "https://types.example/base-work-item", "revision": "base-1" },
+      "properties": { "evidence": "Author declares the base contract." },
+      "metadata": {}
+    }
+  ]
+}

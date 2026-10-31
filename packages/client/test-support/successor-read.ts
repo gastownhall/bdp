@@ -1,7 +1,8 @@
+import { createCurrentReadTransport, type ReadWireValidator } from "./current-read-transport.js";
 import { isDeepStrictEqual } from "node:util";
 import { createHash } from "node:crypto";
 import type { AbsoluteHttpUrl, ReadRequest } from "@bdp/protocol";
-import { BdpClient, createFetchTransport, isBdpClientProblem } from "../src/index.js";
+import { BdpClient, isBdpClientProblem } from "../src/index.js";
 import type { BdpClientScenarioActionExecution } from "./testing.js";
 
 const limits = {
@@ -51,6 +52,7 @@ export async function observeSuccessorRead(
   execution: BdpClientScenarioActionExecution,
   scopeFetch: typeof fetch | undefined,
   publisherFetch: typeof fetch | undefined,
+  validateReadWire?: ReadWireValidator,
 ): Promise<unknown> {
   if (scopeFetch === undefined) throw new Error("successor Read observation requires public Fetch");
   const input = record(execution.input);
@@ -86,7 +88,7 @@ export async function observeSuccessorRead(
     throw new Error("inventory witness requires controlled descriptor bindings");
   const client = new BdpClient({
     scope: execution.scope as AbsoluteHttpUrl,
-    transport: createFetchTransport(scopeFetch, limits),
+    transport: createCurrentReadTransport(scopeFetch, limits, validateReadWire),
     ...((descriptorProbe || inventoryProbe) && publisherFetch !== undefined
       ? {
           externalTypeDescriptors: {
@@ -146,7 +148,7 @@ export async function observeSuccessorRead(
             resource: "link",
             id: localId(id, execution.scope),
           });
-          // Structural comparison preserves array order and every opaque field, including pins/attribution.
+          // Structural comparison preserves array order and every opaque field, including pins/revisionProvenance.
           firstClassEqual &&= isDeepStrictEqual(inline[index], actual);
         }
       }

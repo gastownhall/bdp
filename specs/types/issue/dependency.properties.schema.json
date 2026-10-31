@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/bdp-draft/schemas/dependency.properties.schema.json",
+  "title": "Draft Dependency core properties fragment",
+  "$comment": "Review fragment, not complete domain write validation. See https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/issue.md for native constraints, policy, writers and observations.",
+  "type": "object",
+  "not": {
+    "required": ["dep_type"]
+  },
+  "properties": {},
+  "additionalProperties": true
+}

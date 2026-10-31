@@ -3,17 +3,23 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   BDP_PROBLEM_FAMILY_PREFIX,
   BDP_V0_SCHEMA_ID,
   PROTOCOL_PROFILES,
   READ_PROBLEM_DEFINITIONS,
+  parseBeadRecord,
+  parseLinkRecord,
+  parseReadUpdateRequest,
+  parseRevisionProvenance,
+  parseRevisionProvenanceInput,
+  type RevisionProvenance,
 } from "./index.js";
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const schemaPath = path.join(workspaceRoot, "schemas", "bdp-v0.schema.json");
+const schemaPath = path.join(workspaceRoot, "specs", "profiles", "core", "bdp-v0.schema.json");
 const schemaText = readFileSync(schemaPath, "utf8");
 const packagedSchemaPath = path.join(
   workspaceRoot,
@@ -36,6 +42,98 @@ describe("BDP v0 schema bundle", () => {
     expect(schema.$id).toBe(BDP_V0_SCHEMA_ID);
   });
 
+  it("accepts one optional provenance envelope and refuses old or dual wire shapes", () => {
+    const actor = { id: "human:writer", basis: "unknown" };
+    const context = {
+      committedAt: { state: "undetermined" },
+      agent: { state: "absent" },
+      message: { state: "present", value: "" },
+    };
+    const bead = beadRecord();
+    const link = {
+      ...bead,
+      id: "https://beads.example/acme/links/x",
+      source: bead.id,
+      target: bead.id,
+    };
+    for (const [parse, record] of [
+      [parseBeadRecord, bead],
+      [parseLinkRecord, link],
+    ] as const) {
+      for (const revisionProvenance of [undefined, { actor }, context, { actor, ...context }]) {
+        const parsed = parse({
+          ...record,
+          ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
+        });
+        expect(parsed.revisionProvenance).toEqual(revisionProvenance);
+      }
+      expect(() => parse({ ...record, revisionProvenance: {} })).toThrow();
+      for (const legacy of [
+        { attribution: { principal: "old", basis: "unknown" } },
+        { changeContext: context },
+      ]) {
+        expect(() => parse({ ...record, ...legacy })).toThrow();
+        expect(() =>
+          parse({ ...record, ...legacy, revisionProvenance: { actor, ...context } }),
+        ).toThrow();
+        expect(() =>
+          parseReadUpdateRequest("createBead", JSON.stringify({ type: bead.type, ...legacy })),
+        ).toThrow();
+      }
+    }
+    expect(parseRevisionProvenanceInput({})).toEqual({});
+    expect(() =>
+      parseReadUpdateRequest(
+        "createBead",
+        JSON.stringify({ type: bead.type, revisionProvenance: {} }),
+      ),
+    ).not.toThrow();
+    for (const invalid of [
+      {},
+      { committedAt: context.committedAt },
+      { agent: context.agent },
+      { message: context.message },
+      { actor: { principal: "old", basis: "unknown" } },
+      { sources: [] },
+      { sourcesCompleteness: "unknown" },
+    ])
+      expect(() => parseRevisionProvenance(invalid)).toThrow();
+    expect(() =>
+      parseReadUpdateRequest(
+        "createBead",
+        JSON.stringify({
+          type: bead.type,
+          revisionProvenance: { actor, committedAt: context.committedAt },
+        }),
+      ),
+    ).toThrow();
+    const parsed = parseRevisionProvenance({ actor, ...context });
+    expect(Object.isFrozen(parsed.actor)).toBe(true);
+    expect(Object.isFrozen(parsed.committedAt)).toBe(true);
+  });
+
+  it("requires the complete context group in the exported provenance type", () => {
+    type Undetermined = { readonly state: "undetermined" };
+    type Actor = { readonly id: "human:writer"; readonly basis: "writer-supplied" };
+    // biome-ignore lint/complexity/noBannedTypes: regression check for the formerly admitted empty output type.
+    expectTypeOf<{}>().not.toExtend<RevisionProvenance>();
+    expectTypeOf<{ actor: Actor }>().toExtend<RevisionProvenance>();
+    expectTypeOf<{
+      actor: Actor;
+      committedAt: Undetermined;
+      agent: Undetermined;
+      message: Undetermined;
+    }>().toExtend<RevisionProvenance>();
+    expectTypeOf<{ committedAt: Undetermined }>().not.toExtend<RevisionProvenance>();
+    expectTypeOf<{ agent: Undetermined }>().not.toExtend<RevisionProvenance>();
+    expectTypeOf<{ message: Undetermined }>().not.toExtend<RevisionProvenance>();
+    expectTypeOf<{
+      committedAt: Undetermined;
+      agent: Undetermined;
+      message: Undetermined;
+    }>().toExtend<RevisionProvenance>();
+  });
+
   it("ships the package schema copy without drifting from the canonical artifact", () => {
     expect(packagedSchemaText).toBe(schemaText);
   });
@@ -48,15 +146,12 @@ describe("BDP v0 schema bundle", () => {
       "aliasResult",
       "aliasResultMembers",
       "allocatedIdentity",
-      "attribution",
       "batchOperation",
       "batchRequest",
       "bdpVersion",
       "beadCollection",
       "beadRecord",
       "cardinality",
-      "changeContext",
-      "changeContextInput",
       "changeGroup",
       "changefeedPage",
       "contextMessage",
@@ -69,6 +164,10 @@ describe("BDP v0 schema bundle", () => {
       "createLinkOperation",
       "createLinkRequest",
       "createdData",
+      "currentBeadCollection",
+      "currentBeadRecord",
+      "currentLinkCollection",
+      "currentLinkRecord",
       "dateTime",
       "deleteAliasMembers",
       "deleteAliasRequest",
@@ -113,11 +212,13 @@ describe("BDP v0 schema bundle", () => {
       "localBindingReference",
       "localName",
       "maximumEndpointMultiplicityPolicy",
+      "metadata",
       "mutationOutcome",
       "mutationReceipt",
       "mutationReceiptPage",
       "mutationResult",
       "mutationResultMembers",
+      "ordinaryUpdateChange",
       "ownedLinkChange",
       "ownedLinkDeclaration",
       "ownedLinkDelta",
@@ -150,7 +251,10 @@ describe("BDP v0 schema bundle", () => {
       "resourceReference",
       "retryDisposition",
       "revision",
+      "revisionActor",
       "revisionAllocationUnsafeProblem",
+      "revisionProvenance",
+      "revisionProvenanceInput",
       "selector",
       "sequenceAllocatedIdentity",
       "sequenceCreateBead",
@@ -165,8 +269,8 @@ describe("BDP v0 schema bundle", () => {
       "sequencePutAlias",
       "sequenceRequest",
       "sequenceResponse",
-      "sequenceUpdateBeadProperties",
-      "sequenceUpdateLinkProperties",
+      "sequenceUpdateBead",
+      "sequenceUpdateLink",
       "snapshotManifest",
       "stateChange",
       "transactionalAdvertisedLimits",
@@ -182,12 +286,12 @@ describe("BDP v0 schema bundle", () => {
       "typeSummary",
       "typedLinkReference",
       "typesInventory",
-      "updateBeadPropertiesMembers",
-      "updateBeadPropertiesOperation",
-      "updateBeadPropertiesRequest",
-      "updateLinkPropertiesMembers",
-      "updateLinkPropertiesOperation",
-      "updateLinkPropertiesRequest",
+      "updateBeadMembers",
+      "updateBeadOperation",
+      "updateBeadRequest",
+      "updateLinkMembers",
+      "updateLinkOperation",
+      "updateLinkRequest",
       "updateWhereMembers",
       "updateWhereOperation",
       "updateWhereRequest",
@@ -445,27 +549,43 @@ describe("BDP v0 schema bundle", () => {
       target: { uri: "urn:external:cites-witness", revision: "w-1" },
       properties: {},
     };
-    // Carried attribution: exactly { principal, status }, nonempty principal,
-    // closed two-value status; optional on both record kinds.
-    for (const status of ["claimed", "unknown"]) {
-      expectValid("beadRecord", { ...beadRecord(), attribution: { principal: "agent:x", status } });
-      expectValid("linkRecord", { ...ownedLink, attribution: { principal: "human:y", status } });
+    // Carried actor: exactly { id, basis }, nonempty id,
+    // closed two-value basis; optional on both record kinds.
+    for (const basis of ["writer-supplied", "unknown"]) {
+      expectValid("beadRecord", {
+        ...beadRecord(),
+        revisionProvenance: { actor: { id: "agent:x", basis } },
+      });
+      expectValid("linkRecord", {
+        ...ownedLink,
+        revisionProvenance: { actor: { id: "human:y", basis } },
+      });
     }
     expectInvalid("beadRecord", {
       ...beadRecord(),
-      attribution: { principal: "", status: "claimed" },
+      revisionProvenance: { actor: { id: "", basis: "writer-supplied" } },
     });
     expectInvalid("beadRecord", {
       ...beadRecord(),
-      attribution: { principal: "agent:x", status: "verified" },
+      revisionProvenance: { actor: { id: "agent:x", basis: "verified" } },
     });
-    expectInvalid("beadRecord", { ...beadRecord(), attribution: { principal: "agent:x" } });
-    expectInvalid("beadRecord", { ...beadRecord(), attribution: { status: "claimed" } });
     expectInvalid("beadRecord", {
       ...beadRecord(),
-      attribution: { principal: "agent:x", status: "claimed", extra: true },
+      revisionProvenance: { actor: { id: "agent:x" } },
     });
-    expectInvalid("beadRecord", { ...beadRecord(), attribution: "agent:x" });
+    expectInvalid("beadRecord", {
+      ...beadRecord(),
+      revisionProvenance: { actor: { id: "agent:x", status: "claimed" } },
+    });
+    expectInvalid("beadRecord", {
+      ...beadRecord(),
+      revisionProvenance: { actor: { basis: "writer-supplied" } },
+    });
+    expectInvalid("beadRecord", {
+      ...beadRecord(),
+      revisionProvenance: { actor: { id: "agent:x", basis: "writer-supplied", extra: true } },
+    });
+    expectInvalid("beadRecord", { ...beadRecord(), revisionProvenance: "agent:x" });
     expectValid("beadRecord", {
       ...beadRecord(),
       ownedLinks: { "https://work.example/types/cites": [ownedLink] },

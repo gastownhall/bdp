@@ -153,6 +153,7 @@ const ROOT_SELECTOR_MEMBERS: ReadonlySet<string> = new Set([
   "source",
   "target",
   "properties",
+  "metadata",
 ]);
 
 /**
@@ -178,7 +179,9 @@ export function selectReadResources<Candidate extends ReadSelectorCandidate>(
       sourceBytes,
     );
 
-  const expression = parseSelector(source, checkedLimits);
+  const expression = parseSelector(source, (depth, nodes, offset) =>
+    enforceAstLimits(depth, nodes, checkedLimits, offset),
+  );
   const matches: Candidate[] = [];
   for (const candidate of candidates) if (evaluate(expression, candidate)) matches.push(candidate);
   return Object.freeze(matches);
@@ -195,7 +198,20 @@ function validateLimits(limits: ReadSelectorLimits): ReadSelectorLimits {
   return snapshot;
 }
 
-function parseSelector(source: string, limits: ReadSelectorLimits): BooleanNode {
+type AstPolicy = (depth: number, nodes: number, offset: number) => void;
+/** Source-private complete grammar analysis inside an already bounded body.
+ * Read keeps its separate early operational checks. No AST escapes this call. */
+export function analyzeSelectorGrammar(selector: string, enclosingBytes: number) {
+  if (typeof selector !== "string") throw new TypeError("selector must be a string");
+  if (!Number.isSafeInteger(enclosingBytes) || enclosingBytes <= 0)
+    throw new TypeError("invalid enclosing Selector byte budget");
+  const bytes = new TextEncoder().encode(selector).byteLength;
+  if (bytes > enclosingBytes) throw new RangeError("Selector exceeds enclosing body budget");
+  const expression = parseSelector(selector, () => {});
+  return Object.freeze({ bytes, depth: expression.depth, nodes: expression.nodes });
+}
+
+function parseSelector(source: string, check: AstPolicy): BooleanNode {
   const tokens = tokenize(source);
   let cursor = 0;
   const take = (): Token => {
@@ -227,7 +243,7 @@ function parseSelector(source: string, limits: ReadSelectorLimits): BooleanNode 
         throw syntaxError("expected a filter expression", token.offset);
       if (operators.some((entry) => entry.kind === "open-group"))
         throw syntaxError("expected closing ')'", token.offset);
-      reduceAll(operators, values, limits);
+      reduceAll(operators, values, check);
       const expression = takeSingleBoolean(values, token.offset);
       const trailing = take();
       if (trailing.kind !== "end") throw unsupportedOrSyntaxAfterSelector(trailing);
@@ -247,7 +263,7 @@ function parseSelector(source: string, limits: ReadSelectorLimits): BooleanNode 
         continue;
       }
       if (token.kind === "path") {
-        values.push(makePath(token.segments, limits, token.offset));
+        values.push(makePath(token.segments, check, token.offset));
         expectingOperand = false;
         sawExpression = true;
         continue;
@@ -266,13 +282,13 @@ function parseSelector(source: string, limits: ReadSelectorLimits): BooleanNode 
     }
 
     if (token.kind === "operator" && token.operator !== "!") {
-      reduceForIncoming(token, operators, values, limits);
+      reduceForIncoming(token, operators, values, check);
       operators.push(token);
       expectingOperand = true;
       continue;
     }
     if (token.kind === "close-paren") {
-      closeGroup(token.offset, operators, values, limits);
+      closeGroup(token.offset, operators, values, check);
       expectingOperand = false;
       continue;
     }
@@ -284,13 +300,9 @@ function parseSelector(source: string, limits: ReadSelectorLimits): BooleanNode 
   }
 }
 
-function makePath(
-  segments: readonly PathSegment[],
-  limits: ReadSelectorLimits,
-  offset: number,
-): PathNode {
+function makePath(segments: readonly PathSegment[], check: AstPolicy, offset: number): PathNode {
   const size = segments.length + 1;
-  enforceAstLimits(size, size, limits, offset);
+  check(size, size, offset);
   return { kind: "path", segments: Object.freeze([...segments]), depth: size, nodes: size };
 }
 
@@ -298,7 +310,7 @@ function reduceForIncoming(
   incoming: OperatorToken,
   operators: OperatorEntry[],
   values: AstNode[],
-  limits: ReadSelectorLimits,
+  check: AstPolicy,
 ): void {
   const incomingPrecedence = precedence(incoming.operator);
   for (;;) {
@@ -306,20 +318,16 @@ function reduceForIncoming(
     if (top === undefined || top.kind === "open-group") return;
     const topPrecedence = precedence(top.operator);
     if (topPrecedence < incomingPrecedence) return;
-    reduceOperator(operators.pop() as OperatorToken, values, limits);
+    reduceOperator(operators.pop() as OperatorToken, values, check);
   }
 }
 
-function reduceAll(
-  operators: OperatorEntry[],
-  values: AstNode[],
-  limits: ReadSelectorLimits,
-): void {
+function reduceAll(operators: OperatorEntry[], values: AstNode[], check: AstPolicy): void {
   while (operators.length > 0) {
     const operator = operators.pop();
     if (operator === undefined || operator.kind === "open-group")
       throw syntaxError("unclosed parenthesized expression", operator?.offset ?? 0);
-    reduceOperator(operator, values, limits);
+    reduceOperator(operator, values, check);
   }
 }
 
@@ -327,7 +335,7 @@ function closeGroup(
   offset: number,
   operators: OperatorEntry[],
   values: AstNode[],
-  limits: ReadSelectorLimits,
+  check: AstPolicy,
 ): void {
   for (;;) {
     const operator = operators.pop();
@@ -342,15 +350,15 @@ function closeGroup(
         depth: operand.depth + 1,
         nodes: operand.nodes + 1,
       };
-      enforceAstLimits(group.depth, group.nodes, limits, operator.offset);
+      check(group.depth, group.nodes, operator.offset);
       values.push(group);
       return;
     }
-    reduceOperator(operator, values, limits);
+    reduceOperator(operator, values, check);
   }
 }
 
-function reduceOperator(token: OperatorToken, values: AstNode[], limits: ReadSelectorLimits): void {
+function reduceOperator(token: OperatorToken, values: AstNode[], check: AstPolicy): void {
   if (token.operator === "!") {
     const operand = popBoolean(values, token.offset);
     const node: NotNode = {
@@ -359,7 +367,7 @@ function reduceOperator(token: OperatorToken, values: AstNode[], limits: ReadSel
       depth: operand.depth + 1,
       nodes: operand.nodes + 1,
     };
-    enforceAstLimits(node.depth, node.nodes, limits, token.offset);
+    check(node.depth, node.nodes, token.offset);
     values.push(node);
     return;
   }
@@ -376,7 +384,7 @@ function reduceOperator(token: OperatorToken, values: AstNode[], limits: ReadSel
       depth: Math.max(booleanLeft.depth, booleanRight.depth) + 1,
       nodes: booleanLeft.nodes + booleanRight.nodes + 1,
     };
-    enforceAstLimits(node.depth, node.nodes, limits, token.offset);
+    check(node.depth, node.nodes, token.offset);
     values.push(node);
     return;
   }
@@ -393,7 +401,7 @@ function reduceOperator(token: OperatorToken, values: AstNode[], limits: ReadSel
     depth: Math.max(valueLeft.depth, valueRight.depth) + 1,
     nodes: valueLeft.nodes + valueRight.nodes + 1,
   };
-  enforceAstLimits(node.depth, node.nodes, limits, token.offset);
+  check(node.depth, node.nodes, token.offset);
   values.push(node);
 }
 

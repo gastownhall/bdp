@@ -1,3 +1,11 @@
+import {
+  createTransactionalObservations,
+  TRANSACTIONAL_EXCHANGE_FIELDS,
+  TransactionalHarnessError,
+  TransactionalReceiptFailure,
+  type TransactionalRunContext,
+  type TransactionalExchangeFields,
+} from "./transactional-observation.js";
 import { createHash } from "node:crypto";
 import type { ExactHttpConfiguration } from "./raw-http-scenario-target.js";
 import {
@@ -7,6 +15,7 @@ import {
 } from "./conditional-header.js";
 import {
   assertFactoryCreatedArtifactBundle,
+  isCumulativeTransactionalArtifactBundle,
   type ConformanceArtifactBundle,
   type ConformanceFixture,
 } from "./artifact-bundle.js";
@@ -35,6 +44,7 @@ import {
   type HttpExchangeResponse,
   HttpTransportError,
   snapshotExactHttpMode,
+  createRawHttpExchangeExecutor,
   validateExactRunConfiguration,
   type RawHttpExchangeExecutor,
   type ExactRequestObservation,
@@ -146,7 +156,7 @@ export interface ExactReportObservation {
   readonly bodyDigest?: string;
 }
 
-export interface ObservedExchange {
+export interface ObservedExchange extends TransactionalExchangeFields {
   readonly request: {
     readonly id: string;
     readonly method: ScenarioRequest["method"];
@@ -247,10 +257,14 @@ interface ConformanceRunResultBase {
 
 export type LegacyObservedExchange = Omit<
   ObservedExchange,
-  "request" | "transportError" | "harnessError"
+  "request" | "transportError" | "harnessError" | keyof TransactionalExchangeFields
 > & {
   readonly request: Omit<ObservedExchange["request"], "exact"> & { readonly exact?: never };
   readonly harnessError?: never;
+  readonly dynamicExactConfiguration?: never;
+  readonly dynamicExactConfigurationDigest?: never;
+  readonly sourceReceiptObservation?: never;
+  readonly servedSession?: never;
   readonly transportError?: {
     readonly category: string;
     readonly message: string;
@@ -314,8 +328,29 @@ export class ScenarioUnsupportedProfileError extends Error {
 export async function runConformanceMatrix(
   options: ScenarioRunOptions,
 ): Promise<ConformanceRunResult> {
+  return runMatrix(options, false);
+}
+
+/** Source-private installed observation; never public Transactional admission. */
+export async function runCumulativeTransactionalMatrix(
+  options: ScenarioRunOptions,
+  context?: TransactionalRunContext,
+): Promise<ConformanceRunResult> {
+  return runMatrix(options, true, context);
+}
+
+async function runMatrix(
+  options: ScenarioRunOptions,
+  transactional: boolean,
+  context?: TransactionalRunContext,
+): Promise<ConformanceRunResult> {
   const runOptions = snapshotRunOptions(options);
-  validateRunOptions(runOptions);
+  const branded = isCumulativeTransactionalArtifactBundle(runOptions.artifactBundle);
+  if (transactional ? !branded || runOptions.profile !== "transactional" : branded)
+    throw new ConformanceRunnerError(
+      "private Transactional bundle requires its matching private runner and profile",
+    );
+  validateRunOptions(runOptions, transactional);
   const { catalog, manifest } = runOptions.artifactBundle;
   const metadata = selectApplicableScenariosForProfile(catalog, runOptions.profile);
   const allCatalogIds = new Set(catalog.scenarios.map(({ id }) => id));
@@ -356,7 +391,7 @@ export async function runConformanceMatrix(
       plan === undefined
         ? missingPlanResult(scenario)
         : (prerequisiteResultBeforeRun(scenario, plan, resultsById, catalog) ??
-          (await runScenario(scenario, plan, runOptions)));
+          (await runScenario(scenario, plan, runOptions, context)));
     results.push(scenarioResult);
     resultsById.set(scenarioResult.id, scenarioResult);
     if (mustStopMatrixAfter(scenarioResult)) {
@@ -395,13 +430,14 @@ export async function runConformanceMatrix(
   return { ...common, reportVersion: 3, scenarios: legacy };
 }
 
-function assertLegacyScenario(
+export function assertLegacyScenario(
   scenario: ScenarioRunResult,
 ): asserts scenario is ScenarioRunResult & LegacyScenarioRunResult {
   for (const exchange of scenario.exchanges) {
     if (
       Object.hasOwn(exchange.request, "exact") ||
       Object.hasOwn(exchange, "harnessError") ||
+      TRANSACTIONAL_EXCHANGE_FIELDS.some((key) => Object.hasOwn(exchange, key)) ||
       (exchange.transportError !== undefined &&
         Object.hasOwn(exchange.transportError, "writeState"))
     )
@@ -486,6 +522,7 @@ async function runScenario(
   metadata: ScenarioMetadata,
   scenario: ExecutableScenario,
   options: ScenarioRunOptions,
+  context?: TransactionalRunContext,
 ): Promise<ScenarioRunResult> {
   if (metadata.requiredProfile !== scenario.requiredProfile)
     return result(
@@ -588,6 +625,15 @@ async function runScenario(
         ...Object.entries(preparation.bindings ?? {}),
       ]);
       const priorResponses = new Map<string, ComparableResponse>();
+      const transactional =
+        context === undefined
+          ? undefined
+          : createTransactionalObservations(
+              context,
+              scenario.id,
+              options.scope,
+              scenarioActionSequence(scenario).length,
+            );
       for (const action of scenarioActionSequence(scenario)) {
         actionSettlement.settled = true;
         actionSettlement.description =
@@ -609,6 +655,7 @@ async function runScenario(
             actionSettlement,
             priorResponses,
             options,
+            transactional,
           );
         } catch (error) {
           if (action.prerequisiteScenario !== undefined)
@@ -666,6 +713,8 @@ async function runScenario(
         exchanges,
         "out-of-scope-target",
       );
+    else if (error instanceof TransactionalHarnessError)
+      runResult = result(metadata, scenario, "harness-error", error.message, exchanges);
     else if (error instanceof ExactHarnessError)
       runResult = result(
         metadata,
@@ -675,7 +724,10 @@ async function runScenario(
         exchanges,
         error.category,
       );
-    else if (error instanceof ScenarioObservationFailure)
+    else if (
+      error instanceof ScenarioObservationFailure ||
+      error instanceof TransactionalReceiptFailure
+    )
       runResult = result(metadata, scenario, "fail", error.message, exchanges);
     else if (error instanceof ScenarioObservationLimitError)
       runResult = result(
@@ -797,6 +849,7 @@ async function runScenarioAction(
   settlement: ActionSettlement,
   priorResponses: Map<string, ComparableResponse>,
   options: ScenarioRunOptions,
+  transactional?: ReturnType<typeof createTransactionalObservations>,
 ): Promise<void> {
   if (action.family === "http") {
     await runRequest(
@@ -813,6 +866,132 @@ async function runScenarioAction(
       settlement,
       priorResponses,
       options,
+      transactional,
+    );
+    return;
+  }
+  if (action.family === "client" && action.operation.startsWith("transactional.")) {
+    if (!transactional)
+      throw new TransactionalHarnessError("private Transactional session required");
+    const privateExecute: ScenarioActionExecutor = async (execution) => {
+      if (action.operation === "transactional.reopen") {
+        if (Object.keys(execution.input as object).length)
+          throw new TransactionalHarnessError("reopen takes no input");
+        await transactional.reopen(execution.signal);
+        return { reopened: true };
+      }
+      if (action.operation !== "transactional.receipt-read")
+        throw new TransactionalHarnessError("unsupported private transaction action");
+      const input = execution.input as Record<string, unknown>;
+      if (
+        !input ||
+        typeof input !== "object" ||
+        Object.keys(input).some((k) => !["binding", "method"].includes(k)) ||
+        typeof input.binding !== "string" ||
+        !["GET", "HEAD"].includes(String(input.method))
+      )
+        throw new TransactionalHarnessError("invalid private receipt input");
+      const { source, target, active, validate } = transactional.resolve(
+        input.binding,
+        bindings.get(input.binding),
+      );
+      const original = options.exactExecution;
+      if (!original) throw new TransactionalHarnessError("exact transport required");
+      const mode = snapshotExactHttpMode({
+        ...original.configuration,
+        routes: [{ method: input.method as "GET" | "HEAD", url: target }],
+        resolveCredentials: active.resolveCredentials,
+      });
+      const { resolveCredentials: _resolver, ...configuration } = mode;
+      const raw = createRawHttpExchangeExecutor(active.dialRoute, {
+        exactMode: mode,
+        maximumHeaderBytes: active.binding.responseLimits.headerBytes,
+        maximumBodyBytes: active.binding.responseLimits.bodyBytes,
+        requestTimeoutMs: Math.min(timeoutMs, 5000),
+      });
+      const exactExecution: ExactScenarioExecution = {
+        configuration,
+        execute: (request) =>
+          active.register(
+            raw({ ...request, signal: AbortSignal.any([request.signal, active.signal]) }),
+          ),
+      };
+      let projection: JsonValue | undefined;
+
+      await runRequest(
+        {
+          id: action.id,
+          method: input.method as "GET" | "HEAD",
+          target: { binding: input.binding },
+          credentialRef: source.credentialRef,
+          raw: { headerLines: [] },
+          captures: [],
+          assertions: [
+            { id: "actual-status", kind: "status", equals: 200 },
+            { id: "actual-request", kind: "request-authored-headers" },
+            { id: "actual-body", kind: "request-authored-body" },
+          ],
+        },
+        bindings,
+        exchanges,
+        execute,
+        schemaValidator,
+        fixture,
+        scope,
+        runProfile,
+        execution.signal,
+        timeoutMs,
+        settlement,
+        priorResponses,
+        { ...options, exactExecution },
+        undefined,
+        (response) => {
+          validate(response, input.method as "GET" | "HEAD");
+          const body = response.bodyText ? JSON.parse(response.bodyText) : null;
+          if (input.method === "GET") {
+            if (!schemaValidator)
+              throw new TransactionalHarnessError("receipt validator unavailable");
+            if (
+              schemaValidator.validate(
+                source.pointer === "/next"
+                  ? "#/$defs/mutationReceiptPage"
+                  : "#/$defs/mutationReceipt",
+                body,
+              ).length ||
+              (source.pointer === "/next" ? body.receipt : body.id) !== source.receipt
+            )
+              throw new TransactionalReceiptFailure("retained receipt schema or identity mismatch");
+          }
+          projection = {
+            status: response.status,
+            headers: normalizeHeaders(response.headers),
+            body,
+            bodyPresent: response.bodyText.length > 0,
+            bodyOctets: response.bodyOctets ?? 0,
+          };
+        },
+        {
+          dynamicExactConfiguration: configuration,
+          dynamicExactConfigurationDigest: exactConfigurationDigest(exactExecution),
+          sourceReceiptObservation: source,
+          servedSession: active.binding,
+        },
+      );
+      if (!projection) throw new TransactionalHarnessError("missing actual receipt observation");
+      return projection;
+    };
+    await runProgrammaticAction(
+      action,
+      bindings,
+      actions,
+      privateExecute,
+      schemaValidator,
+      fixture,
+      scope,
+      runProfile,
+      signal,
+      action.operation === "transactional.reopen" ? (options.prepareTimeoutMs ?? 30000) : timeoutMs,
+      settlement,
     );
     return;
   }
@@ -900,7 +1079,9 @@ async function runProgrammaticAction(
       ? new ScenarioActionExecutionFailure("action execution was aborted", { cause: error })
       : deadline.signal.aborted
         ? new ScenarioDeadlineError("action execution timed out", { cause: error })
-        : error instanceof ScenarioDeadlineError
+        : error instanceof ScenarioDeadlineError ||
+            error instanceof TransactionalHarnessError ||
+            error instanceof TransactionalReceiptFailure
           ? error
           : new ScenarioActionExecutionFailure("action execution failed", { cause: error });
     actions[actions.length - 1] = {
@@ -930,6 +1111,8 @@ async function runProgrammaticAction(
       runProfile,
       new Map(),
       {},
+      undefined,
+      bindings,
     ),
   );
   actions[actions.length - 1] = { ...next, assertions: outcomes };
@@ -964,8 +1147,12 @@ async function runRequest(
   settlement: ActionSettlement,
   priorResponses: Map<string, ComparableResponse>,
   options: ScenarioRunOptions,
+  transactional?: ReturnType<typeof createTransactionalObservations>,
+  observe?: (response: HttpExchangeResponse) => void,
+  dynamic?: TransactionalExchangeFields,
 ): Promise<void> {
   const url = resolveTarget(request, bindings, scope);
+  const served = transactional?.session().binding;
   const exact = request.raw !== undefined;
   const reportVersion = options.artifactBundle.manifest.manifestVersion === 2 ? 4 : 3;
   let body: Uint8Array | undefined;
@@ -981,6 +1168,8 @@ async function runRequest(
     });
   }
   const observed: ObservedExchange = {
+    ...dynamic,
+    ...(served ? { servedSession: served } : {}),
     request: {
       id: request.id,
       method: request.method,
@@ -1265,6 +1454,7 @@ async function runRequest(
         priorResponses,
         headers,
         exactWitness,
+        bindings,
       ),
   );
   exchanges[exchanges.length - 1] = { ...next, assertions: outcomes };
@@ -1278,8 +1468,39 @@ async function runRequest(
         .map(({ message }) => message ?? "assertion failed")
         .join("; "),
     );
-  for (const capture of request.captures)
+  for (const capture of request.captures) {
+    if (transactional && served && options.exactExecution && exactObservation) {
+      if (
+        !exactHeadersMatch(
+          request,
+          url,
+          body,
+          exactObservation,
+          options.exactExecution.configuration,
+        ) ||
+        exactObservation.writeState !== "complete" ||
+        exactObservation.bodyPresent !== (body !== undefined) ||
+        exactObservation.bodyOctets !== (body?.length ?? 0) ||
+        exactObservation.bodyDigest !==
+          (body === undefined ? undefined : createHash("sha256").update(body).digest("hex"))
+      )
+        throw new ExactHarnessError("exact-observation");
+      transactional.register(
+        capture.binding,
+        capture.from.kind === "json-pointer" ? capture.from.pointer : "",
+        request.id,
+        { method: request.method, url },
+        response,
+        bodyObservation.kind === "json" ? bodyObservation.value : undefined,
+        options.exactExecution.configuration,
+        request.credentialRef,
+        schemaValidator,
+        served,
+      );
+    }
     bindings.set(capture.binding, captureValue(capture, assertionResponse, bodyObservation, scope));
+  }
+  observe?.({ ...response, headers: responseHeaders });
   priorResponses.set(request.id, {
     status: response.status,
     headers: responseHeaders,
@@ -1801,6 +2022,7 @@ function evaluateAssertion(
   priorResponses: ReadonlyMap<string, ComparableResponse>,
   requestedHeaders: Readonly<Record<string, string>>,
   exactWitness?: ExactHeaderWitness,
+  bindings: ReadonlyMap<string, JsonValue> = new Map(),
 ): AssertionOutcome {
   if (
     assertion.kind === "request-authored-body" ||
@@ -2010,6 +2232,16 @@ function evaluateAssertion(
     if (body.kind !== "json") return outcome(assertion.id, false, observedBodyIssue(body));
     const value = jsonPointer(body.value, assertion.pointer);
     const exists = value !== undefined;
+    if (assertion.equalsBinding !== undefined) {
+      const expected = bindings.get(assertion.equalsBinding);
+      if (expected === undefined)
+        throw new ConformanceRunnerError("JSON assertion capture is unavailable");
+      return outcome(
+        assertion.id,
+        exists && deepEqual(value, expected),
+        "JSON pointer did not equal the earlier observed capture",
+      );
+    }
     const fixtureExpected =
       assertion.fixturePointer === undefined
         ? undefined
@@ -2509,7 +2741,7 @@ function linkHeader(value: string | undefined, rel: string, base: string): strin
   return undefined;
 }
 
-function validateRunOptions(options: ScenarioRunOptions): void {
+function validateRunOptions(options: ScenarioRunOptions, transactional: boolean): void {
   try {
     assertFactoryCreatedArtifactBundle(options.artifactBundle);
   } catch (error) {
@@ -2576,13 +2808,15 @@ function validateRunOptions(options: ScenarioRunOptions): void {
   if (
     options.artifactBundle.manifest.manifestVersion === 2 &&
     options.profile !== "read" &&
-    (options.profile !== "read-update" ||
+    ((transactional ? options.profile !== "transactional" : options.profile !== "read-update") ||
       options.exactExecution === undefined ||
       options.exactExecution.configuration.profile !== options.profile ||
       options.exactExecution.configuration.scope !== options.scope)
   )
     throw new ConformanceRunnerError(
-      "Version 2 non-Read execution requires matching Read+Update configuration",
+      transactional
+        ? "Private Transactional execution requires matching exact configuration (private session transport required)"
+        : "Version 2 non-Read execution requires matching Read+Update configuration",
     );
   if (
     options.exactExecution?.approvedSyntheticManifestDigest !== undefined &&
@@ -2596,6 +2830,14 @@ function validateRunOptions(options: ScenarioRunOptions): void {
   );
   for (const scenario of options.artifactBundle.manifest.scenarios)
     for (const action of scenarioActionSequence(scenario)) {
+      if (
+        !transactional &&
+        action.family === "client" &&
+        action.operation.startsWith("transactional.")
+      )
+        throw new ConformanceRunnerError(
+          "reserved Transactional client operation requires private runner",
+        );
       const actionKind = action.family === "http" ? "request" : "action";
       if (action.prerequisiteScenario !== undefined && !catalogIds.has(action.prerequisiteScenario))
         throw new ConformanceRunnerError(
@@ -2868,6 +3110,15 @@ function validateScenarioBindingFlow(
   }
   for (const action of scenarioActionSequence(scenario)) {
     if (action.family !== "http") {
+      for (const assertion of action.assertions)
+        if (
+          assertion.kind === "json-pointer" &&
+          assertion.equalsBinding !== undefined &&
+          !established.has(assertion.equalsBinding)
+        )
+          throw new ConformanceRunnerError(
+            `action '${action.id}' assertion references unknown capture '${assertion.equalsBinding}'`,
+          );
       for (const capture of action.captures) {
         if (established.has(capture.binding))
           throw new ConformanceRunnerError(
@@ -3097,7 +3348,8 @@ function compareKeys(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function isCanonicalScope(value: string): boolean {
+/** Internal predicate reused by source-only planning, not a package API. */
+export function isCanonicalScope(value: string): boolean {
   if (!isHttpUrl(value)) return false;
   const parsed = new URL(value);
   return (

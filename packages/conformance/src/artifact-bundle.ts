@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import { canonicalJson } from "./canonical-json.js";
+import {
+  assertCanonicalProfileContractSelection,
+  type ProfileContractSelection,
+} from "./profile-contract-selection.js";
 
 import { parseScenarioCatalog, type ScenarioCatalog } from "./catalog.js";
 import {
@@ -10,6 +15,8 @@ import {
 const ARTIFACT_ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const ARTIFACT_ID_MAX_LENGTH = 128;
 const ARTIFACT_MAX_BYTES = 1_048_576;
+/** Internal cumulative manifest budget; public artifact and fixture budgets stay unchanged. */
+export const CUMULATIVE_MANIFEST_MAX_BYTES = 4_194_304;
 const ARTIFACT_MAX_JSON_DEPTH = 128;
 const ARTIFACT_MAX_JSON_NODES = 100_000;
 const ARTIFACT_MAX_CONTAINER_ENTRIES = 10_000;
@@ -52,6 +59,7 @@ export interface ConformanceFixture {
 }
 
 export interface ConformanceArtifactDigests {
+  /** Ordinary bundles hash catalog bytes; private cumulative bundles hash the canonical exact-file digest map. */
   readonly catalogDigest: string;
   readonly manifestDigest: string;
   readonly fixtureDigest: string;
@@ -77,12 +85,83 @@ export class ConformanceArtifactBundleError extends Error {
 }
 
 const factoryCreatedBundles = new WeakSet<ConformanceArtifactBundle>();
+const cumulativeTransactionalBundles = new WeakSet<ConformanceArtifactBundle>();
 
 export function createConformanceArtifactBundle(
   sources: ConformanceArtifactBundleSources,
 ): ConformanceArtifactBundle {
+  return createBoundArtifactBundle(sources, false);
+}
+
+/** Private diagnostic lane, exposed only by source-only test support. This
+ * cannot bind normative IDs or relax the production Read artifact guard. */
+export function createDevelopmentReadUpdateArtifactBundle(
+  sources: ConformanceArtifactBundleSources,
+): ConformanceArtifactBundle {
+  return createBoundArtifactBundle(sources, true);
+}
+
+/** Source-private partial cumulative RU execution. Never public admission. */
+export function createCumulativeReadUpdateArtifactBundle(
+  selection: ProfileContractSelection,
+  sources: Pick<ConformanceArtifactBundleSources, "manifest" | "fixture">,
+): ConformanceArtifactBundle {
+  assertCanonicalProfileContractSelection(selection);
+  if (selection.profile !== "read-update" || selection.history)
+    throw new ConformanceArtifactBundleError(
+      "cumulative candidate requires baseline Read+Update selection",
+    );
+  const bundle = createBoundArtifactBundle(
+    {
+      catalog: { bytes: Buffer.from(JSON.stringify(selection.catalog)) },
+      manifest: sources.manifest,
+      fixture: sources.fixture,
+    },
+    false,
+    selection,
+  );
+  return bundle;
+}
+
+/** Source-private TX carrier; transport and public profile admission remain separate. */
+export function createCumulativeTransactionalArtifactBundle(
+  selection: ProfileContractSelection,
+  sources: Pick<ConformanceArtifactBundleSources, "manifest" | "fixture">,
+): ConformanceArtifactBundle {
+  assertCanonicalProfileContractSelection(selection);
+  if (selection.profile !== "transactional" || selection.history)
+    throw new ConformanceArtifactBundleError(
+      "cumulative candidate requires baseline Transactional selection",
+    );
+  const bundle = createBoundArtifactBundle(
+    {
+      catalog: { bytes: Buffer.from(JSON.stringify(selection.catalog)) },
+      manifest: sources.manifest,
+      fixture: sources.fixture,
+    },
+    false,
+    selection,
+  );
+  cumulativeTransactionalBundles.add(bundle);
+  return bundle;
+}
+
+/** Internal brand check, never a user-supplied admission flag. */
+export function isCumulativeTransactionalArtifactBundle(value: ConformanceArtifactBundle): boolean {
+  return cumulativeTransactionalBundles.has(value);
+}
+
+function createBoundArtifactBundle(
+  sources: ConformanceArtifactBundleSources,
+  development: boolean,
+  cumulative?: ProfileContractSelection,
+): ConformanceArtifactBundle {
   const catalogBytes = copySourceBytes(sources.catalog, "catalog");
-  const manifestBytes = copySourceBytes(sources.manifest, "manifest");
+  const manifestBytes = copySourceBytes(
+    sources.manifest,
+    "manifest",
+    cumulative?.profile === "read-update" ? CUMULATIVE_MANIFEST_MAX_BYTES : undefined,
+  );
   const fixtureBytes = copySourceBytes(sources.fixture, "fixture");
   const catalog = parseScenarioCatalog(
     parseBoundedJson(catalogBytes, "catalog", sources.catalog.label),
@@ -97,10 +176,54 @@ export function createConformanceArtifactBundle(
     sources.fixture.label,
   );
 
-  if (manifest.catalogId !== `read-v${catalog.catalogVersion}`) {
+  const expectedCatalogId = cumulative
+    ? `${cumulative.profile}-v1`
+    : development
+      ? "development-read-update-v1"
+      : `read-v${catalog.catalogVersion}`;
+  if (
+    development &&
+    (catalog.scenarios.length === 0 ||
+      catalog.scenarios.some(
+        (row) =>
+          row.kind !== "diagnostic" ||
+          row.requiredProfile !== "read-update" ||
+          !row.id.startsWith("development.read-update.") ||
+          row.retires !== undefined,
+      ))
+  )
+    throw new ConformanceArtifactBundleError(
+      "development artifacts require diagnostic-only Read+Update rows",
+    );
+  if (development) {
+    const diagnosticIds = new Set(catalog.scenarios.map((row) => row.id));
+    if (
+      manifest.scenarios.some(
+        (row) => row.requiredProfile !== "read-update" || !diagnosticIds.has(row.id),
+      )
+    )
+      throw new ConformanceArtifactBundleError(
+        "development manifest must bind only its diagnostic Read+Update catalog",
+      );
+  }
+  if (manifest.catalogId !== expectedCatalogId) {
     throw new ConformanceArtifactBundleError(
       "manifest catalogId does not match the bound catalog source",
     );
+  }
+  if (cumulative) {
+    if (manifest.manifestVersion !== 2)
+      throw new ConformanceArtifactBundleError(
+        cumulative.profile === "read-update"
+          ? "cumulative Read+Update requires version 2"
+          : "cumulative Transactional requires version 2",
+      );
+    const required = new Map(cumulative.required.map((row) => [row.id, row]));
+    for (const row of manifest.scenarios)
+      if (required.get(row.id)?.requiredProfile !== row.requiredProfile)
+        throw new ConformanceArtifactBundleError(
+          `manifest row is not a cumulative requirement: ${row.id}`,
+        );
   }
   for (const scenario of manifest.scenarios) {
     if (scenario.setup.fixture !== fixture.id) {
@@ -116,7 +239,10 @@ export function createConformanceArtifactBundle(
     manifest,
     fixture,
     digests: {
-      catalogDigest: sha256(catalogBytes),
+      catalogDigest:
+        cumulative === undefined
+          ? sha256(catalogBytes)
+          : sha256(Buffer.from(canonicalJson(cumulative.catalogDigests))),
       manifestDigest: sha256(manifestBytes),
       fixtureDigest: sha256(fixtureBytes),
     },
@@ -125,7 +251,8 @@ export function createConformanceArtifactBundle(
   return bundle;
 }
 
-function validateFixtureOraclePointers(
+/** Internal source boundary reuse; not exported by the package entry point. */
+export function validateFixtureOraclePointers(
   manifest: ExecutableScenarioManifest,
   fixture: ConformanceFixture,
 ): void {
@@ -260,9 +387,11 @@ export function assertFactoryCreatedArtifactBundle(
   }
 }
 
-function copySourceBytes(
+/** Internal source boundary reuse; not exported by the package entry point. */
+export function copySourceBytes(
   source: ConformanceArtifactSource,
   kind: keyof ConformanceArtifactBundleSources,
+  maximumBytes = ARTIFACT_MAX_BYTES,
 ): Uint8Array {
   const bytes = source.bytes;
   let byteLength: number;
@@ -275,9 +404,9 @@ function copySourceBytes(
   } catch {
     throw new ConformanceArtifactBundleError(`${kind} source bytes must be a Uint8Array`);
   }
-  if (byteLength > ARTIFACT_MAX_BYTES) {
+  if (byteLength > maximumBytes) {
     throw new ConformanceArtifactBundleError(
-      `${kind} source must not exceed ${ARTIFACT_MAX_BYTES} bytes`,
+      `${kind} source must not exceed ${maximumBytes} bytes`,
     );
   }
   const copy = new Uint8Array(byteLength);
@@ -295,7 +424,8 @@ function decodeUtf8(bytes: Uint8Array, kind: string, label: string | undefined):
   }
 }
 
-function parseBoundedJson(
+/** Internal source boundary reuse; not exported by the package entry point. */
+export function parseBoundedJson(
   bytes: Uint8Array,
   kind: keyof ConformanceArtifactBundleSources,
   sourceLabel?: string,
@@ -342,7 +472,8 @@ function assertJsonComplexity(value: unknown, label: string): void {
   }
 }
 
-function parseFixtureJson(value: unknown, sourceLabel?: string): ConformanceFixture {
+/** Internal source boundary reuse; not exported by the package entry point. */
+export function parseFixtureJson(value: unknown, sourceLabel?: string): ConformanceFixture {
   if (!isPlainRecord(value)) {
     throw new ConformanceArtifactBundleError(`${sourceLabel ?? "fixture"}: must be a JSON object`);
   }

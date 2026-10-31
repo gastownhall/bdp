@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createJsonSchemaValidator } from "./index.js";
-import schemaBundle from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import schemaBundle from "../../../specs/profiles/core/bdp-v0.schema.json" with { type: "json" };
 
 describe("offline schema validator", () => {
   it("requires the bundle to declare its own schema identity", () => {

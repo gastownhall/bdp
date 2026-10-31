@@ -1,3 +1,19 @@
+export {
+  createReadUpdateArtifactSet,
+  assertReadUpdateArtifactSet,
+  copyReadUpdateArtifactSetSources,
+  type ReadUpdateArtifactSet,
+} from "./read-update-artifact-set.js";
+export { runCumulativeTransactionalMatrix } from "../src/runner.js";
+export { createCumulativeTransactionalArtifactBundle } from "../src/artifact-bundle.js";
+export {
+  bindServedProfileConfiguration,
+  assertSameServedProfileConfiguration,
+  planProfileExecution,
+} from "./profile-contract-plan.js";
+export { createCumulativeReadUpdateArtifactBundle } from "../src/artifact-bundle.js";
+export { loadProfileContractSelection } from "../src/profile-contract-selection.js";
+export { createDevelopmentReadUpdateArtifactBundle } from "../src/artifact-bundle.js";
 import { isDeepStrictEqual } from "node:util";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
@@ -1687,11 +1703,13 @@ async function requestStatus(
   return response.status;
 }
 
-function pageSchemaFor(responseUrl: string): "#/$defs/beadCollection" | "#/$defs/linkCollection" {
+function pageSchemaFor(
+  responseUrl: string,
+): "#/$defs/currentBeadCollection" | "#/$defs/currentLinkCollection" {
   const url = new URL(responseUrl);
   if (url.searchParams.get("view") === "links" || url.pathname.endsWith("/links/"))
-    return "#/$defs/linkCollection";
-  if (url.pathname.endsWith("/beads/")) return "#/$defs/beadCollection";
+    return "#/$defs/currentLinkCollection";
+  if (url.pathname.endsWith("/beads/")) return "#/$defs/currentBeadCollection";
   throw new Error("controlled page request used an unsupported projection");
 }
 
@@ -1911,3 +1929,35 @@ function requiredPositiveInteger(record: Readonly<Record<string, unknown>>, fiel
     throw new Error(`controlled Read input field '${field}' must be a positive integer`);
   return value as number;
 }
+
+/** Strict current Read wire validation; call before any client compatibility projection. */
+export function createCurrentReadWireValidator(schemaValidator: SchemaValidator) {
+  return (url: string, scope: string, body: unknown): void => {
+    const target = new URL(url);
+    const root = new URL(scope);
+    if (target.origin !== root.origin || !target.pathname.startsWith(root.pathname)) return;
+    const local = target.pathname.slice(root.pathname.length);
+    const view = target.searchParams.get("view");
+    // Properties and optional History are distinct representations, not current records.
+    if ((view !== null && view !== "links") || target.searchParams.has("revision")) return;
+    let schema: string | undefined;
+    if (local === "beads/") schema = "#/$defs/currentBeadCollection";
+    else if (local === "links/" || (local.startsWith("beads/") && view === "links"))
+      schema = "#/$defs/currentLinkCollection";
+    else if (local.startsWith("beads/")) schema = "#/$defs/currentBeadRecord";
+    else if (local.startsWith("links/")) schema = "#/$defs/currentLinkRecord";
+    if (schema !== undefined) {
+      const failures = schemaValidator.validate(schema, body);
+      if (failures.length > 0)
+        throw new Error(
+          `current Read wire failed ${schema}: ${failures[0]?.instancePath} ${failures[0]?.message}`,
+        );
+    }
+  };
+}
+
+export type {
+  TransactionalRunContext,
+  TransactionalSessionBinding,
+  TransactionalSession,
+} from "../src/transactional-observation.js";

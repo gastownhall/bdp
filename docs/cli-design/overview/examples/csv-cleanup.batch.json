@@ -1,0 +1,125 @@
+{
+  "capabilityVersion": "2",
+  "operations": [
+    {
+      "operation": "select",
+      "name": "ready-links",
+      "query": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "walk",
+            "roots": {
+              "op": "refs",
+              "collection": "beads",
+              "references": ["https://work.example/acme/csv-draft"]
+            },
+            "direction": "outgoing",
+            "depth": 1,
+            "bind": "edge",
+            "through": {
+              "op": "typeIs",
+              "of": {
+                "op": "binding",
+                "name": "edge"
+              },
+              "type": "https://work.example/acme/explains",
+              "match": "family"
+            }
+          },
+          "bind": "edge",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "endpoint",
+                "of": {
+                  "op": "binding",
+                  "name": "edge"
+                },
+                "side": "target"
+              },
+              "path": ["properties", "status"]
+            },
+            "right": {
+              "op": "literal",
+              "value": "ready"
+            }
+          }
+        }
+      }
+    },
+    {
+      "operation": "select",
+      "name": "ready-checks",
+      "query": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "endpoints",
+          "input": {
+            "op": "filter",
+            "input": {
+              "op": "walk",
+              "roots": {
+                "op": "refs",
+                "collection": "beads",
+                "references": ["https://work.example/acme/csv-draft"]
+              },
+              "direction": "outgoing",
+              "depth": 1,
+              "bind": "edge",
+              "through": {
+                "op": "typeIs",
+                "of": {
+                  "op": "binding",
+                  "name": "edge"
+                },
+                "type": "https://work.example/acme/explains",
+                "match": "family"
+              }
+            },
+            "bind": "edge",
+            "predicate": {
+              "op": "compare",
+              "operator": "eq",
+              "left": {
+                "op": "field",
+                "of": {
+                  "op": "endpoint",
+                  "of": {
+                    "op": "binding",
+                    "name": "edge"
+                  },
+                  "side": "target"
+                },
+                "path": ["properties", "status"]
+              },
+              "right": {
+                "op": "literal",
+                "value": "ready"
+              }
+            }
+          },
+          "side": "target"
+        }
+      }
+    },
+    {
+      "operation": "deleteLink",
+      "link": {
+        "binding": "ready-links"
+      }
+    },
+    {
+      "operation": "deleteBead",
+      "bead": {
+        "binding": "ready-checks"
+      }
+    }
+  ]
+}

@@ -54,7 +54,7 @@ export interface ExactRequestObservation {
 /** Trusted harness configuration, not portable scenario data or target-supplied authority. */
 export interface ExactHttpModeOptions {
   readonly scope: string;
-  readonly profile: "read" | "read-update";
+  readonly profile: "read" | "read-update" | "transactional";
   readonly routes: readonly { readonly method: HttpMethod; readonly url: string }[];
   readonly maximumRequestHeaderBytes: number;
   readonly maximumRequestBodyBytes: number;
@@ -339,6 +339,10 @@ const HTTP_FIELD_VALUE = /^[\t\x20-\x7e\x80-\xff]*$/;
 const HANDLE_ID = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const SECRET_FIELD =
   /^(?:authorization|cookie|proxy-authorization|set-cookie|x-api-key|x-auth-token)$|(?:token|secret|password|credential|auth)/i;
+// Keep authored admission and credential-handle eligibility complementary.
+function isSecretHeaderName(name: string): boolean {
+  return name.toLowerCase() !== "bdp-authorization-view" && SECRET_FIELD.test(name);
+}
 const RESERVED_FIELDS = new Set([
   "host",
   "connection",
@@ -440,7 +444,12 @@ export function snapshotExactHttpMode(value: ExactHttpModeOptions): ExactHttpMod
     "resolveCredentials",
   ]);
   const { scope, routes } = snapshotExactRoutes(fields.scope, fields.routes);
-  if (fields.profile !== "read" && fields.profile !== "read-update") return configuration();
+  if (
+    fields.profile !== "read" &&
+    fields.profile !== "read-update" &&
+    fields.profile !== "transactional"
+  )
+    return configuration();
   if (
     typeof fields.maximumRequestHeaderBytes !== "number" ||
     typeof fields.maximumRequestBodyBytes !== "number"
@@ -467,7 +476,7 @@ export function snapshotExactHttpMode(value: ExactHttpModeOptions): ExactHttpMod
         typeof name !== "string" ||
         !HTTP_FIELD_NAME.test(name) ||
         name !== name.toLowerCase() ||
-        !SECRET_FIELD.test(name) ||
+        !isSecretHeaderName(name) ||
         RESERVED_FIELDS.has(name) ||
         names.includes(name)
       )
@@ -663,7 +672,7 @@ async function executeExact(
       )
         return configuration();
       const name = entry.name.toLowerCase();
-      if (SECRET_FIELD.test(name) || RESERVED_FIELDS.has(name)) return configuration();
+      if (isSecretHeaderName(name) || RESERVED_FIELDS.has(name)) return configuration();
       append(entry.name, entry.value);
     }
     if (headBytes > mode.maximumRequestHeaderBytes) return configuration();

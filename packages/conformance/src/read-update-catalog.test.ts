@@ -1,29 +1,24 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
-
+import {
+  isProtocolSpecificationSource,
+  readSpecificationSource,
+} from "../test-support/spec-source.js";
 import {
   loadExecutableScenarioManifestJson,
   loadScenarioCatalogJson,
   selectNormativeScenariosForProfile,
   validateCatalogCitations,
 } from "./index.js";
+import { loadProfileContractSelection } from "./profile-contract-selection.js";
 
-/**
- * The drafted Read+Update rows are metadata only. They bind normative text
- * so that the profile's obligations are reviewable now, but no executable
- * manifest names this catalog, no fixture realizes it, and no runner can
- * report a row from it — so nothing can claim it. That absence is asserted
- * here so it cannot erode silently. What is checked is structure and
- * citation consistency — the rows parse, every excerpt still appears in
- * its anchored section, and the rows mirror the specification's table in
- * order — never the behavior a row describes.
- */
+/** Catalog citations and composition are checked here. The explicit private
+ * cumulative manifest observes only its authored cases; missing obligations
+ * remain uncovered and public qualification is not enabled by this test. */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const readText = (relativePath: string): string =>
-  readFileSync(path.resolve(root, relativePath), "utf8");
+const readText = (relativePath: string): string => readSpecificationSource(relativePath);
 
 const CATALOG_PATH = "packages/conformance/catalog/read-update-v1.json";
 const READ_CATALOG_PATH = "packages/conformance/catalog/read-v1.json";
@@ -43,11 +38,30 @@ describe("draft Read+Update catalog", () => {
     for (const scenario of catalog.scenarios) {
       expect(scenario.requiredProfile, scenario.id).toBe("read-update");
       expect(scenario.id, scenario.id).toMatch(/^read-update\./);
-      expect(scenario.requirements.every(({ source }) => source === "docs/specs/bdp.md")).toBe(
-        true,
-      );
+      expect(
+        scenario.requirements.every(({ source }) => isProtocolSpecificationSource(source)),
+      ).toBe(true);
     }
     expect(selectNormativeScenariosForProfile(catalog, "read").map(({ id }) => id)).toEqual([]);
+  });
+
+  it("mirrors the declared Read discovery retirement exactly", () => {
+    const spec = readText("docs/specs/bdp.md");
+    const section =
+      spec
+        .split("#### Read+Update conformance rows")[1]
+        ?.split("#### Transactional conformance rows")[0] ?? "";
+    const declared = [
+      ...section.matchAll(/^- `(read-update\.[a-z0-9.-]+)` retires `(read\.[a-z0-9.-]+)`$/gm),
+    ].map((match) => [match[1], match[2]]);
+    const actual = catalog.scenarios.flatMap((row) =>
+      (row.retires ?? []).map((id) => [row.id, id]),
+    );
+    expect(declared).toEqual([["read-update.discovery.document", "read.discovery.document"]]);
+    expect(actual).toEqual(declared);
+    expect(section).toContain(
+      "replacing the\nRead+Update discovery row does not restore the Read-only shape",
+    );
   });
 
   it("does not collide with the sealed Read catalog", () => {
@@ -56,20 +70,67 @@ describe("draft Read+Update catalog", () => {
     for (const id of ids) expect(readIds.has(id), id).toBe(false);
   });
 
-  it("is bound by no executable manifest, so no runner report can carry its rows", () => {
+  const approvedRuManifests = ["read-update-v1.json", "read-update-reference-continuation-v1.json"];
+  const assertManifestBinding = (
+    entry: string,
+    manifest: ReturnType<typeof loadExecutableScenarioManifestJson>,
+  ): void => {
+    if (approvedRuManifests.includes(entry)) {
+      expect(manifest.catalogId).toBe("read-update-v1");
+      expect(manifest.manifestVersion).toBe(2);
+      const cumulativeIds = loadProfileContractSelection("read-update").required.map(
+        (row) => row.id,
+      );
+      expect(manifest.scenarios.length).toBeLessThan(cumulativeIds.length);
+      for (const row of manifest.scenarios) expect(cumulativeIds).toContain(row.id);
+      return;
+    }
+    expect(manifest.catalogId, entry).not.toBe("read-update-v1");
+    const bound = new Set(manifest.scenarios.map(({ id }) => id));
+    for (const id of ids) expect(bound.has(id), `${entry} binds ${id}`).toBe(false);
+  };
+
+  it("binds only the approved partial version 2 RU shards, preserving the sealed Read matrix", () => {
+    // This explicit reviewed list is not derived from a manifest's profile or catalog tag.
+    expect(
+      JSON.parse(readText("packages/conformance/test-support/read-update-artifact-set-v1.json")),
+    ).toEqual({
+      version: 1,
+      shards: [
+        { id: "baseline", source: `matrices/${approvedRuManifests[0]}` },
+        { id: "reference-continuation", source: `matrices/${approvedRuManifests[1]}` },
+      ],
+    });
     const manifests = readdirSync(path.resolve(root, MATRICES_DIRECTORY)).filter((entry) =>
       entry.endsWith(".json"),
     );
-    expect(manifests.length).toBeGreaterThan(0);
-    for (const entry of manifests) {
-      const manifest = loadExecutableScenarioManifestJson(
-        readText(path.join(MATRICES_DIRECTORY, entry)),
+    for (const entry of approvedRuManifests) expect(manifests).toContain(entry);
+    for (const entry of manifests)
+      assertManifestBinding(
         entry,
+        loadExecutableScenarioManifestJson(readText(path.join(MATRICES_DIRECTORY, entry)), entry),
       );
-      expect(manifest.catalogId, entry).not.toBe("read-update-v1");
-      const bound = new Set(manifest.scenarios.map(({ id }) => id));
-      for (const id of ids) expect(bound.has(id), `${entry} binds ${id}`).toBe(false);
-    }
+  });
+
+  it("rejects RU bindings outside the approved shard filenames even with another catalog tag", () => {
+    const manifest = loadExecutableScenarioManifestJson(
+      readText(path.join(MATRICES_DIRECTORY, approvedRuManifests[1]!)),
+      approvedRuManifests[1],
+    );
+    expect(() => assertManifestBinding("unapproved-ru.json", manifest)).toThrow(
+      /unapproved-ru.json/,
+    );
+    const unknownSubject = manifest.scenarios.filter(
+      (row) => row.id === "read-update.alias.unknown-subject",
+    );
+    expect(unknownSubject).toHaveLength(1);
+    expect(() =>
+      assertManifestBinding("read-v1.json", {
+        ...manifest,
+        catalogId: "read-v1",
+        scenarios: unknownSubject,
+      }),
+    ).toThrow(/read-v1.json binds read-update.alias.unknown-subject/);
   });
 
   it("mirrors the specification's Read+Update conformance rows exactly and in order", () => {

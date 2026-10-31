@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example/reviewed-reference.json",
+  "type": "object",
+  "properties": {
+    "annotation": { "$ref": "shared-fields.json#/$defs/annotation" }
+  },
+  "additionalProperties": false
+}

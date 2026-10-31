@@ -1,0 +1,1566 @@
+{
+  "status": "OFFLINE_EXCHANGE_CONTROLS_ONLY",
+  "description": "Static wiring/URL/media/bodyless/guard examples. No provider execution, JSON Schema evaluator, transport or OpenAPI meta-validation.",
+  "cases": [
+    {
+      "name": "exact escaped Resource URL",
+      "valid": true,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        },
+        "body": {
+          "id": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+          "type": "https://types.invalid/note",
+          "revision": "r+/%=",
+          "properties": {
+            "title": "Original"
+          },
+          "metadata": {}
+        }
+      }
+    },
+    {
+      "name": "HEAD even a Problem is bodyless",
+      "valid": true,
+      "request": {
+        "binding": "currentBead",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {}
+      }
+    },
+    {
+      "name": "native bodyless 304",
+      "valid": true,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "native bodyless 412",
+      "valid": true,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {}
+      }
+    },
+    {
+      "name": "native bodyless 405",
+      "valid": true,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 405,
+        "headers": {
+          "Allow": "GET, HEAD"
+        }
+      }
+    },
+    {
+      "name": "native bodyless 406",
+      "valid": true,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 406,
+        "headers": {}
+      }
+    },
+    {
+      "name": "native bodyless 500",
+      "valid": true,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 500,
+        "headers": {}
+      }
+    },
+    {
+      "name": "eight distinct directory URLs",
+      "valid": true,
+      "request": {
+        "binding": "writeDirectory",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/writeDirectory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "createBead": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+          "updateBead": "https://bdp-tooling.invalid/fixture/updateBead",
+          "deleteBead": "https://bdp-tooling.invalid/fixture/deleteBead",
+          "createLink": "https://bdp-tooling.invalid/fixture/createLink",
+          "updateLink": "https://bdp-tooling.invalid/fixture/updateLink",
+          "deleteLink": "https://bdp-tooling.invalid/fixture/deleteLink",
+          "putAlias": "https://bdp-tooling.invalid/fixture/putAlias",
+          "deleteAlias": "https://bdp-tooling.invalid/fixture/deleteAlias"
+        }
+      }
+    },
+    {
+      "name": "POST retains operation URL query bytes",
+      "valid": true,
+      "request": {
+        "binding": "createBead",
+        "method": "POST",
+        "url": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json",
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Idempotency-Key": "key_1"
+        },
+        "body": {
+          "id": "new-note",
+          "type": "https://types.invalid/note",
+          "properties": {
+            "title": "New"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://bdp-tooling.invalid/new-note",
+            "type": "https://types.invalid/note",
+            "revision": "r+/%=",
+            "properties": {
+              "title": "New"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "endpoint-only correction with whole pin",
+      "valid": true,
+      "request": {
+        "binding": "updateLink",
+        "method": "POST",
+        "url": "https://bdp-tooling.invalid/fixture/updateLink",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json",
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Idempotency-Key": "key_1"
+        },
+        "body": {
+          "link": "relation",
+          "source": {
+            "revision": "old+/%=",
+            "uri": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "outcome": "updated",
+          "changed": true,
+          "resource": {
+            "id": "https://bdp-tooling.invalid/relation",
+            "type": "https://types.invalid/note",
+            "revision": "r+/%=",
+            "properties": {
+              "title": "Original"
+            },
+            "metadata": {},
+            "source": {
+              "revision": "old+/%=",
+              "uri": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25"
+            },
+            "target": "https://elsewhere.invalid/opaque"
+          },
+          "ownerRevisions": [
+            {
+              "id": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+              "revision": "owner-new"
+            }
+          ]
+        }
+      },
+      "context": {
+        "scope": "https://bdp-tooling.invalid/",
+        "initialSource": {
+          "uri": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+          "revision": "before-pin"
+        },
+        "ownerIds": [
+          "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25"
+        ],
+        "description": "Authored same-owner source-pin correction; no provider ownership evaluation is executed."
+      }
+    },
+    {
+      "name": "alias resolve does not acquire target",
+      "valid": true,
+      "request": {
+        "binding": "aliasResolve",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/aliasResolve",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 307,
+        "headers": {
+          "Location": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+          "Cache-Control": "private, no-store"
+        }
+      },
+      "context": {
+        "authorizationDependent": true
+      }
+    },
+    {
+      "name": "masked point context",
+      "valid": true,
+      "request": {
+        "binding": "projectedBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBead?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Projection": "{\"include\":[\"/properties/title\"]}"
+        },
+        "body": {
+          "id": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+          "type": "https://types.invalid/note",
+          "revision": "r+/%=",
+          "properties": {
+            "title": "Original"
+          }
+        }
+      }
+    },
+    {
+      "name": "typed Problem keeps HTTP status",
+      "valid": true,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/problem+json"
+        },
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/not-found",
+          "code": "resource-not-found",
+          "retry": "after-state-change",
+          "status": 404
+        }
+      }
+    },
+    {
+      "name": "HEAD cannot carry a Problem body",
+      "valid": false,
+      "request": {
+        "binding": "currentBead",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {},
+        "body": {
+          "code": "resource-not-found"
+        }
+      }
+    },
+    {
+      "name": "500 never carries a Problem body",
+      "valid": false,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 500,
+        "headers": {},
+        "body": {
+          "code": "temporarily-unavailable"
+        }
+      }
+    },
+    {
+      "name": "singleton operation is supplied by URL",
+      "valid": false,
+      "request": {
+        "binding": "createBead",
+        "method": "POST",
+        "url": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json",
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Idempotency-Key": "key_1"
+        },
+        "body": {
+          "id": "new-note",
+          "type": "https://types.invalid/note",
+          "properties": {
+            "title": "New"
+          },
+          "operation": "createBead"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://bdp-tooling.invalid/new-note",
+            "type": "https://types.invalid/note",
+            "revision": "r+/%=",
+            "properties": {
+              "title": "Original"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "generic JSON mutation body refuses",
+      "valid": false,
+      "request": {
+        "binding": "createBead",
+        "method": "POST",
+        "url": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "key_1"
+        },
+        "body": {
+          "id": "new-note",
+          "type": "https://types.invalid/note",
+          "properties": {
+            "title": "New"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://bdp-tooling.invalid/new-note",
+            "type": "https://types.invalid/note",
+            "revision": "r+/%=",
+            "properties": {
+              "title": "Original"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "missing key refuses",
+      "valid": false,
+      "request": {
+        "binding": "createBead",
+        "method": "POST",
+        "url": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json",
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "id": "new-note",
+          "type": "https://types.invalid/note",
+          "properties": {
+            "title": "New"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://bdp-tooling.invalid/new-note",
+            "type": "https://types.invalid/note",
+            "revision": "r+/%=",
+            "properties": {
+              "title": "Original"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "bad key refuses",
+      "valid": false,
+      "request": {
+        "binding": "createBead",
+        "method": "POST",
+        "url": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json",
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Idempotency-Key": "key with space"
+        },
+        "body": {
+          "id": "new-note",
+          "type": "https://types.invalid/note",
+          "properties": {
+            "title": "New"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://bdp-tooling.invalid/new-note",
+            "type": "https://types.invalid/note",
+            "revision": "r+/%=",
+            "properties": {
+              "title": "Original"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "POST has no operation-target ETag",
+      "valid": false,
+      "request": {
+        "binding": "createBead",
+        "method": "POST",
+        "url": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json",
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Idempotency-Key": "key_1"
+        },
+        "body": {
+          "id": "new-note",
+          "type": "https://types.invalid/note",
+          "properties": {
+            "title": "New"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "ETag": "\"invented\""
+        },
+        "body": {
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://bdp-tooling.invalid/new-note",
+            "type": "https://types.invalid/note",
+            "revision": "r+/%=",
+            "properties": {
+              "title": "Original"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "POST is not created status 201",
+      "valid": false,
+      "request": {
+        "binding": "createBead",
+        "method": "POST",
+        "url": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json",
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Idempotency-Key": "key_1"
+        },
+        "body": {
+          "id": "new-note",
+          "type": "https://types.invalid/note",
+          "properties": {
+            "title": "New"
+          }
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://bdp-tooling.invalid/new-note",
+            "type": "https://types.invalid/note",
+            "revision": "r+/%=",
+            "properties": {
+              "title": "Original"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "directory has no sequence",
+      "valid": false,
+      "request": {
+        "binding": "writeDirectory",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/writeDirectory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "createBead": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+          "updateBead": "https://bdp-tooling.invalid/fixture/updateBead",
+          "deleteBead": "https://bdp-tooling.invalid/fixture/deleteBead",
+          "createLink": "https://bdp-tooling.invalid/fixture/createLink",
+          "updateLink": "https://bdp-tooling.invalid/fixture/updateLink",
+          "deleteLink": "https://bdp-tooling.invalid/fixture/deleteLink",
+          "putAlias": "https://bdp-tooling.invalid/fixture/putAlias",
+          "deleteAlias": "https://bdp-tooling.invalid/fixture/deleteAlias",
+          "sequence": "https://bdp-tooling.invalid/sequence"
+        }
+      }
+    },
+    {
+      "name": "directory URLs must be distinct",
+      "valid": false,
+      "request": {
+        "binding": "writeDirectory",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/writeDirectory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "createBead": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+          "updateBead": "https://bdp-tooling.invalid/fixture/updateBead",
+          "deleteBead": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
+          "createLink": "https://bdp-tooling.invalid/fixture/createLink",
+          "updateLink": "https://bdp-tooling.invalid/fixture/updateLink",
+          "deleteLink": "https://bdp-tooling.invalid/fixture/deleteLink",
+          "putAlias": "https://bdp-tooling.invalid/fixture/putAlias",
+          "deleteAlias": "https://bdp-tooling.invalid/fixture/deleteAlias"
+        }
+      }
+    },
+    {
+      "name": "operation URL must not be reconstructed",
+      "valid": false,
+      "request": {
+        "binding": "createBead",
+        "method": "POST",
+        "url": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2F",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json",
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Idempotency-Key": "key_1"
+        },
+        "body": {
+          "id": "new-note",
+          "type": "https://types.invalid/note",
+          "properties": {
+            "title": "New"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json"
+        },
+        "body": {
+          "outcome": "created",
+          "changed": true,
+          "resource": {
+            "id": "https://bdp-tooling.invalid/new-note",
+            "type": "https://types.invalid/note",
+            "revision": "r+/%=",
+            "properties": {
+              "title": "Original"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "escaped ID bytes must be preserved",
+      "valid": false,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20+%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        },
+        "body": {
+          "id": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+          "type": "https://types.invalid/note",
+          "revision": "r+/%=",
+          "properties": {
+            "title": "Original"
+          },
+          "metadata": {}
+        }
+      }
+    },
+    {
+      "name": "response media is binding, not generic JSON",
+      "valid": false,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        },
+        "body": {
+          "id": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+          "type": "https://types.invalid/note",
+          "revision": "r+/%=",
+          "properties": {
+            "title": "Original"
+          },
+          "metadata": {}
+        }
+      }
+    },
+    {
+      "name": "point kind must match",
+      "valid": false,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "link",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        },
+        "body": {
+          "id": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+          "type": "https://types.invalid/note",
+          "revision": "r+/%=",
+          "properties": {
+            "title": "Original"
+          },
+          "metadata": {}
+        }
+      }
+    },
+    {
+      "name": "mask requires applied-mask metadata",
+      "valid": false,
+      "request": {
+        "binding": "projectedBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBead?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        },
+        "body": {
+          "id": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+          "type": "https://types.invalid/note",
+          "revision": "r+/%=",
+          "properties": {
+            "title": "Original"
+          }
+        }
+      }
+    },
+    {
+      "name": "Problem status must agree",
+      "valid": false,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/problem+json"
+        },
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/not-found",
+          "code": "resource-not-found",
+          "retry": "after-state-change",
+          "status": 409
+        }
+      }
+    },
+    {
+      "name": "successful HEAD retains point context",
+      "valid": true,
+      "request": {
+        "binding": "currentBead",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "successful HEAD 304 retains point context",
+      "valid": true,
+      "request": {
+        "binding": "currentBead",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "full inventory has collection and owning context",
+      "valid": true,
+      "request": {
+        "binding": "beadInventory",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/beadInventory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Collection-Kind": "bead"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+              "type": "https://types.invalid/note",
+              "revision": "r+/%=",
+              "properties": {
+                "title": "Original"
+              },
+              "metadata": {}
+            }
+          ],
+          "next": null
+        }
+      }
+    },
+    {
+      "name": "successful HEAD retains collection context",
+      "valid": true,
+      "request": {
+        "binding": "beadInventory",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/beadInventory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Collection-Kind": "bead"
+        }
+      }
+    },
+    {
+      "name": "successful 304 retains collection context",
+      "valid": true,
+      "request": {
+        "binding": "beadInventory",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/beadInventory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Collection-Kind": "bead"
+        }
+      }
+    },
+    {
+      "name": "successful HEAD 304 retains collection context",
+      "valid": true,
+      "request": {
+        "binding": "beadInventory",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/beadInventory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Collection-Kind": "bead"
+        }
+      }
+    },
+    {
+      "name": "point HEAD missing BDP-Resource-Kind refuses",
+      "valid": false,
+      "request": {
+        "binding": "currentBead",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "point HEAD missing Link refuses",
+      "valid": false,
+      "request": {
+        "binding": "currentBead",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "point 304 missing BDP-Resource-Kind refuses",
+      "valid": false,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "point 304 missing Link refuses",
+      "valid": false,
+      "request": {
+        "binding": "currentBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "collection HEAD missing BDP-Collection-Kind refuses",
+      "valid": false,
+      "request": {
+        "binding": "beadInventory",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/beadInventory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "collection HEAD missing Link refuses",
+      "valid": false,
+      "request": {
+        "binding": "beadInventory",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/beadInventory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Cache-Control": "private, no-store",
+          "BDP-Collection-Kind": "bead"
+        }
+      }
+    },
+    {
+      "name": "collection 304 missing BDP-Collection-Kind refuses",
+      "valid": false,
+      "request": {
+        "binding": "beadInventory",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/beadInventory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "collection 304 missing Link refuses",
+      "valid": false,
+      "request": {
+        "binding": "beadInventory",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/beadInventory",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Cache-Control": "private, no-store",
+          "BDP-Collection-Kind": "bead"
+        }
+      }
+    },
+    {
+      "name": "masked HEAD retains applied mask",
+      "valid": true,
+      "request": {
+        "binding": "projectedBead",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBead?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Projection": "{\"include\":[\"/properties/title\"]}"
+        }
+      }
+    },
+    {
+      "name": "masked 304 retains applied mask",
+      "valid": true,
+      "request": {
+        "binding": "projectedBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBead?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Projection": "{\"include\":[\"/properties/title\"]}"
+        }
+      }
+    },
+    {
+      "name": "masked HEAD 304 retains applied mask",
+      "valid": true,
+      "request": {
+        "binding": "projectedBead",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBead?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Projection": "{\"include\":[\"/properties/title\"]}"
+        }
+      }
+    },
+    {
+      "name": "masked HEAD missing projection metadata refuses",
+      "valid": false,
+      "request": {
+        "binding": "projectedBead",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBead?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "masked 304 missing projection metadata refuses",
+      "valid": false,
+      "request": {
+        "binding": "projectedBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBead?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "BDP-Resource-Kind": "bead",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "masked 406 needs no success context",
+      "valid": true,
+      "request": {
+        "binding": "projectedBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBead?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 406,
+        "headers": {}
+      }
+    },
+    {
+      "name": "masked 412 needs no success context",
+      "valid": true,
+      "request": {
+        "binding": "projectedBead",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBead?projectionVersion=1&fields=%7B%22include%22%3A%5B%22%2Fproperties%2Ftitle%22%5D%7D",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {}
+      }
+    },
+    {
+      "name": "projection without fields returns full inventory",
+      "valid": true,
+      "request": {
+        "binding": "projectedBeadInventory",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBeadInventory?projectionVersion=1",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Collection-Kind": "bead"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+              "type": "https://types.invalid/note",
+              "revision": "r+/%=",
+              "properties": {
+                "title": "Original"
+              },
+              "metadata": {}
+            }
+          ],
+          "next": null
+        }
+      }
+    },
+    {
+      "name": "projection without fields HEAD 304 has no mask header",
+      "valid": true,
+      "request": {
+        "binding": "projectedBeadInventory",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBeadInventory?projectionVersion=1",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Collection-Kind": "bead"
+        }
+      }
+    },
+    {
+      "name": "projection without fields must omit mask header",
+      "valid": false,
+      "request": {
+        "binding": "projectedBeadInventory",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/projectedBeadInventory?projectionVersion=1",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/vnd.bdp.v0.1+json",
+          "Link": "<https://bdp-tooling.invalid/fixture/discovery>; rel=\"service-desc\"",
+          "Cache-Control": "private, no-store",
+          "BDP-Collection-Kind": "bead",
+          "BDP-Projection": "{\"include\":[\"/properties/title\"]}"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+              "type": "https://types.invalid/note",
+              "revision": "r+/%=",
+              "properties": {
+                "title": "Original"
+              },
+              "metadata": {}
+            }
+          ],
+          "next": null
+        }
+      }
+    },
+    {
+      "name": "alias HEAD retains authorization cache metadata",
+      "valid": true,
+      "request": {
+        "binding": "aliasResolve",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/aliasResolve",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 307,
+        "headers": {
+          "Location": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25",
+          "Cache-Control": "private, no-store"
+        }
+      },
+      "context": {
+        "authorizationDependent": true
+      }
+    },
+    {
+      "name": "authorization-dependent alias GET missing cache metadata refuses",
+      "valid": false,
+      "request": {
+        "binding": "aliasResolve",
+        "method": "GET",
+        "url": "https://bdp-tooling.invalid/fixture/aliasResolve",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 307,
+        "headers": {
+          "Location": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25"
+        }
+      },
+      "context": {
+        "authorizationDependent": true
+      }
+    },
+    {
+      "name": "authorization-dependent alias HEAD missing cache metadata refuses",
+      "valid": false,
+      "request": {
+        "binding": "aliasResolve",
+        "method": "HEAD",
+        "url": "https://bdp-tooling.invalid/fixture/aliasResolve",
+        "headers": {
+          "Accept": "application/vnd.bdp.v0.1+json"
+        }
+      },
+      "response": {
+        "status": 307,
+        "headers": {
+          "Location": "https://bdp-tooling.invalid/fixture/currentBead/notes/r%C3%A9sum%C3%A9%20%2B%25"
+        }
+      },
+      "context": {
+        "authorizationDependent": true
+      }
+    }
+  ],
+  "continuation": [
+    {
+      "name": "ordinary limit replaces only bytes of limit",
+      "valid": true,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?cursor=a%2B%2f%3D&selector=%24%5B%3F%40.x%5D&limit=8",
+      "requested": "https://bdp-tooling.invalid/list?cursor=a%2B%2f%3D&selector=%24%5B%3F%40.x%5D&limit=2"
+    },
+    {
+      "name": "ordinary limit may append",
+      "valid": true,
+      "operation": "incidentLinks",
+      "issued": "https://bdp-tooling.invalid/r?view=links&cursor=x%2B%20y",
+      "requested": "https://bdp-tooling.invalid/r?view=links&cursor=x%2B%20y&limit=2"
+    },
+    {
+      "name": "Events continuation follows unchanged",
+      "valid": true,
+      "operation": "scopeEvents",
+      "issued": "https://bdp-tooling.invalid/e?after=x%2B&limit=8",
+      "requested": "https://bdp-tooling.invalid/e?after=x%2B&limit=8"
+    },
+    {
+      "name": "ordinary cursor encoding must remain exact",
+      "valid": false,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?cursor=a%2b%2f&limit=8",
+      "requested": "https://bdp-tooling.invalid/list?cursor=a%2B%2F&limit=2"
+    },
+    {
+      "name": "ordinary filter cannot change",
+      "valid": false,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?type=one&limit=8",
+      "requested": "https://bdp-tooling.invalid/list?type=two&limit=2"
+    },
+    {
+      "name": "Events cannot resize",
+      "valid": false,
+      "operation": "scopeEvents",
+      "issued": "https://bdp-tooling.invalid/e?after=x&limit=8",
+      "requested": "https://bdp-tooling.invalid/e?after=x&limit=2"
+    },
+    {
+      "name": "duplicate limits refuse",
+      "valid": false,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?cursor=x&limit=8",
+      "requested": "https://bdp-tooling.invalid/list?cursor=x&limit=2&limit=3"
+    },
+    {
+      "name": "ordinary issued limit cannot be removed",
+      "valid": false,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?cursor=x&limit=8",
+      "requested": "https://bdp-tooling.invalid/list?cursor=x"
+    },
+    {
+      "name": "ordinary issued limit cannot move",
+      "valid": false,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?cursor=x&limit=8&type=one",
+      "requested": "https://bdp-tooling.invalid/list?cursor=x&type=one&limit=2"
+    },
+    {
+      "name": "encoded limit name replaces only value bytes",
+      "valid": true,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?cursor=a%2B%2f%3D&%6cimit=8&selector=%24%5B%3F%40.x%5D",
+      "requested": "https://bdp-tooling.invalid/list?cursor=a%2B%2f%3D&%6cimit=2&selector=%24%5B%3F%40.x%5D"
+    },
+    {
+      "name": "encoded limit cannot acquire duplicate decoded name",
+      "valid": false,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?%6cimit=8&cursor=x",
+      "requested": "https://bdp-tooling.invalid/list?%6cimit=8&cursor=x&limit=2"
+    },
+    {
+      "name": "duplicate decoded issued limits refuse",
+      "valid": false,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?%6cimit=8&limit=9&cursor=x",
+      "requested": "https://bdp-tooling.invalid/list?%6cimit=2&limit=9&cursor=x"
+    },
+    {
+      "name": "encoded limit spelling cannot be normalized",
+      "valid": false,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?%6cimit=8&cursor=x%2b",
+      "requested": "https://bdp-tooling.invalid/list?limit=2&cursor=x%2b"
+    },
+    {
+      "name": "double encoded name stays distinct after one decode",
+      "valid": true,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?%256cimit=8&cursor=x%2b",
+      "requested": "https://bdp-tooling.invalid/list?%256cimit=8&cursor=x%2b&limit=2"
+    },
+    {
+      "name": "encoded limit preserves unrelated escape case",
+      "valid": false,
+      "operation": "beadInventory",
+      "issued": "https://bdp-tooling.invalid/list?%6cimit=8&cursor=x%2b",
+      "requested": "https://bdp-tooling.invalid/list?%6cimit=2&cursor=x%2B"
+    }
+  ]
+}

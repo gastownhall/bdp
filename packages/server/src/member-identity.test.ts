@@ -101,33 +101,42 @@ describe("exact member identity normalization", () => {
       '["ru-semantic-value-1",["object",[["normalizedInput",["object",[["properties",["object",[]]],["type",["string","https://types.example/task"]]]]],["operation",["string","createBead"]]]]]',
     );
   });
-  it("does not insert an allocated identity or generated attribution/context into omitted input", () => {
+  it.each([
+    ["createBead", { type, id: a }],
+    ["createLink", { type: linkType, id: `${scope}links/edge`, source: a, target: b }],
+  ] as const)("equates omitted and empty creation metadata for %s", (operation, input) => {
+    const omitted = ready(singleton(operation, input));
+    const empty = ready(singleton(operation, { ...input, metadata: {} }));
+    const nonempty = ready(singleton(operation, { ...input, metadata: { team: "core" } }));
+    expect(empty.identityJson).toBe(omitted.identityJson);
+    expect(nonempty.identityJson).not.toBe(omitted.identityJson);
+  });
+  it("does not insert an allocated identity or generated revisionProvenance/context into omitted input", () => {
     const one = ready(singleton("createBead", { type }));
     const supplied = ready(singleton("createBead", { type, id: a }));
     expect(one.identityJson).not.toBe(supplied.identityJson);
     const result = execution(one);
     expect(result.input).not.toHaveProperty("id");
-    expect(result.input).not.toHaveProperty("changeContext");
-    expect(result.input).not.toHaveProperty("attribution");
+    expect(result.input).not.toHaveProperty("revisionProvenance");
   });
   it.each([
     { expectedRevision: "r2" },
-    { changeContext: { message: null } },
-    { changeContext: { message: "" } },
-    { attribution: { principal: "other", status: "claimed" } },
+    { revisionProvenance: { message: null } },
+    { revisionProvenance: { message: "" } },
+    { revisionProvenance: { actor: { id: "other", basis: "writer-supplied" } } },
   ])("preserves meaningful request context and CAS differences %#", (extra) => {
-    const base = { bead: a, change: [{ op: "add", path: "/value", value: 1 }] };
-    expect(ready(singleton("updateBeadProperties", { ...base, ...extra })).identityJson).not.toBe(
-      ready(singleton("updateBeadProperties", base)).identityJson,
+    const base = { bead: a, propertiesChange: [{ op: "add", path: "/value", value: 1 }] };
+    expect(ready(singleton("updateBead", { ...base, ...extra })).identityJson).not.toBe(
+      ready(singleton("updateBead", base)).identityJson,
     );
   });
   it.each<[ReadUpdateOperation, Record<string, unknown>]>([
     ["createBead", { id: a, type }],
-    ["updateBeadProperties", { bead: a, change: [{ op: "add", path: "/n", value: 1 }] }],
+    ["updateBead", { bead: a, propertiesChange: [{ op: "add", path: "/n", value: 1 }] }],
     ["createLink", { id: `${scope}links/edge`, type: linkType, source: a, target: b }],
     [
-      "updateLinkProperties",
-      { link: `${scope}links/edge`, change: [{ op: "add", path: "/n", value: 1 }] },
+      "updateLink",
+      { link: `${scope}links/edge`, propertiesChange: [{ op: "add", path: "/n", value: 1 }] },
     ],
     ["deleteLink", { link: `${scope}links/edge` }],
   ])(
@@ -143,10 +152,10 @@ describe("exact member identity normalization", () => {
         { agent: null, message: null },
       ];
       const identities = new Set([omitted.identityJson]);
-      for (const changeContext of [{}, ...meaningful]) {
+      for (const revisionProvenance of [{}, ...meaningful]) {
         for (const carrier of [
-          singleton(operation, { ...input, changeContext }),
-          sequence([{ operation, idempotencyKey: "other", ...input, changeContext }]),
+          singleton(operation, { ...input, revisionProvenance }),
+          sequence([{ operation, idempotencyKey: "other", ...input, revisionProvenance }]),
         ]) {
           const direct = ready(carrier);
           const dependencies = prepareMemberDependencies(
@@ -161,10 +170,10 @@ describe("exact member identity normalization", () => {
           if (prepared.kind !== "ready") throw Error("expected ready identity");
           expect(prepared.identityJson).toBe(direct.identityJson);
           expect(serializeMemberMetadata(prepared)).toBe(serializeMemberMetadata(omitted));
-          expect(execution(prepared).input).toMatchObject({ changeContext });
+          expect(execution(prepared).input).toMatchObject({ revisionProvenance });
           // Meaningful explicit null/string states stay different from default and
           // each other; only the empty closed object takes the omitted identity.
-          if (Object.keys(changeContext).length === 0) {
+          if (Object.keys(revisionProvenance).length === 0) {
             expect(prepared.identityJson).toBe(omitted.identityJson);
           } else {
             expect(prepared.identityJson).not.toBe(omitted.identityJson);
@@ -173,7 +182,7 @@ describe("exact member identity normalization", () => {
         }
       }
       expect(identities.size).toBe(meaningful.length + 1);
-      expect(execution(omitted).input).not.toHaveProperty("changeContext");
+      expect(execution(omitted).input).not.toHaveProperty("revisionProvenance");
       expect(omitted.identityJson).not.toContain("committedAt");
     },
   );
@@ -182,10 +191,10 @@ describe("exact member identity normalization", () => {
       { op: "add", path: "/a", value: 1 },
       { op: "remove", path: "/a" },
     ];
-    const one = ready(singleton("updateBeadProperties", { bead: "beads/a", change }));
-    const ordered = ready(singleton("updateBeadProperties", { change, bead: a }));
+    const one = ready(singleton("updateBead", { bead: "beads/a", propertiesChange: change }));
+    const ordered = ready(singleton("updateBead", { propertiesChange: change, bead: a }));
     const reversed = ready(
-      singleton("updateBeadProperties", { bead: a, change: [...change].reverse() }),
+      singleton("updateBead", { bead: a, propertiesChange: [...change].reverse() }),
     );
     expect(one.identityJson).toBe(ordered.identityJson);
     expect(one.identityJson).not.toBe(reversed.identityJson);
@@ -198,21 +207,21 @@ describe("exact member identity normalization", () => {
     const input = {
       type,
       properties: { source: "alias/x", target: "@made", nested: { uri: a } },
-      changeContext: { message: "alias/x" },
+      revisionProvenance: { message: "alias/x" },
     };
     const member = ready(singleton("createBead", input), 0, { resolveAlias });
     expect(execution(member).input).toEqual(input);
     expect(member.metadata.witnesses).toEqual([]);
     expect(resolveAlias).not.toHaveBeenCalled();
     const patch = ready(
-      singleton("updateBeadProperties", {
+      singleton("updateBead", {
         bead: a,
-        change: [{ op: "add", path: "/target", value: "alias/x" }],
+        propertiesChange: [{ op: "add", path: "/target", value: "alias/x" }],
       }),
       0,
       { resolveAlias },
     );
-    expect(execution(patch).input).toMatchObject({ change: [{ value: "alias/x" }] });
+    expect(execution(patch).input).toMatchObject({ propertiesChange: [{ value: "alias/x" }] });
     expect(resolveAlias).not.toHaveBeenCalled();
   });
   it.each([
@@ -589,39 +598,36 @@ describe("identity receiving boundaries", () => {
       { slot: "/target/uri", kind: "alias", locator: `${scope}alias/two`, target: b },
     ]);
   });
-  it.each(["updateLinkProperties", "deleteLink"] as const)(
-    "uses Link creator facts in %s",
-    (operation) => {
-      const carrier = sequence([
-        {
-          operation: "createLink",
-          idempotencyKey: "creator",
-          name: "relation",
-          type: linkType,
-          source: a,
-          target: b,
-        },
-        {
-          operation,
-          idempotencyKey: "next",
-          link: "@relation",
-          ...(operation === "updateLinkProperties"
-            ? { change: [{ op: "add", path: "/v", value: true }] }
-            : {}),
-        },
-      ]);
-      const member = ready(carrier, 1, {
-        creatorBinding: () => ({ kind: "bound", id: `${scope}links/l`, resourceKind: "link" }),
-      });
-      expect(execution(member).input).toMatchObject({ link: `${scope}links/l` });
-      expect(metadata(member).witnesses).toEqual(member.metadata.witnesses);
-      expect(() =>
-        ready(carrier, 1, {
-          creatorBinding: () => ({ kind: "bound", id: a, resourceKind: "bead" }),
-        }),
-      ).toThrow(MemberMetadataError);
-    },
-  );
+  it.each(["updateLink", "deleteLink"] as const)("uses Link creator facts in %s", (operation) => {
+    const carrier = sequence([
+      {
+        operation: "createLink",
+        idempotencyKey: "creator",
+        name: "relation",
+        type: linkType,
+        source: a,
+        target: b,
+      },
+      {
+        operation,
+        idempotencyKey: "next",
+        link: "@relation",
+        ...(operation === "updateLink"
+          ? { propertiesChange: [{ op: "add", path: "/v", value: true }] }
+          : {}),
+      },
+    ]);
+    const member = ready(carrier, 1, {
+      creatorBinding: () => ({ kind: "bound", id: `${scope}links/l`, resourceKind: "link" }),
+    });
+    expect(execution(member).input).toMatchObject({ link: `${scope}links/l` });
+    expect(metadata(member).witnesses).toEqual(member.metadata.witnesses);
+    expect(() =>
+      ready(carrier, 1, {
+        creatorBinding: () => ({ kind: "bound", id: a, resourceKind: "bead" }),
+      }),
+    ).toThrow(MemberMetadataError);
+  });
   it("substitutes putAlias's Bead binding while keeping its locator unresolved", () => {
     const member = ready(
       sequence([
@@ -952,7 +958,7 @@ describe("prepared member dependencies", () => {
   }
   const legalSlots = [
     { operation: "deleteBead", bead: "@made" },
-    { operation: "updateBeadProperties", bead: "@made", change: [{ op: "remove", path: "/x" }] },
+    { operation: "updateBead", bead: "@made", propertiesChange: [{ op: "remove", path: "/x" }] },
     { operation: "createLink", type: linkType, source: "@made", target: b },
     {
       operation: "createLink",
@@ -969,7 +975,7 @@ describe("prepared member dependencies", () => {
     },
     { operation: "putAlias", alias: "alias/lead", target: "@made" },
     { operation: "deleteLink", link: "@made" },
-    { operation: "updateLinkProperties", link: "@made", change: [{ op: "remove", path: "/x" }] },
+    { operation: "updateLink", link: "@made", propertiesChange: [{ op: "remove", path: "/x" }] },
   ];
   it.each(legalSlots)("stops at a transient creator in the legal $operation slot: %j", (input) => {
     const link = "link" in input;
@@ -1173,7 +1179,7 @@ describe("prepared member dependencies", () => {
   it("retains unbound and numeric refusal as separate facts with prepared dependencies", () => {
     const carrier = prepareReadUpdateSequence(
       scope,
-      `{"operations":[{"operation":"createBead","idempotencyKey":"creator","name":"made","type":"${type}"},{"operation":"updateBeadProperties","idempotencyKey":"dependent","bead":"@made","change":[{"op":"add","path":"/n","value":9007199254740993}]}]}`,
+      `{"operations":[{"operation":"createBead","idempotencyKey":"creator","name":"made","type":"${type}"},{"operation":"updateBead","idempotencyKey":"dependent","bead":"@made","propertiesChange":[{"op":"add","path":"/n","value":9007199254740993}]}]}`,
     );
     const member = normalizePreparedMemberIdentity(
       carrier,
@@ -1190,9 +1196,106 @@ describe("prepared member dependencies", () => {
   });
 });
 
+describe("metadata numeric diagnostic identity and budget", () => {
+  it.each(["createBead", "createLink", "updateBead", "updateLink"] as const)(
+    "%s preserves the mandatory document before counting or truncating diagnostics",
+    (operation) => {
+      const creating = operation.startsWith("create");
+      const link = operation.endsWith("Link");
+      const input = creating
+        ? {
+            ...(link ? { type: linkType, source: a, target: b } : { type }),
+            metadata: { a: "BAD", b: "BAD" },
+          }
+        : {
+            [link ? "link" : "bead"]: link ? "links/a" : "beads/a",
+            metadataChange: [{ op: "add", path: "/items/-", value: ["BAD", "BAD"] }],
+          };
+      const raw = JSON.stringify(input).replaceAll('"BAD"', "1e400");
+      const member = ready(prepareReadUpdateSingleton(scope, operation, raw, "numeric-doc"));
+      const formatter = () => ({
+        message: "bad",
+        document: "properties" as const,
+        type,
+        schemaLocation: "https://schema.test/#/x",
+        instanceLocation: "/wrong",
+      });
+      const expected = {
+        message: "metadata: bad",
+        document: "metadata",
+        ...(creating ? { instanceLocation: "/a" } : {}),
+      };
+      const bytes = Buffer.byteLength(JSON.stringify([expected]));
+      const result = prepareMemberExecution(member, {
+        diagnostic: formatter,
+        diagnosticBytes: bytes,
+        diagnostics: 1,
+      }).admission;
+      expect(result).toMatchObject({
+        ok: false,
+        diagnostics: [expected],
+        diagnosticsTruncated: true,
+      });
+      if (result.ok) throw Error("expected refusal");
+      expect(result.diagnostics).toEqual([expected]);
+      expect(result.diagnostics[0]).not.toHaveProperty("type");
+      expect(result.diagnostics[0]).not.toHaveProperty("schemaLocation");
+      expect(result.offending[0]?.pointer).toBe(
+        creating ? "/metadata/a" : "/metadataChange/0/value/0",
+      );
+      expect(() =>
+        prepareMemberExecution(member, { diagnostic: formatter, diagnosticBytes: bytes - 1 }),
+      ).toThrow("first entry");
+      const all = prepareMemberExecution(member, { diagnostic: formatter }).admission;
+      expect(all).toMatchObject({ ok: false, diagnosticsTruncated: false });
+      if (all.ok) throw Error("expected refusal");
+      expect(all.diagnostics).toHaveLength(2);
+      expect(all.diagnostics.every((entry) => entry.document === "metadata")).toBe(true);
+    },
+  );
+  it.each(["createBead", "createLink"] as const)(
+    "%s rejects a nonobject metadata root before execution",
+    (operation) => {
+      const input =
+        operation === "createBead" ? { type } : { type: linkType, source: a, target: b };
+      for (const metadata of [null, [], 2, "bad"]) {
+        expect(() =>
+          prepareReadUpdateSingleton(
+            scope,
+            operation,
+            JSON.stringify({ ...input, metadata }),
+            "root",
+          ),
+        ).toThrow();
+      }
+    },
+  );
+});
+
 describe("paired create numeric diagnostic locations", () => {
   for (const operation of ["createBead", "createLink"] as const) {
     const input = operation === "createBead" ? { type } : { type: linkType, source: a, target: b };
+    it(`${operation} rejects numeric metadata with a metadata-relative diagnostic`, () => {
+      const raw = JSON.stringify({ ...input, metadata: { nested: { bad: "BAD" } } }).replace(
+        '"BAD"',
+        "1e400",
+      );
+      const member = ready(prepareReadUpdateSingleton(scope, operation, raw, "metadata-number"));
+      const result = prepareMemberExecution(member, {
+        diagnostic: () => ({ message: "bad number", instanceLocation: "/wrong" }),
+      }).admission;
+      expect(result).toMatchObject({
+        ok: false,
+        diagnostics: [
+          {
+            message: "metadata: bad number",
+            document: "metadata",
+            instanceLocation: "/nested/bad",
+          },
+        ],
+        offending: [{ pointer: "/metadata/nested/bad", literal: "1e400" }],
+      });
+    });
     it(`${operation} replaces wrong/missing formatter locations before byte accounting`, () => {
       const key = `é/~/${"x".repeat(150)}`;
       const pointer = `/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`;
@@ -1221,17 +1324,15 @@ describe("paired create numeric diagnostic locations", () => {
       const result = prepareMemberExecution(member, { diagnostic }).admission;
       expect(result.ok).toBe(false);
       if (result.ok) throw Error("expected numeric rejection");
-      expect(result.diagnostics).toEqual([
-        { ...formatted, instanceLocation: pointer },
-        { message: "bad", instanceLocation: "/" },
-      ]);
+      const expected = { message: "bad", instanceLocation: pointer };
+      expect(result.diagnostics).toEqual([expected, { message: "bad", instanceLocation: "/" }]);
       expect(result.offending.map((o) => o.pointer)).toEqual([
         `/properties${pointer}`,
         "/properties/",
       ]);
       expect(formatted.instanceLocation).toBe("/wrong");
       expect(calls).toBe(2);
-      const n = Buffer.byteLength(JSON.stringify([{ ...formatted, instanceLocation: pointer }]));
+      const n = Buffer.byteLength(JSON.stringify([expected]));
       const exact = prepareMemberExecution(member, {
         diagnostics: 1,
         diagnosticBytes: n,
@@ -1239,7 +1340,7 @@ describe("paired create numeric diagnostic locations", () => {
       }).admission;
       expect(exact).toMatchObject({
         ok: false,
-        diagnostics: [{ ...formatted, instanceLocation: pointer }],
+        diagnostics: [expected],
         diagnosticsTruncated: true,
       });
       expect(() =>
@@ -1285,7 +1386,7 @@ describe("paired create numeric diagnostic locations", () => {
       diagnosticsTruncated: false,
     });
   });
-  it("rejects numeric properties roots at S1 and keeps the existing update formatter path", () => {
+  it("rejects numeric properties roots at S1 and omits unapplied update locations", () => {
     expect(() =>
       prepareReadUpdateSingleton(
         scope,
@@ -1297,18 +1398,119 @@ describe("paired create numeric diagnostic locations", () => {
     const member = ready(
       prepareReadUpdateSingleton(
         scope,
-        "updateBeadProperties",
-        '{"bead":"beads/a","change":[{"op":"add","path":"/items/-","value":1e400}]}',
+        "updateBead",
+        '{"bead":"beads/a","propertiesChange":[{"op":"add","path":"/items/-","value":1e400}]}',
         "update",
       ),
     );
-    expect(
-      prepareMemberExecution(member, {
-        diagnostic: (o) => ({ message: o.pointer, instanceLocation: "/caller-location" }),
-      }).admission,
-    ).toMatchObject({
+    const admission = prepareMemberExecution(member, {
+      diagnostic: (o) => ({
+        message: o.pointer,
+        instanceLocation: "/caller-location",
+        document: "metadata",
+      }),
+    }).admission;
+    expect(admission).toMatchObject({
       ok: false,
-      diagnostics: [{ message: "/change/0/value", instanceLocation: "/caller-location" }],
+      diagnostics: [{ message: "/propertiesChange/0/value" }],
     });
+    if (!admission.ok) {
+      expect(admission.diagnostics[0]).not.toHaveProperty("document");
+      expect(admission.diagnostics[0]).not.toHaveProperty("instanceLocation");
+    }
   });
+  it.each(["updateBead", "updateLink"] as const)(
+    "%s omits unapplied properties patch locations and prevents document relabeling",
+    (operation) => {
+      const member = ready(
+        prepareReadUpdateSingleton(
+          scope,
+          operation,
+          JSON.stringify({
+            [operation === "updateBead" ? "bead" : "link"]:
+              operation === "updateBead" ? "beads/a" : "links/a",
+            propertiesChange: [{ op: "add", path: "/items/-", value: "BAD" }],
+          }).replace('"BAD"', "1e400"),
+          "update",
+        ),
+      );
+      const expected = {
+        message: "inadmissible number at input /propertiesChange/0/value",
+      };
+      for (const callerLocation of ["/propertiesChange/0/value", "/caller-location"]) {
+        const formatted = Object.freeze({
+          ...expected,
+          type,
+          schemaLocation: "https://schema.test/#/x",
+          instanceLocation: callerLocation,
+          document: "metadata" as const,
+        });
+        const diagnosticBytes = Buffer.byteLength(JSON.stringify([expected]));
+        const admission = prepareMemberExecution(member, {
+          diagnostic: () => formatted,
+          diagnosticBytes,
+        }).admission;
+        expect(admission).toMatchObject({
+          ok: false,
+          offending: [{ pointer: "/propertiesChange/0/value", literal: "1e400" }],
+        });
+        if (admission.ok) throw Error("expected numeric rejection");
+        expect(admission.diagnostics).toEqual([expected]);
+        expect(admission.diagnostics[0]).not.toHaveProperty("instanceLocation");
+        expect(admission.diagnostics[0]).not.toHaveProperty("document");
+        expect(formatted.instanceLocation).toBe(callerLocation);
+        expect(formatted.document).toBe("metadata");
+        expect(() =>
+          prepareMemberExecution(member, {
+            diagnostic: () => formatted,
+            diagnosticBytes: diagnosticBytes - 1,
+          }),
+        ).toThrow("first entry");
+      }
+    },
+  );
+});
+
+describe("unapplied property numeric diagnostics", () => {
+  it.each(["updateBead", "updateLink"] as const)(
+    "%s discards caller/request pointers before exact diagnostic budgeting",
+    (operation) => {
+      const raw = JSON.stringify({
+        [operation === "updateBead" ? "bead" : "link"]:
+          operation === "updateBead" ? "beads/a" : "links/a",
+        propertiesChange: [{ op: "add", path: "/items/-", value: ["BAD", "BAD"] }],
+      }).replaceAll('"BAD"', "1e400");
+      const member = ready(prepareReadUpdateSingleton(scope, operation, raw, "property-location"));
+      const expected = { message: "bad" };
+      const bytes = Buffer.byteLength(JSON.stringify([expected]));
+      for (const instanceLocation of [
+        "/propertiesChange/0/value/0",
+        `/guessed/${"x".repeat(1000)}`,
+      ]) {
+        const diagnostic = () => ({
+          ...expected,
+          type,
+          schemaLocation: "https://schema.test/#/number",
+          instanceLocation,
+          document: "metadata" as const,
+        });
+        const result = prepareMemberExecution(member, {
+          diagnostic,
+          diagnosticBytes: bytes,
+          diagnostics: 1,
+        }).admission;
+        expect(result).toMatchObject({
+          ok: false,
+          diagnostics: [expected],
+          diagnosticsTruncated: true,
+        });
+        if (result.ok) throw Error("expected numeric refusal");
+        expect(result.diagnostics).toEqual([expected]);
+        expect(result.offending[0]?.pointer).toBe("/propertiesChange/0/value/0");
+        expect(() =>
+          prepareMemberExecution(member, { diagnostic, diagnosticBytes: bytes - 1 }),
+        ).toThrow("first entry");
+      }
+    },
+  );
 });
