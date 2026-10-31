@@ -41,6 +41,36 @@ The selected working vocabulary is Pack, PackDeclares and PackImports. Use disti
 
 Concrete package schemas, installation/catalog APIs, root/mount metadata and closure carriers are incomplete. Physical distribution, registries, version solving and Go deployment are outside this draft. The CLI direction below is more specific than the currently unfinished Pack descriptors.
 
+## Definition and installation
+
+Donna selected separate concepts for the reusable Pack definition and a Scope's installation. A Pack's definition does not change merely because a Scope chooses another CLI mount. Installation does not create a second defining home for its members.
+
+| Concept | Responsibility | Modeling status |
+| --- | --- | --- |
+| Pack definition | Describes declared members, explicit dependencies and authored command/shortcut aliases. | Pack remains the working Bead Type name; its concrete propertiesSchema is not yet selected. |
+| Declared member relation | Identifies a definition's single defining Pack. | PackDeclares remains the working Link Type name; Pack to definition Bead is the proposed endpoint shape. |
+| Import relation | Expresses a dependency on definitions supplied by another Pack. | PackImports remains the working Link Type name; whole-Pack versus selected-member import detail remains open. |
+| Installation | Binds a selected Pack definition and exact resolved member/dependency closure to an installing Scope, CLI mount and effective bound/unbound exposures. | Separate installation concept selected; representation as a Bead, a service-owned record or a catalog structure remains open. |
+
+For example, the same reusable Memory Pack can be installed at CLI mount memory in one Scope and notes in another. Its cliCommands/remember alias then exposes bd memory remember or bd notes remember, respectively, using the same selected Callable contract. Root shortcut bindings and collision diagnoses are installation results; they are not edits to the reusable Pack's authored command tree. This example does not choose cross-Scope transport, copy/identity or retention mechanics.
+
+An installation must retain enough exact selection evidence to avoid drifting when authoring definitions/imports/aliases later change. The closure carrier, validation point and update protocol remain open. Definitions and installation bindings are distinct from the ordinary runtime data the operations read or mutate; installed exact definitions do not create a separate business-data store or imply historical data capability.
+
+Starting graph proposal, pending concrete Type descriptors:
+
+```text
+Pack --PackDeclares--> definition Bead
+Pack --PackImports--> dependency Pack/member selection
+Scope installation --selects--> exact Pack/member/dependency closure
+Scope installation --exposes--> CLI mount + bound routes + unbound optional shortcuts
+```
+
+Pack membership is explicit rather than inferred from every Bead whose ID shares a path prefix. Hierarchical IDs have a selected role in the cliCommands/cliShortcuts convention; the member/import graph still supplies definition and dependency meaning. Exact endpoint constraints, relation ownership, import selections and whether a Scope permits multiple installations of the same Pack remain to settle.
+
+## Current design sequence
+
+The active design pass is Packs: give the definition/member/import graph and installation/closure/catalog boundary a concrete shape. The standalone Callable issues [CALL-O1 through CALL-O3](callables.md#open-issues) remain open and are revisited once this package shape can inform them. Work here may clarify required closure inputs, but must not invent unresolved Callable parameter nodes, invocation envelopes or Go implementation identity rules by implication.
+
 ## Installed CLI surface
 
 Donna selected Pack-provided friendly trees using hierarchical aliases under a well-known Pack-relative cliCommands/ root. Loose callables use the Callables Specification's bd call entry. This supersedes independent friendly-tree registration and separate path-array proposals for this round.

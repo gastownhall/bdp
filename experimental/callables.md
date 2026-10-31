@@ -304,15 +304,17 @@ Status: draft
 
 If the requested data edition is unsupported, invocation preserves the real capability refusal. Pinning executable definition dependencies does not imply History support or freeze runtime business data.
 
-## Remaining work before adoption
+## Open issues
 
-The core model is settled enough for this experimental design draft, but the callable contract is **not ready to implement as a complete interoperable feature**. Three substantial contracts remain open:
+The core model is settled enough for this experimental design draft, but the callable contract is **not ready to implement as a complete interoperable feature**. Donna chose to leave these three contracts open, continue the package design, and return once that shape is clearer. This is design sequencing, not a semantic dependency on package installation.
 
-| Contract | Remaining decision | Completion evidence needed |
-| --- | --- | --- |
-| Argument admission and AST binding | Exact required/default/omission rules, structured values and References, and a versioned parameter-reference form or typed adapter into the chosen Batch/Query engine. | Concrete declarations plus admitted request examples and positive/negative binding cases; current literal-body validation is insufficient. |
-| BDP invocation and result carriers | Capability/version advertisement, distinguished Query GET mode, JSON/URL argument envelopes, results/errors/media, method behavior and mutation retry composition. | Complete request/response and refusal contracts, with AST and extern examples preserving the selected engine's semantics. |
-| Exact definition and extern binding | Selection/retention of Types, schemas, defaults, body dependencies and implementation identity, including stale CLI projections and successful-key recovery after changes. | An exact invocation binding/closure carrier and defined stale/unavailable/retry outcomes; a Bead revision or Go lookup name alone is insufficient. |
+| Issue | Contract | Status | Remaining decision | Completion evidence needed |
+| --- | --- | --- | --- | --- |
+| CALL-O1 | Argument admission and AST binding | Open; revisit after package shape | Exact required/default/omission rules, structured values and References, and a versioned parameter-reference form or typed adapter into the chosen Batch/Query engine. | Concrete declarations plus admitted request examples and positive/negative binding cases; current literal-body validation is insufficient. |
+| CALL-O2 | BDP invocation and result carriers | Open; revisit after package shape | Capability/version advertisement, distinguished Query GET mode, JSON/URL argument envelopes, results/errors/media, method behavior and mutation retry composition. | Complete request/response and refusal contracts, with AST and extern examples preserving the selected engine's semantics. |
+| CALL-O3 | Exact definition and extern binding | Open; revisit after package shape | Selection/retention of Types, schemas, defaults, body dependencies and implementation identity, including stale CLI projections and successful-key recovery after changes. | An exact invocation binding/closure carrier and defined stale/unavailable/retry outcomes; a Bead revision or Go lookup name alone is insufficient. |
+
+Return to CALL-O1 through CALL-O3 once the package member/import model, installed closure boundary and CLI installation/catalog shape are concrete enough to inform them. CALL-O3 is the first reconciliation point because executable definition selection and installed package closure meet there. No deferred contract is treated as implemented or silently decided by a package convention.
 
 First-pass descriptor details, including abstract Callable, body XOR extern, field spellings and CLI decoding/help controls, also need explicit adoption. Closing these items is independent of any package command tree or shortcut design. The structural helper and finite examples remain useful evidence of the proposed shapes, not completion of these contracts.
 
