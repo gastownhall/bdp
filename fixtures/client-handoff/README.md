@@ -21,8 +21,14 @@ value means that case checks preparation only. `mustNotDispatch` forbids effectf
 mutation dispatch; a delete-preview case explicitly permits its listed GET.
 Emission, local refusal and uncertain transport are never mutation success.
 
-The frozen private reference has six CRUD operations authored but unrun; it has
-no batch implementation or advertisement. Every batch case is explicitly
+At the historical private-reference pin
+`a1d199613d7bfbb94d532f88531347bc312b8f10`, six CRUD operations were authored
+but unrun. The separately delivered PR321 source at
+`61c52f8ee02dd12c23dd010b496adcbc22428ad7` includes the client,
+retained HTTP/private-SQLite implementation and aliases, with the bounded actual
+proof and remaining limits recorded in the paired source note. Batch provider
+execution remains unsupported by this handoff; the historical reference has no
+batch implementation or advertisement. Every batch case remains explicitly
 `NOT_SUPPORTED_BY_FROZEN_REFERENCE`. Test a client's preparation with a stubbed
 capability response now; gate actual provider execution until that provider
 implements and advertises the capability. Never turn these cases into singleton
@@ -41,6 +47,7 @@ Every `--file` case supplies its own exact bytes in `scopeContext.files`; case
 filenames are isolated, not a global lookup into expected results. Synthetic valid
 Write directories contain all eight required entries, including aliases, even
 though this handoff exercises six mutations. A separate incomplete-directory case
-must refuse. Current missing reference aliases remain an integration gap, not
-permission to advertise an incomplete selected Write contract. Full returned
+must refuse. The historical a1d baseline's missing aliases are present in delivered
+PR321 source; that does not qualify complete Write or permit an incomplete
+selected Write directory. Full returned
 Resource records contain metadata; optional provenance is not synthesized.

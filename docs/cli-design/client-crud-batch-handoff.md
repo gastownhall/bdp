@@ -11,13 +11,22 @@ table; no subset is republished under its identity.
 
 ## Source correspondence and exclusions
 
-Claudia's private source is frozen at `a1d199613d7bfbb94d532f88531347bc312b8f10`
-with specification lineage `c6dfb3c05fe707cf605030c5661123e8dda0d8f8`.
+The fixture's historical private-reference baseline is
+`a1d199613d7bfbb94d532f88531347bc312b8f10`, with specification lineage
+`c6dfb3c05fe707cf605030c5661123e8dda0d8f8`.
 The selected Core/Write/CLI contract files used here and the full common schema
 are byte-identical between that lineage and e23. The only difference within those
 profile/CLI directories is `types-first-sequence.md`, outside this handoff.
 OpenAPI and front-door additions on e23 provide catalog/navigation source, not a
 claim that her implementation has adopted or executed it.
+
+The separately delivered [PR321](https://github.com/gastownhall/bdp/pull/321)
+source at `61c52f8ee02dd12c23dd010b496adcbc22428ad7` contains the generic
+client, retained HTTP/private-SQLite implementation and alias operations. Its
+original 301-case cohort remains 297 PASS/4 FAIL; four fixture-corrected cases and
+three previously unrun controls passed separately. This bounded evidence does
+not establish full Write, CLI or Go conformance. The historical baseline's
+missing implementations and unrun status are not current PR321 status.
 
 Pending PR325 `idRoot`, PR328 notation, the held colon clarification, richer batch
 encodings, Query/List and Type installation/lifecycle are excluded. The accepted
@@ -52,9 +61,9 @@ an operation name or reconstruct the URL.
 The selected Write directory is the closed eight-operation directory, including
 putAlias and deleteAlias. Six implemented mutations alone do not make an incomplete
 directory valid. The cases use a complete synthetic directory and separately test
-refusal of a six-entry directory. The current reference's missing alias operations
-remain a concrete full-Write integration gap; these fixtures do not hide it or
-qualify that provider.
+refusal of a six-entry directory. Alias operations were absent from the historical
+a1d baseline and are present in the delivered PR321 source. These fixtures qualify
+neither that implementation nor the complete Write profile.
 
 [Object edits](object-edits.md) lower independently per properties/metadata plane.
 Replacement uses distinct body members; merge/keyed modes produce the specified
@@ -114,7 +123,8 @@ exists. CLI result_kind/schema framing remains outside the HTTP body.
 
 The artifact test only checks authored schema/source correspondence. There is no
 Go client, CLI compiler, provider or transaction execution claim from this handoff.
-Alias coverage and the reference's broader Core/Write obligations remain Claudia's
-separate gaps. Melinda owns Read/Query and profile/config/registration; Trish owns
+Broader Core/Write qualification and actual consumer journeys remain separate
+obligations; the historical alias implementation gap is not current missing work.
+Melinda owns Read/Query and profile/config/registration; Trish owns
 Types semantics and normal BDP receiving. The held colon proposal needs her
 disposition, not an implicit change in these cases.
