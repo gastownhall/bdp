@@ -1,6 +1,6 @@
-# Bead Protocol
+# Beads Protocol
 
-This repository is the source of truth for the Bead Protocol (BDP).
+This repository is the source of truth for the Beads Protocol (BDP).
 
 **The sole specification authority is [`specs/`](specs/README.md).**
 Start with the [selected profile entries and source-status map](specs/README.md),
