@@ -38,6 +38,15 @@ def require(condition, message):
         raise ArtifactError(message)
 
 
+def publication_facts(edition):
+    """Only the two explicitly retained source editions, not arbitrary input."""
+    require(edition in (1, 2), "unselected intrinsic publication edition")
+    namespace = f"https://github.com/gastownhall/bdp/schemas/types/intrinsic-{edition}/"
+    pins = {name: {"uri": NAMESPACE + name, "revision": f"{name}-{edition}"}
+            for name in NAMES}
+    return namespace, pins
+
+
 def unavailable(uri):
     raise NoSuchResource(ref=uri)
 
@@ -72,12 +81,13 @@ def schema_references(schema, base):
         yield from schema_references(child.contents, current)
 
 
-def schema_environment(definition):
+def schema_environment(definition, edition=1):
     """Use only this exact definition's own schema map and standard resources."""
+    schema_namespace, _ = publication_facts(edition)
     properties = definition["properties"]
     root = properties["propertiesSchema"]
     retained = properties.get("schemaResources", {})
-    require(isinstance(root, dict) and root.get("$id", "").startswith(SCHEMA_NAMESPACE),
+    require(isinstance(root, dict) and root.get("$id", "").startswith(schema_namespace),
             "intrinsic root schema identity")
     require(isinstance(retained, dict), "schemaResources is not an object")
     resources = {root["$id"]: root, **retained}
@@ -91,7 +101,7 @@ def schema_environment(definition):
         else:
             require(isinstance(schema, dict) and schema.get("$id") == uri,
                     "schema resource identity mismatch")
-            require(uri.startswith(SCHEMA_NAMESPACE), "unselected protocol schema identity")
+            require(uri.startswith(schema_namespace), "unselected protocol schema identity")
         Draft202012Validator.check_schema(schema)
     registry = Registry(retrieve=unavailable).with_resources(
         list(SPECIFICATIONS.items()) + [
@@ -145,15 +155,16 @@ def check_schema_copies(candidate):
                         "conflicting retained intrinsic schema copy")
 
 
-def check_refines_graph(candidate):
+def check_refines_graph(candidate, edition=1):
     """Only recorded Refines edges; metatype affiliation loops are not edges."""
+    _, pins = publication_facts(edition)
     records = {record_pin(record): record for record in candidate["definitions"]}
     edges = {}
     for owner in candidate["definitions"]:
         targets = []
         for links in owner["ownedLinks"].values():
             for link in links:
-                require(link["type"] == PINS["refines"], "wrong Refines affiliation")
+                require(link["type"] == pins["refines"], "wrong Refines affiliation")
                 target = pin(link["target"])
                 require(target in records, "missing exact Refines target")
                 targets.append(target)
@@ -192,33 +203,34 @@ def exact_walk(candidate, start):
     return visited
 
 
-def check_intrinsic(candidate, validators):
+def check_intrinsic(candidate, validators, edition=1):
+    schema_namespace, pins = publication_facts(edition)
     require(set(candidate) == {"definitions", "declarations"}, "publication root members")
     definitions, declarations = candidate["definitions"], candidate["declarations"]
     require(len(definitions) == 4 and len(declarations) == 2, "publication record counts")
     by_pin = {record_pin(record): record for record in definitions}
-    require(set(by_pin) == {pin(value) for value in PINS.values()}, "intrinsic exact identities")
+    require(set(by_pin) == {pin(value) for value in pins.values()}, "intrinsic exact identities")
     by_name = {record["id"].removeprefix(NAMESPACE): record for record in definitions}
     schema_names = {"type": "type-definition", "bead-type": "bead-type-definition",
                     "link-type": "link-type-definition", "refines": "refines"}
     for name, record in by_name.items():
         validators["beadRecord"].validate(record)
-        require(record["type"] == PINS["link-type" if name == "refines" else "bead-type"],
+        require(record["type"] == pins["link-type" if name == "refines" else "bead-type"],
                 "incorrect intrinsic metatype affiliation")
         require("originScope" not in record, "invented origin Scope")
         require(record["properties"]["propertiesSchema"]["$id"] ==
-                SCHEMA_NAMESPACE + schema_names[name] + ".properties.schema.json",
+                schema_namespace + schema_names[name] + ".properties.schema.json",
                 "incorrect intrinsic schema identity")
-        schema_environment(record)
+        schema_environment(record, edition)
     check_schema_copies(candidate)
     require(by_name["type"]["properties"].get("abstract") is True, "Type must be abstract")
     for name in ("bead-type", "link-type", "refines"):
         require(not by_name[name]["properties"].get("abstract", False), "usable intrinsic abstract")
-    require(by_name["type"]["properties"].get("ownsOutgoing") == [{"anyOf": [PINS["refines"]]}],
+    require(by_name["type"]["properties"].get("ownsOutgoing") == [{"anyOf": [pins["refines"]]}],
             "Type owns Refines")
     pairs = []
     for name in ("bead-type", "link-type"):
-        endpoint = {"resourceKind": "bead", "scope": "either", "types": {"anyOf": [PINS[name]]}}
+        endpoint = {"resourceKind": "bead", "scope": "either", "types": {"anyOf": [pins[name]]}}
         pairs.append({"source": endpoint, "target": deepcopy(endpoint)})
     require(by_name["refines"]["properties"].get("linkConstraints") == {"typeConstraints": pairs},
             "category-preserving Refines pairs")
@@ -226,24 +238,25 @@ def check_intrinsic(candidate, validators):
     require({link["id"] for link in declarations} == expected_ids, "intrinsic declaration identities")
     for link in declarations:
         validators["linkRecord"].validate(link)
-        require(link["revision"] == "declaration-1" and link["type"] == PINS["refines"]
-                and link["target"] == PINS["type"], "intrinsic declaration exact pins")
+        require(link["revision"] == f"declaration-{edition}" and link["type"] == pins["refines"]
+                and link["target"] == pins["type"], "intrinsic declaration exact pins")
         require(link["source"] + "-refines-type" == link["id"], "intrinsic declaration source")
     check_captures(candidate)
-    check_refines_graph(candidate)
+    check_refines_graph(candidate, edition)
     for definition in definitions:
         metatype = by_pin[pin(definition["type"])]
-        validator(metatype["properties"]["propertiesSchema"], schema_environment(metatype)).validate(
+        validator(metatype["properties"]["propertiesSchema"], schema_environment(metatype, edition)).validate(
             definition["properties"])
     for link in declarations:
         refines = by_name["refines"]
-        validator(refines["properties"]["propertiesSchema"], schema_environment(refines)).validate(link["properties"])
+        validator(refines["properties"]["propertiesSchema"], schema_environment(refines, edition)).validate(link["properties"])
     for name in NAMES:
-        require(exact_walk(candidate, pin(PINS[name])) == set(by_pin), "incomplete intrinsic exact closure")
+        require(exact_walk(candidate, pin(pins[name])) == set(by_pin), "incomplete intrinsic exact closure")
 
 
-def check_receipt(raw, receipt, candidate):
-    require(receipt["publication"] == "intrinsic-1" and receipt["artifact"] == "intrinsic-1.json",
+def check_receipt(raw, receipt, candidate, edition=1):
+    _, expected_pins = publication_facts(edition)
+    require(receipt["publication"] == f"intrinsic-{edition}" and receipt["artifact"] == f"intrinsic-{edition}.json",
             "publication receipt identity")
     require(receipt["sha256"] == hashlib.sha256(raw).hexdigest(), "full artifact digest mismatch")
     require(receipt["definitionCount"] == len(candidate["definitions"]) == 4
@@ -251,9 +264,76 @@ def check_receipt(raw, receipt, candidate):
     require(receipt["originScopeRecorded"] is False and "originScope" not in receipt,
             "invented receipt origin Scope")
     pins = receipt["definitionPins"]
-    require(isinstance(pins, list) and len(pins) == len(PINS)
-            and {pin(value) for value in pins} == {pin(value) for value in PINS.values()},
+    require(isinstance(pins, list) and len(pins) == len(expected_pins)
+            and {pin(value) for value in pins} == {pin(value) for value in expected_pins.values()},
             "receipt exact pins")
+
+
+def check_successor(validators):
+    """Finite source/shape cases, not a provider or general Type admission."""
+    raw = (HERE / "intrinsic-2.json").read_bytes()
+    candidate = json.loads(raw)
+    receipt = json.loads((HERE / "intrinsic-2.publication.json").read_text())
+    check_receipt(raw, receipt, candidate, 2)
+    check_intrinsic(candidate, validators, 2)
+    old = json.loads((HERE / "intrinsic-1.json").read_bytes())
+    old_sha = hashlib.sha256((HERE / "intrinsic-1.json").read_bytes()).hexdigest()
+    require(old_sha == "73b16c93b6963f9657be3569ba9d16f722edbf6f49090803e748c907c39aab7e",
+            "retained publication1 bytes changed")
+    for previous, current in zip(old["definitions"], candidate["definitions"]):
+        for uri, schema in previous["properties"].get("schemaResources", {}).items():
+            if uri in SPECIFICATIONS:
+                require(current["properties"]["schemaResources"].get(uri) == schema,
+                        "retained standard resource changed")
+        root = current["properties"]["propertiesSchema"]
+        copy = HERE / "intrinsic-2" / root["$id"].rsplit("/", 1)[1]
+        require(json.loads(copy.read_text()) == root, "publication2 companion schema drift")
+    bead_type = candidate["definitions"][1]
+    descriptor = validator(bead_type["properties"]["propertiesSchema"],
+                           schema_environment(bead_type, 2))
+    old_bead_type = old["definitions"][1]
+    previous_descriptor = validator(old_bead_type["properties"]["propertiesSchema"],
+                                    schema_environment(old_bead_type))
+    require(not previous_descriptor.is_valid({}) and descriptor.is_valid({}),
+            "omission must be edition-specific")
+    link_type = candidate["definitions"][2]
+    link_descriptor = validator(link_type["properties"]["propertiesSchema"],
+                               schema_environment(link_type, 2))
+    require(not link_descriptor.is_valid({}), "omission removed required Link constraints")
+    endpoints = deepcopy(candidate["definitions"][3]["properties"]["linkConstraints"])
+    require(link_descriptor.is_valid({"linkConstraints": endpoints}),
+            "Link descriptor cannot omit its local properties schema")
+    fixture = json.loads((HERE / "schema-omission-cases.json").read_text())
+    inherited = {}
+    for name, schema in fixture["schemas"].items():
+        Draft202012Validator.check_schema(schema)
+        inherited[name] = validator(schema, Registry(retrieve=unavailable))
+    for case in fixture["cases"]:
+        properties = deepcopy(case["descriptor"])
+        instance = deepcopy(case["instance"])
+        admitted_shape = descriptor.is_valid(properties)
+        require(admitted_shape == case["descriptorValid"], case["label"] + ": descriptor shape")
+        if admitted_shape:
+            constraints = [inherited[name] for name in case["inherited"]]
+            if "propertiesSchema" in properties:
+                constraints.append(validator(properties["propertiesSchema"], Registry(retrieve=unavailable)))
+            valid = isinstance(instance, dict) and all(rule.is_valid(instance) for rule in constraints)
+            require(valid == case["valid"], case["label"] + ": constraint conjunction")
+        require(properties == case["descriptor"] and instance == case["instance"],
+                case["label"] + ": validator inserted or changed values")
+    # Neither a recognized publication with mixed pins nor an unknown edition
+    # becomes a fallback to current definitions.
+    mixed = deepcopy(candidate)
+    mixed["definitions"][0]["type"] = PINS["bead-type"]
+    for check in (lambda: check_intrinsic(mixed, validators, 2),
+                  lambda: publication_facts(3)):
+        try:
+            check()
+        except ArtifactError:
+            pass
+        else:
+            raise ArtifactError("mixed or unknown edition accepted")
+    return len(fixture["cases"])
 
 
 def main():
@@ -466,8 +546,10 @@ def main():
         counts["refusals"] += 1
     else:
         raise ArtifactError("LinkType accepted forbidden ownsOutgoing properties")
-    print(f"PASS: 4 intrinsic definitions/2 declarations; {counts['shape']} sidecar positive/negative cases; "
+    successor_cases = check_successor(validators)
+    print(f"PASS: 4 intrinsic definitions/2 declarations in each retained edition; {counts['shape']} sidecar positive/negative cases; "
           f"{counts['refusals']} finite publication/closure refusal mutations; offline exact metatype properties validated")
+    print(f"PASS: publication2 exact closure/receipt; {successor_cases} omission/composition source cases; publication1 unchanged")
     print("LIMIT: source/shape/finite graph checks only; no provider, registration/default, instance, authority or runtime proof")
 
 

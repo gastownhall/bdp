@@ -1,0 +1,2680 @@
+{
+  "definitions": [
+    {
+      "id": "https://github.com/gastownhall/bdp/types/type-system/type",
+      "revision": "type-2",
+      "type": {
+        "uri": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+        "revision": "bead-type-2"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json",
+          "title": "Common Type descriptor properties",
+          "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
+          "type": "object",
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "propertiesSchema": {
+              "allOf": [
+                {
+                  "$ref": "https://json-schema.org/draft/2020-12/schema"
+                },
+                {
+                  "if": {
+                    "type": "object"
+                  },
+                  "then": {
+                    "type": "object",
+                    "properties": {
+                      "$schema": {
+                        "const": "https://json-schema.org/draft/2020-12/schema"
+                      }
+                    }
+                  }
+                }
+              ],
+              "$comment": "Optional local schema for instance properties. Omission adds no local constraints; all inherited constraints still apply. A supplied schema adds constraints and never replaces an ancestor schema. Null is not omission. Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. No general executable extension language is selected initially; unsupported required semantics refuse."
+            },
+            "schemaResources": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^[^#]+$"
+              },
+              "additionalProperties": {
+                "$ref": "#/properties/propertiesSchema"
+              },
+              "$comment": "Candidate retrieval-URI to exact schema-resource map, immutable with Type revision. Values retain standard $id/base/anchor semantics. Complete closure, conflicting bindings and offline resolution require admission checks."
+            },
+            "id": false,
+            "revision": false,
+            "type": false,
+            "ownedLinks": false,
+            "conformsTo": false,
+            "revisionProvenance": false,
+            "describes": false,
+            "source": false,
+            "target": false,
+            "pairUnique": false,
+            "version": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
+              "$comment": "Optional informational author release label; labels may repeat across exact revisions. No inferred conformance, revision matching or upgrade."
+            },
+            "abstract": {
+              "type": "boolean",
+              "default": false,
+              "description": "True forbids direct instance affiliation with this exact definition. Does not automatically make refinements abstract."
+            },
+            "propertyAccess": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^/(?:[^~]|~[01])*$"
+              },
+              "additionalProperties": {
+                "enum": ["writable", "init-only", "service-managed"]
+              },
+              "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
+            },
+            "refines": false
+          },
+          "additionalProperties": true,
+          "$defs": {
+            "typeUrl": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://.+"
+            },
+            "typeReference": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/typeUrl"
+                },
+                {
+                  "type": "object",
+                  "required": ["uri", "revision"],
+                  "properties": {
+                    "uri": {
+                      "$ref": "#/$defs/typeUrl"
+                    },
+                    "revision": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "typeSelector": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "required": ["anyOf"],
+                  "properties": {
+                    "anyOf": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "$ref": "#/$defs/typeReference"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": ["any"],
+                  "properties": {
+                    "any": {
+                      "const": true
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ],
+              "$comment": "Candidate selector syntax. Pinned entries match exact affiliation/conformance; unpinned entries match any revision of the identity or conformance to such a revision, never latest lookup. any:true imposes no Type restriction."
+            },
+            "participationConstraint": {
+              "type": "object",
+              "required": ["linkTypes"],
+              "properties": {
+                "linkTypes": {
+                  "$ref": "#/$defs/typeSelector"
+                },
+                "min": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "anyOf": [
+                {
+                  "required": ["min"],
+                  "properties": {
+                    "min": true
+                  }
+                },
+                {
+                  "required": ["max"],
+                  "properties": {
+                    "max": true
+                  }
+                }
+              ],
+              "additionalProperties": false,
+              "$comment": "Candidate Bead participation rule: min omitted means zero; max omitted means unbounded. min<=max and intersection with inherited/Link bounds need semantic validation."
+            },
+            "endpointConstraint": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "required": ["resourceKind", "scope", "types"],
+                  "properties": {
+                    "resourceKind": {
+                      "const": "bead"
+                    },
+                    "scope": {
+                      "enum": ["same", "cross", "either"]
+                    },
+                    "types": {
+                      "$ref": "#/$defs/typeSelector"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": ["resourceKind"],
+                  "properties": {
+                    "resourceKind": {
+                      "const": "resource"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ],
+              "$comment": "Candidate endpoint syntax. Scope conditions remain binding. Typed cross/either Bead arms can match registered exact Type-definition endpoints using retained accepted facts; arbitrary external resources remain opaque and cannot establish a specific Type. Registration/exact-state admission is semantic, not proved by this shape schema. resource admits an opaque external URI and does not enable local Link endpoints. Scope classification and floating external-definition resolution remain to specify."
+            },
+            "endpointPair": {
+              "type": "object",
+              "required": ["source", "target"],
+              "properties": {
+                "source": {
+                  "$ref": "#/$defs/endpointConstraint"
+                },
+                "target": {
+                  "$ref": "#/$defs/endpointConstraint"
+                }
+              },
+              "additionalProperties": false
+            },
+            "linkConstraints": {
+              "type": "object",
+              "required": ["typeConstraints"],
+              "properties": {
+                "typeConstraints": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/endpointPair"
+                  }
+                },
+                "sourceMax": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "targetMax": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "unique": {
+                  "type": "boolean"
+                },
+                "acyclic": {
+                  "type": "boolean"
+                },
+                "allowSelf": {
+                  "type": "boolean",
+                  "description": "False prohibits equal source and target Resource identities, ignoring revision selectors. True or omission adds no local prohibition; inherited prohibitions remain binding."
+                }
+              },
+              "additionalProperties": false,
+              "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. unique/acyclic false or omission adds no local restriction; allowSelf false imposes an identity self-link prohibition, true or omission does not. No local value disables inherited restrictions. No Link minimum or endpoint pin-mode field."
+            }
+          }
+        },
+        "ownsOutgoing": [
+          {
+            "anyOf": [
+              {
+                "uri": "https://github.com/gastownhall/bdp/types/type-system/refines",
+                "revision": "refines-2"
+              }
+            ]
+          }
+        ],
+        "schemaResources": {
+          "https://json-schema.org/draft/2020-12/meta/applicator": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/applicator",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/applicator": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Applicator vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "prefixItems": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "items": {
+                "$dynamicRef": "#meta"
+              },
+              "contains": {
+                "$dynamicRef": "#meta"
+              },
+              "additionalProperties": {
+                "$dynamicRef": "#meta"
+              },
+              "properties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "default": {}
+              },
+              "patternProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "propertyNames": {
+                  "format": "regex"
+                },
+                "default": {}
+              },
+              "dependentSchemas": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "default": {}
+              },
+              "propertyNames": {
+                "$dynamicRef": "#meta"
+              },
+              "if": {
+                "$dynamicRef": "#meta"
+              },
+              "then": {
+                "$dynamicRef": "#meta"
+              },
+              "else": {
+                "$dynamicRef": "#meta"
+              },
+              "allOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "anyOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "oneOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "not": {
+                "$dynamicRef": "#meta"
+              }
+            },
+            "$defs": {
+              "schemaArray": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$dynamicRef": "#meta"
+                }
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/content": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/content",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/content": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Content vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "contentEncoding": {
+                "type": "string"
+              },
+              "contentMediaType": {
+                "type": "string"
+              },
+              "contentSchema": {
+                "$dynamicRef": "#meta"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/core": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/core",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/core": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Core vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "$id": {
+                "$ref": "#/$defs/uriReferenceString",
+                "$comment": "Non-empty fragments not allowed.",
+                "pattern": "^[^#]*#?$"
+              },
+              "$schema": {
+                "$ref": "#/$defs/uriString"
+              },
+              "$ref": {
+                "$ref": "#/$defs/uriReferenceString"
+              },
+              "$anchor": {
+                "$ref": "#/$defs/anchorString"
+              },
+              "$dynamicRef": {
+                "$ref": "#/$defs/uriReferenceString"
+              },
+              "$dynamicAnchor": {
+                "$ref": "#/$defs/anchorString"
+              },
+              "$vocabulary": {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/$defs/uriString"
+                },
+                "additionalProperties": {
+                  "type": "boolean"
+                }
+              },
+              "$comment": {
+                "type": "string"
+              },
+              "$defs": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                }
+              }
+            },
+            "$defs": {
+              "anchorString": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][-A-Za-z0-9._]*$"
+              },
+              "uriString": {
+                "type": "string",
+                "format": "uri"
+              },
+              "uriReferenceString": {
+                "type": "string",
+                "format": "uri-reference"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/format-annotation": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/format-annotation",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/format-annotation": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Format vocabulary meta-schema for annotation results",
+            "type": ["object", "boolean"],
+            "properties": {
+              "format": {
+                "type": "string"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/meta-data": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/meta-data",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/meta-data": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Meta-data vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "default": true,
+              "deprecated": {
+                "type": "boolean",
+                "default": false
+              },
+              "readOnly": {
+                "type": "boolean",
+                "default": false
+              },
+              "writeOnly": {
+                "type": "boolean",
+                "default": false
+              },
+              "examples": {
+                "type": "array",
+                "items": true
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/unevaluated": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/unevaluated",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/unevaluated": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Unevaluated applicator vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "unevaluatedItems": {
+                "$dynamicRef": "#meta"
+              },
+              "unevaluatedProperties": {
+                "$dynamicRef": "#meta"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/validation": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/validation",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/validation": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Validation vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "type": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/simpleTypes"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/simpleTypes"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
+                  }
+                ]
+              },
+              "const": true,
+              "enum": {
+                "type": "array",
+                "items": true
+              },
+              "multipleOf": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "maximum": {
+                "type": "number"
+              },
+              "exclusiveMaximum": {
+                "type": "number"
+              },
+              "minimum": {
+                "type": "number"
+              },
+              "exclusiveMinimum": {
+                "type": "number"
+              },
+              "maxLength": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minLength": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "pattern": {
+                "type": "string",
+                "format": "regex"
+              },
+              "maxItems": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minItems": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "uniqueItems": {
+                "type": "boolean",
+                "default": false
+              },
+              "maxContains": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minContains": {
+                "$ref": "#/$defs/nonNegativeInteger",
+                "default": 1
+              },
+              "maxProperties": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minProperties": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "required": {
+                "$ref": "#/$defs/stringArray"
+              },
+              "dependentRequired": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/$defs/stringArray"
+                }
+              }
+            },
+            "$defs": {
+              "nonNegativeInteger": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "nonNegativeIntegerDefault0": {
+                "$ref": "#/$defs/nonNegativeInteger",
+                "default": 0
+              },
+              "simpleTypes": {
+                "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
+              },
+              "stringArray": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "default": []
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/schema",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/core": true,
+              "https://json-schema.org/draft/2020-12/vocab/applicator": true,
+              "https://json-schema.org/draft/2020-12/vocab/unevaluated": true,
+              "https://json-schema.org/draft/2020-12/vocab/validation": true,
+              "https://json-schema.org/draft/2020-12/vocab/meta-data": true,
+              "https://json-schema.org/draft/2020-12/vocab/format-annotation": true,
+              "https://json-schema.org/draft/2020-12/vocab/content": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Core and Validation specifications meta-schema",
+            "allOf": [
+              {
+                "$ref": "meta/core"
+              },
+              {
+                "$ref": "meta/applicator"
+              },
+              {
+                "$ref": "meta/unevaluated"
+              },
+              {
+                "$ref": "meta/validation"
+              },
+              {
+                "$ref": "meta/meta-data"
+              },
+              {
+                "$ref": "meta/format-annotation"
+              },
+              {
+                "$ref": "meta/content"
+              }
+            ],
+            "type": ["object", "boolean"],
+            "$comment": "This meta-schema also defines keywords that have appeared in previous drafts in order to prevent incompatible extensions as they remain in common use.",
+            "properties": {
+              "definitions": {
+                "$comment": "\"definitions\" has been replaced by \"$defs\".",
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "deprecated": true,
+                "default": {}
+              },
+              "dependencies": {
+                "$comment": "\"dependencies\" has been split and replaced by \"dependentSchemas\" and \"dependentRequired\" in order to serve their differing semantics.",
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "$dynamicRef": "#meta"
+                    },
+                    {
+                      "$ref": "meta/validation#/$defs/stringArray"
+                    }
+                  ]
+                },
+                "deprecated": true,
+                "default": {}
+              },
+              "$recursiveAnchor": {
+                "$comment": "\"$recursiveAnchor\" has been replaced by \"$dynamicAnchor\".",
+                "$ref": "meta/core#/$defs/anchorString",
+                "deprecated": true
+              },
+              "$recursiveRef": {
+                "$comment": "\"$recursiveRef\" has been replaced by \"$dynamicRef\".",
+                "$ref": "meta/core#/$defs/uriReferenceString",
+                "deprecated": true
+              }
+            }
+          }
+        },
+        "abstract": true
+      },
+      "ownedLinks": {}
+    },
+    {
+      "id": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+      "revision": "bead-type-2",
+      "type": {
+        "uri": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+        "revision": "bead-type-2"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/bead-type-definition.properties.schema.json",
+          "title": "Bead Type descriptor properties",
+          "allOf": [
+            {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json"
+            }
+          ],
+          "type": "object",
+          "properties": {
+            "ownsOutgoing": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json#/$defs/typeSelector"
+              }
+            },
+            "incoming": {
+              "type": "array",
+              "items": {
+                "$ref": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json#/$defs/participationConstraint"
+              }
+            },
+            "outgoing": {
+              "type": "array",
+              "items": {
+                "$ref": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json#/$defs/participationConstraint"
+              }
+            },
+            "linkConstraints": false
+          },
+          "additionalProperties": true
+        },
+        "schemaResources": {
+          "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json",
+            "title": "Common Type descriptor properties",
+            "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "propertiesSchema": {
+                "allOf": [
+                  {
+                    "$ref": "https://json-schema.org/draft/2020-12/schema"
+                  },
+                  {
+                    "if": {
+                      "type": "object"
+                    },
+                    "then": {
+                      "type": "object",
+                      "properties": {
+                        "$schema": {
+                          "const": "https://json-schema.org/draft/2020-12/schema"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "$comment": "Optional local schema for instance properties. Omission adds no local constraints; all inherited constraints still apply. A supplied schema adds constraints and never replaces an ancestor schema. Null is not omission. Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. No general executable extension language is selected initially; unsupported required semantics refuse."
+              },
+              "schemaResources": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^[^#]+$"
+                },
+                "additionalProperties": {
+                  "$ref": "#/properties/propertiesSchema"
+                },
+                "$comment": "Candidate retrieval-URI to exact schema-resource map, immutable with Type revision. Values retain standard $id/base/anchor semantics. Complete closure, conflicting bindings and offline resolution require admission checks."
+              },
+              "id": false,
+              "revision": false,
+              "type": false,
+              "ownedLinks": false,
+              "conformsTo": false,
+              "revisionProvenance": false,
+              "describes": false,
+              "source": false,
+              "target": false,
+              "pairUnique": false,
+              "version": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
+                "$comment": "Optional informational author release label; labels may repeat across exact revisions. No inferred conformance, revision matching or upgrade."
+              },
+              "abstract": {
+                "type": "boolean",
+                "default": false,
+                "description": "True forbids direct instance affiliation with this exact definition. Does not automatically make refinements abstract."
+              },
+              "propertyAccess": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^/(?:[^~]|~[01])*$"
+                },
+                "additionalProperties": {
+                  "enum": ["writable", "init-only", "service-managed"]
+                },
+                "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
+              },
+              "refines": false
+            },
+            "additionalProperties": true,
+            "$defs": {
+              "typeUrl": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://.+"
+              },
+              "typeReference": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/typeUrl"
+                  },
+                  {
+                    "type": "object",
+                    "required": ["uri", "revision"],
+                    "properties": {
+                      "uri": {
+                        "$ref": "#/$defs/typeUrl"
+                      },
+                      "revision": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "typeSelector": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["anyOf"],
+                    "properties": {
+                      "anyOf": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "$ref": "#/$defs/typeReference"
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": ["any"],
+                    "properties": {
+                      "any": {
+                        "const": true
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ],
+                "$comment": "Candidate selector syntax. Pinned entries match exact affiliation/conformance; unpinned entries match any revision of the identity or conformance to such a revision, never latest lookup. any:true imposes no Type restriction."
+              },
+              "participationConstraint": {
+                "type": "object",
+                "required": ["linkTypes"],
+                "properties": {
+                  "linkTypes": {
+                    "$ref": "#/$defs/typeSelector"
+                  },
+                  "min": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "max": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "anyOf": [
+                  {
+                    "required": ["min"],
+                    "properties": {
+                      "min": true
+                    }
+                  },
+                  {
+                    "required": ["max"],
+                    "properties": {
+                      "max": true
+                    }
+                  }
+                ],
+                "additionalProperties": false,
+                "$comment": "Candidate Bead participation rule: min omitted means zero; max omitted means unbounded. min<=max and intersection with inherited/Link bounds need semantic validation."
+              },
+              "endpointConstraint": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["resourceKind", "scope", "types"],
+                    "properties": {
+                      "resourceKind": {
+                        "const": "bead"
+                      },
+                      "scope": {
+                        "enum": ["same", "cross", "either"]
+                      },
+                      "types": {
+                        "$ref": "#/$defs/typeSelector"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": ["resourceKind"],
+                    "properties": {
+                      "resourceKind": {
+                        "const": "resource"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ],
+                "$comment": "Candidate endpoint syntax. Scope conditions remain binding. Typed cross/either Bead arms can match registered exact Type-definition endpoints using retained accepted facts; arbitrary external resources remain opaque and cannot establish a specific Type. Registration/exact-state admission is semantic, not proved by this shape schema. resource admits an opaque external URI and does not enable local Link endpoints. Scope classification and floating external-definition resolution remain to specify."
+              },
+              "endpointPair": {
+                "type": "object",
+                "required": ["source", "target"],
+                "properties": {
+                  "source": {
+                    "$ref": "#/$defs/endpointConstraint"
+                  },
+                  "target": {
+                    "$ref": "#/$defs/endpointConstraint"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "linkConstraints": {
+                "type": "object",
+                "required": ["typeConstraints"],
+                "properties": {
+                  "typeConstraints": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/$defs/endpointPair"
+                    }
+                  },
+                  "sourceMax": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "targetMax": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "unique": {
+                    "type": "boolean"
+                  },
+                  "acyclic": {
+                    "type": "boolean"
+                  },
+                  "allowSelf": {
+                    "type": "boolean",
+                    "description": "False prohibits equal source and target Resource identities, ignoring revision selectors. True or omission adds no local prohibition; inherited prohibitions remain binding."
+                  }
+                },
+                "additionalProperties": false,
+                "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. unique/acyclic false or omission adds no local restriction; allowSelf false imposes an identity self-link prohibition, true or omission does not. No local value disables inherited restrictions. No Link minimum or endpoint pin-mode field."
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/applicator": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/applicator",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/applicator": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Applicator vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "prefixItems": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "items": {
+                "$dynamicRef": "#meta"
+              },
+              "contains": {
+                "$dynamicRef": "#meta"
+              },
+              "additionalProperties": {
+                "$dynamicRef": "#meta"
+              },
+              "properties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "default": {}
+              },
+              "patternProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "propertyNames": {
+                  "format": "regex"
+                },
+                "default": {}
+              },
+              "dependentSchemas": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "default": {}
+              },
+              "propertyNames": {
+                "$dynamicRef": "#meta"
+              },
+              "if": {
+                "$dynamicRef": "#meta"
+              },
+              "then": {
+                "$dynamicRef": "#meta"
+              },
+              "else": {
+                "$dynamicRef": "#meta"
+              },
+              "allOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "anyOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "oneOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "not": {
+                "$dynamicRef": "#meta"
+              }
+            },
+            "$defs": {
+              "schemaArray": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$dynamicRef": "#meta"
+                }
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/content": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/content",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/content": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Content vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "contentEncoding": {
+                "type": "string"
+              },
+              "contentMediaType": {
+                "type": "string"
+              },
+              "contentSchema": {
+                "$dynamicRef": "#meta"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/core": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/core",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/core": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Core vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "$id": {
+                "$ref": "#/$defs/uriReferenceString",
+                "$comment": "Non-empty fragments not allowed.",
+                "pattern": "^[^#]*#?$"
+              },
+              "$schema": {
+                "$ref": "#/$defs/uriString"
+              },
+              "$ref": {
+                "$ref": "#/$defs/uriReferenceString"
+              },
+              "$anchor": {
+                "$ref": "#/$defs/anchorString"
+              },
+              "$dynamicRef": {
+                "$ref": "#/$defs/uriReferenceString"
+              },
+              "$dynamicAnchor": {
+                "$ref": "#/$defs/anchorString"
+              },
+              "$vocabulary": {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/$defs/uriString"
+                },
+                "additionalProperties": {
+                  "type": "boolean"
+                }
+              },
+              "$comment": {
+                "type": "string"
+              },
+              "$defs": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                }
+              }
+            },
+            "$defs": {
+              "anchorString": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][-A-Za-z0-9._]*$"
+              },
+              "uriString": {
+                "type": "string",
+                "format": "uri"
+              },
+              "uriReferenceString": {
+                "type": "string",
+                "format": "uri-reference"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/format-annotation": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/format-annotation",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/format-annotation": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Format vocabulary meta-schema for annotation results",
+            "type": ["object", "boolean"],
+            "properties": {
+              "format": {
+                "type": "string"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/meta-data": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/meta-data",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/meta-data": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Meta-data vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "default": true,
+              "deprecated": {
+                "type": "boolean",
+                "default": false
+              },
+              "readOnly": {
+                "type": "boolean",
+                "default": false
+              },
+              "writeOnly": {
+                "type": "boolean",
+                "default": false
+              },
+              "examples": {
+                "type": "array",
+                "items": true
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/unevaluated": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/unevaluated",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/unevaluated": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Unevaluated applicator vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "unevaluatedItems": {
+                "$dynamicRef": "#meta"
+              },
+              "unevaluatedProperties": {
+                "$dynamicRef": "#meta"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/validation": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/validation",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/validation": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Validation vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "type": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/simpleTypes"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/simpleTypes"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
+                  }
+                ]
+              },
+              "const": true,
+              "enum": {
+                "type": "array",
+                "items": true
+              },
+              "multipleOf": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "maximum": {
+                "type": "number"
+              },
+              "exclusiveMaximum": {
+                "type": "number"
+              },
+              "minimum": {
+                "type": "number"
+              },
+              "exclusiveMinimum": {
+                "type": "number"
+              },
+              "maxLength": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minLength": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "pattern": {
+                "type": "string",
+                "format": "regex"
+              },
+              "maxItems": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minItems": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "uniqueItems": {
+                "type": "boolean",
+                "default": false
+              },
+              "maxContains": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minContains": {
+                "$ref": "#/$defs/nonNegativeInteger",
+                "default": 1
+              },
+              "maxProperties": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minProperties": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "required": {
+                "$ref": "#/$defs/stringArray"
+              },
+              "dependentRequired": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/$defs/stringArray"
+                }
+              }
+            },
+            "$defs": {
+              "nonNegativeInteger": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "nonNegativeIntegerDefault0": {
+                "$ref": "#/$defs/nonNegativeInteger",
+                "default": 0
+              },
+              "simpleTypes": {
+                "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
+              },
+              "stringArray": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "default": []
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/schema",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/core": true,
+              "https://json-schema.org/draft/2020-12/vocab/applicator": true,
+              "https://json-schema.org/draft/2020-12/vocab/unevaluated": true,
+              "https://json-schema.org/draft/2020-12/vocab/validation": true,
+              "https://json-schema.org/draft/2020-12/vocab/meta-data": true,
+              "https://json-schema.org/draft/2020-12/vocab/format-annotation": true,
+              "https://json-schema.org/draft/2020-12/vocab/content": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Core and Validation specifications meta-schema",
+            "allOf": [
+              {
+                "$ref": "meta/core"
+              },
+              {
+                "$ref": "meta/applicator"
+              },
+              {
+                "$ref": "meta/unevaluated"
+              },
+              {
+                "$ref": "meta/validation"
+              },
+              {
+                "$ref": "meta/meta-data"
+              },
+              {
+                "$ref": "meta/format-annotation"
+              },
+              {
+                "$ref": "meta/content"
+              }
+            ],
+            "type": ["object", "boolean"],
+            "$comment": "This meta-schema also defines keywords that have appeared in previous drafts in order to prevent incompatible extensions as they remain in common use.",
+            "properties": {
+              "definitions": {
+                "$comment": "\"definitions\" has been replaced by \"$defs\".",
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "deprecated": true,
+                "default": {}
+              },
+              "dependencies": {
+                "$comment": "\"dependencies\" has been split and replaced by \"dependentSchemas\" and \"dependentRequired\" in order to serve their differing semantics.",
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "$dynamicRef": "#meta"
+                    },
+                    {
+                      "$ref": "meta/validation#/$defs/stringArray"
+                    }
+                  ]
+                },
+                "deprecated": true,
+                "default": {}
+              },
+              "$recursiveAnchor": {
+                "$comment": "\"$recursiveAnchor\" has been replaced by \"$dynamicAnchor\".",
+                "$ref": "meta/core#/$defs/anchorString",
+                "deprecated": true
+              },
+              "$recursiveRef": {
+                "$comment": "\"$recursiveRef\" has been replaced by \"$dynamicRef\".",
+                "$ref": "meta/core#/$defs/uriReferenceString",
+                "deprecated": true
+              }
+            }
+          }
+        }
+      },
+      "ownedLinks": {
+        "https://github.com/gastownhall/bdp/types/type-system/refines": [
+          {
+            "id": "https://github.com/gastownhall/bdp/types/type-system/bead-type-refines-type",
+            "revision": "declaration-2",
+            "type": {
+              "uri": "https://github.com/gastownhall/bdp/types/type-system/refines",
+              "revision": "refines-2"
+            },
+            "source": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+            "target": {
+              "uri": "https://github.com/gastownhall/bdp/types/type-system/type",
+              "revision": "type-2"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://github.com/gastownhall/bdp/types/type-system/link-type",
+      "revision": "link-type-2",
+      "type": {
+        "uri": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+        "revision": "bead-type-2"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/link-type-definition.properties.schema.json",
+          "title": "Link Type descriptor properties",
+          "allOf": [
+            {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json"
+            }
+          ],
+          "type": "object",
+          "properties": {
+            "linkConstraints": {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json#/$defs/linkConstraints"
+            },
+            "ownsOutgoing": false,
+            "incoming": false,
+            "outgoing": false
+          },
+          "additionalProperties": true,
+          "required": ["linkConstraints"]
+        },
+        "schemaResources": {
+          "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/type-definition.properties.schema.json",
+            "title": "Common Type descriptor properties",
+            "$comment": "Review candidate. This is the properties schema of Type and therefore the common descriptor schema. Affiliation with BeadType or LinkType supplies category-specific validation. Shape validation is not Type admission.",
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "propertiesSchema": {
+                "allOf": [
+                  {
+                    "$ref": "https://json-schema.org/draft/2020-12/schema"
+                  },
+                  {
+                    "if": {
+                      "type": "object"
+                    },
+                    "then": {
+                      "type": "object",
+                      "properties": {
+                        "$schema": {
+                          "const": "https://json-schema.org/draft/2020-12/schema"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "$comment": "Optional local schema for instance properties. Omission adds no local constraints; all inherited constraints still apply. A supplied schema adds constraints and never replaces an ancestor schema. Null is not omission. Embedded JSON Schema, not a URL. Root-only dialect shape check; every schema resource in the retained closure must use the standard 2020-12 dialect. Resource discovery and closure admission are separate checks, not a scan of literal data keys. No general executable extension language is selected initially; unsupported required semantics refuse."
+              },
+              "schemaResources": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^[^#]+$"
+                },
+                "additionalProperties": {
+                  "$ref": "#/properties/propertiesSchema"
+                },
+                "$comment": "Candidate retrieval-URI to exact schema-resource map, immutable with Type revision. Values retain standard $id/base/anchor semantics. Complete closure, conflicting bindings and offline resolution require admission checks."
+              },
+              "id": false,
+              "revision": false,
+              "type": false,
+              "ownedLinks": false,
+              "conformsTo": false,
+              "revisionProvenance": false,
+              "describes": false,
+              "source": false,
+              "target": false,
+              "pairUnique": false,
+              "version": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
+                "$comment": "Optional informational author release label; labels may repeat across exact revisions. No inferred conformance, revision matching or upgrade."
+              },
+              "abstract": {
+                "type": "boolean",
+                "default": false,
+                "description": "True forbids direct instance affiliation with this exact definition. Does not automatically make refinements abstract."
+              },
+              "propertyAccess": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^/(?:[^~]|~[01])*$"
+                },
+                "additionalProperties": {
+                  "enum": ["writable", "init-only", "service-managed"]
+                },
+                "$comment": "Exact JSON Pointer paths through object members relative to instance properties. Arrays are whole values initially. Omission adds no local restriction; inherited restrictions still apply. Path applicability, nested restrictions and write enforcement require semantic checks."
+              },
+              "refines": false
+            },
+            "additionalProperties": true,
+            "$defs": {
+              "typeUrl": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://.+"
+              },
+              "typeReference": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/typeUrl"
+                  },
+                  {
+                    "type": "object",
+                    "required": ["uri", "revision"],
+                    "properties": {
+                      "uri": {
+                        "$ref": "#/$defs/typeUrl"
+                      },
+                      "revision": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "typeSelector": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["anyOf"],
+                    "properties": {
+                      "anyOf": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "$ref": "#/$defs/typeReference"
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": ["any"],
+                    "properties": {
+                      "any": {
+                        "const": true
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ],
+                "$comment": "Candidate selector syntax. Pinned entries match exact affiliation/conformance; unpinned entries match any revision of the identity or conformance to such a revision, never latest lookup. any:true imposes no Type restriction."
+              },
+              "participationConstraint": {
+                "type": "object",
+                "required": ["linkTypes"],
+                "properties": {
+                  "linkTypes": {
+                    "$ref": "#/$defs/typeSelector"
+                  },
+                  "min": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "max": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "anyOf": [
+                  {
+                    "required": ["min"],
+                    "properties": {
+                      "min": true
+                    }
+                  },
+                  {
+                    "required": ["max"],
+                    "properties": {
+                      "max": true
+                    }
+                  }
+                ],
+                "additionalProperties": false,
+                "$comment": "Candidate Bead participation rule: min omitted means zero; max omitted means unbounded. min<=max and intersection with inherited/Link bounds need semantic validation."
+              },
+              "endpointConstraint": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["resourceKind", "scope", "types"],
+                    "properties": {
+                      "resourceKind": {
+                        "const": "bead"
+                      },
+                      "scope": {
+                        "enum": ["same", "cross", "either"]
+                      },
+                      "types": {
+                        "$ref": "#/$defs/typeSelector"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": ["resourceKind"],
+                    "properties": {
+                      "resourceKind": {
+                        "const": "resource"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ],
+                "$comment": "Candidate endpoint syntax. Scope conditions remain binding. Typed cross/either Bead arms can match registered exact Type-definition endpoints using retained accepted facts; arbitrary external resources remain opaque and cannot establish a specific Type. Registration/exact-state admission is semantic, not proved by this shape schema. resource admits an opaque external URI and does not enable local Link endpoints. Scope classification and floating external-definition resolution remain to specify."
+              },
+              "endpointPair": {
+                "type": "object",
+                "required": ["source", "target"],
+                "properties": {
+                  "source": {
+                    "$ref": "#/$defs/endpointConstraint"
+                  },
+                  "target": {
+                    "$ref": "#/$defs/endpointConstraint"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "linkConstraints": {
+                "type": "object",
+                "required": ["typeConstraints"],
+                "properties": {
+                  "typeConstraints": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/$defs/endpointPair"
+                    }
+                  },
+                  "sourceMax": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "targetMax": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "unique": {
+                    "type": "boolean"
+                  },
+                  "acyclic": {
+                    "type": "boolean"
+                  },
+                  "allowSelf": {
+                    "type": "boolean",
+                    "description": "False prohibits equal source and target Resource identities, ignoring revision selectors. True or omission adds no local prohibition; inherited prohibitions remain binding."
+                  }
+                },
+                "additionalProperties": false,
+                "$comment": "Arity, ordered-pair uniqueness and directed acyclicity apply to the combined family, not separately to pair alternatives. unique/acyclic false or omission adds no local restriction; allowSelf false imposes an identity self-link prohibition, true or omission does not. No local value disables inherited restrictions. No Link minimum or endpoint pin-mode field."
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/applicator": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/applicator",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/applicator": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Applicator vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "prefixItems": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "items": {
+                "$dynamicRef": "#meta"
+              },
+              "contains": {
+                "$dynamicRef": "#meta"
+              },
+              "additionalProperties": {
+                "$dynamicRef": "#meta"
+              },
+              "properties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "default": {}
+              },
+              "patternProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "propertyNames": {
+                  "format": "regex"
+                },
+                "default": {}
+              },
+              "dependentSchemas": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "default": {}
+              },
+              "propertyNames": {
+                "$dynamicRef": "#meta"
+              },
+              "if": {
+                "$dynamicRef": "#meta"
+              },
+              "then": {
+                "$dynamicRef": "#meta"
+              },
+              "else": {
+                "$dynamicRef": "#meta"
+              },
+              "allOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "anyOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "oneOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "not": {
+                "$dynamicRef": "#meta"
+              }
+            },
+            "$defs": {
+              "schemaArray": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$dynamicRef": "#meta"
+                }
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/content": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/content",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/content": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Content vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "contentEncoding": {
+                "type": "string"
+              },
+              "contentMediaType": {
+                "type": "string"
+              },
+              "contentSchema": {
+                "$dynamicRef": "#meta"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/core": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/core",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/core": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Core vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "$id": {
+                "$ref": "#/$defs/uriReferenceString",
+                "$comment": "Non-empty fragments not allowed.",
+                "pattern": "^[^#]*#?$"
+              },
+              "$schema": {
+                "$ref": "#/$defs/uriString"
+              },
+              "$ref": {
+                "$ref": "#/$defs/uriReferenceString"
+              },
+              "$anchor": {
+                "$ref": "#/$defs/anchorString"
+              },
+              "$dynamicRef": {
+                "$ref": "#/$defs/uriReferenceString"
+              },
+              "$dynamicAnchor": {
+                "$ref": "#/$defs/anchorString"
+              },
+              "$vocabulary": {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/$defs/uriString"
+                },
+                "additionalProperties": {
+                  "type": "boolean"
+                }
+              },
+              "$comment": {
+                "type": "string"
+              },
+              "$defs": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                }
+              }
+            },
+            "$defs": {
+              "anchorString": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][-A-Za-z0-9._]*$"
+              },
+              "uriString": {
+                "type": "string",
+                "format": "uri"
+              },
+              "uriReferenceString": {
+                "type": "string",
+                "format": "uri-reference"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/format-annotation": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/format-annotation",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/format-annotation": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Format vocabulary meta-schema for annotation results",
+            "type": ["object", "boolean"],
+            "properties": {
+              "format": {
+                "type": "string"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/meta-data": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/meta-data",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/meta-data": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Meta-data vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "default": true,
+              "deprecated": {
+                "type": "boolean",
+                "default": false
+              },
+              "readOnly": {
+                "type": "boolean",
+                "default": false
+              },
+              "writeOnly": {
+                "type": "boolean",
+                "default": false
+              },
+              "examples": {
+                "type": "array",
+                "items": true
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/unevaluated": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/unevaluated",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/unevaluated": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Unevaluated applicator vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "unevaluatedItems": {
+                "$dynamicRef": "#meta"
+              },
+              "unevaluatedProperties": {
+                "$dynamicRef": "#meta"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/validation": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/validation",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/validation": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Validation vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "type": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/simpleTypes"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/simpleTypes"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
+                  }
+                ]
+              },
+              "const": true,
+              "enum": {
+                "type": "array",
+                "items": true
+              },
+              "multipleOf": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "maximum": {
+                "type": "number"
+              },
+              "exclusiveMaximum": {
+                "type": "number"
+              },
+              "minimum": {
+                "type": "number"
+              },
+              "exclusiveMinimum": {
+                "type": "number"
+              },
+              "maxLength": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minLength": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "pattern": {
+                "type": "string",
+                "format": "regex"
+              },
+              "maxItems": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minItems": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "uniqueItems": {
+                "type": "boolean",
+                "default": false
+              },
+              "maxContains": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minContains": {
+                "$ref": "#/$defs/nonNegativeInteger",
+                "default": 1
+              },
+              "maxProperties": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minProperties": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "required": {
+                "$ref": "#/$defs/stringArray"
+              },
+              "dependentRequired": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/$defs/stringArray"
+                }
+              }
+            },
+            "$defs": {
+              "nonNegativeInteger": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "nonNegativeIntegerDefault0": {
+                "$ref": "#/$defs/nonNegativeInteger",
+                "default": 0
+              },
+              "simpleTypes": {
+                "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
+              },
+              "stringArray": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "default": []
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/schema",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/core": true,
+              "https://json-schema.org/draft/2020-12/vocab/applicator": true,
+              "https://json-schema.org/draft/2020-12/vocab/unevaluated": true,
+              "https://json-schema.org/draft/2020-12/vocab/validation": true,
+              "https://json-schema.org/draft/2020-12/vocab/meta-data": true,
+              "https://json-schema.org/draft/2020-12/vocab/format-annotation": true,
+              "https://json-schema.org/draft/2020-12/vocab/content": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Core and Validation specifications meta-schema",
+            "allOf": [
+              {
+                "$ref": "meta/core"
+              },
+              {
+                "$ref": "meta/applicator"
+              },
+              {
+                "$ref": "meta/unevaluated"
+              },
+              {
+                "$ref": "meta/validation"
+              },
+              {
+                "$ref": "meta/meta-data"
+              },
+              {
+                "$ref": "meta/format-annotation"
+              },
+              {
+                "$ref": "meta/content"
+              }
+            ],
+            "type": ["object", "boolean"],
+            "$comment": "This meta-schema also defines keywords that have appeared in previous drafts in order to prevent incompatible extensions as they remain in common use.",
+            "properties": {
+              "definitions": {
+                "$comment": "\"definitions\" has been replaced by \"$defs\".",
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "deprecated": true,
+                "default": {}
+              },
+              "dependencies": {
+                "$comment": "\"dependencies\" has been split and replaced by \"dependentSchemas\" and \"dependentRequired\" in order to serve their differing semantics.",
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "$dynamicRef": "#meta"
+                    },
+                    {
+                      "$ref": "meta/validation#/$defs/stringArray"
+                    }
+                  ]
+                },
+                "deprecated": true,
+                "default": {}
+              },
+              "$recursiveAnchor": {
+                "$comment": "\"$recursiveAnchor\" has been replaced by \"$dynamicAnchor\".",
+                "$ref": "meta/core#/$defs/anchorString",
+                "deprecated": true
+              },
+              "$recursiveRef": {
+                "$comment": "\"$recursiveRef\" has been replaced by \"$dynamicRef\".",
+                "$ref": "meta/core#/$defs/uriReferenceString",
+                "deprecated": true
+              }
+            }
+          }
+        }
+      },
+      "ownedLinks": {
+        "https://github.com/gastownhall/bdp/types/type-system/refines": [
+          {
+            "id": "https://github.com/gastownhall/bdp/types/type-system/link-type-refines-type",
+            "revision": "declaration-2",
+            "type": {
+              "uri": "https://github.com/gastownhall/bdp/types/type-system/refines",
+              "revision": "refines-2"
+            },
+            "source": "https://github.com/gastownhall/bdp/types/type-system/link-type",
+            "target": {
+              "uri": "https://github.com/gastownhall/bdp/types/type-system/type",
+              "revision": "type-2"
+            },
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://github.com/gastownhall/bdp/types/type-system/refines",
+      "revision": "refines-2",
+      "type": {
+        "uri": "https://github.com/gastownhall/bdp/types/type-system/link-type",
+        "revision": "link-type-2"
+      },
+      "properties": {
+        "propertiesSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://github.com/gastownhall/bdp/schemas/types/intrinsic-2/refines.properties.schema.json",
+          "title": "Draft Refines Link properties",
+          "$comment": "Base relationship requires no own properties. Descriptive metadata is allowed; no general executable qualifier language is selected initially. Required unsupported enforcement semantics refuse. Endpoints, exact-target family uniqueness, pins, ownership, kind equality and exact-revision cycles require semantic checks. Common revision provenance is not duplicated here.",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "linkConstraints": {
+          "typeConstraints": [
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "either",
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+                      "revision": "bead-type-2"
+                    }
+                  ]
+                }
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "either",
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+                      "revision": "bead-type-2"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "source": {
+                "resourceKind": "bead",
+                "scope": "either",
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://github.com/gastownhall/bdp/types/type-system/link-type",
+                      "revision": "link-type-2"
+                    }
+                  ]
+                }
+              },
+              "target": {
+                "resourceKind": "bead",
+                "scope": "either",
+                "types": {
+                  "anyOf": [
+                    {
+                      "uri": "https://github.com/gastownhall/bdp/types/type-system/link-type",
+                      "revision": "link-type-2"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "schemaResources": {
+          "https://json-schema.org/draft/2020-12/meta/applicator": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/applicator",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/applicator": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Applicator vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "prefixItems": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "items": {
+                "$dynamicRef": "#meta"
+              },
+              "contains": {
+                "$dynamicRef": "#meta"
+              },
+              "additionalProperties": {
+                "$dynamicRef": "#meta"
+              },
+              "properties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "default": {}
+              },
+              "patternProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "propertyNames": {
+                  "format": "regex"
+                },
+                "default": {}
+              },
+              "dependentSchemas": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "default": {}
+              },
+              "propertyNames": {
+                "$dynamicRef": "#meta"
+              },
+              "if": {
+                "$dynamicRef": "#meta"
+              },
+              "then": {
+                "$dynamicRef": "#meta"
+              },
+              "else": {
+                "$dynamicRef": "#meta"
+              },
+              "allOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "anyOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "oneOf": {
+                "$ref": "#/$defs/schemaArray"
+              },
+              "not": {
+                "$dynamicRef": "#meta"
+              }
+            },
+            "$defs": {
+              "schemaArray": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$dynamicRef": "#meta"
+                }
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/content": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/content",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/content": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Content vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "contentEncoding": {
+                "type": "string"
+              },
+              "contentMediaType": {
+                "type": "string"
+              },
+              "contentSchema": {
+                "$dynamicRef": "#meta"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/core": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/core",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/core": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Core vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "$id": {
+                "$ref": "#/$defs/uriReferenceString",
+                "$comment": "Non-empty fragments not allowed.",
+                "pattern": "^[^#]*#?$"
+              },
+              "$schema": {
+                "$ref": "#/$defs/uriString"
+              },
+              "$ref": {
+                "$ref": "#/$defs/uriReferenceString"
+              },
+              "$anchor": {
+                "$ref": "#/$defs/anchorString"
+              },
+              "$dynamicRef": {
+                "$ref": "#/$defs/uriReferenceString"
+              },
+              "$dynamicAnchor": {
+                "$ref": "#/$defs/anchorString"
+              },
+              "$vocabulary": {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/$defs/uriString"
+                },
+                "additionalProperties": {
+                  "type": "boolean"
+                }
+              },
+              "$comment": {
+                "type": "string"
+              },
+              "$defs": {
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                }
+              }
+            },
+            "$defs": {
+              "anchorString": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][-A-Za-z0-9._]*$"
+              },
+              "uriString": {
+                "type": "string",
+                "format": "uri"
+              },
+              "uriReferenceString": {
+                "type": "string",
+                "format": "uri-reference"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/format-annotation": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/format-annotation",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/format-annotation": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Format vocabulary meta-schema for annotation results",
+            "type": ["object", "boolean"],
+            "properties": {
+              "format": {
+                "type": "string"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/meta-data": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/meta-data",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/meta-data": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Meta-data vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "default": true,
+              "deprecated": {
+                "type": "boolean",
+                "default": false
+              },
+              "readOnly": {
+                "type": "boolean",
+                "default": false
+              },
+              "writeOnly": {
+                "type": "boolean",
+                "default": false
+              },
+              "examples": {
+                "type": "array",
+                "items": true
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/unevaluated": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/unevaluated",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/unevaluated": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Unevaluated applicator vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "unevaluatedItems": {
+                "$dynamicRef": "#meta"
+              },
+              "unevaluatedProperties": {
+                "$dynamicRef": "#meta"
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/meta/validation": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/meta/validation",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/validation": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Validation vocabulary meta-schema",
+            "type": ["object", "boolean"],
+            "properties": {
+              "type": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/simpleTypes"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/simpleTypes"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
+                  }
+                ]
+              },
+              "const": true,
+              "enum": {
+                "type": "array",
+                "items": true
+              },
+              "multipleOf": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "maximum": {
+                "type": "number"
+              },
+              "exclusiveMaximum": {
+                "type": "number"
+              },
+              "minimum": {
+                "type": "number"
+              },
+              "exclusiveMinimum": {
+                "type": "number"
+              },
+              "maxLength": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minLength": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "pattern": {
+                "type": "string",
+                "format": "regex"
+              },
+              "maxItems": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minItems": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "uniqueItems": {
+                "type": "boolean",
+                "default": false
+              },
+              "maxContains": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minContains": {
+                "$ref": "#/$defs/nonNegativeInteger",
+                "default": 1
+              },
+              "maxProperties": {
+                "$ref": "#/$defs/nonNegativeInteger"
+              },
+              "minProperties": {
+                "$ref": "#/$defs/nonNegativeIntegerDefault0"
+              },
+              "required": {
+                "$ref": "#/$defs/stringArray"
+              },
+              "dependentRequired": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/$defs/stringArray"
+                }
+              }
+            },
+            "$defs": {
+              "nonNegativeInteger": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "nonNegativeIntegerDefault0": {
+                "$ref": "#/$defs/nonNegativeInteger",
+                "default": 0
+              },
+              "simpleTypes": {
+                "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
+              },
+              "stringArray": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "default": []
+              }
+            }
+          },
+          "https://json-schema.org/draft/2020-12/schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://json-schema.org/draft/2020-12/schema",
+            "$vocabulary": {
+              "https://json-schema.org/draft/2020-12/vocab/core": true,
+              "https://json-schema.org/draft/2020-12/vocab/applicator": true,
+              "https://json-schema.org/draft/2020-12/vocab/unevaluated": true,
+              "https://json-schema.org/draft/2020-12/vocab/validation": true,
+              "https://json-schema.org/draft/2020-12/vocab/meta-data": true,
+              "https://json-schema.org/draft/2020-12/vocab/format-annotation": true,
+              "https://json-schema.org/draft/2020-12/vocab/content": true
+            },
+            "$dynamicAnchor": "meta",
+            "title": "Core and Validation specifications meta-schema",
+            "allOf": [
+              {
+                "$ref": "meta/core"
+              },
+              {
+                "$ref": "meta/applicator"
+              },
+              {
+                "$ref": "meta/unevaluated"
+              },
+              {
+                "$ref": "meta/validation"
+              },
+              {
+                "$ref": "meta/meta-data"
+              },
+              {
+                "$ref": "meta/format-annotation"
+              },
+              {
+                "$ref": "meta/content"
+              }
+            ],
+            "type": ["object", "boolean"],
+            "$comment": "This meta-schema also defines keywords that have appeared in previous drafts in order to prevent incompatible extensions as they remain in common use.",
+            "properties": {
+              "definitions": {
+                "$comment": "\"definitions\" has been replaced by \"$defs\".",
+                "type": "object",
+                "additionalProperties": {
+                  "$dynamicRef": "#meta"
+                },
+                "deprecated": true,
+                "default": {}
+              },
+              "dependencies": {
+                "$comment": "\"dependencies\" has been split and replaced by \"dependentSchemas\" and \"dependentRequired\" in order to serve their differing semantics.",
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "$dynamicRef": "#meta"
+                    },
+                    {
+                      "$ref": "meta/validation#/$defs/stringArray"
+                    }
+                  ]
+                },
+                "deprecated": true,
+                "default": {}
+              },
+              "$recursiveAnchor": {
+                "$comment": "\"$recursiveAnchor\" has been replaced by \"$dynamicAnchor\".",
+                "$ref": "meta/core#/$defs/anchorString",
+                "deprecated": true
+              },
+              "$recursiveRef": {
+                "$comment": "\"$recursiveRef\" has been replaced by \"$dynamicRef\".",
+                "$ref": "meta/core#/$defs/uriReferenceString",
+                "deprecated": true
+              }
+            }
+          }
+        }
+      },
+      "ownedLinks": {}
+    }
+  ],
+  "declarations": [
+    {
+      "id": "https://github.com/gastownhall/bdp/types/type-system/bead-type-refines-type",
+      "revision": "declaration-2",
+      "type": {
+        "uri": "https://github.com/gastownhall/bdp/types/type-system/refines",
+        "revision": "refines-2"
+      },
+      "source": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+      "target": {
+        "uri": "https://github.com/gastownhall/bdp/types/type-system/type",
+        "revision": "type-2"
+      },
+      "properties": {}
+    },
+    {
+      "id": "https://github.com/gastownhall/bdp/types/type-system/link-type-refines-type",
+      "revision": "declaration-2",
+      "type": {
+        "uri": "https://github.com/gastownhall/bdp/types/type-system/refines",
+        "revision": "refines-2"
+      },
+      "source": "https://github.com/gastownhall/bdp/types/type-system/link-type",
+      "target": {
+        "uri": "https://github.com/gastownhall/bdp/types/type-system/type",
+        "revision": "type-2"
+      },
+      "properties": {}
+    }
+  ]
+}

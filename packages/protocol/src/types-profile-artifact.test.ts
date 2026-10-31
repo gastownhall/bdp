@@ -11,6 +11,9 @@ const feature = read("specs/profiles/types/types-v1.schema.json");
 const publicationPath = "specs/profiles/types/intrinsic-1.json";
 const publication = read(publicationPath);
 const receipt = read("specs/profiles/types/intrinsic-1.publication.json");
+const successorPath = "specs/profiles/types/intrinsic-2.json";
+const successor = read(successorPath);
+const successorReceipt = read("specs/profiles/types/intrinsic-2.publication.json");
 const types = "https://github.com/gastownhall/bdp/capabilities/types";
 const lookup = "https://github.com/gastownhall/bdp/capabilities/type-definition-read";
 const namespace = "https://github.com/gastownhall/bdp/types/type-system/";
@@ -43,6 +46,78 @@ function discovery(profile: "core" | "write") {
 }
 
 describe("selected Types source artifacts, without provider or CLI execution", () => {
+  it("retains publication1 and binds the coherent successor's new exact editions", () => {
+    const bytes = readFileSync(new URL(successorPath, root));
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(successorReceipt.sha256);
+    expect(successorReceipt.publication).toBe("intrinsic-2");
+    expect(successorReceipt.artifact).toBe("intrinsic-2.json");
+    expect(successor.definitions).toHaveLength(4);
+    expect(successor.declarations).toHaveLength(2);
+    const expectedPins = ["type", "bead-type", "link-type", "refines"].map((name) => ({
+      uri: namespace + name,
+      revision: `${name}-2`,
+    }));
+    expect(successorReceipt.definitionPins).toHaveLength(4);
+    expect(successorReceipt.definitionPins).toEqual(expect.arrayContaining(expectedPins));
+    expect(
+      successor.definitions.map((record: { id: string; revision: string }) => ({
+        uri: record.id,
+        revision: record.revision,
+      })),
+    ).toEqual(expect.arrayContaining(expectedPins));
+    for (const record of successor.definitions) {
+      const name = record.id.slice(namespace.length);
+      expect(record.revision).toBe(`${name}-2`);
+      expect(record.type).toEqual({
+        uri: `${namespace}${name === "refines" ? "link-type" : "bead-type"}`,
+        revision: name === "refines" ? "link-type-2" : "bead-type-2",
+      });
+    }
+    for (const link of successor.declarations) {
+      expect(link.revision).toBe("declaration-2");
+      expect(link.type).toEqual({ uri: `${namespace}refines`, revision: "refines-2" });
+      expect(link.target).toEqual({ uri: `${namespace}type`, revision: "type-2" });
+      const owner = successor.definitions.find(
+        (record: { id: string }) => record.id === link.source,
+      );
+      expect(owner.ownedLinks[`${namespace}refines`]).toContainEqual(link);
+    }
+    expect(
+      createHash("sha256")
+        .update(readFileSync(new URL(publicationPath, root)))
+        .digest("hex"),
+    ).toBe("73b16c93b6963f9657be3569ba9d16f722edbf6f49090803e748c907c39aab7e");
+  });
+
+  it("admits schema omission under the new metatype without dropping Link constraints", () => {
+    const current = new Ajv2020({ strict: true, allErrors: true });
+    formatsPlugin.default(current, { mode: "full" });
+    for (const record of successor.definitions)
+      current.addSchema(record.properties.propertiesSchema);
+    const byName = (name: string) =>
+      successor.definitions.find((record: { id: string }) => record.id === namespace + name);
+    const bead = current.getSchema(byName("bead-type").properties.propertiesSchema.$id);
+    const link = current.getSchema(byName("link-type").properties.propertiesSchema.$id);
+    if (!bead || !link) throw new Error("missing exact successor metatype schema");
+    const omitted = {};
+    expect(bead(omitted)).toBe(true);
+    expect(omitted).toEqual({});
+    for (const malformed of [null, [], 42, "schema"]) {
+      expect(bead({ propertiesSchema: malformed })).toBe(false);
+    }
+    expect(link({})).toBe(false);
+    expect(link({ linkConstraints: byName("refines").properties.linkConstraints })).toBe(true);
+    for (const record of successor.definitions) {
+      const metatype = successor.definitions.find(
+        (entry: { id: string; revision: string }) =>
+          entry.id === record.type.uri && entry.revision === record.type.revision,
+      );
+      const validate = current.getSchema(metatype.properties.propertiesSchema.$id);
+      if (!validate) throw new Error("missing exact successor metatype");
+      expect(validate(record.properties)).toBe(true);
+    }
+  });
+
   it("strictly compiles the supplement against the unchanged common bundle", () => {
     for (const name of Object.keys(feature.$defs))
       expect(ajv.getSchema(`${feature.$id}#/$defs/${name}`)).toBeDefined();
