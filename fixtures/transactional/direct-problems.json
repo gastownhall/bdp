@@ -66,9 +66,11 @@
               "cardinality": {
                 "max": 1000
               },
-              "attribution": {
-                "principal": "human:donna",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "human:donna",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -216,9 +218,11 @@
                 "title": "Adopt owned Links",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -230,16 +234,18 @@
               "properties": {
                 "role": "evidence"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/task-42",
               "expectedRevision": "task-42-r7",
-              "change": [
+              "propertiesChange": [
                 {
                   "op": "replace",
                   "path": "/status",

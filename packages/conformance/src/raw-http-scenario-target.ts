@@ -27,7 +27,10 @@ export type StartRawHttpScenarioSession = (
   signal: AbortSignal,
 ) => Promise<RawHttpScenarioSession>;
 
-export type RawHttpScenarioTargetOptions = RawHttpExchangeExecutorOptions;
+export type RawHttpScenarioTargetOptions = RawHttpExchangeExecutorOptions & {
+  /** Session cleanup lifecycle bound; defaults to requestTimeoutMs, then 30s. */
+  readonly cleanupTimeoutMs?: number;
+};
 
 export type ExactHttpConfiguration = Omit<ExactHttpModeOptions, "resolveCredentials">;
 
@@ -58,13 +61,22 @@ export function createRawHttpScenarioTarget(
       ? {}
       : { exactMode: snapshotExactHttpMode(options.exactMode) }),
   });
-  const cleanupTimeoutMs = snapshot.requestTimeoutMs ?? 30_000;
+  if (
+    snapshot.requestTimeoutMs !== undefined &&
+    (!Number.isSafeInteger(snapshot.requestTimeoutMs) ||
+      snapshot.requestTimeoutMs <= 0 ||
+      snapshot.requestTimeoutMs > 2_147_483_647)
+  )
+    throw new RangeError("requestTimeoutMs must be a positive timer bound");
+  const cleanupTimeoutMs = snapshot.cleanupTimeoutMs ?? snapshot.requestTimeoutMs ?? 30_000;
   if (
     !Number.isSafeInteger(cleanupTimeoutMs) ||
     cleanupTimeoutMs <= 0 ||
     cleanupTimeoutMs > 2_147_483_647
   )
-    throw new RangeError("requestTimeoutMs must be a positive timer bound");
+    throw new RangeError(
+      `${snapshot.cleanupTimeoutMs === undefined ? "requestTimeoutMs" : "cleanupTimeoutMs"} must be a positive timer bound`,
+    );
   let preparation:
     | { controller: AbortController; settled: Promise<void>; finish: () => void }
     | undefined;

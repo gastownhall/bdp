@@ -1,0 +1,12 @@
+{
+  "$comment": "Illustrative property-validation inputs extracted from the Issue/Dependency draft at cbd59b601875ec5c20dd189c22a95ccad4b33390; not a domain specification or full wire records.",
+  "issue": {
+    "id": "bd-repair",
+    "title": "Replace the pump seal",
+    "description": "Repair the leak before returning the pump to service.",
+    "status": "open",
+    "priority": 1,
+    "assignee": "sam"
+  },
+  "dependency": {}
+}

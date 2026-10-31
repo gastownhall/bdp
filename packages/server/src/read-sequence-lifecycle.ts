@@ -15,14 +15,18 @@ import {
 } from "./authority-read.js";
 import type { StablePrincipal } from "./member-executor.js";
 import { ScopeServerClosedError } from "./read-request.js";
-import type { SequenceLifecycle, Submission } from "./sequence-executor.js";
+import type { SequenceLifecycle, Submission, SubmissionOptions } from "./sequence-executor.js";
 
 export interface ReadSequenceLifecycleOptions {
   readonly owner: SequenceLifecycle;
   readonly read: Omit<AuthorityReadOptions, "entry">;
 }
 export interface ReadSequenceLifecycle {
-  submit(carrier: PreparedReadUpdateCarrier, principal: StablePrincipal): Submission;
+  submit(
+    carrier: PreparedReadUpdateCarrier,
+    principal: StablePrincipal,
+    options?: SubmissionOptions,
+  ): Submission;
   readFor(principal: ReadPrincipal): AuthorityReadFacet;
   readonly closed: Promise<void>;
   close(): Promise<void>;
@@ -339,13 +343,17 @@ export function createReadSequenceLifecycle(
     const lifecycle: ReadSequenceLifecycle = Object.freeze({
       closed: joint.promise,
       close,
-      submit(carrier: PreparedReadUpdateCarrier, principal: StablePrincipal): Submission {
+      submit(
+        carrier: PreparedReadUpdateCarrier,
+        principal: StablePrincipal,
+        options?: SubmissionOptions,
+      ): Submission {
         const decision = gate(true);
         if (decision) throw new ReadSequenceEntryError(decision.reason, decision.origin);
         const previous = phase;
         phase = "submitting";
         try {
-          return captured.submit(carrier, principal);
+          return captured.submit(carrier, principal, options);
         } finally {
           phase = previous;
         }

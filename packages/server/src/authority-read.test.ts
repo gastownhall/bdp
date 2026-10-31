@@ -23,6 +23,7 @@ import {
   type ReadPrincipal,
   type ScopeReadConfiguration,
   type ReadObservation,
+  type AuthorityReadReader,
   type ResourceReadObservation,
 } from "./authority-read.js";
 import { runMember, type MemberExecutorOptions, type MemberTurn } from "./member-executor.js";
@@ -125,7 +126,7 @@ function fixture(descriptors = [descriptor(), edgeDescriptor()]) {
     }) as ScopeReadConfiguration,
     gate: undefined as ReturnType<typeof readProblem> | undefined,
     captureHook: undefined as
-      | ((r: StoreReader, p: ReadPrincipal, intent: ReadIntent) => void)
+      | ((r: AuthorityReadReader, p: ReadPrincipal, intent: ReadIntent) => void)
       | undefined,
     wrap: (reader: StoreReader): StoreReader => reader,
   };
@@ -135,7 +136,7 @@ function fixture(descriptors = [descriptor(), edgeDescriptor()]) {
     return actualRead(callback);
   });
   const source = {
-    capture(reader: StoreReader) {
+    capture(reader: AuthorityReadReader) {
       expect(this).toBe(source);
       reader.policy("fixture-policy");
       state.configurations++;
@@ -466,8 +467,8 @@ describe("G1 strict receiving and G2 same-entry observations", () => {
       const escaped = f.state.facades[0];
       expect(() => escaped?.resource("beads/a")).toThrow(/expired/);
       const update = f.write(
-        "updateBeadProperties",
-        { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 2 }] },
+        "updateBead",
+        { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
         "r2",
       );
       expect(update.disposition).toMatchObject({ outcome: "updated" });
@@ -563,16 +564,16 @@ describe("G3 current values and qualified Type construction", () => {
     const original = f.resource("beads/a");
     expect(body(await facet.perform(resourceRequest()))).toEqual(original);
     f.write(
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 2 }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
       "update",
     );
     const changed = f.resource("beads/a");
     expect(changed.revision).not.toBe(original.revision);
     expect(body(await facet.perform(resourceRequest()))).toEqual(changed);
     f.write(
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 2 }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
       "noop",
     );
     expect(f.resource("beads/a")).toEqual(changed);
@@ -656,8 +657,8 @@ describe("G4 complete current ownership and observed integrity", () => {
     });
     const beforeLink = f.resource("links/a");
     const changed = f.write(
-      "updateLinkProperties",
-      { link: "links/a", change: [{ op: "add", path: "/n", value: 1 }] },
+      "updateLink",
+      { link: "links/a", propertiesChange: [{ op: "add", path: "/n", value: 1 }] },
       "edge_update",
     );
     expect(changed.disposition).toMatchObject({ outcome: "updated", source: url("beads/a") });
@@ -667,11 +668,11 @@ describe("G4 complete current ownership and observed integrity", () => {
       [linkType]: [f.resource("links/a"), f.resource("links/z")],
     });
     expect(f.resource("links/a").revision).not.toBe(beforeLink.revision);
-    expect(after.changeContext).toEqual(f.resource("links/a").changeContext);
+    expect(after.revisionProvenance).toEqual(f.resource("links/a").revisionProvenance);
     expect(source.ownedLinks).toEqual({ [linkType]: [beforeLink, f.resource("links/z")] });
     f.write(
-      "updateLinkProperties",
-      { link: "links/a", change: [{ op: "replace", path: "/n", value: 1 }] },
+      "updateLink",
+      { link: "links/a", propertiesChange: [{ op: "replace", path: "/n", value: 1 }] },
       "edge_noop",
     );
     expect(body(await facet.perform(resourceRequest()))).toEqual(after);
@@ -801,7 +802,7 @@ describe("G4 complete current ownership and observed integrity", () => {
     ).rejects.toBeInstanceOf(Error);
     expect(f.store.read((r) => r.resources())).toEqual(before);
   });
-  it.each(["missing", "revision", "properties", "attribution", "context", "pin"])(
+  it.each(["missing", "revision", "properties", "revisionProvenance", "context", "pin"])(
     "rejects complete inline/first-class %s disagreement",
     async (fault) => {
       const f = fixture(ownedDescriptors());
@@ -817,10 +818,10 @@ describe("G4 complete current ownership and observed integrity", () => {
           const value = JSON.parse(row.bodyJson);
           if (fault === "revision") value.revision = "different";
           if (fault === "properties") value.properties = { extra: 1 };
-          if (fault === "attribution")
-            value.attribution = { principal: "urn:test:different", status: "unknown" };
+          if (fault === "revisionProvenance")
+            value.revisionProvenance = { actor: { id: "urn:test:different", basis: "unknown" } };
           if (fault === "context")
-            value.changeContext.committedAt.value = "2001-01-01T00:00:00.000Z";
+            value.revisionProvenance.committedAt.value = "2001-01-01T00:00:00.000Z";
           if (fault === "pin") value.target.revision = "other-pin";
           return { ...row, bodyJson: stringifyJsonValue(value) };
         },
@@ -1343,8 +1344,8 @@ describe("G9 deep immutable values and existing bounded pagination", () => {
     }
     expect(observation(properties).resourceRevision).toBe(before.revision);
     f.write(
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "add", path: "/other", value: 2 }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "add", path: "/other", value: 2 }] },
       "deep_update",
     );
     expect(stringifyJsonValue(body(properties))).toBe(deep);
@@ -1658,10 +1659,10 @@ describe("G10 delivery, callback origin and plane-owned cleanup", () => {
   });
   it("closes only its pagination once, keeps one rejected close Promise and cleans partial construction", async () => {
     const f = fixture();
-    const realFactory = paginationModule.createReadPagination;
+    const realFactory = paginationModule.createContextualReadPagination;
     const failure = Error("pagination cleanup");
     const closes: ReturnType<typeof vi.fn>[] = [];
-    vi.spyOn(paginationModule, "createReadPagination").mockImplementation(((options) => {
+    vi.spyOn(paginationModule, "createContextualReadPagination").mockImplementation(((options) => {
       const engine = realFactory(options);
       const close = vi.fn(() => {
         engine.close();
@@ -1720,9 +1721,9 @@ describe("additional authority receiving and observer cleanup controls", () => {
 describe("remaining construction, idle memory and captured-provider boundaries", () => {
   it("cleans the actual partial pagination engine after a labeled controlled Type-conformance RangeError", () => {
     const f = fixture();
-    const original = paginationModule.createReadPagination;
+    const original = paginationModule.createContextualReadPagination;
     const closed: ReturnType<typeof vi.fn>[] = [];
-    vi.spyOn(paginationModule, "createReadPagination").mockImplementation(((options) => {
+    vi.spyOn(paginationModule, "createContextualReadPagination").mockImplementation(((options) => {
       const engine = original(options);
       const close = vi.fn(engine.close.bind(engine));
       closed.push(close);
@@ -2420,9 +2421,9 @@ describe("G11 partial plane construction error ownership", () => {
       const f = fixture();
       const original = Error("controlled conformance construction"),
         cleanup = Error("controlled pagination disposal");
-      const realFactory = paginationModule.createReadPagination;
+      const realFactory = paginationModule.createContextualReadPagination;
       let calls = 0;
-      vi.spyOn(paginationModule, "createReadPagination").mockImplementation((options) => {
+      vi.spyOn(paginationModule, "createContextualReadPagination").mockImplementation((options) => {
         const engine = realFactory(options);
         return {
           ...engine,
@@ -2462,4 +2463,28 @@ describe("G11 partial plane construction error ownership", () => {
       expect(Object.isFrozen(cleanup)).toBe(false);
     },
   );
+});
+
+describe("source-private read context capture", () => {
+  it("snapshots owner context before callbacks and keeps basic Read context optional", async () => {
+    const f = fixture();
+    f.createBead("a");
+    const sourceContext = { source: "before" },
+      original = f.options.entry;
+    const entry: AuthorityReadOptions["entry"] = {
+      scope,
+      withRead: (callback) => original.withRead((reader) => callback(reader, sourceContext)),
+    };
+    Object.assign(f.options, { entry });
+    f.state.captureHook = () => {
+      sourceContext.source = "after";
+    };
+    const plane = f.open(),
+      facet = plane.readFor({ kind: "anonymous" });
+    const result = await facet.perform(resourceRequest());
+    expect(observation(result).sourceContext).toEqual({ source: "before" });
+    expect(Object.isFrozen(observation(result).sourceContext)).toBe(true);
+    expect(observation(result)).not.toHaveProperty("snapshotSourceContext");
+    expect(body(result)).not.toHaveProperty("sourceContext");
+  });
 });

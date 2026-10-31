@@ -15,18 +15,16 @@ export type ReadServerTarget = "bdptest" | "bdpbd";
  * artifact and this file. Regenerate with `pnpm evidence:generate`; any edit
  * here without a matching artifact fails the gate closed. The gate also
  * recomputes the Read schema projection of the schema bundle that every
- * segment binds as `schemaReadProjection` (D29 = C, 2026-09-08) — under
- * projection rule RP1 (2026-09-08), the sealed definition set by name, in
- * sealed order. The sealed artifact was migrated without a re-run, first to
- * carry that binding and then to carry its RP1 value, which is why this
- * constant has moved without new observations.
+ * segment binds as `schemaReadProjection`: the sealed definition set by name
+ * and in sealed order. The current artifact records fresh observations from
+ * its declared run head; older evidence remains pinned to its original source.
  *
  * One value for both targets, never populated independently: one cohort covers
  * both, so the two entries must always agree. This internal-but-shipped module
  * is deliberately deep-imported by the smoke and E2E gate scripts; the record
  * itself stays private to prevent runtime callers from manufacturing evidence.
  */
-const READ_COHORT_EVIDENCE_CONSTANT = "e51d63b11f35c04c7a2b02981d080d9a9393f02d";
+const READ_COHORT_EVIDENCE_CONSTANT = "98d1fd04fe901a94d355d0409b532dabd442fb4f";
 
 const READ_CONFORMANCE_EVIDENCE_BY_TARGET: Readonly<Record<ReadServerTarget, string | undefined>> =
   Object.freeze({

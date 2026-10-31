@@ -1,0 +1,1281 @@
+{
+  "qualification": "Paper/static grammar and correspondence only; no CLI/provider/HTTP execution or batch/owner allocation selection.",
+  "scope": "https://work.example/acme/",
+  "pairs": [
+    {
+      "operation": "createBead",
+      "authored": {
+        "operation": "createBead",
+        "id": "https://work.example/acme/task-43",
+        "name": "new",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "definition-r4"
+        },
+        "properties": {
+          "title": "New"
+        }
+      },
+      "before": null,
+      "delta": {
+        "id": "event-1",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-1",
+        "revision": "resource-new-1",
+        "representation": "delta",
+        "effect": {
+          "operation": "createBead",
+          "id": "https://work.example/acme/task-43",
+          "type": {
+            "uri": "https://work.example/acme/Task",
+            "revision": "definition-r4"
+          },
+          "properties": {
+            "title": "New"
+          },
+          "metadata": {}
+        }
+      },
+      "postimage": {
+        "id": "event-1",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-1",
+        "revision": "resource-new-1",
+        "representation": "postimage",
+        "effect": {
+          "operation": "createBead",
+          "id": "https://work.example/acme/task-43",
+          "resource": {
+            "id": "https://work.example/acme/task-43",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r4"
+            },
+            "revision": "resource-new-1",
+            "properties": {
+              "title": "New"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "operation": "updateBead",
+      "authored": {
+        "operation": "updateBead",
+        "bead": "https://work.example/acme/task-42",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "definition-r4"
+        },
+        "expectedRevision": "resource-r7"
+      },
+      "before": {
+        "id": "https://work.example/acme/task-42",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "definition-r3"
+        },
+        "revision": "resource-r7",
+        "properties": {
+          "title": "A"
+        },
+        "metadata": {}
+      },
+      "delta": {
+        "id": "event-2",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-2",
+        "revision": "resource-r8",
+        "previousRevision": "resource-r7",
+        "representation": "delta",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/task-42",
+          "type": {
+            "uri": "https://work.example/acme/Task",
+            "revision": "definition-r4"
+          }
+        }
+      },
+      "postimage": {
+        "id": "event-2",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-2",
+        "revision": "resource-r8",
+        "previousRevision": "resource-r7",
+        "representation": "postimage",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/task-42",
+          "resource": {
+            "id": "https://work.example/acme/task-42",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r4"
+            },
+            "revision": "resource-r8",
+            "properties": {
+              "title": "A"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "operation": "deleteBead",
+      "authored": {
+        "operation": "deleteBead",
+        "bead": "https://work.example/acme/task-42",
+        "expectedRevision": "resource-r8"
+      },
+      "before": {
+        "id": "https://work.example/acme/task-42",
+        "type": {
+          "uri": "https://work.example/acme/Task",
+          "revision": "definition-r4"
+        },
+        "revision": "resource-r8",
+        "properties": {
+          "title": "A"
+        },
+        "metadata": {}
+      },
+      "delta": {
+        "id": "event-3",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-3",
+        "revision": "resource-r8",
+        "representation": "delta",
+        "effect": {
+          "operation": "deleteBead",
+          "bead": "https://work.example/acme/task-42",
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://work.example/acme/task-42",
+              "type": {
+                "uri": "https://work.example/acme/Task",
+                "revision": "definition-r4"
+              },
+              "revision": "resource-r8"
+            }
+          }
+        }
+      },
+      "postimage": {
+        "id": "event-3",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-3",
+        "revision": "resource-r8",
+        "representation": "postimage",
+        "effect": {
+          "operation": "deleteBead",
+          "bead": "https://work.example/acme/task-42",
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://work.example/acme/task-42",
+              "type": {
+                "uri": "https://work.example/acme/Task",
+                "revision": "definition-r4"
+              },
+              "revision": "resource-r8"
+            }
+          }
+        }
+      }
+    },
+    {
+      "operation": "createLink",
+      "authored": {
+        "operation": "createLink",
+        "id": "https://work.example/acme/relation-1",
+        "name": "edge",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-definition-r1"
+        },
+        "source": {
+          "uri": "https://work.example/acme/task-42",
+          "revision": "resource-r7"
+        },
+        "target": "urn:example:external",
+        "properties": {
+          "weight": 1
+        }
+      },
+      "before": null,
+      "delta": {
+        "id": "event-4",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-4",
+        "revision": "link-r1",
+        "representation": "delta",
+        "effect": {
+          "operation": "createLink",
+          "id": "https://work.example/acme/relation-1",
+          "type": {
+            "uri": "https://work.example/acme/Relation",
+            "revision": "relation-definition-r1"
+          },
+          "source": {
+            "uri": "https://work.example/acme/task-42",
+            "revision": "resource-r7"
+          },
+          "target": "urn:example:external",
+          "properties": {
+            "weight": 1
+          },
+          "metadata": {}
+        }
+      },
+      "postimage": {
+        "id": "event-4",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-4",
+        "revision": "link-r1",
+        "representation": "postimage",
+        "effect": {
+          "operation": "createLink",
+          "id": "https://work.example/acme/relation-1",
+          "resource": {
+            "id": "https://work.example/acme/relation-1",
+            "type": {
+              "uri": "https://work.example/acme/Relation",
+              "revision": "relation-definition-r1"
+            },
+            "revision": "link-r1",
+            "source": {
+              "uri": "https://work.example/acme/task-42",
+              "revision": "resource-r7"
+            },
+            "target": "urn:example:external",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "operation": "updateLink",
+      "authored": {
+        "operation": "updateLink",
+        "link": "https://work.example/acme/relation-1",
+        "propertiesChange": [
+          {
+            "op": "replace",
+            "path": "/weight",
+            "value": 2
+          }
+        ]
+      },
+      "before": {
+        "id": "https://work.example/acme/relation-1",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-definition-r1"
+        },
+        "revision": "link-r1",
+        "source": {
+          "uri": "https://work.example/acme/task-42",
+          "revision": "resource-r7"
+        },
+        "target": "urn:example:external",
+        "properties": {
+          "weight": 1
+        },
+        "metadata": {}
+      },
+      "delta": {
+        "id": "event-5",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-5",
+        "revision": "link-r2",
+        "previousRevision": "link-r1",
+        "representation": "delta",
+        "effect": {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/relation-1",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/weight",
+              "value": 2
+            }
+          ]
+        }
+      },
+      "postimage": {
+        "id": "event-5",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-5",
+        "revision": "link-r2",
+        "previousRevision": "link-r1",
+        "representation": "postimage",
+        "effect": {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/relation-1",
+          "resource": {
+            "id": "https://work.example/acme/relation-1",
+            "type": {
+              "uri": "https://work.example/acme/Relation",
+              "revision": "relation-definition-r1"
+            },
+            "revision": "link-r2",
+            "source": {
+              "uri": "https://work.example/acme/task-42",
+              "revision": "resource-r7"
+            },
+            "target": "urn:example:external",
+            "properties": {
+              "weight": 2
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "operation": "deleteLink",
+      "authored": {
+        "operation": "deleteLink",
+        "link": "https://work.example/acme/relation-1",
+        "expectedRevision": "link-r2"
+      },
+      "before": {
+        "id": "https://work.example/acme/relation-1",
+        "type": {
+          "uri": "https://work.example/acme/Relation",
+          "revision": "relation-definition-r1"
+        },
+        "revision": "link-r2",
+        "source": {
+          "uri": "https://work.example/acme/task-42",
+          "revision": "resource-r7"
+        },
+        "target": "urn:example:external",
+        "properties": {
+          "weight": 2
+        },
+        "metadata": {}
+      },
+      "delta": {
+        "id": "event-6",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-6",
+        "revision": "link-r2",
+        "representation": "delta",
+        "effect": {
+          "operation": "deleteLink",
+          "link": "https://work.example/acme/relation-1",
+          "deleted": {
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://work.example/acme/relation-1",
+              "type": {
+                "uri": "https://work.example/acme/Relation",
+                "revision": "relation-definition-r1"
+              },
+              "revision": "link-r2"
+            },
+            "source": {
+              "uri": "https://work.example/acme/task-42",
+              "revision": "resource-r7"
+            },
+            "target": "urn:example:external"
+          }
+        }
+      },
+      "postimage": {
+        "id": "event-6",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-6",
+        "revision": "link-r2",
+        "representation": "postimage",
+        "effect": {
+          "operation": "deleteLink",
+          "link": "https://work.example/acme/relation-1",
+          "deleted": {
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://work.example/acme/relation-1",
+              "type": {
+                "uri": "https://work.example/acme/Relation",
+                "revision": "relation-definition-r1"
+              },
+              "revision": "link-r2"
+            },
+            "source": {
+              "uri": "https://work.example/acme/task-42",
+              "revision": "resource-r7"
+            },
+            "target": "urn:example:external"
+          }
+        }
+      }
+    }
+  ],
+  "postimagePage": {
+    "source": "https://work.example/acme/observations",
+    "selection": {
+      "representation": "postimage"
+    },
+    "policy": {
+      "observation": "committed",
+      "description": "Every published Resource transition since this source began.",
+      "minimumRetentionSeconds": 3600,
+      "minimumCursorLifetimeSeconds": 300,
+      "representations": ["postimage", "delta"],
+      "maximumPageSize": 100
+    },
+    "coverage": {
+      "start": "coverage-start",
+      "retainedFrom": "retained-floor",
+      "through": "captured-head"
+    },
+    "events": [
+      {
+        "id": "event-1",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-1",
+        "revision": "resource-new-1",
+        "representation": "postimage",
+        "effect": {
+          "operation": "createBead",
+          "id": "https://work.example/acme/task-43",
+          "resource": {
+            "id": "https://work.example/acme/task-43",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r4"
+            },
+            "revision": "resource-new-1",
+            "properties": {
+              "title": "New"
+            },
+            "metadata": {}
+          }
+        }
+      },
+      {
+        "id": "event-2",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-2",
+        "revision": "resource-r8",
+        "previousRevision": "resource-r7",
+        "representation": "postimage",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/task-42",
+          "resource": {
+            "id": "https://work.example/acme/task-42",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r4"
+            },
+            "revision": "resource-r8",
+            "properties": {
+              "title": "A"
+            },
+            "metadata": {}
+          }
+        }
+      },
+      {
+        "id": "event-3",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-3",
+        "revision": "resource-r8",
+        "representation": "postimage",
+        "effect": {
+          "operation": "deleteBead",
+          "bead": "https://work.example/acme/task-42",
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://work.example/acme/task-42",
+              "type": {
+                "uri": "https://work.example/acme/Task",
+                "revision": "definition-r4"
+              },
+              "revision": "resource-r8"
+            }
+          }
+        }
+      },
+      {
+        "id": "event-4",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-4",
+        "revision": "link-r1",
+        "representation": "postimage",
+        "effect": {
+          "operation": "createLink",
+          "id": "https://work.example/acme/relation-1",
+          "resource": {
+            "id": "https://work.example/acme/relation-1",
+            "type": {
+              "uri": "https://work.example/acme/Relation",
+              "revision": "relation-definition-r1"
+            },
+            "revision": "link-r1",
+            "source": {
+              "uri": "https://work.example/acme/task-42",
+              "revision": "resource-r7"
+            },
+            "target": "urn:example:external",
+            "properties": {
+              "weight": 1
+            },
+            "metadata": {}
+          }
+        }
+      },
+      {
+        "id": "event-5",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-5",
+        "revision": "link-r2",
+        "previousRevision": "link-r1",
+        "representation": "postimage",
+        "effect": {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/relation-1",
+          "resource": {
+            "id": "https://work.example/acme/relation-1",
+            "type": {
+              "uri": "https://work.example/acme/Relation",
+              "revision": "relation-definition-r1"
+            },
+            "revision": "link-r2",
+            "source": {
+              "uri": "https://work.example/acme/task-42",
+              "revision": "resource-r7"
+            },
+            "target": "urn:example:external",
+            "properties": {
+              "weight": 2
+            },
+            "metadata": {}
+          }
+        }
+      },
+      {
+        "id": "event-6",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-6",
+        "revision": "link-r2",
+        "representation": "postimage",
+        "effect": {
+          "operation": "deleteLink",
+          "link": "https://work.example/acme/relation-1",
+          "deleted": {
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://work.example/acme/relation-1",
+              "type": {
+                "uri": "https://work.example/acme/Relation",
+                "revision": "relation-definition-r1"
+              },
+              "revision": "link-r2"
+            },
+            "source": {
+              "uri": "https://work.example/acme/task-42",
+              "revision": "resource-r7"
+            },
+            "target": "urn:example:external"
+          }
+        }
+      }
+    ],
+    "cursor": "after-complete-page",
+    "next": null
+  },
+  "deltaPage": {
+    "source": "https://work.example/acme/observations",
+    "selection": {
+      "representation": "delta"
+    },
+    "policy": {
+      "observation": "committed",
+      "description": "Every published Resource transition since this source began.",
+      "minimumRetentionSeconds": 3600,
+      "minimumCursorLifetimeSeconds": 300,
+      "representations": ["postimage", "delta"],
+      "maximumPageSize": 100
+    },
+    "coverage": {
+      "start": "coverage-start",
+      "retainedFrom": "retained-floor",
+      "through": "captured-head"
+    },
+    "events": [
+      {
+        "id": "event-1",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-1",
+        "revision": "resource-new-1",
+        "representation": "delta",
+        "effect": {
+          "operation": "createBead",
+          "id": "https://work.example/acme/task-43",
+          "type": {
+            "uri": "https://work.example/acme/Task",
+            "revision": "definition-r4"
+          },
+          "properties": {
+            "title": "New"
+          },
+          "metadata": {}
+        }
+      },
+      {
+        "id": "event-2",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-2",
+        "revision": "resource-r8",
+        "previousRevision": "resource-r7",
+        "representation": "delta",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/task-42",
+          "type": {
+            "uri": "https://work.example/acme/Task",
+            "revision": "definition-r4"
+          }
+        }
+      },
+      {
+        "id": "event-3",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-3",
+        "revision": "resource-r8",
+        "representation": "delta",
+        "effect": {
+          "operation": "deleteBead",
+          "bead": "https://work.example/acme/task-42",
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://work.example/acme/task-42",
+              "type": {
+                "uri": "https://work.example/acme/Task",
+                "revision": "definition-r4"
+              },
+              "revision": "resource-r8"
+            }
+          }
+        }
+      },
+      {
+        "id": "event-4",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-4",
+        "revision": "link-r1",
+        "representation": "delta",
+        "effect": {
+          "operation": "createLink",
+          "id": "https://work.example/acme/relation-1",
+          "type": {
+            "uri": "https://work.example/acme/Relation",
+            "revision": "relation-definition-r1"
+          },
+          "source": {
+            "uri": "https://work.example/acme/task-42",
+            "revision": "resource-r7"
+          },
+          "target": "urn:example:external",
+          "properties": {
+            "weight": 1
+          },
+          "metadata": {}
+        }
+      },
+      {
+        "id": "event-5",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-5",
+        "revision": "link-r2",
+        "previousRevision": "link-r1",
+        "representation": "delta",
+        "effect": {
+          "operation": "updateLink",
+          "link": "https://work.example/acme/relation-1",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/weight",
+              "value": 2
+            }
+          ]
+        }
+      },
+      {
+        "id": "event-6",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-6",
+        "revision": "link-r2",
+        "representation": "delta",
+        "effect": {
+          "operation": "deleteLink",
+          "link": "https://work.example/acme/relation-1",
+          "deleted": {
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://work.example/acme/relation-1",
+              "type": {
+                "uri": "https://work.example/acme/Relation",
+                "revision": "relation-definition-r1"
+              },
+              "revision": "link-r2"
+            },
+            "source": {
+              "uri": "https://work.example/acme/task-42",
+              "revision": "resource-r7"
+            },
+            "target": "urn:example:external"
+          }
+        }
+      }
+    ],
+    "cursor": "after-complete-page",
+    "next": null
+  },
+  "separateSingletonUpdates": {
+    "source": "https://work.example/acme/observations",
+    "selection": {
+      "representation": "postimage"
+    },
+    "policy": {
+      "observation": "committed",
+      "description": "Every published Resource transition since this source began.",
+      "minimumRetentionSeconds": 3600,
+      "minimumCursorLifetimeSeconds": 300,
+      "representations": ["postimage", "delta"],
+      "maximumPageSize": 100
+    },
+    "coverage": {
+      "start": "coverage-start",
+      "retainedFrom": "retained-floor",
+      "through": "captured-head"
+    },
+    "events": [
+      {
+        "id": "event-2",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "commit-2",
+        "revision": "resource-r8",
+        "previousRevision": "resource-r7",
+        "representation": "postimage",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/task-42",
+          "resource": {
+            "id": "https://work.example/acme/task-42",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r3"
+            },
+            "revision": "resource-r8",
+            "properties": {
+              "title": "B"
+            },
+            "metadata": {}
+          }
+        }
+      },
+      {
+        "id": "event-next-singleton",
+        "source": "https://work.example/acme/observations",
+        "time": "2026-10-23T02:00:00Z",
+        "origin": "write",
+        "transaction": "next-singleton",
+        "revision": "resource-r9",
+        "previousRevision": "resource-r8",
+        "representation": "postimage",
+        "effect": {
+          "operation": "updateBead",
+          "bead": "https://work.example/acme/task-42",
+          "resource": {
+            "id": "https://work.example/acme/task-42",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r3"
+            },
+            "revision": "resource-r9",
+            "properties": {
+              "title": "C"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    ],
+    "cursor": "after-complete-page",
+    "next": null
+  },
+  "derivedOnlyCarrier": {
+    "id": "known-owner-transition",
+    "source": "https://work.example/acme/observations",
+    "time": "2026-10-23T02:00:00Z",
+    "origin": "write",
+    "transaction": "commit-2",
+    "revision": "resource-r8",
+    "previousRevision": "resource-r7",
+    "representation": "delta",
+    "effect": {
+      "operation": "updateBead",
+      "bead": "https://work.example/acme/task-42"
+    },
+    "derived": {
+      "ownedLinks": {}
+    }
+  },
+  "staticPage": {
+    "source": "https://work.example/acme/observations",
+    "selection": {
+      "representation": "postimage"
+    },
+    "policy": {
+      "observation": "observed",
+      "description": "Static catalog; initialized baseline, no subsequent observed changes.",
+      "minimumRetentionSeconds": 60,
+      "minimumCursorLifetimeSeconds": 30,
+      "representations": ["postimage"]
+    },
+    "coverage": {
+      "start": "static-boundary",
+      "retainedFrom": "static-boundary",
+      "through": "static-boundary"
+    },
+    "events": [],
+    "cursor": "after-complete-page",
+    "next": null
+  },
+  "problems": [
+    {
+      "type": "https://github.com/gastownhall/bdp/problems/request",
+      "code": "invalid-parameter",
+      "status": 400,
+      "retry": "never"
+    },
+    {
+      "type": "https://github.com/gastownhall/bdp/problems/conflict",
+      "code": "foreign-view",
+      "status": 409,
+      "retry": "after-state-change"
+    },
+    {
+      "type": "https://github.com/gastownhall/bdp/problems/gone",
+      "code": "cursor-expired",
+      "status": 410,
+      "retry": "after-state-change"
+    },
+    {
+      "type": "https://github.com/gastownhall/bdp/problems/unavailable",
+      "code": "temporarily-unavailable",
+      "status": 503,
+      "retry": "after-delay"
+    }
+  ],
+  "cliPairs": [
+    {
+      "argv": ["bdp", "events"],
+      "query": {
+        "from": "retained",
+        "representation": "postimage"
+      }
+    },
+    {
+      "argv": ["bdp", "events", "--from", "now", "--follow"],
+      "query": {
+        "from": "now",
+        "representation": "postimage"
+      }
+    },
+    {
+      "argv": ["bdp", "events", "--after", "after-complete-page", "--representation", "delta"],
+      "query": {
+        "after": "after-complete-page",
+        "representation": "delta"
+      }
+    },
+    {
+      "argv": ["bdp", "events", "task-42", "--page-size", "20"],
+      "subject": "https://work.example/acme/task-42",
+      "query": {
+        "from": "retained",
+        "representation": "postimage",
+        "limit": 20
+      }
+    },
+    {
+      "argv": ["bdp", "link", "events", "relation-1"],
+      "subject": "https://work.example/acme/relation-1",
+      "assertKind": "link",
+      "query": {
+        "from": "retained",
+        "representation": "postimage"
+      }
+    }
+  ],
+  "semanticCases": [
+    {
+      "id": "required-mode",
+      "expect": "Every source offers postimage; delta support does not remove it."
+    },
+    {
+      "id": "optional-delta",
+      "expect": "Unsupported delta selection refuses before any data; no postimage fallback."
+    },
+    {
+      "id": "typed-only",
+      "expect": "A changed affiliation emits a truthful update with no fake patch."
+    },
+    {
+      "id": "unchanged-type",
+      "expect": "Same resolved state under selected publication model is a no-op, not provenance-forced change."
+    },
+    {
+      "id": "realized-state",
+      "expect": "Delta edits yield actual published next state, not a blind echo of requested edits."
+    },
+    {
+      "id": "two-singletons",
+      "expect": "Separately committed A-to-B then B-to-C retain both facts and their own postimages."
+    },
+    {
+      "id": "batch-final-publication",
+      "expect": "Selected atomic final publication: at most one new revision/fact per affected Resource; net-zero keeps revisions/key outcome, allocation remains a durable effect."
+    },
+    {
+      "id": "owner-carrier",
+      "expect": "Given an actual published owner transition, derived map records bucket entry/exit, empty owner or non-owner; fixture does not allocate revisions."
+    },
+    {
+      "id": "owned-correlation",
+      "expect": "Actual Link and owner transitions share known commit correlation without equal revision tokens or duplicate mutation application."
+    },
+    {
+      "id": "link-delete",
+      "expect": "Delete retains final identity/type/endpoints, no properties/new revision."
+    },
+    {
+      "id": "incident-self",
+      "expect": "Bead projection includes the incident Link fact once for a self-Link, without endpoint versioning."
+    },
+    {
+      "id": "external-start",
+      "expect": "Baseline discovery of an existing record is not a fake original creation."
+    },
+    {
+      "id": "external-observation",
+      "expect": "A sampled source declares intermediate-loss limitations; no invented original mutation sequence or commit time."
+    },
+    {
+      "id": "empty-static",
+      "expect": "A truthful empty covered static interval is valid and resumable."
+    },
+    {
+      "id": "replay-floor",
+      "expect": "A new retained start may begin at current floor; an expired continuation never silently starts there."
+    },
+    {
+      "id": "retention-promise",
+      "expect": "Issued cursor context/remaining range and admitted Event promises survive ordinary config changes for their stated lifetimes."
+    },
+    {
+      "id": "fixed-bound",
+      "expect": "Next pages retain captured head/context/limit; new changes arrive through a later after traversal."
+    },
+    {
+      "id": "gap",
+      "expect": "Observation loss or replaced history yields foreign-view without false caught-up success."
+    },
+    {
+      "id": "reset-ahead",
+      "expect": "Old ahead-of-head cursor cannot silently appear drained after source restore."
+    },
+    {
+      "id": "partial-output",
+      "expect": "Do not report page cursor until every Event was validated and emitted; last complete page may safely redeliver data."
+    },
+    {
+      "id": "unknown-required",
+      "expect": "Stop before incompatible fact and retain last good consumer progress."
+    },
+    {
+      "id": "optional-annotation",
+      "expect": "Only the declared annotations area is ignorable; new capabilities preserve every selected base effect."
+    },
+    {
+      "id": "erasure",
+      "expect": "Authorization/controlled-content erasure are enforced; no fake complete retained postimage or replica-erasure claim."
+    },
+    {
+      "id": "live-poll",
+      "expect": "Follow drains fixed ranges then polls same JSON source; no independent SSE log or public epoch."
+    },
+    {
+      "id": "observed-predecessor",
+      "expect": "Observed r1-to-r4 spans complete known samples; no invented r3 predecessor, original mutation count or transaction."
+    },
+    {
+      "id": "observed-disappearance",
+      "expect": "Confirmed absence reports last-observed r4 identity/context under observation origin and observed policy; unknown backend-final state is not invented. Missing required prior context or unconfirmed absence refuses without cursor advance."
+    }
+  ],
+  "observedSequence": {
+    "meaning": "Paper control: last-observed predecessor/deletion context, never unknown immediate/final backend state. Not provider execution.",
+    "before": {
+      "id": "https://work.example/acme/task-42",
+      "type": {
+        "uri": "https://work.example/acme/Task",
+        "revision": "definition-r3"
+      },
+      "revision": "observed-r1",
+      "properties": {
+        "title": "A"
+      },
+      "metadata": {}
+    },
+    "sampled": {
+      "id": "https://work.example/acme/task-42",
+      "type": {
+        "uri": "https://work.example/acme/Task",
+        "revision": "definition-r4"
+      },
+      "revision": "observed-r4",
+      "properties": {
+        "title": "D"
+      },
+      "metadata": {}
+    },
+    "unobservedBackendIntermediate": ["backend-r2", "backend-r3"],
+    "backendFinalRevisionKnown": false,
+    "backendFinalAffiliationKnown": false,
+    "absenceConfirmed": true,
+    "postimagePage": {
+      "source": "https://work.example/acme/observations",
+      "selection": {
+        "representation": "postimage"
+      },
+      "policy": {
+        "observation": "observed",
+        "description": "Periodic complete samples; intermediate backend mutations and final backend state before disappearance may be unobserved.",
+        "minimumRetentionSeconds": 60,
+        "minimumCursorLifetimeSeconds": 30,
+        "representations": ["postimage", "delta"]
+      },
+      "coverage": {
+        "start": "observed-start",
+        "retainedFrom": "observed-start",
+        "through": "confirmed-disappearance"
+      },
+      "events": [
+        {
+          "id": "sample-update-r4",
+          "source": "https://work.example/acme/observations",
+          "time": "2026-10-23T03:00:00Z",
+          "origin": "observation",
+          "previousRevision": "observed-r1",
+          "revision": "observed-r4",
+          "representation": "postimage",
+          "effect": {
+            "operation": "updateBead",
+            "bead": "https://work.example/acme/task-42",
+            "resource": {
+              "id": "https://work.example/acme/task-42",
+              "type": {
+                "uri": "https://work.example/acme/Task",
+                "revision": "definition-r4"
+              },
+              "revision": "observed-r4",
+              "properties": {
+                "title": "D"
+              },
+              "metadata": {}
+            }
+          }
+        },
+        {
+          "id": "observed-disappearance",
+          "source": "https://work.example/acme/observations",
+          "time": "2026-10-23T03:10:00Z",
+          "origin": "observation",
+          "revision": "observed-r4",
+          "effect": {
+            "operation": "deleteBead",
+            "bead": "https://work.example/acme/task-42",
+            "deleted": {
+              "resourceKind": "bead",
+              "resource": {
+                "id": "https://work.example/acme/task-42",
+                "type": {
+                  "uri": "https://work.example/acme/Task",
+                  "revision": "definition-r4"
+                },
+                "revision": "observed-r4"
+              }
+            }
+          },
+          "representation": "postimage"
+        }
+      ],
+      "cursor": "after-observed-disappearance",
+      "next": null
+    },
+    "deltaPage": {
+      "source": "https://work.example/acme/observations",
+      "selection": {
+        "representation": "delta"
+      },
+      "policy": {
+        "observation": "observed",
+        "description": "Periodic complete samples; intermediate backend mutations and final backend state before disappearance may be unobserved.",
+        "minimumRetentionSeconds": 60,
+        "minimumCursorLifetimeSeconds": 30,
+        "representations": ["postimage", "delta"]
+      },
+      "coverage": {
+        "start": "observed-start",
+        "retainedFrom": "observed-start",
+        "through": "confirmed-disappearance"
+      },
+      "events": [
+        {
+          "id": "sample-update-r4",
+          "source": "https://work.example/acme/observations",
+          "time": "2026-10-23T03:00:00Z",
+          "origin": "observation",
+          "previousRevision": "observed-r1",
+          "revision": "observed-r4",
+          "representation": "delta",
+          "effect": {
+            "operation": "updateBead",
+            "bead": "https://work.example/acme/task-42",
+            "type": {
+              "uri": "https://work.example/acme/Task",
+              "revision": "definition-r4"
+            },
+            "propertiesChange": [
+              {
+                "op": "replace",
+                "path": "/title",
+                "value": "D"
+              }
+            ]
+          }
+        },
+        {
+          "id": "observed-disappearance",
+          "source": "https://work.example/acme/observations",
+          "time": "2026-10-23T03:10:00Z",
+          "origin": "observation",
+          "revision": "observed-r4",
+          "effect": {
+            "operation": "deleteBead",
+            "bead": "https://work.example/acme/task-42",
+            "deleted": {
+              "resourceKind": "bead",
+              "resource": {
+                "id": "https://work.example/acme/task-42",
+                "type": {
+                  "uri": "https://work.example/acme/Task",
+                  "revision": "definition-r4"
+                },
+                "revision": "observed-r4"
+              }
+            }
+          },
+          "representation": "delta"
+        }
+      ],
+      "cursor": "after-observed-disappearance",
+      "next": null
+    },
+    "refusals": [
+      {
+        "reason": "required prior context unavailable",
+        "priorContextKnown": false,
+        "absenceConfirmed": true,
+        "response": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "foreign-view",
+          "status": 409,
+          "retry": "after-state-change"
+        },
+        "cursorBefore": "last-complete-page",
+        "cursorAfter": "last-complete-page"
+      },
+      {
+        "reason": "hot-tier miss does not establish absence",
+        "priorContextKnown": true,
+        "absenceConfirmed": false,
+        "response": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "foreign-view",
+          "status": 409,
+          "retry": "after-state-change"
+        },
+        "cursorBefore": "last-complete-page",
+        "cursorAfter": "last-complete-page"
+      }
+    ]
+  }
+}

@@ -3,9 +3,14 @@ import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
 
 export function assertServerExports(manifest) {
-  const expected = { ".": { types: "./dist/index.d.ts", default: "./dist/index.js" } };
+  const expected = {
+    ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
+    "./development": { types: "./dist/development.d.ts", default: "./dist/development.js" },
+  };
   if (!isDeepStrictEqual(manifest.exports, expected))
-    throw new Error("packed server exports differ from the approved root-only surface");
+    throw new Error(
+      "packed server exports differ from the approved root and explicit development surface",
+    );
 }
 
 function within(root, candidate) {

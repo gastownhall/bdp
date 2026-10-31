@@ -23,12 +23,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-discovery-and-human-documentation",
-          "selectedText": "`bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types` are required in every profile. `operations` is required in Read+Update and Transactional and prohibited in Read."
+          "selectedText": "The Read discovery document requires `bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types`. The optional `limits`, `maximumEndpointMultiplicity`, `order`, and `historicalResolution` members apply under their contracts. `aliases` appears exactly when the authority serves alias resolution; a client MUST NOT construct alias URLs otherwise. An omitted `order` means `canonical-uri`. These are the only members admitted by the closed `readDiscovery` definition."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-discovery-and-human-documentation",
-          "selectedText": "The optional\n`order` member names the collection order under\n[Collection retrieval and selection](#collection-retrieval-and-selection);\nomission means the `canonical-uri` baseline."
+          "selectedText": "An omitted `order` means `canonical-uri`."
         }
       ]
     },
@@ -41,7 +41,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-discovery-and-human-documentation",
-          "selectedText": "For the canonical Scope URL `S`, `beads` MUST equal the URL produced by resolving `beads/` against `S`, `links` MUST equal `links/` resolved against `S`, and `types` MUST equal `types/` resolved against `S`."
+          "selectedText": "The `beads`, `links` and `types` members are absolute HTTP(S) navigation URLs for their inventories. They MUST be beneath the canonical Scope URL, but need not equal any fixed suffix. Inventory membership does not derive from an item's URL prefix."
         }
       ]
     },
@@ -54,7 +54,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#advertised-limits",
-          "selectedText": "Omission means only that the bound is not pre-advertised; it does not mean infinite capacity and does not permit silent truncation, partial mutation, or a non-normative failure response."
+          "selectedText": "Omission means only that the bound is not pre-advertised; it does not mean infinite capacity and does not permit silent truncation or a non-normative failure response."
         }
       ]
     },
@@ -240,7 +240,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#collection-retrieval-and-selection",
-          "selectedText": "The `beads/` and `links/` collections return complete Resource records; the `types/` collection returns Type summaries."
+          "selectedText": "The discovered Bead and Link inventories return complete Resource records; the Type inventory returns Type summaries."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -398,7 +398,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
-          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
+          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, and applicable History erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -499,7 +499,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-resolution",
-          "selectedText": "a `GET` or `HEAD` of an alias URL —\n`alias/{alias-path}` resolved against the canonical Scope URL — returns\n`307 Temporary Redirect` with `Location` set to the target's absolute\ncanonical Bead URL and no body."
+          "selectedText": "a `GET` or `HEAD` of an alias URL — an admitted alias path resolved against the canonical Scope URL — returns `307 Temporary Redirect` with `Location` set to the target's absolute canonical Bead URL and no body."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -558,7 +558,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#reads-after-deletion",
-          "selectedText": "To every other caller all\nthree conditions remain the uniform `404`; the disclosure vocabulary is\nnever an enumeration oracle."
+          "selectedText": "To every other caller both conditions remain the uniform `404`; the disclosure vocabulary is never an enumeration oracle."
         },
         {
           "source": "docs/design/requirements.md",
@@ -594,17 +594,17 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "Every Bead and Link record MAY carry an **`attribution`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
+          "selectedText": "Every Bead and Link record MAY carry a **`revisionProvenance`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "It is outside `properties`, never part of\nthe `properties` view"
+          "selectedText": "It is outside `properties`, never part of the `properties` view"
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `unknown` — that is carried per version and never attested"
+          "selectedText": "Bead and Link records MAY carry a common `revisionProvenance`\n  member with optional `actor: { id, basis }`, with `basis` one of `writer-supplied`,\n  `unknown` — that is carried per version and never attested"
         }
       ]
     },
@@ -617,17 +617,17 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "Every Bead and Link record MAY carry an **`attribution`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
+          "selectedText": "Every Bead and Link record MAY carry a **`revisionProvenance`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "It is outside `properties`, never part of\nthe `properties` view"
+          "selectedText": "It is outside `properties`, never part of the `properties` view"
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `unknown` — that is carried per version and never attested"
+          "selectedText": "Bead and Link records MAY carry a common `revisionProvenance`\n  member with optional `actor: { id, basis }`, with `basis` one of `writer-supplied`,\n  `unknown` — that is carried per version and never attested"
         }
       ]
     },
@@ -707,14 +707,14 @@
     },
     {
       "id": "read.owned-wildcard.present-entries",
-      "title": "A wildcard owner's ownedLinks carries present types plus empty explicit entries, never the wildcard",
+      "title": "New ownedLinks captures use nonempty nominal-Type buckets; retained captures preserve recorded state",
       "kind": "normative",
       "requiredProfile": "read",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#owned-links",
-          "selectedText": "The member carries one entry for each owned Link Type actually present on the Bead — at least one owned Link of that type exists — plus an entry, possibly empty, for each explicitly declared Link Type; a Link Type owned only through the wildcard has an entry exactly when an owned Link of that type is present."
+          "selectedText": "Each newly captured bucket is nonempty. There are no empty explicit-selector or wildcard buckets: a new empty owned set is `ownedLinks:{}`."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -729,7 +729,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#resource-records",
-          "selectedText": "A Bead whose Type owns outgoing Link Types additionally carries its `ownedLinks` member — one entry per owned Link Type present on the Bead and one, possibly empty, per explicitly declared Link Type, keyed by the Link Type URL and never by the wildcard `\"*\"`, valued by the owned Links' complete records in ascending code-unit order of their canonical `id`s — on every record read; the member is absent for Beads whose Type owns nothing."
+          "selectedText": "A Bead whose Type owns outgoing Links carries its recorded `ownedLinks` member on every record read. Newly captured members use nonempty nominal-Type buckets with full exact Link affiliations; older retained captures keep their recorded shape."
         },
         {
           "source": "docs/design/requirements.md",
@@ -803,7 +803,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#problem-details",
-          "selectedText": "Ordinary HTTP media-range matching, specificity, and quality weights apply, including `q=0` exclusions; an endpoint offering JSON and SSE selects an acceptable supported representation when one exists."
+          "selectedText": "Ordinary HTTP media-range matching, specificity, and quality weights apply, including `q=0` exclusions; an endpoint selects an acceptable supported representation when one exists."
         }
       ]
     },
@@ -821,12 +821,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
-          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
+          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, and applicable History erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
-          "selectedText": "Required current Scope context and applicable cache fields remain required on these responses (ruled 2026-09-09, G4/G5)."
+          "selectedText": "Applicable cache fields remain required on these responses."
         }
       ]
     },

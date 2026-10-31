@@ -22,6 +22,10 @@ export interface ReadPaginationOptions {
   readonly generateOpaqueToken: () => string;
 }
 
+/** Source-private immutable observation data, never part of a wire page. Basic
+ * Read pagination does not assign these fields any profile-specific meaning. */
+export type ReadSourceContext = Readonly<Record<string, string>>;
+
 export interface ReadPage<Item> {
   readonly items: readonly Item[];
   readonly next: string | null;
@@ -100,6 +104,7 @@ interface Snapshot<Item> {
   readonly cursors: Map<number, string>;
   /** Stable replay returns the exact same immutable page object. */
   readonly pages: Map<number, ReadPage<Item>>;
+  readonly sourceContext?: ReadSourceContext;
 }
 
 export interface ReadPagination<Item> {
@@ -113,6 +118,26 @@ export interface ReadPagination<Item> {
   continuePage(input: ReadContinuationInput): ReadPage<Item>;
   cleanupExpired(): ReadPaginationCleanup;
   close(): ReadPaginationCleanup;
+}
+
+/** Package-private companion used by same-owner authority composition only. */
+export interface ContextualReadPagination<Item> extends ReadPagination<Item> {
+  firstPageWithContext(
+    input: ReadFirstPageInput<Item>,
+    context?: ReadSourceContext,
+  ): ReadPage<Item>;
+  /** Paired metadata is not a traversal or expiry capability. */
+  sourceContext(page: ReadPage<Item>): ReadSourceContext | undefined;
+}
+
+/** Preserve the original public facade. Extra properties/arguments on a public
+ * firstPage call are never read as a source-context capability. */
+export function createReadPagination<Item = unknown>(
+  options: ReadPaginationOptions,
+): ReadPagination<Item> {
+  const engine = createContextualReadPagination<Item>(options);
+  const { limits, validateLimit, firstPage, continuePage, cleanupExpired, close } = engine;
+  return Object.freeze({ limits, validateLimit, firstPage, continuePage, cleanupExpired, close });
 }
 
 interface PreparedOptions {
@@ -140,11 +165,14 @@ const OPAQUE_TOKEN = /^[A-Za-z0-9_-]+$/;
  * active snapshot. The token generator receives no snapshot data and must supply unpredictable
  * opaque entropy suitable for a public URL.
  */
-export function createReadPagination<Item = unknown>(
+export function createContextualReadPagination<Item = unknown>(
   options: ReadPaginationOptions,
-): ReadPagination<Item> {
+): ContextualReadPagination<Item> {
   const prepared = prepareOptions(options);
   const snapshots = new Set<Snapshot<Item>>();
+  // Values do not point back to snapshots/pages. Externally retained pages may
+  // outlive cursor expiry; their context is collectible with the page itself.
+  const pageContexts = new WeakMap<ReadPage<Item>, ReadSourceContext | undefined>();
   const cursorIndex = new Map<string, CursorBinding<Item>>();
   let retainedSnapshotBytes = 0;
   let retainedSnapshotNodes = 0;
@@ -286,15 +314,21 @@ export function createReadPagination<Item = unknown>(
         : null;
     const page: ReadPage<Item> = Object.freeze({ items, next });
     snapshot.pages.set(offset, page);
+    pageContexts.set(page, snapshot.sourceContext);
     return page;
   };
 
-  const pagination: ReadPagination<Item> = {
+  const pagination: ContextualReadPagination<Item> = {
     limits: Object.freeze({
       defaultPageItems: prepared.defaultPageItems,
       maxPageItems: prepared.maxPageItems,
       cursorTtlMs: prepared.cursorTtlMs,
     }),
+
+    sourceContext(page) {
+      if (!pageContexts.has(page)) throw localError("invalid-input", "foreign pagination page");
+      return pageContexts.get(page);
+    },
 
     validateLimit(limit: number | undefined): number {
       requireOpen();
@@ -302,6 +336,12 @@ export function createReadPagination<Item = unknown>(
     },
 
     firstPage(input: ReadFirstPageInput<Item>): ReadPage<Item> {
+      return pagination.firstPageWithContext(input);
+    },
+    firstPageWithContext(
+      input: ReadFirstPageInput<Item>,
+      sourceContext?: ReadSourceContext,
+    ): ReadPage<Item> {
       requireOpen();
       const now = clock();
       cleanupAt(now);
@@ -327,11 +367,35 @@ export function createReadPagination<Item = unknown>(
       const nodeCapacity = willRetain
         ? prepared.retainedSnapshotNodeCapacity - retainedSnapshotNodes
         : prepared.retainedSnapshotNodeCapacity;
-      const copied = snapshotItems(input.items, byteCapacity, nodeCapacity);
+      const contextCopy =
+        sourceContext === undefined
+          ? undefined
+          : snapshotJson(sourceContext, byteCapacity, nodeCapacity);
+      let capturedContext: ReadSourceContext | undefined;
+      if (contextCopy !== undefined) {
+        const value = contextCopy.value;
+        if (
+          value === null ||
+          typeof value !== "object" ||
+          Array.isArray(value) ||
+          Object.values(value).some((entry) => typeof entry !== "string")
+        )
+          throw localError("invalid-snapshot", "source context must be a string record");
+        capturedContext = value as ReadSourceContext;
+      }
+      const copied = snapshotItems(
+        input.items,
+        byteCapacity - (contextCopy?.retainedBytes ?? 0),
+        nodeCapacity - (contextCopy?.retainedNodes ?? 0),
+      );
+      const retainedBytes = copied.retainedBytes + (contextCopy?.retainedBytes ?? 0);
+      const retainedNodes = copied.retainedNodes + (contextCopy?.retainedNodes ?? 0);
       const { items } = copied;
 
       if (items.length <= limit) {
-        return Object.freeze({ items: Object.freeze(items.slice()), next: null });
+        const page = Object.freeze({ items: Object.freeze(items.slice()), next: null });
+        pageContexts.set(page, capturedContext);
+        return page;
       }
 
       // Reserve every future cursor/page position atomically, but mint tokens lazily. This makes
@@ -357,8 +421,9 @@ export function createReadPagination<Item = unknown>(
         projection,
         continuationUrl: continuation,
         expiresAt,
-        retainedBytes: copied.retainedBytes,
-        retainedNodes: copied.retainedNodes,
+        retainedBytes,
+        retainedNodes,
+        ...(capturedContext === undefined ? {} : { sourceContext: capturedContext }),
         reservedCursorPositions,
         cursors: new Map(),
         pages: new Map(),
@@ -367,8 +432,8 @@ export function createReadPagination<Item = unknown>(
       // Register the snapshot first so the capacity count accounts for it. Roll back if first-
       // cursor construction fails; no partially continuable snapshot escapes.
       snapshots.add(snapshot);
-      retainedSnapshotBytes += copied.retainedBytes;
-      retainedSnapshotNodes += copied.retainedNodes;
+      retainedSnapshotBytes += retainedBytes;
+      retainedSnapshotNodes += retainedNodes;
       retainedCursorPositions += reservedCursorPositions;
       try {
         const page = pageAt(snapshot, 0);

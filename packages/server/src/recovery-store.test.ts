@@ -322,11 +322,11 @@ describe("durable reference ownership and transaction interface", () => {
   });
 
   it("asserts pinned runtime, takes real exclusive ownership, and releases only on close", () => {
-    expect(process.version).toBe("v24.16.0");
+    expect(process.version).toBe("v24.22.1");
     const dir = directory();
     const first = open(dir, true);
     expect(first.runtime).toMatchObject({
-      node: "v24.16.0",
+      node: "v24.22.1",
       executable: process.execPath,
       journalMode: "delete",
       lockingMode: "exclusive",
@@ -762,7 +762,7 @@ import {openRecoveryStore} from ${JSON.stringify(moduleUrl)};
 import {DatabaseSync} from "node:sqlite";
 import {writeSync} from "node:fs";
 const [directory,mode]=process.argv.slice(1);
-if(process.version!=="v24.16.0")throw new Error("wrong interpreter");
+if(process.version!=="v24.22.1")throw new Error("wrong interpreter");
 const store=openRecoveryStore({directory,scope:${JSON.stringify(scope)},installationId:"installed-v1",lineageId:"logical-store-v1"});
 const send=value=>writeSync(1,JSON.stringify(value)+"\\n");
 const stop=()=>Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0);
@@ -770,9 +770,10 @@ send({ready:store.runtime});
 if(mode==="owner")stop();
 const admission=store.admit("alice",["first","tail"]);
 if(mode==="claims"){send({barrier:"claims"});stop();}
-if(mode==="staged"){
+if(mode==="staged" || mode==="hot"){
  const original=DatabaseSync.prototype.exec;
  DatabaseSync.prototype.exec=function(sql){
+  if(mode==="hot" && sql==="BEGIN IMMEDIATE")original.call(this,"PRAGMA cache_size=1");
   if(sql==="COMMIT"){
    send({barrier:"staged",stagedKeyState:this.prepare("SELECT state FROM key_state WHERE key='first'").get().state,stagedResources:this.prepare("SELECT count(*) AS n FROM resources").get().n});stop();
   }
@@ -782,6 +783,7 @@ if(mode==="staged"){
 store.executeMember(admission,"first",tx=>{
  const revision=tx.allocateRevision();
  tx.putResource({id:"beads/a",kind:"bead",bodyJson:JSON.stringify({revision})});
+ if(mode==="hot")for(let n=0;n<40;n++)tx.putResource({id:"beads/spill-"+n,kind:"bead",bodyJson:JSON.stringify({pad:"x".repeat(18000)})});
  const decision={kind:"retain",effect:"success",semanticIdentityJson:'{"operation":"createBead"}',resolutionsJson:'{"creator":"beads/a"}',outcomeJson:JSON.stringify({id:"beads/a",revision}),completedAt:100,retainUntil:86400100};
  return decision;
 });
@@ -795,7 +797,7 @@ async function startChild(
   messages: Record<string, unknown>[];
   wait: (field: string) => Promise<Record<string, unknown>>;
 }> {
-  expect(process.version).toBe("v24.16.0");
+  expect(process.version).toBe("v24.22.1");
   const child = spawn(
     process.execPath,
     ["--input-type=module", "--eval", childProgram, dir, mode],
@@ -937,7 +939,7 @@ describe("actual Node24 child-process crashes", () => {
     const { child, wait } = await startChild(dir, "owner");
     const ready = await wait("ready");
     expect(ready.ready).toMatchObject({
-      node: "v24.16.0",
+      node: "v24.22.1",
       executable: process.execPath,
       lockingMode: "exclusive",
     });
@@ -1114,6 +1116,84 @@ describe("native JSON syntax storage format", () => {
       after.close();
     }
     expect(() => openRecoveryStore({ ...options(dir), create: {} })).toThrow();
+  });
+
+  it("refuses pre-provenance format 2 byte-identically before pending recovery", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    effect(store, "expired");
+    store.expire(100 + day);
+    effect(store, "retained", (tx) =>
+      tx.putResource({
+        id: "beads/old",
+        kind: "bead",
+        bodyJson:
+          '{"attribution":{"principal":"old","basis":"unknown"},"changeContext":{"message":{"state":"present","value":"old"}}}',
+      }),
+    );
+    store.admit("alice", ["pending"]);
+    store.close();
+    const filename = path.join(dir, "reference.sqlite");
+    const raw = new DatabaseSync(filename);
+    // The old format uses the same tables/JSON codec, but different record and identity fields.
+    raw.exec("UPDATE metadata SET value='2' WHERE name='format'");
+    const rows = raw.prepare("SELECT * FROM key_state ORDER BY key").all();
+    expect(rows.map((row) => row.state)).toEqual(["expired", "claimed", "retained"]);
+    raw.close();
+    const before = readFileSync(filename);
+    expect(() => open(dir)).toThrow(expect.objectContaining({ reason: "store-mismatch" }));
+    expect(readFileSync(filename)).toEqual(before);
+    const after = new DatabaseSync(filename, { readOnly: true });
+    try {
+      expect(after.prepare("SELECT * FROM key_state ORDER BY key").all()).toEqual(rows);
+      expect(
+        after.prepare("SELECT body FROM resources WHERE id='beads/old'").get()?.body,
+      ).toContain('"changeContext"');
+    } finally {
+      after.close();
+    }
+    expect(() => openRecoveryStore({ ...options(dir), create: {} })).toThrow();
+    expect(readFileSync(filename)).toEqual(before);
+  });
+
+  it("refuses format 3 without capture before the format-4 integrity gate or pending recovery", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    effect(store, "retained");
+    store.admit("alice", ["pending"]);
+    store.close();
+    const filename = path.join(dir, "reference.sqlite");
+    const raw = new DatabaseSync(filename);
+    // Format 3 had the same tables but no contractCapture metadata row.
+    raw.exec("UPDATE metadata SET value='3' WHERE name='format'");
+    raw.exec("DELETE FROM metadata WHERE name='contractCapture'");
+    const rows = raw.prepare("SELECT * FROM key_state ORDER BY key").all();
+    expect(rows.map((row) => row.state)).toEqual(["claimed", "retained"]);
+    raw.close();
+    const before = readFileSync(filename);
+    expect(() => open(dir)).toThrow(
+      expect.objectContaining({
+        reason: "store-mismatch",
+        message: "store format/Scope/installation/lineage mismatch",
+      }),
+    );
+    expect(readFileSync(filename)).toEqual(before);
+    const after = new DatabaseSync(filename, { readOnly: true });
+    try {
+      expect(after.prepare("SELECT * FROM key_state ORDER BY key").all()).toEqual(rows);
+      expect(after.prepare("SELECT value FROM metadata WHERE name='format'").get()?.value).toBe(
+        "3",
+      );
+      expect(
+        after.prepare("SELECT value FROM metadata WHERE name='contractCapture'").get(),
+      ).toBeUndefined();
+    } finally {
+      after.close();
+    }
+    expect(() => openRecoveryStore({ ...options(dir), create: {} })).toThrow(
+      expect.objectContaining({ code: "EEXIST" }),
+    );
+    expect(readFileSync(filename)).toEqual(before);
   });
 
   it("cleans up an uncommitted new file when syntax function registration fails", () => {
@@ -1511,4 +1591,122 @@ describe("immutable recovery Scope prerequisite", () => {
     ).toThrow(expect.objectContaining({ reason: "invalid-input" }));
     expect(open(dir).scope).toBe(scope);
   });
+});
+
+describe("opaque installation capture before claimed-key recovery", () => {
+  it("keeps uncaptured defaults and refuses captured reopen without its expectation", () => {
+    const dir = directory();
+    const store = openRecoveryStore({ ...options(dir), create: {}, contractCapture: "é" });
+    store.admit("alice", ["pending"]);
+    store.close();
+    const before = readFileSync(path.join(dir, "reference.sqlite"));
+    expect(() => open(dir)).toThrow("installation capture mismatch");
+    expect(readFileSync(path.join(dir, "reference.sqlite"))).toEqual(before);
+    const restored = openRecoveryStore({ ...options(dir), contractCapture: "é" });
+    stores.push(restored);
+    expect(restored.runtime.recoveredClaims).toBe(1);
+  });
+  it("rejects a different byte length without materializing stored capture", () => {
+    const dir = directory();
+    const store = openRecoveryStore({ ...options(dir), create: {}, contractCapture: "é" });
+    store.admit("alice", ["pending"]);
+    store.close();
+    const original = StatementSync.prototype.get;
+    const spy = vi.spyOn(StatementSync.prototype, "get").mockImplementation(function (
+      this: StatementSync,
+      ...args
+    ) {
+      if (
+        this.sourceSQL === "SELECT value FROM metadata WHERE name=?" &&
+        (args[0] as unknown) === "contractCapture"
+      )
+        throw new Error("capture materialized");
+      return original.apply(this, args);
+    });
+    // Equal character count, different UTF8 byte count.
+    expect(() => openRecoveryStore({ ...options(dir), contractCapture: "x" })).toThrow(
+      "installation capture mismatch",
+    );
+    spy.mockRestore();
+    const reopened = openRecoveryStore({ ...options(dir), contractCapture: "é" });
+    stores.push(reopened);
+    expect(reopened.runtime.recoveredClaims).toBe(1);
+  });
+  it("snapshots inventories and refuses accessors/proxies/nonstrings before provisioning", () => {
+    const dir = directory();
+    let hooks = 0;
+    const accessor = Object.defineProperty({}, "x", {
+      get() {
+        hooks++;
+        return "{}";
+      },
+      enumerable: true,
+    });
+    const proxy = new Proxy(
+      {},
+      {
+        ownKeys() {
+          hooks++;
+          return [];
+        },
+      },
+    );
+    for (const expectedTypes of [accessor, proxy, { x: 1 }])
+      expect(() =>
+        openRecoveryStore({
+          ...options(dir),
+          create: {},
+          expectedTypes: expectedTypes as Record<string, string>,
+        }),
+      ).toThrow();
+    const configured = Object.defineProperty({ ...options(dir), create: {} }, "contractCapture", {
+      get() {
+        hooks++;
+        return "null";
+      },
+    });
+    expect(() => openRecoveryStore(configured)).toThrow("own data");
+    expect(() =>
+      openRecoveryStore({ ...options(dir), create: {}, contractCapture: 42 as unknown as string }),
+    ).toThrow("capture text");
+    expect(hooks).toBe(0);
+    expect(existsSync(path.join(dir, "reference.sqlite"))).toBe(false);
+    const types = { x: "{}" };
+    const store = openRecoveryStore({ ...options(dir), create: { types }, expectedTypes: types });
+    stores.push(store);
+    types.x = "null";
+    expect(store.read((r) => r.installedType("x"))).toBe("{}");
+  });
+});
+
+it("recovers a real hot journal before refusing capture mismatch without sweeping claimed keys", async () => {
+  const dir = directory();
+  const initial = open(dir, true);
+  effect(initial, "saved");
+  initial.close();
+  const { child, wait } = await startChild(dir, "hot");
+  await wait("barrier");
+  await kill(child);
+  const file = path.join(dir, "reference.sqlite");
+  expect(readFileSync(`${file}-journal`).subarray(0, 8)).toEqual(
+    Buffer.from("d9d505f920a163d7", "hex"),
+  );
+  expect(() => openRecoveryStore({ ...options(dir), contractCapture: "different" })).toThrow(
+    "installation capture mismatch",
+  );
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    expect(db.prepare("SELECT count(*) AS n FROM key_state WHERE state='claimed'").get()?.n).toBe(
+      2,
+    );
+    expect(db.prepare("SELECT state FROM key_state WHERE key='saved'").get()?.state).toBe(
+      "retained",
+    );
+    expect(db.prepare("SELECT count(*) AS n FROM resources").get()?.n).toBe(0);
+  } finally {
+    db.close();
+  }
+  const recovered = open(dir);
+  expect(recovered.runtime.recoveredClaims).toBe(2);
+  expect(recovered.read((r) => r.key("alice", "saved"))).toMatchObject({ kind: "retained" });
 });

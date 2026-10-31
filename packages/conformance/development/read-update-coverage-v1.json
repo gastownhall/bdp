@@ -1,0 +1,1359 @@
+{
+  "version": 1,
+  "developmentOnly": true,
+  "claimEligible": false,
+  "normativeCatalog": "packages/conformance/catalog/read-update-v1.json",
+  "rows": [
+    {
+      "id": "read-update.discovery.document",
+      "status": "omitted",
+      "category": "profile-admission",
+      "reason": "Development endpoint deliberately has no BDP discovery/profile claim or Operation Directory.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.discovery.aliases",
+      "status": "omitted",
+      "category": "profile-admission",
+      "reason": "Development endpoint deliberately has no BDP discovery/profile claim or Operation Directory.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.discovery.limits",
+      "status": "omitted",
+      "category": "profile-admission",
+      "reason": "Development endpoint deliberately has no BDP discovery/profile claim or Operation Directory.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.discovery.operation-directory",
+      "status": "omitted",
+      "category": "profile-admission",
+      "reason": "Development endpoint deliberately has no BDP discovery/profile claim or Operation Directory.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.create-bead",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.bead-crud-guards",
+          "assertions": ["create.identity", "create.properties", "create.outcome"],
+          "limits": ["Honored ID only; allocated-ID path remains a separate observation."]
+        },
+        {
+          "scenario": "development.read-update.alias-allocation",
+          "assertions": ["allocate.outcome", "allocated-live.allocated"],
+          "limits": [
+            "Authority-allocated ID observed; deterministic collision skipping remains unqualified."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.update-bead",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.bead-crud-guards",
+          "assertions": ["noop.outcome", "update.changed", "update.status"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-merge-replace",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.documents",
+          "assertions": [
+            "merge.properties",
+            "merge.metadata",
+            "clear.properties",
+            "clear.metadata"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-atomicity",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.documents",
+          "assertions": ["invalid.problem", "unchanged.properties", "unchanged.metadata"],
+          "limits": [
+            "Atomic refusal observed; guarded combined no-op already partially exercised in component tests, not this binding."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-validation",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.documents",
+          "assertions": ["invalid.problem", "unchanged.metadata"],
+          "limits": ["Non-object rejection only; installed property-schema rejection is omitted."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.delete-bead",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.links-delete",
+          "assertions": ["blocked.problem", "delete.outcome", "bead-gone.problem"],
+          "limits": ["Fixed policy sees every incident Link."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.incident-links-nondisclosure",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.create-link",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.links-delete",
+          "assertions": ["link.source", "link.target", "link.outcome"],
+          "limits": ["Ordinary references only; pinned endpoint spelling is not yet bound."]
+        },
+        {
+          "scenario": "development.read-update.pinned-references",
+          "assertions": [
+            "pinned.source",
+            "pinned.source-pin",
+            "pinned.external",
+            "local-pin.source",
+            "local-pin.pin"
+          ],
+          "limits": [
+            "In-Scope alias and @name pins, plus opaque external URI pin, are stored/echoed without interpreting the unrelated supplied revision. No history resolution or external fetch claim."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.update-link",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.links-delete",
+          "assertions": [
+            "update-link.changed",
+            "update-link.no-source-revision",
+            "bead-guard.status"
+          ],
+          "limits": ["Unowned Link only."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.delete-link",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.links-delete",
+          "assertions": ["unlink.outcome", "link-gone.problem"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.owned-link-source-revision",
+      "status": "omitted",
+      "category": "owned-contracts",
+      "reason": "Fixed development Types expose no owned-Link or multiplicity contract; requires a qualified installed-contract fixture.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.owned-link-no-op",
+      "status": "omitted",
+      "category": "owned-contracts",
+      "reason": "Fixed development Types expose no owned-Link or multiplicity contract; requires a qualified installed-contract fixture.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.attribution",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.bead-crud-guards",
+          "assertions": ["create.attribution", "noop.kept-attribution", "update.status"],
+          "limits": ["Fixed unowned Types; no owned-source induced revision provenance."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.expected-revision",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.bead-crud-guards",
+          "assertions": ["update.status", "stale.problem", "read.after"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.expected-revision-race",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.guard-race",
+          "assertions": ["race.one-winner", "live.status"],
+          "limits": ["Single reference process; no distributed writer claim."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.hidden-subject",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.idempotency-key-required",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.carrier-rejection",
+          "assertions": ["missing-key.problem", "missing-key-absent.status"],
+          "limits": [
+            "Absent field only in this plan; raw-admission supplies malformed and duplicate field observations."
+          ]
+        },
+        {
+          "scenario": "development.read-update.raw-admission",
+          "assertions": [
+            "duplicate-key.problem",
+            "different-duplicate-key.problem",
+            "malformed-key.problem",
+            "empty-key.problem",
+            "long-key.problem",
+            "absent.missing",
+            "corrected.created",
+            "other-key.created"
+          ],
+          "limits": [
+            "Absent key is bound by carrier-rejection; raw probes cover identical/differing duplicates, empty, spaces and overlong values."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.unauthenticated",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.raw-admission",
+          "assertions": [
+            "missing-auth.problem",
+            "missing-auth.challenge",
+            "wrong-auth.problem",
+            "malformed-auth.problem",
+            "absent.missing",
+            "corrected.created"
+          ],
+          "limits": [
+            "Fixed local bearer policy only; these credential spellings do not define production authentication requirements."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.idempotent-retry",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retained-keys",
+          "assertions": ["retry.outcome", "retry.postimage", "still-gone.status"],
+          "limits": []
+        },
+        {
+          "scenario": "development.read-update.raw-accept-keys",
+          "assertions": [
+            "retained-equal.status",
+            "retained-equal.empty",
+            "retry.created",
+            "retry.corrected"
+          ],
+          "limits": [
+            "Negotiation refusal preserves retained success; exact historical postimage replay is separately bound."
+          ]
+        },
+        {
+          "scenario": "development.read-update.alias-invalid-targets",
+          "assertions": [
+            "retained-invalid.problem",
+            "changed-key-identity.problem",
+            "corrected-live.source"
+          ],
+          "limits": [
+            "Admitted alias target failure stays retained after a separate corrected request; it is not a pre-admission carrier refusal."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.idempotency-conflict",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retained-keys",
+          "assertions": ["conflict.problem"],
+          "limits": ["Changed properties observed; full semantic identity dimensions omitted."]
+        },
+        {
+          "scenario": "development.read-update.raw-accept-keys",
+          "assertions": [
+            "retained-conflict.problem",
+            "retained-conflict.problem-status",
+            "retained-conflict.media"
+          ],
+          "limits": ["Retained conflict precedes representation negotiation."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.unsupported-media-type",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.raw-media-json",
+          "assertions": [
+            "undeclared-media.problem",
+            "wrong-media.problem",
+            "absent.missing",
+            "corrected-media.created",
+            "live.corrected"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.method-405",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.raw-method",
+          "assertions": [
+            "wrong-method.status",
+            "wrong-method.empty",
+            "wrong-method.allow",
+            "absent.missing",
+            "corrected.created"
+          ],
+          "limits": [
+            "GET to singleton target only. Operation Directory absent; enabled CORS and all other methods remain unbound."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.no-local-bindings",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.carrier-rejection",
+          "assertions": ["local-singleton.problem"],
+          "limits": ["Bare subject reference only; pinned form not yet bound."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.result-headers",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.result-headers",
+          "assertions": ["create.no-etag", "create.no-location"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.put-creates",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["put.alias", "put.target", "put.outcome"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.put-repoints",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["repoint.outcome", "repoint.target"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.delete-releases",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["delete.outcome", "gone.problem", "reuse.outcome"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.uniqueness-invariant",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["collision.problem", "committed-path.problem"],
+          "limits": [
+            "Live and committed collision; deleted-path collision covered for Bead ID elsewhere."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.link-coexistence",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["via-alias.outcome"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.allocation-avoids-aliases",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.alias-allocation",
+          "assertions": [
+            "allocate.url-serialization-stable",
+            "allocate.differs-from-reserved-alias",
+            "allocate.in-scope",
+            "allocate.root",
+            "allocate.single-segment",
+            "allocate.nonempty",
+            "allocated-live.allocated",
+            "reserved-bead.problem",
+            "alias-still-live.source"
+          ],
+          "limits": [
+            "One allocated identity is directly observed to differ from the live reserved alias segment, and the alias remains unchanged. URL serialization stability is observed, not the independent BDP canonical-segment grammar. The private random allocation namespace prevents forcing the next candidate to collide through HTTP; collision-skipping itself is NOT exercised or qualified."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.non-canonical-target",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.alias-invalid-targets",
+          "assertions": [
+            "local-alias.problem",
+            "local-alias.diagnostic",
+            "absolute-alias.problem",
+            "link.problem",
+            "external.problem",
+            "opaque.problem",
+            "local-alias-absent.problem",
+            "absolute-alias-absent.problem",
+            "link-absent.problem",
+            "external-absent.problem",
+            "opaque-absent.problem",
+            "corrected-live.source"
+          ],
+          "limits": [
+            "One fixed development diagnostic message is asserted; no authority-specific wording is proposed for other implementations."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.unknown-subject",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.alias-unknown-subjects",
+          "assertions": [
+            "missing-target.problem",
+            "missing-alias.problem",
+            "wrong-root-put.problem",
+            "wrong-root-delete.problem",
+            "alias-absent.status",
+            "retained-missing-target.problem",
+            "still-absent.status",
+            "new-request.outcome",
+            "retained-missing-alias.problem",
+            "alias-survives.source",
+            "target-survives.status"
+          ],
+          "limits": [
+            "Unknown and wrong-root subjects only; hidden subjects are not observable under the fixed all-visible policy."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.carrier-syntax",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.carrier-rejection",
+          "assertions": ["bad-sequence.problem", "nothing.status", "corrected.outcome"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.authorization",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.forbidden",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.no-version-minted",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["guard-a.status", "guard-b.status"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.sequence-binding",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": ["sequence.bound"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.retained-without-reauthorization",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.reference-resolution",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["via-alias.source"],
+          "limits": ["Link endpoint only; alias Bead subject remains separate."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.reference-idempotency",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.alias-recorded-targets",
+          "assertions": [
+            "recorded-after-repoint.source",
+            "cross-slot.target",
+            "recorded-after-delete.source",
+            "new-locator.source",
+            "new-locator-rechecked.problem",
+            "new-locator-missing.problem",
+            "new-locator-restored.source",
+            "direct-canonical.source",
+            "original-still-recorded.source",
+            "new-request-current.source",
+            "original-link-state.source",
+            "original-link-state.target",
+            "a-live.status",
+            "b-live.status",
+            "repoint-state.status",
+            "repoint-state.target",
+            "repoint-state.no-body",
+            "delete-original-state.status",
+            "delete-original-state.missing",
+            "fresh-repoint-state.status",
+            "fresh-repoint-state.target",
+            "fresh-repoint-state.no-body",
+            "delete-fresh-state.status",
+            "delete-fresh-state.missing",
+            "fresh-restored-state.status",
+            "fresh-restored-state.target",
+            "fresh-restored-state.no-body",
+            "original-reassigned-state.status",
+            "original-reassigned-state.target",
+            "original-reassigned-state.no-body"
+          ],
+          "limits": [
+            "Recorded targets and transient fresh-locator comparison are observed across repoint/delete/reassignment and cross-slot equivalent absolute spellings. Internal retained metadata, retention renewal, disclosure changes and expired tombstones remain unqualified."
+          ]
+        },
+        {
+          "scenario": "development.read-update.alias-recorded-misses",
+          "assertions": [
+            "recorded-miss.problem",
+            "absolute-miss.problem",
+            "distinct-miss.problem",
+            "direct-is-different.problem",
+            "deleted-still-miss.problem",
+            "reassigned-still-miss.problem",
+            "a-survives.status",
+            "b-survives.status",
+            "current-resolution.source",
+            "assign-state.status",
+            "assign-state.target",
+            "assign-state.no-body",
+            "unassign-state.status",
+            "unassign-state.missing",
+            "reassign-state.status",
+            "reassign-state.target",
+            "reassign-state.no-body"
+          ],
+          "limits": [
+            "Recorded misses persist after assignment, deletion and reassignment; distinct missing locators and direct references compare unequally. Failure expiry and authorization variants are not configured."
+          ]
+        },
+        {
+          "scenario": "development.read-update.pinned-references",
+          "assertions": [
+            "retry-recorded.source",
+            "retry-deleted.source",
+            "direct-equal.source",
+            "direct-equal.source-pin",
+            "retained-state.source-pin",
+            "repoint-state.status",
+            "repoint-state.target",
+            "repoint-state.no-body",
+            "delete-alias-state.status",
+            "delete-alias-state.missing"
+          ],
+          "limits": [
+            "Pinned locator spellings reuse recorded target; retry disclosure/expiry remains unqualified."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.order-and-partial-commit",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": [
+            "sequence.first",
+            "sequence.failed",
+            "prefix-live.status",
+            "tail-live.status"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.local-bindings",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": ["sequence.bound", "sequence.dependent", "sequence.tail"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.transient-predecessor",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-pending",
+          "assertions": [
+            "fresh-dependent.creator-code",
+            "fresh-dependent.dependent-code",
+            "fresh-dependent.independent-tail",
+            "released-key.created"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.expired-creator-binding",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.expired-creator-binding",
+          "assertions": [
+            "allocate.created",
+            "bind-expired.creator-expired",
+            "bind-expired.creator-no-resource",
+            "bind-expired.creator-name",
+            "bind-expired.dependent-outcome",
+            "original-updated.properties",
+            "change-live.updated",
+            "renamed-retry.creator-name",
+            "renamed-retry.properties",
+            "live-remains-current.properties",
+            "durable-retry.creator-expired",
+            "durable-retry.properties",
+            "durable-live-current.properties"
+          ],
+          "limits": [
+            "One authority-allocated Bead creator and updateBead dependent, with renamed local labels and selected retained-result fields, across startup expiry/reopen. Direct reads use the originally captured allocated identity. No Link creator, alias/pinned/deleted-creator variants, authorization changes, internal tombstone inspection, live periodic maintenance, advertised retention window or complete-row qualification."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.retained-failure",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": ["retry.failed", "retry.dependent"],
+          "limits": []
+        },
+        {
+          "scenario": "development.read-update.raw-accept-keys",
+          "assertions": [
+            "failed-sequence-corrected.retained-failure",
+            "failure-not-reexecuted.status"
+          ],
+          "limits": [
+            "The failed singleton is replayed as a sequence member after its formerly absent subject is created."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.member-problem-shape",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": [
+            "sequence.failure-status",
+            "sequence.failure-index",
+            "sequence.failure-name"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.retry-after-hint",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.carrier-rejection",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.carrier-rejection",
+          "assertions": ["bad-sequence.problem", "nothing.status", "corrected.outcome"],
+          "limits": [
+            "Malformed alias later member only; remaining malformed carrier classes not yet bound."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.contextual-validation",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.contextual-local-kind",
+          "assertions": [
+            "wrong-kind.problem",
+            "prefix-absent.problem",
+            "corrected-same-keys.creator",
+            "corrected-same-keys.update",
+            "corrected-same-keys.creator-index",
+            "corrected-same-keys.creator-name",
+            "corrected-same-keys.update-index",
+            "corrected-same-keys.update-unnamed",
+            "corrected-live.properties"
+          ],
+          "limits": [
+            "Wrong-kind local Resource binding only. Forward/unknown labels and key/name uniqueness variants are not added by this plan."
+          ]
+        },
+        {
+          "scenario": "development.read-update.contextual-durable-kind",
+          "assertions": [
+            "wrong-kind.member-problem",
+            "wrong-kind.member-status",
+            "wrong-kind.member-index",
+            "wrong-kind.member-unnamed",
+            "wrong-kind.tail-outcome",
+            "wrong-kind.tail-index",
+            "wrong-kind.tail-name",
+            "link-unchanged.properties",
+            "tail-live.properties",
+            "retry.member-problem",
+            "retry.tail-outcome",
+            "corrected-same-key.problem",
+            "bead-before-fresh.properties",
+            "corrected-fresh-key.outcome",
+            "corrected-live.properties",
+            "link-revision-unchanged.outcome",
+            "link-still-unchanged.properties"
+          ],
+          "limits": [
+            "Wrong-kind durable subject at the Bead mutation target only, using a live unowned Link. Owned results/sourceRevision, broader Scope containment, other Resource/reference kinds and all contextual combinations remain unqualified. Retained replay is observed through selected result fields and key behavior, not full response byte equality."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.idempotent-retry",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": ["retry.first", "retry.bound", "retry.failed", "retry.tail"],
+          "limits": ["Same positions; reordered presentation remains separate."]
+        },
+        {
+          "scenario": "development.read-update.process-disconnect",
+          "assertions": [
+            "replay.prefix",
+            "replay.failed",
+            "replay.alias-target",
+            "replay.tail",
+            "equal.replay-count",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.disconnect",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-disconnect",
+          "assertions": [
+            "submit.parked",
+            "submit.committed-prefix",
+            "submit.unrun-tail",
+            "disconnect.not-delivered",
+            "release.last-member",
+            "tail.status",
+            "equal.prefix-count",
+            "equal.prefix-identical",
+            "equal.replay-count",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal.",
+            "Client abort occurs after first member commit while member 2 remains parked; all later work then completes without resubmission."
+          ]
+        },
+        {
+          "scenario": "development.read-update.process-drain",
+          "assertions": [
+            "drain.not-delivered",
+            "drain.not-exited",
+            "release.clean-exit",
+            "tail.status",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal.",
+            "Graceful close drains admitted work before exiting; ordinary emitted executable reopens the store."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.internal-fault",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.interleaving",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-interleaving",
+          "assertions": [
+            "interleave.outside",
+            "intervening-live.original-not-run",
+            "tail-still-absent.absent",
+            "complete.outside-preserved",
+            "complete.original-applied",
+            "intervening-guard-stale.mismatch",
+            "equal.identical"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.in-progress",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-pending",
+          "assertions": [
+            "duplicate.member-1-code",
+            "tail-pending.pending-code",
+            "complete.created-1",
+            "equal.identical"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.key-reservation",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-pending",
+          "assertions": [
+            "duplicate.member-3-code",
+            "tail-pending.pending-code",
+            "tail-absent.absent",
+            "wrong-absent.absent",
+            "complete.created-3"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.claim-atomicity",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.concurrent-dependent-retry",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-pending",
+          "assertions": [
+            "duplicate.member-2-code",
+            "edge-absent.absent",
+            "complete.created-2",
+            "equal.identical"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.transient-not-retained",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-pending",
+          "assertions": [
+            "fresh-dependent.dependent-code",
+            "fresh-absent.absent",
+            "released-key.created",
+            "released-retry.created",
+            "retained-conflict.conflict",
+            "fresh-state.properties"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.semantic-identity",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retained-keys",
+          "assertions": [
+            "sequence-retry.current-name",
+            "sequence-retry.retained",
+            "conflict.problem"
+          ],
+          "limits": [
+            "Labels and changed properties only; pins, defaults, guards, array order and locator equivalence remain separate."
+          ]
+        },
+        {
+          "scenario": "development.read-update.pinned-references",
+          "assertions": [
+            "changed-pin.problem",
+            "removed-pin.problem",
+            "changed-external.problem",
+            "direct-equal.source-pin",
+            "renamed-local.name",
+            "renamed-local.pin",
+            "retained-state.source-pin",
+            "retained-state.external"
+          ],
+          "limits": [
+            "Pin presence, byte-distinct revision strings, opaque external URI spelling and renamed creator labels are exercised; remaining defaults, revision provenance, guards, member/object/array-order variants remain separate."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.principal-isolation",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.cross-carrier",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retained-keys",
+          "assertions": ["sequence-retry.retained", "not-reexecuted.status"],
+          "limits": ["Singleton to sequence direction; reverse remains separate."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.authorization-view",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.forbidden-retained",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.retention-minimum",
+      "status": "omitted",
+      "category": "profile-admission",
+      "reason": "Development endpoint advertises no retention.idempotency limit; the private fixed 24-hour clock fixture does not qualify a client-known recovery window.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.expired",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retention-reopen",
+          "assertions": [
+            "retained-create.outcome",
+            "retained-create.properties",
+            "expired-create.problem",
+            "expired-create.no-resource",
+            "changed-expired-key.problem",
+            "kept-revision-unchanged.outcome",
+            "durable-expired-create.problem",
+            "durable-expired-conflict.problem",
+            "durable-kept-state.properties"
+          ],
+          "limits": [
+            "Creation success only, after a fixed 24-hour fixture retention boundary through real startup expiry. Before-boundary replay does not extend that boundary. No advertised retention limit, live periodic maintenance, other successful mutation categories, alias witnesses or expired creator bindings are qualified."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.expired-failure",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retention-reopen",
+          "assertions": [
+            "retained-failure.problem",
+            "subject-still-live.properties",
+            "forgotten-failure-executes.outcome",
+            "subject-deleted.problem",
+            "retained-new-delete.outcome",
+            "durable-retained-delete.outcome",
+            "durable-subject-absent.problem"
+          ],
+          "limits": [
+            "One resource-not-found delete failure is forgotten by the development store at its fixed boundary and executes against a now-live subject. Forgetting is permitted, not required of every implementation. Only the creation success tombstone is observed; all successful mutation categories and internal tombstone fields are not qualified."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.durable-boundary",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-drain",
+          "assertions": [
+            "submit.committed-prefix",
+            "submit.unrun-tail",
+            "release.clean-exit",
+            "reopen.same-scope",
+            "tail.status",
+            "equal.prefix-count",
+            "equal.prefix-identical",
+            "equal.replay-count",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal.",
+            "Graceful close/reopen only here; no power-loss, failover or mid-commit fault qualification."
+          ]
+        },
+        {
+          "scenario": "development.read-update.process-crash",
+          "assertions": [
+            "kill.signal",
+            "reopen.same-scope",
+            "equal.prefix-count",
+            "equal.prefix-identical",
+            "equal.replay-count",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal.",
+            "Committed prefix survives an abrupt process exit; atomic disposition/state behavior inside a commit and storage power-loss durability remain unqualified."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.crash-mid-sequence",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-crash",
+          "assertions": [
+            "submit.parked",
+            "submit.committed-prefix",
+            "submit.unrun-tail",
+            "kill.signal",
+            "kill.not-delivered",
+            "reopen.same-scope",
+            "tail-absent.status",
+            "alias-absent.status",
+            "replay.prefix",
+            "replay.failed",
+            "replay.alias-target",
+            "replay.tail",
+            "tail.status",
+            "equal.prefix-count",
+            "equal.prefix-identical",
+            "equal.replay-count",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal.",
+            "SIGKILL between individually committed members; after normal startup serves reads, tail remains absent until explicit resubmission. Not power loss or a crash inside SQLite commit."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.restore",
+      "status": "omitted",
+      "category": "retention-recovery-control",
+      "reason": "No controlled restore fixture exercises logical-Scope replacement or tombstone preservation; ordinary expiry/reopen is not a restore observation.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.problem.table",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.raw-admission",
+          "assertions": [
+            "missing-auth.problem-status",
+            "missing-auth.problem-family",
+            "missing-auth.retry",
+            "missing-auth.media",
+            "duplicate-key.problem-status",
+            "duplicate-key.problem-family",
+            "duplicate-key.retry",
+            "duplicate-key.media"
+          ],
+          "limits": [
+            "Only observed codes: unauthenticated and malformed-request in this scenario; complete table qualification remains omitted."
+          ]
+        },
+        {
+          "scenario": "development.read-update.raw-media-json",
+          "assertions": [
+            "wrong-media.problem-status",
+            "wrong-media.problem-family",
+            "wrong-media.retry",
+            "wrong-media.media"
+          ],
+          "limits": ["unsupported-media-type only in this scenario."]
+        },
+        {
+          "scenario": "development.read-update.raw-body-limit",
+          "assertions": [
+            "large-content-length.problem-status",
+            "large-content-length.problem-family",
+            "large-content-length.retry",
+            "large-content-length.media"
+          ],
+          "limits": ["request-too-large only in this scenario."]
+        },
+        {
+          "scenario": "development.read-update.raw-accept-keys",
+          "assertions": [
+            "retained-conflict.problem-family",
+            "retained-conflict.retry",
+            "retained-conflict.media",
+            "retained-failure.problem-family",
+            "retained-failure.retry",
+            "retained-failure.media"
+          ],
+          "limits": ["idempotency-conflict and resource-not-found only in this scenario."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.validation.type-contract",
+      "status": "omitted",
+      "category": "schema-contracts",
+      "reason": "Fixed Types have no property schema; installed schema validation/diagnostic surface is not configured.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.validation.diagnostics",
+      "status": "omitted",
+      "category": "schema-contracts",
+      "reason": "Fixed Types have no property schema; installed schema validation/diagnostic surface is not configured.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.validation.identity-taken",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.links-delete",
+          "assertions": ["recreate.problem"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.validation.aggregate-constraint",
+      "status": "omitted",
+      "category": "owned-contracts",
+      "reason": "Fixed development Types expose no owned-Link or multiplicity contract; requires a qualified installed-contract fixture.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.http.command-minimum-fields",
+      "status": "omitted",
+      "category": "command-minimum-fields",
+      "reason": "Private installed Read+Update and Transactional tests are not development diagnostic bindings. No diagnostic scenario observes this command-field rule; read minimum controls remain separate.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.http.request-too-large",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.raw-body-limit",
+          "assertions": [
+            "large-content-length.problem",
+            "large-chunked.problem",
+            "absent.missing",
+            "corrected.created",
+            "inclusive-bound.created",
+            "boundary-live.unicode"
+          ],
+          "limits": [
+            "64 KiB fixed development limit; inclusive UTF-8 octet bound plus declared and streamed overflow are observed. No discovery advertisement is claimed."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.http.cache-no-store",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.result-headers",
+          "assertions": ["create.cache"],
+          "limits": [
+            "Success observed here; other plans observe multiple failure responses, not every problem code."
+          ]
+        },
+        {
+          "scenario": "development.read-update.raw-media-json",
+          "assertions": [
+            "undeclared-media.cache",
+            "wrong-media.cache",
+            "json-duplicate.cache",
+            "invalid-utf8.cache",
+            "corrected-media.cache"
+          ],
+          "limits": ["Observed receiving errors and success, not every Problem code."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.http.cors-idempotency-key",
+      "status": "omitted",
+      "category": "disabled-capability",
+      "reason": "Cross-origin access is disabled; enabled-CORS behavior cannot be observed here.",
+      "bindings": []
+    }
+  ]
+}

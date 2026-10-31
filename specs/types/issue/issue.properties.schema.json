@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/bdp-draft/schemas/issue.properties.schema.json",
+  "title": "Draft Issue core properties fragment",
+  "$comment": "Review fragment, not complete domain write validation. See https://github.com/gastownhall/bdp/blob/cbd59b601875ec5c20dd189c22a95ccad4b33390/specs/types/issue.md for native constraints, policy, writers and observations.",
+  "type": "object",
+  "required": ["id", "title", "status", "priority"],
+  "not": {
+    "required": ["issue_type"]
+  },
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "design": {
+      "type": "string"
+    },
+    "acceptance_criteria": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "assignee": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "owner": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "estimated_minutes": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "external_ref": {
+      "type": ["string", "null"]
+    },
+    "spec_id": {
+      "type": "string"
+    },
+    "due_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "defer_until": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "closed_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "close_reason": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

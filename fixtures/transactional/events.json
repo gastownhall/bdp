@@ -42,9 +42,11 @@
                   "title": "Adopt owned Links",
                   "status": "proposed"
                 },
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -85,20 +87,24 @@
                     "id": "https://beads.example/acme/links/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1",
-                    "attribution": {
-                      "principal": "agent:planner",
-                      "status": "claimed"
-                    },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42",
                     "properties": {
                       "role": "evidence"
+                    },
+                    "revisionProvenance": {
+                      "actor": {
+                        "id": "agent:planner",
+                        "basis": "writer-supplied"
+                      }
                     }
                   }
                 },
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             }
@@ -156,15 +162,19 @@
                         "value": "primary"
                       }
                     ],
-                    "attribution": {
-                      "principal": "human:donna",
-                      "status": "claimed"
+                    "revisionProvenance": {
+                      "actor": {
+                        "id": "human:donna",
+                        "basis": "writer-supplied"
+                      }
                     }
                   }
                 },
-                "attribution": {
-                  "principal": "human:donna",
-                  "status": "claimed"
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "human:donna",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             }
@@ -235,9 +245,11 @@
                     "revision": "9c1e-r1"
                   }
                 },
-                "attribution": {
-                  "principal": "human:donna",
-                  "status": "claimed"
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "human:donna",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             }

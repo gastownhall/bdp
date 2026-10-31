@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 export const READ_OBSERVER_SUPPORT_PATHS = Object.freeze([
   "scripts/read-harness-bindings.ts",
   "packages/client/test-support/testing.ts",
+  "packages/client/test-support/current-read-transport.ts",
   "packages/client/test-support/successor-read.ts",
   "packages/conformance/test-support/testing.ts",
   "packages/conformance/test-support/bd-workspace.ts",

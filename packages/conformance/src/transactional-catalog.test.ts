@@ -1,8 +1,11 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
+import {
+  isProtocolSpecificationSource,
+  readSpecificationSource,
+} from "../test-support/spec-source.js";
 
 import {
   loadExecutableScenarioManifestJson,
@@ -21,13 +24,13 @@ import {
  * report a row from it — so nothing can claim it. That absence is asserted
  * here so it cannot erode silently. What is checked is structure and
  * citation consistency — the rows parse, every excerpt still appears in
- * its anchored section, the rows mirror the specification's table in
- * order, and the twelve retired Read+Update rows are named and excluded from
- * a Transactional claim (T48) — never the behavior a row describes.
+ * its anchored section, the rows mirror the specification's table in order
+ * and maintain packet agreement for the ruled reconnect row, and the twelve
+ * retired Read+Update rows are named and excluded from a Transactional claim
+ * (T48) — never the behavior a row describes.
  */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const readText = (relativePath: string): string =>
-  readFileSync(path.resolve(root, relativePath), "utf8");
+const readText = (relativePath: string): string => readSpecificationSource(relativePath);
 
 const CATALOG_PATH = "packages/conformance/catalog/transactional-v1.json";
 const READ_UPDATE_CATALOG_PATH = "packages/conformance/catalog/read-update-v1.json";
@@ -65,8 +68,9 @@ describe("draft Transactional catalog", () => {
     validateCatalogCitations(catalog, (source) => readText(source), "transactional-v1.json");
   });
 
-  it("keeps the ruled T62/T65 and HTTP-gap catalog objects in lockstep with the maintained packet rows", () => {
+  it("keeps the ruled T62/T65, HTTP-gap and changefeed reconnect objects in lockstep with the maintained packet rows", () => {
     const affectedIds = [
+      "transactional.changefeed.sse-reconnect",
       "transactional.idempotency.durable-admission",
       "transactional.sequence.in-flight-projection",
       "transactional.sequence.pending-creator",
@@ -110,9 +114,9 @@ describe("draft Transactional catalog", () => {
       expect(scenario.kind, scenario.id).toBe("normative");
       expect(scenario.id, scenario.id).toMatch(/^transactional\.[a-z-]+\.[a-z0-9-]+$/);
       areas.add(scenario.id.split(".")[1] ?? "");
-      expect(scenario.requirements.every(({ source }) => source === "docs/specs/bdp.md")).toBe(
-        true,
-      );
+      expect(
+        scenario.requirements.every(({ source }) => isProtocolSpecificationSource(source)),
+      ).toBe(true);
     }
     expect([...areas].sort()).toEqual([
       "alias",
@@ -166,8 +170,10 @@ describe("draft Transactional catalog", () => {
       scenarios: [...readCatalog.scenarios, ...readUpdateCatalog.scenarios, ...catalog.scenarios],
     });
     const retired = new Set(Object.values(RETIREMENTS).flat());
-    expect([...retiredScenarioIds(combined, "transactional")].sort()).toEqual([...retired].sort());
-    expect([...retiredScenarioIds(combined, "read-update")]).toEqual([]);
+    expect([...retiredScenarioIds(combined, "transactional")].sort()).toEqual(
+      [...retired, "read.discovery.document"].sort(),
+    );
+    expect([...retiredScenarioIds(combined, "read-update")]).toEqual(["read.discovery.document"]);
     const transactional = selectNormativeScenariosForProfile(combined, "transactional").map(
       ({ id }) => id,
     );

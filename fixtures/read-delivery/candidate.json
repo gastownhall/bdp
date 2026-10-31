@@ -1,0 +1,736 @@
+{
+  "status": "Paper framing/query examples only; no parser, pager, renderer, HTTP provider or semantic cases executed.",
+  "contract": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+  "native": {
+    "bead": {
+      "id": "https://work.example/acme/task-42",
+      "type": {
+        "uri": "https://types.example/Task",
+        "revision": "definition-r2"
+      },
+      "revision": "resource-r7",
+      "properties": {
+        "title": "Plan",
+        "id": "ordinary data",
+        "steps": ["a", "b", "c"]
+      },
+      "metadata": {}
+    },
+    "link": {
+      "id": "https://work.example/acme/rel-81",
+      "type": "https://types.example/Relates",
+      "revision": "link-r4",
+      "source": {
+        "uri": "https://work.example/acme/task-42",
+        "revision": "resource-r6"
+      },
+      "target": "urn:example:external",
+      "properties": {},
+      "metadata": {}
+    }
+  },
+  "finite": [
+    {
+      "id": "full-point",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "resource",
+        "outcome": "success",
+        "data": {
+          "id": "https://work.example/acme/task-42",
+          "type": {
+            "uri": "https://types.example/Task",
+            "revision": "definition-r2"
+          },
+          "revision": "resource-r7",
+          "properties": {
+            "title": "Plan",
+            "id": "ordinary data",
+            "steps": ["a", "b", "c"]
+          },
+          "metadata": {}
+        },
+        "context": {
+          "subject": "https://work.example/acme/task-42",
+          "resource_kind": "bead"
+        }
+      }
+    },
+    {
+      "id": "full-link",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "resource",
+        "outcome": "success",
+        "data": {
+          "id": "https://work.example/acme/rel-81",
+          "type": "https://types.example/Relates",
+          "revision": "link-r4",
+          "source": {
+            "uri": "https://work.example/acme/task-42",
+            "revision": "resource-r6"
+          },
+          "target": "urn:example:external",
+          "properties": {},
+          "metadata": {}
+        },
+        "context": {
+          "subject": "https://work.example/acme/rel-81",
+          "resource_kind": "link"
+        }
+      }
+    },
+    {
+      "id": "empty-exhausted",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "resource_collection",
+        "outcome": "success",
+        "data": {
+          "items": [],
+          "next": null
+        },
+        "context": {
+          "subject": "https://work.example/acme/inventory",
+          "resource_kind": "bead"
+        },
+        "completion": {
+          "returned": 0,
+          "exhausted": true,
+          "stop_reason": "exhausted"
+        }
+      }
+    },
+    {
+      "id": "empty-not-exhausted",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "resource_collection",
+        "outcome": "success",
+        "data": {
+          "items": [],
+          "next": "https://work.example/acme/inventory?cursor=opaque%2Btoken&limit=50"
+        },
+        "context": {
+          "subject": "https://work.example/acme/inventory",
+          "resource_kind": "bead"
+        },
+        "completion": {
+          "returned": 0,
+          "exhausted": false,
+          "stop_reason": "page"
+        }
+      }
+    },
+    {
+      "id": "total-cap",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "resource_collection",
+        "outcome": "success",
+        "data": {
+          "items": [
+            {
+              "id": "https://work.example/acme/task-42",
+              "type": {
+                "uri": "https://types.example/Task",
+                "revision": "definition-r2"
+              },
+              "revision": "resource-r7",
+              "properties": {
+                "title": "Plan",
+                "id": "ordinary data",
+                "steps": ["a", "b", "c"]
+              },
+              "metadata": {}
+            }
+          ],
+          "next": "https://work.example/acme/inventory?cursor=opaque%2Btoken&limit=50"
+        },
+        "context": {
+          "subject": "https://work.example/acme/inventory",
+          "resource_kind": "bead"
+        },
+        "completion": {
+          "returned": 1,
+          "exhausted": false,
+          "stop_reason": "limit"
+        }
+      }
+    },
+    {
+      "id": "projected-primary",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "resource",
+        "outcome": "success",
+        "data": {
+          "id": "https://work.example/acme/task-42",
+          "type": {
+            "uri": "https://types.example/Task",
+            "revision": "definition-r2"
+          },
+          "revision": "resource-r7"
+        },
+        "context": {
+          "subject": "https://work.example/acme/task-42",
+          "resource_kind": "bead"
+        },
+        "projection": {
+          "include": ["/properties/missing"],
+          "omit": ["/properties"]
+        }
+      }
+    },
+    {
+      "id": "properties-are-data",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "properties",
+        "outcome": "success",
+        "data": {
+          "id": 1,
+          "type": "ordinary",
+          "items": [],
+          "next": null
+        },
+        "context": {
+          "subject": "https://work.example/acme/task-42?view=properties",
+          "resource_kind": "bead"
+        }
+      }
+    },
+    {
+      "id": "projected-properties-id-only",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "properties",
+        "outcome": "success",
+        "data": {
+          "id": 1
+        },
+        "context": {
+          "subject": "https://work.example/acme/task-42?view=properties",
+          "resource_kind": "bead"
+        },
+        "projection": {
+          "include": ["/id"]
+        }
+      },
+      "inputId": "properties-are-data"
+    },
+    {
+      "id": "bodyless-not-modified",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "resource_collection",
+        "outcome": "success",
+        "context": {
+          "subject": "https://work.example/acme/inventory",
+          "resource_kind": "bead",
+          "httpStatus": 304,
+          "headers": {
+            "bdp-collection-kind": ["bead"]
+          }
+        }
+      }
+    },
+    {
+      "id": "head-not-modified",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "http_metadata",
+        "outcome": "success",
+        "data": {
+          "httpStatus": 304,
+          "headers": {
+            "bdp-resource-kind": ["bead"]
+          }
+        },
+        "context": {
+          "subject": "https://work.example/acme/task-42",
+          "httpStatus": 304
+        }
+      }
+    },
+    {
+      "id": "alias-target",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "reference",
+        "outcome": "success",
+        "data": "https://work.example/acme/task-42",
+        "context": {
+          "subject": "https://work.example/acme/current"
+        }
+      }
+    },
+    {
+      "id": "scope-descriptor",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "scope",
+        "outcome": "success",
+        "data": {
+          "bdpVersion": "0.1",
+          "profile": "read",
+          "scope": "https://work.example/acme/",
+          "beads": "https://work.example/acme/inventory",
+          "links": "https://work.example/acme/relations",
+          "types": "https://work.example/acme/type-catalog"
+        },
+        "context": {
+          "subject": "https://work.example/acme/bdp.json"
+        }
+      }
+    },
+    {
+      "id": "interrupted-mid-page",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "resource_collection",
+        "outcome": "failure",
+        "data": {
+          "items": [
+            {
+              "id": "https://work.example/acme/task-42",
+              "type": {
+                "uri": "https://types.example/Task",
+                "revision": "definition-r2"
+              },
+              "revision": "resource-r7",
+              "properties": {
+                "title": "Plan",
+                "id": "ordinary data",
+                "steps": ["a", "b", "c"]
+              },
+              "metadata": {}
+            }
+          ]
+        },
+        "context": {
+          "subject": "https://work.example/acme/inventory",
+          "resource_kind": "bead"
+        },
+        "completion": {
+          "returned": 1,
+          "exhausted": false,
+          "stop_reason": "error"
+        },
+        "error": {
+          "origin": "cli",
+          "problem": {
+            "code": "interrupted",
+            "message": "Read interrupted"
+          }
+        }
+      }
+    },
+    {
+      "id": "native-refusal",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "resource",
+        "outcome": "failure",
+        "context": {
+          "subject": "https://work.example/acme/task-42",
+          "httpStatus": 404
+        },
+        "error": {
+          "origin": "bdp",
+          "problem": {
+            "type": "https://github.com/gastownhall/bdp/problems/not-found",
+            "code": "resource-not-found",
+            "retry": "after-state-change",
+            "status": 404
+          }
+        }
+      }
+    },
+    {
+      "id": "bodyless-http-failure",
+      "value": {
+        "schema_version": 2,
+        "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+        "result_kind": "resource",
+        "outcome": "failure",
+        "context": {
+          "subject": "https://work.example/acme/task-42",
+          "httpStatus": 412
+        },
+        "error": {
+          "origin": "cli",
+          "problem": {
+            "code": "http_precondition_failed",
+            "message": "HTTP 412"
+          }
+        }
+      }
+    }
+  ],
+  "streams": [
+    {
+      "id": "empty-stream",
+      "records": [
+        {
+          "record_type": "header",
+          "schema_version": 2,
+          "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+          "result_kind": "resource_collection",
+          "context": {
+            "subject": "https://work.example/acme/inventory",
+            "resource_kind": "bead"
+          }
+        },
+        {
+          "record_type": "terminal",
+          "outcome": "success",
+          "completion": {
+            "returned": 0,
+            "exhausted": true,
+            "stop_reason": "exhausted"
+          },
+          "continuation": null
+        }
+      ]
+    },
+    {
+      "id": "one-capped-stream",
+      "records": [
+        {
+          "record_type": "header",
+          "schema_version": 2,
+          "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+          "result_kind": "resource_collection",
+          "context": {
+            "subject": "https://work.example/acme/inventory",
+            "resource_kind": "bead"
+          }
+        },
+        {
+          "record_type": "item",
+          "data": {
+            "id": "https://work.example/acme/task-42",
+            "type": {
+              "uri": "https://types.example/Task",
+              "revision": "definition-r2"
+            },
+            "revision": "resource-r7",
+            "properties": {
+              "title": "Plan",
+              "id": "ordinary data",
+              "steps": ["a", "b", "c"]
+            },
+            "metadata": {}
+          }
+        },
+        {
+          "record_type": "terminal",
+          "outcome": "success",
+          "completion": {
+            "returned": 1,
+            "exhausted": false,
+            "stop_reason": "limit"
+          },
+          "continuation": "https://work.example/acme/inventory?cursor=opaque%2Btoken&limit=50"
+        }
+      ]
+    },
+    {
+      "id": "interrupted-mid-page",
+      "records": [
+        {
+          "record_type": "header",
+          "schema_version": 2,
+          "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+          "result_kind": "resource_collection",
+          "context": {
+            "subject": "https://work.example/acme/inventory",
+            "resource_kind": "bead"
+          }
+        },
+        {
+          "record_type": "item",
+          "data": {
+            "id": "https://work.example/acme/task-42",
+            "type": {
+              "uri": "https://types.example/Task",
+              "revision": "definition-r2"
+            },
+            "revision": "resource-r7",
+            "properties": {
+              "title": "Plan",
+              "id": "ordinary data",
+              "steps": ["a", "b", "c"]
+            },
+            "metadata": {}
+          }
+        },
+        {
+          "record_type": "terminal",
+          "outcome": "failure",
+          "completion": {
+            "returned": 1,
+            "exhausted": false,
+            "stop_reason": "error"
+          },
+          "error": {
+            "origin": "cli",
+            "problem": {
+              "code": "interrupted",
+              "message": "Read interrupted"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "bodyless-stream",
+      "records": [
+        {
+          "record_type": "header",
+          "schema_version": 2,
+          "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+          "result_kind": "resource_collection",
+          "context": {
+            "subject": "https://work.example/acme/inventory",
+            "resource_kind": "bead",
+            "httpStatus": 304
+          }
+        },
+        {
+          "record_type": "terminal",
+          "outcome": "success"
+        }
+      ]
+    },
+    {
+      "id": "point-stream",
+      "records": [
+        {
+          "record_type": "header",
+          "schema_version": 2,
+          "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+          "result_kind": "resource",
+          "context": {
+            "subject": "https://work.example/acme/rel-81",
+            "resource_kind": "link"
+          }
+        },
+        {
+          "record_type": "item",
+          "data": {
+            "id": "https://work.example/acme/rel-81",
+            "type": "https://types.example/Relates",
+            "revision": "link-r4",
+            "source": {
+              "uri": "https://work.example/acme/task-42",
+              "revision": "resource-r6"
+            },
+            "target": "urn:example:external",
+            "properties": {},
+            "metadata": {}
+          }
+        },
+        {
+          "record_type": "terminal",
+          "outcome": "success"
+        }
+      ]
+    }
+  ],
+  "cliPairs": [
+    {
+      "id": "exact-and-family",
+      "argv": [
+        "list",
+        "--type",
+        "https://types.example/Issue",
+        "--exact-type",
+        "https://types.example/Task"
+      ],
+      "query": {
+        "conformsTo": "https://types.example/Issue",
+        "type": "https://types.example/Task"
+      }
+    },
+    {
+      "id": "external-endpoint",
+      "argv": ["link", "list", "--endpoint", "json:\"urn:example:external\""],
+      "query": {
+        "endpoint": "urn:example:external"
+      }
+    },
+    {
+      "id": "filtered-incident",
+      "argv": [
+        "link",
+        "list",
+        "--incident-to",
+        "task-42",
+        "--direction",
+        "out",
+        "--type",
+        "https://types.example/Relates"
+      ],
+      "subject": "https://work.example/acme/task-42",
+      "query": {
+        "view": "links",
+        "direction": "outbound",
+        "conformsTo": "https://types.example/Relates"
+      }
+    },
+    {
+      "id": "historical-token",
+      "argv": ["show", "task-42", "--revision", "r+1"],
+      "subject": "https://work.example/acme/task-42",
+      "query": {
+        "revision": "r+1"
+      },
+      "encodedQuery": "revision=r%2B1"
+    },
+    {
+      "id": "properties",
+      "argv": ["show", "task-42", "--properties-only"],
+      "subject": "https://work.example/acme/task-42",
+      "query": {
+        "view": "properties"
+      }
+    },
+    {
+      "id": "bounded-aggregate",
+      "argv": ["show", "task-42", "--include-links", "--links-limit", "8", "--direction", "in"],
+      "subject": "https://work.example/acme/task-42",
+      "query": {
+        "include": "links",
+        "limit": "8",
+        "direction": "inbound"
+      }
+    }
+  ],
+  "transportExamples": [
+    {
+      "id": "incident-kind",
+      "subject": "https://work.example/acme/task-42?view=links",
+      "headers": {
+        "bdp-resource-kind": ["bead"],
+        "bdp-collection-kind": ["link"],
+        "link": ["<https://work.example/acme/bdp.json>; rel=\"service-desc\""]
+      },
+      "body": {
+        "items": [
+          {
+            "id": "https://work.example/acme/rel-81",
+            "type": "https://types.example/Relates",
+            "revision": "link-r4",
+            "source": {
+              "uri": "https://work.example/acme/task-42",
+              "revision": "resource-r6"
+            },
+            "target": "urn:example:external",
+            "properties": {},
+            "metadata": {}
+          }
+        ],
+        "next": null
+      }
+    }
+  ],
+  "semanticCases": [
+    {
+      "id": "resized-native-next",
+      "required": "Only limit changes; opaque cursor spelling and snapshot/authorization stay fixed."
+    },
+    {
+      "id": "no-overfetch",
+      "required": "Page size 50 with total budget 7 requests limit=7 before receiving a page."
+    },
+    {
+      "id": "empty-nonterminal",
+      "required": "Zero items with next URL remains non-exhausted; meaningful progress or explicit refusal."
+    },
+    {
+      "id": "provider-overflow",
+      "required": "Response exceeds requested limit: refuse that page before emitting any of its rows."
+    },
+    {
+      "id": "terminal-priority",
+      "required": "Observed native end beats coincident total/page cap."
+    },
+    {
+      "id": "interrupted-tail",
+      "required": "Mid-page emitted prefix has no invented continuation after undelivered tail."
+    },
+    {
+      "id": "complete-boundary-failure",
+      "required": "After complete pages, failure may preserve last exact issued continuation."
+    },
+    {
+      "id": "wrong-empty-kind",
+      "required": "Link command refuses empty Bead collection by declared kind."
+    },
+    {
+      "id": "incident-kind",
+      "required": "HTTP point subject bead and top-level collection link remain distinct."
+    },
+    {
+      "id": "bodyless-get",
+      "required": "304 has no data/items/completion; query/auth/erasure checks occur first."
+    },
+    {
+      "id": "head-continuation",
+      "required": "HEAD does not advance delivered-items checkpoint or accept total cap."
+    },
+    {
+      "id": "conditional-unpaged",
+      "required": "Explicit unpaged plus HTTP conditions refuses; automatic JSONL unpaged is suppressed."
+    },
+    {
+      "id": "history-combinations",
+      "required": "Existing application exact read requires advertisement and revision-only query."
+    },
+    {
+      "id": "no-history-expansion",
+      "required": "Ordinary snapshot support grants neither general History nor Type-definition transport."
+    },
+    {
+      "id": "original-array-index",
+      "required": "Include /properties/steps/0 and /properties/steps/2 evaluates original indexes, compacts once to a,c."
+    },
+    {
+      "id": "ordinary-property-names",
+      "required": "Properties-view id/type/revision/uri are authored data; Resource protection does not apply by name."
+    },
+    {
+      "id": "optional-owned-plane",
+      "required": "Omit whole ownedLinks is legal; represented References retain whole uri/revision."
+    },
+    {
+      "id": "raw-output",
+      "required": "Raw bytes omit projection/completion framing; status/stderr remain necessary."
+    },
+    {
+      "id": "continuation-ownership",
+      "required": "No ambient-default assumption/path stripping/foreign credential forwarding."
+    },
+    {
+      "id": "type-sentinel",
+      "required": "Bare --type any omits; explicit URI ending /any remains ordinary identity."
+    }
+  ],
+  "scopeExampleNote": "Scope example uses staged inherited read/profile navigation only to check transport/framing; it selects no final profile or Type inventory payload."
+}

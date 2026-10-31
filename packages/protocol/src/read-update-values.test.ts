@@ -31,7 +31,13 @@ const admitReadUpdateOperationNumbers = (value: UnadmittedReadUpdateOperation) =
   });
 
 const type = "https://types.example/task";
-const bead = { id: "https://example.test/s/beads/a", type, revision: "r1", properties: {} };
+const bead = {
+  id: "https://example.test/s/beads/a",
+  type,
+  revision: "r1",
+  properties: {},
+  metadata: {},
+};
 const problem = {
   type: "https://github.com/gastownhall/bdp/problems/validation",
   code: "validation-failed",
@@ -44,15 +50,15 @@ const create = { operation: "createBead", idempotencyKey: "create", name: "a", t
 
 describe("RU unadmitted carriers", () => {
   it.each([
-    ["createBead", { type, changeContext: { agent: null, message: "" } }],
+    ["createBead", { type, revisionProvenance: { agent: null, message: "" } }],
     [
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 1 }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 1 }] },
     ],
     ["deleteBead", { bead: "beads/a" }],
     ["createLink", { type, source: "beads/a", target: { uri: "urn:outside", revision: "old" } }],
-    ["updateLinkProperties", { link: "links/a", change: [{ op: "remove", path: "/n" }] }],
-    ["deleteLink", { link: "links/a", changeContext: { message: "removed" } }],
+    ["updateLink", { link: "links/a", propertiesChange: [{ op: "remove", path: "/n" }] }],
+    ["deleteLink", { link: "links/a", revisionProvenance: { message: "removed" } }],
     ["putAlias", { alias: "alias/a", target: "beads/a" }],
     ["deleteAlias", { alias: "alias/a" }],
   ] as const)("parses %s using its actual singleton schema", (kind, input) => {
@@ -84,12 +90,12 @@ describe("RU unadmitted carriers", () => {
   });
   it("reports patch value pointers without turning semantic number refusal into syntax", () => {
     const parsed = parseReadUpdateRequest(
-      "updateBeadProperties",
-      '{"bead":"beads/a","change":[{"op":"add","path":"/x","value":{"a/b":[1e-9999]}}]}',
+      "updateBead",
+      '{"bead":"beads/a","propertiesChange":[{"op":"add","path":"/x","value":{"a/b":[1e-9999]}}]}',
     );
     expect(admitReadUpdateOperationNumbers(parsed)).toMatchObject({
       ok: false,
-      offending: [{ pointer: "/change/0/value/a~1b/0", literal: "1e-9999" }],
+      offending: [{ pointer: "/propertiesChange/0/value/a~1b/0", literal: "1e-9999" }],
     });
   });
   it.each([
@@ -148,18 +154,18 @@ describe("RU unadmitted carriers", () => {
     ).toHaveLength(1);
   });
   it.each([
-    ["deleteBead", { bead: "beads/a", changeContext: {} }],
-    ["putAlias", { alias: "alias/a", target: "beads/a", changeContext: {} }],
+    ["deleteBead", { bead: "beads/a", revisionProvenance: {} }],
+    ["putAlias", { alias: "alias/a", target: "beads/a", revisionProvenance: {} }],
     ["deleteBead", { bead: "@a" }],
     ["createBead", { type, name: "a" }],
     ["createBead", { type, operation: "createBead" }],
     ["createBead", { type, idempotencyKey: "body-key" }],
-    ["createBead", { type, changeContext: { committedAt: "now" } }],
+    ["createBead", { type, revisionProvenance: { committedAt: "now" } }],
     [
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "add", path: "/bad~2", value: 1 }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "add", path: "/bad~2", value: 1 }] },
     ],
-    ["updateBeadProperties", { bead: "beads/a", change: [{ op: "test", path: "/n", value: 1 }] }],
+    ["updateBead", { bead: "beads/a", propertiesChange: [{ op: "test", path: "/n", value: 1 }] }],
   ] as const)("rejects closed/static singleton syntax %#", (kind, input) => {
     expect(() => parseReadUpdateRequest(kind, JSON.stringify(input))).toThrow(
       ReadUpdateCarrierError,
@@ -180,14 +186,17 @@ describe("RU unadmitted carriers", () => {
   });
   it("does not invent numeric admission or a default from context omission", () => {
     const omitted = parseReadUpdateRequest("createBead", JSON.stringify({ type }));
-    const empty = parseReadUpdateRequest("createBead", JSON.stringify({ type, changeContext: {} }));
+    const empty = parseReadUpdateRequest(
+      "createBead",
+      JSON.stringify({ type, revisionProvenance: {} }),
+    );
     const absent = parseReadUpdateRequest(
       "createBead",
-      JSON.stringify({ type, changeContext: { agent: null } }),
+      JSON.stringify({ type, revisionProvenance: { agent: null } }),
     );
-    expect(omitted.input).not.toHaveProperty("changeContext");
-    expect(empty.input.changeContext).toEqual({});
-    expect(absent.input.changeContext).toEqual({ agent: null });
+    expect(omitted.input).not.toHaveProperty("revisionProvenance");
+    expect(empty.input.revisionProvenance).toEqual({});
+    expect(absent.input.revisionProvenance).toEqual({ agent: null });
     // Default/equality normalization belongs to the authority, not wire parsing.
     expect(() =>
       admitReadUpdateOperationNumbers({ operation: "createBead", input: { type } }),
@@ -211,15 +220,21 @@ describe("RU parser boundary regressions", () => {
       (reference: string) => ({ type, id: reference, source: "beads/a", target: "beads/b" }),
     ],
     [
-      "updateBeadProperties",
+      "updateBead",
       "bead",
-      (reference: string) => ({ bead: reference, change: [{ op: "remove", path: "/n" }] }),
+      (reference: string) => ({
+        bead: reference,
+        propertiesChange: [{ op: "remove", path: "/n" }],
+      }),
     ],
     ["deleteBead", "bead", (reference: string) => ({ bead: reference })],
     [
-      "updateLinkProperties",
+      "updateLink",
       "link",
-      (reference: string) => ({ link: reference, change: [{ op: "remove", path: "/n" }] }),
+      (reference: string) => ({
+        link: reference,
+        propertiesChange: [{ op: "remove", path: "/n" }],
+      }),
     ],
     ["deleteLink", "link", (reference: string) => ({ link: reference })],
     [
@@ -349,9 +364,9 @@ describe("RU parser boundary regressions", () => {
     const patch = [{ op: "add", path: "/reference", value: properties }];
     expect(
       parseReadUpdateRequest(
-        "updateBeadProperties",
-        JSON.stringify({ bead: "beads/a", change: patch }),
-      ).input.change,
+        "updateBead",
+        JSON.stringify({ bead: "beads/a", propertiesChange: patch }),
+      ).input.propertiesChange,
     ).toEqual(patch);
   });
 
@@ -420,7 +435,7 @@ describe("canonical RU response parsers", () => {
       resource: {
         ...bead,
         properties: { n: { x: 1 } },
-        changeContext: {
+        revisionProvenance: {
           committedAt: { state: "present", value: "2026-09-10T00:00:00Z" },
           agent: { state: "undetermined" },
           message: { state: "absent" },
@@ -563,10 +578,10 @@ describe("canonical RU response parsers", () => {
               operation &&
               [
                 "createBead",
-                "updateBeadProperties",
+                "updateBead",
                 "deleteBead",
                 "createLink",
-                "updateLinkProperties",
+                "updateLink",
                 "deleteLink",
                 "putAlias",
                 "deleteAlias",

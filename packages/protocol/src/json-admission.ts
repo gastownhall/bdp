@@ -340,6 +340,7 @@ export function admitJsonNumbers(
           ...(formatted.instanceLocation !== undefined
             ? { instanceLocation: formatted.instanceLocation }
             : {}),
+          ...(formatted.document !== undefined ? { document: formatted.document } : {}),
           message: formatted.message,
         });
         const nextBytes =

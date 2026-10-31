@@ -25,15 +25,31 @@
                 "title": "Spike: outcome retention",
                 "status": "open"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
+              }
             },
             {
               "idempotencyKey": "w1-task-42-reopen",
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/task-42",
               "expectedRevision": "task-42-r1",
-              "change": [{ "op": "replace", "path": "/status", "value": "open" }],
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "open"
+                }
+              ],
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
+              }
             },
             {
               "idempotencyKey": "w1-spike-blocks",
@@ -42,7 +58,12 @@
               "source": "@spike",
               "target": "beads/task-42",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
+              }
             },
             {
               "idempotencyKey": "w1-task-42-delete",
@@ -51,17 +72,39 @@
             },
             {
               "idempotencyKey": "w1-task-999-close",
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/task-999",
-              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "closed"
+                }
+              ],
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
+              }
             },
             {
               "idempotencyKey": "w1-cites-7-1-note",
-              "operation": "updateLinkProperties",
+              "operation": "updateLink",
               "link": "links/cites-7-1",
-              "change": [{ "op": "replace", "path": "/note", "value": "superseded by adr-104" }],
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/note",
+                  "value": "superseded by adr-104"
+                }
+              ],
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
+              }
             }
           ]
         }
@@ -83,10 +126,16 @@
                 "id": "https://beads.example/acme/beads/task-106",
                 "type": "https://work.example/types/task",
                 "revision": "task-106-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
                 "properties": {
                   "title": "Spike: outcome retention",
                   "status": "open"
+                },
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -105,10 +154,16 @@
                 "id": "https://beads.example/acme/links/blocks-107",
                 "type": "https://work.example/types/blocks",
                 "revision": "blocks-107-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
                 "source": "https://beads.example/acme/beads/task-106",
                 "target": "https://beads.example/acme/beads/task-42",
-                "properties": {}
+                "properties": {},
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             },
             {
@@ -134,7 +189,6 @@
                 "id": "https://beads.example/acme/links/cites-7-1",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-7-1-r2",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
                 "source": "https://beads.example/acme/beads/decision-7",
                 "target": {
                   "uri": "https://github.example/issues/88",
@@ -142,6 +196,13 @@
                 },
                 "properties": {
                   "note": "superseded by adr-104"
+                },
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               },
               "source": "https://beads.example/acme/beads/decision-7",

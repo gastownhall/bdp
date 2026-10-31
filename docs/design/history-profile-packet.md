@@ -1,5 +1,8 @@
 # History resolution decision packet
 
+> Current wire naming: the common `revisionProvenance` envelope supersedes this packet’s earlier `attribution` and `changeContext` containers. Actor data is `actor: { id, basis }`, with `basis: writer-supplied | unknown`; time, agent, and message retain their existing value states inside the same envelope. The historical decisions and quoted review text below preserve their original spelling. Use [the current normative contract](../../specs/profiles/core/core.md#carried-attribution) and the canonical schema for implementations. Sources, completeness, Activity records and terminal deletion versions are outside this bounded change.
+
+
 Status: **38 presented History answer units ACKed; normative/wire materialization pending; non-normative; not implemented**.
 Prepared 2026-09-08; operator ACKs recorded 2026-09-09. Plan of record: [gastownhall/bdp#1](https://github.com/gastownhall/bdp/issues/1).
 The word “History” names this design lane, not a selected fourth `profile` value.
@@ -1210,7 +1213,7 @@ selected semantics.
 - Implemented only when public HTTP scenarios execute for the target. Claimable only
   when the required set is derived and its evidence gate verifies the packaged target.
 - Review status and finding dispositions are recorded in
-  [History packet review](./history-profile-review.md). Two earlier partial councils
+  [History packet review](history-profile-review.md). Two earlier partial councils
   were followed by fresh native Codex and Gemini reviews of `ef6e997`, each with no
   findings, and a completed Claude review reporting 1 High, 7 Medium, and 5 Low.
   At the next head, `9c93b0e`, native Codex and Gemini again reported no findings;

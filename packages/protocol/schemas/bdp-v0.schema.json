@@ -582,9 +582,9 @@
               "resource": false,
               "properties": false,
               "ownedLinks": false,
-              "changeContext": false,
               "archivedAt": false,
-              "pointer": false
+              "pointer": false,
+              "revisionProvenance": false
             }
           }
         }
@@ -767,6 +767,10 @@
       "type": "object",
       "additionalProperties": true
     },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
     "beadRecord": {
       "type": "object",
       "required": ["id", "type", "revision", "properties"],
@@ -781,11 +785,11 @@
           "type": "string",
           "minLength": 1
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
-        },
         "properties": {
           "$ref": "#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
         },
         "links": {
           "$ref": "#/$defs/linkCollection"
@@ -802,8 +806,8 @@
             }
           }
         },
-        "changeContext": {
-          "$ref": "#/$defs/changeContext"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenance"
         }
       },
       "additionalProperties": false
@@ -822,9 +826,6 @@
           "type": "string",
           "minLength": 1
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
-        },
         "source": {
           "$ref": "#/$defs/reference"
         },
@@ -834,11 +835,94 @@
         "properties": {
           "$ref": "#/$defs/properties"
         },
-        "changeContext": {
-          "$ref": "#/$defs/changeContext"
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenance"
         }
       },
       "additionalProperties": false
+    },
+    "currentLinkRecord": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/linkRecord"
+        },
+        {
+          "type": "object",
+          "required": ["metadata"],
+          "properties": {
+            "metadata": {
+              "$ref": "#/$defs/metadata"
+            }
+          }
+        }
+      ]
+    },
+    "currentLinkCollection": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/linkCollection"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/currentLinkRecord"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "currentBeadRecord": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/beadRecord"
+        },
+        {
+          "type": "object",
+          "required": ["metadata"],
+          "properties": {
+            "metadata": {
+              "$ref": "#/$defs/metadata"
+            },
+            "links": {
+              "$ref": "#/$defs/currentLinkCollection"
+            },
+            "ownedLinks": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/currentLinkRecord"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "currentBeadCollection": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/beadCollection"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/currentBeadRecord"
+              }
+            }
+          }
+        }
+      ]
     },
     "beadCollection": {
       "type": "object",
@@ -1124,21 +1208,6 @@
       },
       "additionalProperties": false
     },
-    "attribution": {
-      "type": "object",
-      "required": ["principal", "status"],
-      "properties": {
-        "principal": {
-          "type": "string",
-          "minLength": 1
-        },
-        "status": {
-          "type": "string",
-          "enum": ["claimed", "unknown"]
-        }
-      },
-      "additionalProperties": false
-    },
     "idempotencyKey": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_-]{1,256}$"
@@ -1257,6 +1326,13 @@
         ]
       }
     },
+    "ordinaryUpdateChange": {
+      "description": "An ordinary update input may supply no patch operations; a supplied array member is still required.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/propertyChange/items"
+      }
+    },
     "createBeadMembers": {
       "type": "object",
       "required": ["type"],
@@ -1270,32 +1346,46 @@
         "properties": {
           "$ref": "#/$defs/properties"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
+        "metadata": {
+          "$ref": "#/$defs/metadata"
         },
-        "changeContext": {
-          "$ref": "#/$defs/changeContextInput"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenanceInput"
         }
       }
     },
-    "updateBeadPropertiesMembers": {
+    "updateBeadMembers": {
       "type": "object",
-      "required": ["bead", "change"],
+      "required": ["bead"],
+      "anyOf": [
+        {
+          "required": ["propertiesChange"],
+          "properties": {
+            "propertiesChange": true
+          }
+        },
+        {
+          "required": ["metadataChange"],
+          "properties": {
+            "metadataChange": true
+          }
+        }
+      ],
       "properties": {
         "bead": {
           "$ref": "#/$defs/resourceReference"
         },
-        "change": {
-          "$ref": "#/$defs/propertyChange"
+        "propertiesChange": {
+          "$ref": "#/$defs/ordinaryUpdateChange"
+        },
+        "metadataChange": {
+          "$ref": "#/$defs/ordinaryUpdateChange"
         },
         "expectedRevision": {
           "$ref": "#/$defs/expectedRevision"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
-        },
-        "changeContext": {
-          "$ref": "#/$defs/changeContextInput"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenanceInput"
         }
       }
     },
@@ -1330,32 +1420,46 @@
         "properties": {
           "$ref": "#/$defs/properties"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
+        "metadata": {
+          "$ref": "#/$defs/metadata"
         },
-        "changeContext": {
-          "$ref": "#/$defs/changeContextInput"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenanceInput"
         }
       }
     },
-    "updateLinkPropertiesMembers": {
+    "updateLinkMembers": {
       "type": "object",
-      "required": ["link", "change"],
+      "required": ["link"],
+      "anyOf": [
+        {
+          "required": ["propertiesChange"],
+          "properties": {
+            "propertiesChange": true
+          }
+        },
+        {
+          "required": ["metadataChange"],
+          "properties": {
+            "metadataChange": true
+          }
+        }
+      ],
       "properties": {
         "link": {
           "$ref": "#/$defs/resourceReference"
         },
-        "change": {
-          "$ref": "#/$defs/propertyChange"
+        "propertiesChange": {
+          "$ref": "#/$defs/ordinaryUpdateChange"
+        },
+        "metadataChange": {
+          "$ref": "#/$defs/ordinaryUpdateChange"
         },
         "expectedRevision": {
           "$ref": "#/$defs/expectedRevision"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
-        },
-        "changeContext": {
-          "$ref": "#/$defs/changeContextInput"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenanceInput"
         }
       }
     },
@@ -1369,11 +1473,8 @@
         "expectedRevision": {
           "$ref": "#/$defs/expectedRevision"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
-        },
-        "changeContext": {
-          "$ref": "#/$defs/changeContextInput"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenanceInput"
         }
       }
     },
@@ -1407,11 +1508,11 @@
       ],
       "unevaluatedProperties": false
     },
-    "updateBeadPropertiesRequest": {
+    "updateBeadRequest": {
       "type": "object",
       "allOf": [
         {
-          "$ref": "#/$defs/updateBeadPropertiesMembers"
+          "$ref": "#/$defs/updateBeadMembers"
         }
       ],
       "properties": {
@@ -1452,11 +1553,11 @@
       },
       "unevaluatedProperties": false
     },
-    "updateLinkPropertiesRequest": {
+    "updateLinkRequest": {
       "type": "object",
       "allOf": [
         {
-          "$ref": "#/$defs/updateLinkPropertiesMembers"
+          "$ref": "#/$defs/updateLinkMembers"
         }
       ],
       "properties": {
@@ -1524,16 +1625,16 @@
       "required": ["operation", "idempotencyKey"],
       "unevaluatedProperties": false
     },
-    "sequenceUpdateBeadProperties": {
+    "sequenceUpdateBead": {
       "type": "object",
       "allOf": [
         {
-          "$ref": "#/$defs/updateBeadPropertiesMembers"
+          "$ref": "#/$defs/updateBeadMembers"
         }
       ],
       "properties": {
         "operation": {
-          "const": "updateBeadProperties"
+          "const": "updateBead"
         },
         "idempotencyKey": {
           "$ref": "#/$defs/idempotencyKey"
@@ -1581,16 +1682,16 @@
       "required": ["operation", "idempotencyKey"],
       "unevaluatedProperties": false
     },
-    "sequenceUpdateLinkProperties": {
+    "sequenceUpdateLink": {
       "type": "object",
       "allOf": [
         {
-          "$ref": "#/$defs/updateLinkPropertiesMembers"
+          "$ref": "#/$defs/updateLinkMembers"
         }
       ],
       "properties": {
         "operation": {
-          "const": "updateLinkProperties"
+          "const": "updateLink"
         },
         "idempotencyKey": {
           "$ref": "#/$defs/idempotencyKey"
@@ -1659,7 +1760,7 @@
           "$ref": "#/$defs/sequenceCreateBead"
         },
         {
-          "$ref": "#/$defs/sequenceUpdateBeadProperties"
+          "$ref": "#/$defs/sequenceUpdateBead"
         },
         {
           "$ref": "#/$defs/sequenceDeleteBead"
@@ -1668,7 +1769,7 @@
           "$ref": "#/$defs/sequenceCreateLink"
         },
         {
-          "$ref": "#/$defs/sequenceUpdateLinkProperties"
+          "$ref": "#/$defs/sequenceUpdateLink"
         },
         {
           "$ref": "#/$defs/sequenceDeleteLink"
@@ -1974,6 +2075,9 @@
         },
         "schemaLocation": {
           "$ref": "#/$defs/absoluteUri"
+        },
+        "document": {
+          "enum": ["properties", "metadata"]
         },
         "instanceLocation": {
           "$ref": "#/$defs/jsonPointer"
@@ -2431,10 +2535,10 @@
               "resource": false,
               "properties": false,
               "ownedLinks": false,
-              "changeContext": false,
               "pointer": false,
               "identity": false,
-              "revision": false
+              "revision": false,
+              "revisionProvenance": false
             }
           }
         },
@@ -2683,10 +2787,10 @@
       "type": "object",
       "required": [
         "createBead",
-        "updateBeadProperties",
+        "updateBead",
         "deleteBead",
         "createLink",
-        "updateLinkProperties",
+        "updateLink",
         "deleteLink",
         "putAlias",
         "deleteAlias",
@@ -2696,8 +2800,8 @@
         "createBead": {
           "const": "create-bead"
         },
-        "updateBeadProperties": {
-          "const": "update-bead-properties"
+        "updateBead": {
+          "const": "update-bead"
         },
         "deleteBead": {
           "const": "delete-bead"
@@ -2705,8 +2809,8 @@
         "createLink": {
           "const": "create-link"
         },
-        "updateLinkProperties": {
-          "const": "update-link-properties"
+        "updateLink": {
+          "const": "update-link"
         },
         "deleteLink": {
           "const": "delete-link"
@@ -2758,8 +2862,8 @@
         "properties": {
           "$ref": "#/$defs/properties"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
+        "metadata": {
+          "$ref": "#/$defs/metadata"
         },
         "source": {
           "$ref": "#/$defs/reference"
@@ -2767,8 +2871,8 @@
         "target": {
           "$ref": "#/$defs/reference"
         },
-        "changeContext": {
-          "$ref": "#/$defs/changeContext"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenance"
         }
       },
       "dependentRequired": {
@@ -2779,7 +2883,7 @@
     },
     "ownedLinkDelta": {
       "type": "object",
-      "required": ["id", "type", "previousRevision", "revision", "change"],
+      "required": ["id", "type", "previousRevision", "revision"],
       "properties": {
         "id": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -2796,13 +2900,27 @@
         "change": {
           "$ref": "#/$defs/propertyChange"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
+        "metadataChange": {
+          "$ref": "#/$defs/propertyChange"
         },
-        "changeContext": {
-          "$ref": "#/$defs/changeContext"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenance"
         }
       },
+      "anyOf": [
+        {
+          "required": ["change"],
+          "properties": {
+            "change": true
+          }
+        },
+        {
+          "required": ["metadataChange"],
+          "properties": {
+            "metadataChange": true
+          }
+        }
+      ],
       "additionalProperties": false
     },
     "ownedLinkChange": {
@@ -2884,31 +3002,46 @@
         "change": {
           "$ref": "#/$defs/propertyChange"
         },
+        "metadataChange": {
+          "$ref": "#/$defs/propertyChange"
+        },
         "ownedLink": {
           "$ref": "#/$defs/ownedLinkChange"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
-        },
-        "changeContext": {
-          "$ref": "#/$defs/changeContext"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenance"
         }
       },
       "oneOf": [
         {
           "type": "object",
-          "required": ["change"],
           "properties": {
             "change": true,
+            "metadataChange": true,
             "ownedLink": false
-          }
+          },
+          "anyOf": [
+            {
+              "required": ["change"],
+              "properties": {
+                "change": true
+              }
+            },
+            {
+              "required": ["metadataChange"],
+              "properties": {
+                "metadataChange": true
+              }
+            }
+          ]
         },
         {
           "type": "object",
           "required": ["ownedLink"],
           "properties": {
             "ownedLink": true,
-            "change": false
+            "change": false,
+            "metadataChange": false
           }
         }
       ],
@@ -3124,11 +3257,8 @@
         "cardinality": {
           "$ref": "#/$defs/cardinality"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
-        },
-        "changeContext": {
-          "$ref": "#/$defs/changeContextInput"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenanceInput"
         }
       }
     },
@@ -3145,11 +3275,8 @@
         "cardinality": {
           "$ref": "#/$defs/cardinality"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
-        },
-        "changeContext": {
-          "$ref": "#/$defs/changeContextInput"
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenanceInput"
         }
       }
     },
@@ -3191,16 +3318,16 @@
       "required": ["operation"],
       "unevaluatedProperties": false
     },
-    "updateBeadPropertiesOperation": {
+    "updateBeadOperation": {
       "type": "object",
       "allOf": [
         {
-          "$ref": "#/$defs/updateBeadPropertiesMembers"
+          "$ref": "#/$defs/updateBeadMembers"
         }
       ],
       "properties": {
         "operation": {
-          "const": "updateBeadProperties"
+          "const": "updateBead"
         }
       },
       "required": ["operation"],
@@ -3239,16 +3366,16 @@
       "required": ["operation"],
       "unevaluatedProperties": false
     },
-    "updateLinkPropertiesOperation": {
+    "updateLinkOperation": {
       "type": "object",
       "allOf": [
         {
-          "$ref": "#/$defs/updateLinkPropertiesMembers"
+          "$ref": "#/$defs/updateLinkMembers"
         }
       ],
       "properties": {
         "operation": {
-          "const": "updateLinkProperties"
+          "const": "updateLink"
         }
       },
       "required": ["operation"],
@@ -3305,7 +3432,7 @@
           "$ref": "#/$defs/createBeadOperation"
         },
         {
-          "$ref": "#/$defs/updateBeadPropertiesOperation"
+          "$ref": "#/$defs/updateBeadOperation"
         },
         {
           "$ref": "#/$defs/deleteBeadOperation"
@@ -3314,7 +3441,7 @@
           "$ref": "#/$defs/createLinkOperation"
         },
         {
-          "$ref": "#/$defs/updateLinkPropertiesOperation"
+          "$ref": "#/$defs/updateLinkOperation"
         },
         {
           "$ref": "#/$defs/deleteLinkOperation"
@@ -3347,10 +3474,10 @@
       "type": "object",
       "required": [
         "createBead",
-        "updateBeadProperties",
+        "updateBead",
         "deleteBead",
         "createLink",
-        "updateLinkProperties",
+        "updateLink",
         "deleteLink",
         "putAlias",
         "deleteAlias",
@@ -3363,8 +3490,8 @@
         "createBead": {
           "const": "create-bead"
         },
-        "updateBeadProperties": {
-          "const": "update-bead-properties"
+        "updateBead": {
+          "const": "update-bead"
         },
         "deleteBead": {
           "const": "delete-bead"
@@ -3372,8 +3499,8 @@
         "createLink": {
           "const": "create-link"
         },
-        "updateLinkProperties": {
-          "const": "update-link-properties"
+        "updateLink": {
+          "const": "update-link"
         },
         "deleteLink": {
           "const": "delete-link"
@@ -5142,43 +5269,6 @@
         }
       ]
     },
-    "changeContext": {
-      "type": "object",
-      "properties": {
-        "committedAt": {
-          "$ref": "#/$defs/contextTime"
-        },
-        "agent": {
-          "$ref": "#/$defs/contextString"
-        },
-        "message": {
-          "$ref": "#/$defs/contextMessage"
-        }
-      },
-      "required": ["committedAt", "agent", "message"],
-      "additionalProperties": false
-    },
-    "changeContextInput": {
-      "type": "object",
-      "properties": {
-        "agent": {
-          "anyOf": [
-            {
-              "type": "string",
-              "minLength": 1
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "message": {
-          "type": ["string", "null"]
-        }
-      },
-      "required": [],
-      "additionalProperties": false
-    },
     "historyMissingItem": {
       "oneOf": [
         {
@@ -5271,17 +5361,14 @@
         "revision": {
           "$ref": "#/$defs/revision"
         },
-        "attribution": {
-          "$ref": "#/$defs/attribution"
-        },
-        "changeContext": {
-          "$ref": "#/$defs/changeContext"
-        },
         "lineage": {
           "enum": ["current", "replaced"]
         },
         "body": {
           "enum": ["complete", "incomplete"]
+        },
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenance"
         }
       },
       "required": ["revision", "lineage", "body"],
@@ -5442,6 +5529,69 @@
           }
         }
       ]
+    },
+    "revisionActor": {
+      "type": "object",
+      "required": ["id", "basis"],
+      "properties": {
+        "basis": {
+          "type": "string",
+          "enum": ["writer-supplied", "unknown"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "revisionProvenance": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/revisionActor"
+        },
+        "committedAt": {
+          "$ref": "#/$defs/contextTime"
+        },
+        "agent": {
+          "$ref": "#/$defs/contextString"
+        },
+        "message": {
+          "$ref": "#/$defs/contextMessage"
+        }
+      },
+      "additionalProperties": false,
+      "dependentRequired": {
+        "committedAt": ["agent", "message"],
+        "agent": ["committedAt", "message"],
+        "message": ["committedAt", "agent"]
+      }
+    },
+    "revisionProvenanceInput": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/revisionActor"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
     }
   }
 }

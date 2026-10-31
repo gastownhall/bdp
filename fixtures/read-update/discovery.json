@@ -83,10 +83,10 @@
         "schema": "#/$defs/readUpdateOperationDirectory",
         "body": {
           "createBead": "create-bead",
-          "updateBeadProperties": "update-bead-properties",
+          "updateBead": "update-bead",
           "deleteBead": "delete-bead",
           "createLink": "create-link",
-          "updateLinkProperties": "update-link-properties",
+          "updateLink": "update-link",
           "deleteLink": "delete-link",
           "putAlias": "put-alias",
           "deleteAlias": "delete-alias",

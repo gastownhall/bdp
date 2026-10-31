@@ -5,6 +5,13 @@ import {
   HistorySession,
 } from "./history-session.js";
 
+export {
+  RetainedWriteBinding,
+  type RetainedWriteDocument,
+  type RetainedWriteBindingOptions,
+  type PreparedRetainedWrite,
+} from "./retained-write.js";
+
 export type { HistoryRequest, HistoryResultFor } from "./history-session.js";
 
 import { SessionCore } from "./continuations.js";
@@ -1609,3 +1616,24 @@ function legacyReadSession<T>(action: () => T): T {
     }
   }
 }
+
+export {
+  createRetainedFetchTransport,
+  RetainedTransportError,
+  type RetainedFetchTransportOptions,
+  type RetainedTransport,
+  type RetainedTransportLimits,
+  type RetainedAbortSettlement,
+  type RetainedTransportCallOptions,
+  type RetainedHttpContext,
+  type RetainedHttpResponse,
+} from "./retained-transport.js";
+export {
+  RetainedClient,
+  RetainedClientError,
+  type RetainedClientOptions,
+  type RetainedClientCallOptions,
+  type RetainedPointReadOptions,
+  type RetainedPointValue,
+  type RetainedReply,
+} from "./retained-read.js";

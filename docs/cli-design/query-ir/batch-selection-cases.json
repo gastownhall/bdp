@@ -1,0 +1,791 @@
+{
+  "status": "authored-static-admission-and-runtime-obligations-not-executed-selections",
+  "scope": "https://work.example/acme/",
+  "encoding": "author-proposed; not adopted schema or runtime",
+  "cases": [
+    {
+      "id": "list-prior-bead-set",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": {
+            "binding": "notes"
+          }
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "list-current-fields-of-prior-set",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "notes"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": ["properties", "status"]
+            },
+            "right": {
+              "op": "literal",
+              "value": "ready"
+            }
+          }
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "list-known-empty-bead-set",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "empty-notes"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": ["properties", "status"]
+            },
+            "right": {
+              "op": "literal",
+              "value": "ready"
+            }
+          }
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "link-list-prior-link-set",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "links",
+            "references": {
+              "binding": "links"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": ["properties", "status"]
+            },
+            "right": {
+              "op": "literal",
+              "value": "ready"
+            }
+          }
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "list-staged-inventory",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "scan",
+          "collection": "beads"
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "query-prior-set-roots",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "notes"
+            }
+          },
+          "direction": "outgoing",
+          "depth": 2
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "query-prior-scalar-root",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "created"
+            }
+          },
+          "direction": "outgoing",
+          "depth": 2
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "query-prior-link-set-selection",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "refs",
+          "collection": "links",
+          "references": {
+            "binding": "links"
+          }
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "query-prior-scalar-link-selection",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "refs",
+          "collection": "links",
+          "references": {
+            "binding": "created-link"
+          }
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "query-locally-resolved-scalar-argument",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": ["https://work.example/acme/guide"]
+          },
+          "direction": "outgoing",
+          "depth": 2
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "query-identity-test-no-edition-token",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "notes"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "id",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              }
+            },
+            "right": {
+              "op": "literal",
+              "value": "https://work.example/acme/guide"
+            }
+          }
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "list-node-looking-literal-is-data",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "notes"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": ["properties", "settings"]
+            },
+            "right": {
+              "op": "literal",
+              "value": {
+                "op": "refs",
+                "collection": "beads",
+                "references": {
+                  "binding": "unknown-literal"
+                }
+              }
+            }
+          }
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "list-application-property-named-revision",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "notes"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": ["properties", "revision"]
+            },
+            "right": {
+              "op": "literal",
+              "value": "draft"
+            }
+          }
+        }
+      },
+      "admission": "accept"
+    },
+    {
+      "id": "unknown-or-forward-name",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": {
+            "binding": "later"
+          }
+        }
+      },
+      "admission": "static-refusal",
+      "error": "unknown-or-forward-batch-binding"
+    },
+    {
+      "id": "kind-mismatch-preserves-empty-type",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": {
+            "binding": "links"
+          }
+        }
+      },
+      "admission": "static-refusal",
+      "error": "wrong-batch-binding-kind"
+    },
+    {
+      "id": "list-scalar-not-captured-set",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": {
+            "binding": "created"
+          }
+        }
+      },
+      "admission": "static-refusal",
+      "error": "list-source-not-prior-set"
+    },
+    {
+      "id": "list-literal-id-source-not-new-standalone-feature",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": ["https://work.example/acme/guide"]
+        }
+      },
+      "admission": "static-refusal",
+      "error": "list-source-not-prior-set"
+    },
+    {
+      "id": "walk-link-set-is-not-bead-roots",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "links",
+            "references": {
+              "binding": "links"
+            }
+          },
+          "direction": "outgoing",
+          "depth": 2
+        }
+      },
+      "admission": "static-refusal",
+      "error": "wrong-root-kind"
+    },
+    {
+      "id": "walk-link-scalar-is-not-bead-root",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "links",
+            "references": {
+              "binding": "created-link"
+            }
+          },
+          "direction": "outgoing",
+          "depth": 2
+        }
+      },
+      "admission": "static-refusal",
+      "error": "wrong-root-kind"
+    },
+    {
+      "id": "list-rejects-traversal-test",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "notes"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "any",
+            "input": {
+              "op": "walk",
+              "roots": {
+                "op": "refs",
+                "collection": "beads",
+                "references": {
+                  "binding": "notes"
+                }
+              },
+              "direction": "outgoing",
+              "depth": 2
+            }
+          }
+        }
+      },
+      "admission": "static-refusal",
+      "error": "outside-profile"
+    },
+    {
+      "id": "link-list-rejects-endpoint-body",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "links",
+            "references": {
+              "binding": "links"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "endpoint",
+                "of": {
+                  "op": "binding",
+                  "name": "b"
+                },
+                "side": "target"
+              },
+              "path": ["properties", "status"]
+            },
+            "right": {
+              "op": "literal",
+              "value": "ready"
+            }
+          }
+        }
+      },
+      "admission": "static-refusal",
+      "error": "outside-profile"
+    },
+    {
+      "id": "batch-pinned-explicit-root",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": [
+              {
+                "uri": "https://work.example/acme/guide",
+                "revision": "r1"
+              }
+            ]
+          },
+          "direction": "outgoing",
+          "depth": 2
+        }
+      },
+      "admission": "static-refusal",
+      "error": "batch-pinned-read-operand"
+    },
+    {
+      "id": "batch-foreign-explicit-root",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": ["https://other.example/elsewhere/guide"]
+          },
+          "direction": "outgoing",
+          "depth": 2
+        }
+      },
+      "admission": "static-refusal",
+      "error": "batch-cross-scope-root"
+    },
+    {
+      "id": "batch-public-rev-extractor",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "notes"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "rev",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              }
+            },
+            "right": {
+              "op": "literal",
+              "value": "r1"
+            }
+          }
+        }
+      },
+      "admission": "static-refusal",
+      "error": "batch-public-revision-test"
+    },
+    {
+      "id": "batch-public-revision-field",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "notes"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "field",
+              "of": {
+                "op": "binding",
+                "name": "b"
+              },
+              "path": ["revision"]
+            },
+            "right": {
+              "op": "literal",
+              "value": "r1"
+            }
+          }
+        }
+      },
+      "admission": "static-refusal",
+      "error": "batch-public-revision-test"
+    },
+    {
+      "id": "batch-edition-equality",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "query",
+        "selection": {
+          "op": "filter",
+          "input": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "notes"
+            }
+          },
+          "bind": "b",
+          "predicate": {
+            "op": "compare",
+            "operator": "eq",
+            "left": {
+              "op": "binding",
+              "name": "b"
+            },
+            "right": {
+              "op": "binding",
+              "name": "b"
+            }
+          }
+        }
+      },
+      "admission": "static-refusal",
+      "error": "batch-edition-comparison"
+    },
+    {
+      "id": "empty-binding-name",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": {
+            "binding": ""
+          }
+        }
+      },
+      "admission": "schema-refusal"
+    },
+    {
+      "id": "graph-selector-not-transaction-selection",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "graph",
+        "selection": {
+          "op": "walk",
+          "roots": {
+            "op": "refs",
+            "collection": "beads",
+            "references": {
+              "binding": "notes"
+            }
+          },
+          "direction": "outgoing",
+          "depth": 2
+        }
+      },
+      "admission": "schema-refusal"
+    },
+    {
+      "id": "no-ordinary-read-result-in-selector",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": {
+            "binding": "notes"
+          }
+        },
+        "result": {
+          "form": "count"
+        }
+      },
+      "admission": "schema-refusal"
+    },
+    {
+      "id": "no-projection-in-selector",
+      "selector": {
+        "ir": "bdp-query-design-1",
+        "profile": "list",
+        "selection": {
+          "op": "refs",
+          "collection": "beads",
+          "references": {
+            "binding": "notes"
+          }
+        },
+        "projection": {
+          "omit": ["/body"]
+        }
+      },
+      "admission": "schema-refusal"
+    }
+  ],
+  "runtimeObligations": [
+    {
+      "id": "fixed-membership-fresh-content",
+      "scenario": "Capture {A,B}; update B out of the original predicate; List the prior set under the new property predicate.",
+      "expected": "A new set can contain B under its updated fields. Original membership remains {A,B}; no implicit re-query of its original predicate."
+    },
+    {
+      "id": "deleted-captured-member",
+      "scenario": "Capture {A,B}; delete B; use the prior set as required candidates/roots.",
+      "expected": "Require live resolution; refuse rather than silently remove B or acquire a historical edition."
+    },
+    {
+      "id": "foreign-required-endpoint",
+      "scenario": "A local Link carries an opaque foreign target; Query asks for target fields or expands there.",
+      "expected": "Refuse the required acquisition. A Link-only selection may preserve the opaque stored Reference without acquiring it."
+    },
+    {
+      "id": "no-staged-edition-token",
+      "scenario": "Create/update a Bead, then select its id and application properties.",
+      "expected": "Read current staged content without inventing a public revision."
+    },
+    {
+      "id": "read-only-atomic-selection",
+      "scenario": "Execute List/Query selection members without mutations.",
+      "expected": "Read-only batches are allowed under the selected serializable logical execution rule; results/recovery use the Batch contract."
+    },
+    {
+      "id": "independent-selection-capabilities",
+      "scenario": "Provider advertises transaction List only; submit a transaction Query.",
+      "expected": "Refuse unsupported selection before effects; standalone Query support does not establish transaction Query support."
+    }
+  ],
+  "priorBindings": {
+    "notes": {
+      "collection": "beads",
+      "cardinality": "set"
+    },
+    "empty-notes": {
+      "collection": "beads",
+      "cardinality": "set"
+    },
+    "links": {
+      "collection": "links",
+      "cardinality": "set"
+    },
+    "created": {
+      "collection": "beads",
+      "cardinality": "scalar"
+    },
+    "created-link": {
+      "collection": "links",
+      "cardinality": "scalar"
+    },
+    "draft-notes": {
+      "collection": "beads",
+      "cardinality": "set"
+    }
+  }
+}

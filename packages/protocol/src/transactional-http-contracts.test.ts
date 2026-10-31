@@ -1,8 +1,6 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
+import { readSpecificationSource } from "../../conformance/test-support/spec-source.js";
 import { BDP_V0_SCHEMA_ID } from "./index.js";
 import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
 
@@ -10,8 +8,7 @@ import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
  * server implementation, an HTTP library, or executable conformance evidence.
  * Existing exchange fixtures retain their stricter required JSON-body shape.
  */
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const read = (name: string): string => readFileSync(path.join(root, name), "utf8");
+const read = (name: string): string => readSpecificationSource(name);
 type Body = Record<string, unknown>;
 interface Example {
   id: string;
@@ -99,7 +96,7 @@ const fixture = JSON.parse(read("fixtures/transactional/http-contracts.json")) a
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
 ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
-ajv.addSchema(JSON.parse(read("schemas/bdp-v0.schema.json")));
+ajv.addSchema(JSON.parse(read("specs/profiles/core/bdp-v0.schema.json")));
 const sourceExchangeFor = (example: Example) => {
   if (example.source === undefined) throw new Error("This case has no source exchange");
   const reference = example.source;
@@ -162,7 +159,7 @@ function checkPremises(example: Example): void {
   if (example.kind === "mutation") {
     expect(request.method).toBe("POST");
     expect(relative).toMatch(
-      /^operations\/(batch|sequence|create-bead|update-bead-properties|delete-bead|create-link|update-link-properties|delete-link|update-where|delete-where|put-alias|delete-alias)$/,
+      /^operations\/(batch|sequence|create-bead|update-bead|delete-bead|create-link|update-link|delete-link|update-where|delete-where|put-alias|delete-alias)$/,
     );
   } else {
     expect(["GET", "HEAD"]).toContain(request.method);

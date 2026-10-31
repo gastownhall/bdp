@@ -1,0 +1,566 @@
+{
+  "status": "Paper grammar/correspondence only; command compilation, provider behavior, journal, rendering and all semantic cases unexecuted. Alternative examples are not a single coordinated service run.",
+  "base": "fd8d7c9e844d357081df4093e440ccdf57dde7d1",
+  "contract": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+  "core": {
+    "bdpVersion": "0.1",
+    "profile": "core",
+    "scope": "https://work.example/acme/",
+    "beads": "https://work.example/acme/inventory",
+    "links": "https://work.example/acme/relations",
+    "events": "https://work.example/acme/event-source"
+  },
+  "write": {
+    "bdpVersion": "0.1",
+    "profile": "write",
+    "scope": "https://work.example/acme/",
+    "beads": "https://work.example/acme/inventory",
+    "links": "https://work.example/acme/relations",
+    "events": "https://work.example/acme/event-source",
+    "operations": "https://work.example/acme/commands",
+    "aliases": "https://work.example/acme/"
+  },
+  "richerWrite": {
+    "bdpVersion": "0.1",
+    "profile": "write",
+    "scope": "https://work.example/acme/",
+    "beads": "https://work.example/acme/inventory",
+    "links": "https://work.example/acme/relations",
+    "events": "https://work.example/acme/event-source",
+    "operations": "https://work.example/acme/commands",
+    "aliases": "https://work.example/acme/",
+    "capabilities": {
+      "https://github.com/gastownhall/bdp/capabilities/atomic-batch": {
+        "1": {
+          "operation": "https://work.example/acme/atomic",
+          "operations": [
+            "createBead",
+            "updateBead",
+            "deleteBead",
+            "createLink",
+            "updateLink",
+            "deleteLink"
+          ]
+        }
+      },
+      "https://example.test/capabilities/future": {
+        "8": {
+          "opaque": true
+        }
+      }
+    }
+  },
+  "directory": {
+    "createBead": "https://work.example/acme/commands/new-item",
+    "updateBead": "https://work.example/acme/commands/edit-item",
+    "deleteBead": "https://work.example/acme/commands/remove-item",
+    "createLink": "https://work.example/acme/commands/new-relation",
+    "updateLink": "https://work.example/acme/commands/edit-relation",
+    "deleteLink": "https://work.example/acme/commands/remove-relation",
+    "putAlias": "https://work.example/acme/commands/put-name",
+    "deleteAlias": "https://work.example/acme/commands/remove-name"
+  },
+  "historyCore": {
+    "bdpVersion": "0.1",
+    "profile": "core",
+    "scope": "https://work.example/acme/",
+    "beads": "https://work.example/acme/inventory",
+    "links": "https://work.example/acme/relations",
+    "events": "https://work.example/acme/event-source",
+    "historicalResolution": {
+      "version": 1
+    }
+  },
+  "cliPairs": [
+    {
+      "operation": "createBead",
+      "argv": ["create", "--type", "https://types.example/Task", "--properties", "{}"],
+      "request": {
+        "type": "https://types.example/Task",
+        "properties": {}
+      }
+    },
+    {
+      "operation": "updateBead",
+      "argv": [
+        "update",
+        "task-42",
+        "--type",
+        "https://types.example/Task",
+        "--type-revision",
+        "definition-r2",
+        "--patch-properties",
+        "[]"
+      ],
+      "request": {
+        "bead": "task-42",
+        "type": {
+          "uri": "https://types.example/Task",
+          "revision": "definition-r2"
+        },
+        "propertiesChange": []
+      }
+    },
+    {
+      "operation": "deleteBead",
+      "argv": ["delete", "task-42", "--force", "--if-revision", "resource-r7"],
+      "request": {
+        "bead": "task-42",
+        "expectedRevision": "resource-r7"
+      }
+    },
+    {
+      "operation": "createLink",
+      "argv": [
+        "link",
+        "create",
+        "--type",
+        "https://types.example/Relates",
+        "--source",
+        "task-42",
+        "--target",
+        "task-17"
+      ],
+      "request": {
+        "type": "https://types.example/Relates",
+        "source": "task-42",
+        "target": "task-17"
+      }
+    },
+    {
+      "operation": "updateLink",
+      "argv": ["link", "update", "rel-81", "--replace-metadata", "{}"],
+      "request": {
+        "link": "rel-81",
+        "metadata": {}
+      }
+    },
+    {
+      "operation": "deleteLink",
+      "argv": ["link", "delete", "rel-81", "--force"],
+      "request": {
+        "link": "rel-81"
+      }
+    },
+    {
+      "operation": "putAlias",
+      "argv": ["alias", "put", "names/current", "--target", "task-42"],
+      "request": {
+        "alias": "names/current",
+        "target": "task-42"
+      }
+    },
+    {
+      "operation": "deleteAlias",
+      "argv": ["alias", "delete", "names/current", "--force"],
+      "request": {
+        "alias": "names/current"
+      }
+    }
+  ],
+  "beforeUpdate": {
+    "id": "https://work.example/acme/task-42",
+    "type": {
+      "uri": "https://types.example/Task",
+      "revision": "definition-r1"
+    },
+    "revision": "resource-r6",
+    "properties": {
+      "title": "Reviewed"
+    },
+    "metadata": {}
+  },
+  "mutationResult": {
+    "outcome": "updated",
+    "changed": true,
+    "resource": {
+      "id": "https://work.example/acme/task-42",
+      "type": {
+        "uri": "https://types.example/Task",
+        "revision": "definition-r2"
+      },
+      "revision": "resource-r7",
+      "properties": {
+        "title": "Reviewed"
+      },
+      "metadata": {}
+    }
+  },
+  "deletedResult": {
+    "outcome": "deleted",
+    "changed": true,
+    "deleted": {
+      "resourceKind": "bead",
+      "resource": {
+        "id": "https://work.example/acme/task-42",
+        "type": {
+          "uri": "https://types.example/Task",
+          "revision": "definition-r2"
+        },
+        "revision": "resource-r7"
+      }
+    }
+  },
+  "aliasResult": {
+    "outcome": "created",
+    "alias": "https://work.example/acme/names/current",
+    "target": "https://work.example/acme/task-42"
+  },
+  "deletePreview": {
+    "schema_version": 2,
+    "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+    "result_kind": "resource",
+    "outcome": "success",
+    "data": {
+      "id": "https://work.example/acme/task-42",
+      "type": {
+        "uri": "https://types.example/Task",
+        "revision": "definition-r2"
+      },
+      "revision": "resource-r7",
+      "properties": {
+        "title": "Reviewed"
+      },
+      "metadata": {}
+    },
+    "context": {
+      "subject": "https://work.example/acme/task-42",
+      "resource_kind": "bead",
+      "preview": "delete"
+    }
+  },
+  "historyPage": {
+    "subject": "https://work.example/acme/task-42",
+    "population": "all-retained",
+    "participation": "tracked",
+    "window": {
+      "newest": "resource-r7",
+      "oldest": "resource-r7",
+      "complete": true
+    },
+    "items": [
+      {
+        "revision": "resource-r7",
+        "lineage": "current",
+        "body": "complete",
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-22T00:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "cli-review"
+          },
+          "message": {
+            "state": "present",
+            "value": "Reviewed"
+          }
+        }
+      }
+    ],
+    "next": null
+  },
+  "historyJsonl": [
+    {
+      "record_type": "header",
+      "schema_version": 2,
+      "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+      "result_kind": "version_collection",
+      "context": {
+        "subject": "https://work.example/acme/task-42?view=versions",
+        "resource_kind": "bead",
+        "history": {
+          "subject": "https://work.example/acme/task-42",
+          "population": "all-retained",
+          "participation": "tracked",
+          "window": {
+            "newest": "resource-r7",
+            "oldest": "resource-r7",
+            "complete": true
+          }
+        }
+      }
+    },
+    {
+      "record_type": "item",
+      "data": {
+        "resource": "https://work.example/acme/task-42",
+        "kind": "bead",
+        "revision": "resource-r7",
+        "lineage": "current",
+        "body": "complete",
+        "revisionProvenance": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-10-22T00:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "cli-review"
+          },
+          "message": {
+            "state": "present",
+            "value": "Reviewed"
+          }
+        }
+      }
+    },
+    {
+      "record_type": "terminal",
+      "outcome": "success",
+      "completion": {
+        "returned": 1,
+        "exhausted": true,
+        "stop_reason": "exhausted"
+      },
+      "continuation": null
+    }
+  ],
+  "knownOutputFailure": {
+    "schema_version": 2,
+    "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+    "result_kind": "mutation",
+    "outcome": "failure",
+    "data": {
+      "outcome": "updated",
+      "changed": true,
+      "resource": {
+        "id": "https://work.example/acme/task-42",
+        "type": {
+          "uri": "https://types.example/Task",
+          "revision": "definition-r2"
+        },
+        "revision": "resource-r7",
+        "properties": {
+          "title": "Reviewed"
+        },
+        "metadata": {}
+      }
+    },
+    "context": {
+      "subject": "https://work.example/acme/commands/edit-item",
+      "operation_outcome": "success"
+    },
+    "error": {
+      "origin": "cli",
+      "problem": {
+        "code": "output_failed",
+        "message": "Display failed after a known successful decision"
+      }
+    }
+  },
+  "unknownWrite": {
+    "schema_version": 2,
+    "bdp_spec": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
+    "result_kind": "mutation",
+    "outcome": "unknown",
+    "context": {
+      "subject": "https://work.example/acme/commands/edit-item",
+      "recovery": {
+        "file": "/private/bdp/replay.json",
+        "argv": ["bdp", "update", "--retry-file", "/private/bdp/replay.json"]
+      }
+    },
+    "error": {
+      "origin": "cli",
+      "problem": {
+        "code": "write_outcome_unknown",
+        "message": "No terminal authority disposition received"
+      }
+    }
+  },
+  "unboundDiagnostic": {
+    "schema_version": 2,
+    "bdp_spec": null,
+    "result_kind": "diagnostic",
+    "outcome": "failure",
+    "error": {
+      "origin": "cli",
+      "problem": {
+        "code": "invalid_arguments",
+        "message": "Conflicting flags"
+      }
+    }
+  },
+  "cutline": [
+    {
+      "id": "binding-discovery",
+      "status": "source-complete",
+      "meaning": "Core/Write profile entry, media/identity and versioned capability extension",
+      "owner": "Sybil"
+    },
+    {
+      "id": "scope-references",
+      "status": "source-complete",
+      "meaning": "Default Scope, whole prefix-free names, exact URI/Reference and kind/ownership routing",
+      "owner": "Sybil"
+    },
+    {
+      "id": "ordinary-reads",
+      "status": "source-complete",
+      "meaning": "Point/list/properties/aggregate/incident predicates and native HTTP controls",
+      "owner": "Sybil"
+    },
+    {
+      "id": "ordinary-output",
+      "status": "source-complete",
+      "meaning": "Cleo framing/masks, bounded delivery, exact continuation and corrected paired properties example",
+      "owner": "Sybil"
+    },
+    {
+      "id": "optional-history",
+      "status": "source-complete",
+      "meaning": "Advertised complete native History; exact GET plus one-page versions CLI without cursor resizing",
+      "owner": "Sybil"
+    },
+    {
+      "id": "resource-crud",
+      "status": "source-complete",
+      "meaning": "Six singleton inputs/results/guards, ordinary values/object edits, Type affiliation and preview",
+      "owner": "Sybil"
+    },
+    {
+      "id": "aliases",
+      "status": "source-complete",
+      "meaning": "Resolve/put/delete, distinct result/authorization and full-URL namespace rules",
+      "owner": "Sybil"
+    },
+    {
+      "id": "durable-recovery",
+      "status": "source-complete",
+      "meaning": "Standalone key identity/outcome/tombstone/crash rules plus private same-invocation CLI retry",
+      "owner": "Sybil"
+    },
+    {
+      "id": "atomic-batch",
+      "status": "source-complete",
+      "meaning": "Optional six-CRUD selected batch, literal command authoring/capture/emit and complete results",
+      "owner": "Sybil"
+    },
+    {
+      "id": "type-exact-read",
+      "status": "source-complete",
+      "meaning": "Exact Types8fc definition lookup/common seven-helper port and explicit interpretation context",
+      "owner": "Sybil/Trish"
+    },
+    {
+      "id": "event-baseline",
+      "status": "design-gated",
+      "meaning": "D1 mandatory Event payload and D2 read-only/external coverage; existing human questions, no duplicate",
+      "owner": "Donna/Sybil"
+    },
+    {
+      "id": "event-source-composition",
+      "status": "design-gated",
+      "meaning": "After D1/D2: required binding/encoding/compatibility and Type/owner fact correspondence",
+      "owner": "Sybil/Trish"
+    },
+    {
+      "id": "induced-owner-allocation",
+      "status": "owner-gated",
+      "meaning": "Exact multi-operation owner snapshots/result context; retained laws do not select a count",
+      "owner": "Trish"
+    },
+    {
+      "id": "types-intrinsics",
+      "status": "owner-gated",
+      "meaning": "Actual Types profile/advertisement/definition and intrinsic original publication context",
+      "owner": "Trish"
+    },
+    {
+      "id": "type-cli-inventory",
+      "status": "deferred",
+      "meaning": "Public Type verbs/inventory payload explicitly deferred; only type list placeholder",
+      "owner": "Donna/Trish"
+    },
+    {
+      "id": "experimental-runtime",
+      "status": "deferred",
+      "meaning": "Parked synchronization/receipts/set writes; serve/runtime/Vickie/product remain held",
+      "owner": "Donna"
+    },
+    {
+      "id": "semantic-qualification",
+      "status": "qualification-gated",
+      "meaning": "Normal source integration/applicability and actual provider/CLI evidence, not a parent runner permission",
+      "owner": "authors/Trish"
+    }
+  ],
+  "semanticCases": [
+    {
+      "id": "core-client-write",
+      "expected": "Core client reads either known discovery arm without implementing mutation."
+    },
+    {
+      "id": "optional-added",
+      "expected": "Unknown capability detail does not alter selected base reads/results/keys/cursors."
+    },
+    {
+      "id": "write-withdrawn",
+      "expected": "Retained recovery obligations survive fresh-admission/support withdrawal."
+    },
+    {
+      "id": "no-type-inventory",
+      "expected": "Small Core/Write requires no old Type catalog or implicit default acquisition."
+    },
+    {
+      "id": "events-required-not-done",
+      "expected": "Missing Event navigation rejects shape; presence alone cannot fill D1/D2 or qualify support."
+    },
+    {
+      "id": "no-public-replica-coordinates",
+      "expected": "Small discovery has no epochs/positions/views/snapshots/receipts/changefeed."
+    },
+    {
+      "id": "versions-one-native-page",
+      "expected": "History follows its issued cursor/limit, no ordinary resizing or total-cap tail loss."
+    },
+    {
+      "id": "delete-preview",
+      "expected": "Observational Resource read, no mutation/key/provenance/guard admission; force is apply-only CLI intent."
+    },
+    {
+      "id": "known-output-failure",
+      "expected": "CLI failure retains original known native result and explicit successful operation outcome, never rollback."
+    },
+    {
+      "id": "unknown-recovery",
+      "expected": "Indeterminate mutation retains frozen exact recovery invocation without a new key."
+    },
+    {
+      "id": "unbound-diagnostic",
+      "expected": "No selected BDP identity is invented for a local pre-binding error."
+    },
+    {
+      "id": "experimental-parked",
+      "expected": "No new feature protocol or future capability URI is selected by a parking label."
+    }
+  ],
+  "unknownKindHistoryPage": {
+    "subject": "https://work.example/acme/unknown-subject",
+    "population": "all-retained",
+    "participation": "undetermined",
+    "window": {
+      "newest": null,
+      "oldest": null,
+      "complete": false
+    },
+    "items": [],
+    "next": null
+  },
+  "unknownKindHistoryContext": {
+    "subject": "https://work.example/acme/unknown-subject?view=versions",
+    "resource_kind": null,
+    "history": {
+      "subject": "https://work.example/acme/unknown-subject",
+      "population": "all-retained",
+      "participation": "undetermined",
+      "window": {
+        "newest": null,
+        "oldest": null,
+        "complete": false
+      }
+    }
+  }
+}

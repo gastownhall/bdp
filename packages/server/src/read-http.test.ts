@@ -432,7 +432,7 @@ describe("shared Read HTTP semantics through the public server", () => {
         request.on("error", reject);
         request.end();
       });
-    const record = `{"id":"${SCOPE}beads/a","type":"${TYPE}","revision":"rev-1","properties":{"deep":${deep}}}`;
+    const record = `{"id":"${SCOPE}beads/a","type":"${TYPE}","revision":"rev-1","properties":{"deep":${deep}},"metadata":{}}`;
     for (const [path, expected] of [
       ["beads/a", record],
       ["beads/", `{"items":[${record}],"next":null}`],

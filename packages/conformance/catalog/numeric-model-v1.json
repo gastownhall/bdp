@@ -14,8 +14,13 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
-          "selectedText": "If applying an update produces a `properties` value that is equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to the value immediately before that operation, then the operation retains the existing revision and emits no `updated` Event."
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "After applicable admission and validation, an update retains the existing revision only when the complete affiliation and applicable captured owned state are unchanged and both `properties` and common `metadata` equal their respective values immediately before the operation under RFC 6902 Section 4.6 JSON value comparison."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-consistency",
+          "selectedText": "Read+Update has no durable Mutation Receipts and no BDP Events."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -47,7 +52,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
+          "anchor": "#numeric-admission",
           "selectedText": "An authority MUST refuse at admission a `properties` document — supplied whole or through a Property Change — that contains an inadmissible literal at any depth: nothing changes, and the operation fails as the write profiles' `validation-failed` with a diagnostic naming the offending member."
         },
         {
@@ -64,24 +69,29 @@
     },
     {
       "id": "read-update.numeric-model.nested-refusal",
-      "title": "The refusal applies at any depth and the diagnostic names the nested member",
+      "title": "The refusal applies at any depth; diagnostics name the offending input and unapplied patches may omit document-relative instanceLocation",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
+          "anchor": "#numeric-admission",
           "selectedText": "An authority MUST refuse at admission a `properties` document — supplied whole or through a Property Change — that contains an inadmissible literal at any depth"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
+          "anchor": "#numeric-admission",
           "selectedText": "with a diagnostic naming the offending member."
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
           "selectedText": "any number literal in `properties`, at any depth"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "A numeric failure in an unapplied `properties` or `metadata` patch may omit `instanceLocation` rather than identify a postimage position that is not yet known. A request-body pointer does not identify a position in that document."
         }
       ]
     },

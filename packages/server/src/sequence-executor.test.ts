@@ -352,9 +352,9 @@ function controlled(
   }
 }
 const update = (key: string, extra = {}) => ({
-  operation: "updateBeadProperties",
+  operation: "updateBead",
   bead: "beads/free",
-  change: [{ op: "replace", path: "", value: { n: 0 } }],
+  propertiesChange: [{ op: "replace", path: "", value: { n: 0 } }],
   idempotencyKey: key,
   ...extra,
 });
@@ -612,16 +612,16 @@ describe("configuration, atomic admission and projection", () => {
         idempotencyKey: "l",
       },
       {
-        operation: "updateLinkProperties",
+        operation: "updateLink",
         link: "@edge",
-        change: [{ op: "replace", path: "", value: {} }],
+        propertiesChange: [{ op: "replace", path: "", value: {} }],
         idempotencyKey: "ul",
       },
       { operation: "deleteLink", link: "@edge", idempotencyKey: "dl" },
       {
-        operation: "updateBeadProperties",
+        operation: "updateBead",
         bead: "@made",
-        change: [{ op: "replace", path: "", value: {} }],
+        propertiesChange: [{ op: "replace", path: "", value: {} }],
         idempotencyKey: "ub",
       },
       { operation: "putAlias", alias: "alias/new-alias", target: "@made", idempotencyKey: "pa" },
@@ -694,10 +694,10 @@ describe("configuration, atomic admission and projection", () => {
       owner,
       prepareReadUpdateSingleton(
         scope,
-        "updateBeadProperties",
+        "updateBead",
         stringifyJsonValue({
           bead: "beads/free",
-          change: [{ op: "replace", path: "", value: { n: 0 } }],
+          propertiesChange: [{ op: "replace", path: "", value: { n: 0 } }],
         }),
         "statusless",
       ),
@@ -982,9 +982,9 @@ describe("canonical projection and real creator prefixes", () => {
     const carrier = sequence([
       create("maker", { id: "beads/made", name: "made" }),
       {
-        operation: "updateBeadProperties",
+        operation: "updateBead",
         bead: "@made",
-        change: [{ op: "add", path: "/n", value: 1 }],
+        propertiesChange: [{ op: "add", path: "/n", value: 1 }],
         idempotencyKey: "dependent",
       },
     ]);
@@ -1020,9 +1020,9 @@ describe("canonical projection and real creator prefixes", () => {
     const expired = sequence([
       create("maker", { id: "beads/made", name: "old" }),
       {
-        operation: "updateBeadProperties",
+        operation: "updateBead",
         bead: "@old",
-        change: [{ op: "add", path: "/after", value: 2 }],
+        propertiesChange: [{ op: "add", path: "/after", value: 2 }],
         idempotencyKey: "after-expiry",
       },
     ]);
@@ -1107,9 +1107,9 @@ describe("canonical projection and real creator prefixes", () => {
           sequence([
             { ...link, source: "alias/new", name: "renamed" },
             {
-              operation: "updateLinkProperties",
+              operation: "updateLink",
               link: "@renamed",
-              change: [{ op: "add", path: "/later", value: true }],
+              propertiesChange: [{ op: "add", path: "/later", value: true }],
               idempotencyKey: "dependent",
             },
           ]),
@@ -1126,10 +1126,10 @@ describe("canonical projection and real creator prefixes", () => {
       const f = fixture({ empty: true }),
         owner = f.owner();
       await execute(f, owner, sequence([create("a", { id: "beads/a" })]));
-      const input = { bead: "beads/a", change: [{ op: "add", path: "/n", value: 1 }] };
+      const input = { bead: "beads/a", propertiesChange: [{ op: "add", path: "/n", value: 1 }] };
       const originalCarrier = prepareReadUpdateSingleton(
         scope,
-        "updateBeadProperties",
+        "updateBead",
         stringifyJsonValue(input),
         "update",
       );
@@ -1155,15 +1155,10 @@ describe("canonical projection and real creator prefixes", () => {
       const retry = { ...input, bead: "alias/new" };
       const carrier = suffix
         ? sequence([
-            { operation: "updateBeadProperties", ...retry, idempotencyKey: "update" },
+            { operation: "updateBead", ...retry, idempotencyKey: "update" },
             create("tail"),
           ])
-        : prepareReadUpdateSingleton(
-            scope,
-            "updateBeadProperties",
-            stringifyJsonValue(retry),
-            "update",
-          );
+        : prepareReadUpdateSingleton(scope, "updateBead", stringifyJsonValue(retry), "update");
       const failed = submit(owner, carrier);
       f.queue.drain();
       const fault = await failed.then(
@@ -1268,7 +1263,7 @@ describe("actual scheduled policy, clocks and independent maintenance", () => {
       f.state.now = start + 100;
     };
     f.queue.step();
-    expect(body(f, "beads/new").changeContext.committedAt.value).toBe(
+    expect(body(f, "beads/new").revisionProvenance.committedAt.value).toBe(
       new Date(start + 100).toISOString(),
     );
     expect(retained(f.key("maker")).completedAt).toBe(start + 101);
@@ -1281,7 +1276,7 @@ describe("actual scheduled policy, clocks and independent maintenance", () => {
     if (!entry || !("resource" in entry) || !entry.resource) throw Error("expected Link result");
     const link = parseLinkRecord(entry.resource);
     const source = body(f, "beads/a");
-    expect(source.changeContext).toEqual(link.changeContext);
+    expect(source.revisionProvenance).toEqual(link.revisionProvenance);
     expect(
       source.ownedLinks[linkType].find((candidate: { id: string }) => candidate.id === link.id),
     ).toEqual(link);
@@ -1845,7 +1840,7 @@ describe("deep actual results and controlled retained extensions", () => {
     const deep = `${'{"child":'.repeat(depth)}1${"}".repeat(depth)}`;
     const carrier = prepareReadUpdateSequence(
       scope,
-      `{"operations":[{"operation":"createBead","id":"beads/deep","type":"${type}","properties":${deep},"idempotencyKey":"deep-create","name":"made"},{"operation":"updateBeadProperties","bead":"@made","change":[{"op":"add","path":"/other","value":${deep}}],"idempotencyKey":"deep-update"}]}`,
+      `{"operations":[{"operation":"createBead","id":"beads/deep","type":"${type}","properties":${deep},"idempotencyKey":"deep-create","name":"made"},{"operation":"updateBead","bead":"@made","propertiesChange":[{"op":"add","path":"/other","value":${deep}}],"idempotencyKey":"deep-update"}]}`,
     );
     const owner = f.owner();
     const first = await execute(f, owner, carrier);
@@ -1900,7 +1895,7 @@ import {openRecoveryStore} from ${JSON.stringify(emittedStore)};
 import {parseTypeDescriptor,prepareReadUpdateSequence,stringifyJsonValue} from ${JSON.stringify(emittedProtocol)};
 import {writeSync} from 'node:fs';
 const [directory,mode]=process.argv.slice(2);
-if(process.version!=='v24.16.0')throw Error('wrong pinned interpreter: '+process.version);
+if(process.version!=='v24.22.1')throw Error('wrong pinned interpreter: '+process.version);
 const scope=${JSON.stringify(scope)},type=${JSON.stringify(type)},day=${day},start=${start};
 const descriptor=parseTypeDescriptor({id:type,name:'child Bead',describes:'bead',conformsTo:[]});
 const bytes=stringifyJsonValue(descriptor);
@@ -1952,7 +1947,7 @@ interface ChildFixture {
   exited: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
 }
 function startSequenceChild(dir: string, mode: string): ChildFixture {
-  expect(process.version).toBe("v24.16.0");
+  expect(process.version).toBe("v24.22.1");
   const filename = path.join(directory(), "sequence-child.mjs");
   writeFileSync(filename, childProgram);
   const child = spawn(process.execPath, [filename, dir, mode], {
@@ -2114,7 +2109,7 @@ describe("real event loop and emitted child ownership", () => {
     const dir = directory(),
       child = startSequenceChild(dir, "crash");
     const ready = await child.wait("ready");
-    expect(ready.ready).toMatchObject({ node: "v24.16.0", lockingMode: "exclusive" });
+    expect(ready.ready).toMatchObject({ node: "v24.22.1", lockingMode: "exclusive" });
     const barrier = await child.wait("barrier");
     expect(barrier).toMatchObject({ barrier: "after-two", dispatch: 3 });
     child.child.kill("SIGKILL");
@@ -2626,9 +2621,9 @@ describe("explicit runtime compatibility before authority transfer", () => {
         owner,
         sequence([
           {
-            operation: "updateLinkProperties",
+            operation: "updateLink",
             link: "links/old",
-            change: [{ op: "add", path: "/x", value: "123456789" }],
+            propertiesChange: [{ op: "add", path: "/x", value: "123456789" }],
             idempotencyKey: "large-link",
           },
         ]),
@@ -2688,4 +2683,127 @@ describe("explicit runtime compatibility before authority transfer", () => {
       await accepted.close();
     },
   );
+});
+
+describe("pre-admission mutation response negotiation", () => {
+  it("never claims an unknown key and preserves pending/retained comparison before refusal", async () => {
+    const f = fixture();
+    const owner = f.owner();
+    const carrier = prepareReadUpdateSingleton(
+      scope,
+      "createBead",
+      stringifyJsonValue({ id: "beads/negotiate", type }),
+      "negotiate",
+    );
+    expect(owner.submit(carrier, principal, { acceptsJson: false })).toEqual({
+      kind: "not-acceptable",
+    });
+    expect(f.key("negotiate")).toEqual({ kind: "unknown" });
+    expect(f.store.read((r) => r.resource("beads/negotiate"))).toBeUndefined();
+    const pending = submit(owner, carrier);
+    expect(owner.submit(carrier, principal, { acceptsJson: false })).toMatchObject({
+      kind: "refused",
+      problem: { code: "idempotency-in-progress" },
+    });
+    f.queue.drain();
+    await pending;
+    const before = f.key("negotiate");
+    expect(owner.submit(carrier, principal, { acceptsJson: false })).toEqual({
+      kind: "not-acceptable",
+    });
+    expect(f.key("negotiate")).toEqual(before);
+    const changed = prepareReadUpdateSingleton(
+      scope,
+      "createBead",
+      stringifyJsonValue({ id: "beads/negotiate", type, properties: { changed: true } }),
+      "negotiate",
+    );
+    expect(owner.submit(changed, principal, { acceptsJson: false })).toMatchObject({
+      kind: "refused",
+      problem: { code: "idempotency-conflict" },
+    });
+    expect(f.key("negotiate")).toEqual(before);
+  });
+
+  it("returns retained singleton failure before negotiation without renewing it", async () => {
+    const f = fixture();
+    const owner = f.owner();
+    const carrier = prepareReadUpdateSingleton(
+      scope,
+      "deleteBead",
+      stringifyJsonValue({ bead: "beads/missing" }),
+      "missing_negotiate",
+    );
+    const submitted = submit(owner, carrier);
+    f.queue.drain();
+    expect(await submitted).toMatchObject({
+      kind: "singleton",
+      disposition: { code: "resource-not-found" },
+    });
+    const before = f.key("missing_negotiate");
+    expect(owner.submit(carrier, principal, { acceptsJson: false })).toMatchObject({
+      kind: "refused",
+      problem: { code: "resource-not-found" },
+    });
+    expect(f.key("missing_negotiate")).toEqual(before);
+  });
+
+  it("compares retained creator witnesses without executing unknown sequence tails", async () => {
+    const f = fixture();
+    const owner = f.owner();
+    const carrier = sequence([
+      create("creator", { name: "a" }),
+      { operation: "putAlias", idempotencyKey: "bound_alias", alias: "alias/bound", target: "@a" },
+    ]);
+    const original = submit(owner, carrier);
+    f.queue.drain();
+    const completed = await original;
+    expect(completed.kind).toBe("sequence");
+    const before = [f.key("creator"), f.key("bound_alias")];
+    const retry = sequence([
+      create("creator", { name: "renamed" }),
+      {
+        operation: "putAlias",
+        idempotencyKey: "bound_alias",
+        alias: "alias/bound",
+        target: "@renamed",
+      },
+      create("unclaimed_tail"),
+    ]);
+    expect(owner.submit(retry, principal, { acceptsJson: false })).toEqual({
+      kind: "not-acceptable",
+    });
+    expect([f.key("creator"), f.key("bound_alias")]).toEqual(before);
+    expect(f.key("unclaimed_tail")).toEqual({ kind: "unknown" });
+    const conflicting = sequence([create("creator", { properties: { changed: true } })]);
+    expect(owner.submit(conflicting, principal, { acceptsJson: false })).toEqual({
+      kind: "not-acceptable",
+    });
+    // Sequence member conflict remains part of the success envelope, not a
+    // direct carrier Problem. An acceptable retry still exposes that conflict.
+    const conflict = submit(owner, conflicting);
+    f.queue.drain();
+    expect(await conflict).toMatchObject({
+      kind: "sequence",
+      response: { results: [{ code: "idempotency-conflict" }] },
+    });
+  });
+
+  it("leaves every unknown sequence key unclaimed and preserves carrier limit precedence", () => {
+    const f = fixture();
+    const owner = f.owner({ maximumSequenceOperations: 2 });
+    const carrier = sequence([
+      create("one", { name: "one" }),
+      { operation: "putAlias", idempotencyKey: "alias", alias: "alias/one", target: "@one" },
+    ]);
+    expect(owner.submit(carrier, principal, { acceptsJson: false })).toEqual({
+      kind: "not-acceptable",
+    });
+    expect(f.key("one")).toEqual({ kind: "unknown" });
+    expect(f.key("alias")).toEqual({ kind: "unknown" });
+    expect(owner.submit(five(), principal, { acceptsJson: false })).toMatchObject({
+      kind: "refused",
+      problem: { code: "limit-exceeded" },
+    });
+  });
 });
