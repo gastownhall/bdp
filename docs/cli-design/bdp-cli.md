@@ -307,10 +307,10 @@ Already-issued identities remain unchanged.
 Deleting a Bead or Link does not make its ID available for reuse. A generated
 ID is its actual identity, not a shortened display name.
 
-The complete chosen ID is sent to BDP in the existing `id` field. If the CLI
-cannot safely choose and reserve an ID under the requested root, it reports
-that limitation. Producing an operation without executing it cannot choose or
-reserve an ID. See [ID allocation](preview3-alignment.md#history-and-allocation-adapters).
+`--id ID` sends `id`; `--id-root ROOT` sends `idRoot` under the selected
+[id-root allocation capability](../../specs/profiles/write/id-root.md). The service
+chooses and reserves the complete ID atomically. Emission preserves the root and
+reserves nothing; absent support refuses without client allocation or fallback.
 
 <a id="write-revision-flags"></a>
 
@@ -332,9 +332,9 @@ Both flags use the same value syntax:
 | `=saved-r1` | The exact revision token `saved-r1`. |
 | `=3` | The exact token `3`, not local revision number 3. |
 
-The CLI looks up a local revision number and uses its full token in the BDP
-request. If the number cannot be resolved, the command fails. The leading `=`
-marks an exact token and is removed before the token reaches BDP.
+An authoritative store adapter maps a local number to its full BDP token;
+page order or client counting cannot supply that mapping. Missing support refuses.
+Wire References keep URI/exact-token forms; the CLI removes the leading `=`.
 
 A write guard checks the current target; it does not select content to read.
 For example, a historical edit might copy content from revision 3 while
@@ -670,8 +670,8 @@ identity can be reused.
 
 Under Types, an unpinned Type resolves once to the registered default at admission;
 an exact Type pin stays exact. Offline emission does not perform that resolution.
-`@current` is not an authored Type pin. Root-only allocation needs a suitable
-adapter; it is not a wire `idRoot` field. No property editing modes, read filters
+`@current` is not an authored Type pin. Rooted allocation is performed by the
+service through selected wire `idRoot`, with no client allocation. No property editing modes, read filters
 or write guard are accepted on creation.
 
 
@@ -699,7 +699,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --- | --- |
 | Destination Scope | POST to discovered `createBead` URL with the selected media and one Idempotency-Key. |
 | --type TYPE | Set `type` to the absolute URI string or exact `{uri,revision}` Reference. |
-| --id ID / allocated root ID | Set the complete chosen `id`; omission leaves authority allocation. |
+| --id ID / --id-root ROOT | Send `id` or selected `idRoot`, never both; omission leaves ordinary authority allocation. |
 | --properties / --metadata | Set the existing initial object members. |
 | --revision-provenance JSON | Set `revisionProvenance` input. |
 | --dry-run-mode batch / --batch-bind | Emit `operation:"createBead"` and optional `name`; neither is a singleton body member. |
@@ -1329,7 +1329,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | Endpoint bindings | Set existing `source` and `target` References in POST to discovered `createLink`. |
 | Endpoint revision suffix | Use the exact `{uri,revision}` Reference; bare input stays a URI string. |
 | --type TYPE | Set whole `type` Reference. |
-| --id / --id-root | Use ordinary `id` or authority allocation; `idRoot` is not a wire member. |
+| --id / --id-root | Send `id` or selected `idRoot`, never both; the service allocates beneath the requested root. |
 | --properties / --metadata / --revision-provenance | Set the existing initial object and attribution members. |
 | --dry-run-mode batch / --batch-bind | Emit `operation:"createLink"` with optional creation name; no singleton name field. |
 
@@ -2474,7 +2474,7 @@ The selected version must be implemented by the compiler and advertised by the
 authority for execution. Every native request states the exact version; no
 provider-driven version choice, automatic downgrade or reinterpretation is
 allowed. Transaction-scoped List and Query are advertised independently.
-Version 1 retains its six CRUD members and existing creation-capture semantics. Named List/Query selection and set targets belong
+Unextended version 1 retains six CRUD members and creation captures; [id-root1](../../specs/profiles/write/id-root.md) separately selects rooted creation. Named List/Query selection and set targets belong
 to the explicitly proposed version-2 grammar. Unsupported selection refuses;
 there is no downgrade, client-side preselection, independent-write fallback or
 automatic chunking.

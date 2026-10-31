@@ -10,10 +10,14 @@ export const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const media = "application/vnd.bdp.v0.1+json";
 export const schemaFile = "specs/profiles/core/bdp-v0.1.schema.json";
 const external = "../profiles/core/bdp-v0.1.schema.json#/$defs/";
-const baseCommit = "c6dfb3c05fe707cf605030c5661123e8dda0d8f8";
+const baseCommit = "e23aec722763e967d3bde08caf96657069b39ead";
 // Source drift stops generation. Updating a digest requires paired mapping review;
 // this script intentionally has no refresh-fingerprints or moving-HEAD mode.
 const approvedSources = {
+  "specs/profiles/write/id-root-v1.schema.json":
+    "0f4c2a7cc57fefb29dc5ff6dc4139bd1e465feb6e0551021db16a5775ed73d8f",
+  "specs/profiles/write/id-root.md":
+    "c7c34478f2d03cd39da4b9cffc7bfefdb6902f9d41caea67552d48faa7143563",
   "specs/profiles/core/retained-core.md":
     "a758b6db79493d71f54384ef7f514bd01760dec50127e563ad71c03cc1885a82",
   "specs/profiles/core/core.md": "da6c574ed41cfde803a80b35ae2ac4bdc07368faf4e907a837cdf1f21d69141a",
@@ -36,16 +40,16 @@ const approvedSources = {
   "specs/profiles/core/bdp-v0.schema.json":
     "15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327",
   "specs/profiles/write/retained-write.md":
-    "c1f8763d08916ec909d0ba24483c64652bb12b9415000a983679fafd847ec868",
+    "fd4588686bf74ffac17a42018793ff9f3696a0b448d4eae32293f97359a979c8",
   "specs/profiles/write/write.md":
     "6b0fa7090066aff9d0a5994fb0899d9a3e77b4a8ce168d36c69564c71221fdb6",
   "specs/profiles/write/atomic-batch.md":
-    "46208d32069ef4902565a5a48adf322d40e992e6c6236649de5682a5c0f573c9",
+    "4037788ecb5942c7ac291214efff3f8e451f73edfa4784fdec09e072e9f5c4d6",
   "specs/profiles/write/link-updates.md":
     "4d3b3154f76527fcc42e8534872f61851f53fad4280fba6775c056bdc466462e",
   "specs/profiles/write/object-edits.md":
     "9470123de75e3c1970a067cb1be4f5bd78ccd78bf271b0611cf1663ee45750fd",
-  "docs/cli-design/bdp-cli.md": "910070ca73013ade6acbea3b49c78a0973efe8d40ba6214acc70f9827acd1838",
+  "docs/cli-design/bdp-cli.md": "408eb3677baf69b2047ad4e9de9292d835c93ae2810b6d6a4402248ef967666b",
   "docs/cli-design/retained-profiles.md":
     "f64e71432a61b6b9416332884da6e52196883880bdd268117f3f57242980fb11",
   "docs/cli-design/reads-and-paging.md":
@@ -63,6 +67,13 @@ const approvedSources = {
 const load = (path) => JSON.parse(readFileSync(resolve(root, path), "utf8"));
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 export const ref = (name) => ({ $ref: external + name });
+export const idRootSchemaFile = "specs/profiles/write/id-root-v1.schema.json";
+const rootedRef = (name) => ({ $ref: `../profiles/write/id-root-v1.schema.json#/$defs/${name}` });
+const rootedRequests = {
+  createBead: "idRootCreateBeadRequest",
+  createLink: "idRootCreateLinkRequest",
+  atomicBatch: "idRootBatchRequest",
+};
 const core = "specs/profiles/core/core.md";
 const retained = "specs/profiles/core/retained-core.md";
 const write = "specs/profiles/write/retained-write.md";
@@ -198,6 +209,44 @@ const writeCodes = [
   "idempotency-expired",
   "revision-allocation-unsafe",
 ];
+
+// Public semantic commands own variants; these entries are not extra SDK methods.
+export const commandGroups = [
+  ["bd create", ["createBead"]],
+  [
+    "bd show",
+    [
+      "currentBead",
+      "historicalBead",
+      "beadProperties",
+      "projectedBead",
+      "projectedHistoricalBead",
+      "beadAggregate",
+    ],
+  ],
+  ["bd update", ["updateBead"]],
+  ["bd delete", ["deleteBead"]],
+  ["bd list", ["beadInventory", "projectedBeadInventory"]],
+  ["bd versions", ["beadVersions"]],
+  ["bd link create", ["createLink"]],
+  [
+    "bd link show",
+    ["currentLink", "historicalLink", "linkProperties", "projectedLink", "projectedHistoricalLink"],
+  ],
+  ["bd link update", ["updateLink"]],
+  ["bd link delete", ["deleteLink"]],
+  ["bd link list", ["linkInventory", "projectedLinkInventory", "incidentLinks"]],
+  ["bd link versions", ["linkVersions"]],
+  ["bd events", ["scopeEvents", "beadEvents"]],
+  ["bd link events", ["linkEvents"]],
+  ["bd scope inspect", ["discovery"]],
+  ["bd alias resolve", ["aliasResolve"]],
+  ["bd alias put", ["putAlias"]],
+  ["bd alias delete", ["deleteAlias"]],
+  ["bd batch", ["atomicBatch"]],
+].map(([command, signatures]) => ({ command, signatures }));
+export const transportSignatures = ["scopeLanding", "writeDirectory"];
+export const deferredSignatures = ["exactDefinition"];
 
 export function operations() {
   const rows = [];
@@ -630,7 +679,35 @@ function pathItem(row) {
         responses,
       };
       if (post) {
-        op.requestBody = { required: true, content: { [media]: { schema: ref(row.request) } } };
+        const rooted = rootedRequests[row.id];
+        op.requestBody = {
+          required: true,
+          content: {
+            [media]: {
+              schema: rooted ? { oneOf: [ref(row.request), rootedRef(rooted)] } : ref(row.request),
+            },
+          },
+        };
+        if (rooted) {
+          op["x-bdp-request-selection"] = {
+            capability: capability("id-root"),
+            version: "1",
+            selector:
+              row.id === "atomicBatch"
+                ? "idRoot present at a createBead/createLink member"
+                : "idRoot present on this create body",
+            absence: "Unchanged base request; no implicit feature selection",
+            requiredComposition:
+              row.id === "atomicBatch" ? "atomic-batch1 plus id-root1" : "Write plus id-root1",
+            operation: "Same existing operation URL, media and result; no client-side allocation",
+            grammar: "specs/profiles/write/id-root.md",
+          };
+          op.responses.default.content["application/problem+json"].schema = rootedRef(
+            row.id === "atomicBatch" ? "idRootBatchProblem" : "idRootCreateProblem",
+          );
+          if (!op["x-bdp-applicable-problem-codes"].includes("capability-not-supported"))
+            op["x-bdp-applicable-problem-codes"].push("capability-not-supported");
+        }
         op["x-bdp-forbidden-response-headers"] = ["ETag", "Location"];
       }
       if (row.forbiddenHeaders) op["x-bdp-forbidden-response-headers"] = row.forbiddenHeaders;
@@ -707,6 +784,12 @@ export function generateArtifacts() {
         "Empty paths by design. Reusable signatures do not prescribe routes or implement dynamic navigation. Not a provider/SDK conformance claim.",
     },
     paths: {},
+    "x-bdp-cli-surface": {
+      status: "Informative semantic grouping, not a generated SDK interface",
+      commands: commandGroups,
+      transport: transportSignatures,
+      deferredPublicCLI: deferredSignatures,
+    },
     "x-bdp-navigation": {
       status: "draft authoring/tooling metadata, not a wire capability",
       baseCommit,
@@ -757,8 +840,40 @@ export function generateArtifacts() {
         "x-bdp-exact-fixture-url preserves opaque URL bytes/query; ordinary generators do not implement dynamic BDP navigation.",
     },
   };
+  const grouped = [
+    ...commandGroups.flatMap((group) => group.signatures),
+    ...transportSignatures,
+    ...deferredSignatures,
+  ];
+  if (
+    grouped.length !== rows.length ||
+    new Set(grouped).size !== rows.length ||
+    grouped.some((id) => !rows.some((row) => row.id === id))
+  )
+    throw new Error(
+      "Every wire signature requires exactly one public, transport or deferred grouping",
+    );
+  const commands = [
+    "# Canonical commands first",
+    "",
+    "Nineteen specified public command signatures own the wire variants below. These are design signatures, not a claim of shipped commands or nineteen generated SDK methods. The 35 wire signature families contain 26 GETs, their 26 HEAD counterparts and nine POSTs; options and transport forms do not add public commands.",
+    "",
+    "| Canonical command | Wire signature variants |",
+    "| --- | --- |",
+    ...commandGroups.map(
+      (group) =>
+        `| \`${group.command}\` | ${group.signatures.map((name) => `\`${name}\``).join(", ")} |`,
+    ),
+    "",
+    "Scope landing and the Write directory are shared transport setup. Discovery also serves scope inspect. Exact-definition lookup is a selected interpreter operation whose public Type CLI remains deferred. HEAD and paging remain mechanics of the selected read.",
+    "",
+    "[Command/wire exceptions and completion gaps](../../docs/cli-design/wire-correspondence.md) distinguish portable direct operations from host adapters, request composition and unfinished feature correspondence. [Wire coverage](coverage.md) retains all validation cases. Rooted allocation selects id-root1 on existing create/batch routes; it adds no public command or endpoint. Service-side Type default pinning requires no client definition prefetch.",
+    "",
+  ];
   const coverage = [
     "# Generated informative HTTP coverage",
+    "",
+    "Start with the [canonical command map](commands.md). Each row below is a wire variant or transport form, not a new command.",
     "",
     `Fixed source base: ${baseCommit}. Do not edit; run scripts/generate-openapi.mjs.`,
     "",
@@ -781,7 +896,7 @@ export function generateArtifacts() {
     "",
     "JSON fields/media and exact response constraints are in the catalog. Problem unions may contain inherited inapplicable cases: singleton binding-unavailable is excluded; Type-specific duties remain conditional. Native authorization, admission order, id/key/owner/revision correlation, cursor context and capability checks require semantic implementation.",
     "",
-    "The narrow exact-definition wrapper forbids Resource/Collection kind headers and is not a Type inventory or application History advertisement. Projection fields are JSON encoded in one query value; parsed-query helpers are not raw HTTP bodies. Required Events are finite JSON; optional delta must be selected. CLI encoder2 and display/JSONL/retry-file mechanics are not selected version1 HTTP grammar.",
+    "The narrow exact-definition wrapper forbids Resource/Collection kind headers and is not a Type inventory or application History advertisement. Projection fields are JSON encoded in one query value; parsed-query helpers are not raw HTTP bodies. Required Events are finite JSON; optional delta must be selected. The separately selected id-root1 composition adds rooted creates without changing base batch1. CLI encoder2 and display/JSONL/retry-file mechanics are not selected version1 HTTP grammar.",
     "",
   );
   return {
@@ -794,6 +909,7 @@ export function generateArtifacts() {
       tooling,
     ),
     "specs/openapi/coverage.md": coverage.join("\n"),
+    "specs/openapi/commands.md": commands.join("\n"),
   };
 }
 

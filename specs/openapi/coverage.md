@@ -1,6 +1,8 @@
 # Generated informative HTTP coverage
 
-Fixed source base: c6dfb3c05fe707cf605030c5661123e8dda0d8f8. Do not edit; run scripts/generate-openapi.mjs.
+Start with the [canonical command map](commands.md). Each row below is a wire variant or transport form, not a new command.
+
+Fixed source base: e23aec722763e967d3bde08caf96657069b39ead. Do not edit; run scripts/generate-openapi.mjs.
 
 Paths are discovered runtime URLs. Source fingerprints require mapping review on change. HEAD is bodyless, including Problems. Generation and the Node unit do not perform external OpenAPI meta-validation; separate evidence is required. They do not execute a code generator or provider.
 
@@ -70,4 +72,4 @@ Paths are discovered runtime URLs. Source fingerprints require mapping review on
 
 JSON fields/media and exact response constraints are in the catalog. Problem unions may contain inherited inapplicable cases: singleton binding-unavailable is excluded; Type-specific duties remain conditional. Native authorization, admission order, id/key/owner/revision correlation, cursor context and capability checks require semantic implementation.
 
-The narrow exact-definition wrapper forbids Resource/Collection kind headers and is not a Type inventory or application History advertisement. Projection fields are JSON encoded in one query value; parsed-query helpers are not raw HTTP bodies. Required Events are finite JSON; optional delta must be selected. CLI encoder2 and display/JSONL/retry-file mechanics are not selected version1 HTTP grammar.
+The narrow exact-definition wrapper forbids Resource/Collection kind headers and is not a Type inventory or application History advertisement. Projection fields are JSON encoded in one query value; parsed-query helpers are not raw HTTP bodies. Required Events are finite JSON; optional delta must be selected. The separately selected id-root1 composition adds rooted creates without changing base batch1. CLI encoder2 and display/JSONL/retry-file mechanics are not selected version1 HTTP grammar.

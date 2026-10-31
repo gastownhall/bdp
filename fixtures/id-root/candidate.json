@@ -1,0 +1,209 @@
+{
+  "status": "DRAFT_ARTIFACTS_NOT_PROVIDER_EXECUTION",
+  "scope": "https://work.invalid/acme/",
+  "capability": "https://github.com/gastownhall/bdp/capabilities/id-root",
+  "advertisement": {
+    "https://github.com/gastownhall/bdp/capabilities/id-root": {
+      "1": {}
+    }
+  },
+  "beadRequest": {
+    "idRoot": "projects/alpha",
+    "type": "https://types.invalid/note@2",
+    "properties": {
+      "title": "Root allocated"
+    }
+  },
+  "linkRequest": {
+    "idRoot": "relations",
+    "type": "https://types.invalid/references",
+    "source": {
+      "uri": "existing-source",
+      "revision": "r-source"
+    },
+    "target": "urn:example:external"
+  },
+  "batchRequest": {
+    "capabilityVersion": "1",
+    "operations": [
+      {
+        "operation": "createBead",
+        "name": "newNote",
+        "idRoot": "projects/alpha",
+        "type": "https://types.invalid/note@2",
+        "properties": {
+          "title": "Root allocated"
+        }
+      },
+      {
+        "operation": "createLink",
+        "name": "newLink",
+        "idRoot": "relations",
+        "type": "https://types.invalid/references",
+        "source": "@newNote",
+        "target": "existing-target"
+      },
+      {
+        "operation": "createBead",
+        "id": "explicit",
+        "type": "https://types.invalid/note@2"
+      },
+      {
+        "operation": "updateBead",
+        "bead": "existing",
+        "type": "https://types.invalid/note@2"
+      },
+      {
+        "operation": "deleteBead",
+        "bead": "delete-me"
+      },
+      {
+        "operation": "updateLink",
+        "link": "existing-link",
+        "target": "existing-target"
+      },
+      {
+        "operation": "deleteLink",
+        "link": "delete-link"
+      }
+    ]
+  },
+  "lexicalRoots": [
+    "projects/alpha",
+    "notes@2",
+    "r%C3%A9sum%C3%A9",
+    "a%20b",
+    "a%252Fb",
+    "a/:literal"
+  ],
+  "invalidRoots": [
+    "",
+    "/",
+    "/a",
+    "a/",
+    "a//b",
+    ".",
+    "..",
+    "a/./b",
+    "a/../b",
+    "https://elsewhere.invalid/x",
+    "//elsewhere.invalid/x",
+    "@newNote",
+    "a?x",
+    "a#x",
+    "a\\b",
+    "a%2Fb",
+    "a%5Cb",
+    "a%61",
+    "a%c3%a9",
+    "a%ZZ",
+    "a%1F"
+  ],
+  "unsupported": {
+    "type": "https://github.com/gastownhall/bdp/problems/request",
+    "status": 422,
+    "code": "capability-not-supported",
+    "retry": "after-state-change",
+    "capability": "https://github.com/gastownhall/bdp/capabilities/id-root",
+    "capabilityVersion": "1",
+    "pointer": "/idRoot"
+  },
+  "typeAndReplay": {
+    "request": {
+      "idRoot": "projects/alpha",
+      "type": "https://types.invalid/note@2",
+      "properties": {
+        "title": "Root allocated"
+      }
+    },
+    "atAdmission": {
+      "typeProfile": true,
+      "clientPrefetch": false,
+      "acceptedType": {
+        "uri": "https://types.invalid/note@2",
+        "revision": "definition-2"
+      }
+    },
+    "opaqueSuffix": "Q7",
+    "originalResult": {
+      "outcome": "created",
+      "changed": true,
+      "resource": {
+        "id": "https://work.invalid/acme/projects/alpha/Q7",
+        "type": {
+          "uri": "https://types.invalid/note@2",
+          "revision": "definition-2"
+        },
+        "revision": "resource-1",
+        "properties": {
+          "title": "Root allocated"
+        },
+        "metadata": {}
+      }
+    },
+    "laterDefault": {
+      "uri": "https://types.invalid/note@2",
+      "revision": "definition-3"
+    },
+    "sameKeyRetainedResult": {
+      "outcome": "created",
+      "changed": true,
+      "resource": {
+        "id": "https://work.invalid/acme/projects/alpha/Q7",
+        "type": {
+          "uri": "https://types.invalid/note@2",
+          "revision": "definition-2"
+        },
+        "revision": "resource-1",
+        "properties": {
+          "title": "Root allocated"
+        },
+        "metadata": {}
+      }
+    },
+    "sameKeyAfterCapabilityWithdrawal": {
+      "outcome": "created",
+      "changed": true,
+      "resource": {
+        "id": "https://work.invalid/acme/projects/alpha/Q7",
+        "type": {
+          "uri": "https://types.invalid/note@2",
+          "revision": "definition-2"
+        },
+        "revision": "resource-1",
+        "properties": {
+          "title": "Root allocated"
+        },
+        "metadata": {}
+      }
+    },
+    "expiredSuccessfulSameMeaning": "idempotency-expired",
+    "differentMeaningSameKey": "idempotency-conflict",
+    "afterDeletion": "allocated identity remains unavailable for unrelated reuse",
+    "rootResourceCreated": false
+  },
+  "semanticRefusals": [
+    {
+      "root": "a%FF",
+      "lexicalAdmission": true,
+      "serviceRefusal": "invalid UTF-8 after exactly one decode"
+    },
+    {
+      "root": "protocol/navigation",
+      "lexicalAdmission": true,
+      "serviceRefusal": "would conflict with reserved navigation address"
+    },
+    {
+      "root": "foreign/scope",
+      "lexicalAdmission": true,
+      "serviceRefusal": "allocation would leave the authenticated owning Scope"
+    }
+  ],
+  "semanticObligations": [
+    "A complete rooted identity is allocated with all effects and authoritative key state in one atomic decision.",
+    "Concurrent fresh keys cannot commit the same identity; no collision scanning by the client.",
+    "A known same-meaning key returns the originally resolved ID, Type and complete retained postimage.",
+    "Types admission resolves the exact accepted definition once; a later default change does not repin replay.",
+    "Prior creation names capture only final allocated identity, never a future revision."
+  ]
+}
