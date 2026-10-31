@@ -193,30 +193,56 @@ The complete [properties-schema companion](callables/callables.properties.schema
 
 A supported isolated schema or future API slice may be authored in those DSLs. No complete DSL translation, compiler or lossless round trip is claimed for this draft. The JSON companion is a structural projection, not an installable Type graph; its effective helpers do not create Refines Links or enforce abstractness/registration. The Specification remains the drafting home for semantic decisions the schema cannot enforce.
 
-## CLI invocation and command tree
+## CLI invocation and Pack command trees
 
-Donna accepted placing client options before the callable; arguments after the callable belong to its CLI projection. The generic invocation spelling below is a working proposal she found plausible:
+Donna selected the direction: friendly command trees come from installed Packs, using hierarchical aliases beneath a well-known Pack-relative cliCommands/ location. Loose callables remain independently invocable with bd call. This supersedes the earlier proposal for Pack-independent command-path registration and a separate path array. The schema/carriers for Pack mounts, alias inventory and top-level exposures remain design work.
+
+Client options precede the callable; subsequent arguments use its CLI projection:
 
 ```text
 bd [client options] call CALLABLE [callable arguments]
+bd [client options] PACK-MOUNT COMMAND-PATH [callable arguments]
 ```
 
-For example, a callable created at chris/sells/laughs can be invoked directly as bd call chris/sells/laughs. A projected --times flag would give bd call chris/sells/laughs --times 3. Callable-specific help can be fetched without executing it; the exact help control and generic JSON-argument input still need a spelling/collision pass. Both CallableBatch and CallableQuery use this generic entry; actual BDP invocation follows the selected callable contract.
+A loose callable at chris/sells/laughs is invoked as bd call chris/sells/laughs. A projected --times flag gives bd call chris/sells/laughs --times 3. Callable-specific help is available without execution; the exact help control and generic JSON-argument input still need a spelling/collision pass. CallableBatch and CallableQuery share this generic entry, with execution following their respective BDP contracts.
 
-**Command-tree proposal, not yet selected:** make explicit CLI registrations independent of Packs. A Scope service advertises accepted registrations in its command catalog; Pack installation contributes registrations through that same facility. Creating a callable alone does not claim a catalog path. Pack ownership is not a prerequisite for a service-accepted standalone registration, and no client-local alias installation is implied.
+### Hierarchical alias convention
 
-| Registration fact | Proposed meaning |
+The CLI path is the installed Pack mount path followed by the alias path relative to that Pack's cliCommands/ root. The Pack's storage/definition prefix and chosen CLI mount are independent. For a Pack rooted at mypack:
+
+| Pack alias | CLI with mount mypack | CLI with mount fun |
+| --- | --- | --- |
+| mypack/cliCommands/chris/sells/laughs | bd mypack chris sells laughs | bd fun chris sells laughs |
+| mypack/cliCommands/chris/sells/cries | bd mypack chris sells cries | bd fun chris sells cries |
+| mypack/cliCommands/chris/anderson/smirks | bd mypack chris anderson smirks | bd fun chris anderson smirks |
+| mypack/cliCommands/chris/list | bd mypack chris list | bd fun chris list |
+
+Each alias targets a Callable, whether defined by this Pack or available through an explicit import. Its selected callable supplies parameters, CLI argument mapping and help. Common prefixes create groups. A callable ID outside this explicit convention does not create a command path. No separate path array is required to duplicate the hierarchical alias name.
+
+The service must admit the chosen alias namespace and advertise the installed tree. Existing BDP aliases provide individual GET/HEAD redirect resolution, not a complete alias inventory, stored revisions, alias chains or invocation forwarding. The Pack catalog must provide a complete discoverable alias set for help/completion and retain selected targets/definition closure. Invoke the resolved callable through the callable contract; do not POST through an assumed alias-forwarding behavior. The alias set, selected definitions and effective installation bindings must not drift silently through live repointing or latest-on-retry resolution.
+
+### Optional top-level shortcuts and collisions
+
+A Pack can also request explicit top-level CLI shortcuts. Donna's motivating example is the Memory Pack exposing bd memory remember and a top-level bd remember shortcut to the same selected operation. The concrete declaration for root exposure is still open; it must not depend on mechanically stripping the Pack mount from every command. Both exposures use the same callable, parameter mapping and execution semantics. A CLI shortcut to a grouped command does not require a chain of BDP aliases.
+
+**Selected collision outcome:** if an optional top-level shortcut conflicts while the Pack's grouped commands are valid, keep the grouped commands and report the shortcut as unbound. An already accepted binding keeps its meaning. For example:
+
+| Requested exposure | Existing situation | Outcome |
+| --- | --- | --- |
+| bd memory remember | Grouped Memory tree is valid | Install/retain the grouped command. |
+| bd remember | Path already belongs to another binding | Keep that binding; report Memory's optional shortcut as unbound, with bd memory remember as its usable alternative. |
+
+Collision recommendations awaiting detailed adoption:
+
+| Case | Proposed rule |
 | --- | --- |
-| Command path | Ordered string segments, such as [chris, sells, laughs], independently chosen from the callable ID. |
-| Target | A selected callable definition/contract; exact target/closure evidence remains part of the invocation design. |
-| Argument projection | Uses the callable's declarative parameter/CLI mapping; no second argument signature in the registration. |
-| Optional Pack provenance | Records the declaring/installed Pack when present, without inventing a Pack for a standalone registration. |
+| General built-in or bootstrap path | Reserve it explicitly; a Pack may not replace call, general CRUD or bootstrap/help controls through ordinary exposure. |
+| Required main Pack mount or command conflicts | Require a different mount/explicit resolution before activating the conflicting required tree. The optional-shortcut fallback does not waive required-tree conflicts. |
+| New candidates request the same optional root path | Publish no arbitrary winner based on load/enumeration order; leave conflicting optional candidates unbound unless there is an explicit selected owner. |
+| Shared prefixes or executable group conflicts | Distinguish grouping from callable leaves and validate complete token paths before publishing. Extendable groups and executable groups still need a rule. |
+| Unbound shortcut diagnosis | Identify requested path, requesting Pack, current owner/conflict and the usable grouped alternative in installation/catalog diagnostics. |
 
-The service projects accepted flat path bindings into a tree by common prefixes. A registration for [chris, sells, laughs] exposes bd chris sells laughs; another registration may expose the same callable as bd laugh. The slashes in the Bead ID do not create either route. Implicit groups allow navigation and generated help; richer group descriptions and whether a group may also invoke are still open.
-
-Registration admission must check command/group conflicts and reserved built-in paths, and reject ambiguous bindings before publishing a catalog. Exact reserved/extendable groups, catalog atomicity, registration ownership/retention, removal on Pack uninstall, profiles and authorization-sensitive discovery remain design work. Standalone and Pack-origin registrations use the same rules. Accepted registration/catalog state, rather than every stored candidate binding, determines the client tree.
-
-This proposal needs its own uniquely named registration Bead/Link Types or equivalent catalog contract before adoption. It does not add fields to the current Callable properties schema, choose a relationship carrier, or authorize a new registration implementation. Direct invocation remains available independently of friendly command placement.
+The active catalog must distinguish requested aliases, successfully bound routes and unbound optional shortcuts. This effective selection participates in exact installed composition/catalog evidence. An unbound shortcut does not remove the Callable, change authorization, or prevent direct bd call invocation. Exact collision equivalence/normalization, same-target duplicate ownership, root-declaration encoding, explicit remapping, activation after a conflict disappears, uninstall/update behavior, profiles and group help remain open. Independent friendly-tree registration outside Packs is deferred.
 
 ## Implementation and parameter binding
 
@@ -280,6 +306,8 @@ These embedded Scenario drafts carry acceptance expectations into later adoption
 | [S4. Distinguish definition and invocation](#s4-distinguish-definition-and-invocation) | Definition GET, Query GET/POST and Batch POST. |
 | [S5. Retain exact execution context](#s5-retain-exact-execution-context) | Replaced/unavailable externs, stale mappings and mutation recovery. |
 | [S6. Respect actual data capability](#s6-respect-actual-data-capability) | Exact definition closure does not manufacture historical data access. |
+| [S7. Mount a Pack alias tree](#s7-mount-a-pack-alias-tree) | Hierarchical alias suffixes form commands beneath the chosen mount. |
+| [S8. Keep grouped commands when a shortcut conflicts](#s8-keep-grouped-commands-when-a-shortcut-conflicts) | Optional root collision leaves the grouped operation available and reports the shortcut unbound. |
 
 ### S1. Invoke without a Pack
 
@@ -297,7 +325,7 @@ A CallableBatch or CallableQuery refinement preserves common help, parameter and
 
 Status: draft
 
-Duplicate parameter names, dangling CLI parameter mappings, duplicate flags/positions and conflicting Pack routes refuse under explicit definition/registration semantics. Shape validation alone does not prove these relations. Omitted, null, defaulted and incompatible supplied values follow the eventual declaration and exact value/Reference rules; unresolved required-plus-default and Reference details remain explicit design work rather than implicit coercion.
+Duplicate parameter names, dangling CLI parameter mappings and duplicate flags/positions refuse under explicit definition/registration semantics. Required Pack-route conflicts need resolution; optional top-level shortcut conflicts follow the unbound-shortcut rule below. Shape validation alone does not prove these relations. Omitted, null, defaulted and incompatible supplied values follow the eventual declaration and exact value/Reference rules; unresolved required-plus-default and Reference details remain explicit design work rather than implicit coercion.
 
 ### S4. Distinguish definition and invocation
 
@@ -316,6 +344,18 @@ An unavailable or replaced Go extern has an explicit availability/compatibility/
 Status: draft
 
 If the requested data edition is unsupported, invocation preserves the real capability refusal. Pinning executable definition dependencies does not imply History support or freeze runtime business data.
+
+### S7. Mount a Pack alias tree
+
+Status: draft
+
+Given mypack/cliCommands/chris/sells/laughs targeting a selected Callable and an installed mount fun, the advertised tree exposes bd fun chris sells laughs using that Callable's argument mapping and help. Replacing the mount changes the prefix, not the Callable identity. A loose Callable remains usable through bd call without a Pack. The catalog captures the alias set and exact selected definitions; ordinary point alias resolution alone does not prove enumeration or closure.
+
+### S8. Keep grouped commands when a shortcut conflicts
+
+Status: draft
+
+Given a valid Memory Pack grouped tree and an optional requested bd remember shortcut whose path is already bound, installation keeps bd memory remember and reports Memory's shortcut as unbound. The existing bd remember binding keeps its meaning. No optional collision turns the grouped operation into a failure or silently overrides another binding. Required grouped-tree conflicts and root-exposure encoding remain separate design questions.
 
 ## Source and validation boundaries
 
