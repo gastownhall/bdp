@@ -591,13 +591,39 @@
       "type": "object",
       "properties": {
         "current": {
-          "const": true
+          "type": "boolean"
         },
         "exact": {
           "type": "boolean"
+        },
+        "list": {
+          "type": "boolean"
         }
       },
-      "required": ["current", "exact"],
+      "required": ["current", "exact", "list"],
+      "anyOf": [
+        {
+          "properties": {
+            "current": {
+              "const": true
+            }
+          }
+        },
+        {
+          "properties": {
+            "exact": {
+              "const": true
+            }
+          }
+        },
+        {
+          "properties": {
+            "list": {
+              "const": true
+            }
+          }
+        }
+      ],
       "additionalProperties": false
     },
     "problem": {
