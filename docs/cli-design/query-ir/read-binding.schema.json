@@ -600,11 +600,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "current",
-        "exact",
-        "list"
-      ],
+      "required": ["current", "exact", "list"],
       "anyOf": [
         {
           "properties": {

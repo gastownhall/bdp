@@ -16,7 +16,7 @@
   "files": [
     {
       "path": "docs/cli-design/query-ir/read-binding.schema.json",
-      "sha256": "f6a8e9d12eab2bef4c681776633ecab55b96c425303458a3b7283772fc11f21b"
+      "sha256": "f522ccf56d226790eecd295ca9f505f31c5f0023c10ecca1ecb8b3f56a05e8c1"
     },
     {
       "path": "docs/cli-design/query-ir/query.schema.json",
