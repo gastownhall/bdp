@@ -135,6 +135,14 @@ its final council corrections are materialized. This supersedes the earlier
 dated pending-implementation statements for T57 only. Transactional runtime,
 shared Read HTTP adoption and fresh conformance observations remain separate.
 
+- [Type/CLI seam tracking, 2026-10-11](./type-cli-seam-tracking-20261011.md)
+  records Janet's release-coordination view of the Preview 2 Type design at
+  PR60 revision `a286110`: the exact tracked revision and digests, the Beads
+  integration, fork staging and CLI specification heads observed on
+  October 11, and the flagged overlaps between the Type decision ledger and
+  the graph CLI contract. It is a tracking record, not the frozen-candidate
+  acknowledgment, product acceptance of D01–D12, or implementation.
+
 History wire integration, 2026-09-10: all 38 selected answer units have owning draft
 text under [Historical resolution](../../specs/profiles/core/core.md#historical-resolution), mirrored
 schemas, protocol parsers, [illustrative fixtures](../../fixtures/history/README.md)
