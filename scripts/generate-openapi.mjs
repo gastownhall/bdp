@@ -20,7 +20,7 @@ const approvedSources = {
     "c7c34478f2d03cd39da4b9cffc7bfefdb6902f9d41caea67552d48faa7143563",
   "specs/profiles/core/retained-core.md":
     "da0f5d73ec5a415a1eedc696ebae014425b94031a6ff1589595069fda0463c4e",
-  "specs/profiles/core/core.md": "da6c574ed41cfde803a80b35ae2ac4bdc07368faf4e907a837cdf1f21d69141a",
+  "specs/profiles/core/core.md": "5772ccaeb2d6a68e43a92eeffe19db1d1f1c40b1c669ecb529513d90e948035e",
   "specs/profiles/core/contract-binding.md":
     "4cea2ef5ce44ff66ed0da93a738f01713ab4fbbd9434e9e2ea098cc626001527",
   "specs/profiles/core/read-delivery.md":

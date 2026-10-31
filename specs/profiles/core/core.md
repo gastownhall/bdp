@@ -6,9 +6,9 @@ version: 0
 
 <a id="bead-protocol-bdp"></a>
 
-# Bead Protocol (BDP) — Core and Read
+# Beads Protocol (BDP) — Core and Read
 
-This document is the draft specification for Bead Protocol version 0
+This document is the draft specification for Beads Protocol version 0
 (BDP v0). The complete specification is intended to become normative after
 review and after validation against real implementations.
 
@@ -179,7 +179,7 @@ behavior defined below, and it never redefines BDP `batch`.
 
 ## The uniformity principle
 
-The Bead Protocol (BDP) is a set of norms over the most widely adopted
+The Beads Protocol (BDP) is a set of norms over the most widely adopted
 protocols and formats of the Web. BDP applies these norms *uniformly*. That
 reduces the overhead of Bead implementations, and it lets generic clients
 work with Beads without a domain-specific protocol surface.
