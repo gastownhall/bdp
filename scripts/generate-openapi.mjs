@@ -19,7 +19,7 @@ const approvedSources = {
   "specs/profiles/write/id-root.md":
     "c7c34478f2d03cd39da4b9cffc7bfefdb6902f9d41caea67552d48faa7143563",
   "specs/profiles/core/retained-core.md":
-    "a758b6db79493d71f54384ef7f514bd01760dec50127e563ad71c03cc1885a82",
+    "da0f5d73ec5a415a1eedc696ebae014425b94031a6ff1589595069fda0463c4e",
   "specs/profiles/core/core.md": "da6c574ed41cfde803a80b35ae2ac4bdc07368faf4e907a837cdf1f21d69141a",
   "specs/profiles/core/contract-binding.md":
     "4cea2ef5ce44ff66ed0da93a738f01713ab4fbbd9434e9e2ea098cc626001527",
@@ -40,7 +40,7 @@ const approvedSources = {
   "specs/profiles/core/bdp-v0.schema.json":
     "15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327",
   "specs/profiles/write/retained-write.md":
-    "fd4588686bf74ffac17a42018793ff9f3696a0b448d4eae32293f97359a979c8",
+    "20d0b347fb13e7ab03f340f4c24a39dce56ceeb6bd90ac86ac40d88e301b1e18",
   "specs/profiles/write/write.md":
     "6b0fa7090066aff9d0a5994fb0899d9a3e77b4a8ce168d36c69564c71221fdb6",
   "specs/profiles/write/atomic-batch.md":

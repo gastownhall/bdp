@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.invalid/simple.json",
+  "title": "Simple",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "A name.",
+      "x-definedBy": "Notice"
+    },
+    "token": {
+      "$ref": "#/$defs/Token"
+    }
+  },
+  "required": ["name"],
+  "additionalProperties": false,
+  "$defs": {
+    "Token": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

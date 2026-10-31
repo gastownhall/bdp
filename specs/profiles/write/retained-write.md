@@ -170,3 +170,7 @@ explicit atomic-batch1 composition leave unextended common requests unchanged.
 Presence selects rooted allocation; advertisement alone never changes a base
 request. Type default pinning stays service-side under Types; it needs no client
 definition lookup. Wire References remain URI/exact-token values, not local ordinals.
+
+## Markdown schema contracts
+
+The [Write schema contracts](write-contracts.md) index ordinary mutation and separately selected batch shapes using the [Markdown JSON Schema DSL](../../formats/markdown-json-schema.md). The [complete common schema companion](../core/bdp-v0.1.schema.md) preserves the canonical bundle's identity, references, conditions and closure. Schema notation does not replace atomic admission, authorization, final publication or retained-key rules. It adds no operations or capability support.

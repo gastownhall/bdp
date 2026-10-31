@@ -28,9 +28,11 @@ three previously unrun controls passed separately. This bounded evidence does
 not establish full Write, CLI or Go conformance. The historical baseline's
 missing implementations and unrun status are not current PR321 status.
 
-Pending PR325 `idRoot`, PR328 notation, the held colon clarification, richer batch
-encodings, Query/List and Type installation/lifecycle are excluded. The accepted
-request carriers have no `idRoot` member. A local `--id-root` without a separately
+The `idRoot` amendment (PR325), Markdown notation (PR328), the held colon
+clarification, richer batch encodings, Query/List and Type installation/lifecycle
+are excluded from this frozen fixture corpus. PR325 is now delivered on main;
+these fixtures still select the unextended common request carriers, which have no
+`idRoot` member. A local `--id-root` without a separately
 supported allocator refuses; it must not manufacture an unsupported wire field.
 No ambiguous bare-colon reference is used to decide the held proposal here.
 

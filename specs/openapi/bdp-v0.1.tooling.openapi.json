@@ -250,7 +250,7 @@
     "sourceFingerprints": {
       "specs/profiles/write/id-root-v1.schema.json": "0f4c2a7cc57fefb29dc5ff6dc4139bd1e465feb6e0551021db16a5775ed73d8f",
       "specs/profiles/write/id-root.md": "c7c34478f2d03cd39da4b9cffc7bfefdb6902f9d41caea67552d48faa7143563",
-      "specs/profiles/core/retained-core.md": "a758b6db79493d71f54384ef7f514bd01760dec50127e563ad71c03cc1885a82",
+      "specs/profiles/core/retained-core.md": "da0f5d73ec5a415a1eedc696ebae014425b94031a6ff1589595069fda0463c4e",
       "specs/profiles/core/core.md": "da6c574ed41cfde803a80b35ae2ac4bdc07368faf4e907a837cdf1f21d69141a",
       "specs/profiles/core/contract-binding.md": "4cea2ef5ce44ff66ed0da93a738f01713ab4fbbd9434e9e2ea098cc626001527",
       "specs/profiles/core/read-delivery.md": "9ea7095d58280eb700f1cdd44e028d9407847b20025d3ebda9a90bdbaab3993d",
@@ -261,7 +261,7 @@
       "specs/profiles/core/type-definition-read.md": "e122e6eaab3618e4f88c8a94325df73b956b94fbded0ca785a66e9f78e56104c",
       "specs/profiles/core/bdp-v0.1.schema.json": "e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f",
       "specs/profiles/core/bdp-v0.schema.json": "15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327",
-      "specs/profiles/write/retained-write.md": "fd4588686bf74ffac17a42018793ff9f3696a0b448d4eae32293f97359a979c8",
+      "specs/profiles/write/retained-write.md": "20d0b347fb13e7ab03f340f4c24a39dce56ceeb6bd90ac86ac40d88e301b1e18",
       "specs/profiles/write/write.md": "6b0fa7090066aff9d0a5994fb0899d9a3e77b4a8ce168d36c69564c71221fdb6",
       "specs/profiles/write/atomic-batch.md": "4037788ecb5942c7ac291214efff3f8e451f73edfa4784fdec09e072e9f5c4d6",
       "specs/profiles/write/link-updates.md": "4d3b3154f76527fcc42e8534872f61851f53fad4280fba6775c056bdc466462e",

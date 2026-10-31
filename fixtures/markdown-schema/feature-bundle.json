@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.invalid/root.json",
+  "title": "A bundle | literal —\nsecond line",
+  "$comment": "No evaluator or prose execution.",
+  "description": "",
+  "$defs": {
+    "Scalar alias": {
+      "title": "Opaque token",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z|]+$",
+      "format": "application-token",
+      "examples": ["a|b"],
+      "x-owner": {
+        "team": "A"
+      }
+    },
+    "false": {
+      "$id": "nested/resource.json",
+      "$defs": {
+        "loop": {
+          "$ref": "#"
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "../common.json#/$defs/value"
+        },
+        {
+          "if": {
+            "required": ["kind"],
+            "properties": {
+              "kind": {
+                "const": "link"
+              }
+            }
+          },
+          "then": {
+            "required": ["source"],
+            "properties": {
+              "source": {
+                "$ref": "#/$defs/loop"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": ["source"]
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  },
+  "type": "object",
+  "properties": {
+    "a|b\\c": {
+      "$ref": "#/$defs/Scalar alias",
+      "description": "—",
+      "x-definedBy": ""
+    },
+    "": {
+      "type": ["string", "null"],
+      "default": null,
+      "title": "empty name"
+    },
+    "__proto__": false,
+    "const": {
+      "const": {
+        "x": [1, true, null, 0]
+      },
+      "description": "line1\nline2"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "external.json#name"
+      }
+    },
+    "choice": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "required": ["items", "a|b\\c"],
+  "additionalProperties": {
+    "type": "object",
+    "propertyNames": {
+      "minLength": 1
+    },
+    "additionalProperties": true,
+    "minProperties": 1
+  },
+  "dependentRequired": {
+    "items": ["a|b\\c"]
+  },
+  "allOf": [
+    {
+      "properties": {
+        "items": {
+          "contains": {
+            "type": "integer"
+          },
+          "minContains": 1,
+          "maxContains": 3,
+          "uniqueItems": true,
+          "maxItems": 10
+        }
+      }
+    }
+  ],
+  "unevaluatedProperties": false
+}
