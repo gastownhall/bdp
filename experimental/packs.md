@@ -234,6 +234,52 @@ These are the five active design decisions. Installation representation is now s
 
 Concrete Package, PackDeclares, PackImports, registry and installation-Link descriptors remain incomplete. The reusable Package definition remains separate from installation. CALL-O1/O2/O3 stay open for the return after package shape, rather than being silently resolved by these conventions.
 
+## Next five design questions
+
+This is the next discussion agenda, in recommended order. All recommendations below are proposals, not additional Donna rulings. The selected Package Type/name, bd pack prefix, subordinate declared Bead IDs, named export Links, explicit named-export imports, one live installation per Package identity per Scope, and optional-shortcut fallback remain settled.
+
+### 1. Conflicting exact dependency revisions — PKG-O3
+
+Context: installed Package A selects dependency D at revision r1 while Package B selects the same dependency identity at r2. One installation per Package identity settles registry cardinality, but does not by itself decide whether different consumer closures may execute against different retained revisions.
+
+Option A rejects conflicting exact dependency selections across active installation closures. It gives a Scope one consistent selected revision per dependency identity and simpler invocation/Type resolution, but a dependency update may require coordinated updates of its consumers. Option B permits separate exact dependency snapshots per consumer. It allows more independent updates, but execution, Type/schema bindings and inspection must carry the consumer's closure context; retention and diagnostics become more involved.
+
+Recommendation: A for this round. Report the requesting Packages, dependency identity and conflicting exact revisions; do not silently upgrade, choose latest or add a version solver. Retaining historical revisions is still permitted. Deliberately distinct Package identities may coexist, subject to the same ordinary validation rules.
+
+### 2. Does installing under another graph root create new identities? — PKG-O2
+
+Context: a Package's declared Beads must be subordinate to its root, and that root may be anywhere. CLI mounting is already independent: bd memory remember versus bd notes remember need not change any canonical Bead IDs. Graph relocation is a different issue: changing acme/memory to team/memory changes the Package/member identity URLs.
+
+Option A chooses an arbitrary graph root when the Package and members are first created, then preserves their canonical IDs through installation and CLI remounting. It uses existing identity rules and requires no implicit rewriting, but does not provide transparent graph relocation. Option B materializes a fresh Package/member graph beneath an installation-supplied root. It offers portable placement, but needs explicit relative-reference/rebasing rules, provenance and a decision about how the new Package identity relates to installation deduplication. It is not a rename of the original Resources.
+
+Recommendation: A initially. Promise arbitrary initial placement and independent CLI mounts; make graph rebasing a separate explicit future operation unless portable graph materialization is required now. This leaves physical distribution out of scope rather than inventing identity translation implicitly.
+
+### 3. What changes are covered by the Package's own revision? — PKG-O1/PKG-O2
+
+Context: declarations, named imports and named exports are separate Links. We need to decide whether changing one also changes the Package's revision, so an authoring revision identifies its composition table.
+
+Option A makes Package own the outgoing declaration/import/export Link families. Existing owned-Link semantics then revision-cover those tables and support coherent reads and concurrency checks; the cost is more Package-revision changes and shared concurrency on composition edits. Option B keeps the Links independently versioned without Package ownership. It allows more independent edits, but Package revision alone does not identify its tables, and every reader/installer needs a separate complete composition snapshot.
+
+Recommendation: A. Also make the registry own the installation-Link family so its revision covers installed membership. Neither choice pins target member bodies: exact closure must still select those revisions. Multiple export names may target one definition; export-name uniqueness therefore needs its own per-Package rule rather than endpoint-pair uniqueness.
+
+### 4. Where is the exact installed closure retained? — PKG-O3
+
+Context: exact closure is selected, but its carrier and detailed coverage remain open. A Package revision alone cannot fix member bodies, imported export targets, Type/schema bindings or repointable CLI aliases.
+
+Option A retains an immutable closure Bead referenced exactly by the installation Link. It gives the snapshot ordinary graph identity/readability and permits sharing between installations or updates, at the cost of another Type and retention policy. Option B embeds the complete manifest in the installation Link's properties. It avoids a separate Resource and makes the binding self-contained, but enlarges Link reads/revisions and duplicates shared closure data. Neither option changes the selected installation fact: that remains the live installation Link.
+
+Recommendation: A, using PackageClosure only as a proposed Type name. Snapshot the installed Package's declared members, selected named imports and required transitive definition dependencies, exact Type/schema bindings, and authored CLI binding inputs. Unselected dependency exports need not be swept in. Runtime business data is outside this closure. The manifest must retain required definition content or a guaranteed retained source, not merely a list of revisions that may disappear. Concrete extern identity remains deferred CALL-O3 work; effective bound/unbound CLI routes remain installation/catalog results rather than reusable Package definition state.
+
+### 5. What is the publication boundary for install, update and uninstall? — PKG-O4/PKG-O5
+
+Context: installation-Link presence is the installation fact, and clients derive their command surface from admitted installations. An update must not expose a new Link selection with an old or incomplete CLI tree.
+
+Option A validates/stages the closure and required CLI bindings, then publishes the installation change and effective catalog generation atomically. It provides one coherent visible state and clear failures, but requires an admission path that handles graph/catalog effects together. Option B accepts ordinary installation-Link CRUD first and reconciles the catalog later. It makes asynchronous processing easier, but needs pending/error/availability semantics and allows installed state to precede its usable command surface.
+
+Recommendation: A. bd pack can provide the management affordance while mutations use the same admission rules, without another installed boolean or installation record. Required-tree conflicts reject the proposed change; the already selected optional-shortcut fallback still keeps valid grouped commands and reports an unbound shortcut. Updates retain the prior admitted selection if validation fails. Removing a dependency still needed by an active installation should initially refuse rather than implicitly cascade. Runtime handler availability and in-flight invocation behavior remain distinct contracts; no unresolved Callable carrier or retry behavior is selected here.
+
+After these decisions, author the concrete Package/member/import/export/registry/installation/closure descriptors and required admission rules. Detailed naming, local import aliases, namespace discovery and CLI normalization/group/cache behavior still need an explicit pass; this agenda is the next five decisions, not a claim that five answers finish the complete Specification.
+
 ## Depends on
 
 These rows are authoring locators for candidate dependency Links. They do not assert stored identities, imported definitions or normative adoption. Dependencies are one way: this Specification uses Callables and Types.
