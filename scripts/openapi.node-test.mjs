@@ -6,11 +6,15 @@ import { resolve } from "node:path";
 import test from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import {
+  commandGroups,
+  deferredSignatures,
   generateArtifacts,
+  idRootSchemaFile,
   media,
   operations,
   root,
   schemaFile,
+  transportSignatures,
   validateToolingBinding,
 } from "./generate-openapi.mjs";
 
@@ -18,6 +22,7 @@ const load = (path) => JSON.parse(readFileSync(resolve(root, path), "utf8"));
 const catalog = load("specs/openapi/bdp-v0.1.openapi.json");
 const tooling = load("specs/openapi/bdp-v0.1.tooling.openapi.json");
 const canonical = load(schemaFile);
+const allocation = load(idRootSchemaFile);
 const bindings = load("fixtures/openapi/bindings.json").bindings;
 const exchanges = load("fixtures/openapi/exchanges.json");
 const rows = operations();
@@ -94,10 +99,16 @@ test("every schema reference resolves without rewriting or staging imports", () 
         return;
       }
       const [file, fragment] = object.$ref.split("#");
-      assert.equal(file, "../profiles/core/bdp-v0.1.schema.json");
+      const schemaDocument =
+        file === "../profiles/core/bdp-v0.1.schema.json"
+          ? canonical
+          : file === "../profiles/write/id-root-v1.schema.json"
+            ? allocation
+            : null;
+      assert(schemaDocument, `Unexpected external schema ${file}`);
       assert(fragment.startsWith("/$defs/"));
       const name = fragment.slice("/$defs/".length);
-      assert(canonical.$defs[name], name);
+      assert(schemaDocument.$defs[name], name);
       assert(
         !/^(sequence|transactional|receipt|mutationReceipt|snapshot|changefeed|eventPage$|event$|readDiscovery$|readUpdateDiscovery$)/.test(
           name,
@@ -130,7 +141,8 @@ test("exact closed eight Write directory, singleton requests, media and operatio
   assert.deepEqual(actual, names);
   for (const name of names) {
     const op = catalog.components.pathItems[name].post;
-    assert.equal(op.requestBody.content[media].schema.$ref.endsWith(`/${name}Request`), true);
+    const schema = op.requestBody.content[media].schema;
+    assert.equal((schema.oneOf?.[0] || schema).$ref.endsWith(`/${name}Request`), true);
     assert(
       op.parameters.some((p) => p.in === "header" && p.name === "Idempotency-Key" && p.required),
     );
@@ -139,9 +151,9 @@ test("exact closed eight Write directory, singleton requests, media and operatio
   }
   assert.equal(canonical.$defs.batchRequest.properties.capabilityVersion.const, "1");
   assert.equal(
-    catalog.components.pathItems.atomicBatch.post.requestBody.content[media].schema.$ref.endsWith(
-      "/batchRequest",
-    ),
+    catalog.components.pathItems.atomicBatch.post.requestBody.content[
+      media
+    ].schema.oneOf[0].$ref.endsWith("/batchRequest"),
     true,
   );
 });
@@ -565,4 +577,67 @@ test("Link read and point projection CLI references select their actual correspo
     "projectedHistoricalLink",
   ])
     assert.equal(line(id), 469);
+});
+
+test("command-first map assigns every wire case once without adding public verbs", () => {
+  assert.equal(commandGroups.length, 19);
+  assert.equal(new Set(commandGroups.map((group) => group.command)).size, 19);
+  const signatures = [
+    ...commandGroups.flatMap((group) => group.signatures),
+    ...transportSignatures,
+    ...deferredSignatures,
+  ];
+  assert.deepEqual([...signatures].sort(), rows.map((row) => row.id).sort());
+  assert.equal(new Set(signatures).size, 35);
+  assert.deepEqual(deferredSignatures, ["exactDefinition"]);
+  assert.deepEqual(catalog["x-bdp-cli-surface"].commands, commandGroups);
+  assert.equal(commandGroups.find((group) => group.command === "bd show").signatures.length, 6);
+  assert(
+    commandGroups.find((group) => group.command === "bd events").signatures.includes("scopeEvents"),
+  );
+  assert(!commandGroups.some((group) => /projected|historical|Definition/.test(group.command)));
+});
+
+test("rooted creation uses three existing routes and disjoint feature schema arms", () => {
+  const expected = {
+    createBead: "idRootCreateBeadRequest",
+    createLink: "idRootCreateLinkRequest",
+    atomicBatch: "idRootBatchRequest",
+  };
+  const ajv = new Ajv2020({ strict: true, allErrors: true, validateFormats: false });
+  ajv.addSchema(canonical);
+  ajv.addSchema(allocation);
+  for (const row of rows) {
+    if (!row.methods.includes("post")) continue;
+    const op = catalog.components.pathItems[row.id].post;
+    const selected = op["x-bdp-request-selection"];
+    if (!expected[row.id]) {
+      assert(!selected);
+      continue;
+    }
+    assert.equal(selected.capability, "https://github.com/gastownhall/bdp/capabilities/id-root");
+    assert.equal(selected.version, "1");
+    assert.equal(op.requestBody.content[media].schema.oneOf.length, 2);
+    assert(op.requestBody.content[media].schema.oneOf[1].$ref.endsWith(`/${expected[row.id]}`));
+    const validate = ajv.getSchema(`${allocation.$id}#/$defs/${expected[row.id]}`);
+    const create = { idRoot: "notes", type: "https://example.test/acme/memory" };
+    const body =
+      row.id === "atomicBatch"
+        ? { capabilityVersion: "1", operations: [{ operation: "createBead", ...create }] }
+        : row.id === "createLink"
+          ? { ...create, source: "a", target: "b" }
+          : create;
+    assert(validate(body), JSON.stringify(validate.errors));
+    const base = ajv.getSchema(`${canonical.$id}#/$defs/${row.request}`);
+    assert(!base(body), "Old closed grammar must reject selected rooted carrier");
+    assert.equal(
+      op.responses["200"].content[media].schema.$ref,
+      `../profiles/core/bdp-v0.1.schema.json#/$defs/${row.response}`,
+    );
+  }
+  assert.equal(rows.length, 35);
+  assert.equal(
+    rows.reduce((count, row) => count + row.methods.length, 0),
+    61,
+  );
 });

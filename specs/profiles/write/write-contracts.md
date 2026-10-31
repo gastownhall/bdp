@@ -18,6 +18,10 @@ The notation describes value shape. Authorization, discovery, exact request sele
 | deleteAlias | [deleteAliasRequest](../core/bdp-v0.1.schema.md#schema-def-ImRlbGV0ZUFsaWFzUmVxdWVzdCI) | [aliasResult](../core/bdp-v0.1.schema.md#schema-def-ImFsaWFzUmVzdWx0Ig) | [readUpdateProblem](../core/bdp-v0.1.schema.md#schema-def-InJlYWRVcGRhdGVQcm9ibGVtIg) | Write profile |
 | atomicBatch | [batchRequest](../core/bdp-v0.1.schema.md#schema-def-ImJhdGNoUmVxdWVzdCI) | [atomicBatchResult](../core/bdp-v0.1.schema.md#schema-def-ImF0b21pY0JhdGNoUmVzdWx0Ig) | [atomicBatchProblem](../core/bdp-v0.1.schema.md#schema-def-ImF0b21pY0JhdGNoUHJvYmxlbSI) | Write plus atomic-batch1 |
 
+## Independently selected rooted allocation
+
+The optional [id-root1 amendment](id-root.md) adds separately selected createBead, createLink and atomicBatch request/Problem arms in its [feature-owned schema](id-root-v1.schema.json). The common-bundle roots and closure below describe the unextended requests; they do not include or advertise this supplement. Presence of idRoot selects rooted allocation on the same operation URLs, while ordinary requests retain their common shape. The [HTTP catalog](../../openapi/README.md) records the supplemental arms and their selection rules. This index does not merge the feature schema into the common schema identity.
+
 GET and HEAD share read selection; HEAD has no representation body. Alias resolution uses its bodyless redirect. Native 204/304/405/406/412/500 branches retain their actual bodyless rules rather than acquiring a Problem body. The informative [HTTP catalog](../../openapi/README.md) records headers, media, native query carriers and complete transport branches.
 
 Projection alternatives overlap and remain inclusive: an explicit request selects the applicable full or projected arm. Ordinary full output cannot silently become a projection. The optional History, exact-definition and batch entries retain their independent capability/context requirements; a row in this index never advertises them.

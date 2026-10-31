@@ -102,12 +102,12 @@ is rewritten and the protocol imposes no mandatory token/ID length.
 with --id, use the shared import-root grammar, and keep the default flat rather than
 source-derived. Native Issue root allocation uses the authoritative Issue writer
 wrapper and the same lifetime collision boundary. Product root validation/allocation
-happens in its authoritative adapter. The unchanged generic create wire has id, not idRoot. A remote CLI may send
-an explicit allocated candidate as id, but cannot infer reservation from a GET,
-print a future allocation claim, or silently retry a conflicting/unknown decision
-with a new idempotency key. Without a suitable allocation adapter, refuse --id-root;
-offline emission requires an explicit ID or ordinary server allocation with id
-omitted. Do not add a fictitious field to batch version1.
+happens at the service under selected [id-root1](../../specs/profiles/write/id-root.md).
+Generic create sends `idRoot`; the service appends an opaque segment and reserves
+the complete identity with the Resource and retained outcome. No GET can reserve
+an ID and no retry may switch to a fresh key after an uncertain result. Offline
+emission preserves the root without allocating. Rooted batch creates require the
+explicit id-root1/atomic-batch1 composition; unextended batch1 stays unchanged.
 
 ## Type and rendering boundaries
 

@@ -121,3 +121,15 @@ Selected [final batch publication](../../specs/profiles/core/publication.md) use
 final Resource/owner outcome and at most one new revision. Batch `ownerRevisions`
 entries report final published owner context, with membership compared
 initially/finally. Omitted pins remain unchanged. Actual Types integration/qualification remain gates.
+
+## Service-side default selection
+
+An ordinary `create --type memory` sends the absolute unpinned Type URI. Under
+Types the service selects its registered eligible exact default during admission,
+validates and stores that exact affiliation, and returns it in the original
+postimage. The client performs no definition lookup or guessed pinning first. An
+explicit exact Type Reference remains exact; retained-key recovery returns the
+original allocation and Type decision even after the default changes. Core-only
+carriers do not acquire Types interpretation merely by carrying the Reference.
+Local `TYPE@N` still needs an authoritative ordinal adapter; no wire number or
+versions-page counting is introduced. Public definition commands remain deferred.
