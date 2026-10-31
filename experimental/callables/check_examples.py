@@ -38,7 +38,7 @@ for entry in examples.values():
  for param in entry['properties']['parameters']:
   Draft202012Validator.check_schema(param['schema'])
   if 'default' in param:assert Draft202012Validator(param['schema']).is_valid(param['default'])
-for path in [root/'experimental/callables.md',root/'experimental/README.md']:
+for path in [root/'experimental/callables.md',root/'experimental/packs.md',root/'experimental/README.md']:
  body=path.read_text();assert body.count('```')%2==0,path
  for raw in re.findall(r'\]\(([^\s)]+)\)',body):
   if raw.startswith(('https:','http:','#')):continue

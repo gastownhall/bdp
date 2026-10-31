@@ -19,7 +19,7 @@ This editable Specification follows the [Memory catalog](https://github.com/donn
 
 ## Scope and selected direction
 
-A **Callable** is a Bead describing a named, parameterized operation that a supporting service can invoke over BDP. It does not require a Pack. A Pack may compose/import Callables and register CLI placement; it does not define a second invocation engine.
+A **Callable** is a Bead describing a named, parameterized operation that a supporting service can invoke over BDP. It can be defined and invoked without package installation. This Specification depends on existing Types and Batch/Query contracts, and has no dependency on a package Specification. Parameter declarations, argument projection, execution and direct invocation form its standalone boundary.
 
 | Status | Content |
 | --- | --- |
@@ -29,11 +29,11 @@ A **Callable** is a Bead describing a named, parameterized operation that a supp
 | First-pass author proposals | Abstract Callable; required description/parameter array; optional CLI mapping; body XOR extern in each concrete refinement; field spellings, schema factoring and default rules below. |
 | Still open | Parameter binding into executable bodies, full argument/result carriers, exact definition closure, extern implementation identity, capability/version selection, mode-selector grammar and mount registration. |
 
-Package internal/external visibility and Memory/definition-relation normalization are deferred. Ordinary authorization, capability admission, Type interpretation, result semantics and mutation guarantees remain applicable. Physical distribution, Go deployment and Pack definition schemas are outside this first callable draft.
+Ordinary authorization, capability admission, Type interpretation, result semantics and mutation guarantees remain applicable. Definition packaging, installed command trees, shortcut collisions, package visibility and physical distribution are outside this Specification; none is required to define or directly invoke a Callable. Go deployment is outside the callable declaration contract.
 
 ## Bead Types
 
-Each named definition below is intended to be an addressable Bead affiliated with BeadType, defined by this Specification. This is the authoring bundle's definition index; it does not select a new package-definition Link Type or change Memory's Link constraints.
+Each named definition below is intended to be an addressable Bead affiliated with BeadType, defined by this Specification. This is the authoring bundle's definition index; it assigns no stored identities or Links.
 
 | Bead Type | Meaning |
 | --- | --- |
@@ -52,7 +52,7 @@ Solid arrows mean Type refinement, child to parent. The dashed arrow identifies 
 
 ### Callable — Bead Type
 
-**Meaning and use.** Common contract for a named operation. A proposed abstract base; concrete Batch/Query refinements remain directly usable under ordinary Types rules. A Callable's operation identity is independent of its CLI spelling, mount and Pack membership.
+**Meaning and use.** Common contract for a named operation. A proposed abstract base; concrete Batch/Query refinements remain directly usable under ordinary Types rules. A Callable's operation identity is independent of its CLI spelling or operational mount.
 
 **Conforms to.** None within this catalog. It is the parent of CallableBatch and CallableQuery.
 
@@ -163,7 +163,7 @@ Other fields: not allowed
 
 This is declarative data. Flags and positionals have distinct known record shapes. Duplicate/ambiguous flags and positional indexes refuse registration. Supported CLI spelling, Boolean/collection input, aliases, requiredness and decoding need one shared CLI binding contract. Help derives from Callable.description and parameter descriptions; the parameter contract governs validation/defaults, and mapping cannot change it.
 
-Pack placement separately chooses command routes/aliases and resolves collisions with installed/core commands. The generic client receives the effective declarative surface before ordinary argument parsing, with only Scope-specific metadata caching. No Pack-specific client installation is required.
+The generic client receives the selected declarative argument projection before parsing operation arguments, with only Scope-specific metadata caching. The projection does not choose a friendly command path or grant invocation authority; it needs no operation-specific client installation.
 
 ### ExternBinding
 
@@ -193,56 +193,17 @@ The complete [properties-schema companion](callables/callables.properties.schema
 
 A supported isolated schema or future API slice may be authored in those DSLs. No complete DSL translation, compiler or lossless round trip is claimed for this draft. The JSON companion is a structural projection, not an installable Type graph; its effective helpers do not create Refines Links or enforce abstractness/registration. The Specification remains the drafting home for semantic decisions the schema cannot enforce.
 
-## CLI invocation and Pack command trees
+## Direct CLI invocation
 
-Donna selected the direction: friendly command trees come from installed Packs, using hierarchical aliases beneath a well-known Pack-relative cliCommands/ location. Loose callables remain independently invocable with bd call. This supersedes the earlier proposal for Pack-independent command-path registration and a separate path array. The schema/carriers for Pack mounts, alias inventory and top-level exposures remain design work.
-
-Client options precede the callable; subsequent arguments use its CLI projection:
+The direct entry is independent of package installation. Client options precede the callable; subsequent arguments use its CLI projection:
 
 ```text
 bd [client options] call CALLABLE [callable arguments]
-bd [client options] PACK-MOUNT COMMAND-PATH [callable arguments]
 ```
 
-A loose callable at chris/sells/laughs is invoked as bd call chris/sells/laughs. A projected --times flag gives bd call chris/sells/laughs --times 3. Callable-specific help is available without execution; the exact help control and generic JSON-argument input still need a spelling/collision pass. CallableBatch and CallableQuery share this generic entry, with execution following their respective BDP contracts.
+A callable at chris/sells/laughs is invoked as bd call chris/sells/laughs. A projected --times flag gives bd call chris/sells/laughs --times 3. Callable-specific help is available without execution; the exact help control and generic JSON-argument input still need a spelling/collision pass. CallableBatch and CallableQuery share this entry, with execution following their respective BDP contracts.
 
-### Hierarchical alias convention
-
-The CLI path is the installed Pack mount path followed by the alias path relative to that Pack's cliCommands/ root. The Pack's storage/definition prefix and chosen CLI mount are independent. For a Pack rooted at mypack:
-
-| Pack alias | CLI with mount mypack | CLI with mount fun |
-| --- | --- | --- |
-| mypack/cliCommands/chris/sells/laughs | bd mypack chris sells laughs | bd fun chris sells laughs |
-| mypack/cliCommands/chris/sells/cries | bd mypack chris sells cries | bd fun chris sells cries |
-| mypack/cliCommands/chris/anderson/smirks | bd mypack chris anderson smirks | bd fun chris anderson smirks |
-| mypack/cliCommands/chris/list | bd mypack chris list | bd fun chris list |
-
-Each alias targets a Callable, whether defined by this Pack or available through an explicit import. Its selected callable supplies parameters, CLI argument mapping and help. Common prefixes create groups. A callable ID outside this explicit convention does not create a command path. No separate path array is required to duplicate the hierarchical alias name.
-
-The service must admit the chosen alias namespace and advertise the installed tree. Existing BDP aliases provide individual GET/HEAD redirect resolution, not a complete alias inventory, stored revisions, alias chains or invocation forwarding. The Pack catalog must provide a complete discoverable alias set for help/completion and retain selected targets/definition closure. Invoke the resolved callable through the callable contract; do not POST through an assumed alias-forwarding behavior. The alias set, selected definitions and effective installation bindings must not drift silently through live repointing or latest-on-retry resolution.
-
-### Optional top-level shortcuts and collisions
-
-A Pack can also request explicit top-level CLI shortcuts. Donna's motivating example is the Memory Pack exposing bd memory remember and a top-level bd remember shortcut to the same selected operation. The concrete declaration for root exposure is still open; it must not depend on mechanically stripping the Pack mount from every command. Both exposures use the same callable, parameter mapping and execution semantics. A CLI shortcut to a grouped command does not require a chain of BDP aliases.
-
-**Selected collision outcome:** if an optional top-level shortcut conflicts while the Pack's grouped commands are valid, keep the grouped commands and report the shortcut as unbound. An already accepted binding keeps its meaning. For example:
-
-| Requested exposure | Existing situation | Outcome |
-| --- | --- | --- |
-| bd memory remember | Grouped Memory tree is valid | Install/retain the grouped command. |
-| bd remember | Path already belongs to another binding | Keep that binding; report Memory's optional shortcut as unbound, with bd memory remember as its usable alternative. |
-
-Collision recommendations awaiting detailed adoption:
-
-| Case | Proposed rule |
-| --- | --- |
-| General built-in or bootstrap path | Reserve it explicitly; a Pack may not replace call, general CRUD or bootstrap/help controls through ordinary exposure. |
-| Required main Pack mount or command conflicts | Require a different mount/explicit resolution before activating the conflicting required tree. The optional-shortcut fallback does not waive required-tree conflicts. |
-| New candidates request the same optional root path | Publish no arbitrary winner based on load/enumeration order; leave conflicting optional candidates unbound unless there is an explicit selected owner. |
-| Shared prefixes or executable group conflicts | Distinguish grouping from callable leaves and validate complete token paths before publishing. Extendable groups and executable groups still need a rule. |
-| Unbound shortcut diagnosis | Identify requested path, requesting Pack, current owner/conflict and the usable grouped alternative in installation/catalog diagnostics. |
-
-The active catalog must distinguish requested aliases, successfully bound routes and unbound optional shortcuts. This effective selection participates in exact installed composition/catalog evidence. An unbound shortcut does not remove the Callable, change authorization, or prevent direct bd call invocation. Exact collision equivalence/normalization, same-target duplicate ownership, root-declaration encoding, explicit remapping, activation after a conflict disappears, uninstall/update behavior, profiles and group help remain open. Independent friendly-tree registration outside Packs is deferred.
+The client reads the selected callable contract and declarative projection before parsing its arguments, and invokes that same selected definition. CLI parsing must preserve omitted/null/default values and the declared JSON value schemas. Friendly command placement is outside this Specification and is not a prerequisite for direct invocation.
 
 ## Implementation and parameter binding
 
@@ -282,9 +243,9 @@ Transport spelling must not change the declared argument environment or domain r
 
 ### Definition closure and mutation recovery
 
-An exact member/dependency closure is selected. Its **carrier and complete coverage are not**. Proposed next distinction: pin executable definition inputs while runtime data uses ordinary Query read-context or Batch transaction semantics. Neither a Callable Bead revision alone nor a Pack membership revision necessarily fixes every referenced Type/schema/body/extern dependency.
+An exact member/dependency closure is selected. Its **carrier and complete coverage are not**. Proposed next distinction: pin executable definition inputs while runtime data uses ordinary Query read-context or Batch transaction semantics. A Callable Bead revision alone does not necessarily fix every referenced Type/schema/body/extern dependency.
 
-Before execution, define how to select and retain the operation revision, parameter/default contracts, exact Refines/schema closure, implementation version/binding, CLI/catalog witnesses and semantic dependency definitions. A stale mapping or replaced definition must not silently reinterpret previously parsed arguments. Static definition evidence must not invent historical business-data acquisition capability.
+Before execution, define how to select and retain the operation revision, parameter/default contracts, exact Refines/schema closure, implementation version/binding, CLI projection witnesses and semantic dependency definitions. A stale mapping or replaced definition must not silently reinterpret previously parsed arguments. Static definition evidence must not invent historical business-data acquisition capability.
 
 For mutations, preserve one atomic owner where the selected Batch contract promises it, one complete admitted request/outcome, original resolution witnesses, guards, and same-key replay/conflict semantics. A retained successful key must not reevaluate newer defaults, aliases, definitions or Go handlers. Large results do not justify a commit followed by a truncated/unknown success. Runtime data is not implicitly frozen with the definition; the service establishes its ordinary transaction context.
 
@@ -292,7 +253,7 @@ For mutations, preserve one atomic owner where the selected Batch contract promi
 
 Callable support needs its own explicit opt-in capability/version amendment. A definition's presence, a registered Type, an available implementation, a usable mount, and a CLI exposure are separate facts. Do not add arbitrary callable keys to the existing closed ordinary Write operation directory. Named-operation/catalog capability shape and the exact-Type/shape support advertisement need design before implementation claims.
 
-Normal principal/Scope/data authorization applies. Package internal/external semantics are deferred this round; CLI registration is not an access grant. A stored Callable or cached help cannot manufacture supported AST shapes, an extern implementation, Type authority, History access or permission to mutate.
+Normal principal/Scope/data authorization applies. A CLI projection is not an access grant. A stored Callable or cached help cannot manufacture supported AST shapes, an extern implementation, Type authority, History access or permission to mutate.
 
 ## Scenarios
 
@@ -306,8 +267,6 @@ These embedded Scenario drafts carry acceptance expectations into later adoption
 | [S4. Distinguish definition and invocation](#s4-distinguish-definition-and-invocation) | Definition GET, Query GET/POST and Batch POST. |
 | [S5. Retain exact execution context](#s5-retain-exact-execution-context) | Replaced/unavailable externs, stale mappings and mutation recovery. |
 | [S6. Respect actual data capability](#s6-respect-actual-data-capability) | Exact definition closure does not manufacture historical data access. |
-| [S7. Mount a Pack alias tree](#s7-mount-a-pack-alias-tree) | Hierarchical alias suffixes form commands beneath the chosen mount. |
-| [S8. Keep grouped commands when a shortcut conflicts](#s8-keep-grouped-commands-when-a-shortcut-conflicts) | Optional root collision leaves the grouped operation available and reports the shortcut unbound. |
 
 ### S1. Invoke without a Pack
 
@@ -325,7 +284,7 @@ A CallableBatch or CallableQuery refinement preserves common help, parameter and
 
 Status: draft
 
-Duplicate parameter names, dangling CLI parameter mappings and duplicate flags/positions refuse under explicit definition/registration semantics. Required Pack-route conflicts need resolution; optional top-level shortcut conflicts follow the unbound-shortcut rule below. Shape validation alone does not prove these relations. Omitted, null, defaulted and incompatible supplied values follow the eventual declaration and exact value/Reference rules; unresolved required-plus-default and Reference details remain explicit design work rather than implicit coercion.
+Duplicate parameter names, dangling CLI parameter mappings and duplicate flags/positions refuse under explicit definition/registration semantics. Shape validation alone does not prove these relations. Omitted, null, defaulted and incompatible supplied values follow the eventual declaration and exact value/Reference rules; unresolved required-plus-default and Reference details remain explicit design work rather than implicit coercion.
 
 ### S4. Distinguish definition and invocation
 
@@ -345,17 +304,17 @@ Status: draft
 
 If the requested data edition is unsupported, invocation preserves the real capability refusal. Pinning executable definition dependencies does not imply History support or freeze runtime business data.
 
-### S7. Mount a Pack alias tree
+## Remaining work before adoption
 
-Status: draft
+The core model is settled enough for this experimental design draft, but the callable contract is **not ready to implement as a complete interoperable feature**. Three substantial contracts remain open:
 
-Given mypack/cliCommands/chris/sells/laughs targeting a selected Callable and an installed mount fun, the advertised tree exposes bd fun chris sells laughs using that Callable's argument mapping and help. Replacing the mount changes the prefix, not the Callable identity. A loose Callable remains usable through bd call without a Pack. The catalog captures the alias set and exact selected definitions; ordinary point alias resolution alone does not prove enumeration or closure.
+| Contract | Remaining decision | Completion evidence needed |
+| --- | --- | --- |
+| Argument admission and AST binding | Exact required/default/omission rules, structured values and References, and a versioned parameter-reference form or typed adapter into the chosen Batch/Query engine. | Concrete declarations plus admitted request examples and positive/negative binding cases; current literal-body validation is insufficient. |
+| BDP invocation and result carriers | Capability/version advertisement, distinguished Query GET mode, JSON/URL argument envelopes, results/errors/media, method behavior and mutation retry composition. | Complete request/response and refusal contracts, with AST and extern examples preserving the selected engine's semantics. |
+| Exact definition and extern binding | Selection/retention of Types, schemas, defaults, body dependencies and implementation identity, including stale CLI projections and successful-key recovery after changes. | An exact invocation binding/closure carrier and defined stale/unavailable/retry outcomes; a Bead revision or Go lookup name alone is insufficient. |
 
-### S8. Keep grouped commands when a shortcut conflicts
-
-Status: draft
-
-Given a valid Memory Pack grouped tree and an optional requested bd remember shortcut whose path is already bound, installation keeps bd memory remember and reports Memory's shortcut as unbound. The existing bd remember binding keeps its meaning. No optional collision turns the grouped operation into a failure or silently overrides another binding. Required grouped-tree conflicts and root-exposure encoding remain separate design questions.
+First-pass descriptor details, including abstract Callable, body XOR extern, field spellings and CLI decoding/help controls, also need explicit adoption. Closing these items is independent of any package command tree or shortcut design. The structural helper and finite examples remain useful evidence of the proposed shapes, not completion of these contracts.
 
 ## Source and validation boundaries
 
