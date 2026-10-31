@@ -42,7 +42,7 @@ const approvedSources = {
   "specs/profiles/write/retained-write.md":
     "fd4588686bf74ffac17a42018793ff9f3696a0b448d4eae32293f97359a979c8",
   "specs/profiles/write/write.md":
-    "335e4b0aa6ce6d3b2ea7db1f4dd1db56bf4372453dd6c98cf709e2e1580b9349",
+    "6b0fa7090066aff9d0a5994fb0899d9a3e77b4a8ce168d36c69564c71221fdb6",
   "specs/profiles/write/atomic-batch.md":
     "4037788ecb5942c7ac291214efff3f8e451f73edfa4784fdec09e072e9f5c4d6",
   "specs/profiles/write/link-updates.md":
