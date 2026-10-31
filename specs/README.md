@@ -114,7 +114,9 @@ an honest, reproducible comparison with explicit untested and unsupported areas.
 The existing [v0 schema](profiles/core/bdp-v0.schema.json) and [v0 conformance accounting](conformance.md)
 remain historical/implementation comparison sources at their own pins. They do not
 silently become v0.1 evidence. [Issue/Dependency](types/issue/issue.md) remains a domain
-library input; Memory product evidence is tracked separately in [Beads7656](https://github.com/gastownhall/beads/issues/7656).
+library input. The [Memory and Assessment domain design](types/memory/README.md)
+records its exact combined source and historical publication boundary; Memory
+product evidence is tracked separately in [Beads7656](https://github.com/gastownhall/beads/issues/7656).
 Domain publication does not imply runtime/catalog adoption.
 
 [Experimental](../experimental/README.md) is non-normative exploration, not POR or a

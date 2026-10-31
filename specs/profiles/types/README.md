@@ -115,8 +115,9 @@ recorded in the current source map under
 original file port qualifies a runtime. The Memory product
 proposal is independent of this definition encoding; its fixed supplied catalog
 need not expose definition Beads or ship the general Types profile. See
-[Memory proposal #7661](https://github.com/gastownhall/beads/issues/7661) and its
-[implementation/decision ledger](https://github.com/gastownhall/beads/issues/7656).
+[Memory and Assessment domain design](../../types/memory/README.md), the
+[historical Memory publication #7661](https://github.com/gastownhall/beads/issues/7661)
+and its [implementation/decision ledger](https://github.com/gastownhall/beads/issues/7656).
 
 JSON Schema 2020-12 and its standard validation rules are the selected baseline.
 Every schema resource in the retained closure uses the standard dialect; omission
