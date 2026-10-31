@@ -3,13 +3,13 @@ type: Specification
 id: ""
 status: draft
 subjects:
-  - Pack
+  - Package
   - PackDeclares
   - PackImports
   - CLI command trees
 ---
 
-# Packs
+# Packages
 
 > **NON-NORMATIVE EXPERIMENTAL DRAFT. NOT THE PLAN OF RECORD. NOT A RELEASED CAPABILITY OR AN IMPLEMENTATION CLAIM.**
 >
@@ -19,129 +19,151 @@ This is a standalone Specification draft following the pinned [Memory authoring 
 
 ## Scope and dependency direction
 
-Packs group definitions, declare explicit imports, retain an exact member/dependency closure and provide installed CLI command trees. This Specification depends on [Callables](callables.md) and [Types](../specs/types/type-system/type-system.md). Callables can be defined and invoked without a Pack; their Specification has no dependency on this one.
+Packages group definitions, declare explicit imports, retain an exact member/dependency closure and provide installed CLI command trees. This Specification depends on [Callables](callables.md) and [Types](../specs/types/type-system/type-system.md). Callables can be defined and invoked without a Package; their Specification has no dependency on this one.
 
 | Specification | Owns |
 | --- | --- |
 | Types | Type descriptors, affiliation, refinement, schema resources and effective validation. |
 | Callables | Callable/Batch/Query definitions, parameters, reusable argument projection/help, implementations and BDP/direct CLI invocation. |
-| Packs | Defining membership, imports, exact installed composition, CLI mounts, hierarchical command/shortcut aliases, catalog bindings and collision behavior. |
+| Packages | Defining membership, imports, exact installed composition, CLI mounts, hierarchical command/shortcut aliases, catalog bindings and collision behavior. |
 
-A Pack does not add a second callable signature or executor. Command paths select the existing callable contract; its implementation may be the selected AST or service-side Go extern. Clients discover the service-supplied surface with only Scope-specific caching and no Pack-specific client installation.
+A Package does not add a second callable signature or executor. Command paths select the existing callable contract; its implementation may be the selected AST or service-side Go extern. Clients discover the service-supplied surface with only Scope-specific caching and no Package-specific client installation.
+
+## Naming
+
+Donna selected Package as the Bead Type name and bd pack as the package-management CLI prefix. Management subcommands are still to be specified. Generated package commands retain their chosen mounts, such as bd memory remember; bd pack is not an extra prefix on those commands. PackDeclares and PackImports remain provisional relation names pending concrete Link Type declarations.
 
 ## Composition contract
 
-The selected working vocabulary is Pack, PackDeclares and PackImports. Use distinct uniquely named Bead/Link Types for this round; their complete descriptors, properties and endpoint constraints remain to be authored. This vocabulary does not install definitions or broaden Memory's defines/references constraints.
+The selected Bead Type name is Package; PackDeclares and PackImports remain working Link Type names. Use distinct uniquely named Bead/Link Types for this round; their complete descriptors, properties and endpoint constraints remain to be authored. This vocabulary does not install definitions or broaden Memory's defines/references constraints.
 
-- A Pack-declared entity has one defining Pack; other Packs require explicit imports. Standalone Callables have no synthetic Pack requirement.
-- Pack and Specification are distinct; no Pack-as-Specification conformance is selected.
+- A Package-declared entity has one defining Package; other Packages require explicit imports. Standalone Callables have no synthetic Package requirement.
+- Package and Specification are distinct; no Package-as-Specification conformance is selected.
 - Imports retain an explicit exact member/dependency closure. Complete coverage, carrier, resolution, retention and update semantics remain open.
 - Package internal/external visibility and later definition-relation refinement/normalization are deferred. Ordinary principal/Scope/data authorization remains applicable.
 - Saved CLI profile selection is initially user-global with compat as default; per-call overrides do not persist. Profile selection and Scope-specific catalog caching are independent.
 
-Concrete package schemas, installation/catalog APIs, root/mount metadata and closure carriers are incomplete. Physical distribution, registries, version solving and Go deployment are outside this draft. The CLI direction below is more specific than the currently unfinished Pack descriptors.
+Concrete package schemas, installation/catalog APIs, root/mount metadata and closure carriers are incomplete. Physical distribution, registries, version solving and Go deployment are outside this draft. The CLI direction below is more specific than the currently unfinished Package descriptors.
 
 ## Definition and installation
 
-Donna selected separate concepts for the reusable Pack definition and a Scope's installation. A Pack's definition does not change merely because a Scope chooses another CLI mount. Installation does not create a second defining home for its members.
+Donna selected separate concepts for the reusable Package definition and a Scope's installation. A Package's definition does not change merely because a Scope chooses another CLI mount. Installation does not create a second defining home for its members.
 
 | Concept | Responsibility | Modeling status |
 | --- | --- | --- |
-| Pack definition | Describes declared members, explicit dependencies and authored command/shortcut aliases. | Pack remains the working Bead Type name; its concrete propertiesSchema is not yet selected. |
-| Declared member relation | Identifies a definition's single defining Pack. | PackDeclares remains the working Link Type name; Pack to definition Bead is the proposed endpoint shape. |
-| Import relation | Expresses a dependency on definitions supplied by another Pack. | PackImports remains the working Link Type name; whole-Pack versus selected-member import detail remains open. |
-| Installation | Binds a selected Pack definition and exact resolved member/dependency closure to an installing Scope, CLI mount and effective bound/unbound exposures. | Separate installation concept selected; representation as a Bead, a typed Link, a service-owned record or a catalog structure remains open. |
+| Package definition | Describes declared members, explicit dependencies and authored command/shortcut aliases. | Package is the selected Bead Type name; its concrete propertiesSchema is not yet selected. |
+| Declared member relation | Identifies a definition's single defining Package. | PackDeclares remains the working Link Type name; Package to definition Bead is the proposed endpoint shape. |
+| Import relation | Expresses a dependency on definitions supplied by another Package. | PackImports remains the working Link Type name; whole-Package versus selected-member import detail remains open. |
+| Installation | Binds a selected Package definition and exact resolved member/dependency closure to an installing Scope, CLI mount and effective bound/unbound exposures. | Installation Link selected. Presence of its current live admitted record means installed; absence means no such installation. Exact properties, admission and cardinality remain open. |
 
-For example, the same reusable Memory Pack can be installed at CLI mount memory in one Scope and notes in another. Its cliCommands/remember alias then exposes bd memory remember or bd notes remember, respectively, using the same selected Callable contract. Root shortcut bindings and collision diagnoses are installation results; they are not edits to the reusable Pack's authored command tree. This example does not choose cross-Scope transport, copy/identity or retention mechanics.
+For example, the same reusable Memory Package can be installed at CLI mount memory in one Scope and notes in another. Its cliCommands/remember alias then exposes bd memory remember or bd notes remember, respectively, using the same selected Callable contract. Root shortcut bindings and collision diagnoses are installation results; they are not edits to the reusable Package's authored command tree. This example does not choose cross-Scope transport, copy/identity or retention mechanics.
 
 An installation must retain enough exact selection evidence to avoid drifting when authoring definitions/imports/aliases later change. The closure carrier, validation point and update protocol remain open. Definitions and installation bindings are distinct from the ordinary runtime data the operations read or mutate; installed exact definitions do not create a separate business-data store or imply historical data capability.
 
 Starting graph proposal, pending concrete Type descriptors:
 
 ```text
-Pack --PackDeclares--> definition Bead
-Pack --PackImports--> dependency Pack/member selection
-Scope installation --selects--> exact Pack/member/dependency closure
+Package --PackDeclares--> definition Bead
+Package --PackImports--> dependency Package/member selection
+Scope installation --selects--> exact Package/member/dependency closure
 Scope installation --exposes--> CLI mount + bound routes + unbound optional shortcuts
 ```
 
-Pack membership is explicit rather than inferred from every Bead whose ID shares a path prefix. Hierarchical IDs have a selected role in the cliCommands/cliShortcuts convention; the member/import graph still supplies definition and dependency meaning. Exact endpoint constraints, relation ownership, import selections and whether a Scope permits multiple installations of the same Pack remain to settle.
+Package membership remains explicit. Donna's current direction is also to contain a Package's declared Beads beneath its own ID, potentially as an enforced admission rule. Containment would constrain where a declared member may live; it would not make every Bead sharing a prefix a declared member. Exact endpoint constraints, relation ownership, import selections and whether a Scope permits multiple installations of the same Package remain to settle.
+
+### Definition ID space — direction and proposed enforcement
+
+A Package may have an arbitrary root ID and is discovered through installation Links rather than a universal definition-location prefix. For Package root acme/tools, the proposed rule requires its declared definition Beads to have proper descendant IDs such as acme/tools/types/Task or acme/tools/actions/laugh. Compare complete path segments: acme/toolsmith is not beneath acme/tools. The internal types/ and actions/ subdivisions are examples, not required names.
+
+Imported definitions retain their original defining Package and ID. An import is not a declaration owned by the importing Package; an export or CLI binding may refer to that import without copying it into a second defining home. Package-owned binding names can still be subordinate to the importing Package.
+
+This adds Package-specific admission semantics; it does not change Core's rule that arbitrary Resource ID prefixes alone imply no containment. Enforcement is a proposal pending the exact boundary: Beads versus all owned Resources/bindings, nested Packages, unrelated Beads under the same prefix, and how admission checks the cross-record ID relationship. Existing properties schemas alone do not express that relationship.
+
+Authoring root, installation selection and CLI mount remain distinct. A different CLI mount does not rename canonical member IDs. If mounting also means materializing a Package beneath a different graph ID root, reference rebasing, resulting identities and exact closure must be specified; canonical Resource identities are immutable, so this cannot be treated as renaming the original Resources.
+
+### Export aliasing — alternatives still open
+
+Export names expose bindings to existing definitions; they do not create another defining home or an access-control boundary. Internal/external visibility remains deferred. A re-export requires the importing Package's explicit import and preserves the original definition identity and provenance.
+
+| Alternative | Advantages | Additional contract or cost |
+| --- | --- | --- |
+| Named export Links from Package to definition, with a proposed name property | Normal Link enumeration, revisions and endpoint References; multiple public names may target the same original definition. Package ownership of this Link family could revision-cover its export table. Contained member IDs remain compatible with this design. | Public names are Link data rather than ordinary addressable alias paths. Name uniqueness within a Package, ownership, import provenance and exact target selection need explicit rules. Exact target pinning does not by itself capture transitive closure. |
+| Ordinary aliases under Package-root/exports/name | Export names have natural paths and reuse the hierarchical naming approach selected for CLI bindings. Under a contained definition tree, authored target names are easy to understand. | Existing aliases are unrevisioned, repointable, in-Scope Bead locators with no collection membership. They require explicit inventory/snapshot evidence for enumeration and exact closure. They target canonical Beads directly, so re-exports cannot form alias chains; cross-Scope exports need a separate rule. Resolving an alias does not itself invoke a Callable. |
+
+For example, Package acme/tools declares acme/tools/actions/laugh and may export it as chuckle. A named Link carries name chuckle and targets the definition; the alias alternative binds acme/tools/exports/chuckle directly to that definition. Both preserve one defining home. A consumer may explicitly import and re-export the same definition under another name without becoming its defining Package. Export names need not equal canonical definition suffixes or CLI command paths.
+
+Pacabel recommends named export Links as the authoritative table because Packages already require exact graph-queryable composition. Addressable aliases could later be a derived convenience, but adding both as independently authored authorities would require synchronization rules. Donna has not selected the export representation. The selected CLI alias convention is unchanged by this recommendation.
 
 ## Installed-package discovery and system data
 
-Donna requires a distinguished way to query installed packages and, if externally meaningful, loaded/available packages. She proposed either aliases under a well-known packages root or typed installation Links from a well-known registry Bead. Donna selected sys/ as the service graph-data namespace name. Registry representation, prefix reservation/discovery and installed-versus-loaded lifecycle semantics remain open.
+Donna selected the installation-Link representation: a real registry Bead at the working location sys/packages has typed outgoing installation Links to selected Package definitions. A current live installation Link is the installation fact. Its presence means installed; its absence means there is no corresponding installation. No separate installed boolean, installation Bead or hidden status table is required by this model.
 
-### Alias and Link alternatives
-
-These are design sketches, not implemented CLI claims:
-
-| Candidate query | Meaning and current constraint |
-| --- | --- |
-| bd list --type package with an ID-prefix filter under packages/ | Finds matching canonical Beads. Existing BDP aliases are not Resources and have no collection membership, so aliases under this prefix do not appear in a normal Bead list or change the target Bead's canonical ID. This query would require actual installation/package Beads or an explicit new alias-inventory contract. |
-| bd link list sys/packages --type installed-package --direction out | Uses an actual in-Scope registry Bead as the incident source and returns typed installation Links. Links already have identity, Type, properties and revisions, so a Link can represent the installation relationship without requiring a separate installation Bead. The sys/ namespace spelling is selected; registry/Link Type spellings and representation remain proposals. |
-
-**Pacabel recommendation, not selected:** use a real registry Bead and typed outgoing installation Links as the authoritative graph representation. Aliases may provide convenient locators without defining installation truth. The registry Type could own the installation-Link family so membership changes have the ordinary owning-Bead revision behavior; exact Type descriptors and admitted install/update operations remain open.
+The distinguishing query has this design shape; the Link Type name remains provisional:
 
 ```text
+bd link list sys/packages --type installed-package --direction out
+
 sys/packages [registry Bead]
     --installed-package [installation Link, own identity/revision]-->
-    selected exact Pack definition
-
-installation Link properties: Scope-specific mount and exact closure selection
+    selected exact Package definition
 ```
 
-The property names/carriers are not selected by this sketch. A target Pack revision alone is not a complete member/import/alias/extern closure. The Link must carry or reference the agreed complete selection evidence and effective exposure binding. Presence of a Pack definition, an alias or an arbitrary typed Link is not by itself a claim of service admission or executable availability.
+An installation Link binds its selected Package/closure, CLI mount and effective exposure choices. Exact property names/carriers remain open. A target Package revision alone is not a complete member/import/alias/extern closure. Installation cardinality is still undecided: one Link per Package identity in a Scope versus multiple exact installations at distinct mounts/versions.
 
-This preserves the selected separation between reusable Pack definition and installation. The installation simply uses a Link rather than another Bead. If installations need their own ordinary outgoing relationships, a reified installation Bead may be necessary: existing endpoint rules do not permit treating a local Link as a Bead endpoint. That is a real modeling tradeoff, not a lossless storage substitution. Installation cardinality and update/uninstall semantics remain open.
+Once admitted and published, the Link is authoritative installation state. Creating/deleting its live record is the model's install/uninstall transition. The command/transport and atomic validation/publication rules remain open: incomplete closure or conflicting required mounts must be dispositioned before a successful installation is published, rather than relying on a second installed flag. A Package definition or convenience alias alone does not establish installation, and an installed Link does not grant invocation permission or prove handler availability.
+
+Ordinary BDP aliases are locators, not Resources, and have no collection membership. An alias-prefix Bead inventory therefore cannot replace this installation-Link query. A registry Type could own the installation-Link family so membership changes have ordinary owning-Bead revision behavior; the registry Type and ownership descriptor remain to be authored.
+
+The representation choice is now settled as a Link. Any supplementary exact-closure object or graph must preserve that installation fact; it cannot rely on local Links being Bead endpoints. Exact closure representation and update/uninstall effects remain open.
 
 ### Graph-data namespace and protocol navigation
 
 The service's chosen bdp/ prefix holds protocol navigation and is reserved from ordinary Bead allocation in the current design. Those HTTP endpoints are addressable; they are not ordinary graph Beads. Existing Core more generally protects the actual advertised navigation addresses against conflicting Resource/alias allocation and does not mandate the same literal prefix for every service.
 
-**Selected namespace:** service-managed graph data uses the name sys/. Under the registry-Link proposal, sys/packages would be a real registry Bead; selecting the namespace does not select that representation. Service-managed Beads and Links there use ordinary typed Resource reads, queries, revisions and authorization. Path spelling does not confer authority, Type membership or containment, and does not create a parent Bead automatically.
+**Selected namespace:** service-managed graph data uses the name sys/. The selected registry-Link model uses a real registry Bead, with sys/packages as its working location. Service-managed Beads and Links there use ordinary typed Resource reads, queries, revisions and authorization. Path spelling does not confer authority, Type membership or containment, and does not create a parent Bead automatically.
 
 The supporting extension should advertise the actual registry URI so clients do not infer it by stripping/adding path segments. Exact discovery carrier and whether sys/ is a reserved prefix or a default placement are still open; no new field is silently added to the existing closed Core discovery schema. An existing ordinary identity cannot be overwritten or repurposed just to establish the convention.
 
 ### Installed versus loaded
 
-Proposed distinction: installed is a durable Scope binding to a selected Pack/closure; loaded or available is the service's current ability to activate/use that binding, including implementation availability. Do not treat a persistent installation Link as proof that Go code is currently loaded or that invocation is authorized/supported.
+Installed now means presence of the admitted installation Link. Loaded or available may describe the service's current ability to use that binding, including implementation availability; no separate loaded lifecycle has been selected. Do not treat a persistent installation Link as proof that Go code is currently loaded or that invocation is authorized/supported.
 
 Start with a durable installation query and explicit service availability reporting if callers need it. A separate loaded lifecycle, a second Link Type, state field values and persistence/observation rules are not selected. Runtime observation must not be disguised as an evergreen stored boolean. These package questions do not resolve the deferred Callable invocation/extern contracts by implication.
 
 ## Current design sequence
 
-The active design pass is Packs: give the definition/member/import graph and installation/closure/catalog boundary a concrete shape. The standalone Callable issues [CALL-O1 through CALL-O3](callables.md#open-issues) remain open and are revisited once this package shape can inform them. Work here may clarify required closure inputs, but must not invent unresolved Callable parameter nodes, invocation envelopes or Go implementation identity rules by implication.
+The active design pass is Packages: give the definition/member/import graph and installation/closure/catalog boundary a concrete shape. The standalone Callable issues [CALL-O1 through CALL-O3](callables.md#open-issues) remain open and are revisited once this package shape can inform them. Work here may clarify required closure inputs, but must not invent unresolved Callable parameter nodes, invocation envelopes or Go implementation identity rules by implication.
 
 ## Installed CLI surface
 
-Donna selected Pack-provided friendly trees using hierarchical aliases under a well-known Pack-relative cliCommands/ root. Loose callables use the Callables Specification's bd call entry. This supersedes independent friendly-tree registration and separate path-array proposals for this round.
+Donna selected Package-provided friendly trees using hierarchical aliases under a well-known Package-relative cliCommands/ root. Loose callables use the Callables Specification's bd call entry. This supersedes independent friendly-tree registration and separate path-array proposals for this round.
 
 Client options precede the selected command; arguments after the command use the callable's existing projection:
 
 ```text
-bd [client options] PACK-MOUNT COMMAND-PATH [callable arguments]
+bd [client options] PACKAGE-MOUNT COMMAND-PATH [callable arguments]
 ```
 
 ## Hierarchical alias convention
 
-The CLI path is the installed Pack mount path followed by the alias path relative to that Pack's cliCommands/ root. The Pack's storage/definition prefix and chosen CLI mount are independent. For a Pack rooted at mypack:
+The CLI path is the installed Package mount path followed by the alias path relative to that Package's cliCommands/ root. The Package's storage/definition prefix and chosen CLI mount are independent. For a Package rooted at mypack:
 
-| Pack alias | CLI with mount mypack | CLI with mount fun |
+| Package alias | CLI with mount mypack | CLI with mount fun |
 | --- | --- | --- |
 | mypack/cliCommands/chris/sells/laughs | bd mypack chris sells laughs | bd fun chris sells laughs |
 | mypack/cliCommands/chris/sells/cries | bd mypack chris sells cries | bd fun chris sells cries |
 | mypack/cliCommands/chris/anderson/smirks | bd mypack chris anderson smirks | bd fun chris anderson smirks |
 | mypack/cliCommands/chris/list | bd mypack chris list | bd fun chris list |
 
-Each alias targets a Callable, whether defined by this Pack or available through an explicit import. Its selected callable supplies parameters, CLI argument mapping and help. Common prefixes create groups. A callable ID outside this explicit convention does not create a command path. No separate path array is required to duplicate the hierarchical alias name.
+Each alias targets a Callable, whether defined by this Package or available through an explicit import. Its selected callable supplies parameters, CLI argument mapping and help. Common prefixes create groups. A callable ID outside this explicit convention does not create a command path. No separate path array is required to duplicate the hierarchical alias name.
 
-The service must admit the chosen alias namespace and advertise the installed tree. Existing BDP aliases provide individual GET/HEAD redirect resolution, not a complete alias inventory, stored revisions, alias chains or invocation forwarding. The Pack catalog must provide a complete discoverable alias set for help/completion and retain selected targets/definition closure. Invoke the resolved callable through the callable contract; do not POST through an assumed alias-forwarding behavior. The alias set, selected definitions and effective installation bindings must not drift silently through live repointing or latest-on-retry resolution.
+The service must admit the chosen alias namespace and advertise the installed tree. Existing BDP aliases provide individual GET/HEAD redirect resolution, not a complete alias inventory, stored revisions, alias chains or invocation forwarding. The Package catalog must provide a complete discoverable alias set for help/completion and retain selected targets/definition closure. Invoke the resolved callable through the callable contract; do not POST through an assumed alias-forwarding behavior. The alias set, selected definitions and effective installation bindings must not drift silently through live repointing or latest-on-retry resolution.
 
 ## Optional top-level shortcuts and collisions
 
-A Pack can also request explicit top-level CLI shortcuts. Donna's motivating example is the Memory Pack exposing bd memory remember and a top-level bd remember shortcut to the same selected operation. The working Pack-relative cliShortcuts/ root requests these optional root exposures: memory/cliCommands/remember supplies the grouped command, and memory/cliShortcuts/remember requests bd remember. Both aliases target the same selected Callable directly. Exact inventory/admission metadata remains open; the client must not mechanically strip the Pack mount from every command. Both exposures use the same callable, parameter mapping and execution semantics. A CLI shortcut to a grouped command does not require a chain of BDP aliases.
+A Package can also request explicit top-level CLI shortcuts. Donna's motivating example is the Memory Package exposing bd memory remember and a top-level bd remember shortcut to the same selected operation. The working Package-relative cliShortcuts/ root requests these optional root exposures: memory/cliCommands/remember supplies the grouped command, and memory/cliShortcuts/remember requests bd remember. Both aliases target the same selected Callable directly. Exact inventory/admission metadata remains open; the client must not mechanically strip the Package mount from every command. Both exposures use the same callable, parameter mapping and execution semantics. A CLI shortcut to a grouped command does not require a chain of BDP aliases.
 
-**Selected collision outcome:** if an optional top-level shortcut conflicts while the Pack's grouped commands are valid, keep the grouped commands and report the shortcut as unbound. An already accepted binding keeps its meaning. For example:
+**Selected collision outcome:** if an optional top-level shortcut conflicts while the Package's grouped commands are valid, keep the grouped commands and report the shortcut as unbound. An already accepted binding keeps its meaning. For example:
 
 | Requested exposure | Existing situation | Outcome |
 | --- | --- | --- |
@@ -152,13 +174,13 @@ Collision recommendations awaiting detailed adoption:
 
 | Case | Proposed rule |
 | --- | --- |
-| General built-in or bootstrap path | Reserve it explicitly; a Pack may not replace call, general CRUD or bootstrap/help controls through ordinary exposure. |
-| Required main Pack mount or command conflicts | Require a different mount/explicit resolution before activating the conflicting required tree. The optional-shortcut fallback does not waive required-tree conflicts. |
+| General built-in or bootstrap path | Reserve it explicitly; a Package may not replace call, general CRUD or bootstrap/help controls through ordinary exposure. |
+| Required main Package mount or command conflicts | Require a different mount/explicit resolution before activating the conflicting required tree. The optional-shortcut fallback does not waive required-tree conflicts. |
 | New candidates request the same optional root path | Publish no arbitrary winner based on load/enumeration order; leave conflicting optional candidates unbound unless there is an explicit selected owner. |
 | Shared prefixes or executable group conflicts | Distinguish grouping from callable leaves and validate complete token paths before publishing. Extendable groups and executable groups still need a rule. |
-| Unbound shortcut diagnosis | Identify requested path, requesting Pack, current owner/conflict and the usable grouped alternative in installation/catalog diagnostics. |
+| Unbound shortcut diagnosis | Identify requested path, requesting Package, current owner/conflict and the usable grouped alternative in installation/catalog diagnostics. |
 
-The active catalog must distinguish requested aliases, successfully bound routes and unbound optional shortcuts. This effective selection participates in exact installed composition/catalog evidence. An unbound shortcut does not remove the Callable, change authorization, or prevent direct bd call invocation. Exact collision equivalence/normalization, same-target duplicate ownership, shortcut catalog encoding, explicit remapping, activation after a conflict disappears, uninstall/update behavior, profiles and group help remain open. Independent friendly-tree registration outside Packs is deferred.
+The active catalog must distinguish requested aliases, successfully bound routes and unbound optional shortcuts. This effective selection participates in exact installed composition/catalog evidence. An unbound shortcut does not remove the Callable, change authorization, or prevent direct bd call invocation. Exact collision equivalence/normalization, same-target duplicate ownership, shortcut catalog encoding, explicit remapping, activation after a conflict disappears, uninstall/update behavior, profiles and group help remain open. Independent friendly-tree registration outside Packages is deferred.
 
 ## Scenarios
 
@@ -166,31 +188,41 @@ These embedded draft expectations are authoring content, not executed package/cl
 
 | Scenario | Meaning |
 | --- | --- |
-| [S1. Mount a Pack alias tree](#s1-mount-a-pack-alias-tree) | Alias suffixes become a tree below the selected CLI mount. |
+| [S1. Mount a Package alias tree](#s1-mount-a-package-alias-tree) | Alias suffixes become a tree below the selected CLI mount. |
 | [S2. Keep grouped commands when a shortcut conflicts](#s2-keep-grouped-commands-when-a-shortcut-conflicts) | An optional root collision reports an unbound shortcut while valid grouped commands remain usable. |
-| [S3. Discover installations through the graph](#s3-discover-installations-through-the-graph) | Compare the proposed typed installation-Link query with alias locators and actual runtime availability. |
+| [S3. Discover installations through the graph](#s3-discover-installations-through-the-graph) | Current installation-Link presence is the installed fact, separate from aliases and runtime availability. |
 
-### S1. Mount a Pack alias tree
+### S1. Mount a Package alias tree
 
 Status: draft
 
-Given mypack/cliCommands/chris/sells/laughs targeting a selected Callable and an installed mount fun, the advertised tree exposes bd fun chris sells laughs using that Callable's argument mapping and help. Replacing the mount changes the prefix, not the Callable identity. A loose Callable remains usable through bd call without a Pack. The catalog captures the alias set and exact selected definitions; ordinary point alias resolution alone does not prove enumeration or closure.
+Given mypack/cliCommands/chris/sells/laughs targeting a selected Callable and an installed mount fun, the advertised tree exposes bd fun chris sells laughs using that Callable's argument mapping and help. Replacing the mount changes the prefix, not the Callable identity. A loose Callable remains usable through bd call without a Package. The catalog captures the alias set and exact selected definitions; ordinary point alias resolution alone does not prove enumeration or closure.
 
 ### S2. Keep grouped commands when a shortcut conflicts
 
 Status: draft
 
-Given a valid Memory Pack grouped tree and an optional requested bd remember shortcut whose path is already bound, installation keeps bd memory remember and reports Memory's shortcut as unbound. The existing bd remember binding keeps its meaning. No optional collision turns the grouped operation into a failure or silently overrides another binding. Required grouped-tree conflicts and root-exposure encoding remain separate design questions.
+Given a valid Memory Package grouped tree and an optional requested bd remember shortcut whose path is already bound, installation keeps bd memory remember and reports Memory's shortcut as unbound. The existing bd remember binding keeps its meaning. No optional collision turns the grouped operation into a failure or silently overrides another binding. Required grouped-tree conflicts and root-exposure encoding remain separate design questions.
 
 ### S3. Discover installations through the graph
 
 Status: draft
 
-Under the proposed registry-Link model, a real registry Bead has one admitted installation Link to a selected Pack/closure with its own Scope-specific mount. The outgoing typed-Link query returns that installation even if the Pack's canonical ID is outside sys/packages. A convenient alias under packages/ does not make the Pack appear under that prefix in a normal Bead inventory. Removing or repointing a convenience alias does not by itself install or uninstall the Pack. Current loaded/available state requires the separately agreed service observation contract; the durable installation Link alone does not establish it.
+Under the selected registry-Link model, a real registry Bead has one admitted installation Link to a selected Package/closure with its own Scope-specific mount. The outgoing typed-Link query returns that installation even if the Package's canonical ID is outside sys/packages. The admitted Link's presence means installed, and deleting that live Link removes the corresponding installation. A convenient alias under packages/ does not make the Package appear under that prefix in a normal Bead inventory. Removing or repointing a convenience alias does not by itself install or uninstall the Package. Current loaded/available state requires the separately agreed service observation contract; the durable installation Link alone does not establish it.
 
-## Remaining package design work
+## Open package decisions
 
-Choose the installation registry representation, actual registry URI/discovery under the selected sys/ namespace and installed/loaded observation semantics. Complete Pack/PackDeclares/PackImports descriptors and concrete exact import/member closure, alias inventory and installed catalog binding contracts. Settle mount admission, shortcut catalog encoding, collision equivalence/ownership, reserved built-ins, executable/extendable groups, updates/uninstall, explicit rebinding and help/completion/cache revalidation. These are package decisions; they must not be added as prerequisites to the standalone Callable Type contract.
+These are the five active design decisions. Installation representation is now selected; the remaining parts still need decisions and complete Type descriptors.
+
+| Issue | Decision area | Selected foundation | Still to decide |
+| --- | --- | --- | --- |
+| PKG-O1 | Installation shape and cardinality | Installation is a Link; current live presence/absence is installed/not installed. | One installation per Package identity per Scope, or multiple exact versions/mounts; registry/Link properties and endpoint/cardinality constraints. |
+| PKG-O2 | Declarations, imports and exports | One defining Package; explicit imports; Package is the Bead Type name. Donna favors subordinate member IDs and arbitrary discoverable Package roots. | Member eligibility/ownership, whole-Package versus selected-member imports, named export Links versus ordinary aliases, exact containment enforcement boundary and any graph-root materialization/rebasing. |
+| PKG-O3 | Exact closure | Explicit exact member/dependency closure retained by installation. | Coverage/carrier/selection/retention, alias and Type/schema evidence, conflicting dependency versions and reconciliation with deferred CALL-O3 extern identity. |
+| PKG-O4 | Installation lifecycle and admission | Accepted Link creation/deletion changes installation presence; no extra installed boolean. | bd pack subcommands or CRUD transport, atomic admission/publication, update/uninstall effects, authorization and any externally meaningful loaded availability. |
+| PKG-O5 | Registry and CLI catalog | sys/ namespace, Package mounts, cliCommands/cliShortcuts and optional-shortcut collision fallback. | Registry discovery/reservation and owning Type, effective catalog carrier/revisions, required-tree conflicts, collision equivalence/ownership, group behavior, explicit rebinding and help/completion/cache rules. |
+
+Concrete Package, PackDeclares, PackImports, registry and installation-Link descriptors remain incomplete. The reusable Package definition remains separate from installation. CALL-O1/O2/O3 stay open for the return after package shape, rather than being silently resolved by these conventions.
 
 ## Depends on
 
@@ -198,7 +230,7 @@ These rows are authoring locators for candidate dependency Links. They do not as
 
 | Title | Target | Status | Body |
 | --- | --- | --- | --- |
-| Callables | [Callable Beads](callables.md) | draft | Defines the named operation, argument projection and invocation contract reused by Pack command paths. |
+| Callables | [Callable Beads](callables.md) | draft | Defines the named operation, argument projection and invocation contract reused by Package command paths. |
 | Types | [Type system](../specs/types/type-system/type-system.md) | — | Governs package and callable Type descriptors, References/refinement and schema resources. |
 | Effective Type validation | [Types profile](../specs/profiles/types/types.md) | — | Governs interpretation/admission of actual Type definitions rather than inventing package-local Type semantics. |
 | Existing aliases and namespace | [Core](../specs/profiles/core/core.md) | — | Existing locator/namespace limits; does not already supply package alias enumeration or invocation forwarding. |
