@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/bdp-experimental/callables-20261030.schema.json",
+  "title": "EXPERIMENTAL callable instance-properties projections; not registered Type definitions",
+  "$comment": "Non-normative. Donna selected JSON value schemas for parameter values; field spellings/default policies are first-pass proposals. Effective helpers represent conjunction only, not actual Refines Links, abstractness, registration or body parameterization. Bodies validate the existing literal carriers; no parameter-reference nodes are introduced.",
+  "$defs": {
+    "Parameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema": {
+          "type": [
+            "object",
+            "boolean"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "default": true
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "schema"
+      ]
+    },
+    "FlagMapping": {
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "parameter": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "names",
+        "parameter"
+      ]
+    },
+    "PositionalMapping": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "parameter": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "position",
+        "parameter"
+      ]
+    },
+    "CliMapping": {
+      "type": "object",
+      "properties": {
+        "flags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FlagMapping"
+          }
+        },
+        "positionals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PositionalMapping"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ExternBinding": {
+      "type": "object",
+      "properties": {
+        "binding": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "binding"
+      ]
+    },
+    "Callable": {
+      "type": "object",
+      "required": [
+        "description",
+        "parameters"
+      ],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Parameter"
+          }
+        },
+        "cliMapping": {
+          "$ref": "#/$defs/CliMapping"
+        }
+      },
+      "additionalProperties": true
+    },
+    "CallableBatchLocal": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/batchRequest"
+        },
+        "extern": {
+          "$ref": "#/$defs/ExternBinding"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "body"
+          ],
+          "not": {
+            "required": [
+              "extern"
+            ]
+          }
+        },
+        {
+          "required": [
+            "extern"
+          ],
+          "not": {
+            "required": [
+              "body"
+            ]
+          }
+        }
+      ]
+    },
+    "CallableQueryLocal": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "$ref": "https://example.invalid/bdp-query-design-1.schema.json"
+        },
+        "extern": {
+          "$ref": "#/$defs/ExternBinding"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "body"
+          ],
+          "not": {
+            "required": [
+              "extern"
+            ]
+          }
+        },
+        {
+          "required": [
+            "extern"
+          ],
+          "not": {
+            "required": [
+              "body"
+            ]
+          }
+        }
+      ]
+    },
+    "CallableBatch": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Callable"
+        },
+        {
+          "$ref": "#/$defs/CallableBatchLocal"
+        }
+      ]
+    },
+    "CallableQuery": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Callable"
+        },
+        {
+          "$ref": "#/$defs/CallableQueryLocal"
+        }
+      ]
+    }
+  }
+}
