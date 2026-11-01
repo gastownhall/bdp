@@ -71,10 +71,28 @@ export function assertHistoricalCitation692dBytes(source: string, bytes: Uint8Ar
     throw new Error(`Historical citation 692d byte drift: ${source}`);
 }
 
+/** The sole encoded snapshot: original Write text, including its final blank line. */
+export function decodeHistoricalCitation692dWriteStorage(storage: string): Buffer {
+  const value: unknown = JSON.parse(storage);
+  if (typeof value !== "string")
+    throw new Error("Historical citation 692d Write storage must contain one JSON string");
+  const bytes = Buffer.from(value, "utf8");
+  assertHistoricalCitation692dBytes("specs/profiles/write/write.md", bytes);
+  return bytes;
+}
+
 function readSnapshot(source: string): string {
   if (!Object.hasOwn(SNAPSHOT_PINS, source))
     throw new Error(`Not a historical citation 692d source: ${source}`);
-  const bytes = readFileSync(new URL(`historical-citation-692d/${source}`, import.meta.url));
+  const bytes =
+    source === "specs/profiles/write/write.md"
+      ? decodeHistoricalCitation692dWriteStorage(
+          readFileSync(
+            new URL("historical-citation-692d/specs/profiles/write/write.md.json", import.meta.url),
+            "utf8",
+          ),
+        )
+      : readFileSync(new URL(`historical-citation-692d/${source}`, import.meta.url));
   assertHistoricalCitation692dBytes(source, bytes);
   return bytes.toString("utf8");
 }

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   assertHistoricalCitation692dBytes,
+  decodeHistoricalCitation692dWriteStorage,
   HISTORICAL_CITATION_692D_CATALOG_PATHS,
   isHistoricalCitation692dProtocolSource,
   readHistoricalCitation692dCatalog,
@@ -58,9 +59,9 @@ describe("historical citation cutline 692d is a separate test source", () => {
       "specs/conformance.md",
     ];
     for (const source of [...snapshotPaths, ...HISTORICAL_CITATION_692D_CATALOG_PATHS]) {
-      const bytes = readFileSync(
-        new URL(source, snapshotPaths.includes(source) ? snapshotRoot : root),
-      );
+      const bytes = snapshotPaths.includes(source)
+        ? Buffer.from(readHistoricalCitation692dSource(source), "utf8")
+        : readFileSync(new URL(source, root));
       expect(() => assertHistoricalCitation692dBytes(source, bytes), source).not.toThrow();
       expect(() => assertHistoricalCitation692dBytes(source, bytes.subarray(1)), source).toThrow(
         "byte drift",
@@ -78,6 +79,26 @@ describe("historical citation cutline 692d is a separate test source", () => {
     expect(() => assertHistoricalCitation692dBytes("package.json", Buffer.alloc(0))).toThrow(
       "Not a pinned",
     );
+  });
+
+  it("decodes only the exact historical Write JSON string without losing its final blank line", () => {
+    const source = "specs/profiles/write/write.md";
+    const storage = readFileSync(new URL(`${source}.json`, snapshotRoot), "utf8");
+    const bytes = decodeHistoricalCitation692dWriteStorage(storage);
+    expect(bytes).toHaveLength(256862);
+    expect(bytes.subarray(-2).toString("utf8")).toBe("\n\n");
+    expect(Buffer.from(readHistoricalCitation692dSource(source), "utf8")).toEqual(bytes);
+    expect(storage.split("\n")).toHaveLength(2);
+    expect(storage.endsWith("\n\n")).toBe(false);
+    for (const malformed of ["{", "{}", "[]", "null", "0", "true"])
+      expect(() => decodeHistoricalCitation692dWriteStorage(malformed)).toThrow();
+    for (const changed of ["changed", bytes.subarray(0, -1).toString("utf8")])
+      expect(() => decodeHistoricalCitation692dWriteStorage(JSON.stringify(changed))).toThrow(
+        "byte drift",
+      );
+    expect(isHistoricalCitation692dProtocolSource(`${source}.json`)).toBe(false);
+    expect(() => readHistoricalCitation692dSource(`${source}.json`)).toThrow("Not a historical");
+    expect(() => readHistoricalCitation692dCatalog(`${source}.json`)).toThrow("Not a historical");
   });
 
   it("checks every original quotation from the exact six catalogs without changing their census", () => {

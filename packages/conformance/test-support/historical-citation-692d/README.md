@@ -10,7 +10,16 @@ provider/runtime conformance evidence.
 
 `../historical-citation-source.ts` verifies the exact four snapshot byte counts
 and SHA-256 values and the exact six catalog byte counts/digests before returning
-text. It uses the existing protocol marker/link composition only for the
+text. Only the historical Write source is stored as one JSON string in
+`specs/profiles/write/write.md.json`; the closed `specs/profiles/write/write.md`
+source row decodes that string back to the original UTF-8 bytes before the same
+length/SHA checks and source return. This preserves its exact final blank line
+without adding a blank line at EOF to the storage fixture. Object/array/null/
+non-string storage is refused, as are decoded byte changes. The other three
+snapshots remain raw and byte-identical. The storage filename is not a new
+citation source, and there is no raw-Write fallback or generic codec selection.
+
+It uses the existing protocol marker/link composition only for the
 original `docs/specs/bdp.md` citation alias. Original source names, section masks,
 anchors, cumulative profile tags and all 569 catalog quotations remain intact.
 No network, Git, current-source or history-directory fallback exists.
