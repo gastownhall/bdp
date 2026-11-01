@@ -8,7 +8,7 @@ version: "0.1"
 
 Write extends [Core](../core/core.md) with individually atomic Bead, Link and
 alias mutations, durable retry outcomes, and production of the required committed
-Event facts. It also defines the independently optional atomic-batch1 and id-root1
+Event facts when Events is advertised. It also defines the independently optional atomic-batch1 and id-root1
 capabilities. [Types](../types/types.md) supplies optional Scope-wide Type
 interpretation; Write does not make that interpretation a condition of Core-only
 carrying.
@@ -41,9 +41,9 @@ authorization, atomicity, retention or conformance.
 ## Discover and select Write
 
 A Write Scope advertises `bdpVersion:"0.1"` and `profile:"write"`. Its closed
-machine discovery requires `scope`, `beads`, `links`, `events`, `operations` and
+machine discovery requires `scope`, `beads`, `links`, `operations` and
 `aliases`, in addition to those two identity members. The optional common members
-are `order`, `limits`, `maximumEndpointMultiplicity`, `historicalResolution` and
+are `events`, `order`, `limits`, `maximumEndpointMultiplicity`, `historicalResolution` and
 `capabilities`, with their Core meanings. There is no required Type inventory.
 Navigation URLs are absolute HTTP(S) URLs. Clients follow the discovered URLs and
 verify the owning Scope, Resource kind and selected contract; they MUST NOT infer
@@ -202,7 +202,7 @@ is instead `alias-path-taken`; removing the alias can clear that condition. A
 committed creation/deletion in one atomic batch still consumes its identity.
 Rollback commits no allocation or non-reuse claim.
 
-Allocation, all Resource/owner effects, required facts and durable terminal key
+Allocation, all Resource/owner effects, facts required by advertised Events and durable terminal key
 state commit together or none. Concurrent distinct invocations cannot commit the
 same canonical identity. The provider may reject unsupported allocation under
 native policies/bounds, but MUST NOT silently allocate elsewhere in place of an
@@ -698,7 +698,7 @@ revision was created. Ordinary bounded configuration must accommodate these duti
 
 ### Atomic durability, crash and capability changes
 
-Effects, semantic identity, allocations, required facts and terminal outcome MUST
+Effects, semantic identity, allocations, facts required by advertised Events and terminal outcome MUST
 become durable together. A crash leaves either no committed effects and an
 unknown/cleared abandoned claim, or the retained original decision; never effects
 behind an unknown successful key, a retained success for lost work or indefinite
@@ -961,10 +961,15 @@ behavior if none. Valid context does not force a version; no-op envelopes remain
 unchanged and deletion/allocation-only rows have no newly recorded attribution.
 Input validation and retry identity still preserve every authored input/presence.
 
-### Required committed facts
+### Committed facts when Events is advertised
 
-Write MUST durably produce Core's required Event facts together with its effects
-and terminal decision. Crash/retry cannot lose facts or mint duplicate transitions.
+A Write Scope without Events still owes every atomic Resource, owner, allocation,
+revision and durable key/outcome obligation in this document. It does not owe an
+Event fact log solely by implementing Write; optional History is a separate promise.
+
+When Events is advertised, Write MUST durably produce Core's required Event facts
+together with its effects and terminal decision. The remainder of this subsection
+applies to that advertised support. Crash/retry cannot lose facts or mint duplicate transitions.
 Failure/rollback/no-op produces none; aliases and allocation-only outcomes produce
 no Resource lifecycle fact. Core owns the Event carrier, observation source,
 coverage, projection, replay, authorization and gap rules.
@@ -1134,7 +1139,7 @@ sequence feature and no partial/chunked execution.
 ## Conformance boundary
 
 A Write provider must implement all eight ordinary operations, their complete
-outcomes, required fact production, native/admitted Types constraints,
+outcomes, fact production required by advertised Events, native/admitted Types constraints,
 authorization, concurrency safety and durable key/recovery duties. Optional
 capability advertisement requires its complete selected behavior and bounds; it
 never replaces ordinary obligations. Ordinary reads retain Core meaning: an

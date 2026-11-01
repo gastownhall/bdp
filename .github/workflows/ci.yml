@@ -36,6 +36,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.22.1
+      - name: Check embedded schema extraction and distribution parity
+        run: |
+          node --test scripts/spec-schema-fragments.node-test.mjs
+          node scripts/spec-schema-fragments.mjs --check
       - name: Check canonical documents, local links and JSON examples
         run: python3 -B scripts/check-spec-editorial.py
 

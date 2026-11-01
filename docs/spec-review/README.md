@@ -24,9 +24,23 @@ The first assembly consolidates the selected draft rules and removes the need to
 
 Review Core, then Write, then Types; also review their boundaries together. Approval of the complete pass produces one exact specification-baseline commit. Only then do the reference implementation and conformance tests enter their alignment pass. Implementation gaps and editorial questions remain explicit rather than quietly changing the intended contract.
 
+## Embedded Core schemas
+
+Core now carries its description-rich schema definitions beside the concepts they describe. Edit the visible DSL between matching `<!-- bdp-schema:start NAME -->` and `<!-- bdp-schema:end NAME -->` comments. The delimiters are complete lines; the body remains readable Markdown. Do not hide definitions in review comments. Arbitrary prose belongs outside each fragment.
+
+The extractor uses the existing lossless Markdown JSON Schema codec. It updates the Core-owned definitions in both JSON distribution copies, preserves other profiles' definitions and records the complete generated Core ownership inventory so an accidentally removed fragment fails validation. Removing or renaming a previously owned definition requires an explicit migration. Write and Types will receive their own inline-schema pass; this Core pass does not silently select historical helpers elsewhere in the common bundle.
+
+```sh
+node scripts/spec-schema-fragments.mjs --write
+node scripts/spec-schema-fragments.mjs --check
+node --test scripts/spec-schema-fragments.node-test.mjs
+```
+
+OpenAPI authoring remains a separate decision. The older generated HTTP catalog and schema indexes still pin the pre-consolidation source layout and require a deliberate mapping update; their old source fingerprints are not automatically rehashed. Their failures do not change the meaning of the canonical files, and are not reported as passing checks.
+
 ## CI during the review
 
-CI remains enabled. The `specification` job runs dependency-free structural checks on the canonical documents and entry points: Markdown fences, local file/heading links and syntactically valid JSON examples. It reports Donna comment markers without treating them as resolved. These checks do not establish semantic completeness, JSON-schema conformance, implementation support or release readiness.
+CI remains enabled. The `specification` job runs dependency-free structural checks on the canonical documents and entry points: Markdown fences, local file/heading links and syntactically valid JSON examples. It also validates embedded Core schema extraction, complete source ownership and both JSON distribution copies, and runs the extractor regression tests. It reports Donna comment markers without treating them as resolved. These checks do not establish semantic completeness, JSON-schema conformance, implementation support or release readiness.
 
 The `changes` job examines the complete base-to-head path set. Only Markdown in the named specification/editorial directories, the explicit navigation/provenance files and the two reviewed editorial-CI infrastructure files use the editorial lane. Generated schema Markdown, JSON schemas, fixtures, product code, dependency/lock files and other tooling changes require the implementation lane. This bootstrap PR deliberately includes `.github/workflows/ci.yml` and `scripts/check-spec-editorial.py`; their logic receives independent review along with the documents.
 

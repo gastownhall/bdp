@@ -9,7 +9,7 @@ version: "0.1"
 Editorial draft v0.1.
 
 Core defines the common Beads Protocol data model, discovery, authorized reads,
-HTTP binding, and required Event observation. A Scope contains Beads and Links,
+HTTP binding, and optional Event observation. A Scope contains Beads and Links,
 which are Resources with immutable identities and independently versioned state.
 Generic clients use the same carriers and operations across application domains.
 Storage layout and implementation technology are not prescribed.
@@ -30,17 +30,16 @@ remain binding whether or not Types is supported.
 5. [Values and revisions](#values-and-revisions)
 6. [Carried attribution](#carried-attribution)
 7. [Discovery and capabilities](#discovery-and-capabilities)
-8. [Authorization and selection](#authorization-and-selection)
-9. [Logical Resource selection and graph queries](#logical-resource-selection-and-graph-queries)
-10. [Resource reads and views](#resource-reads-and-views)
+8. [Resource reads and views](#resource-reads-and-views)
+9. [Authorization and selection](#authorization-and-selection)
+10. [Logical Resource selection and graph queries](#logical-resource-selection-and-graph-queries)
 11. [Collections and pagination](#collections-and-pagination)
 12. [Historical resolution](#historical-resolution)
-13. [Required Events](#required-events)
+13. [Optional Events](#optional-events)
 14. [Final publication](#final-publication)
 15. [Optional Resource projection](#optional-resource-projection)
 16. [Optional exact Type-definition lookup](#optional-exact-type-definition-lookup)
 17. [Problems and HTTP behavior](#problems-and-http-behavior)
-
 
 ## Contract and conformance
 
@@ -60,7 +59,9 @@ Identity URIs need not be dereferenceable. Unsupported or contradictory bindings
 MUST refuse, never select a nearest version or infer compatibility from similar JSON.
 A service MUST NOT advertise changed v0.1 semantics as unchanged version `"0"`.
 
-The mechanical JSON Schema 2020-12 companion is [bdp-v0.1.schema.json](bdp-v0.1.schema.json),
+The visible schema fragments in this document use the [Markdown JSON Schema DSL](../../formats/markdown-json-schema.md). Each fragment is delimited by matching HTML comments of the form `bdp-schema:start NAME` and `bdp-schema:end NAME`; the comments delimit visible definitions rather than hiding their text. These definitions are the authoring source for the Core-owned entries of the distributed JSON bundle. Edit them here, then extract mechanically; do not maintain another hand-edited Core schema. Descriptions in field tables are emitted as JSON Schema annotations. Semantic obligations that JSON Schema cannot express remain in the adjoining prose.
+
+The generated JSON Schema 2020-12 companion is [bdp-v0.1.schema.json](bdp-v0.1.schema.json),
 with the same distribution copy at
 [packages/protocol/schemas/bdp-v0.1.schema.json](../../../packages/protocol/schemas/bdp-v0.1.schema.json).
 Validators MUST load the complete bundle without network retrieval. Shared carriers
@@ -73,7 +74,7 @@ bounds, atomicity and all cross-value obligations below apply independently.
 The only base profile literals are `core` and `write`. A Core client MUST understand
 both discovery shapes, including a Write Scope's Core read behavior, even when it
 implements no mutations. There is no nearest-profile ordering or implicit feature
-fallback. A Core service MUST implement the mandatory reads and finite Events here.
+fallback. A Core service MUST implement the mandatory reads here. Events is independently optional; advertising it commits the service to its complete observation contract.
 Optional History, projection and exact-definition lookup acquire their complete
 requirements only when advertised and explicitly selected as specified below.
 
@@ -94,7 +95,7 @@ rejections under generic JSON to force execution. Problems use
 Types may define an explicitly selected feature-owned subtype while preserving
 promised base representations; see Types for that selection, not a base upgrade.
 Non-JSON transports must explicitly bind the same contract; `text/event-stream`
-alone establishes no Event compatibility. This contract requires finite JSON Events.
+alone establishes no Event compatibility. When Events is supported, this contract requires finite JSON Events.
 
 ## Scopes and identity
 
@@ -253,6 +254,510 @@ canonicalizes or traverses. To give it graph semantics—versioning with its sou
 validation at admission and view closure—represent it as an owned Link under the
 applicable native or supported Types ownership rule.
 
+### Resource records
+
+Every successful `GET` of a Bead or Link returns one self-contained Resource
+record. Both immutable and mutable state appear in the record, together with
+the current opaque revision. The target URL still identifies the Resource.
+But including `id` makes saved responses, logs, collection members, and
+browser inspection self-describing.
+
+A Bead record is:
+
+```json
+{
+  "id": "https://beads.example/acme/beads/task-42",
+  "type": "https://work.example/types/task",
+  "revision": "opaque-task-revision",
+  "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } },
+  "properties": {
+    "title": "Specify BDP mutation",
+    "status": "open"
+  },
+  "metadata": {}
+}
+```
+
+A Link record is:
+
+```json
+{
+  "id": "https://beads.example/acme/links/assigned-to-81",
+  "type": "https://work.example/types/assigned-to",
+  "revision": "opaque-link-revision",
+  "source": "https://beads.example/acme/beads/task-42",
+  "target": "https://beads.example/acme/beads/person-7",
+  "properties": {
+    "since": "2026-08-04"
+  },
+  "metadata": {}
+}
+```
+
+`id` is an absolute canonical Resource URL. `type` is the common
+Type Reference; optional Types defines its exact output requirements. A Bead with an applicable ownership rule
+carries its recorded `ownedLinks` member on every record read. Newly captured
+members use nonempty nominal-Type buckets with complete Link affiliations;
+older retained captures keep their recorded shape. See [Owned Links](#owned-links).
+The member is absent for Beads with no applicable ownership rule. Link `source` and `target` are
+References as defined under [Resources and References](#resources-and-references): an in-Scope
+endpoint's `uri` is the Bead's absolute canonical URL, an out-of-Scope
+endpoint's `uri` is its opaque absolute URI, and either may be a Pinned
+Reference. `revision` is protocol metadata rather than mutable Bead or Link
+state, and so is `revisionProvenance`: when present it is the per-version
+carried attribution defined under [Carried
+attribution](#carried-attribution), beside `revision` and outside
+`properties`. [Immutable change context](#immutable-change-context) defines
+the optional History time, agent and message fields in that same envelope;
+none authenticates the actor. Common `metadata` is a mutable,
+Type-independent JSON object on both Resource kinds. It is distinct from
+application `properties` and from per-version `revisionProvenance`.
+Successful reads always expose `metadata`: `{}` means no members are set. A
+retained pre-metadata version that lacks the member is projected with
+`metadata: {}` on reads without rewriting stored bytes or minting a revision;
+a later metadata update starts from that empty object. `id`, `type`,
+`revision`, and, for Links, `source` and `target` are returned on every
+successful read. That does not mean they are accepted as update targets. An
+implementation may store local identifiers internally. That choice does not
+alter the response spelling.
+
+A pinned endpoint is represented the same way for both reference classes.
+For example, pinning an external target:
+
+```json
+{
+  "uri": "https://github.example/issues/123",
+  "revision": "8f0e2b"
+}
+```
+
+and pinning an in-Scope Bead:
+
+```json
+{
+  "uri": "https://beads.example/acme/beads/task-42",
+  "revision": "opaque-task-revision"
+}
+```
+
+Collection and selection responses contain these same records directly,
+rather than wrapping them in a second `href`/`value` envelope.
+
+
+<!-- bdp-schema:start absoluteHttpUrl -->
+### Schema: "absoluteHttpUrl"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Absolute HTTP(S) URL used for canonical in-Scope identities and discovered navigation. Equality, canonical path spelling, ownership and non-reuse are additionally governed by the Scope rules." |
+| format | "uri" |
+| pattern | "^https?://.+" |
+| type | "string" |
+<!-- bdp-schema:end absoluteHttpUrl -->
+
+<!-- bdp-schema:start absoluteUri -->
+### Schema: "absoluteUri"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Absolute URI carried for an opaque out-of-Scope Link endpoint or other explicitly URI-valued context. This syntax supplies no existence, kind, access or immutability guarantee." |
+| format | "uri" |
+| pattern | "^[A-Za-z][A-Za-z0-9+.-]*:" |
+| type | "string" |
+<!-- bdp-schema:end absoluteUri -->
+
+<!-- bdp-schema:start reference -->
+### Schema: "reference"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "A floating absolute URI or an exact URI-and-revision pair. The containing field determines whether only HTTP(S) identities are admissible; a pin is never merged with another Reference." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/absoluteUri"
+    },
+    {
+      "$ref": "#/$defs/pinnedReference"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end reference -->
+
+<!-- bdp-schema:start pinnedReference -->
+### Schema: "pinnedReference"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["uri","revision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete exact Reference. Both URI and nonempty opaque revision are mandatory, with no undeclared members. Its revision denotes recorded content, not an implicit current selector." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "uri" | ref "#/$defs/absoluteUri" | yes | — | "Complete target identity carried by this Reference. Relative paths and partial Reference objects are not admitted." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end pinnedReference -->
+
+<!-- bdp-schema:start typeReference -->
+### Schema: "typeReference"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "A nominal Type affiliation: an absolute HTTP(S) Type identity or an exact pinned Type Reference. Carrying it does not activate Types interpretation." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/absoluteHttpUrl"
+    },
+    {
+      "$ref": "#/$defs/pinnedTypeReference"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end typeReference -->
+
+<!-- bdp-schema:start pinnedTypeReference -->
+### Schema: "pinnedTypeReference"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Exact Type affiliation using an absolute HTTP(S) Type identity and a nonempty opaque revision. Both members travel together." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/pinnedReference"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "uri": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end pinnedTypeReference -->
+
+<!-- bdp-schema:start properties -->
+### Schema: "properties"
+
+Value: object
+
+Other fields: allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Application-authored object state. A URI-valued property does not create a Link, and the Core carrier imposes no Type-specific property schema." |
+| type | "object" |
+<!-- bdp-schema:end properties -->
+
+<!-- bdp-schema:start metadata -->
+### Schema: "metadata"
+
+Value: object
+
+Other fields: allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Common mutable object state independent of Type-specific properties. A complete read always includes it; the empty object records no metadata members." |
+| type | "object" |
+<!-- bdp-schema:end metadata -->
+
+<!-- bdp-schema:start resourceKind -->
+### Schema: "resourceKind"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The two protocol Resource kinds. Kind is immutable and established by the resolved Resource, never inferred from its URL path." |
+| enum | ["bead","link"] |
+<!-- bdp-schema:end resourceKind -->
+
+<!-- bdp-schema:start beadRecord -->
+### Schema: "beadRecord"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","type","revision","properties","metadata"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete Bead representation, including identity, affiliation, revision, application properties, common metadata and optional recorded provenance or captured owned-Link state. Included incident links are a separately selected current aggregate." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
+| "links" | ref "#/$defs/linkCollection" | no | — | "Separately selected current incident-Link aggregate. It is not captured owned state or an exact historical graph." |
+| "metadata" | ref "#/$defs/metadata" | yes | — | "Common mutable object content, independent of Type-specific properties." |
+| "ownedLinks" | schema | no | — | "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input." |
+| "properties" | ref "#/$defs/properties" | yes | — | "Application-authored object content selected by the containing representation." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
+| "type" | ref "#/$defs/typeReference" | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "ownedLinks": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/absoluteHttpUrl"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/linkRecord"
+        }
+      }
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end beadRecord -->
+
+<!-- bdp-schema:start linkRecord -->
+### Schema: "linkRecord"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","type","revision","source","target","properties","metadata"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete directed Link representation. Source and target are whole References; Link identity remains independent of their tuple. Current-state admission requires at least one live in-Scope Bead endpoint. Retained records and facts preserve their recorded endpoints without revalidating them against today’s live state." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
+| "metadata" | ref "#/$defs/metadata" | yes | — | "Common mutable object content, independent of Type-specific properties." |
+| "properties" | ref "#/$defs/properties" | yes | — | "Application-authored object content selected by the containing representation." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
+| "source" | ref "#/$defs/reference" | yes | — | "Whole source Reference of this directed Link, preserving any exact revision pin." |
+| "target" | ref "#/$defs/reference" | yes | — | "Whole target Reference of a Link, preserving any exact revision pin." |
+| "type" | ref "#/$defs/typeReference" | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end linkRecord -->
+
+<!-- bdp-schema:start currentBeadRecord -->
+### Schema: "currentBeadRecord"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Current Bead read carrier. Common metadata is present and any included incident or owned Links use complete current Link carriers; this helper adds no read operation." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/beadRecord"
+    },
+    {
+      "type": "object",
+      "required": [
+        "metadata"
+      ],
+      "properties": {
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "links": {
+          "$ref": "#/$defs/currentLinkCollection"
+        },
+        "ownedLinks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/currentLinkRecord"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end currentBeadRecord -->
+
+<!-- bdp-schema:start currentLinkRecord -->
+### Schema: "currentLinkRecord"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Current Link read carrier, including common metadata. This helper adds no identity, mutation or traversal behavior." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/linkRecord"
+    },
+    {
+      "type": "object",
+      "required": [
+        "metadata"
+      ],
+      "properties": {
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end currentLinkRecord -->
+
+<!-- bdp-schema:start resourceIdentity -->
+### Schema: "resourceIdentity"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","type","revision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete identity, Type affiliation and concrete revision recorded for a Resource, including a deletion fact. It is not a live Resource postimage and carries no mutable properties." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource version." |
+| "type" | ref "#/$defs/typeReference" | yes | — | "Complete recorded Type affiliation, preserving any revision pin." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end resourceIdentity -->
+
 ## Owned Links
 
 Ownership is an applicable native or supported Types rule of a source Bead.
@@ -375,6 +880,90 @@ guarantee — and neither is the carried `revisionProvenance` member defined
 next. Standardizing principal identity, delegation, impersonation, privacy,
 and attestation is deferred.
 
+<!-- bdp-schema:start revision -->
+### Schema: "revision"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Nonempty opaque Resource-version token. Clients compare it for exact equality and cannot infer order, time, allocation or a special current value from its spelling." |
+| minLength | 1 |
+| type | "string" |
+<!-- bdp-schema:end revision -->
+
+<!-- bdp-schema:start wireToken -->
+### Schema: "wireToken"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Nonempty opaque token whose scope and meaning are determined by its containing cursor, fact or correlation field. Tokens from different namespaces are not interchangeable." |
+| pattern | "^[A-Za-z0-9_-]{1,256}$" |
+| type | "string" |
+<!-- bdp-schema:end wireToken -->
+
+<!-- bdp-schema:start dateTime -->
+### Schema: "dateTime"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "RFC 3339 date-time carrier. Emission uses a valid calendar and clock, uppercase T and Z; the prose governs accepted spellings and precision." |
+| format | "date-time" |
+| type | "string" |
+<!-- bdp-schema:end dateTime -->
+
+<!-- bdp-schema:start positiveInteger -->
+### Schema: "positiveInteger"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Positive integral JSON number used for a declared bound or count. Implementations must preserve the specified numeric value rather than rely on a language-specific integer class." |
+| minimum | 1 |
+| type | "integer" |
+<!-- bdp-schema:end positiveInteger -->
+
+<!-- bdp-schema:start iso8601Duration -->
+### Schema: "iso8601Duration"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "ISO 8601 duration string used for advertised lifetimes. The containing contract determines the promised interval and forbids silently shortening issued obligations." |
+| pattern | "^P(?!$)" |
+| type | "string" |
+<!-- bdp-schema:end iso8601Duration -->
+
+<!-- bdp-schema:start jsonPointer -->
+### Schema: "jsonPointer"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "JSON Pointer carrier. Pointer evaluation, escaping and projection restrictions are defined by the selected operation; a syntactically valid pointer alone grants no access." |
+| pattern | "^(/([^/~]\|~[01])*)*$" |
+| type | "string" |
+<!-- bdp-schema:end jsonPointer -->
+
 ## Carried attribution
 
 Every Bead and Link record MAY carry a **`revisionProvenance`** member: a
@@ -427,7 +1016,235 @@ calendar/clock; clients accept lowercase forms RFC 3339 permits. JSON number kin
 are not implementation-language integer/float classes; the exact value/admission
 rules above govern comparison, including count fields constrained to integers.
 
+<!-- bdp-schema:start contextString -->
+### Schema: "contextString"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Explicit immutable context value: present carries a nonempty string, absent records known absence, and undetermined records unavailable knowledge. No state authenticates an agent." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "state": {
+          "const": "present"
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "state",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "absent",
+            "undetermined"
+          ]
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
+```
+<!-- bdp-schema:end contextString -->
+
+<!-- bdp-schema:start contextMessage -->
+### Schema: "contextMessage"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Explicit immutable message context: present carries a string, including an empty message; absent and undetermined distinguish known absence from unavailable knowledge." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "state": {
+          "const": "present"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "absent",
+            "undetermined"
+          ]
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
+```
+<!-- bdp-schema:end contextMessage -->
+
+<!-- bdp-schema:start contextTime -->
+### Schema: "contextTime"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Explicit immutable commit-time context: present carries a date-time and undetermined records unavailable knowledge. There is no absent time arm. This envelope is not a timestamp string or a revision-order proof." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "state": {
+          "const": "present"
+        },
+        "value": {
+          "$ref": "#/$defs/dateTime"
+        }
+      },
+      "required": [
+        "state",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "undetermined"
+          ]
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
+```
+<!-- bdp-schema:end contextTime -->
+
+<!-- bdp-schema:start revisionActor -->
+### Schema: "revisionActor"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","basis"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Recorded principal and explicit attribution basis. Writer-supplied and unknown describe how the value was carried; neither asserts authentication." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "basis" | schema | yes | — | "How the principal value was carried: writer-supplied or unknown. Neither means authenticated." |
+| "id" | schema | yes | — | "Opaque recorded principal identifier, such as agent:planner. It is not a Resource URL or an authentication assertion." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "basis": {
+      "type": "string",
+      "enum": [
+        "writer-supplied",
+        "unknown"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end revisionActor -->
+
+<!-- bdp-schema:start revisionProvenance -->
+### Schema: "revisionProvenance"
+
+Value: object
+
+Other fields: not allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| dependentRequired | {"committedAt":["agent","message"],"agent":["committedAt","message"],"message":["committedAt","agent"]} |
+| description | "Optional per-version attribution envelope. Actor attribution is independent of the optional complete committedAt/agent/message tuple; omission does not invent an actor or context." |
+| minProperties | 1 |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "actor" | ref "#/$defs/revisionActor" | no | — | "Carried principal attribution and explicit basis, independent of the optional History context tuple." |
+| "agent" | ref "#/$defs/contextString" | no | — | "Immutable carried agent label, not an authentication result." |
+| "committedAt" | ref "#/$defs/contextTime" | no | — | "Immutable recorded commit-time context, present with agent and message as one complete tuple." |
+| "message" | ref "#/$defs/contextMessage" | no | — | "Immutable carried change message, present with committedAt and agent." |
+<!-- bdp-schema:end revisionProvenance -->
+
 ## Discovery and capabilities
+
+<!-- Donna: DNS-neutral Scope identity is being checked against the earlier identity proposal before a new carrier is adopted. -->
 
 A Scope has one absolute canonical HTTP(S) URL ending in `/`, the base for local
 identifiers and durable relative references even when reached through a redirect
@@ -438,26 +1255,31 @@ link discovery and advertised `service-doc` documentation. Clients do not scrape
 
 A minimal discovery document is:
 
+
 ```json
 {
   "bdpVersion": "0.1",
   "profile": "core",
   "scope": "https://beads.example/acme/",
   "beads": "https://beads.example/acme/inventory/items",
-  "links": "https://beads.example/acme/inventory/relations",
-  "events": "https://beads.example/acme/observation"
+  "links": "https://beads.example/acme/inventory/relations"
 }
 ```
 
-Required Core members are those shown. Optional members are `aliases`, `order`,
+Required Core members are those shown. Optional members are `events`, `aliases`, `order`,
 `limits`, `maximumEndpointMultiplicity`, `historicalResolution`, and `capabilities`.
 Write uses the same Core meaning with `profile:"write"` and required `operations`
 and `aliases` navigation. Its operation directory belongs to Write. These discovery
 objects are closed; there is no required or guessed `types` member. Unknown optional
 capabilities use the declared extension map, not arbitrary discovery members.
 
-Bead/Link inventories are absolute HTTP(S) URLs beneath the canonical Scope, with
-no fixed suffix. Their members do not derive from an item's path prefix. Events
+`beads` and `links` advertise collection-read endpoints, not base URIs for Resource
+identity. They tell a generic client where to list each kind; they do not divide
+the Resource namespace. All Beads and Links may share one Scope-relative ID space,
+such as `https://beads.example/acme/task-42` and
+`https://beads.example/acme/relation-81`. No `beads/` or `links/` identity prefix is
+required. Their inventory URLs are absolute HTTP(S) URLs beneath the canonical
+Scope, with no fixed suffix; clients never construct a Resource URL from them. Events
 and operation navigation are discovered absolute HTTP(S) URLs. Aliases navigation
 is an in-Scope base, possibly the Scope itself, not authority for arbitrary paths
 without a binding. Clients MUST NOT synthesize navigation or infer Resource kind
@@ -558,6 +1380,696 @@ For example:
 }
 ```
 
+<!-- bdp-schema:start bdpVersion -->
+### Schema: "bdpVersion"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| const | "0.1" |
+| description | "Exact protocol-version discriminator. Version 0.1 selects this complete draft contract rather than an executable, a Git revision or a capability range." |
+<!-- bdp-schema:end bdpVersion -->
+
+<!-- bdp-schema:start capabilityAdvertisements -->
+### Schema: "capabilityAdvertisements"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Map from absolute capability identity URI to explicitly supported versions. Unknown optional capabilities can be ignored without changing known base behavior; advertisement is neither request selection nor permission." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "https://github.com/gastownhall/bdp/capabilities/atomic-batch" | schema | no | — | "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1." |
+| "https://github.com/gastownhall/bdp/capabilities/resource-projection" | schema | no | — | "Supported projection versions and their point/exact/inventory support flags." |
+| "https://github.com/gastownhall/bdp/capabilities/type-definition-read" | schema | no | — | "Supported exact-definition lookup versions and their independently advertised operation navigation." |
+
+#### Advanced
+
+```json-schema
+{
+  "propertyNames": {
+    "$ref": "#/$defs/absoluteUri"
+  },
+  "additionalProperties": {
+    "$ref": "#/$defs/capabilityVersionAdvertisements"
+  },
+  "properties": {
+    "https://github.com/gastownhall/bdp/capabilities/atomic-batch": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/capabilityVersionAdvertisements"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/atomicBatchCapabilityV1"
+            }
+          }
+        }
+      ]
+    },
+    "https://github.com/gastownhall/bdp/capabilities/resource-projection": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/capabilityVersionAdvertisements"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/resourceProjectionCapabilityV1"
+            }
+          }
+        }
+      ]
+    },
+    "https://github.com/gastownhall/bdp/capabilities/type-definition-read": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/capabilityVersionAdvertisements"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/typeDefinitionReadCapabilityV1"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end capabilityAdvertisements -->
+
+<!-- bdp-schema:start capabilityVersionAdvertisements -->
+### Schema: "capabilityVersionAdvertisements"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Map from exact nonempty version string to that version’s detail object. Versions are opaque, unordered and have no implicit compatibility range." |
+| minProperties | 1 |
+| type | "object" |
+
+#### Advanced
+
+```json-schema
+{
+  "propertyNames": {
+    "type": "string",
+    "minLength": 1
+  },
+  "additionalProperties": {
+    "type": "object"
+  }
+}
+```
+<!-- bdp-schema:end capabilityVersionAdvertisements -->
+
+<!-- bdp-schema:start coreDiscovery -->
+### Schema: "coreDiscovery"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["bdpVersion","profile","scope","beads","links"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Closed Core discovery object. Inventory URLs navigate collections rather than reserve Resource-ID prefixes. Events, History and other capabilities are optional and bind their full obligations only when advertised." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | "Advertised in-Scope alias-resolution namespace, possibly the Scope itself. A spelling requires an actual alias binding." |
+| "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | "Exact complete protocol discriminator, not a nearest-version negotiation." |
+| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Bead inventory URL. It is navigation, not a Resource-ID base or required path prefix." |
+| "capabilities" | schema | no | — | "Independently versioned feature advertisements. Support does not select an invocation or grant permission." |
+| "events" | ref "#/$defs/absoluteHttpUrl" | no | — | "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support." |
+| "historicalResolution" | ref "#/$defs/historyCapability" | no | — | "Explicit History support advertisement; omission carries no History obligation." |
+| "limits" | ref "#/$defs/coreAdvertisedLimits" | no | — | "Optional declared operational bounds. Omitted values are not infinite and failures cannot silently truncate data." |
+| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Link inventory URL; it reserves no Link Resource-ID prefix." |
+| "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | "Native endpoint incidence policies enforced against the storing Scope’s authoritative in-Scope state." |
+| "order" | schema | no | — | "Advertised stable collection order. Omission uses canonical-uri under Core." |
+| "profile" | schema | yes | — | "Base Core/Write profile discriminator, independent of optional capabilities." |
+| "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Canonical HTTP(S) Scope URL used for local identity resolution and ownership navigation." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capabilities": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/capabilityAdvertisements"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "https://github.com/gastownhall/bdp/capabilities/atomic-batch": {
+              "type": "object",
+              "properties": {
+                "1": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "order": {
+      "enum": [
+        "canonical-uri"
+      ]
+    },
+    "profile": {
+      "const": "core"
+    }
+  }
+}
+```
+<!-- bdp-schema:end coreDiscovery -->
+
+<!-- bdp-schema:start coreAdvertisedLimits -->
+### Schema: "coreAdvertisedLimits"
+
+Value: object
+
+Other fields: not allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Optional grouped Core read bounds. Omission means a bound is not pre-advertised, never infinite capacity or permission for silent truncation." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "page" | schema | no | — | "Positive default and maximum Resource-record page sizes, when declared." |
+| "request" | schema | no | — | "Positive encoded request-target and representation-body byte limits, when declared." |
+| "resource" | schema | no | — | "Positive complete-representation and properties-only UTF-8 byte bounds, when declared." |
+| "retention" | schema | no | — | "Declared pagination snapshot lifetime; this group does not advertise Event or replica retention." |
+| "selector" | schema | no | — | "Optional positive bounds on decoded Selector bytes, parsed depth and parsed node count." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "page": {
+      "type": "object",
+      "properties": {
+        "defaultItems": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "maximumItems": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "targetBytes": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "bodyBytes": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "resource": {
+      "type": "object",
+      "properties": {
+        "representationBytes": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "propertiesBytes": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "retention": {
+      "type": "object",
+      "properties": {
+        "maximumSnapshotLifetime": {
+          "$ref": "#/$defs/iso8601Duration"
+        }
+      },
+      "additionalProperties": false
+    },
+    "selector": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "depth": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "nodes": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
+```
+<!-- bdp-schema:end coreAdvertisedLimits -->
+
+<!-- bdp-schema:start maximumEndpointMultiplicityPolicy -->
+### Schema: "maximumEndpointMultiplicityPolicy"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["linkConformsTo","endpoint","max"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Native Scope constraint over stored in-Scope Link incidence. It names the Link family, endpoint role and positive maximum; it does not inspect a foreign authority’s Link table." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "endpoint" | schema | yes | — | "Endpoint role to which the native incidence maximum applies." |
+| "linkConformsTo" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Nominal Link-Type family constrained by this native policy." |
+| "max" | ref "#/$defs/positiveInteger" | yes | — | "Positive maximum for the explicitly selected Scope policy." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "endpoint": {
+      "enum": [
+        "source",
+        "target"
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end maximumEndpointMultiplicityPolicy -->
+
+## Resource reads and views
+
+### Point-read kind and owning-Scope navigation
+
+Successful canonical current/retained Resource reads MUST carry exactly one lowercase
+`BDP-Resource-Kind: bead` or `link`, matching actual kind. This includes full and
+properties responses, incident views, aggregates, HEAD and 304. In an incident view
+it identifies the Bead subject, not Link items. Authorization/non-disclosure precedes
+metadata. Problems, alias redirects and inventories do not gain this field from
+path resemblance. History versions metadata has its narrower rule below.
+
+Those point responses MUST carry `service-desc` to the owning Scope's machine
+discovery. Its `scope`/navigation establish mutation routing for an absolute URL;
+clients MUST NOT infer ownership from path or an unrelated default. An explicitly
+supplied Scope can bind an operation subject to actual membership/kind checks.
+Absolute-URL reads need no configured Scope or preliminary inventory. Navigation
+confers no permission and does not authorize forwarding credentials across origins.
+These are HTTP fields, not JSON properties. A wrapper containing a Resource does
+not thereby establish that wrapper service as owner; exact-definition lookup below
+specifies its separate recorded-context behavior.
+
+### Resource views
+
+Optional revision-specific reads and versions pages are defined under
+[Historical resolution](#historical-resolution).
+
+The default `GET` of a Bead or Link URL returns its complete Resource record.
+Explicit [Resource projection](#optional-resource-projection) changes this
+representation only when its independent capability and request are selected.
+BDP-owned query parameters select a derived view, or request one bounded
+aggregate anchored at that same Resource URL:
+
+```text
+GET {resource}?view=properties
+GET {bead}?view=links&direction=inbound|outbound|both
+GET {bead}?include=links&direction=inbound|outbound|both&limit={count}
+```
+
+`view=properties` is valid for both Beads and Links and returns exactly the
+complete stored `properties` object:
+
+```http
+GET /acme/beads/task-42?view=properties HTTP/1.1
+Host: beads.example
+Accept: application/vnd.bdp.v0.1+json
+
+HTTP/1.1 200 OK
+Content-Type: application/vnd.bdp.v0.1+json
+ETag: "opaque-task-revision"
+
+{
+  "title": "Specify BDP mutation",
+  "status": "open"
+}
+```
+
+The properties view includes declared and undeclared properties. It is never
+a schema-filtered projection. Its entity tag represents the same Resource
+revision returned in the complete record. `view=links` is valid only for a
+Bead and is defined under **Incident Link reads**.
+
+#### Optional incident-Link aggregate
+
+This aggregate is optional and outside minimum Core; no separate advertisement is invented here.
+
+`include=links` is valid only for a Bead. It returns the ordinary complete
+Bead record with a `links` member. That member contains the first paginated
+page of the same result exposed by `view=links`:
+
+```json
+{
+  "id": "https://beads.example/acme/beads/task-42",
+  "type": "https://work.example/types/task",
+  "revision": "opaque-task-revision",
+  "properties": {
+    "title": "Specify BDP mutation",
+    "status": "open"
+  },
+  "metadata": {},
+  "links": {
+    "items": [
+      {
+        "id": "https://beads.example/acme/links/assigned-to-81",
+        "type": "https://work.example/types/assigned-to",
+        "revision": "opaque-link-revision",
+        "source": "https://beads.example/acme/beads/task-42",
+        "target": "https://beads.example/acme/beads/person-7",
+        "properties": {
+          "since": "2026-08-04"
+        },
+        "metadata": {}
+      }
+    ],
+    "next": "https://beads.example/acme/beads/task-42?view=links&direction=both&cursor=opaque-cursor"
+  }
+}
+```
+
+The default Bead `GET` includes its required recorded owned state when applicable,
+but does not include an incident-Link aggregate. The
+aggregate request always embeds at most one page. A client follows `next`
+into the Link view rather than requesting another aggregate page. `direction`
+defaults to `both`, and `limit` bounds the embedded page. `include=links`
+cannot be combined with `view` or `cursor`. The entity tag of an aggregate
+response represents the entire aggregate response. It can therefore change
+when its embedded Link page changes, even if the Bead's `revision` does not.
+
+Using a query parameter avoids placing protocol-owned child names beneath a
+hierarchical Resource ID. BDP reserves `view`, `include`, and the parameters
+defined for each view or aggregate on Bead and Link URLs. An unsupported
+view, include, or parameter that is not defined for the selected request is
+an error, not an instruction to ignore that parameter.
+
+### Alias resolution
+
+When discovery advertises `aliases`, a `GET` or `HEAD` of an alias URL —
+an admitted alias path resolved against the canonical Scope URL — returns
+`307 Temporary Redirect` with `Location` set to the target's absolute
+canonical Bead URL and no body. Resolution is redirect-only: an authority
+MUST NOT serve a Resource representation at an alias URL, which would give
+one Resource a second address. `HEAD` makes resolution a body-less
+primitive. The status is temporary by design: aliases repoint.
+
+An unknown alias, an alias URL carrying a query or fragment, and any alias
+URL at an authority that does not advertise `aliases` return the same `404`
+`resource-not-found` used for unknown Resources, under the same
+authorization projection: aliases are not an enumeration oracle. Alias
+resolution never follows chains, because an alias targets only a canonical
+Bead URL. The redirect target is subject to ordinary Resource authorization
+when the client follows it; resolution itself asserts nothing about the
+target's readability.
+
+### Reads after deletion
+
+History-specific reads follow [Historical resolution](#historical-resolution).
+
+After a Bead or Link is deleted, ordinary `GET`, `view=properties`, and, for a
+Bead, `view=links` return the same `404` `resource-not-found` problem used for
+an unknown or non-visible identity. BDP does not require an authority to reveal
+whether the Resource once existed.
+
+To a caller authorized for the subject's retained history — the same single
+authorization that gates `410` disclosure everywhere — an authority MAY
+instead disclose why a valid-shaped address has nothing behind it. Two
+sibling `410` conditions are Read-profile codes in the closed problem
+table: `resource-pruned` (removed by deliberate lifecycle policy) and
+`resource-erased` (content that must not exist). A
+`resource-pruned` problem MAY carry one `archivedAt` member — a Reference,
+possibly pinned, naming where the content went — recorded and echoed like
+any Reference and never validated or dereferenced by the serving authority;
+its presence within an authorized disclosure is authority policy. A
+`resource-erased` problem carries no condition-specific extension members
+beyond its ordinary problem members: even a pointer would disclose what
+erasure exists to remove. To every other caller both
+conditions remain the uniform `404`; the disclosure vocabulary is
+never an enumeration oracle. The non-reuse rule remains internal: a
+filesystem-backed implementation may retain only a compact allocation marker
+or tombstone and need not serve it as a Resource representation.
+
+### Incident Link reads
+
+A Bead record does not embed its incident population as an aggregate by default;
+its required recorded owned state is separate. A client selects the Link
+view directly on the Bead URL and supplies a direction:
+
+```http
+GET /acme/beads/task-42?view=links&direction=outbound HTTP/1.1
+Host: beads.example
+Accept: application/vnd.bdp.v0.1+json
+```
+
+```http
+GET /acme/beads/task-42?view=links&direction=inbound HTTP/1.1
+Host: beads.example
+Accept: application/vnd.bdp.v0.1+json
+```
+
+```http
+GET /acme/beads/task-42?view=links&direction=both HTTP/1.1
+Host: beads.example
+Accept: application/vnd.bdp.v0.1+json
+```
+
+`direction` is `inbound`, `outbound`, or `both`, and defaults to `both` when
+omitted. `inbound` selects Links whose `target` is the Bead. `outbound`
+selects Links whose `source` is the Bead. `both` selects their union. The
+response is a paginated `items` array of complete Link records plus a `next`
+URL. The initial request may supply `limit`. Subsequent requests follow
+`next`. As with collection pagination, that continuation walks one logical
+snapshot and an expired cursor is an error rather than a silent restart
+against newer state. Only an in-Scope Bead has this view. An opaque
+out-of-Scope endpoint does not.
+
+ the incident population also admits the Link structural
+predicates `type`, `conformsTo`, `source`, `target`, `endpoint`, and `selector`.
+Direction/incidence establish the population; the predicates combine with AND
+before snapshot pagination. A self-Link appears once. This does not add those
+filters to the optional `include=links` aggregate. Collection-kind metadata and
+continuation resizing follow [collections and pagination](#collections-and-pagination).
+
+BDP does not append `/links` to the Bead URL. Local IDs may contain multiple
+path segments, so `beads/task-42/links` could already be the ID of a different
+Bead. A suffix subpath would require BDP to reserve and visibly mangle a
+control segment such as `/-/` or `/.bdp/` throughout the local-ID grammar. The
+`view` query parameter avoids that collision while keeping the request visibly
+anchored at the Bead. The Link collection still owns Link identity. The Bead's
+Link view is only a derived read.
+
+
+<!-- bdp-schema:start beadCollection -->
+### Schema: "beadCollection"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["items","next"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One finite page of complete Bead records and an absolute continuation URL or explicit null on observed exhaustion. Items do not acquire a separate href/value wrapper." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "items" | array of (ref "#/$defs/beadRecord") | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+| "next" | schema | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "next": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end beadCollection -->
+
+<!-- bdp-schema:start linkCollection -->
+### Schema: "linkCollection"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["items","next"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One finite page of complete Link records and an absolute continuation URL or explicit null. Parallel Link identities remain distinct." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "items" | array of (ref "#/$defs/linkRecord") | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+| "next" | schema | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "next": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end linkCollection -->
+
+<!-- bdp-schema:start currentBeadCollection -->
+### Schema: "currentBeadCollection"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Current Bead inventory page whose items use current Bead carriers. Its continuation retains the admitted selection and authorization context." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/beadCollection"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/currentBeadRecord"
+          }
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end currentBeadCollection -->
+
+<!-- bdp-schema:start currentLinkCollection -->
+### Schema: "currentLinkCollection"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Current Link inventory page whose items use current Link carriers. An empty page is not proof of exhaustion when next is nonnull." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/linkCollection"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/currentLinkRecord"
+          }
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end currentLinkCollection -->
+
 ## Authorization and selection
 
 ### Authorization views
@@ -657,6 +2169,20 @@ A hot-tier miss proves neither absence nor erasure; temporary backend failure is
 service failure. Complete authoritative state, not its disclosure projection,
 determines native invariants and applicable Type constraints.
 
+<!-- bdp-schema:start selector -->
+### Schema: "selector"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Nonempty ordinary bounded Selector string. Its candidate-local grammar, limits and admitted operators are defined by Selection; it never silently becomes the structured Query AST." |
+| minLength | 1 |
+| type | "string" |
+<!-- bdp-schema:end selector -->
+
 ## Logical Resource selection and graph queries
 
 The JSON AST and List/Graph/Query logical semantics in this section are selected
@@ -700,8 +2226,14 @@ The selected semantics are:
   a service result mode shared by List and Query. Scalar top-level evaluation,
   computed records, and `select` are deferred.
 
-The encoding uses tagged JSON nodes with an `op` member. This is an AST
-discriminator, not a new Resource property or a replacement for Bead/Link Types.
+The current draft encoding below uses tagged JSON nodes with an `op` member.
+The traversal names `incoming`, `outgoing` and `connected` are represented in
+that draft by `op:"walk"` plus `direction`; `any` and `all` are separate
+quantifier nodes. These are two different operations, not rival names for the
+same node. The precise traversal opcode spelling remains reviewable; the
+selected traversal, binding and quantifier meanings do not depend on that spelling.
+
+This member is an AST discriminator, not a new Resource property or a replacement for Bead/Link Types.
 Requests declare `ir: "bdp-query-design-1"`, a `profile`, a `selection`, and a
 `result.form`. That design identifier MUST NOT be advertised as a released BDP
 version. A service selecting this initial encoding binds its exact source and
@@ -712,7 +2244,10 @@ Core/Write discovery profile literal. Capability URI/version selection still
 requires a separately selected native discovery/invocation binding.
 
 
+<!-- Donna: Reconcile the selected all/any/incoming/outgoing vocabulary with the draft walk/direction encoding before treating that encoding as settled. -->
+
 ### Logical AST fields
+
 
 The top-level closed logical object has required `ir:"bdp-query-design-1"`,
 `profile:"list"|"graph"|"query"`, `selection` (a collection expression), and
@@ -723,6 +2258,7 @@ node below is closed: the listed fields accompany its required `op` tag and
 question marks identify optional fields. Binding names match
 `[A-Za-z_][A-Za-z0-9_]*`. A Reference uses the shared URI or exact object carrier;
 a native invocation must establish supported Scope/kind/read acquisition.
+
 
 | Collection node | Fields beside `op` | Direct meaning |
 | --- | --- | --- |
@@ -1056,302 +2592,19 @@ remain unselected. The Core minimum still includes its bounded Selector;
 this design does not remove that obligation or reinterpret existing Selector text.
 
 
-## Resource reads and views
+<!-- bdp-schema:start countResult -->
+### Schema: "countResult"
 
-### Point-read kind and owning-Scope navigation
+Value: object
 
-Successful canonical current/retained Resource reads MUST carry exactly one lowercase
-`BDP-Resource-Kind: bead` or `link`, matching actual kind. This includes full and
-properties responses, incident views, aggregates, HEAD and 304. In an incident view
-it identifies the Bead subject, not Link items. Authorization/non-disclosure precedes
-metadata. Problems, alias redirects and inventories do not gain this field from
-path resemblance. History versions metadata has its narrower rule below.
+#### Keywords
 
-Those point responses MUST carry `service-desc` to the owning Scope's machine
-discovery. Its `scope`/navigation establish mutation routing for an absolute URL;
-clients MUST NOT infer ownership from path or an unrelated default. An explicitly
-supplied Scope can bind an operation subject to actual membership/kind checks.
-Absolute-URL reads need no configured Scope or preliminary inventory. Navigation
-confers no permission and does not authorize forwarding credentials across origins.
-These are HTTP fields, not JSON properties. A wrapper containing a Resource does
-not thereby establish that wrapper service as owner; exact-definition lookup below
-specifies its separate recorded-context behavior.
-
-### Resource records
-
-Every successful `GET` of a Bead or Link returns one self-contained Resource
-record. Both immutable and mutable state appear in the record, together with
-the current opaque revision. The target URL still identifies the Resource.
-But including `id` makes saved responses, logs, collection members, and
-browser inspection self-describing.
-
-A Bead record is:
-
-```json
-{
-  "id": "https://beads.example/acme/beads/task-42",
-  "type": "https://work.example/types/task",
-  "revision": "opaque-task-revision",
-  "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } },
-  "properties": {
-    "title": "Specify BDP mutation",
-    "status": "open"
-  },
-  "metadata": {}
-}
-```
-
-A Link record is:
-
-```json
-{
-  "id": "https://beads.example/acme/links/assigned-to-81",
-  "type": "https://work.example/types/assigned-to",
-  "revision": "opaque-link-revision",
-  "source": "https://beads.example/acme/beads/task-42",
-  "target": "https://beads.example/acme/beads/person-7",
-  "properties": {
-    "since": "2026-08-04"
-  },
-  "metadata": {}
-}
-```
-
-`id` is an absolute canonical Resource URL. `type` is the common
-Type Reference; optional Types defines its exact output requirements. A Bead with an applicable ownership rule
-carries its recorded `ownedLinks` member on every record read. Newly captured
-members use nonempty nominal-Type buckets with complete Link affiliations;
-older retained captures keep their recorded shape. See [Owned Links](#owned-links).
-The member is absent for Beads with no applicable ownership rule. Link `source` and `target` are
-References as defined under [Resources and References](#resources-and-references): an in-Scope
-endpoint's `uri` is the Bead's absolute canonical URL, an out-of-Scope
-endpoint's `uri` is its opaque absolute URI, and either may be a Pinned
-Reference. `revision` is protocol metadata rather than mutable Bead or Link
-state, and so is `revisionProvenance`: when present it is the per-version
-carried attribution defined under [Carried
-attribution](#carried-attribution), beside `revision` and outside
-`properties`. [Immutable change context](#immutable-change-context) defines
-the optional History time, agent and message fields in that same envelope;
-none authenticates the actor. Common `metadata` is a mutable,
-Type-independent JSON object on both Resource kinds. It is distinct from
-application `properties` and from per-version `revisionProvenance`.
-Successful reads always expose `metadata`: `{}` means no members are set. A
-retained pre-metadata version that lacks the member is projected with
-`metadata: {}` on reads without rewriting stored bytes or minting a revision;
-a later metadata update starts from that empty object. `id`, `type`,
-`revision`, and, for Links, `source` and `target` are returned on every
-successful read. That does not mean they are accepted as update targets. An
-implementation may store local identifiers internally. That choice does not
-alter the response spelling.
-
-A pinned endpoint is represented the same way for both reference classes.
-For example, pinning an external target:
-
-```json
-{
-  "uri": "https://github.example/issues/123",
-  "revision": "8f0e2b"
-}
-```
-
-and pinning an in-Scope Bead:
-
-```json
-{
-  "uri": "https://beads.example/acme/beads/task-42",
-  "revision": "opaque-task-revision"
-}
-```
-
-Collection and selection responses contain these same records directly,
-rather than wrapping them in a second `href`/`value` envelope.
-
-### Resource views
-
-Optional revision-specific reads and versions pages are defined under
-[Historical resolution](#historical-resolution).
-
-The default `GET` of a Bead or Link URL returns its complete Resource record.
-Explicit [Resource projection](#optional-resource-projection) changes this
-representation only when its independent capability and request are selected.
-BDP-owned query parameters select a derived view, or request one bounded
-aggregate anchored at that same Resource URL:
-
-```text
-GET {resource}?view=properties
-GET {bead}?view=links&direction=inbound|outbound|both
-GET {bead}?include=links&direction=inbound|outbound|both&limit={count}
-```
-
-`view=properties` is valid for both Beads and Links and returns exactly the
-complete stored `properties` object:
-
-```http
-GET /acme/beads/task-42?view=properties HTTP/1.1
-Host: beads.example
-Accept: application/vnd.bdp.v0.1+json
-
-HTTP/1.1 200 OK
-Content-Type: application/vnd.bdp.v0.1+json
-ETag: "opaque-task-revision"
-
-{
-  "title": "Specify BDP mutation",
-  "status": "open"
-}
-```
-
-The properties view includes declared and undeclared properties. It is never
-a schema-filtered projection. Its entity tag represents the same Resource
-revision returned in the complete record. `view=links` is valid only for a
-Bead and is defined under **Incident Link reads**.
-
-#### Optional incident-Link aggregate
-
-This aggregate is optional and outside minimum Core; no separate advertisement is invented here.
-
-`include=links` is valid only for a Bead. It returns the ordinary complete
-Bead record with a `links` member. That member contains the first paginated
-page of the same result exposed by `view=links`:
-
-```json
-{
-  "id": "https://beads.example/acme/beads/task-42",
-  "type": "https://work.example/types/task",
-  "revision": "opaque-task-revision",
-  "properties": {
-    "title": "Specify BDP mutation",
-    "status": "open"
-  },
-  "metadata": {},
-  "links": {
-    "items": [
-      {
-        "id": "https://beads.example/acme/links/assigned-to-81",
-        "type": "https://work.example/types/assigned-to",
-        "revision": "opaque-link-revision",
-        "source": "https://beads.example/acme/beads/task-42",
-        "target": "https://beads.example/acme/beads/person-7",
-        "properties": {
-          "since": "2026-08-04"
-        },
-        "metadata": {}
-      }
-    ],
-    "next": "https://beads.example/acme/beads/task-42?view=links&direction=both&cursor=opaque-cursor"
-  }
-}
-```
-
-The default Bead `GET` includes its required recorded owned state when applicable,
-but does not include an incident-Link aggregate. The
-aggregate request always embeds at most one page. A client follows `next`
-into the Link view rather than requesting another aggregate page. `direction`
-defaults to `both`, and `limit` bounds the embedded page. `include=links`
-cannot be combined with `view` or `cursor`. The entity tag of an aggregate
-response represents the entire aggregate response. It can therefore change
-when its embedded Link page changes, even if the Bead's `revision` does not.
-
-Using a query parameter avoids placing protocol-owned child names beneath a
-hierarchical Resource ID. BDP reserves `view`, `include`, and the parameters
-defined for each view or aggregate on Bead and Link URLs. An unsupported
-view, include, or parameter that is not defined for the selected request is
-an error, not an instruction to ignore that parameter.
-
-### Alias resolution
-
-When discovery advertises `aliases`, a `GET` or `HEAD` of an alias URL —
-an admitted alias path resolved against the canonical Scope URL — returns
-`307 Temporary Redirect` with `Location` set to the target's absolute
-canonical Bead URL and no body. Resolution is redirect-only: an authority
-MUST NOT serve a Resource representation at an alias URL, which would give
-one Resource a second address. `HEAD` makes resolution a body-less
-primitive. The status is temporary by design: aliases repoint.
-
-An unknown alias, an alias URL carrying a query or fragment, and any alias
-URL at an authority that does not advertise `aliases` return the same `404`
-`resource-not-found` used for unknown Resources, under the same
-authorization projection: aliases are not an enumeration oracle. Alias
-resolution never follows chains, because an alias targets only a canonical
-Bead URL. The redirect target is subject to ordinary Resource authorization
-when the client follows it; resolution itself asserts nothing about the
-target's readability.
-
-### Reads after deletion
-
-History-specific reads follow [Historical resolution](#historical-resolution).
-
-After a Bead or Link is deleted, ordinary `GET`, `view=properties`, and, for a
-Bead, `view=links` return the same `404` `resource-not-found` problem used for
-an unknown or non-visible identity. BDP does not require an authority to reveal
-whether the Resource once existed.
-
-To a caller authorized for the subject's retained history — the same single
-authorization that gates `410` disclosure everywhere — an authority MAY
-instead disclose why a valid-shaped address has nothing behind it. Two
-sibling `410` conditions are Read-profile codes in the closed problem
-table: `resource-pruned` (removed by deliberate lifecycle policy) and
-`resource-erased` (content that must not exist). A
-`resource-pruned` problem MAY carry one `archivedAt` member — a Reference,
-possibly pinned, naming where the content went — recorded and echoed like
-any Reference and never validated or dereferenced by the serving authority;
-its presence within an authorized disclosure is authority policy. A
-`resource-erased` problem carries no condition-specific extension members
-beyond its ordinary problem members: even a pointer would disclose what
-erasure exists to remove. To every other caller both
-conditions remain the uniform `404`; the disclosure vocabulary is
-never an enumeration oracle. The non-reuse rule remains internal: a
-filesystem-backed implementation may retain only a compact allocation marker
-or tombstone and need not serve it as a Resource representation.
-
-### Incident Link reads
-
-A Bead record does not embed its incident population as an aggregate by default;
-its required recorded owned state is separate. A client selects the Link
-view directly on the Bead URL and supplies a direction:
-
-```http
-GET /acme/beads/task-42?view=links&direction=outbound HTTP/1.1
-Host: beads.example
-Accept: application/vnd.bdp.v0.1+json
-```
-
-```http
-GET /acme/beads/task-42?view=links&direction=inbound HTTP/1.1
-Host: beads.example
-Accept: application/vnd.bdp.v0.1+json
-```
-
-```http
-GET /acme/beads/task-42?view=links&direction=both HTTP/1.1
-Host: beads.example
-Accept: application/vnd.bdp.v0.1+json
-```
-
-`direction` is `inbound`, `outbound`, or `both`, and defaults to `both` when
-omitted. `inbound` selects Links whose `target` is the Bead. `outbound`
-selects Links whose `source` is the Bead. `both` selects their union. The
-response is a paginated `items` array of complete Link records plus a `next`
-URL. The initial request may supply `limit`. Subsequent requests follow
-`next`. As with collection pagination, that continuation walks one logical
-snapshot and an expired cursor is an error rather than a silent restart
-against newer state. Only an in-Scope Bead has this view. An opaque
-out-of-Scope endpoint does not.
-
- the incident population also admits the Link structural
-predicates `type`, `conformsTo`, `source`, `target`, `endpoint`, and `selector`.
-Direction/incidence establish the population; the predicates combine with AND
-before snapshot pagination. A self-Link appears once. This does not add those
-filters to the optional `include=links` aggregate. Collection-kind metadata and
-continuation resizing follow [collections and pagination](#collections-and-pagination).
-
-BDP does not append `/links` to the Bead URL. Local IDs may contain multiple
-path segments, so `beads/task-42/links` could already be the ID of a different
-Bead. A suffix subpath would require BDP to reserve and visibly mangle a
-control segment such as `/-/` or `/.bdp/` throughout the local-ID grammar. The
-`view` query parameter avoids that collision while keeping the request visibly
-anchored at the Bead. The Link collection still owns Link identity. The Bead's
-Link view is only a derived read.
+| Keyword | JSON value |
+| --- | --- |
+| description | "Exact nonnegative integral count of the complete admitted authorized selection. A cutoff or partial scan cannot be reported as a successful count." |
+| minimum | 0 |
+| type | "integer" |
+<!-- bdp-schema:end countResult -->
 
 ## Collections and pagination
 
@@ -1729,12 +2982,431 @@ extra scheme mappings, erased-row enumeration, bulk checks and the alternative
 surviving-citation lifecycle remain deferred. Local policy/tooling is allowed;
 none weakens required Gone evidence, erasure or incident-Link refusal.
 
-## Required Events
+<!-- bdp-schema:start historyCapability -->
+### Schema: "historyCapability"
 
-### Required source, truthful coverage
+Value: object
 
-Every Core/Write Scope MUST expose the discovered `events` source and a
-Resource-scoped projection through `view=events`. A source is an observation
+Other fields: not allowed
+
+Required order: ["version"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "History version-1 advertisement. It commits to the complete exact-read and retained-versions contract, not merely an event timeline or a current-record lookup." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "version" | schema | yes | — | "Exact selected feature version. No version ordering or implicit upgrade is defined." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "version": {
+      "const": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end historyCapability -->
+
+<!-- bdp-schema:start historyMissingItem -->
+### Schema: "historyMissingItem"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One unavailable component needed for an exact response: the subject record, a selected property path, or captured owned-Link state. The bounded diagnosis preserves known location without substituting current content." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "record"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "property"
+        },
+        "pointer": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/jsonPointer"
+            },
+            {
+              "type": "string",
+              "pattern": "^/(properties(?:/|$)|ownedLinks/([^/~]|~[01])+/(0|[1-9][0-9]*)/properties(?:/|$))"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "pointer"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "owned-links"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
+```
+<!-- bdp-schema:end historyMissingItem -->
+
+<!-- bdp-schema:start historyMissing -->
+### Schema: "historyMissing"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["complete","items"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Bounded missing-state diagnosis for revision-unretained. Complete states whether the item list is exhaustive; it cannot falsely certify reconstruction or erase undisclosed dependencies." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "complete" | boolean | yes | — | "Whether the stated bounded information is exhaustive under the containing contract." |
+| "items" | schema | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "complete": {
+            "const": true
+          }
+        },
+        "required": [
+          "complete"
+        ]
+      },
+      "then": {
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/historyMissingItem"
+      },
+      "maxItems": 64,
+      "uniqueItems": true
+    }
+  }
+}
+```
+<!-- bdp-schema:end historyMissing -->
+
+<!-- bdp-schema:start historyVersionRow -->
+### Schema: "historyVersionRow"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["revision","lineage","body"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One retained Resource-version summary. Revision, lineage and body completeness describe actual retained version state; deletion is not represented as a synthetic version row." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "body" | schema | yes | — | "Whether the row’s retained version can currently produce its complete recorded representation, including required owned state." |
+| "lineage" | schema | yes | — | "Whether the row belongs to the current or a replaced retained lineage; this is not a revision-order comparison." |
+| "revision" | ref "#/$defs/revision" | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "body": {
+      "enum": [
+        "complete",
+        "incomplete"
+      ]
+    },
+    "lineage": {
+      "enum": [
+        "current",
+        "replaced"
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end historyVersionRow -->
+
+<!-- bdp-schema:start historyWindow -->
+### Schema: "historyWindow"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["newest","oldest","complete"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Known retained-version window and completeness. Null endpoints describe an empty or unavailable window under the participation rules; tokens are not ordered arithmetically." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "complete" | boolean | yes | — | "Whether the stated bounded information is exhaustive under the containing contract." |
+| "newest" | (ref "#/$defs/revision") OR (null) | yes | — | "Newest known retained revision or explicit null under the stated window rules." |
+| "oldest" | (ref "#/$defs/revision") OR (null) | yes | — | "Oldest known retained revision or explicit null under the stated window rules." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "newest": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "newest"
+        ]
+      },
+      "then": {
+        "properties": {
+          "oldest": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "oldest": {
+            "$ref": "#/$defs/revision"
+          }
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end historyWindow -->
+
+<!-- bdp-schema:start historyVersionsPage -->
+### Schema: "historyVersionsPage"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["subject","population","participation","window","items","next"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Finite all-retained History page. Subject, participation, window, items and next remain explicit, and nonparticipating/undetermined subjects do not acquire invented rows." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "items" | array of (ref "#/$defs/historyVersionRow") | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+| "next" | (ref "#/$defs/absoluteHttpUrl") OR (null) | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
+| "participation" | schema | yes | — | "Whether this subject is tracked, not tracked or cannot be determined under the History contract." |
+| "population" | schema | yes | — | "Explicit retained population selector; it does not assert current live membership." |
+| "subject" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Canonical Resource identity to which this retained page or Resource-scoped observation applies." |
+| "window" | ref "#/$defs/historyWindow" | yes | — | "Known retained-history boundaries and completeness, never a synthetic history." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "participation": {
+            "enum": [
+              "not-tracked",
+              "undetermined"
+            ]
+          }
+        },
+        "required": [
+          "participation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "next": {
+            "type": "null"
+          },
+          "window": {
+            "type": "object",
+            "properties": {
+              "newest": {
+                "type": "null"
+              },
+              "oldest": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "participation": {
+      "enum": [
+        "tracked",
+        "not-tracked",
+        "undetermined"
+      ]
+    },
+    "population": {
+      "const": "all-retained"
+    }
+  }
+}
+```
+<!-- bdp-schema:end historyVersionsPage -->
+
+<!-- bdp-schema:start historicalBeadRecord -->
+### Schema: "historicalBeadRecord"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete exact Bead representation. Current incident-Link aggregates are excluded; captured owned-Link state comes from that recorded version." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/beadRecord"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "links": false
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end historicalBeadRecord -->
+
+<!-- bdp-schema:start historicalLinkRecord -->
+### Schema: "historicalLinkRecord"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| $ref | "#/$defs/linkRecord" |
+| description | "Complete exact Link representation retaining its recorded whole source/target and Type References. Current defaults or pins cannot replace them." |
+<!-- bdp-schema:end historicalLinkRecord -->
+
+<a id="required-events"></a>
+
+## Optional Events
+
+Events is optional for both Core and Write. A Scope advertises support by including
+its absolute `events` URL in discovery; absence means that clients MUST NOT assume
+an Event source or `view=events` is supported. The member is an explicit promise of
+the complete finite-observation contract below, not permission to provide only a
+live stream or to omit required facts. Advertising Events creates no export,
+import, snapshot or replica-application capability.
+
+A request selecting `view=events` on a Scope without Events support MUST be refused
+as an unsupported view using `invalid-parameter`; it MUST NOT return an ordinary
+Resource representation in its place. Clients MUST NOT guess a Scope event URL.
+
+### Advertised source, truthful coverage
+
+A Core/Write Scope advertising Events MUST expose its discovered `events` source
+and a Resource-scoped projection through `view=events`. A source is an observation
 endpoint, not a third Resource kind, public receipt or replica log. Resource
 selection uses canonical identity/kind and current disclosure; the source can
 remain readable after subject deletion under its actual retention/disclosure.
@@ -1749,7 +3421,7 @@ states that mechanism and any intermediate-loss limitation. Observed coverage MU
 NOT be represented as a gap-free original mutation history. No cross-source order,
 universal latency or globally latest-state guarantee follows from either mode.
 
-Write MUST durably produce its required facts with its own effects and terminal
+A Write Scope advertising Events MUST durably produce its required facts with its own effects and terminal
 outcome, regardless of how unrelated external state is observed. A crash/retry
 cannot lose those facts or mint duplicate transitions. Failures/rollbacks produce
 none; a semantic no-op under final publication produces none. Commit
@@ -1969,7 +3641,7 @@ dropping an unknown required fact cannot produce a successful continuation.
 
 Receiving bytes is not successful consumer application. Page cursors are safe
 consumer progress only after every included fact has been validated/processed.
-Repeated delivery preserves fact identity and does not reexecute writes. Required
+Repeated delivery preserves fact identity and does not reexecute writes.
 Events do not promise consistent state bootstrap, complete application History,
 durable subscriber state, erasure reconciliation or replica group application.
 
@@ -2000,6 +3672,1550 @@ References; there are no properties or new deletion revision.
 Delta create carries allocated `id`, type, complete objects and Link endpoints.
 Delta update identifies `bead` or `link` and carries changed fields; delete uses
 that target plus deleted context. These are facts, never accepted write commands.
+
+<!-- bdp-schema:start retainedEventQuery -->
+### Schema: "retainedEventQuery"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: []
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Decoded finite Event query. From and after are mutually exclusive; selection, cursor binding and raw HTTP duplicate-parameter refusal remain semantic rules." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "after" | ref "#/$defs/wireToken" | no | — | "Opaque issued resume cursor, bound to its original source, selection and context." |
+| "from" | schema | no | — | "Initial Event boundary selection, retained or now; mutually exclusive with after." |
+| "limit" | schema | no | — | "Positive admitted per-page bound. It does not permit partial facts or false exhaustion." |
+| "representation" | schema | no | — | "Explicit Event representation, postimage or delta." |
+
+#### Advanced
+
+```json-schema
+{
+  "not": {
+    "required": [
+      "from",
+      "after"
+    ],
+    "type": "object",
+    "properties": {
+      "from": true,
+      "after": true
+    }
+  },
+  "properties": {
+    "from": {
+      "enum": [
+        "retained",
+        "now"
+      ]
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "representation": {
+      "enum": [
+        "postimage",
+        "delta"
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end retainedEventQuery -->
+
+<!-- bdp-schema:start retainedEventSelection -->
+### Schema: "retainedEventSelection"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["representation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete selected Event representation echoed by a finite traversal. A continuation cannot silently switch postimage and delta semantics." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "representation" | schema | yes | — | "Explicit Event representation, postimage or delta." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "representation": {
+      "enum": [
+        "postimage",
+        "delta"
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end retainedEventSelection -->
+
+<!-- bdp-schema:start retainedEventPolicy -->
+### Schema: "retainedEventPolicy"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["observation","description","minimumRetentionSeconds","minimumCursorLifetimeSeconds","representations"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Truthful observation mechanism and positive retention/cursor promises. Postimage support is mandatory once Events is advertised; delta is optional." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "description" | schema | yes | — | "Human-readable explanation of the advertised mechanism or limitation." |
+| "maximumPageSize" | schema | no | — | "Optional positive Event-page bound without permission to split or truncate a fact." |
+| "minimumCursorLifetimeSeconds" | schema | yes | — | "Positive minimum lifetime preserving issued cursor context and its captured range." |
+| "minimumRetentionSeconds" | schema | yes | — | "Positive minimum retention promise for admitted Event facts." |
+| "observation" | schema | yes | — | "Truthful observation mode: committed or observed, with its complete coverage obligations." |
+| "representations" | schema | yes | — | "Supported Event representations, necessarily including postimage." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "maximumPageSize": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "minimumCursorLifetimeSeconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "minimumRetentionSeconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "observation": {
+      "enum": [
+        "committed",
+        "observed"
+      ]
+    },
+    "representations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "postimage",
+          "delta"
+        ]
+      },
+      "contains": {
+        "const": "postimage"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end retainedEventPolicy -->
+
+<!-- bdp-schema:start retainedEventCoverage -->
+### Schema: "retainedEventCoverage"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["start","retainedFrom","through"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Opaque start, retained replay floor and captured upper boundary for the observation regime. These fields never imply a cross-source global position." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "retainedFrom" | ref "#/$defs/wireToken" | yes | — | "Opaque current replay floor under the retention promises." |
+| "start" | ref "#/$defs/wireToken" | yes | — | "Opaque boundary where the described observation regime begins." |
+| "through" | ref "#/$defs/wireToken" | yes | — | "Opaque fixed upper boundary captured for this finite traversal." |
+<!-- bdp-schema:end retainedEventCoverage -->
+
+<!-- bdp-schema:start retainedEventCommon -->
+### Schema: "retainedEventCommon"
+
+Value: object
+
+Required order: ["id","source","time","origin","revision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Shared immutable fact envelope. Write-origin facts carry commit correlation; observation-origin facts describe the source’s truthful observation limitations." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "annotations" | schema | no | — | "Explicit extension annotations. Unsupported required meaning cannot silently become known meaning." |
+| "id" | ref "#/$defs/wireToken" | yes | — | "Opaque immutable fact identity scoped to this Event source; it is not a Resource ID or resume cursor." |
+| "origin" | schema | yes | — | "Whether this fact came from Write’s own committed transition or truthful external observation." |
+| "previousRevision" | ref "#/$defs/revision" | no | — | "Actual known observed predecessor; omission never invents intermediate revisions." |
+| "revision" | ref "#/$defs/revision" | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute URL of the observation source that emitted this fact." |
+| "time" | ref "#/$defs/dateTime" | yes | — | "Recorded Event time, not a global ordering or an authentication proof." |
+| "transaction" | ref "#/$defs/wireToken" | no | — | "Opaque commit correlation for Write-origin facts. It is neither a receipt nor a public replica-log position." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "origin": {
+            "const": "write"
+          }
+        },
+        "required": [
+          "origin"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "transaction"
+        ],
+        "type": "object",
+        "properties": {
+          "transaction": true
+        }
+      }
+    }
+  ],
+  "properties": {
+    "annotations": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "origin": {
+      "enum": [
+        "write",
+        "observation"
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end retainedEventCommon -->
+
+<!-- bdp-schema:start retainedEventDeleted -->
+### Schema: "retainedEventDeleted"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Deleted Resource identity and recorded affiliation/revision context. Write-origin deletion uses its actual final-live context; observation-origin disappearance uses the last complete observed sample and does not claim an unseen final backend edition. This is not a live postimage or permission to reuse identity." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "resourceKind",
+        "resource"
+      ],
+      "properties": {
+        "resourceKind": {
+          "const": "bead"
+        },
+        "resource": {
+          "$ref": "#/$defs/resourceIdentity"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "resourceKind",
+        "resource",
+        "source",
+        "target"
+      ],
+      "properties": {
+        "resourceKind": {
+          "const": "link"
+        },
+        "resource": {
+          "$ref": "#/$defs/resourceIdentity"
+        },
+        "source": {
+          "$ref": "#/$defs/reference"
+        },
+        "target": {
+          "$ref": "#/$defs/reference"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
+```
+<!-- bdp-schema:end retainedEventDeleted -->
+
+<!-- bdp-schema:start retainedPostimageEffect -->
+### Schema: "retainedPostimageEffect"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One published create, update or deletion effect expressed using the mutation vocabulary. Live effects contain complete final postimages, not transient staging state." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "id",
+        "resource"
+      ],
+      "properties": {
+        "operation": {
+          "const": "createBead"
+        },
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "resource": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/beadRecord"
+            },
+            {
+              "type": "object",
+              "required": [
+                "metadata"
+              ],
+              "properties": {
+                "metadata": true,
+                "links": false
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "bead",
+        "resource"
+      ],
+      "properties": {
+        "operation": {
+          "const": "updateBead"
+        },
+        "bead": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "resource": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/beadRecord"
+            },
+            {
+              "type": "object",
+              "required": [
+                "metadata"
+              ],
+              "properties": {
+                "metadata": true,
+                "links": false
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "bead",
+        "deleted"
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteBead"
+        },
+        "bead": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "deleted": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/retainedEventDeleted"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "resourceKind": {
+                  "const": "bead"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "id",
+        "resource"
+      ],
+      "properties": {
+        "operation": {
+          "const": "createLink"
+        },
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "resource": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/linkRecord"
+            },
+            {
+              "type": "object",
+              "required": [
+                "metadata"
+              ],
+              "properties": {
+                "metadata": true
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "link",
+        "resource"
+      ],
+      "properties": {
+        "operation": {
+          "const": "updateLink"
+        },
+        "link": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "resource": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/linkRecord"
+            },
+            {
+              "type": "object",
+              "required": [
+                "metadata"
+              ],
+              "properties": {
+                "metadata": true
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "link",
+        "deleted"
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteLink"
+        },
+        "link": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "deleted": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/retainedEventDeleted"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "resourceKind": {
+                  "const": "link"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
+```
+<!-- bdp-schema:end retainedPostimageEffect -->
+
+<!-- bdp-schema:start retainedDeltaEffect -->
+### Schema: "retainedDeltaEffect"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One realized create, update or deletion effect in optional delta form. It records actual admitted changes and never becomes a command to execute again." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "id",
+        "type",
+        "properties",
+        "metadata"
+      ],
+      "properties": {
+        "operation": {
+          "const": "createBead"
+        },
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference"
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "bead"
+      ],
+      "properties": {
+        "operation": {
+          "const": "updateBead"
+        },
+        "bead": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference"
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "propertiesChange": {
+          "$ref": "#/$defs/propertyChange"
+        },
+        "metadataChange": {
+          "$ref": "#/$defs/propertyChange"
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "properties",
+              "propertiesChange"
+            ],
+            "type": "object",
+            "properties": {
+              "properties": true,
+              "propertiesChange": true
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "metadata",
+              "metadataChange"
+            ],
+            "type": "object",
+            "properties": {
+              "metadata": true,
+              "metadataChange": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "bead",
+        "deleted"
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteBead"
+        },
+        "bead": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "deleted": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/retainedEventDeleted"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "resourceKind": {
+                  "const": "bead"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "id",
+        "type",
+        "properties",
+        "metadata",
+        "source",
+        "target"
+      ],
+      "properties": {
+        "operation": {
+          "const": "createLink"
+        },
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference"
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "source": {
+          "$ref": "#/$defs/reference"
+        },
+        "target": {
+          "$ref": "#/$defs/reference"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "link"
+      ],
+      "properties": {
+        "operation": {
+          "const": "updateLink"
+        },
+        "link": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference"
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "propertiesChange": {
+          "$ref": "#/$defs/propertyChange"
+        },
+        "metadataChange": {
+          "$ref": "#/$defs/propertyChange"
+        },
+        "source": {
+          "$ref": "#/$defs/reference"
+        },
+        "target": {
+          "$ref": "#/$defs/reference"
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "properties",
+              "propertiesChange"
+            ],
+            "type": "object",
+            "properties": {
+              "properties": true,
+              "propertiesChange": true
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "metadata",
+              "metadataChange"
+            ],
+            "type": "object",
+            "properties": {
+              "metadata": true,
+              "metadataChange": true
+            }
+          }
+        }
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "type"
+          ],
+          "type": "object",
+          "properties": {
+            "type": true
+          }
+        },
+        {
+          "required": [
+            "properties"
+          ],
+          "type": "object",
+          "properties": {
+            "properties": true
+          }
+        },
+        {
+          "required": [
+            "metadata"
+          ],
+          "type": "object",
+          "properties": {
+            "metadata": true
+          }
+        },
+        {
+          "required": [
+            "propertiesChange"
+          ],
+          "type": "object",
+          "properties": {
+            "propertiesChange": true
+          }
+        },
+        {
+          "required": [
+            "metadataChange"
+          ],
+          "type": "object",
+          "properties": {
+            "metadataChange": true
+          }
+        },
+        {
+          "required": [
+            "source"
+          ],
+          "type": "object",
+          "properties": {
+            "source": true
+          }
+        },
+        {
+          "required": [
+            "target"
+          ],
+          "type": "object",
+          "properties": {
+            "target": true
+          }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "required": [
+        "operation",
+        "link",
+        "deleted"
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteLink"
+        },
+        "link": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "deleted": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/retainedEventDeleted"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "resourceKind": {
+                  "const": "link"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
+```
+<!-- bdp-schema:end retainedDeltaEffect -->
+
+<!-- bdp-schema:start retainedEventDerived -->
+### Schema: "retainedEventDerived"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["ownedLinks"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Realized owned-Link state for the published Bead revision. Null and an object retain their explicit meanings; omitted state is not fabricated." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "ownedLinks" | schema | yes | — | "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "ownedLinks": {
+      "oneOf": [
+        {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/absoluteHttpUrl"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/linkRecord"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end retainedEventDerived -->
+
+<!-- bdp-schema:start retainedPostimageEvent -->
+### Schema: "retainedPostimageEvent"
+
+Value: object
+
+Required order: ["representation","effect"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete Event carrying a postimage effect. The Event’s source, representation, revision and envelope must agree with its page and actual published transition." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "effect" | ref "#/$defs/retainedPostimageEffect" | yes | — | "Exactly one realized published mutation effect. It records final state or admitted change and is never an executable write request." |
+| "representation" | schema | yes | — | "Explicit Event representation, postimage or delta." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/retainedEventCommon"
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "effect": {
+            "type": "object",
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "enum": [
+                  "createBead",
+                  "createLink"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "effect"
+        ]
+      },
+      "then": {
+        "properties": {
+          "previousRevision": false
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "effect": {
+            "type": "object",
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "enum": [
+                  "updateBead",
+                  "updateLink"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "effect"
+        ]
+      },
+      "then": {
+        "required": [
+          "previousRevision"
+        ],
+        "type": "object",
+        "properties": {
+          "previousRevision": true
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "effect": {
+            "type": "object",
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "enum": [
+                  "deleteBead",
+                  "deleteLink"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "effect"
+        ]
+      },
+      "then": {
+        "properties": {
+          "previousRevision": false
+        }
+      }
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "representation": {
+      "const": "postimage"
+    }
+  }
+}
+```
+<!-- bdp-schema:end retainedPostimageEvent -->
+
+<!-- bdp-schema:start retainedDeltaEvent -->
+### Schema: "retainedDeltaEvent"
+
+Value: object
+
+Required order: ["representation","effect"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete Event carrying a realized delta effect. A supplied previous revision denotes the actual observed predecessor, not an invented immediate mutation." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "derived" | ref "#/$defs/retainedEventDerived" | no | — | "Recorded derived owned-Link state accompanying this published Bead revision, when required by the effect." |
+| "effect" | ref "#/$defs/retainedDeltaEffect" | yes | — | "Exactly one realized published mutation effect. It records final state or admitted change and is never an executable write request." |
+| "representation" | schema | yes | — | "Explicit Event representation, postimage or delta." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/retainedEventCommon"
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "effect": {
+            "type": "object",
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "enum": [
+                  "createBead",
+                  "createLink"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "effect"
+        ]
+      },
+      "then": {
+        "properties": {
+          "previousRevision": false
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "effect": {
+            "type": "object",
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "enum": [
+                  "updateBead",
+                  "updateLink"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "effect"
+        ]
+      },
+      "then": {
+        "required": [
+          "previousRevision"
+        ],
+        "type": "object",
+        "properties": {
+          "previousRevision": true
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "effect": {
+            "type": "object",
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "enum": [
+                  "deleteBead",
+                  "deleteLink"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "effect"
+        ]
+      },
+      "then": {
+        "properties": {
+          "previousRevision": false
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "derived"
+        ],
+        "type": "object",
+        "properties": {
+          "derived": true
+        }
+      },
+      "then": {
+        "properties": {
+          "effect": {
+            "type": "object",
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "enum": [
+                  "createBead",
+                  "updateBead"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "effect"
+        ],
+        "properties": {
+          "effect": {
+            "type": "object",
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "const": "updateBead"
+              }
+            }
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": [
+              "derived"
+            ],
+            "type": "object",
+            "properties": {
+              "derived": true
+            }
+          },
+          {
+            "properties": {
+              "effect": {
+                "type": "object",
+                "anyOf": [
+                  {
+                    "required": [
+                      "type"
+                    ],
+                    "type": "object",
+                    "properties": {
+                      "type": true
+                    }
+                  },
+                  {
+                    "required": [
+                      "properties"
+                    ],
+                    "type": "object",
+                    "properties": {
+                      "properties": true
+                    }
+                  },
+                  {
+                    "required": [
+                      "propertiesChange"
+                    ],
+                    "type": "object",
+                    "properties": {
+                      "propertiesChange": true
+                    }
+                  },
+                  {
+                    "required": [
+                      "metadata"
+                    ],
+                    "type": "object",
+                    "properties": {
+                      "metadata": true
+                    }
+                  },
+                  {
+                    "required": [
+                      "metadataChange"
+                    ],
+                    "type": "object",
+                    "properties": {
+                      "metadataChange": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "effect"
+        ],
+        "properties": {
+          "effect": {
+            "type": "object",
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "enum": [
+                  "deleteBead",
+                  "deleteLink"
+                ]
+              }
+            }
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "revisionProvenance": false
+        }
+      }
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "representation": {
+      "const": "delta"
+    }
+  }
+}
+```
+<!-- bdp-schema:end retainedDeltaEvent -->
+
+<!-- bdp-schema:start retainedEvent -->
+### Schema: "retainedEvent"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Union of the supported complete postimage and delta Event shapes. Schema acceptance does not prove truthful coverage, retention or atomic production." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/retainedPostimageEvent"
+    },
+    {
+      "$ref": "#/$defs/retainedDeltaEvent"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end retainedEvent -->
+
+<!-- bdp-schema:start retainedEventPage -->
+### Schema: "retainedEventPage"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["source","selection","policy","coverage","events","cursor","next"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Finite Event page with selected representation, truthful policy and coverage, ordered facts, a resume cursor and explicit continuation. Null next means the captured interval is exhausted." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "coverage" | ref "#/$defs/retainedEventCoverage" | yes | — | "Actual observation boundaries, not a fabricated complete mutation history." |
+| "cursor" | ref "#/$defs/wireToken" | yes | — | "Opaque resume token covering the facts/scanned positions claimed by this page." |
+| "events" | array of (ref "#/$defs/retainedEvent") | yes | — | "Required ordered array of the facts delivered in this finite page. An empty array alone does not establish exhaustion or uninterrupted coverage." |
+| "next" | schema | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
+| "policy" | ref "#/$defs/retainedEventPolicy" | yes | — | "Truthful observation mechanism and durable retention/cursor promises." |
+| "selection" | ref "#/$defs/retainedEventSelection" | yes | — | "Complete admitted traversal/representation selection echoed by the response." |
+| "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute URL of this observation source; each delivered fact must agree with it." |
+| "subject" | ref "#/$defs/absoluteHttpUrl" | no | — | "Canonical Resource identity to which this retained page or Resource-scoped observation applies." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "selection": {
+            "type": "object",
+            "properties": {
+              "representation": {
+                "const": "postimage"
+              }
+            },
+            "required": [
+              "representation"
+            ]
+          }
+        },
+        "required": [
+          "selection"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/retainedPostimageEvent"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "selection": {
+            "type": "object",
+            "properties": {
+              "representation": {
+                "const": "delta"
+              }
+            },
+            "required": [
+              "representation"
+            ]
+          }
+        },
+        "required": [
+          "selection"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/retainedDeltaEvent"
+            }
+          },
+          "policy": {
+            "type": "object",
+            "properties": {
+              "representations": {
+                "type": "array",
+                "contains": {
+                  "const": "delta"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "next": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end retainedEventPage -->
+
+<!-- bdp-schema:start retainedEventProblem -->
+### Schema: "retainedEventProblem"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Event-read Problem carrier. It retains Core authentication, disclosure, bounds and cursor diagnosis rules; failure never certifies consumer progress." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/readProblem"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [
+            "malformed-request",
+            "invalid-parameter",
+            "unauthenticated",
+            "forbidden",
+            "resource-not-found",
+            "resource-erased",
+            "foreign-view",
+            "cursor-expired",
+            "request-too-large",
+            "limit-exceeded",
+            "rate-limited",
+            "temporarily-unavailable"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end retainedEventProblem -->
 
 ## Final publication
 
@@ -2033,7 +5249,7 @@ a Resource version, fictional body/affiliation or lifecycle fact. It is not an
 ordinary semantic no-op. Rollback commits no allocation or published transition.
 No readable intermediate state or new reservation Resource follows.
 
-For each final published create/update/delete, required Events describe the actual
+When Events is advertised, for each final published create/update/delete its required facts describe the actual
 initial-to-final transition; postimage is final state and optional delta transforms
 its actual predecessor to that state. Include changed owners once and order the
 Scope's facts by canonical Resource URI within their known transaction, preserving
@@ -2045,7 +5261,7 @@ equal tokens across Resources prove neither common state nor transaction identit
 [Write's final atomic publication](../write/write.md#final-atomic-publication)
 defines ordered staging, admission/validation, allocation outcomes, final revision
 and no-op decisions, attribution-input agreement, mutation results and durable
-retry bookkeeping. Its atomic decision binds final state, allocation, required facts
+retry bookkeeping. Its atomic decision binds final state, allocation, facts required by advertised Events
 and original outcome; ordinary reads or later Type defaults cannot rewrite them.
 These operational rules do not add mutation obligations to a Core-only provider.
 
@@ -2186,6 +5402,537 @@ client cannot silently substitute a new selection or snapshot. Count and member
 order are determined before projection. A separate client display mask cannot
 recover fields the native representation omitted or alter that continuation.
 
+<!-- bdp-schema:start resourceProjectionCapabilityV1 -->
+### Schema: "resourceProjectionCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["current","exact","list"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Version-1 projection support flags for current, exact and inventory reads. At least one form is supported; each true flag commits to its complete representation semantics." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "current" | boolean | yes | — | "Whether this capability supports current point reads." |
+| "exact" | boolean | yes | — | "Whether this capability supports exact retained point reads." |
+| "list" | boolean | yes | — | "Whether this capability supports inventory pages." |
+
+#### Advanced
+
+```json-schema
+{
+  "anyOf": [
+    {
+      "required": [
+        "current"
+      ],
+      "properties": {
+        "current": {
+          "const": true
+        }
+      }
+    },
+    {
+      "required": [
+        "exact"
+      ],
+      "properties": {
+        "exact": {
+          "const": true
+        }
+      }
+    },
+    {
+      "required": [
+        "list"
+      ],
+      "properties": {
+        "list": {
+          "const": true
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end resourceProjectionCapabilityV1 -->
+
+<!-- bdp-schema:start resourceProjectionMask -->
+### Schema: "resourceProjectionMask"
+
+Value: object
+
+Other fields: not allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Nonempty include/omit JSON Pointer mask. Mask syntax does not allow partial mutation, implicit admission changes or a forged full record." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "include" | schema | no | — | "Nonempty paths whose selected content enters the projection." |
+| "omit" | schema | no | — | "Nonempty paths removed after include selection; identity carrier rules still apply." |
+
+#### Advanced
+
+```json-schema
+{
+  "anyOf": [
+    {
+      "required": [
+        "include"
+      ],
+      "properties": {
+        "include": true
+      }
+    },
+    {
+      "required": [
+        "omit"
+      ],
+      "properties": {
+        "omit": true
+      }
+    }
+  ],
+  "properties": {
+    "include": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/jsonPointer"
+      }
+    },
+    "omit": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/jsonPointer"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end resourceProjectionMask -->
+
+<!-- bdp-schema:start resourceProjectionSelection -->
+### Schema: "resourceProjectionSelection"
+
+Value: object
+
+Required order: ["projectionVersion"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Projection-version admission discriminator. It is only a preliminary selector; complete decoded point or inventory parameters have their own closed shapes." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "projectionVersion" | schema | yes | — | "Explicit projection version selector. Missing or unsupported selection cannot be treated as version 1." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "projectionVersion": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end resourceProjectionSelection -->
+
+<!-- bdp-schema:start resourceProjectionPointQueryV1 -->
+### Schema: "resourceProjectionPointQueryV1"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["projectionVersion"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete decoded version-1 point projection query, optionally selecting an exact revision. Unsupported projection must refuse rather than return an unlabelled full representation." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "fields" | ref "#/$defs/resourceProjectionMask" | no | — | "Explicit content projection mask, evaluated under the shared include/omit rules." |
+| "projectionVersion" | schema | yes | — | "Explicit projection version selector. Missing or unsupported selection cannot be treated as version 1." |
+| "revision" | ref "#/$defs/revision" | no | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "projectionVersion": {
+      "const": "1"
+    }
+  }
+}
+```
+<!-- bdp-schema:end resourceProjectionPointQueryV1 -->
+
+<!-- bdp-schema:start resourceProjectionInventoryQueryV1 -->
+### Schema: "resourceProjectionInventoryQueryV1"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["projectionVersion"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete decoded version-1 inventory projection query. Continuations preserve the admitted mask, selection, ordering and read context." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "conformsTo" | ref "#/$defs/absoluteHttpUrl" | no | — | "Explicit nominal Type-family inventory filter. It selects membership and is not a projected Resource property." |
+| "cursor" | schema | no | — | "Opaque issued inventory continuation token preserving the selected mask, filters, order and authorization context." |
+| "endpoint" | schema | no | — | "Decoded incident-endpoint filter string, selecting Links at either end under the ordinary inventory rules." |
+| "fields" | ref "#/$defs/resourceProjectionMask" | no | — | "Explicit content projection mask, evaluated under the shared include/omit rules." |
+| "limit" | ref "#/$defs/positiveInteger" | no | — | "Positive admitted Resource-record page bound; continuation and exhaustion obey the ordinary inventory rules." |
+| "projectionVersion" | schema | yes | — | "Explicit projection version selector. Missing or unsupported selection cannot be treated as version 1." |
+| "selector" | schema | no | — | "Nonempty decoded ordinary Selector string, using its bounded candidate-local grammar rather than the structured Query AST." |
+| "source" | schema | no | — | "Decoded source-endpoint filter string under the ordinary Link inventory rules; it is not a Link record member." |
+| "target" | schema | no | — | "Decoded target-endpoint filter string under the ordinary Link inventory rules; it is not a Link record member." |
+| "type" | ref "#/$defs/absoluteHttpUrl" | no | — | "Exact nominal Type-identity inventory filter. This is not a returned Resource affiliation or a version pin." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "cursor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "endpoint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectionVersion": {
+      "const": "1"
+    },
+    "selector": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end resourceProjectionInventoryQueryV1 -->
+
+<!-- bdp-schema:start projectedBeadRecord -->
+### Schema: "projectedBeadRecord"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","type","revision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Explicitly projected Bead representation. Identity, Type affiliation and revision stay mandatory; selected content may be omitted only under the projection contract." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
+| "metadata" | ref "#/$defs/metadata" | no | — | "Common mutable object content, independent of Type-specific properties." |
+| "ownedLinks" | schema | no | — | "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input." |
+| "properties" | ref "#/$defs/properties" | no | — | "Application-authored object content selected by the containing representation." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
+| "type" | ref "#/$defs/typeReference" | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "ownedLinks": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/absoluteHttpUrl"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/linkRecord"
+        }
+      }
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end projectedBeadRecord -->
+
+<!-- bdp-schema:start projectedLinkRecord -->
+### Schema: "projectedLinkRecord"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","type","revision","source","target"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Explicitly projected Link representation. Identity, Type affiliation and revision stay mandatory and endpoint rules follow the selected projection mask." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
+| "metadata" | ref "#/$defs/metadata" | no | — | "Common mutable object content, independent of Type-specific properties." |
+| "properties" | ref "#/$defs/properties" | no | — | "Application-authored object content selected by the containing representation." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
+| "source" | ref "#/$defs/reference" | yes | — | "Whole source Reference of this directed Link, preserving any exact revision pin." |
+| "target" | ref "#/$defs/reference" | yes | — | "Whole target Reference of a Link, preserving any exact revision pin." |
+| "type" | ref "#/$defs/typeReference" | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end projectedLinkRecord -->
+
+<!-- bdp-schema:start projectedBeadCollection -->
+### Schema: "projectedBeadCollection"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["items","next"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Finite page of explicitly projected Bead carriers. Projection changes representation, not membership or exhaustion." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "items" | array of (ref "#/$defs/projectedBeadRecord") | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+| "next" | schema | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "next": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end projectedBeadCollection -->
+
+<!-- bdp-schema:start projectedLinkCollection -->
+### Schema: "projectedLinkCollection"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["items","next"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Finite page of explicitly projected Link carriers. Projection does not merge parallel Links or alter endpoint identity." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "items" | array of (ref "#/$defs/projectedLinkRecord") | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+| "next" | schema | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "next": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end projectedLinkCollection -->
+
+<!-- bdp-schema:start resourceProjectionCapabilityProblem -->
+### Schema: "resourceProjectionCapabilityProblem"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["type","code","retry","status","capability","capabilityVersion"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Problem carrier for unsupported projection capability or version selection. Unsupported meaning cannot silently downgrade." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capability" | schema | yes | — | "Exact capability identity associated with this refusal. It does not advertise that capability as supported." |
+| "capabilityVersion" | schema | yes | — | "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade." |
+| "code" | schema | yes | — | "Stable machine-readable Problem diagnosis, interpreted with type and retry." |
+| "detail" | text | no | — | "Human-readable detail that obeys authorization and non-disclosure." |
+| "instance" | ref "#/$defs/absoluteUri" | no | — | "Optional URI identifying this failure occurrence." |
+| "retry" | schema | yes | — | "Required retry disposition for this exact diagnosis; it does not authorize changing intent." |
+| "status" | schema | yes | — | "HTTP status associated with this Problem; protocol decision order remains binding." |
+| "title" | text | no | — | "Short human-readable Problem summary." |
+| "type" | schema | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capability": {
+      "const": "https://github.com/gastownhall/bdp/capabilities/resource-projection"
+    },
+    "capabilityVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "code": {
+      "const": "capability-not-supported"
+    },
+    "retry": {
+      "const": "after-state-change"
+    },
+    "status": {
+      "const": 422
+    },
+    "type": {
+      "const": "https://github.com/gastownhall/bdp/problems/request"
+    }
+  }
+}
+```
+<!-- bdp-schema:end resourceProjectionCapabilityProblem -->
+
+<!-- bdp-schema:start resourceProjectionProblem -->
+### Schema: "resourceProjectionProblem"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Problem carrier for admitted projection reads, retaining ordinary read and History diagnoses." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/readProblem"
+    },
+    {
+      "$ref": "#/$defs/resourceProjectionCapabilityProblem"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end resourceProjectionProblem -->
+
 ## Optional exact Type-definition lookup
 
 This optional operation serves complete exact definitions only in an explicitly
@@ -2321,6 +6068,295 @@ owned captures, an alternate current definition or false Unretained evidence.
 Authorization changes remain authoritative. Existing promises do not turn temporary
 I/O into permanent loss or demand invented data. Schema-valid wrappers do not waive these admission, authorization or service obligations.
 
+<!-- bdp-schema:start typeDefinitionReadSelection -->
+### Schema: "typeDefinitionReadSelection"
+
+Value: object
+
+Other fields: allowed
+
+Required order: ["capabilityVersion"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Preliminary exact-definition-lookup discriminator. A selected request must satisfy the complete version-1 query shape and advertised lookup contract." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capabilityVersion" | schema | yes | — | "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capabilityVersion": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end typeDefinitionReadSelection -->
+
+<!-- bdp-schema:start typeDefinitionReadQueryV1 -->
+### Schema: "typeDefinitionReadQueryV1"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["capabilityVersion","uri","revision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete decoded exact-definition request: explicit version and a pinned Type Reference. It is a GET query carrier, not a new Resource write or installation command." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capabilityVersion" | schema | yes | — | "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "uri" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Complete target identity carried by this Reference. Relative paths and partial Reference objects are not admitted." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end typeDefinitionReadQueryV1 -->
+
+<!-- bdp-schema:start typeDefinitionReadCapabilityV1 -->
+### Schema: "typeDefinitionReadCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Exact-definition version-1 advertisement. The service accepts complete exact-record servability obligations within its actual response and retained-dependency bounds." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "operation" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Advertised absolute exact-definition lookup operation URL. It grants no permission and does not change the definition’s owner." |
+<!-- bdp-schema:end typeDefinitionReadCapabilityV1 -->
+
+<!-- bdp-schema:start exactTypeDefinitionRecord -->
+### Schema: "exactTypeDefinitionRecord"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Whole exact Type-definition Bead with recorded owned closure and pinned Type affiliations. Serving a global definition never transfers ownership to the responder." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/beadRecord"
+    },
+    {
+      "type": "object",
+      "required": [
+        "ownedLinks"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/pinnedTypeReference"
+        },
+        "links": false,
+        "ownedLinks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "$ref": "#/$defs/pinnedTypeReference"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end exactTypeDefinitionRecord -->
+
+<!-- bdp-schema:start typeDefinitionReadResult -->
+### Schema: "typeDefinitionReadResult"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["definition"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Closed whole-record lookup wrapper. Optional originScope reports known owning context; the responder is not implicitly the definition owner." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "definition" | ref "#/$defs/exactTypeDefinitionRecord" | yes | — | "One complete exact Type-definition Bead including its required recorded owned closure." |
+| "originScope" | ref "#/$defs/absoluteHttpUrl" | no | — | "Recorded owning-Scope context when known. The responding lookup service does not thereby become owner." |
+<!-- bdp-schema:end typeDefinitionReadResult -->
+
+<!-- bdp-schema:start typeDefinitionReadCapabilityProblem -->
+### Schema: "typeDefinitionReadCapabilityProblem"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["type","status","code","retry","capability","capabilityVersion","parameter"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Problem carrier for unsupported exact-definition capability/version selection. It supplies no installation or application-History claim." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capability" | schema | yes | — | "Exact capability identity associated with this refusal. It does not advertise that capability as supported." |
+| "capabilityVersion" | schema | yes | — | "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade." |
+| "code" | schema | yes | — | "Stable machine-readable Problem diagnosis, interpreted with type and retry." |
+| "detail" | text | no | — | "Human-readable detail that obeys authorization and non-disclosure." |
+| "instance" | ref "#/$defs/absoluteUri" | no | — | "Optional URI identifying this failure occurrence." |
+| "parameter" | schema | yes | — | "Request parameter associated with the capability-selection diagnosis; its permitted literal is constrained here." |
+| "retry" | schema | yes | — | "Required retry disposition for this exact diagnosis; it does not authorize changing intent." |
+| "status" | schema | yes | — | "HTTP status associated with this Problem; protocol decision order remains binding." |
+| "title" | text | no | — | "Short human-readable Problem summary." |
+| "type" | schema | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capability": {
+      "const": "https://github.com/gastownhall/bdp/capabilities/type-definition-read"
+    },
+    "capabilityVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "code": {
+      "const": "capability-not-supported"
+    },
+    "parameter": {
+      "const": "capabilityVersion"
+    },
+    "retry": {
+      "const": "after-state-change"
+    },
+    "status": {
+      "const": 422
+    },
+    "type": {
+      "const": "https://github.com/gastownhall/bdp/problems/request"
+    }
+  }
+}
+```
+<!-- bdp-schema:end typeDefinitionReadCapabilityProblem -->
+
+<!-- bdp-schema:start typeDefinitionReadProblem -->
+### Schema: "typeDefinitionReadProblem"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Problem carrier for exact-definition reads. Narrow missing-state diagnosis never substitutes current content or silently truncates the owned capture." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "allOf": [
+        {
+          "$ref": "#/$defs/readProblem"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "code": {
+              "enum": [
+                "malformed-request",
+                "invalid-parameter",
+                "unauthenticated",
+                "forbidden",
+                "resource-not-found",
+                "resource-pruned",
+                "resource-erased",
+                "request-too-large",
+                "limit-exceeded",
+                "rate-limited",
+                "temporarily-unavailable",
+                "revision-unretained"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "$ref": "#/$defs/typeDefinitionReadCapabilityProblem"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end typeDefinitionReadProblem -->
+
 ## Problems and HTTP behavior
 
 ### Problem details
@@ -2445,3 +6481,644 @@ HEAD retains the corresponding GET authorization, query, cursor, media
 negotiation, and precondition decision and MUST send no response body. This includes canonical Resource, collection, view and pagination URLs. Ordinary HTTP
 HEAD metadata rules, including permitted omissions, apply; BDP's explicitly
 required context/cache fields remain required. These obligations apply to all mandatory Core reads.
+
+<!-- bdp-schema:start retryDisposition -->
+### Schema: "retryDisposition"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Protocol retry guidance. A refusal does not authorize changing semantic intent or minting a fresh execution key to evade durable no-reexecution." |
+| enum | ["never","after-state-change","after-delay"] |
+<!-- bdp-schema:end retryDisposition -->
+
+<!-- bdp-schema:start readProblemCode -->
+### Schema: "readProblemCode"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Closed vocabulary of Core read diagnoses, including bounded History missing-state failures. HTTP disclosure and precedence rules still govern which diagnosis can be exposed." |
+| enum | ["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","revision-unknown","revision-unretained","revision-reorganized","revision-not-tracked","revision-unrepresentable"] |
+<!-- bdp-schema:end readProblemCode -->
+
+<!-- bdp-schema:start readProblem -->
+### Schema: "readProblem"
+
+Value: object
+
+Required order: ["type","code","retry"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Core Problem Details carrier. Type/code/status/retry combinations and History-specific fields are constrained together; schema validity alone does not prove the original request was authorized." |
+| title | "BDP Read Problem Details" |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "code" | ref "#/$defs/readProblemCode" | yes | — | "Stable machine-readable Problem diagnosis, interpreted with type and retry." |
+| "detail" | text | no | — | "Human-readable detail that obeys authorization and non-disclosure." |
+| "instance" | ref "#/$defs/absoluteUri" | no | — | "Optional URI identifying this failure occurrence." |
+| "retry" | ref "#/$defs/retryDisposition" | yes | — | "Required retry disposition for this exact diagnosis; it does not authorize changing intent." |
+| "status" | schema | no | — | "HTTP status associated with this Problem; protocol decision order remains binding." |
+| "title" | text | no | — | "Short human-readable Problem summary." |
+| "type" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute stable Problem-type identity URI for this diagnosis, consistent with code/status/retry." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "malformed-request"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/request"
+          },
+          "status": {
+            "const": 400
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "invalid-parameter"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/request"
+          },
+          "status": {
+            "const": 400
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "unauthenticated"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/authentication"
+          },
+          "status": {
+            "const": 401
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "forbidden"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/authorization"
+          },
+          "status": {
+            "const": 403
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "resource-not-found"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/not-found"
+          },
+          "status": {
+            "const": 404
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "foreign-view"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "cursor-expired"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/gone"
+          },
+          "status": {
+            "const": 410
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "request-too-large"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/size"
+          },
+          "status": {
+            "const": 413
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "limit-exceeded"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/size"
+          },
+          "status": {
+            "const": 413
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "rate-limited"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/rate-limit"
+          },
+          "status": {
+            "const": 429
+          },
+          "retry": {
+            "const": "after-delay"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "temporarily-unavailable"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/unavailable"
+          },
+          "status": {
+            "const": 503
+          },
+          "retry": {
+            "const": "after-delay"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "resource-pruned"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/gone"
+          },
+          "status": {
+            "const": 410
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "resource-erased"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/gone"
+          },
+          "status": {
+            "const": 410
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "revision-unknown"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/not-found"
+          },
+          "status": {
+            "const": 404
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "revision-unretained"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "revision-reorganized"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/gone"
+          },
+          "status": {
+            "const": 410
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "revision-not-tracked"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "revision-unrepresentable"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "resource-pruned"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "archivedAt": {
+            "$ref": "#/$defs/reference"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "not": {
+          "properties": {
+            "code": {
+              "const": "resource-pruned"
+            }
+          },
+          "required": [
+            "code"
+          ]
+        }
+      },
+      "then": {
+        "properties": {
+          "archivedAt": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "resource-erased"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "pointer": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "revision-unretained"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "required": [
+          "missing"
+        ],
+        "properties": {
+          "missing": {
+            "$ref": "#/$defs/historyMissing"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "missing": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "enum": [
+              "revision-unknown",
+              "revision-unretained",
+              "revision-reorganized",
+              "revision-not-tracked",
+              "revision-unrepresentable"
+            ]
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "window": false,
+          "mayChangeAfterSync": false,
+          "resource": false,
+          "properties": false,
+          "ownedLinks": false,
+          "archivedAt": false,
+          "pointer": false,
+          "revisionProvenance": false
+        }
+      }
+    }
+  ],
+  "properties": {
+    "status": {
+      "type": "integer",
+      "enum": [
+        400,
+        401,
+        403,
+        404,
+        409,
+        410,
+        413,
+        429,
+        503
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end readProblem -->

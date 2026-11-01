@@ -17,6 +17,7 @@ Definitions: present
 | $schema | "https://json-schema.org/draft/2020-12/schema" |
 | description | "Staged JSON Schema2020-12 artifact for the v0.1 selected-contract binding. Version and optional capability discovery are explicit; remaining inherited profile, Type, Event and advanced grammar is not an adoption or retention commitment. Complete retained-surface composition is required before advertising v0.1. The separate v0 artifact remains unchanged for held runtime/evidence." |
 | title | "BDP v0.1 staged schema bundle" |
+| x-bdp-core-definitions | ["absoluteHttpUrl","absoluteUri","bdpVersion","beadCollection","beadRecord","capabilityAdvertisements","capabilityVersionAdvertisements","contextMessage","contextString","contextTime","coreAdvertisedLimits","coreDiscovery","countResult","currentBeadCollection","currentBeadRecord","currentLinkCollection","currentLinkRecord","dateTime","exactTypeDefinitionRecord","historicalBeadRecord","historicalLinkRecord","historyCapability","historyMissing","historyMissingItem","historyVersionRow","historyVersionsPage","historyWindow","iso8601Duration","jsonPointer","linkCollection","linkRecord","maximumEndpointMultiplicityPolicy","metadata","pinnedReference","pinnedTypeReference","positiveInteger","projectedBeadCollection","projectedBeadRecord","projectedLinkCollection","projectedLinkRecord","properties","readProblem","readProblemCode","reference","resourceIdentity","resourceKind","resourceProjectionCapabilityProblem","resourceProjectionCapabilityV1","resourceProjectionInventoryQueryV1","resourceProjectionMask","resourceProjectionPointQueryV1","resourceProjectionProblem","resourceProjectionSelection","retainedDeltaEffect","retainedDeltaEvent","retainedEvent","retainedEventCommon","retainedEventCoverage","retainedEventDeleted","retainedEventDerived","retainedEventPage","retainedEventPolicy","retainedEventProblem","retainedEventQuery","retainedEventSelection","retainedPostimageEffect","retainedPostimageEvent","retryDisposition","revision","revisionActor","revisionProvenance","selector","typeDefinitionReadCapabilityProblem","typeDefinitionReadCapabilityV1","typeDefinitionReadProblem","typeDefinitionReadQueryV1","typeDefinitionReadResult","typeDefinitionReadSelection","typeReference","wireToken"] |
 
 <a id="schema-def-ImFic29sdXRlSHR0cFVybCI"></a>
 ## Schema: "absoluteHttpUrl"
@@ -27,6 +28,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Absolute HTTP(S) URL used for canonical in-Scope identities and discovered navigation. Equality, canonical path spelling, ownership and non-reuse are additionally governed by the Scope rules." |
 | format | "uri" |
 | pattern | "^https?://.+" |
 | type | "string" |
@@ -40,6 +42,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Absolute URI carried for an opaque out-of-Scope Link endpoint or other explicitly URI-valued context. This syntax supplies no existence, kind, access or immutability guarantee." |
 | format | "uri" |
 | pattern | "^[A-Za-z][A-Za-z0-9+.-]*:" |
 | type | "string" |
@@ -1018,6 +1021,7 @@ Value: object
 | Keyword | JSON value |
 | --- | --- |
 | const | "0.1" |
+| description | "Exact protocol-version discriminator. Version 0.1 selects this complete draft contract rather than an executable, a Git revision or a capability range." |
 
 <a id="schema-def-ImJlYWRDb2xsZWN0aW9uIg"></a>
 ## Schema: "beadCollection"
@@ -1032,14 +1036,15 @@ Required order: ["items","next"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "One finite page of complete Bead records and an absolute continuation URL or explicit null on observed exhaustion. Items do not acquire a separate href/value wrapper." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "items" | array of (ref "#/$defs/beadRecord") | yes | — | — |
-| "next" | schema | yes | — | — |
+| "items" | array of (ref "#/$defs/beadRecord") | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+| "next" | schema | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
 
 ### Advanced
 
@@ -1067,26 +1072,27 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["id","type","revision","properties"]
+Required order: ["id","type","revision","properties","metadata"]
 
 ### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Complete Bead representation, including identity, affiliation, revision, application properties, common metadata and optional recorded provenance or captured owned-Link state. Included incident links are a separately selected current aggregate." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "links" | ref "#/$defs/linkCollection" | no | — | — |
-| "metadata" | ref "#/$defs/metadata" | no | — | — |
-| "ownedLinks" | schema | no | — | — |
-| "properties" | ref "#/$defs/properties" | yes | — | — |
-| "revision" | schema | yes | — | — |
-| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | — |
-| "type" | ref "#/$defs/typeReference" | yes | — | — |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
+| "links" | ref "#/$defs/linkCollection" | no | — | "Separately selected current incident-Link aggregate. It is not captured owned state or an exact historical graph." |
+| "metadata" | ref "#/$defs/metadata" | yes | — | "Common mutable object content, independent of Type-specific properties." |
+| "ownedLinks" | schema | no | — | "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input." |
+| "properties" | ref "#/$defs/properties" | yes | — | "Application-authored object content selected by the containing representation." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
+| "type" | ref "#/$defs/typeReference" | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
 
 ### Advanced
 
@@ -1122,15 +1128,16 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Map from absolute capability identity URI to explicitly supported versions. Unknown optional capabilities can be ignored without changing known base behavior; advertisement is neither request selection nor permission." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "https://github.com/gastownhall/bdp/capabilities/atomic-batch" | schema | no | — | — |
-| "https://github.com/gastownhall/bdp/capabilities/resource-projection" | schema | no | — | — |
-| "https://github.com/gastownhall/bdp/capabilities/type-definition-read" | schema | no | — | — |
+| "https://github.com/gastownhall/bdp/capabilities/atomic-batch" | schema | no | — | "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1." |
+| "https://github.com/gastownhall/bdp/capabilities/resource-projection" | schema | no | — | "Supported projection versions and their point/exact/inventory support flags." |
+| "https://github.com/gastownhall/bdp/capabilities/type-definition-read" | schema | no | — | "Supported exact-definition lookup versions and their independently advertised operation navigation." |
 
 ### Advanced
 
@@ -1201,6 +1208,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Map from exact nonempty version string to that version’s detail object. Versions are opaque, unordered and have no implicit compatibility range." |
 | minProperties | 1 |
 | type | "object" |
 
@@ -1422,6 +1430,12 @@ Required order: ["scope","scopeEpoch","authorizationView","after","observedHeadP
 
 Value: object
 
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Explicit immutable message context: present carries a string, including an empty message; absent and undetermined distinguish known absence from unavailable knowledge." |
+
 ### Advanced
 
 ```json-schema
@@ -1466,6 +1480,12 @@ Value: object
 ## Schema: "contextString"
 
 Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Explicit immutable context value: present carries a nonempty string, absent records known absence, and undetermined records unavailable knowledge. No state authenticates an agent." |
 
 ### Advanced
 
@@ -1512,6 +1532,12 @@ Value: object
 ## Schema: "contextTime"
 
 Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Explicit immutable commit-time context: present carries a date-time and undetermined records unavailable knowledge. There is no absent time arm. This envelope is not a timestamp string or a revision-order proof." |
 
 ### Advanced
 
@@ -1563,17 +1589,18 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Optional grouped Core read bounds. Omission means a bound is not pre-advertised, never infinite capacity or permission for silent truncation." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "page" | schema | no | — | — |
-| "request" | schema | no | — | — |
-| "resource" | schema | no | — | — |
-| "retention" | schema | no | — | — |
-| "selector" | schema | no | — | — |
+| "page" | schema | no | — | "Positive default and maximum Resource-record page sizes, when declared." |
+| "request" | schema | no | — | "Positive encoded request-target and representation-body byte limits, when declared." |
+| "resource" | schema | no | — | "Positive complete-representation and properties-only UTF-8 byte bounds, when declared." |
+| "retention" | schema | no | — | "Declared pagination snapshot lifetime; this group does not advertise Event or replica retention." |
+| "selector" | schema | no | — | "Optional positive bounds on decoded Selector bytes, parsed depth and parsed node count." |
 
 ### Advanced
 
@@ -1651,30 +1678,31 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","beads","links","events"]
+Required order: ["bdpVersion","profile","scope","beads","links"]
 
 ### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Closed Core discovery object. Inventory URLs navigate collections rather than reserve Resource-ID prefixes. Events, History and other capabilities are optional and bind their full obligations only when advertised." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
-| "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
-| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "capabilities" | schema | no | — | — |
-| "events" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
-| "limits" | ref "#/$defs/coreAdvertisedLimits" | no | — | — |
-| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | — |
-| "order" | schema | no | — | — |
-| "profile" | schema | yes | — | — |
-| "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | "Advertised in-Scope alias-resolution namespace, possibly the Scope itself. A spelling requires an actual alias binding." |
+| "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | "Exact complete protocol discriminator, not a nearest-version negotiation." |
+| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Bead inventory URL. It is navigation, not a Resource-ID base or required path prefix." |
+| "capabilities" | schema | no | — | "Independently versioned feature advertisements. Support does not select an invocation or grant permission." |
+| "events" | ref "#/$defs/absoluteHttpUrl" | no | — | "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support." |
+| "historicalResolution" | ref "#/$defs/historyCapability" | no | — | "Explicit History support advertisement; omission carries no History obligation." |
+| "limits" | ref "#/$defs/coreAdvertisedLimits" | no | — | "Optional declared operational bounds. Omitted values are not infinite and failures cannot silently truncate data." |
+| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Link inventory URL; it reserves no Link Resource-ID prefix." |
+| "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | "Native endpoint incidence policies enforced against the storing Scope’s authoritative in-Scope state." |
+| "order" | schema | no | — | "Advertised stable collection order. Omission uses canonical-uri under Core." |
+| "profile" | schema | yes | — | "Base Core/Write profile discriminator, independent of optional capabilities." |
+| "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Canonical HTTP(S) Scope URL used for local identity resolution and ownership navigation." |
 
 ### Advanced
 
@@ -1710,6 +1738,19 @@ Required order: ["bdpVersion","profile","scope","beads","links","events"]
   }
 }
 ```
+
+<a id="schema-def-ImNvdW50UmVzdWx0Ig"></a>
+## Schema: "countResult"
+
+Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Exact nonnegative integral count of the complete admitted authorized selection. A cutoff or partial scan cannot be reported as a successful count." |
+| minimum | 0 |
+| type | "integer" |
 
 <a id="schema-def-ImNyZWF0ZUJlYWRNZW1iZXJzIg"></a>
 ## Schema: "createBeadMembers"
@@ -1922,6 +1963,12 @@ Required order: ["revision","properties"]
 
 Value: object
 
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Current Bead inventory page whose items use current Bead carriers. Its continuation retains the admitted selection and authorization context." |
+
 ### Advanced
 
 ```json-schema
@@ -1949,6 +1996,12 @@ Value: object
 ## Schema: "currentBeadRecord"
 
 Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Current Bead read carrier. Common metadata is present and any included incident or owned Links use complete current Link carriers; this helper adds no read operation." |
 
 ### Advanced
 
@@ -1990,6 +2043,12 @@ Value: object
 
 Value: object
 
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Current Link inventory page whose items use current Link carriers. An empty page is not proof of exhaustion when next is nonnull." |
+
 ### Advanced
 
 ```json-schema
@@ -2017,6 +2076,12 @@ Value: object
 ## Schema: "currentLinkRecord"
 
 Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Current Link read carrier, including common metadata. This helper adds no identity, mutation or traversal behavior." |
 
 ### Advanced
 
@@ -2050,6 +2115,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "RFC 3339 date-time carrier. Emission uses a valid calendar and clock, uppercase T and Z; the prose governs accepted spellings and precision." |
 | format | "date-time" |
 | type | "string" |
 
@@ -2776,6 +2842,12 @@ Value: object
 
 Value: object
 
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Whole exact Type-definition Bead with recorded owned closure and pinned Type affiliations. Serving a global definition never transfers ownership to the responder." |
+
 ### Advanced
 
 ```json-schema
@@ -2831,6 +2903,12 @@ Value: object
 
 Value: object
 
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Complete exact Bead representation. Current incident-Link aggregates are excluded; captured owned-Link state comes from that recorded version." |
+
 ### Advanced
 
 ```json-schema
@@ -2859,6 +2937,7 @@ Value: object
 | Keyword | JSON value |
 | --- | --- |
 | $ref | "#/$defs/linkRecord" |
+| description | "Complete exact Link representation retaining its recorded whole source/target and Type References. Current defaults or pins cannot replace them." |
 
 <a id="schema-def-Imhpc3RvcnlDYXBhYmlsaXR5Ig"></a>
 ## Schema: "historyCapability"
@@ -2873,13 +2952,14 @@ Required order: ["version"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "History version-1 advertisement. It commits to the complete exact-read and retained-versions contract, not merely an event timeline or a current-record lookup." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "version" | schema | yes | — | — |
+| "version" | schema | yes | — | "Exact selected feature version. No version ordering or implicit upgrade is defined." |
 
 ### Advanced
 
@@ -2906,14 +2986,15 @@ Required order: ["complete","items"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Bounded missing-state diagnosis for revision-unretained. Complete states whether the item list is exhaustive; it cannot falsely certify reconstruction or erase undisclosed dependencies." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "complete" | boolean | yes | — | — |
-| "items" | schema | yes | — | — |
+| "complete" | boolean | yes | — | "Whether the stated bounded information is exhaustive under the containing contract." |
+| "items" | schema | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
 
 ### Advanced
 
@@ -2958,6 +3039,12 @@ Required order: ["complete","items"]
 ## Schema: "historyMissingItem"
 
 Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One unavailable component needed for an exact response: the subject record, a selected property path, or captured owned-Link state. The bounded diagnosis preserves known location without substituting current content." |
 
 ### Advanced
 
@@ -3032,16 +3119,17 @@ Required order: ["revision","lineage","body"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "One retained Resource-version summary. Revision, lineage and body completeness describe actual retained version state; deletion is not represented as a synthetic version row." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "body" | schema | yes | — | — |
-| "lineage" | schema | yes | — | — |
-| "revision" | ref "#/$defs/revision" | yes | — | — |
-| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | — |
+| "body" | schema | yes | — | "Whether the row’s retained version can currently produce its complete recorded representation, including required owned state." |
+| "lineage" | schema | yes | — | "Whether the row belongs to the current or a replaced retained lineage; this is not a revision-order comparison." |
+| "revision" | ref "#/$defs/revision" | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
 
 ### Advanced
 
@@ -3077,18 +3165,19 @@ Required order: ["subject","population","participation","window","items","next"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Finite all-retained History page. Subject, participation, window, items and next remain explicit, and nonparticipating/undetermined subjects do not acquire invented rows." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "items" | array of (ref "#/$defs/historyVersionRow") | yes | — | — |
-| "next" | (ref "#/$defs/absoluteHttpUrl") OR (null) | yes | — | — |
-| "participation" | schema | yes | — | — |
-| "population" | schema | yes | — | — |
-| "subject" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "window" | ref "#/$defs/historyWindow" | yes | — | — |
+| "items" | array of (ref "#/$defs/historyVersionRow") | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+| "next" | (ref "#/$defs/absoluteHttpUrl") OR (null) | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
+| "participation" | schema | yes | — | "Whether this subject is tracked, not tracked or cannot be determined under the History contract." |
+| "population" | schema | yes | — | "Explicit retained population selector; it does not assert current live membership." |
+| "subject" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Canonical Resource identity to which this retained page or Resource-scoped observation applies." |
+| "window" | ref "#/$defs/historyWindow" | yes | — | "Known retained-history boundaries and completeness, never a synthetic history." |
 
 ### Advanced
 
@@ -3161,15 +3250,16 @@ Required order: ["newest","oldest","complete"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Known retained-version window and completeness. Null endpoints describe an empty or unavailable window under the participation rules; tokens are not ordered arithmetically." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "complete" | boolean | yes | — | — |
-| "newest" | (ref "#/$defs/revision") OR (null) | yes | — | — |
-| "oldest" | (ref "#/$defs/revision") OR (null) | yes | — | — |
+| "complete" | boolean | yes | — | "Whether the stated bounded information is exhaustive under the containing contract." |
+| "newest" | (ref "#/$defs/revision") OR (null) | yes | — | "Newest known retained revision or explicit null under the stated window rules." |
+| "oldest" | (ref "#/$defs/revision") OR (null) | yes | — | "Oldest known retained revision or explicit null under the stated window rules." |
 
 ### Advanced
 
@@ -3282,6 +3372,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "ISO 8601 duration string used for advertised lifetimes. The containing contract determines the promised interval and forbids silently shortening issued obligations." |
 | pattern | "^P(?!$)" |
 | type | "string" |
 
@@ -3294,6 +3385,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "JSON Pointer carrier. Pointer evaluation, escaping and projection restrictions are defined by the selected operation; a syntactically valid pointer alone grants no access." |
 | pattern | "^(/([^/~]\|~[01])*)*$" |
 | type | "string" |
 
@@ -3310,14 +3402,15 @@ Required order: ["items","next"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "One finite page of complete Link records and an absolute continuation URL or explicit null. Parallel Link identities remain distinct." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "items" | array of (ref "#/$defs/linkRecord") | yes | — | — |
-| "next" | schema | yes | — | — |
+| "items" | array of (ref "#/$defs/linkRecord") | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+| "next" | schema | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
 
 ### Advanced
 
@@ -3384,26 +3477,27 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["id","type","revision","source","target","properties"]
+Required order: ["id","type","revision","source","target","properties","metadata"]
 
 ### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Complete directed Link representation. Source and target are whole References; Link identity remains independent of their tuple. Current-state admission requires at least one live in-Scope Bead endpoint. Retained records and facts preserve their recorded endpoints without revalidating them against today’s live state." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "metadata" | ref "#/$defs/metadata" | no | — | — |
-| "properties" | ref "#/$defs/properties" | yes | — | — |
-| "revision" | schema | yes | — | — |
-| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | — |
-| "source" | ref "#/$defs/reference" | yes | — | — |
-| "target" | ref "#/$defs/reference" | yes | — | — |
-| "type" | ref "#/$defs/typeReference" | yes | — | — |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
+| "metadata" | ref "#/$defs/metadata" | yes | — | "Common mutable object content, independent of Type-specific properties." |
+| "properties" | ref "#/$defs/properties" | yes | — | "Application-authored object content selected by the containing representation." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
+| "source" | ref "#/$defs/reference" | yes | — | "Whole source Reference of this directed Link, preserving any exact revision pin." |
+| "target" | ref "#/$defs/reference" | yes | — | "Whole target Reference of a Link, preserving any exact revision pin." |
+| "type" | ref "#/$defs/typeReference" | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
 
 ### Advanced
 
@@ -3455,15 +3549,16 @@ Required order: ["linkConformsTo","endpoint","max"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Native Scope constraint over stored in-Scope Link incidence. It names the Link family, endpoint role and positive maximum; it does not inspect a foreign authority’s Link table." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "endpoint" | schema | yes | — | — |
-| "linkConformsTo" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "max" | ref "#/$defs/positiveInteger" | yes | — | — |
+| "endpoint" | schema | yes | — | "Endpoint role to which the native incidence maximum applies." |
+| "linkConformsTo" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Nominal Link-Type family constrained by this native policy." |
+| "max" | ref "#/$defs/positiveInteger" | yes | — | "Positive maximum for the explicitly selected Scope policy." |
 
 ### Advanced
 
@@ -3491,6 +3586,7 @@ Other fields: allowed
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Common mutable object state independent of Type-specific properties. A complete read always includes it; the empty object records no metadata members." |
 | type | "object" |
 
 <a id="schema-def-Im11dGF0aW9uT3V0Y29tZSI"></a>
@@ -4229,14 +4325,15 @@ Required order: ["uri","revision"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Complete exact Reference. Both URI and nonempty opaque revision are mandatory, with no undeclared members. Its revision denotes recorded content, not an implicit current selector." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "revision" | schema | yes | — | — |
-| "uri" | ref "#/$defs/absoluteUri" | yes | — | — |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "uri" | ref "#/$defs/absoluteUri" | yes | — | "Complete target identity carried by this Reference. Relative paths and partial Reference objects are not admitted." |
 
 ### Advanced
 
@@ -4260,7 +4357,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "The common closed pinned Reference shape, restricted to the admitted absolute HTTP(S) Type identity domain. This does not impose Link endpoint or source-pin semantics." |
+| description | "Exact Type affiliation using an absolute HTTP(S) Type identity and a nonempty opaque revision. Both members travel together." |
 
 ### Advanced
 
@@ -4291,6 +4388,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Positive integral JSON number used for a declared bound or count. Implementations must preserve the specified numeric value rather than rely on a language-specific integer class." |
 | minimum | 1 |
 | type | "integer" |
 
@@ -4307,14 +4405,15 @@ Required order: ["items","next"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Finite page of explicitly projected Bead carriers. Projection changes representation, not membership or exhaustion." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "items" | array of (ref "#/$defs/projectedBeadRecord") | yes | — | — |
-| "next" | schema | yes | — | — |
+| "items" | array of (ref "#/$defs/projectedBeadRecord") | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+| "next" | schema | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
 
 ### Advanced
 
@@ -4348,19 +4447,20 @@ Required order: ["id","type","revision"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Explicitly projected Bead representation. Identity, Type affiliation and revision stay mandatory; selected content may be omitted only under the projection contract." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "metadata" | ref "#/$defs/metadata" | no | — | — |
-| "ownedLinks" | schema | no | — | — |
-| "properties" | ref "#/$defs/properties" | no | — | — |
-| "revision" | schema | yes | — | — |
-| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | — |
-| "type" | ref "#/$defs/typeReference" | yes | — | — |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
+| "metadata" | ref "#/$defs/metadata" | no | — | "Common mutable object content, independent of Type-specific properties." |
+| "ownedLinks" | schema | no | — | "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input." |
+| "properties" | ref "#/$defs/properties" | no | — | "Application-authored object content selected by the containing representation." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
+| "type" | ref "#/$defs/typeReference" | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
 
 ### Advanced
 
@@ -4400,14 +4500,15 @@ Required order: ["items","next"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Finite page of explicitly projected Link carriers. Projection does not merge parallel Links or alter endpoint identity." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "items" | array of (ref "#/$defs/projectedLinkRecord") | yes | — | — |
-| "next" | schema | yes | — | — |
+| "items" | array of (ref "#/$defs/projectedLinkRecord") | yes | — | "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation." |
+| "next" | schema | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
 
 ### Advanced
 
@@ -4441,20 +4542,21 @@ Required order: ["id","type","revision","source","target"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Explicitly projected Link representation. Identity, Type affiliation and revision stay mandatory and endpoint rules follow the selected projection mask." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "metadata" | ref "#/$defs/metadata" | no | — | — |
-| "properties" | ref "#/$defs/properties" | no | — | — |
-| "revision" | schema | yes | — | — |
-| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | — |
-| "source" | ref "#/$defs/reference" | yes | — | — |
-| "target" | ref "#/$defs/reference" | yes | — | — |
-| "type" | ref "#/$defs/typeReference" | yes | — | — |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
+| "metadata" | ref "#/$defs/metadata" | no | — | "Common mutable object content, independent of Type-specific properties." |
+| "properties" | ref "#/$defs/properties" | no | — | "Application-authored object content selected by the containing representation." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
+| "source" | ref "#/$defs/reference" | yes | — | "Whole source Reference of this directed Link, preserving any exact revision pin." |
+| "target" | ref "#/$defs/reference" | yes | — | "Whole target Reference of a Link, preserving any exact revision pin." |
+| "type" | ref "#/$defs/typeReference" | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
 
 ### Advanced
 
@@ -4480,6 +4582,7 @@ Other fields: allowed
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Application-authored object state. A URI-valued property does not create a Link, and the Core carrier imposes no Type-specific property schema." |
 | type | "object" |
 
 <a id="schema-def-InByb3BlcnR5Q2hhbmdlIg"></a>
@@ -4663,6 +4766,7 @@ Required order: ["type","code","retry"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Core Problem Details carrier. Type/code/status/retry combinations and History-specific fields are constrained together; schema validity alone does not prove the original request was authorized." |
 | title | "BDP Read Problem Details" |
 | type | "object" |
 
@@ -4670,13 +4774,13 @@ Required order: ["type","code","retry"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "code" | ref "#/$defs/readProblemCode" | yes | — | — |
-| "detail" | text | no | — | — |
-| "instance" | ref "#/$defs/absoluteUri" | no | — | — |
-| "retry" | ref "#/$defs/retryDisposition" | yes | — | — |
-| "status" | schema | no | — | — |
-| "title" | text | no | — | — |
-| "type" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "code" | ref "#/$defs/readProblemCode" | yes | — | "Stable machine-readable Problem diagnosis, interpreted with type and retry." |
+| "detail" | text | no | — | "Human-readable detail that obeys authorization and non-disclosure." |
+| "instance" | ref "#/$defs/absoluteUri" | no | — | "Optional URI identifying this failure occurrence." |
+| "retry" | ref "#/$defs/retryDisposition" | yes | — | "Required retry disposition for this exact diagnosis; it does not authorize changing intent." |
+| "status" | schema | no | — | "HTTP status associated with this Problem; protocol decision order remains binding." |
+| "title" | text | no | — | "Short human-readable Problem summary." |
+| "type" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute stable Problem-type identity URI for this diagnosis, consistent with code/status/retry." |
 
 ### Advanced
 
@@ -5274,6 +5378,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Closed vocabulary of Core read diagnoses, including bounded History missing-state failures. HTTP disclosure and precedence rules still govern which diagnosis can be exposed." |
 | enum | ["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","revision-unknown","revision-unretained","revision-reorganized","revision-not-tracked","revision-unrepresentable"] |
 
 <a id="schema-def-InJlYWRVcGRhdGVBZHZlcnRpc2VkTGltaXRzIg"></a>
@@ -6630,6 +6735,12 @@ Value: object
 
 Value: object
 
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "A floating absolute URI or an exact URI-and-revision pair. The containing field determines whether only HTTP(S) identities are admissible; a pin is never merged with another Reference." |
+
 ### Advanced
 
 ```json-schema
@@ -6658,15 +6769,16 @@ Required order: ["id","type","revision"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Complete identity, Type affiliation and concrete revision recorded for a Resource, including a deletion fact. It is not a live Resource postimage and carries no mutable properties." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "revision" | schema | yes | — | — |
-| "type" | ref "#/$defs/typeReference" | yes | — | — |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource version." |
+| "type" | ref "#/$defs/typeReference" | yes | — | "Complete recorded Type affiliation, preserving any revision pin." |
 
 ### Advanced
 
@@ -6690,6 +6802,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "The two protocol Resource kinds. Kind is immutable and established by the resolved Resource, never inferred from its URL path." |
 | enum | ["bead","link"] |
 
 <a id="schema-def-InJlc291cmNlUHJvamVjdGlvbkNhcGFiaWxpdHlQcm9ibGVtIg"></a>
@@ -6705,21 +6818,22 @@ Required order: ["type","code","retry","status","capability","capabilityVersion"
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Problem carrier for unsupported projection capability or version selection. Unsupported meaning cannot silently downgrade." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "capability" | schema | yes | — | — |
-| "capabilityVersion" | schema | yes | — | — |
-| "code" | schema | yes | — | — |
-| "detail" | text | no | — | — |
-| "instance" | ref "#/$defs/absoluteUri" | no | — | — |
-| "retry" | schema | yes | — | — |
-| "status" | schema | yes | — | — |
-| "title" | text | no | — | — |
-| "type" | schema | yes | — | — |
+| "capability" | schema | yes | — | "Exact capability identity associated with this refusal. It does not advertise that capability as supported." |
+| "capabilityVersion" | schema | yes | — | "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade." |
+| "code" | schema | yes | — | "Stable machine-readable Problem diagnosis, interpreted with type and retry." |
+| "detail" | text | no | — | "Human-readable detail that obeys authorization and non-disclosure." |
+| "instance" | ref "#/$defs/absoluteUri" | no | — | "Optional URI identifying this failure occurrence." |
+| "retry" | schema | yes | — | "Required retry disposition for this exact diagnosis; it does not authorize changing intent." |
+| "status" | schema | yes | — | "HTTP status associated with this Problem; protocol decision order remains binding." |
+| "title" | text | no | — | "Short human-readable Problem summary." |
+| "type" | schema | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
 
 ### Advanced
 
@@ -6762,15 +6876,16 @@ Required order: ["current","exact","list"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Version-1 projection support flags for current, exact and inventory reads. At least one form is supported; each true flag commits to its complete representation semantics." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "current" | boolean | yes | — | — |
-| "exact" | boolean | yes | — | — |
-| "list" | boolean | yes | — | — |
+| "current" | boolean | yes | — | "Whether this capability supports current point reads." |
+| "exact" | boolean | yes | — | "Whether this capability supports exact retained point reads." |
+| "list" | boolean | yes | — | "Whether this capability supports inventory pages." |
 
 ### Advanced
 
@@ -6824,22 +6939,23 @@ Required order: ["projectionVersion"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Complete decoded version-1 inventory projection query. Continuations preserve the admitted mask, selection, ordering and read context." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "conformsTo" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
-| "cursor" | schema | no | — | — |
-| "endpoint" | schema | no | — | "Raw native structural filter: canonical local Bead ID or absolute URI. Apply existing local-ID/URI validation and normalize local references before comparison." |
-| "fields" | ref "#/$defs/resourceProjectionMask" | no | — | — |
-| "limit" | ref "#/$defs/positiveInteger" | no | — | — |
-| "projectionVersion" | schema | yes | — | — |
-| "selector" | schema | no | — | — |
-| "source" | schema | no | — | "Raw native structural filter: canonical local Bead ID or absolute URI. Apply existing local-ID/URI validation and normalize local references before comparison." |
-| "target" | schema | no | — | "Raw native structural filter: canonical local Bead ID or absolute URI. Apply existing local-ID/URI validation and normalize local references before comparison." |
-| "type" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
+| "conformsTo" | ref "#/$defs/absoluteHttpUrl" | no | — | "Explicit nominal Type-family inventory filter. It selects membership and is not a projected Resource property." |
+| "cursor" | schema | no | — | "Opaque issued inventory continuation token preserving the selected mask, filters, order and authorization context." |
+| "endpoint" | schema | no | — | "Decoded incident-endpoint filter string, selecting Links at either end under the ordinary inventory rules." |
+| "fields" | ref "#/$defs/resourceProjectionMask" | no | — | "Explicit content projection mask, evaluated under the shared include/omit rules." |
+| "limit" | ref "#/$defs/positiveInteger" | no | — | "Positive admitted Resource-record page bound; continuation and exhaustion obey the ordinary inventory rules." |
+| "projectionVersion" | schema | yes | — | "Explicit projection version selector. Missing or unsupported selection cannot be treated as version 1." |
+| "selector" | schema | no | — | "Nonempty decoded ordinary Selector string, using its bounded candidate-local grammar rather than the structured Query AST." |
+| "source" | schema | no | — | "Decoded source-endpoint filter string under the ordinary Link inventory rules; it is not a Link record member." |
+| "target" | schema | no | — | "Decoded target-endpoint filter string under the ordinary Link inventory rules; it is not a Link record member." |
+| "type" | ref "#/$defs/absoluteHttpUrl" | no | — | "Exact nominal Type-identity inventory filter. This is not a returned Resource affiliation or a version pin." |
 
 ### Advanced
 
@@ -6884,14 +7000,15 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Nonempty include/omit JSON Pointer mask. Mask syntax does not allow partial mutation, implicit admission changes or a forged full record." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "include" | schema | no | — | — |
-| "omit" | schema | no | — | — |
+| "include" | schema | no | — | "Nonempty paths whose selected content enters the projection." |
+| "omit" | schema | no | — | "Nonempty paths removed after include selection; identity carrier rules still apply." |
 
 ### Advanced
 
@@ -6947,15 +7064,16 @@ Required order: ["projectionVersion"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Complete decoded version-1 point projection query, optionally selecting an exact revision. Unsupported projection must refuse rather than return an unlabelled full representation." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "fields" | ref "#/$defs/resourceProjectionMask" | no | — | — |
-| "projectionVersion" | schema | yes | — | — |
-| "revision" | ref "#/$defs/revision" | no | — | — |
+| "fields" | ref "#/$defs/resourceProjectionMask" | no | — | "Explicit content projection mask, evaluated under the shared include/omit rules." |
+| "projectionVersion" | schema | yes | — | "Explicit projection version selector. Missing or unsupported selection cannot be treated as version 1." |
+| "revision" | ref "#/$defs/revision" | no | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
 
 ### Advanced
 
@@ -6973,6 +7091,12 @@ Required order: ["projectionVersion"]
 ## Schema: "resourceProjectionProblem"
 
 Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Problem carrier for admitted projection reads, retaining ordinary read and History diagnoses." |
 
 ### Advanced
 
@@ -7000,13 +7124,14 @@ Required order: ["projectionVersion"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Projection-version admission discriminator. It is only a preliminary selector; complete decoded point or inventory parameters have their own closed shapes." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "projectionVersion" | schema | yes | — | — |
+| "projectionVersion" | schema | yes | — | "Explicit projection version selector. Missing or unsupported selection cannot be treated as version 1." |
 
 ### Advanced
 
@@ -7045,6 +7170,12 @@ Value: object
 ## Schema: "retainedDeltaEffect"
 
 Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One realized create, update or deletion effect in optional delta form. It records actual admitted changes and never becomes a command to execute again." |
 
 ### Advanced
 
@@ -7383,16 +7514,17 @@ Required order: ["representation","effect"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Complete Event carrying a realized delta effect. A supplied previous revision denotes the actual observed predecessor, not an invented immediate mutation." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "derived" | ref "#/$defs/retainedEventDerived" | no | — | — |
-| "effect" | ref "#/$defs/retainedDeltaEffect" | yes | — | — |
-| "representation" | schema | yes | — | — |
-| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | — |
+| "derived" | ref "#/$defs/retainedEventDerived" | no | — | "Recorded derived owned-Link state accompanying this published Bead revision, when required by the effect." |
+| "effect" | ref "#/$defs/retainedDeltaEffect" | yes | — | "Exactly one realized published mutation effect. It records final state or admitted change and is never an executable write request." |
+| "representation" | schema | yes | — | "Explicit Event representation, postimage or delta." |
+| "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
 
 ### Advanced
 
@@ -7680,6 +7812,12 @@ Value: object
 
 Value: object
 
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Union of the supported complete postimage and delta Event shapes. Schema acceptance does not prove truthful coverage, retention or atomic production." |
+
 ### Advanced
 
 ```json-schema
@@ -7706,20 +7844,21 @@ Required order: ["id","source","time","origin","revision"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Shared immutable fact envelope. Write-origin facts carry commit correlation; observation-origin facts describe the source’s truthful observation limitations." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "annotations" | schema | no | — | — |
-| "id" | ref "#/$defs/wireToken" | yes | — | — |
-| "origin" | schema | yes | — | — |
-| "previousRevision" | ref "#/$defs/revision" | no | — | — |
-| "revision" | ref "#/$defs/revision" | yes | — | — |
-| "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "time" | ref "#/$defs/dateTime" | yes | — | — |
-| "transaction" | ref "#/$defs/wireToken" | no | — | — |
+| "annotations" | schema | no | — | "Explicit extension annotations. Unsupported required meaning cannot silently become known meaning." |
+| "id" | ref "#/$defs/wireToken" | yes | — | "Opaque immutable fact identity scoped to this Event source; it is not a Resource ID or resume cursor." |
+| "origin" | schema | yes | — | "Whether this fact came from Write’s own committed transition or truthful external observation." |
+| "previousRevision" | ref "#/$defs/revision" | no | — | "Actual known observed predecessor; omission never invents intermediate revisions." |
+| "revision" | ref "#/$defs/revision" | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute URL of the observation source that emitted this fact." |
+| "time" | ref "#/$defs/dateTime" | yes | — | "Recorded Event time, not a global ordering or an authentication proof." |
+| "transaction" | ref "#/$defs/wireToken" | no | — | "Opaque commit correlation for Write-origin facts. It is neither a receipt nor a public replica-log position." |
 
 ### Advanced
 
@@ -7777,20 +7916,27 @@ Required order: ["start","retainedFrom","through"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Opaque start, retained replay floor and captured upper boundary for the observation regime. These fields never imply a cross-source global position." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "retainedFrom" | ref "#/$defs/wireToken" | yes | — | — |
-| "start" | ref "#/$defs/wireToken" | yes | — | — |
-| "through" | ref "#/$defs/wireToken" | yes | — | — |
+| "retainedFrom" | ref "#/$defs/wireToken" | yes | — | "Opaque current replay floor under the retention promises." |
+| "start" | ref "#/$defs/wireToken" | yes | — | "Opaque boundary where the described observation regime begins." |
+| "through" | ref "#/$defs/wireToken" | yes | — | "Opaque fixed upper boundary captured for this finite traversal." |
 
 <a id="schema-def-InJldGFpbmVkRXZlbnREZWxldGVkIg"></a>
 ## Schema: "retainedEventDeleted"
 
 Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Deleted Resource identity and recorded affiliation/revision context. Write-origin deletion uses its actual final-live context; observation-origin disappearance uses the last complete observed sample and does not claim an unseen final backend edition. This is not a live postimage or permission to reuse identity." |
 
 ### Advanced
 
@@ -7854,13 +8000,14 @@ Required order: ["ownedLinks"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Realized owned-Link state for the published Bead revision. Null and an object retain their explicit meanings; omitted state is not fabricated." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "ownedLinks" | schema | yes | — | — |
+| "ownedLinks" | schema | yes | — | "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input." |
 
 ### Advanced
 
@@ -7903,20 +8050,21 @@ Required order: ["source","selection","policy","coverage","events","cursor","nex
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Finite Event page with selected representation, truthful policy and coverage, ordered facts, a resume cursor and explicit continuation. Null next means the captured interval is exhausted." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "coverage" | ref "#/$defs/retainedEventCoverage" | yes | — | — |
-| "cursor" | ref "#/$defs/wireToken" | yes | — | — |
-| "events" | array of (ref "#/$defs/retainedEvent") | yes | — | — |
-| "next" | schema | yes | — | — |
-| "policy" | ref "#/$defs/retainedEventPolicy" | yes | — | — |
-| "selection" | ref "#/$defs/retainedEventSelection" | yes | — | — |
-| "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "subject" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
+| "coverage" | ref "#/$defs/retainedEventCoverage" | yes | — | "Actual observation boundaries, not a fabricated complete mutation history." |
+| "cursor" | ref "#/$defs/wireToken" | yes | — | "Opaque resume token covering the facts/scanned positions claimed by this page." |
+| "events" | array of (ref "#/$defs/retainedEvent") | yes | — | "Required ordered array of the facts delivered in this finite page. An empty array alone does not establish exhaustion or uninterrupted coverage." |
+| "next" | schema | yes | — | "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted." |
+| "policy" | ref "#/$defs/retainedEventPolicy" | yes | — | "Truthful observation mechanism and durable retention/cursor promises." |
+| "selection" | ref "#/$defs/retainedEventSelection" | yes | — | "Complete admitted traversal/representation selection echoed by the response." |
+| "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute URL of this observation source; each delivered fact must agree with it." |
+| "subject" | ref "#/$defs/absoluteHttpUrl" | no | — | "Canonical Resource identity to which this retained page or Resource-scoped observation applies." |
 
 ### Advanced
 
@@ -8025,18 +8173,19 @@ Required order: ["observation","description","minimumRetentionSeconds","minimumC
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Truthful observation mechanism and positive retention/cursor promises. Postimage support is mandatory once Events is advertised; delta is optional." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "description" | schema | yes | — | — |
-| "maximumPageSize" | schema | no | — | — |
-| "minimumCursorLifetimeSeconds" | schema | yes | — | — |
-| "minimumRetentionSeconds" | schema | yes | — | — |
-| "observation" | schema | yes | — | — |
-| "representations" | schema | yes | — | — |
+| "description" | schema | yes | — | "Human-readable explanation of the advertised mechanism or limitation." |
+| "maximumPageSize" | schema | no | — | "Optional positive Event-page bound without permission to split or truncate a fact." |
+| "minimumCursorLifetimeSeconds" | schema | yes | — | "Positive minimum lifetime preserving issued cursor context and its captured range." |
+| "minimumRetentionSeconds" | schema | yes | — | "Positive minimum retention promise for admitted Event facts." |
+| "observation" | schema | yes | — | "Truthful observation mode: committed or observed, with its complete coverage obligations." |
+| "representations" | schema | yes | — | "Supported Event representations, necessarily including postimage." |
 
 ### Advanced
 
@@ -8088,6 +8237,12 @@ Required order: ["observation","description","minimumRetentionSeconds","minimumC
 
 Value: object
 
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Event-read Problem carrier. It retains Core authentication, disclosure, bounds and cursor diagnosis rules; failure never certifies consumer progress." |
+
 ### Advanced
 
 ```json-schema
@@ -8134,16 +8289,17 @@ Required order: []
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Decoded finite Event query. From and after are mutually exclusive; selection, cursor binding and raw HTTP duplicate-parameter refusal remain semantic rules." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "after" | ref "#/$defs/wireToken" | no | — | — |
-| "from" | schema | no | — | — |
-| "limit" | schema | no | — | — |
-| "representation" | schema | no | — | — |
+| "after" | ref "#/$defs/wireToken" | no | — | "Opaque issued resume cursor, bound to its original source, selection and context." |
+| "from" | schema | no | — | "Initial Event boundary selection, retained or now; mutually exclusive with after." |
+| "limit" | schema | no | — | "Positive admitted per-page bound. It does not permit partial facts or false exhaustion." |
+| "representation" | schema | no | — | "Explicit Event representation, postimage or delta." |
 
 ### Advanced
 
@@ -8194,13 +8350,14 @@ Required order: ["representation"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Complete selected Event representation echoed by a finite traversal. A continuation cannot silently switch postimage and delta semantics." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "representation" | schema | yes | — | — |
+| "representation" | schema | yes | — | "Explicit Event representation, postimage or delta." |
 
 ### Advanced
 
@@ -8221,6 +8378,12 @@ Required order: ["representation"]
 ## Schema: "retainedPostimageEffect"
 
 Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One published create, update or deletion effect expressed using the mutation vocabulary. Live effects contain complete final postimages, not transient staging state." |
 
 ### Advanced
 
@@ -8440,14 +8603,15 @@ Required order: ["representation","effect"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Complete Event carrying a postimage effect. The Event’s source, representation, revision and envelope must agree with its page and actual published transition." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "effect" | ref "#/$defs/retainedPostimageEffect" | yes | — | — |
-| "representation" | schema | yes | — | — |
+| "effect" | ref "#/$defs/retainedPostimageEffect" | yes | — | "Exactly one realized published mutation effect. It records final state or admitted change and is never an executable write request." |
+| "representation" | schema | yes | — | "Explicit Event representation, postimage or delta." |
 
 ### Advanced
 
@@ -8567,6 +8731,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Protocol retry guidance. A refusal does not authorize changing semantic intent or minting a fresh execution key to evade durable no-reexecution." |
 | enum | ["never","after-state-change","after-delay"] |
 
 <a id="schema-def-InJldmlzaW9uIg"></a>
@@ -8578,6 +8743,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Nonempty opaque Resource-version token. Clients compare it for exact equality and cannot infer order, time, allocation or a special current value from its spelling." |
 | minLength | 1 |
 | type | "string" |
 
@@ -8594,14 +8760,15 @@ Required order: ["id","basis"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Recorded principal and explicit attribution basis. Writer-supplied and unknown describe how the value was carried; neither asserts authentication." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "basis" | schema | yes | — | — |
-| "id" | schema | yes | — | — |
+| "basis" | schema | yes | — | "How the principal value was carried: writer-supplied or unknown. Neither means authenticated." |
+| "id" | schema | yes | — | "Opaque recorded principal identifier, such as agent:planner. It is not a Resource URL or an authentication assertion." |
 
 ### Advanced
 
@@ -8660,6 +8827,7 @@ Other fields: not allowed
 | Keyword | JSON value |
 | --- | --- |
 | dependentRequired | {"committedAt":["agent","message"],"agent":["committedAt","message"],"message":["committedAt","agent"]} |
+| description | "Optional per-version attribution envelope. Actor attribution is independent of the optional complete committedAt/agent/message tuple; omission does not invent an actor or context." |
 | minProperties | 1 |
 | type | "object" |
 
@@ -8667,10 +8835,10 @@ Other fields: not allowed
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "actor" | ref "#/$defs/revisionActor" | no | — | — |
-| "agent" | ref "#/$defs/contextString" | no | — | — |
-| "committedAt" | ref "#/$defs/contextTime" | no | — | — |
-| "message" | ref "#/$defs/contextMessage" | no | — | — |
+| "actor" | ref "#/$defs/revisionActor" | no | — | "Carried principal attribution and explicit basis, independent of the optional History context tuple." |
+| "agent" | ref "#/$defs/contextString" | no | — | "Immutable carried agent label, not an authentication result." |
+| "committedAt" | ref "#/$defs/contextTime" | no | — | "Immutable recorded commit-time context, present with agent and message as one complete tuple." |
+| "message" | ref "#/$defs/contextMessage" | no | — | "Immutable carried change message, present with committedAt and agent." |
 
 <a id="schema-def-InJldmlzaW9uUHJvdmVuYW5jZUlucHV0Ig"></a>
 ## Schema: "revisionProvenanceInput"
@@ -8730,6 +8898,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Nonempty ordinary bounded Selector string. Its candidate-local grammar, limits and admitted operators are defined by Selection; it never silently becomes the structured Query AST." |
 | minLength | 1 |
 | type | "string" |
 
@@ -10181,22 +10350,23 @@ Required order: ["type","status","code","retry","capability","capabilityVersion"
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Problem carrier for unsupported exact-definition capability/version selection. It supplies no installation or application-History claim." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "capability" | schema | yes | — | — |
-| "capabilityVersion" | schema | yes | — | — |
-| "code" | schema | yes | — | — |
-| "detail" | text | no | — | — |
-| "instance" | ref "#/$defs/absoluteUri" | no | — | — |
-| "parameter" | schema | yes | — | — |
-| "retry" | schema | yes | — | — |
-| "status" | schema | yes | — | — |
-| "title" | text | no | — | — |
-| "type" | schema | yes | — | — |
+| "capability" | schema | yes | — | "Exact capability identity associated with this refusal. It does not advertise that capability as supported." |
+| "capabilityVersion" | schema | yes | — | "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade." |
+| "code" | schema | yes | — | "Stable machine-readable Problem diagnosis, interpreted with type and retry." |
+| "detail" | text | no | — | "Human-readable detail that obeys authorization and non-disclosure." |
+| "instance" | ref "#/$defs/absoluteUri" | no | — | "Optional URI identifying this failure occurrence." |
+| "parameter" | schema | yes | — | "Request parameter associated with the capability-selection diagnosis; its permitted literal is constrained here." |
+| "retry" | schema | yes | — | "Required retry disposition for this exact diagnosis; it does not authorize changing intent." |
+| "status" | schema | yes | — | "HTTP status associated with this Problem; protocol decision order remains binding." |
+| "title" | text | no | — | "Short human-readable Problem summary." |
+| "type" | schema | yes | — | "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition." |
 
 ### Advanced
 
@@ -10242,18 +10412,25 @@ Required order: ["operation"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Exact-definition version-1 advertisement. The service accepts complete exact-record servability obligations within its actual response and retained-dependency bounds." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "operation" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "operation" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Advertised absolute exact-definition lookup operation URL. It grants no permission and does not change the definition’s owner." |
 
 <a id="schema-def-InR5cGVEZWZpbml0aW9uUmVhZFByb2JsZW0i"></a>
 ## Schema: "typeDefinitionReadProblem"
 
 Value: object
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Problem carrier for exact-definition reads. Narrow missing-state diagnosis never substitutes current content or silently truncates the owned capture." |
 
 ### Advanced
 
@@ -10308,15 +10485,16 @@ Required order: ["capabilityVersion","uri","revision"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Complete decoded exact-definition request: explicit version and a pinned Type Reference. It is a GET query carrier, not a new Resource write or installation command." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "capabilityVersion" | schema | yes | — | — |
-| "revision" | schema | yes | — | — |
-| "uri" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "capabilityVersion" | schema | yes | — | "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade." |
+| "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+| "uri" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Complete target identity carried by this Reference. Relative paths and partial Reference objects are not admitted." |
 
 ### Advanced
 
@@ -10347,14 +10525,15 @@ Required order: ["definition"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Closed whole-record lookup wrapper. Optional originScope reports known owning context; the responder is not implicitly the definition owner." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "definition" | ref "#/$defs/exactTypeDefinitionRecord" | yes | — | — |
-| "originScope" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
+| "definition" | ref "#/$defs/exactTypeDefinitionRecord" | yes | — | "One complete exact Type-definition Bead including its required recorded owned closure." |
+| "originScope" | ref "#/$defs/absoluteHttpUrl" | no | — | "Recorded owning-Scope context when known. The responding lookup service does not thereby become owner." |
 
 <a id="schema-def-InR5cGVEZWZpbml0aW9uUmVhZFNlbGVjdGlvbiI"></a>
 ## Schema: "typeDefinitionReadSelection"
@@ -10369,13 +10548,14 @@ Required order: ["capabilityVersion"]
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Preliminary exact-definition-lookup discriminator. A selected request must satisfy the complete version-1 query shape and advertised lookup contract." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "capabilityVersion" | schema | yes | — | — |
+| "capabilityVersion" | schema | yes | — | "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade." |
 
 ### Advanced
 
@@ -10561,7 +10741,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "A Type affiliation: an absolute HTTP(S) nominal Type identity, optionally pinned to an exact opaque definition revision. Local paths and creation bindings are not admitted. Types-profile stored/output affiliations require the pinned form; Core alone does not interpret definitions." |
+| description | "A nominal Type affiliation: an absolute HTTP(S) Type identity or an exact pinned Type Reference. Carrying it does not activate Types interpretation." |
 
 ### Advanced
 
@@ -11287,6 +11467,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
+| description | "Nonempty opaque token whose scope and meaning are determined by its containing cursor, fact or correlation field. Tokens from different namespaces are not interchangeable." |
 | pattern | "^[A-Za-z0-9_-]{1,256}$" |
 | type | "string" |
 
@@ -11421,7 +11602,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","beads","links","events","operations","aliases"]
+Required order: ["bdpVersion","profile","scope","beads","links","operations","aliases"]
 
 ### Keywords
 
@@ -11437,7 +11618,7 @@ Required order: ["bdpVersion","profile","scope","beads","links","events","operat
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
 | "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
-| "events" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "events" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
 | "limits" | ref "#/$defs/writeAdvertisedLimits" | no | — | — |
 | "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |

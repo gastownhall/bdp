@@ -97,6 +97,7 @@ def parse_document(text):
     language = ""
     body = []
     start = 0
+    schema_fragment = None
     for number, line in enumerate(text.splitlines(), 1):
         if fence is not None:
             if re.match(r"^\s{0,3}" + re.escape(fence[0]) + "{" + str(len(fence)) + r",}\s*$", line):
@@ -106,6 +107,17 @@ def parse_document(text):
             else:
                 body.append(line)
             continue
+        marker = re.fullmatch(r"<!-- bdp-schema:(start|end) ([A-Za-z][A-Za-z0-9]*) -->", line)
+        if comment is None and marker:
+            action, name = marker.groups()
+            if action == "start":
+                if schema_fragment is not None:
+                    raise ValueError(f"nested schema fragment at line {number}")
+                schema_fragment = name
+            else:
+                if schema_fragment != name:
+                    raise ValueError(f"unmatched schema fragment at line {number}")
+                schema_fragment = None
         # HTML review comments are not rendered Markdown. Inline code and fenced
         # examples retain their literal contents, including comment-like strings.
         visible = []
@@ -143,11 +155,16 @@ def parse_document(text):
             body = []
             start = number
         else:
-            prose.append(clean)
+            # The schema codec validates literal DSL cells. JSON pattern and
+            # annotation strings inside them are not Markdown link syntax.
+            # Keep headings for ordinary incoming fragment-anchor checks.
+            prose.append(clean if schema_fragment is None or re.match(r"^#{1,6} ", clean) else "")
     if fence is not None:
         raise ValueError(f"unclosed code fence at line {start}")
     if comment is not None:
         raise ValueError("unclosed HTML comment")
+    if schema_fragment is not None:
+        raise ValueError(f"unclosed schema fragment {schema_fragment}")
     return "\n".join(prose), examples, comments
 
 
