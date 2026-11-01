@@ -1487,3 +1487,73 @@ it("ignores command read controls while enforcing a later installed receipt mini
     "private-installed-command-minimum",
   );
 }, 120000);
+
+it("observes installed parser refusals before unknown minimum handling", async () => {
+  await withInstalled(
+    async (f) => {
+      let calls = 0;
+      const exchange = async (...args: Parameters<typeof f.exchange>) => {
+        calls++;
+        expect(calls).toBeLessThanOrEqual(25);
+        return f.exchange(...args);
+      };
+      const setup = await exchange(`${scope}beads/`);
+      expect(json<Page>(setup)).toEqual({ items: [], next: null });
+      const current = minimum(setup),
+        opaque = minimum(setup, "opaque");
+      async function refusal(
+        suffix: string,
+        method: "GET" | "HEAD",
+        headers: Record<string, string>,
+      ) {
+        const response = await exchange(new URL(suffix, scope).href, method, headers);
+        expect(response.status).toBe(400);
+        expect(response.headers["cache-control"]).toBe("private, no-store");
+        // Exact reference response parity; protocol extension members remain permitted.
+        if (method === "GET")
+          expect(json<Record<string, unknown>>(response, 400)).toEqual({
+            type: "https://github.com/gastownhall/bdp/problems/request",
+            status: 400,
+            code: "invalid-parameter",
+            retry: "never",
+          });
+        else {
+          expect(response.bodyOctets).toBe(0);
+          // Reference metadata parity only; HEAD media is optional in the protocol.
+          expect(response.headers["content-type"]?.split(";", 1)[0]).toBe(
+            "application/problem+json",
+          );
+        }
+        // Only these 24 refusals omit context. The real setup GET above supplies it.
+        // Wire absence is reference behavior, not evidence of no owner entry.
+        for (const name of [
+          "bdp-scope-epoch",
+          "bdp-authorization-view",
+          "bdp-scope-position",
+          "x-bdp-development-limit",
+        ])
+          expect(response.headers[name], name).toBeUndefined();
+      }
+      // limit=0 is existing parser parity; unsupported/repeated is normative 400.
+      for (const collection of ["beads", "links"])
+        for (const query of ["unsupported=x", "limit=1&limit=2", "limit=0"])
+          for (const method of ["GET", "HEAD"] as const)
+            await refusal(`${collection}/?${query}`, method, opaque);
+      const controls: readonly Record<string, string>[] = [{}, current];
+      for (const headers of controls)
+        for (const method of ["GET", "HEAD"] as const)
+          await refusal("beads/?unsupported=x", method, headers);
+      for (const suffix of [
+        "types/task?view=properties",
+        "beads/a?view=links&direction=sideways",
+        "beads/missing?view=bogus",
+      ])
+        for (const method of ["GET", "HEAD"] as const) await refusal(suffix, method, opaque);
+      await refusal("beads/?unsupported=x", "GET", { ...opaque, "if-none-match": "*" });
+      await refusal("beads/?unsupported=x", "HEAD", { ...opaque, accept: "image/png" });
+      expect(calls).toBe(25);
+    },
+    undefined,
+    "private-installed-parser-refusal",
+  );
+}, 120000);

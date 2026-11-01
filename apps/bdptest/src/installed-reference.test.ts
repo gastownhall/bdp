@@ -422,9 +422,22 @@ it("refuses a second IPC start and occupied listener without leaving another own
   const first = await helpers.launchInstalledReference(entry, config);
   children.push(first);
   const second = { ...config, directory: directory() };
-  await expect(helpers.launchInstalledReference(entry, second)).rejects.toThrow(
+  const occupied = await helpers.launchInstalledReference(entry, second).then(
+    () => {
+      throw Error("unexpected occupied listener success");
+    },
+    (error: unknown) => error,
+  );
+  expect(occupied).toBeInstanceOf(Error);
+  expect((occupied as Error).message).toMatch(
     /installed child exited: installed reference qualification failed\s+\(startup code EADDRINUSE\)/,
   );
+  expect((occupied as Error).message).not.toContain(token);
+  expect((occupied as Error).message).not.toContain(second.directory);
+  expect(Object.keys(occupied as Error)).not.toContain("qualificationProcess");
+  expect(Object.getOwnPropertyDescriptor(occupied, "qualificationProcess")?.enumerable).toBe(false);
+  expect(occupied).toHaveProperty("qualificationProcess.stdoutEOF", true);
+  expect(occupied).toHaveProperty("qualificationProcess.stderrEOF", true);
   first.child.send({ configuration: config });
   expect(await first.wait()).toEqual({ code: 2, signal: null });
   config.create = false;
@@ -450,6 +463,10 @@ it("reports only a bounded startup refusal category without configuration over p
   for (const privateValue of [token, store, "untrusted.invalid"]) {
     expect((error as Error).message).not.toContain(privateValue);
   }
+  expect(Object.keys(error as Error)).not.toContain("qualificationProcess");
+  expect(Object.getOwnPropertyDescriptor(error, "qualificationProcess")?.enumerable).toBe(false);
+  expect(error).toHaveProperty("qualificationProcess.stdoutEOF", true);
+  expect(error).toHaveProperty("qualificationProcess.stderrEOF", true);
   expect(existsSync(store)).toBe(false);
 });
 
