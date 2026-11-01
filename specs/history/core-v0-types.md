@@ -12,8 +12,6 @@ The excerpts below retain the original wording and examples. Relative links are
 rebased to that immutable original source to preserve their historical context.
 No old rule here overrides a later selected clause or changes a frozen v0 artifact.
 
-<a id="legacy-conformance-profiles"></a>
-
 ## Legacy conformance profiles
 
 Original Core lines 88–179.
@@ -111,8 +109,6 @@ all-or-nothing Mutation Transaction. Read+Update aggregation is named
 behavior defined below, and it never redefines BDP `batch`.
 
 
-<a id="legacy-descriptor-summary"></a>
-
 ## Legacy descriptor summary
 
 Original Core lines 206–221.
@@ -133,8 +129,6 @@ operator concerns. BDP v0 consumes installed descriptors, but it deliberately
 does not define a client-facing Type-installation protocol. That protocol and
 Type evolution belong in a follow-on specification.
 
-
-<a id="legacy-ownership-descriptor"></a>
 
 ## Legacy ownership descriptor
 
@@ -183,8 +177,6 @@ Bead Types may own, every mutation of an owned Link versions the source,
 an incoming Link never versions its target, and `label` never appears in
 a record.
 
-
-<a id="legacy-type-model"></a>
 
 ## Legacy Type model
 
@@ -332,8 +324,6 @@ protocol method. Domain-specific behavior belongs in clients that interpret
 nominal Types and use BDP's generic surface. It is not an extension advertised
 by a Type or Scope.
 
-
-<a id="legacy-type-inventory-and-descriptors"></a>
 
 ## Legacy Type inventory and descriptors
 
@@ -500,8 +490,6 @@ BDP v0. `$id`, `$ref`, anchors, and the declared vocabularies have their Draft
 2020-12 meanings.
 
 
-<a id="legacy-collection-inventory-columns"></a>
-
 ## Legacy collection inventory columns
 
 Original Core lines 1621–1631.
@@ -518,8 +506,6 @@ Original Core lines 1621–1631.
 | `cursor` | yes | yes | yes | Opaque continuation supplied by `next` |
 
 
-
-<a id="legacy-read-discovery"></a>
 
 ## Legacy Read discovery
 
@@ -561,8 +547,6 @@ base, which may equal `scope`; it does not grant arbitrary paths alias
 semantics without a binding. The operation directory is likewise discovered.
 Clients MUST NOT synthesize these URLs from the Scope or a Resource path.
 
-
-<a id="legacy-read-conformance"></a>
 
 ## Legacy Read conformance
 

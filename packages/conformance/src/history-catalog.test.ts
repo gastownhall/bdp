@@ -1,3 +1,7 @@
+import {
+  readHistoricalCitation692dCatalog,
+  readHistoricalCitation692dSource,
+} from "../test-support/historical-citation-source.js";
 import { readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { readSpecificationSource } from "../test-support/spec-source.js";
@@ -9,11 +13,11 @@ import {
 
 const root = new URL("../../../", import.meta.url);
 const read = (name: string) => readSpecificationSource(name);
-const catalog = loadScenarioCatalogJson(read("packages/conformance/catalog/history-v1.json"));
+const catalog = loadScenarioCatalogJson(readHistoricalCitation692dCatalog("packages/conformance/catalog/history-v1.json"));
 describe("History catalog remains unbound metadata", () => {
   it("has 30 unique profile-owned normative rows and no fourth profile", () => {
     expect(catalog.scenarios).toHaveLength(30);
-    expect(() => validateCatalogCitations(catalog, read)).not.toThrow();
+    expect(() => validateCatalogCitations(catalog, readHistoricalCitation692dSource)).not.toThrow();
     expect(new Set(catalog.scenarios.map((row) => row.id)).size).toBe(30);
     for (const row of catalog.scenarios) {
       expect(row.kind).toBe("normative");

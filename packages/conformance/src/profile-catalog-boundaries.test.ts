@@ -1,3 +1,8 @@
+import {
+  isHistoricalCitation692dProtocolSource,
+  readHistoricalCitation692dCatalog,
+  readHistoricalCitation692dSource,
+} from "../test-support/historical-citation-source.js";
 import { readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
@@ -139,6 +144,24 @@ function assertPartLinks(markdown: string): void {
 }
 
 const owners = headingOwners(spec);
+// A frozen catalog has its original source subject, not current v0.1 authority.
+const historicalOwners = headingOwners(readHistoricalCitation692dSource("docs/specs/bdp.md"));
+function assertHistoricalSourceProfileCitation(
+  source: string,
+  anchor: string,
+  profile: keyof typeof rank,
+  selectedText?: string,
+): void {
+  if (source === "docs/design/requirements.md") return;
+  if (!isHistoricalCitation692dProtocolSource(source))
+    throw new Error(`Not a historical cutline 692d protocol source: ${source}`);
+  if (
+    source !== "docs/specs/bdp.md" &&
+    !markdownAnchors(readHistoricalCitation692dSource(source)).some((entry) => entry.anchor === anchor)
+  )
+    throw new Error(`Source does not own anchor: ${source}${anchor}`);
+  assertProfileCitation(anchor, profile, historicalOwners, selectedText);
+}
 const catalogs = [
   ...readdirSync(new URL("packages/conformance/catalog/", root))
     .filter((name) => name.endsWith(".json"))
@@ -337,9 +360,39 @@ describe("catalog citations respect cumulative profile boundaries", () => {
         "Not a current protocol source",
       );
   });
-  it.each(catalogs)("audits every requirement in %s", (name) => {
-    const catalog = loadScenarioCatalogJson(read(name));
-    validateCatalogCitations(catalog, read);
+  it("retains physical source and cumulative tier refusals for the frozen view", () => {
+    const core = "specs/profiles/core/core.md";
+    const write = "specs/profiles/write/write.md";
+    expect(() => assertHistoricalSourceProfileCitation(core, "#types", "read")).not.toThrow();
+    expect(() =>
+      assertHistoricalSourceProfileCitation(write, "#readupdate-discovery", "read"),
+    ).toThrow("Later-profile");
+    expect(() =>
+      assertHistoricalSourceProfileCitation(write, "#batch-operation-target", "read-update"),
+    ).toThrow("Later-profile");
+    expect(() =>
+      assertHistoricalSourceProfileCitation(core, "#batch-operation-target", "transactional"),
+    ).toThrow("does not own");
+    expect(() => assertHistoricalSourceProfileCitation(write, "#types", "read")).toThrow(
+      "does not own",
+    );
+    for (const source of [
+      "specs/history/core-v0-types.md",
+      "specs/profiles/types/types.md",
+      "./specs/profiles/core/core.md",
+    ])
+      expect(() => assertHistoricalSourceProfileCitation(source, "#types", "read")).toThrow(
+        "Not a historical cutline",
+      );
+  });
+  it.each(catalogs)("audits every requirement in %s against its explicit source cutline", (name) => {
+    // The one diagnostic catalog keeps its current-source audit. Any new ordinary
+    // catalog must obtain an explicit cutline pin; unknown names fail closed.
+    const historical = name !== "packages/conformance/development/read-update-catalog-v1.json";
+    const catalog = loadScenarioCatalogJson(
+      historical ? readHistoricalCitation692dCatalog(name) : read(name),
+    );
+    validateCatalogCitations(catalog, historical ? readHistoricalCitation692dSource : read);
     for (const scenario of catalog.scenarios) {
       // A valid excerpt repeated in place of another obligation is still lost
       // traceability, even though every individual citation resolves.
@@ -353,7 +406,7 @@ describe("catalog citations respect cumulative profile boundaries", () => {
         const label = `${scenario.id}: ${requirement.anchor}`;
         expect(
           () =>
-            assertSourceProfileCitation(
+            (historical ? assertHistoricalSourceProfileCitation : assertSourceProfileCitation)(
               requirement.source,
               requirement.anchor,
               scenario.requiredProfile,
