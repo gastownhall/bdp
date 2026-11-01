@@ -31,6 +31,13 @@ export const ORDINARY_OPERATIONS = [
   "deleteAlias",
 ] as const;
 export type OrdinaryOperation = (typeof ORDINARY_OPERATIONS)[number];
+export type CrudOperation = Exclude<OrdinaryOperation, "putAlias" | "deleteAlias">;
+export interface PrivateBatchCapability {
+  readonly operation: string;
+  readonly operations: readonly CrudOperation[];
+  readonly maximumOperations: number;
+  readonly maximumResultBytes: number;
+}
 export type JsonObject = Readonly<Record<string, AdmittedJsonValue>>;
 export type TypeReference = string | { readonly uri: string; readonly revision: string };
 export interface RetainedBead {
@@ -91,6 +98,7 @@ export function deletedBead(resource: RetainedBead): DeletedBead {
   };
 }
 export interface PrivateNavigation {
+  readonly batch?: PrivateBatchCapability;
   readonly scope: string;
   readonly description: string;
   readonly beads: string;
@@ -110,6 +118,7 @@ export function navigationAddresses(navigation: PrivateNavigation): readonly str
     navigation.events,
     navigation.operations,
     ...Object.values(navigation.targets),
+    ...(navigation.batch ? [navigation.batch.operation] : []),
   ];
   // A query-based navigation route must not also become an alias/Resource path.
   const routeBases = addresses.map((address) => {
@@ -297,6 +306,7 @@ export function captureNavigation(input: PrivateNavigation): PrivateNavigation {
     input.events,
     input.operations,
     ...ORDINARY_OPERATIONS.map((name) => input.targets[name]),
+    ...(input.batch ? [input.batch.operation] : []),
   ];
   for (const url of [...navigationUrls, input.aliases]) {
     httpUri(url);
@@ -304,6 +314,27 @@ export function captureNavigation(input: PrivateNavigation): PrivateNavigation {
     if (parsed.hash || parsed.href !== url)
       throw new TypeError("fixture navigation must be canonical");
   }
+  if (input.batch) {
+    const owner = new URL(scope);
+    const target = new URL(input.batch.operation);
+    if (target.origin !== owner.origin || !target.pathname.startsWith(owner.pathname))
+      throw new TypeError("batch operation must be inside owning Scope");
+  }
+  if (
+    input.batch &&
+    (Object.keys(input.batch).sort().join(",") !==
+      "maximumOperations,maximumResultBytes,operation,operations" ||
+      !input.batch.operations.length ||
+      new Set(input.batch.operations).size !== input.batch.operations.length ||
+      input.batch.operations.some((name) => !ORDINARY_OPERATIONS.slice(0, 6).includes(name)) ||
+      !Number.isSafeInteger(input.batch.maximumOperations) ||
+      input.batch.maximumOperations < 1 ||
+      input.batch.maximumOperations > 100 ||
+      !Number.isSafeInteger(input.batch.maximumResultBytes) ||
+      input.batch.maximumResultBytes < 1024 ||
+      input.batch.maximumResultBytes > 262144)
+  )
+    throw new TypeError("invalid bounded private batch capability");
   // aliases is a namespace base, and the selected contract permits Scope itself.
   // Every independently interpreted navigation/operation address stays distinct.
   const urls = [scope, ...navigationUrls, ...(input.aliases === scope ? [] : [input.aliases])];
@@ -316,6 +347,14 @@ export function captureNavigation(input: PrivateNavigation): PrivateNavigation {
     throw new TypeError("ambiguous fixture transport routes");
   return Object.freeze({
     scope,
+    ...(input.batch
+      ? {
+          batch: Object.freeze({
+            ...input.batch,
+            operations: Object.freeze([...input.batch.operations]),
+          }),
+        }
+      : {}),
     description: input.description,
     beads: input.beads,
     links: input.links,
