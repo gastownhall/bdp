@@ -20,7 +20,7 @@ const approvedSources = {
     "c7c34478f2d03cd39da4b9cffc7bfefdb6902f9d41caea67552d48faa7143563",
   "specs/profiles/core/retained-core.md":
     "da0f5d73ec5a415a1eedc696ebae014425b94031a6ff1589595069fda0463c4e",
-  "specs/profiles/core/core.md": "5772ccaeb2d6a68e43a92eeffe19db1d1f1c40b1c669ecb529513d90e948035e",
+  "specs/profiles/core/core.md": "899a008ac3efb1420cb2d643e77bdbce6f6bc38beadd8826cab07a512560b9bb",
   "specs/profiles/core/contract-binding.md":
     "4cea2ef5ce44ff66ed0da93a738f01713ab4fbbd9434e9e2ea098cc626001527",
   "specs/profiles/core/read-delivery.md":
@@ -264,7 +264,7 @@ export function operations() {
       continuation: "none",
       ...options,
     });
-  read("scopeLanding", { role: "canonical-scope" }, null, [], core, 950, 2183, {
+  read("scopeLanding", { role: "canonical-scope" }, null, [], core, 721, 2183, {
     landing: true,
   });
   read("discovery", { role: "service-desc" }, "retainedDiscovery", [], retained, 52, 2183);
@@ -289,7 +289,7 @@ export function operations() {
       record,
       [],
       core,
-      1417,
+      1023,
       kind === "bead" ? 805 : 1432,
       { kind },
     );
@@ -299,7 +299,7 @@ export function operations() {
       "properties",
       [query("view", { const: "properties" }, "", true)],
       core,
-      1428,
+      1034,
       kind === "bead" ? 808 : 1435,
       { kind },
     );
@@ -309,7 +309,7 @@ export function operations() {
       collection,
       [...filters, ...(kind === "link" ? endpointFilters : []), limit, cursor],
       core,
-      1600,
+      1206,
       kind === "bead" ? 1136 : 1811,
       { collection: kind, continuation: "ordinary-limit-only" },
     );
@@ -319,7 +319,7 @@ export function operations() {
       `historical${noun}Record`,
       [revision],
       core,
-      1771,
+      1379,
       kind === "bead" ? 807 : 1434,
       { kind, optional: "Complete historicalResolution.version=1", history: true },
     );
@@ -329,7 +329,7 @@ export function operations() {
       "historyVersionsPage",
       [query("view", { const: "versions" }, "", true), limit, cursor],
       core,
-      1885,
+      1493,
       kind === "bead" ? 1222 : 1907,
       {
         optional: "Complete historicalResolution.version=1",
@@ -427,7 +427,7 @@ export function operations() {
     "currentBeadRecord",
     [query("include", { const: "links" }, "", true), direction, limit],
     core,
-    1457,
+    1063,
     809,
     {
       kind: "bead",
@@ -435,7 +435,7 @@ export function operations() {
       optional: "Outside minimum Core; no invented capability advertisement",
     },
   );
-  read("aliasResolve", { role: "advertised-alias-url" }, null, [], core, 1506, 2251, {
+  read("aliasResolve", { role: "advertised-alias-url" }, null, [], core, 1112, 2251, {
     alias: true,
     optional: "Advertised aliases navigation",
   });
