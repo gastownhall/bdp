@@ -1,3 +1,7 @@
+import {
+  readHistoricalCitation692dCatalog,
+  readHistoricalCitation692dSource,
+} from "../test-support/historical-citation-source.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -228,11 +232,11 @@ function chunkValues<Value>(values: readonly Value[], size: number): readonly (r
 describe("checked-in Read matrix artifacts", () => {
   it("strictly parses the catalog and manifest and validates every citation", () => {
     const catalog = loadScenarioCatalogJson(
-      readText("packages/conformance/catalog/read-v1.json"),
+      readHistoricalCitation692dCatalog("packages/conformance/catalog/read-v1.json"),
       "read-v1.json",
     );
     const manifest = loadManifest();
-    validateCatalogCitations(catalog, (source) => readText(source), "read-v1.json");
+    validateCatalogCitations(catalog, readHistoricalCitation692dSource, "read-v1.json");
     const catalogIdList = catalog.scenarios.map(({ id }) => id);
     const manifestIdList = manifest.scenarios.map(({ id }) => id);
     const catalogIds = new Set(catalogIdList);

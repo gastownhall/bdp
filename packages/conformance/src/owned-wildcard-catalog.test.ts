@@ -1,3 +1,7 @@
+import {
+  readHistoricalCitation692dCatalog,
+  readHistoricalCitation692dSource,
+} from "../test-support/historical-citation-source.js";
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,13 +32,16 @@ const CITATION_SOURCES = new Set([
 ]);
 
 describe("draft owned-Link wildcard catalog", () => {
-  const catalog = loadScenarioCatalogJson(readText(CATALOG_PATH), "owned-wildcard-v1.json");
+  const catalog = loadScenarioCatalogJson(
+    readHistoricalCitation692dCatalog(CATALOG_PATH),
+    "owned-wildcard-v1.json",
+  );
   const ids = catalog.scenarios.map(({ id }) => id);
 
-  it("strictly parses and binds every citation to the current specification text", () => {
+  it("strictly parses and binds every citation to historical cutline 692d", () => {
     expect(catalog.catalogVersion).toBe(1);
     expect(catalog.scenarios.length).toBeGreaterThan(0);
-    validateCatalogCitations(catalog, (source) => readText(source), "owned-wildcard-v1.json");
+    validateCatalogCitations(catalog, readHistoricalCitation692dSource, "owned-wildcard-v1.json");
   });
 
   it("prefixes every row with the profile it requires and cites only the governing documents", () => {

@@ -53,9 +53,14 @@ The paired #280 amendment binds these source obligations to
 `fixtures/scope-namespace/source-rows.json` and the paper cases in
 `fixtures/scope-namespace/candidate.json`. They remain unexecuted expectations;
 metadata is not provider qualification. These proposed rows live outside the
-sealed active catalog directory. Active Read/Read+Update metadata quotations
-bind the CURRENT assembled Core/Write text; their affected clauses are updated
-with this amendment. Prior catalog/run artifacts retain their immutable bytes
+sealed active catalog directory. The Read/Read+Update metadata quotations
+were paired with the then-current assembled Core/Write text at this amendment.
+After the selected Core/history extraction, preserved cumulative-v0 catalog
+citations are audited against the explicitly pinned **historical citation cutline
+692d** in `packages/conformance/test-support/historical-citation-692d/`, not against
+current v0.1 authority. That test-source view preserves the namespace amendment's
+actual source inputs; it neither promotes history to selected authority nor
+qualifies a retained provider. Catalog/run artifacts retain their immutable bytes
 and source digests, including old stripped-tail alias collision meaning; they
 are not inherited acceptance evidence for the changed contract. Older narrative
 fixtures have explicit dispositions in the new cases. Complete contract/version
