@@ -78,6 +78,10 @@ function wire(
   method = "GET",
   body?: string | Buffer,
   headers: Record<string, string | string[]> = {},
+  problemDefinition:
+    | "#/$defs/readUpdateProblem"
+    | "#/$defs/atomicBatchCapabilityProblem"
+    | "#/$defs/atomicBatchOperationProblem" = "#/$defs/readUpdateProblem",
 ) {
   return new Promise<{
     status: number;
@@ -117,7 +121,7 @@ function wire(
                 /^application\/problem\+json(?:;|$)/,
               );
               const problem = JSON.parse(text);
-              expect(validator.validate("#/$defs/readUpdateProblem", problem)).toEqual([]);
+              expect(validator.validate(problemDefinition, problem)).toEqual([]);
               expect(problem.status).toBe(status);
             }
             resolve({ status, headers: response.headers, text });
@@ -1429,21 +1433,44 @@ describe("private alias process-death recovery", () => {
 
 const batchCapability = {
   operation: `${scope}atomic?tenant=one`,
-  operations: ["createBead", "updateBead", "deleteBead", "createLink", "updateLink", "deleteLink"] as const,
+  operations: [
+    "createBead",
+    "updateBead",
+    "deleteBead",
+    "createLink",
+    "updateLink",
+    "deleteLink",
+  ] as const,
   maximumOperations: 100,
   maximumResultBytes: 262144,
 };
 describe("private selected atomic-batch1 HTTP and recovery", () => {
   it("advertises a separate target and admits six CRUD as one decision with final allocation outcomes", async () => {
     const config = { ...configuration(), navigation: { ...navigation, batch: batchCapability } };
-    const server = await startPrivateRetainedFixture(config); cleanups.push(() => server.close());
+    const server = await startPrivateRetainedFixture(config);
+    cleanups.push(() => server.close());
     const discovery = JSON.parse((await wire(server.listenUrl, navigation.description)).text);
-    const capability = discovery.capabilities["https://github.com/gastownhall/bdp/capabilities/atomic-batch"]["1"];
+    const capability =
+      discovery.capabilities["https://github.com/gastownhall/bdp/capabilities/atomic-batch"]["1"];
     expect(capability).toEqual(batchCapability);
-    expect(Object.keys(JSON.parse((await wire(server.listenUrl, navigation.operations)).text))).toHaveLength(8);
+    expect(
+      Object.keys(JSON.parse((await wire(server.listenUrl, navigation.operations)).text)),
+    ).toHaveLength(8);
     const operations = [
-      { operation: "createBead", id: "batch-b", name: "B", type: { uri: "https://types.invalid/T", revision: "literal +/@=" } },
-      { operation: "createLink", id: "batch-l", name: "L", type: "https://types.invalid/L", source: "@B", target: "https://foreign.invalid/b" },
+      {
+        operation: "createBead",
+        id: "batch-b",
+        name: "B",
+        type: { uri: "https://types.invalid/T", revision: "literal +/@=" },
+      },
+      {
+        operation: "createLink",
+        id: "batch-l",
+        name: "L",
+        type: "https://types.invalid/L",
+        source: "@B",
+        target: "https://foreign.invalid/b",
+      },
       { operation: "updateBead", bead: "@B", properties: { literal: "@B" } },
       { operation: "updateLink", link: "@L", properties: { literal: "@L" } },
       { operation: "deleteLink", link: "@L" },
@@ -1451,11 +1478,17 @@ describe("private selected atomic-batch1 HTTP and recovery", () => {
     ];
     const body = JSON.stringify({ capabilityVersion: "1", operations });
     expect(validator.validate("#/$defs/batchRequest", JSON.parse(body))).toEqual([]);
-    const created = await wire(server.listenUrl, capability.operation, "POST", body, { "idempotency-key": "atomic" });
-    expect(created.status).toBe(200); expect(created.headers.etag).toBeUndefined(); expect(created.headers.location).toBeUndefined();
+    const created = await wire(server.listenUrl, capability.operation, "POST", body, {
+      "idempotency-key": "atomic",
+    });
+    expect(created.status).toBe(200);
+    expect(created.headers.etag).toBeUndefined();
+    expect(created.headers.location).toBeUndefined();
     const result = JSON.parse(created.text);
     expect(validator.validate("#/$defs/atomicBatchResult", result)).toEqual([]);
-    expect(result.results.map((entry: { operation: string }) => entry.operation)).toEqual(operations.map((entry) => entry.operation));
+    expect(result.results.map((entry: { operation: string }) => entry.operation)).toEqual(
+      operations.map((entry) => entry.operation),
+    );
     expect(result.resources).toEqual([
       { id: `${scope}batch-b`, resourceKind: "bead", outcome: "allocated", changed: true },
       { id: `${scope}batch-l`, resourceKind: "link", outcome: "allocated", changed: true },
@@ -1464,119 +1497,312 @@ describe("private selected atomic-batch1 HTTP and recovery", () => {
     expect(JSON.parse((await wire(server.listenUrl, navigation.events)).text).events).toEqual([]);
     expect((await wire(server.listenUrl, `${scope}batch-b`)).status).toBe(404);
     expect((await wire(server.listenUrl, `${scope}batch-l`)).status).toBe(404);
-    expect((await wire(server.listenUrl, capability.operation, "POST", body, { "idempotency-key": "atomic" })).text).toBe(created.text);
-    const unsupported = await wire(server.listenUrl, capability.operation, "POST", '{"capabilityVersion":"future","notV1":true}', { "idempotency-key": "free" });
+    expect(
+      (
+        await wire(server.listenUrl, capability.operation, "POST", body, {
+          "idempotency-key": "atomic",
+        })
+      ).text,
+    ).toBe(created.text);
+    const unsupported = await wire(
+      server.listenUrl,
+      capability.operation,
+      "POST",
+      '{"capabilityVersion":"future","notV1":true}',
+      { "idempotency-key": "free" },
+      "#/$defs/atomicBatchCapabilityProblem",
+    );
     expect(unsupported.status).toBe(422);
-    expect(validator.validate("#/$defs/atomicBatchCapabilityProblem", JSON.parse(unsupported.text))).toEqual([]);
-    const freshMeaning = await wire(server.listenUrl, capability.operation, "POST", body, { "idempotency-key": "free" });
-    expect(freshMeaning.status).toBe(409); expect(JSON.parse(freshMeaning.text).code).toBe("identity-taken");
+    expect(
+      validator.validate("#/$defs/atomicBatchCapabilityProblem", JSON.parse(unsupported.text)),
+    ).toEqual([]);
+    const freshMeaning = await wire(server.listenUrl, capability.operation, "POST", body, {
+      "idempotency-key": "free",
+    });
+    expect(freshMeaning.status).toBe(409);
+    expect(JSON.parse(freshMeaning.text).code).toBe("identity-taken");
     expect((await wire(server.listenUrl, capability.operation, "GET")).status).toBe(405);
-    const wrongMedia = await wire(server.listenUrl, capability.operation, "POST", body, { "idempotency-key": "media", "content-type": "application/json" });
+    const wrongMedia = await wire(server.listenUrl, capability.operation, "POST", body, {
+      "idempotency-key": "media",
+      "content-type": "application/json",
+    });
     expect(wrongMedia.status).toBe(415);
-    await server.close(); const reopened = await childFixture({ ...config, create: false });
-    expect((await wire(reopened.listenUrl, capability.operation, "POST", body, { "idempotency-key": "atomic" })).text).toBe(created.text);
+    await server.close();
+    const reopened = await childFixture({ ...config, create: false });
+    expect(
+      (
+        await wire(reopened.listenUrl, capability.operation, "POST", body, {
+          "idempotency-key": "atomic",
+        })
+      ).text,
+    ).toBe(created.text);
   });
   it("reports the first disabled member before effects and leaves the shared key unclaimed", async () => {
-    const config = { ...configuration(), navigation: { ...navigation, batch: { ...batchCapability, operations: ["createBead"] as const } } };
-    const server = await startPrivateRetainedFixture(config); cleanups.push(() => server.close());
-    const body = JSON.stringify({ capabilityVersion: "1", operations: [
-      { operation: "createBead", id: "not-created", type: "https://types.invalid/T" },
-      { operation: "updateLink", link: "not-present", properties: {} },
-      { operation: "deleteBead", bead: "not-created" },
-    ] });
-    const denied = await wire(server.listenUrl, batchCapability.operation, "POST", body, { "idempotency-key": "support" });
+    const config = {
+      ...configuration(),
+      navigation: {
+        ...navigation,
+        batch: { ...batchCapability, operations: ["createBead"] as const },
+      },
+    };
+    const server = await startPrivateRetainedFixture(config);
+    cleanups.push(() => server.close());
+    const body = JSON.stringify({
+      capabilityVersion: "1",
+      operations: [
+        { operation: "createBead", id: "not-created", type: "https://types.invalid/T" },
+        { operation: "updateLink", link: "not-present", properties: {} },
+        { operation: "deleteBead", bead: "not-created" },
+      ],
+    });
+    const denied = await wire(
+      server.listenUrl,
+      batchCapability.operation,
+      "POST",
+      body,
+      { "idempotency-key": "support" },
+      "#/$defs/atomicBatchOperationProblem",
+    );
     expect(denied.status).toBe(422);
-    expect(JSON.parse(denied.text)).toMatchObject({ code: "operation-not-supported", operation: "updateLink", pointer: "/operations/1/operation" });
-    expect(validator.validate("#/$defs/atomicBatchOperationProblem", JSON.parse(denied.text))).toEqual([]);
+    expect(JSON.parse(denied.text)).toMatchObject({
+      code: "operation-not-supported",
+      operation: "updateLink",
+      pointer: "/operations/1/operation",
+    });
+    expect(
+      validator.validate("#/$defs/atomicBatchOperationProblem", JSON.parse(denied.text)),
+    ).toEqual([]);
     expect((await wire(server.listenUrl, `${scope}not-created`)).status).toBe(404);
-    const allowed = JSON.stringify({ capabilityVersion: "1", operations: [{ operation: "createBead", id: "not-created", type: "https://types.invalid/T" }] });
-    expect((await wire(server.listenUrl, batchCapability.operation, "POST", allowed, { "idempotency-key": "support" })).status).toBe(200);
+    const allowed = JSON.stringify({
+      capabilityVersion: "1",
+      operations: [{ operation: "createBead", id: "not-created", type: "https://types.invalid/T" }],
+    });
+    expect(
+      (
+        await wire(server.listenUrl, batchCapability.operation, "POST", allowed, {
+          "idempotency-key": "support",
+        })
+      ).status,
+    ).toBe(200);
   });
-  it.each(["resource-staged", "committed"] as const)("recovers the complete multi-Resource batch after real process death at %s", async (phase) => {
-    const config = { ...configuration(), navigation: { ...navigation, batch: batchCapability } };
-    const first = await childFixture(config, phase);
-    const body = JSON.stringify({ capabilityVersion: "1", operations: [
-      { operation: "createBead", id: "one", type: "https://types.invalid/T" },
-      { operation: "createBead", id: "two", type: { uri: "https://types.invalid/T", revision: "whole pin" } },
-    ] });
-    const pending = wire(first.listenUrl, batchCapability.operation, "POST", body, { "idempotency-key": "uncertain-batch" }).then((value) => value, () => undefined);
-    await first.phase(); await terminate(first.child, "SIGKILL"); expect(await pending).toBeUndefined();
-    const reopened = await childFixture({ ...config, create: false });
-    const before = JSON.parse((await wire(reopened.listenUrl, navigation.events)).text);
-    expect(before.events).toHaveLength(phase === "committed" ? 2 : 0);
-    const recovered = await wire(reopened.listenUrl, batchCapability.operation, "POST", body, { "idempotency-key": "uncertain-batch" });
-    expect(recovered.status).toBe(200); const result = JSON.parse(recovered.text);
-    expect(validator.validate("#/$defs/atomicBatchResult", result)).toEqual([]);
-    for (const row of result.resources) expect(JSON.parse((await wire(reopened.listenUrl, row.id)).text)).toEqual(row.resource);
-    if (phase === "committed") expect(result.resources.map((row: { resource: unknown }) => row.resource)).toEqual(before.events.map((fact: { effect: { resource: unknown } }) => fact.effect.resource));
-    expect((await wire(reopened.listenUrl, batchCapability.operation, "POST", body, { "idempotency-key": "uncertain-batch" })).text).toBe(recovered.text);
-    const after = JSON.parse((await wire(reopened.listenUrl, navigation.events)).text);
-    expect(after.events).toHaveLength(2); expect(new Set(after.events.map((fact: { transaction: string }) => fact.transaction))).toEqual(new Set([result.transaction]));
-  });
+  it.each(["resource-staged", "committed"] as const)(
+    "recovers the complete multi-Resource batch after real process death at %s",
+    async (phase) => {
+      const config = { ...configuration(), navigation: { ...navigation, batch: batchCapability } };
+      const first = await childFixture(config, phase);
+      const body = JSON.stringify({
+        capabilityVersion: "1",
+        operations: [
+          { operation: "createBead", id: "one", type: "https://types.invalid/T" },
+          {
+            operation: "createBead",
+            id: "two",
+            type: { uri: "https://types.invalid/T", revision: "whole pin" },
+          },
+        ],
+      });
+      const pending = wire(first.listenUrl, batchCapability.operation, "POST", body, {
+        "idempotency-key": "uncertain-batch",
+      }).then(
+        (value) => value,
+        () => undefined,
+      );
+      await first.phase();
+      await terminate(first.child, "SIGKILL");
+      expect(await pending).toBeUndefined();
+      const reopened = await childFixture({ ...config, create: false });
+      const before = JSON.parse((await wire(reopened.listenUrl, navigation.events)).text);
+      expect(before.events).toHaveLength(phase === "committed" ? 2 : 0);
+      const recovered = await wire(reopened.listenUrl, batchCapability.operation, "POST", body, {
+        "idempotency-key": "uncertain-batch",
+      });
+      expect(recovered.status).toBe(200);
+      const result = JSON.parse(recovered.text);
+      expect(validator.validate("#/$defs/atomicBatchResult", result)).toEqual([]);
+      for (const row of result.resources)
+        expect(JSON.parse((await wire(reopened.listenUrl, row.id)).text)).toEqual(row.resource);
+      if (phase === "committed")
+        expect(result.resources.map((row: { resource: unknown }) => row.resource)).toEqual(
+          before.events.map((fact: { effect: { resource: unknown } }) => fact.effect.resource),
+        );
+      expect(
+        (
+          await wire(reopened.listenUrl, batchCapability.operation, "POST", body, {
+            "idempotency-key": "uncertain-batch",
+          })
+        ).text,
+      ).toBe(recovered.text);
+      const after = JSON.parse((await wire(reopened.listenUrl, navigation.events)).text);
+      expect(after.events).toHaveLength(2);
+      expect(
+        new Set(after.events.map((fact: { transaction: string }) => fact.transaction)),
+      ).toEqual(new Set([result.transaction]));
+    },
+  );
 });
 
 describe("private explicit loopback binding for actual native HTTP clients", () => {
-  it.each([0, -1, 1.5, 65536, NaN])("rejects invalid explicit port %s before provisioning", async (listenPort) => {
-    const config = configuration();
-    await expect(startPrivateRetainedFixture({ ...config, listenPort })).rejects.toThrow("listenPort");
-    // A rejected binding choice did not provision the owner; the original empty
-    // directory can still be explicitly created by the normal ephemeral fixture.
-    const server = await startPrivateRetainedFixture(config); cleanups.push(() => server.close());
-    expect(server.listenUrl).toMatch(/^http:\/\/127\.0\.0\.1:[1-9][0-9]*$/);
-  });
+  it.each([0, -1, 1.5, 65536, NaN])(
+    "rejects invalid explicit port %s before provisioning",
+    async (listenPort) => {
+      const config = configuration();
+      await expect(startPrivateRetainedFixture({ ...config, listenPort })).rejects.toThrow(
+        "listenPort",
+      );
+      // A rejected binding choice did not provision the owner; the original empty
+      // directory can still be explicitly created by the normal ephemeral fixture.
+      const server = await startPrivateRetainedFixture(config);
+      cleanups.push(() => server.close());
+      expect(server.listenUrl).toMatch(/^http:\/\/127\.0\.0\.1:[1-9][0-9]*$/);
+    },
+  );
   it("uses actual loopback URLs without Host rewriting and reopens with the identical captured port/navigation", async () => {
-    const reservation = createServer(); let reserved = true;
-    cleanups.push(async () => { if (reserved) await new Promise<void>((resolve, reject) => reservation.close((error) => error ? reject(error) : resolve())); });
-    await new Promise<void>((resolve, reject) => { reservation.once("error", reject); reservation.listen(0, "127.0.0.1", resolve); });
-    const address = reservation.address(); if (!address || typeof address === "string") throw Error("no private port");
+    const reservation = createServer();
+    let reserved = true;
+    cleanups.push(async () => {
+      if (reserved)
+        await new Promise<void>((resolve, reject) =>
+          reservation.close((error) => (error ? reject(error) : resolve())),
+        );
+    });
+    await new Promise<void>((resolve, reject) => {
+      reservation.once("error", reject);
+      reservation.listen(0, "127.0.0.1", resolve);
+    });
+    const address = reservation.address();
+    if (!address || typeof address === "string") throw Error("no private port");
     const port = address.port;
-    await new Promise<void>((resolve, reject) => reservation.close((error) => error ? reject(error) : resolve())); reserved = false;
+    await new Promise<void>((resolve, reject) =>
+      reservation.close((error) => (error ? reject(error) : resolve())),
+    );
+    reserved = false;
     const actualScope = `http://127.0.0.1:${port}/tenant/`;
-    const actualNavigation = { scope: actualScope, description: `${actualScope}description`, beads: `${actualScope}beads`, links: `${actualScope}links`, aliases: `${actualScope}names/`, events: `${actualScope}events`, operations: `${actualScope}operations`,
-      targets: { createBead: `${actualScope}c-b`, updateBead: `${actualScope}u-b`, deleteBead: `${actualScope}d-b`, createLink: `${actualScope}c-l`, updateLink: `${actualScope}u-l`, deleteLink: `${actualScope}d-l`, putAlias: `${actualScope}p-a`, deleteAlias: `${actualScope}d-a` },
+    const actualNavigation = {
+      scope: actualScope,
+      description: `${actualScope}description`,
+      beads: `${actualScope}beads`,
+      links: `${actualScope}links`,
+      aliases: `${actualScope}names/`,
+      events: `${actualScope}events`,
+      operations: `${actualScope}operations`,
+      targets: {
+        createBead: `${actualScope}c-b`,
+        updateBead: `${actualScope}u-b`,
+        deleteBead: `${actualScope}d-b`,
+        createLink: `${actualScope}c-l`,
+        updateLink: `${actualScope}u-l`,
+        deleteLink: `${actualScope}d-l`,
+        putAlias: `${actualScope}p-a`,
+        deleteAlias: `${actualScope}d-a`,
+      },
       batch: { ...batchCapability, operation: `${actualScope}atomic` },
     };
     const config = { ...configuration(), navigation: actualNavigation, listenPort: port };
-    const server = await startPrivateRetainedFixture(config); cleanups.push(() => server.close());
+    const server = await startPrivateRetainedFixture(config);
+    cleanups.push(() => server.close());
     expect(server.listenUrl).toBe(`http://127.0.0.1:${port}`);
-    const nativeFetch = (url: string, init: Parameters<typeof fetch>[1] = {}) => fetch(url, { ...init, signal: AbortSignal.timeout(5000) });
+    const nativeFetch = async (url: string, init: Parameters<typeof fetch>[1] = {}) => {
+      // This fixture deliberately destroys the listener and rebinds its exact
+      // origin. Close each HTTP/1 connection rather than leaving a pooled idle
+      // socket from the prior listener eligible for the next native request.
+      const requestHeaders = new Headers(init.headers);
+      requestHeaders.set("connection", "close");
+      const response = await fetch(url, {
+        ...init,
+        headers: requestHeaders,
+        signal: AbortSignal.timeout(5000),
+      });
+      expect(response.headers.get("connection")).toBe("close");
+      return response;
+    };
     const headers = { authorization: `Bearer ${token}`, accept: media };
-    const landing = await nativeFetch(actualScope, { headers }); expect(landing.status).toBe(204); expect(landing.headers.get("link")).toContain(actualNavigation.description);
-    const description = await nativeFetch(actualNavigation.description, { headers }); const discovered = await description.json() as { operations: string };
-    const directory = await (await nativeFetch(discovered.operations, { headers })).json() as { createBead: string };
-    const body = JSON.stringify({ id: "real", type: { uri: "https://types.invalid/T", revision: "exact + /" }, properties: { native: true } });
-    const response = await nativeFetch(directory.createBead, { method: "POST", headers: { ...headers, "content-type": media, "idempotency-key": "native-http" }, body });
-    expect(response.status).toBe(200); const result = await response.json() as { resource: Record<string, unknown> & { id: string } };
+    const landing = await nativeFetch(actualScope, { headers });
+    expect(landing.status).toBe(204);
+    expect(landing.headers.get("link")).toContain(actualNavigation.description);
+    const description = await nativeFetch(actualNavigation.description, { headers });
+    const discovered = (await description.json()) as { operations: string };
+    const directory = (await (await nativeFetch(discovered.operations, { headers })).json()) as {
+      createBead: string;
+    };
+    const body = JSON.stringify({
+      id: "real",
+      type: { uri: "https://types.invalid/T", revision: "exact + /" },
+      properties: { native: true },
+    });
+    const response = await nativeFetch(directory.createBead, {
+      method: "POST",
+      headers: { ...headers, "content-type": media, "idempotency-key": "native-http" },
+      body,
+    });
+    expect(response.status).toBe(200);
+    const result = (await response.json()) as {
+      resource: Record<string, unknown> & { id: string };
+    };
     expect(result.resource.id).toBe(`${actualScope}real`);
-    expect(result.resource).toMatchObject({ type: { uri: "https://types.invalid/T", revision: "exact + /" }, properties: { native: true }, metadata: {} });
-    expect(await (await nativeFetch(result.resource.id, { headers })).json()).toEqual(result.resource);
+    expect(result.resource).toMatchObject({
+      type: { uri: "https://types.invalid/T", revision: "exact + /" },
+      properties: { native: true },
+      metadata: {},
+    });
+    expect(await (await nativeFetch(result.resource.id, { headers })).json()).toEqual(
+      result.resource,
+    );
     await server.close();
-    const reopened = await startPrivateRetainedFixture({ ...config, create: false }); cleanups.push(() => reopened.close());
+    const reopened = await startPrivateRetainedFixture({ ...config, create: false });
+    cleanups.push(() => reopened.close());
     expect(reopened.listenUrl).toBe(server.listenUrl);
-    const replay = await nativeFetch(directory.createBead, { method: "POST", headers: { ...headers, "content-type": media, "idempotency-key": "native-http" }, body });
+    const replay = await nativeFetch(directory.createBead, {
+      method: "POST",
+      headers: { ...headers, "content-type": media, "idempotency-key": "native-http" },
+      body,
+    });
+    expect(replay.status).toBe(200);
     expect(await replay.json()).toEqual(result);
   });
   it("refuses a busy explicit port with no ephemeral fallback and releases the store after bind failure", async () => {
-    const blocker = createServer(); let blocking = true;
-    cleanups.push(async () => { if (blocking) await new Promise<void>((resolve, reject) => blocker.close((error) => error ? reject(error) : resolve())); });
-    await new Promise<void>((resolve, reject) => { blocker.once("error", reject); blocker.listen(0, "127.0.0.1", resolve); });
-    const address = blocker.address(); if (!address || typeof address === "string") throw Error("no occupied port");
+    const blocker = createServer();
+    let blocking = true;
+    cleanups.push(async () => {
+      if (blocking)
+        await new Promise<void>((resolve, reject) =>
+          blocker.close((error) => (error ? reject(error) : resolve())),
+        );
+    });
+    await new Promise<void>((resolve, reject) => {
+      blocker.once("error", reject);
+      blocker.listen(0, "127.0.0.1", resolve);
+    });
+    const address = blocker.address();
+    if (!address || typeof address === "string") throw Error("no occupied port");
     const config = { ...configuration(), listenPort: address.port };
     await expect(startPrivateRetainedFixture(config)).rejects.toMatchObject({ code: "EADDRINUSE" });
-    await new Promise<void>((resolve, reject) => blocker.close((error) => error ? reject(error) : resolve())); blocking = false;
-    const reopened = await startPrivateRetainedFixture({ ...config, create: false }); cleanups.push(() => reopened.close());
+    await new Promise<void>((resolve, reject) =>
+      blocker.close((error) => (error ? reject(error) : resolve())),
+    );
+    blocking = false;
+    const reopened = await startPrivateRetainedFixture({ ...config, create: false });
+    cleanups.push(() => reopened.close());
     expect(reopened.listenUrl).toBe(`http://127.0.0.1:${address.port}`);
   });
 });
 
 describe("private batch target owning-Scope configuration", () => {
-  it.each(["https://foreign.invalid/atomic", "https://records.invalid/sibling/atomic"])("rejects out-of-Scope batch target %s before provisioning/discovery", async (operation) => {
-    const config = configuration();
-    await expect(startPrivateRetainedFixture({ ...config, navigation: { ...navigation, batch: { ...batchCapability, operation } } })).rejects.toThrow("inside owning Scope");
-    // Successful fresh provisioning proves the failed capture did not open or
-    // provision the SQLite owner. Singleton irregular navigation stays unchanged.
-    const untouched = await startPrivateRetainedFixture(config); cleanups.push(() => untouched.close());
-    expect(untouched.claimEligible).toBe(false);
-    expect((await wire(untouched.listenUrl, navigation.description)).status).toBe(200);
-  });
+  it.each(["https://foreign.invalid/atomic", "https://records.invalid/sibling/atomic"])(
+    "rejects out-of-Scope batch target %s before provisioning/discovery",
+    async (operation) => {
+      const config = configuration();
+      await expect(
+        startPrivateRetainedFixture({
+          ...config,
+          navigation: { ...navigation, batch: { ...batchCapability, operation } },
+        }),
+      ).rejects.toThrow("inside owning Scope");
+      // Successful fresh provisioning proves the failed capture did not open or
+      // provision the SQLite owner. Singleton irregular navigation stays unchanged.
+      const untouched = await startPrivateRetainedFixture(config);
+      cleanups.push(() => untouched.close());
+      expect(untouched.claimEligible).toBe(false);
+      expect((await wire(untouched.listenUrl, navigation.description)).status).toBe(200);
+    },
+  );
 });

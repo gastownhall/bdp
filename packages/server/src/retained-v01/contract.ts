@@ -315,17 +315,26 @@ export function captureNavigation(input: PrivateNavigation): PrivateNavigation {
       throw new TypeError("fixture navigation must be canonical");
   }
   if (input.batch) {
-    const owner = new URL(scope); const target = new URL(input.batch.operation);
+    const owner = new URL(scope);
+    const target = new URL(input.batch.operation);
     if (target.origin !== owner.origin || !target.pathname.startsWith(owner.pathname))
       throw new TypeError("batch operation must be inside owning Scope");
   }
-  if (input.batch && (
-    Object.keys(input.batch).sort().join(",") !== "maximumOperations,maximumResultBytes,operation,operations" ||
-    !input.batch.operations.length || new Set(input.batch.operations).size !== input.batch.operations.length ||
-    input.batch.operations.some((name) => !ORDINARY_OPERATIONS.slice(0, 6).includes(name)) ||
-    !Number.isSafeInteger(input.batch.maximumOperations) || input.batch.maximumOperations < 1 || input.batch.maximumOperations > 100 ||
-    !Number.isSafeInteger(input.batch.maximumResultBytes) || input.batch.maximumResultBytes < 1024 || input.batch.maximumResultBytes > 262144
-  )) throw new TypeError("invalid bounded private batch capability");
+  if (
+    input.batch &&
+    (Object.keys(input.batch).sort().join(",") !==
+      "maximumOperations,maximumResultBytes,operation,operations" ||
+      !input.batch.operations.length ||
+      new Set(input.batch.operations).size !== input.batch.operations.length ||
+      input.batch.operations.some((name) => !ORDINARY_OPERATIONS.slice(0, 6).includes(name)) ||
+      !Number.isSafeInteger(input.batch.maximumOperations) ||
+      input.batch.maximumOperations < 1 ||
+      input.batch.maximumOperations > 100 ||
+      !Number.isSafeInteger(input.batch.maximumResultBytes) ||
+      input.batch.maximumResultBytes < 1024 ||
+      input.batch.maximumResultBytes > 262144)
+  )
+    throw new TypeError("invalid bounded private batch capability");
   // aliases is a namespace base, and the selected contract permits Scope itself.
   // Every independently interpreted navigation/operation address stays distinct.
   const urls = [scope, ...navigationUrls, ...(input.aliases === scope ? [] : [input.aliases])];
@@ -338,7 +347,14 @@ export function captureNavigation(input: PrivateNavigation): PrivateNavigation {
     throw new TypeError("ambiguous fixture transport routes");
   return Object.freeze({
     scope,
-    ...(input.batch ? { batch: Object.freeze({ ...input.batch, operations: Object.freeze([...input.batch.operations]) }) } : {}),
+    ...(input.batch
+      ? {
+          batch: Object.freeze({
+            ...input.batch,
+            operations: Object.freeze([...input.batch.operations]),
+          }),
+        }
+      : {}),
     description: input.description,
     beads: input.beads,
     links: input.links,

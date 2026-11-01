@@ -146,7 +146,10 @@ async function receive(request: IncomingMessage): Promise<string> {
   }
 }
 export async function startPrivateRetainedFixture(options: PrivateFixtureOptions) {
-  if (options.listenPort !== undefined && (!Number.isInteger(options.listenPort) || options.listenPort < 1 || options.listenPort > 65535))
+  if (
+    options.listenPort !== undefined &&
+    (!Number.isInteger(options.listenPort) || options.listenPort < 1 || options.listenPort > 65535)
+  )
     throw new TypeError("explicit private listenPort must be an integer1..65535");
   const navigation = captureNavigation(options.navigation);
   const credentials = options.credentials.map((credential) => {
@@ -191,7 +194,10 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
       const url = new URL(raw, `http://${host}`);
       if (url.pathname + url.search !== raw || url.hash)
         throw new RetainedRequestError("malformed-request", 400);
-      const route = navigation.batch && signature(navigation.batch.operation) === host + raw ? "atomicBatch" : known.get(host + raw);
+      const route =
+        navigation.batch && signature(navigation.batch.operation) === host + raw
+          ? "atomicBatch"
+          : known.get(host + raw);
       const eventBase = new URL(navigation.events);
       const scopeEventQuery = new URL(url);
       let scopeEventRoute = host === eventBase.host && url.pathname === eventBase.pathname;
@@ -229,14 +235,14 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
           route === "atomicBatch"
             ? store.batch(principal, prepareBatch(navigation.scope, text, key))
             : route === "createBead"
-            ? store.create(principal, prepareCreate(navigation.scope, text, key))
-            : route === "updateBead"
-              ? store.update(principal, prepareUpdate(navigation.scope, text, key))
-              : route === "deleteBead"
-                ? store.deleteBead(principal, prepareDelete(navigation.scope, text, key))
-                : route === "putAlias" || route === "deleteAlias"
-                  ? store[route](principal, prepareAlias(navigation.scope, route, text, key))
-                  : store[route](principal, prepareLink(navigation.scope, route, text, key));
+              ? store.create(principal, prepareCreate(navigation.scope, text, key))
+              : route === "updateBead"
+                ? store.update(principal, prepareUpdate(navigation.scope, text, key))
+                : route === "deleteBead"
+                  ? store.deleteBead(principal, prepareDelete(navigation.scope, text, key))
+                  : route === "putAlias" || route === "deleteAlias"
+                    ? store[route](principal, prepareAlias(navigation.scope, route, text, key))
+                    : store[route](principal, prepareLink(navigation.scope, route, text, key));
         if (!response.destroyed) json(response, result.status, result.text);
         return;
       }
@@ -284,7 +290,9 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
           serialized({
             bdpVersion: "0.1",
             profile: "write",
-            ...(navigation.batch ? { capabilities: { [ATOMIC_BATCH]: { "1": navigation.batch } } } : {}),
+            ...(navigation.batch
+              ? { capabilities: { [ATOMIC_BATCH]: { "1": navigation.batch } } }
+              : {}),
             scope: navigation.scope,
             beads: navigation.beads,
             links: navigation.links,
@@ -382,7 +390,9 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
   let closing: Promise<void> | undefined;
   return {
     claimEligible: false as const,
-    missing: navigation.batch ? PRIVATE_FIXTURE_GAPS.filter((gap) => gap !== "batch") : PRIVATE_FIXTURE_GAPS,
+    missing: navigation.batch
+      ? PRIVATE_FIXTURE_GAPS.filter((gap) => gap !== "batch")
+      : PRIVATE_FIXTURE_GAPS,
     navigation,
     listenUrl: `http://127.0.0.1:${address.port}`,
     close(): Promise<void> {

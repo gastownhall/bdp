@@ -63,8 +63,17 @@ import {
 import { compareCapturedReferences, type ReferenceComparison } from "./reference-comparison.js";
 
 import {
-  ATOMIC_BATCH, assertBatchIdentity, assertPreparedBatch, compareBatch, readBatchJournal, projectBatchResult,
-  type PreparedBatch, type BatchInput, type BatchJournal, type BatchResource, type BatchMapping,
+  ATOMIC_BATCH,
+  assertBatchIdentity,
+  assertPreparedBatch,
+  compareBatch,
+  readBatchJournal,
+  projectBatchResult,
+  type PreparedBatch,
+  type BatchInput,
+  type BatchJournal,
+  type BatchResource,
+  type BatchMapping,
 } from "./atomic-batch.js";
 
 // Fresh private format only. Existing format5 stores refuse; never auto-migrate/reseed.
@@ -630,67 +639,124 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     if (!principal) throw new TypeError("stable authenticated principal required");
     let fresh = false;
     const result = transaction(() => {
-      const previous = get("SELECT decision,operation,identity,witnesses,status,body FROM outcomes WHERE principal=? AND key=?", principal, input.key);
-      if (previous && previous.operation !== "atomicBatch") return refusal(problem("idempotency-conflict", 409));
-      const comparison = compareBatch(input, aliasLookup, previous ? readAliasWitnesses(previous.witnesses, navigation) : undefined);
+      const previous = get(
+        "SELECT decision,operation,identity,witnesses,status,body FROM outcomes WHERE principal=? AND key=?",
+        principal,
+        input.key,
+      );
+      if (previous && previous.operation !== "atomicBatch")
+        return refusal(problem("idempotency-conflict", 409));
+      const comparison = compareBatch(
+        input,
+        aliasLookup,
+        previous ? readAliasWitnesses(previous.witnesses, navigation) : undefined,
+      );
       if (previous) {
-        if (previous.identity !== comparison.identity) return refusal(problem("idempotency-conflict", 409));
-        if (typeof previous.status !== "number" || typeof previous.body !== "string") throw new Error("missing retained batch outcome");
+        if (previous.identity !== comparison.identity)
+          return refusal(problem("idempotency-conflict", 409));
+        if (typeof previous.status !== "number" || typeof previous.body !== "string")
+          throw new Error("missing retained batch outcome");
         if (previous.status !== 200) return { status: previous.status, text: previous.body };
-        const stored = get("SELECT body FROM batch_decisions WHERE decision=?", previous.decision as number);
+        const stored = get(
+          "SELECT body FROM batch_decisions WHERE decision=?",
+          previous.decision as number,
+        );
         if (typeof stored?.body !== "string") throw new Error("missing retained batch decision");
         const journal = readBatchJournal(stored.body, navigation.scope);
-        if (serialized(journal.result) !== previous.body) throw new Error("retained batch result mismatch");
+        if (serialized(journal.result) !== previous.body)
+          throw new Error("retained batch result mismatch");
         return { status: 200, text: projectBatchResult(journal, input) };
       }
       // Fresh support checks follow comparison and create no retained disposition.
       const capability = navigation.batch;
-      if (input.version !== "1" || !capability) return refusal({
-        type: "https://github.com/gastownhall/bdp/problems/request", code: "capability-not-supported", status: 422,
-        retry: "after-state-change", capability: ATOMIC_BATCH, capabilityVersion: input.version, pointer: "/capabilityVersion",
-      });
-      for (const [index, member] of input.members.entries()) {
-        if (!capability.operations.includes(member.operation)) return refusal({
-          type: "https://github.com/gastownhall/bdp/problems/request", code: "operation-not-supported", status: 422,
-          retry: "after-state-change", operation: member.operation, pointer: `/operations/${index}/operation`,
+      if (input.version !== "1" || !capability)
+        return refusal({
+          type: "https://github.com/gastownhall/bdp/problems/request",
+          code: "capability-not-supported",
+          status: 422,
+          retry: "after-state-change",
+          capability: ATOMIC_BATCH,
+          capabilityVersion: input.version,
+          pointer: "/capabilityVersion",
         });
+      for (const [index, member] of input.members.entries()) {
+        if (!capability.operations.includes(member.operation))
+          return refusal({
+            type: "https://github.com/gastownhall/bdp/problems/request",
+            code: "operation-not-supported",
+            status: 422,
+            retry: "after-state-change",
+            operation: member.operation,
+            pointer: `/operations/${index}/operation`,
+          });
       }
       assertBatchIdentity(comparison.identity, navigation.scope);
       const decision = Number(get("SELECT value FROM metadata WHERE name='decisions'")?.value) + 1;
       if (!Number.isSafeInteger(decision)) throw new Error("outcome capacity unavailable");
       let journal: BatchJournal | undefined;
       let positions: number[] = [];
-      const outcome = (() : StoredResponse => {
-        if (input.members.length > capability.maximumOperations) return refusal(problem("limit-exceeded", 413));
+      const outcome = ((): StoredResponse => {
+        if (input.members.length > capability.maximumOperations)
+          return refusal(problem("limit-exceeded", 413));
         const baseline = new Map<string, ResourceState | null>();
         const staged = new Map<string, ResourceState | null>();
         const allocated = new Map<string, ResourceKind>();
         const provenance = new Map<string, RevisionProvenanceInput[]>();
         const mappings: BatchMapping[] = [];
-        const working = (id: string): ResourceState | undefined => staged.has(id) ? staged.get(id) ?? undefined : currentState(id);
-        const touch = (id: string) => { if (!baseline.has(id)) baseline.set(id, currentState(id) ?? null); };
-        const endpointCheck = (state: ResourceState, explicit: ReadonlySet<"source" | "target">): JsonObject | undefined => {
+        const working = (id: string): ResourceState | undefined =>
+          staged.has(id) ? (staged.get(id) ?? undefined) : currentState(id);
+        const touch = (id: string) => {
+          if (!baseline.has(id)) baseline.set(id, currentState(id) ?? null);
+        };
+        const endpointCheck = (
+          state: ResourceState,
+          explicit: ReadonlySet<"source" | "target">,
+        ): JsonObject | undefined => {
           if (state.kind !== "link") return undefined;
           let local = false;
           for (const name of ["source", "target"] as const) {
-            const reference = state.resource[name]; const uri = referenceUri(reference);
+            const reference = state.resource[name];
+            const uri = referenceUri(reference);
             if (!uri.startsWith(navigation.scope)) continue;
             local = true;
             const target = working(uri);
             if (!target) return problem("resource-not-found", 404, "after-state-change");
-            if (target.kind !== "bead") return { ...problem("validation-failed", 422), diagnostics: [{ message: `${name} endpoint must identify a live in-Scope Bead` }] };
+            if (target.kind !== "bead")
+              return {
+                ...problem("validation-failed", 422),
+                diagnostics: [{ message: `${name} endpoint must identify a live in-Scope Bead` }],
+              };
             if (typeof reference !== "string" && explicit.has(name)) {
               // Explicit literal pins reference actual committed versions, never
               // an unpublished handle revision. Omitted saved pins are preserved
               // without fresh pin admission; liveness/kind checks still apply.
-              const exists = db.prepare("SELECT body FROM events WHERE subject=? ORDER BY position").all(uri).some((row) => {
-                const fact = JSON.parse(String(row.body));
-                return fact.effect?.resource?.id === uri && fact.effect.resource.revision === reference.revision;
-              });
-              if (!exists) return { ...problem("validation-failed", 422), diagnostics: [{ message: `${name} pin does not identify a retained committed endpoint version` }] };
+              const exists = db
+                .prepare("SELECT body FROM events WHERE subject=? ORDER BY position")
+                .all(uri)
+                .some((row) => {
+                  const fact = JSON.parse(String(row.body));
+                  return (
+                    fact.effect?.resource?.id === uri &&
+                    fact.effect.resource.revision === reference.revision
+                  );
+                });
+              if (!exists)
+                return {
+                  ...problem("validation-failed", 422),
+                  diagnostics: [
+                    {
+                      message: `${name} pin does not identify a retained committed endpoint version`,
+                    },
+                  ],
+                };
             }
           }
-          return local ? undefined : { ...problem("validation-failed", 422), diagnostics: [{ message: "a Link requires at least one in-Scope Bead endpoint" }] };
+          return local
+            ? undefined
+            : {
+                ...problem("validation-failed", 422),
+                diagnostics: [{ message: "a Link requires at least one in-Scope Bead endpoint" }],
+              };
         };
         for (const [index, member] of input.members.entries()) {
           let fields: BatchInput = comparison.inputs[index] as BatchInput;
@@ -698,7 +764,11 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
           for (const binding of member.bindings) {
             const id = mappings[binding.creator]?.id;
             if (!id) throw new Error("missing admitted creator mapping");
-            fields = { ...fields, [binding.slot]: binding.revision === undefined ? id : { uri: id, revision: binding.revision } };
+            fields = {
+              ...fields,
+              [binding.slot]:
+                binding.revision === undefined ? id : { uri: id, revision: binding.revision },
+            };
           }
           const kind: ResourceKind = member.operation.endsWith("Bead") ? "bead" : "link";
           const creating = member.operation.startsWith("create");
@@ -706,106 +776,263 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
           if (creating && id === undefined) {
             let collisions = 0;
             do {
-              if (++collisions > 32) throw new RetainedRequestError("temporarily-unavailable", 503, "after-delay");
+              if (++collisions > 32)
+                throw new RetainedRequestError("temporarily-unavailable", 503, "after-delay");
               id = navigation.scope + randomUUID();
-            } while (get("SELECT id FROM identities WHERE id=?", id) || allocated.has(id) || get("SELECT locator FROM aliases WHERE locator=?", id) || reserved.includes(id));
+            } while (
+              get("SELECT id FROM identities WHERE id=?", id) ||
+              allocated.has(id) ||
+              get("SELECT locator FROM aliases WHERE locator=?", id) ||
+              reserved.includes(id)
+            );
           }
           if (typeof id !== "string") throw new Error("missing admitted batch subject");
           touch(id);
           const before = working(id);
           if (creating) {
-            if (get("SELECT id FROM identities WHERE id=?", id) || allocated.has(id) || reserved.includes(id)) return refusal(problem("identity-taken", 409));
-            if (get("SELECT locator FROM aliases WHERE locator=?", id)) return refusal(problem("alias-path-taken", 409, "after-state-change"));
+            if (
+              get("SELECT id FROM identities WHERE id=?", id) ||
+              allocated.has(id) ||
+              reserved.includes(id)
+            )
+              return refusal(problem("identity-taken", 409));
+            if (get("SELECT locator FROM aliases WHERE locator=?", id))
+              return refusal(problem("alias-path-taken", 409, "after-state-change"));
           } else {
-            if (!before || before.kind !== kind) return refusal(problem("resource-not-found", 404, "after-state-change"));
+            if (!before || before.kind !== kind)
+              return refusal(problem("resource-not-found", 404, "after-state-change"));
             const initial = baseline.get(id);
-            if (fields.expectedRevision !== undefined && (!initial || fields.expectedRevision !== initial.resource.revision)) return refusal(problem("revision-mismatch", 409, "after-state-change"));
+            if (
+              fields.expectedRevision !== undefined &&
+              (!initial || fields.expectedRevision !== initial.resource.revision)
+            )
+              return refusal(problem("revision-mismatch", 409, "after-state-change"));
           }
           if (fields.provenance !== undefined) {
             const supplied = provenance.get(id) ?? [];
-            supplied.push(fields.provenance); provenance.set(id, supplied);
+            supplied.push(fields.provenance);
+            provenance.set(id, supplied);
           }
           if (member.operation.startsWith("delete")) {
             if (kind === "bead") {
               const links = new Map<string, ResourceState>();
-              for (const row of db.prepare("SELECT r.body FROM resources r JOIN identities i ON r.id=i.id WHERE i.kind='link'").iterate()) {
-                const resource = JSON.parse(String(row.body)) as RetainedLink; links.set(resource.id, { kind: "link", resource });
+              for (const row of db
+                .prepare(
+                  "SELECT r.body FROM resources r JOIN identities i ON r.id=i.id WHERE i.kind='link'",
+                )
+                .iterate()) {
+                const resource = JSON.parse(String(row.body)) as RetainedLink;
+                links.set(resource.id, { kind: "link", resource });
               }
-              for (const [key, value] of staged) { if (value?.kind === "link") links.set(key, value); else if (value === null) links.delete(key); }
-              if ([...links.values()].some((state) => state.kind === "link" && [state.resource.source, state.resource.target].some((reference) => referenceUri(reference) === id))) return refusal(problem("incident-links-exist", 409, "after-state-change"));
+              for (const [key, value] of staged) {
+                if (value?.kind === "link") links.set(key, value);
+                else if (value === null) links.delete(key);
+              }
+              if (
+                [...links.values()].some(
+                  (state) =>
+                    state.kind === "link" &&
+                    [state.resource.source, state.resource.target].some(
+                      (reference) => referenceUri(reference) === id,
+                    ),
+                )
+              )
+                return refusal(problem("incident-links-exist", 409, "after-state-change"));
             }
             staged.set(id, null);
           } else {
-            if (exceedsEditLimits([fields.propertiesChange ?? [], fields.metadataChange ?? []])) return refusal(problem("limit-exceeded", 413));
+            if (exceedsEditLimits([fields.propertiesChange ?? [], fields.metadataChange ?? []]))
+              return refusal(problem("limit-exceeded", 413));
             let document: "properties" | "metadata" = "properties";
-            let properties: JsonObject; let metadata: JsonObject;
+            let properties: JsonObject;
+            let metadata: JsonObject;
             try {
-              properties = fields.properties ?? (fields.propertiesChange === undefined ? before?.resource.properties ?? {} : applyObjectChange(before?.resource.properties ?? {}, fields.propertiesChange));
+              properties =
+                fields.properties ??
+                (fields.propertiesChange === undefined
+                  ? (before?.resource.properties ?? {})
+                  : applyObjectChange(before?.resource.properties ?? {}, fields.propertiesChange));
               document = "metadata";
-              metadata = fields.metadata ?? (fields.metadataChange === undefined ? before?.resource.metadata ?? {} : applyObjectChange(before?.resource.metadata ?? {}, fields.metadataChange));
+              metadata =
+                fields.metadata ??
+                (fields.metadataChange === undefined
+                  ? (before?.resource.metadata ?? {})
+                  : applyObjectChange(before?.resource.metadata ?? {}, fields.metadataChange));
             } catch (error) {
               if (!(error instanceof ObjectEditFailure)) throw error;
-              return refusal({ ...problem("validation-failed", 422), diagnostics: [{ ...(document === "metadata" ? { document } : {}), instanceLocation: error.pointer, message: `${document}: ${error.message}` }] });
+              return refusal({
+                ...problem("validation-failed", 422),
+                diagnostics: [
+                  {
+                    ...(document === "metadata" ? { document } : {}),
+                    instanceLocation: error.pointer,
+                    message: `${document}: ${error.message}`,
+                  },
+                ],
+              });
             }
             const type = fields.type ?? before?.resource.type;
             if (type === undefined) throw new Error("missing admitted batch Type");
             let endpoints: EditFields = {};
             if (kind === "link") {
-              const source = fields.source ?? (before?.kind === "link" ? before.resource.source : undefined);
-              const target = fields.target ?? (before?.kind === "link" ? before.resource.target : undefined);
-              if (source === undefined || target === undefined) throw new Error("missing admitted Link endpoints");
+              const source =
+                fields.source ?? (before?.kind === "link" ? before.resource.source : undefined);
+              const target =
+                fields.target ?? (before?.kind === "link" ? before.resource.target : undefined);
+              if (source === undefined || target === undefined)
+                throw new Error("missing admitted Link endpoints");
               endpoints = { source, target };
             }
-            const state = resourceState(kind, { id, type, revision: before?.resource.revision ?? "unpublished", properties, metadata }, endpoints);
-            const explicit = new Set((["source", "target"] as const).filter((name) => Object.hasOwn(fields, name)));
-            const invalid = endpointCheck(state, explicit); if (invalid) return refusal(invalid);
-            if (Buffer.byteLength(serialized(state.resource)) > 262144) return refusal(problem("limit-exceeded", 413));
+            const state = resourceState(
+              kind,
+              {
+                id,
+                type,
+                revision: before?.resource.revision ?? "unpublished",
+                properties,
+                metadata,
+              },
+              endpoints,
+            );
+            const explicit = new Set(
+              (["source", "target"] as const).filter((name) => Object.hasOwn(fields, name)),
+            );
+            const invalid = endpointCheck(state, explicit);
+            if (invalid) return refusal(invalid);
+            if (Buffer.byteLength(serialized(state.resource)) > 262144)
+              return refusal(problem("limit-exceeded", 413));
             staged.set(id, state);
           }
           if (creating) allocated.set(id, kind);
-          mappings.push({ operationIndex: index, operation: member.operation, id, ...(member.name === undefined ? {} : { operationName: member.name }) });
+          mappings.push({
+            operationIndex: index,
+            operation: member.operation,
+            id,
+            ...(member.name === undefined ? {} : { operationName: member.name }),
+          });
         }
         const rows: BatchResource[] = [];
         const finals = new Map<string, ResourceState | null>();
         const time = new Date(now()).toISOString();
-        for (const [id, before] of [...baseline].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
+        for (const [id, before] of [...baseline].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
           const after = staged.get(id) ?? null;
           const kind = before?.kind ?? allocated.get(id);
           if (kind === undefined) throw new Error("batch identity has no kind");
           if (!after) {
             finals.set(id, null);
-            rows.push(before ? { id, resourceKind: kind, outcome: "deleted", changed: true, deleted: deletedIdentity(before) }
-              : { id, resourceKind: kind, outcome: "allocated", changed: true });
+            rows.push(
+              before
+                ? {
+                    id,
+                    resourceKind: kind,
+                    outcome: "deleted",
+                    changed: true,
+                    deleted: deletedIdentity(before),
+                  }
+                : { id, resourceKind: kind, outcome: "allocated", changed: true },
+            );
           } else {
-            const equal = before !== null && jsonValueEqual(before.resource.type, after.resource.type) && jsonValueEqual(before.resource.properties, after.resource.properties) && jsonValueEqual(before.resource.metadata, after.resource.metadata) &&
-              (before.kind !== "link" || after.kind === "link" && jsonValueEqual(before.resource.source, after.resource.source) && jsonValueEqual(before.resource.target, after.resource.target));
+            const equal =
+              before !== null &&
+              jsonValueEqual(before.resource.type, after.resource.type) &&
+              jsonValueEqual(before.resource.properties, after.resource.properties) &&
+              jsonValueEqual(before.resource.metadata, after.resource.metadata) &&
+              (before.kind !== "link" ||
+                (after.kind === "link" &&
+                  jsonValueEqual(before.resource.source, after.resource.source) &&
+                  jsonValueEqual(before.resource.target, after.resource.target)));
             const supplied = provenance.get(id) ?? [];
-            if (!equal && supplied.some((value) => !jsonValueEqual(value, supplied[0]))) return refusal({ ...problem("validation-failed", 422), diagnostics: [{ message: "conflicting explicit provenance for one final Resource version" }] });
-            const final = equal ? before as ResourceState : resourceState(kind, materializeBead({ type: after.resource.type, properties: after.resource.properties, metadata: after.resource.metadata,
-              ...(supplied[0] === undefined ? {} : { provenance: supplied[0] }) }, id, randomUUID(), time), after.kind === "link" ? after.resource : {});
+            if (!equal && supplied.some((value) => !jsonValueEqual(value, supplied[0])))
+              return refusal({
+                ...problem("validation-failed", 422),
+                diagnostics: [
+                  { message: "conflicting explicit provenance for one final Resource version" },
+                ],
+              });
+            const final = equal
+              ? (before as ResourceState)
+              : resourceState(
+                  kind,
+                  materializeBead(
+                    {
+                      type: after.resource.type,
+                      properties: after.resource.properties,
+                      metadata: after.resource.metadata,
+                      ...(supplied[0] === undefined ? {} : { provenance: supplied[0] }),
+                    },
+                    id,
+                    randomUUID(),
+                    time,
+                  ),
+                  after.kind === "link" ? after.resource : {},
+                );
             finals.set(id, final);
-            rows.push({ id, resourceKind: kind, outcome: !before ? "created" : equal ? "unchanged" : "updated", changed: !equal, resource: final.resource });
+            rows.push({
+              id,
+              resourceKind: kind,
+              outcome: !before ? "created" : equal ? "unchanged" : "updated",
+              changed: !equal,
+              resource: final.resource,
+            });
           }
         }
         const changed = rows.some((row) => row.changed);
         const token = changed ? randomUUID() : undefined;
-        const full = { capabilityVersion: "1" as const, changed, ...(token === undefined ? {} : { transaction: token }), results: mappings, resources: rows };
+        const full = {
+          capabilityVersion: "1" as const,
+          changed,
+          ...(token === undefined ? {} : { transaction: token }),
+          results: mappings,
+          resources: rows,
+        };
         const text = serialized(full);
-        if (Buffer.byteLength(text) > capability.maximumResultBytes) return refusal(problem("limit-exceeded", 413));
-        journal = { format: "batch-final-1", result: full, maximumResultBytes: capability.maximumResultBytes,
+        if (Buffer.byteLength(text) > capability.maximumResultBytes)
+          return refusal(problem("limit-exceeded", 413));
+        journal = {
+          format: "batch-final-1",
+          result: full,
+          maximumResultBytes: capability.maximumResultBytes,
           before: rows.map((row) => ({ id: row.id, state: baseline.get(row.id) ?? null })),
-          allocations: [...allocated].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([id, kind]) => ({ id, kind })) };
-        if (Buffer.byteLength(serialized(journal)) > 1048576) { journal = undefined; return refusal(problem("limit-exceeded", 413)); }
+          allocations: [...allocated]
+            .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+            .map(([id, kind]) => ({ id, kind })),
+        };
+        if (Buffer.byteLength(serialized(journal)) > 1048576) {
+          journal = undefined;
+          return refusal(problem("limit-exceeded", 413));
+        }
         readBatchJournal(serialized(journal), navigation.scope);
-        const facts: { id: string; before: ResourceState | undefined; after: ResourceState | undefined; text: string }[] = [];
+        const facts: {
+          id: string;
+          before: ResourceState | undefined;
+          after: ResourceState | undefined;
+          text: string;
+        }[] = [];
         for (const row of rows) {
           if (!row.changed || row.outcome === "allocated") continue;
           const before = baseline.get(row.id) ?? undefined;
           const after = finals.get(row.id) ?? undefined;
           const state = after ?? before;
           if (!state || token === undefined) throw new Error("missing final batch fact state");
-          const body = serialized(lifecycleFact(row.outcome === "created" ? "create" : row.outcome === "deleted" ? "delete" : "update", state, navigation.events, randomUUID(), token, time, row.outcome === "updated" ? before?.resource.revision : undefined));
-          if (Buffer.byteLength(body) > 300000) { journal = undefined; return refusal(problem("limit-exceeded", 413)); }
+          const body = serialized(
+            lifecycleFact(
+              row.outcome === "created"
+                ? "create"
+                : row.outcome === "deleted"
+                  ? "delete"
+                  : "update",
+              state,
+              navigation.events,
+              randomUUID(),
+              token,
+              time,
+              row.outcome === "updated" ? before?.resource.revision : undefined,
+            ),
+          );
+          if (Buffer.byteLength(body) > 300000) {
+            journal = undefined;
+            return refusal(problem("limit-exceeded", 413));
+          }
           facts.push({ id: row.id, before, after, text: body });
         }
         // Only now mutate storage. Any callback/SQL/commit failure rolls back the
@@ -814,26 +1041,44 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         for (const row of rows) {
           if (!row.changed) continue;
           const state = finals.get(row.id);
-          if (state) run("INSERT INTO resources VALUES (?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body", row.id, serialized(state.resource));
+          if (state)
+            run(
+              "INSERT INTO resources VALUES (?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body",
+              row.id,
+              serialized(state.resource),
+            );
           else run("DELETE FROM resources WHERE id=?", row.id);
           options.onPhase?.("resource-staged");
         }
         positions = [];
         for (const fact of facts) {
           const position = head() + 1;
-          if (!Number.isSafeInteger(position)) throw new Error("event ordering capacity unavailable");
+          if (!Number.isSafeInteger(position))
+            throw new Error("event ordering capacity unavailable");
           run("INSERT INTO events VALUES (?,?,?)", position, fact.id, fact.text);
-          for (const bead of incidentBeads(navigation.scope, fact.before, fact.after)) run("INSERT INTO incidence VALUES (?,?)", position, bead);
+          for (const bead of incidentBeads(navigation.scope, fact.before, fact.after))
+            run("INSERT INTO incidence VALUES (?,?)", position, bead);
           run("INSERT INTO boundaries VALUES (?,?)", position, randomUUID());
           positions.push(position);
         }
         return { status: 200, text };
       })();
-      run("INSERT INTO outcomes VALUES (?,?,?,?,?,?,?,?,?)", decision, principal, input.key, "atomicBatch", comparison.identity,
-        serialized(comparison.witnesses), outcome.status, outcome.text, null);
+      run(
+        "INSERT INTO outcomes VALUES (?,?,?,?,?,?,?,?,?)",
+        decision,
+        principal,
+        input.key,
+        "atomicBatch",
+        comparison.identity,
+        serialized(comparison.witnesses),
+        outcome.status,
+        outcome.text,
+        null,
+      );
       if (journal) {
         run("INSERT INTO batch_decisions VALUES (?,?)", decision, serialized(journal));
-        for (const position of positions) run("INSERT INTO batch_events VALUES (?,?)", position, decision);
+        for (const position of positions)
+          run("INSERT INTO batch_events VALUES (?,?)", position, decision);
       }
       run("UPDATE metadata SET value=? WHERE name='decisions'", String(decision));
       fresh = true;
