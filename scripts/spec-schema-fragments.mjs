@@ -35,12 +35,14 @@ export function extractSchemaFragments(markdown) {
       if (active) body.push(line);
       continue;
     }
-    const marker = !comment && /^<!-- bdp-schema:(start|end) ([A-Za-z][A-Za-z0-9]*) -->$/.exec(line);
+    const marker =
+      !comment && /^<!-- bdp-schema:(start|end) ([A-Za-z][A-Za-z0-9]*) -->$/.exec(line);
     if (!marker) {
-      if (!comment) assert(!/^\s*<!--\s*bdp-schema:/.test(line), `Malformed schema delimiter at ${location}`);
+      if (!comment)
+        assert(!/^\s*<!--\s*bdp-schema:/.test(line), `Malformed schema delimiter at ${location}`);
       // Walk every comment transition, preserving literal inline-code strings.
       let ticks = 0;
-      for (let i = 0; i < line.length;) {
+      for (let i = 0; i < line.length; ) {
         if (comment) {
           const end = line.indexOf("-->", i);
           if (end < 0) break;
@@ -69,7 +71,11 @@ export function extractSchemaFragments(markdown) {
       assert(active === name, `Unmatched schema end ${name} at ${location}`);
       const heading = `### Schema: ${JSON.stringify(name)}`;
       assert(body[0] === heading, `Expected ${heading}`);
-      const dsl = body.slice(1).map((row) => row.replace(/^#### /, "### ")).join("\n").trim();
+      const dsl = body
+        .slice(1)
+        .map((row) => row.replace(/^#### /, "### "))
+        .join("\n")
+        .trim();
       const standalone = `# ${JSON.stringify(name)}\n\nFormat: markdown-json-schema/0.6\n\n<a id="schema-root"></a>\n## Root schema\n\n${dsl}\n`;
       definitions[name] = parseSchema(standalone);
       active = null;
@@ -85,8 +91,14 @@ export function extractSchemaFragments(markdown) {
 export function checkFragments(definitions, bundle) {
   const names = Object.keys(definitions).sort();
   const owned = bundle[ownershipKey];
-  assert(Array.isArray(owned) && owned.every((name) => typeof name === "string"), "Missing Core definition ownership inventory");
-  assert(isDeepStrictEqual([...owned].sort(), names), "Core source/ownership inventory differs; removal or rename requires explicit migration");
+  assert(
+    Array.isArray(owned) && owned.every((name) => typeof name === "string"),
+    "Missing Core definition ownership inventory",
+  );
+  assert(
+    isDeepStrictEqual([...owned].sort(), names),
+    "Core source/ownership inventory differs; removal or rename requires explicit migration",
+  );
   for (const [name, schema] of Object.entries(definitions)) {
     assert(Object.hasOwn(bundle.$defs, name), `Missing generated definition ${name}`);
     assert(isDeepStrictEqual(bundle.$defs[name], schema), `Generated definition differs: ${name}`);
@@ -98,21 +110,33 @@ export function checkFragments(definitions, bundle) {
 export function serializeSchemaJSON(value, depth = 0) {
   assert(depth <= 128, "JSON nesting exceeds 128");
   if (value === null || typeof value !== "object") {
-    assert(value === null || ["string", "number", "boolean"].includes(typeof value), "Invalid JSON value");
+    assert(
+      value === null || ["string", "number", "boolean"].includes(typeof value),
+      "Invalid JSON value",
+    );
     if (typeof value === "number") assert(Number.isFinite(value), "Nonfinite JSON number");
     return Object.is(value, -0) ? "-0" : JSON.stringify(value);
   }
   const indent = "  ".repeat(depth);
   const next = `${indent}  `;
-  if (Array.isArray(value)) return value.length ? `[\n${value.map((item) => next + serializeSchemaJSON(item, depth + 1)).join(",\n")}\n${indent}]` : "[]";
+  if (Array.isArray(value))
+    return value.length
+      ? `[\n${value.map((item) => next + serializeSchemaJSON(item, depth + 1)).join(",\n")}\n${indent}]`
+      : "[]";
   const entries = Object.entries(value);
-  return entries.length ? `{\n${entries.map(([key, item]) => `${next}${JSON.stringify(key)}: ${serializeSchemaJSON(item, depth + 1)}`).join(",\n")}\n${indent}}` : "{}";
+  return entries.length
+    ? `{\n${entries.map(([key, item]) => `${next}${JSON.stringify(key)}: ${serializeSchemaJSON(item, depth + 1)}`).join(",\n")}\n${indent}}`
+    : "{}";
 }
 
 export function prepareBundle(definitions, bundle) {
   const previous = bundle[ownershipKey] ?? [];
   assert(Array.isArray(previous), "Malformed Core ownership inventory");
-  for (const name of previous) assert(Object.hasOwn(definitions, name), `Removed Core definition ${name}; explicit migration required`);
+  for (const name of previous)
+    assert(
+      Object.hasOwn(definitions, name),
+      `Removed Core definition ${name}; explicit migration required`,
+    );
   const output = structuredClone(bundle);
   Object.assign(output.$defs, definitions);
   output[ownershipKey] = Object.keys(definitions).sort();
@@ -132,8 +156,11 @@ function main() {
     const outputs = bundles.map((bundle) => prepareBundle(definitions, bundle));
     for (const [i, path] of bundlePaths.entries()) writeFileSync(resolve(root, path), outputs[i]);
   }
-  for (const path of bundlePaths) checkFragments(definitions, JSON.parse(readFileSync(resolve(root, path), "utf8")));
-  console.log(`${Object.keys(definitions).length} Core schema fragments match both distribution copies.`);
+  for (const path of bundlePaths)
+    checkFragments(definitions, JSON.parse(readFileSync(resolve(root, path), "utf8")));
+  console.log(
+    `${Object.keys(definitions).length} Core schema fragments match both distribution copies.`,
+  );
   console.log("Schema-shape parity is not implementation conformance.");
 }
 
