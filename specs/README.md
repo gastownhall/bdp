@@ -19,6 +19,6 @@ Reference implementation and conformance-test alignment follow the complete spec
 - [Common JSON schema](profiles/core/bdp-v0.1.schema.json) and [Types schema](profiles/types/types-v1.schema.json) are machine-readable companions. Unused historical helper definitions do not add operations to the canonical prose. Their alignment is checked explicitly as the specification is reviewed.
 - [CLI design](../docs/cli-design/bdp-cli.md) is the separate client specification. Its proposed encodings remain proposals unless expressly selected.
 - [Historical source](history/pre-canonical-20261101/README.md) preserves the inputs to this consolidation and their immutable original revisions.
-- [Query proposal](profiles/core/query.md), [native structured-read proposal](profiles/core/read-operations.md), [Issue/Dependency domain draft](types/issue/issue.md) and [experimental work](../experimental/README.md) do not add requirements to Core, Write or Types merely by being present.
+- [Query design context](profiles/core/query.md), [native structured-read proposal](profiles/core/read-operations.md), [Issue/Dependency domain draft](types/issue/issue.md) and [experimental work](../experimental/README.md) do not add requirements to Core, Write or Types merely by being present.
 
 Protocol semantics, client design, implementation support and release qualification are distinct. A document's location or a schema-valid example is not an implementation claim.
