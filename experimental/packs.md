@@ -106,12 +106,12 @@ All three require tests for the same exact definition at different local IDs in 
 
 ### General resource representations — exploratory
 
-Donna suggested broadening the binding-Link mechanism: a local Bead may be a copy, cache, proxy or representation of a global resource, whether a Bead or another artifact. Her motivating case is a Markdown Specification shredded into a local Bead graph whose root points to the authoritative source. This broadening is exploratory; no generic descriptor, relation hierarchy, identity equivalence, cache policy or proxy protocol is selected.
+Donna endorsed the general direction: a local Bead may be a copy, cache, proxy or view of a global resource, whether a Bead or another artifact. Her motivating case is a Markdown Specification shredded into a local Bead graph whose root points to the authoritative source. She requested a more approachable term and an end-to-end create walkthrough that preserves both Package and Type global identity. Pacabel recommends local view, with ViewOf as a new working Link name; RepresentationOf was the earlier working term. The name, generic descriptor, hierarchy, identity equivalence, cache policy and proxy protocol remain unselected.
 
-Proposed common relationship, with RepresentationOf as a working name only:
+Proposed common relationship, with ViewOf as a working name only:
 
 ```text
-local Specification root --RepresentationOf--> authoritative spec.md URI
+local Specification root --ViewOf--> authoritative spec.md URI
     |
     +-- local Type/Scenario Beads and definition Links
 ```
@@ -164,6 +164,45 @@ Name resolution selects nominal identity, not a definition revision. Two retaine
 Canonical absolute Type URIs remain an escape hatch. Human help/completion may use short labels, but machine output and stored affiliations retain canonical identity/exactness under the eventual representation contract. If a later install introduces a second Task, a fresh unqualified use becomes ambiguous rather than silently switching Types. Previously accepted exact references keep their meaning. An explicitly declared different alias, such as WorkTask, can remain unambiguous.
 
 Current CLI already describes catalog-resolved installed names, but its concrete affiliation examples lower a relative Task directly to Scope/Task and offline batch emission performs no fetch/default selection. See [catalog names](https://github.com/gastownhall/bdp/blob/52393e411f1ebd7a7ff4ce6ffc9e4879fedff11f/docs/cli-design/types-cli.md#L178-L200) and [current lowering/emission](https://github.com/gastownhall/bdp/blob/52393e411f1ebd7a7ff4ce6ffc9e4879fedff11f/docs/cli-design/affiliations-and-owned-state.md#L9-L50). Shortest qualification is new CLI design work: slash spellings above are illustrative logical names, not a change to literal Resource-ID parsing. Catalog discovery/generation and stale-binding checks, authoritative resolution placement, explicit offline catalog inputs and coexistence with existing relative IDs must be selected before adoption. Offline emission must not fetch, guess a binding/default or treat a stale partial cache as proof of uniqueness. No new wire selector, lifecycle operation or schema field is selected here.
+
+### Walkthrough: create Foo from Package A — design test
+
+Donna requested tracing the entire path of bd create --type Foo where the definition has ID x/y/Foo and is defined by Package A. For this example, treat x/y/Foo as the local Type Bead ID in selected Scope S, and x as A's local Package Bead ID, satisfying subordinate declaration IDs. Assume Foo is a concrete Bead Type and permits the command's initial properties. Values below are illustrative, not assigned namespaces, new fields or adopted descriptors.
+
+| Role | Example | Identity meaning |
+| --- | --- | --- |
+| Global Package identity P | https://publisher.example.org/A | Which Package, across Scopes and versions. This example uses a Bead-backed P; non-Bead Package IDs remain allowed. |
+| Local Package view | S/x | Actual in-Scope Package Bead, with its own local revision. |
+| Global Type identity T | https://publisher.example.org/A/y/Foo | Which nominal Type, across Scopes and revisions. |
+| Local Type view L | S/x/y/Foo | Actual local definition Bead, with its own revision, such as l12. |
+
+P and T are independent global identities, not local aliases. T is explicitly declared, not computed by concatenating P and a relative name. The shared example prefix is not a universal identity rule. A's declared SemVer, its exact installed content selection E, Foo's exact definition revision t7 and the local views' Resource revisions identify different things. E's graph-capture carrier remains deferred.
+
+The assumed installed graph has these logical relationships; labels and annotations are explanatory, not a selected wire/Link schema:
+
+```text
+sys/packages --installed selection E--> local Package S/x
+local Package S/x --ViewOf (P, E)--> global Package P
+local Package S/x --declares--> local Type S/x/y/Foo
+local Package S/x --named export Foo--> local Type S/x/y/Foo
+local Type S/x/y/Foo --ViewOf (T, t7)--> global Type T
+```
+
+The local declaration/export Links are a checked projection of A's installed composition; they do not create a second global defining Package. The source declarations remain subject to the selected one-defining-home rule. A Scope-level binding names this installation A, independent of the local root x and of its CLI mount. The advertised qualified Type name A/Foo comes from that binding and the named export, not from stripping the physical path x/y/Foo. Explicitly advertised module-name segments could also participate.
+
+Before creation, P has its admitted installation selection; T@t7 and its complete required Type closure are explicitly registered; a checked exact correspondence selects local L@l12 for T@t7; and the Scope has explicitly selected t7 as T's eligible default. These are distinct facts. A Package installation Link or generic ViewOf Link alone supplies neither Type registration nor default selection. The registration/default policy follows [Types lifecycle](https://github.com/gastownhall/bdp/blob/52393e411f1ebd7a7ff4ce6ffc9e4879fedff11f/specs/profiles/types/types.md#L2055-L2140). A future installation request may explicitly compose these actions, but no implicit default promotion is selected.
+
+1. Select the command's destination Scope S. Resolve Foo against one complete authoritative catalog context C. Cached names need the applicable validation before a new resolution. The logical catalog path is installed global Package P, its accepted export binding, local view L, and that view's canonical global Type identity T. A service may advertise the joined index; clients need not traverse all Links on every invocation. Mechanisms for catalog discovery/cache validation remain open.
+2. Deduplicate matches by nominal T. If Foo uniquely identifies T, use it. Another Package exporting the same T is not a collision; another distinct Type is. On ambiguity, offer A/Foo or the shortest stronger qualifier. The Package binding A maps to global P; it is not assumed equal to local ID x or to a CLI mount.
+3. The CLI lowers the chosen name to canonical T and sends ordinary createBead input with type set to T as an unpinned absolute URI string, plus the initial data. POST uses the destination Scope's discovered createBead operation, not the Type or Package URL. ID omission uses ordinary authority allocation. No new Package field or symbolic-name wire selector is invented. See [current create correspondence](https://github.com/gastownhall/bdp/blob/52393e411f1ebd7a7ff4ce6ffc9e4879fedff11f/docs/cli-design/bdp-cli.md#L696-L705). Identity is frozen for the invocation after name resolution; a later namespace change cannot retarget it. This does not claim C remains the current catalog at data commit.
+4. The service resolves unpinned T once to its explicitly selected eligible default, assumed t7, in the creation context. It confirms registration and the exact required closure. With explicit input such as A/Foo@=t7, the requested global definition pin is used independently of the default. Neither A's SemVer nor L's local revision l12 supplies this pin. A missing default or registration causes refusal, without acquiring or registering on the caller's behalf.
+5. Resolve accepted T@t7 to its retained exact interpretation and, where needed, the checked local view L@l12. Read that selected view, not L's current head. Validate correspondence against the accepted global definition, preserving semantic selectors/schema resource IDs and distinguishing genuine local envelope IDs/revisions. Current Types allows registered foreign definitions without ordinary local Beads; general view exposure/correspondence is proposed extension work, with intrinsic materialization as precedent. A generic origin/projection Link alone is not sufficient evidence.
+6. Validate that Foo is an eligible concrete Bead Type, the initial properties satisfy its exact schemas/conformance closure, and the resulting graph satisfies ordinary creation rules. Commit the new Bead under the ordinary Scope write contract. It is an instance of Foo, not a Package A definition; it need not live below x and gains no automatic declaring membership in A. Retry/recovery preserves the original successful operation and exact result rather than selecting a later default again.
+7. Report the actual new Bead ID/revision and exact affiliation in ordinary machine output. For this trace, Pacabel recommends the global exact affiliation {uri: T, revision: t7}; this is a concrete candidate ending, NOT a selected stored-reference ruling. The alternative is {uri: L, revision: l12} plus retained immutable correspondence to T@t7 and an explicit amendment preserving global nominal equality. A mutable name/view Link alone cannot supply that amendment. Ordinary show of x/y/Foo still reports its actual local definition record; exact semantic lookup of T@t7 preserves its canonical global identity.
+
+The trace strengthens the recommendation to retain global exact Type affiliations: Package installation already keys on global P while its local view may move only by creating a different Resource, and the same separation should preserve T across Scopes. It does not require storing P on every Foo instance or deriving T from P. Global/local stored Type references remain a Donna decision. Local-view URI acceptance as Type input, exact correspondence/coverage and authoritative catalog/lowering mechanics also remain open.
+
+The main usability issue exposed is initial Type defaults. An explicitly composed Package-installation request could select defaults for newly introduced Types as a declared action, with ordinary permissions/admission and preservation of existing defaults. That is a proposal for completing installation design, not automatic behavior selected by this walkthrough. Otherwise even a unique Foo name and an installed A are insufficient for unpinned creation. Existing exact affiliations and required retained closure must survive later view/source/default changes; generic cache eviction cannot invalidate them. No closure carrier, public registration/default verb or runtime implementation is adopted by this design test.
 
 ## Composition contract
 
