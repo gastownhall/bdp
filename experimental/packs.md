@@ -72,7 +72,7 @@ Current Types provides a limited precedent, not an already general solution. Ord
 
 Donna requested three viable concrete designs and their tradeoffs, then endorsed the explicit binding-Link direction. The following comparison is retained to explain the alternatives; concrete descriptors, registry/discovery, admission and retention are still open. For comparison only, the worked Type example stores the exact global reference; binding Links could instead support exact local storage with retained correspondence. Mapping location and affiliation storage are separate choices.
 
-Illustrative example: global Type identity https://definitions.example.org/memory/Fact, selected definition revision r7, has local representation https://scope.example.org/team/memory/types/Fact at actual Resource revision l12. The token spellings are examples, not new URI or Reference syntax. The analogous Package mapping uses its global identity and exact published selection; declared SemVer and source provenance remain separate. A Package global ID need not identify a Bead, so it cannot always serve as a Link endpoint. Native definitions whose global and local IDs coincide need no artificial duplicate record.
+Illustrative example: global Type identity https://definitions.example.org/memory/Fact, selected definition revision r7, has local representation https://scope.example.org/team/memory/types/Fact at actual Resource revision l12. The token spellings are examples, not new URI or Reference syntax. The analogous Package mapping uses its global identity and exact published selection; declared SemVer and source provenance remain separate. Correction to the initial comparison: an out-of-Scope Package URI can be a Link endpoint even when it is not a Bead; Core admits opaque external resources. An in-Scope endpoint must identify a Bead. Native definitions whose global and local IDs coincide need no artificial duplicate record.
 
 #### Design 1: Generalized aliases carry the correspondence
 
@@ -88,7 +88,7 @@ The correspondence travels with the Bead revision and can be inspected or export
 
 #### Design 3: Explicit graph Links carry the correspondence
 
-A discovered Scope registry Bead has a typed binding Link to the exact local representation. The Link records the global identity and exact selection in properties and pins the target's local revision. A working Link Type name is DefinitionRepresentation; no descriptor, field spelling or registry location is selected. Using the global URI as a property accommodates Package identities that are not Bead IDs. Exact correspondence is validated before acceptance; adding an arbitrary Link is not sufficient authority.
+A discovered Scope registry Bead has a typed binding Link to the exact local representation. This initial illustrative form records the global identity and exact selection in properties and pins the target's local revision. A working Link Type name is DefinitionRepresentation; no descriptor, field spelling, orientation or registry location is selected. A URI in properties remains one carrier option, but is not required merely because the URI identifies an external non-Bead resource. The generalized local-to-origin edge below is another Link shape. Exact definition correspondence is validated before acceptance; adding an arbitrary Link is not sufficient authority.
 
 This keeps mapping separate from definition bodies and uses ordinary graph enumeration, authorization and Link revisions. It also supports inverse lookup from a local Bead without broadening ordinary HTTP aliases. The cost is another relation family, a discoverable registry and coherent admission/retention of the binding and its target. A local-record update requires a new accepted exact binding; historical bindings required for existing references cannot simply disappear. The active selection must be explicit when several representations exist. A binding Link alone does not register a Type, install a Package or capture an executable graph closure.
 
@@ -103,6 +103,39 @@ This keeps mapping separate from definition bodies and uses ordinary graph enume
 Donna endorsed Design 3, explicit binding Links, after Pacabel's recommendation to combine them with optional convenience aliases. It gives this generic datastore an inspectable mapping without changing every definition schema or turning all aliases into identity claims. This selects the representation direction, not a Link descriptor or lifecycle contract. Design 2 remains the self-contained-metadata alternative; Design 1 remains the richer-Scope-resolver alternative. Historical comparison examples do not select global versus local stored affiliations.
 
 All three require tests for the same exact definition at different local IDs in two Scopes, native identity equality, multiple accepted exact Type revisions, alias/default changes after storage, conflicting claims and unauthorized edits. Both global storage and local storage with retained exact correspondence remain open. Package installation cardinality remains separate from Type revision retention; mapping changes must not reinterpret an existing exact reference. Stable canonical IDs and no implicit relocation remain selected. Exact graph closure and labelled-revision carriers remain deferred.
+
+### General resource representations — exploratory
+
+Donna suggested broadening the binding-Link mechanism: a local Bead may be a copy, cache, proxy or representation of a global resource, whether a Bead or another artifact. Her motivating case is a Markdown Specification shredded into a local Bead graph whose root points to the authoritative source. This broadening is exploratory; no generic descriptor, relation hierarchy, identity equivalence, cache policy or proxy protocol is selected.
+
+Proposed common relationship, with RepresentationOf as a working name only:
+
+```text
+local Specification root --RepresentationOf--> authoritative spec.md URI
+    |
+    +-- local Type/Scenario Beads and definition Links
+```
+
+The edge identifies the particular source resource, rather than only a repository/server homepage. Global identity and retrieval location may differ; an additional source locator/provenance record can say where the selected representation was obtained. Current [Core endpoint rules](https://github.com/gastownhall/bdp/blob/52393e411f1ebd7a7ff4ce6ffc9e4879fedff11f/specs/profiles/core/core.md#L369-L428) already admit an in-Scope Bead linked to an opaque out-of-Scope URI, whose target may be a Bead, another resource or something not dereferenceable. External target kind, publication authority and pin validity are not proved by that edge. This corrects the earlier overbroad claim that non-Bead global identity necessarily requires a property instead of an endpoint. In-Scope non-Bead targets still need a different carrier or explicit descriptor; they cannot be smuggled in as opaque external endpoints.
+
+Keep representation form and operational behavior separate:
+
+| Use | Meaning of the local state | Additional contract |
+| --- | --- | --- |
+| Copy | Holds specified source content/meaning from a selected version. | Define the compared content and exact source evidence; local envelopes need not be byte-identical. |
+| Projection | Transforms a selected source into a different structure, such as Markdown into a graph. | Identify the extraction recipe/version/options, coverage and source-to-local correspondence. Losslessness/equivalence is not automatic. |
+| Cache | Retains a copy or projection for local use. | Freshness, refresh, eviction and retained-use guarantees are policy beyond provenance. |
+| Proxy | Provides a local handle for operations on the authoritative resource. | Explicit routing, capabilities, authorization, failure and read/write semantics; no forwarding follows from the Link alone. |
+
+A projection may also be cached; a proxy may cache results. These are not necessarily mutually exclusive Link kinds. Prefer a generic representation relationship with stronger application contracts, rather than treating every provenance Link as exact nominal identity or choosing a refinement hierarchy now.
+
+For the shredded Specification, retain evidence of the exact source used: for example a Git commit plus file path, a source-defined revision, and/or a digest of the acquired bytes. These identify different things; an external opaque pin is recorded source provenance, not a locally issued Bead revision or automatic validation. Also record which extractor/version/options produced the view and which local record or graph capture the assertion covers. A root Bead revision alone does not freeze all its member Beads and Links. Exact membership/capture remains the deferred graph-closure issue; this proposal does not select an Edition or manifest carrier.
+
+The root relationship is sufficient to discover the graph view's source. Tooling that resolves individual definitions needs more: stable authored definition IDs where available, or a retained mapping from source selectors to local members. A heading anchor or source location is a selector, not automatically a nominal Type identity. A mapping can be retained once for the view rather than requiring a source Link on every member. The root's source relationship alone does not prove that every extracted Type has the same global nominal identity as an authoritative definition.
+
+Package/Type exact-definition binding is a stronger application of the general representation mechanism. It must retain and validate the exact global-to-local correspondence, distinguish selection from origin provenance, reject conflicting claims, preserve publication authority and keep historical interpretation stable. A generic lossy projection or proxy Link is insufficient for Type equality, registration, default selection or Package installation. Several local projections/copies of one source can coexist; an application may select one for a particular context without imposing universal one-representation cardinality. The selected one-live-Package-installation rule remains separate.
+
+If the source advances, an old projection may still accurately represent its recorded source version while no longer representing the latest content. If local members are edited, origin provenance may remain valid but any stronger exact-representation claim must be revalidated, superseded or explicitly treated as a fork/edited view. The Link alone does not synchronize, publish edits back, replace canonical Resource IDs or acquire source authority. Concrete validation, mutation/refresh, ownership and local-graph coverage rules remain open. A registry can index/select representations, but is not inherently required as the source endpoint of every representation relationship.
 
 ### CLI Type names and qualification — proposed policy
 
