@@ -251,7 +251,7 @@
       "specs/profiles/write/id-root-v1.schema.json": "0f4c2a7cc57fefb29dc5ff6dc4139bd1e465feb6e0551021db16a5775ed73d8f",
       "specs/profiles/write/id-root.md": "c7c34478f2d03cd39da4b9cffc7bfefdb6902f9d41caea67552d48faa7143563",
       "specs/profiles/core/retained-core.md": "da0f5d73ec5a415a1eedc696ebae014425b94031a6ff1589595069fda0463c4e",
-      "specs/profiles/core/core.md": "5772ccaeb2d6a68e43a92eeffe19db1d1f1c40b1c669ecb529513d90e948035e",
+      "specs/profiles/core/core.md": "899a008ac3efb1420cb2d643e77bdbce6f6bc38beadd8826cab07a512560b9bb",
       "specs/profiles/core/contract-binding.md": "4cea2ef5ce44ff66ed0da93a738f01713ab4fbbd9434e9e2ea098cc626001527",
       "specs/profiles/core/read-delivery.md": "9ea7095d58280eb700f1cdd44e028d9407847b20025d3ebda9a90bdbaab3993d",
       "specs/profiles/core/events.md": "f55f292dd4fb15e463f59e2c8892b77a3f211c6cdc97e40555e184f3e88ecec4",
@@ -299,7 +299,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 950
+              "line": 721
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -514,7 +514,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 950
+              "line": 721
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -1459,7 +1459,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1417
+              "line": 1023
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -1677,7 +1677,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1417
+              "line": 1023
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -1886,7 +1886,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1428
+              "line": 1034
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -2116,7 +2116,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1428
+              "line": 1034
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -2331,7 +2331,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1600
+              "line": 1206
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -2596,7 +2596,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1600
+              "line": 1206
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -2850,7 +2850,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1771
+              "line": 1379
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -3097,7 +3097,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1771
+              "line": 1379
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -3335,7 +3335,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1885
+              "line": 1493
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -3576,7 +3576,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1885
+              "line": 1493
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -5962,7 +5962,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1417
+              "line": 1023
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -6180,7 +6180,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1417
+              "line": 1023
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -6389,7 +6389,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1428
+              "line": 1034
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -6619,7 +6619,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1428
+              "line": 1034
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -6834,7 +6834,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1600
+              "line": 1206
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -7129,7 +7129,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1600
+              "line": 1206
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -7413,7 +7413,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1771
+              "line": 1379
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -7660,7 +7660,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1771
+              "line": 1379
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -7898,7 +7898,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1885
+              "line": 1493
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -8139,7 +8139,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1885
+              "line": 1493
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -11238,7 +11238,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1457
+              "line": 1063
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -11495,7 +11495,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1457
+              "line": 1063
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -11728,7 +11728,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1506
+              "line": 1112
             },
             {
               "file": "specs/profiles/core/retained-core.md",
@@ -11846,7 +11846,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 1506
+              "line": 1112
             },
             {
               "file": "specs/profiles/core/retained-core.md",
