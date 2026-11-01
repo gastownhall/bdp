@@ -19,7 +19,8 @@ const snapshotRoot = new URL("../test-support/historical-citation-692d/", import
 describe("historical citation cutline 692d is a separate test source", () => {
   it("preserves the old obligation without making it current Core authority", () => {
     const historical = readHistoricalCitation692dSource("docs/specs/bdp.md");
-    const old = "The Read discovery document requires `bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types`.";
+    const old =
+      "The Read discovery document requires `bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types`.";
     expect(historical.replace(/\s+/g, " ")).toContain(old);
     expect(readSpecificationSource("docs/specs/bdp.md").replace(/\s+/g, " ")).not.toContain(old);
     expect(readSpecificationSource("specs/profiles/core/retained-core.md")).toContain(
@@ -57,15 +58,26 @@ describe("historical citation cutline 692d is a separate test source", () => {
       "specs/conformance.md",
     ];
     for (const source of [...snapshotPaths, ...HISTORICAL_CITATION_692D_CATALOG_PATHS]) {
-      const bytes = readFileSync(new URL(source, snapshotPaths.includes(source) ? snapshotRoot : root));
+      const bytes = readFileSync(
+        new URL(source, snapshotPaths.includes(source) ? snapshotRoot : root),
+      );
       expect(() => assertHistoricalCitation692dBytes(source, bytes), source).not.toThrow();
-      expect(() => assertHistoricalCitation692dBytes(source, bytes.subarray(1)), source).toThrow("byte drift");
+      expect(() => assertHistoricalCitation692dBytes(source, bytes.subarray(1)), source).toThrow(
+        "byte drift",
+      );
       const changed = Buffer.from(bytes);
       changed[changed.length - 1] = changed[changed.length - 1]! ^ 1;
-      expect(() => assertHistoricalCitation692dBytes(source, changed), source).toThrow("byte drift");
-      expect(() => assertHistoricalCitation692dBytes(source, Buffer.concat([bytes, Buffer.from(" ")])), source).toThrow("byte drift");
+      expect(() => assertHistoricalCitation692dBytes(source, changed), source).toThrow(
+        "byte drift",
+      );
+      expect(
+        () => assertHistoricalCitation692dBytes(source, Buffer.concat([bytes, Buffer.from(" ")])),
+        source,
+      ).toThrow("byte drift");
     }
-    expect(() => assertHistoricalCitation692dBytes("package.json", Buffer.alloc(0))).toThrow("Not a pinned");
+    expect(() => assertHistoricalCitation692dBytes("package.json", Buffer.alloc(0))).toThrow(
+      "Not a pinned",
+    );
   });
 
   it("checks every original quotation from the exact six catalogs without changing their census", () => {

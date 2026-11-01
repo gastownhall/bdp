@@ -58,7 +58,10 @@ const RETIREMENTS: Readonly<Record<string, readonly string[]>> = {
 };
 
 describe("draft Transactional catalog", () => {
-  const catalog = loadScenarioCatalogJson(readHistoricalCitation692dCatalog(CATALOG_PATH), "transactional-v1.json");
+  const catalog = loadScenarioCatalogJson(
+    readHistoricalCitation692dCatalog(CATALOG_PATH),
+    "transactional-v1.json",
+  );
   const readUpdateCatalog = loadScenarioCatalogJson(
     readText(READ_UPDATE_CATALOG_PATH),
     "read-update-v1.json",

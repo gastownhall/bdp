@@ -29,7 +29,10 @@ const READ_CATALOG_PATH = "packages/conformance/catalog/read-v1.json";
 const MATRICES_DIRECTORY = "packages/conformance/matrices";
 
 describe("draft Read+Update catalog", () => {
-  const catalog = loadScenarioCatalogJson(readHistoricalCitation692dCatalog(CATALOG_PATH), "read-update-v1.json");
+  const catalog = loadScenarioCatalogJson(
+    readHistoricalCitation692dCatalog(CATALOG_PATH),
+    "read-update-v1.json",
+  );
   const ids = catalog.scenarios.map(({ id }) => id);
 
   it("strictly parses and binds every citation to historical cutline 692d", () => {

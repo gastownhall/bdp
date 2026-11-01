@@ -32,7 +32,10 @@ const CITATION_SOURCES = new Set([
 ]);
 
 describe("draft numeric-model catalog", () => {
-  const catalog = loadScenarioCatalogJson(readHistoricalCitation692dCatalog(CATALOG_PATH), "numeric-model-v1.json");
+  const catalog = loadScenarioCatalogJson(
+    readHistoricalCitation692dCatalog(CATALOG_PATH),
+    "numeric-model-v1.json",
+  );
   const ids = catalog.scenarios.map(({ id }) => id);
 
   it("strictly parses and binds every citation to historical cutline 692d", () => {

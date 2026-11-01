@@ -13,7 +13,9 @@ import {
 
 const root = new URL("../../../", import.meta.url);
 const read = (name: string) => readSpecificationSource(name);
-const catalog = loadScenarioCatalogJson(readHistoricalCitation692dCatalog("packages/conformance/catalog/history-v1.json"));
+const catalog = loadScenarioCatalogJson(
+  readHistoricalCitation692dCatalog("packages/conformance/catalog/history-v1.json"),
+);
 describe("History catalog remains unbound metadata", () => {
   it("has 30 unique profile-owned normative rows and no fourth profile", () => {
     expect(catalog.scenarios).toHaveLength(30);

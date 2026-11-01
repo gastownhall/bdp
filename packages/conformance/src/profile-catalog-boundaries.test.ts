@@ -157,7 +157,9 @@ function assertHistoricalSourceProfileCitation(
     throw new Error(`Not a historical cutline 692d protocol source: ${source}`);
   if (
     source !== "docs/specs/bdp.md" &&
-    !markdownAnchors(readHistoricalCitation692dSource(source)).some((entry) => entry.anchor === anchor)
+    !markdownAnchors(readHistoricalCitation692dSource(source)).some(
+      (entry) => entry.anchor === anchor,
+    )
   )
     throw new Error(`Source does not own anchor: ${source}${anchor}`);
   assertProfileCitation(anchor, profile, historicalOwners, selectedText);
@@ -385,36 +387,39 @@ describe("catalog citations respect cumulative profile boundaries", () => {
         "Not a historical cutline",
       );
   });
-  it.each(catalogs)("audits every requirement in %s against its explicit source cutline", (name) => {
-    // The one diagnostic catalog keeps its current-source audit. Any new ordinary
-    // catalog must obtain an explicit cutline pin; unknown names fail closed.
-    const historical = name !== "packages/conformance/development/read-update-catalog-v1.json";
-    const catalog = loadScenarioCatalogJson(
-      historical ? readHistoricalCitation692dCatalog(name) : read(name),
-    );
-    validateCatalogCitations(catalog, historical ? readHistoricalCitation692dSource : read);
-    for (const scenario of catalog.scenarios) {
-      // A valid excerpt repeated in place of another obligation is still lost
-      // traceability, even though every individual citation resolves.
-      const citations = scenario.requirements.map(({ source, anchor, selectedText }) =>
-        JSON.stringify([source, anchor, selectedText.replace(/\s+/g, " ").trim()]),
+  it.each(catalogs)(
+    "audits every requirement in %s against its explicit source cutline",
+    (name) => {
+      // The one diagnostic catalog keeps its current-source audit. Any new ordinary
+      // catalog must obtain an explicit cutline pin; unknown names fail closed.
+      const historical = name !== "packages/conformance/development/read-update-catalog-v1.json";
+      const catalog = loadScenarioCatalogJson(
+        historical ? readHistoricalCitation692dCatalog(name) : read(name),
       );
-      expect(new Set(citations).size, `${scenario.id}: distinct requirement citations`).toBe(
-        citations.length,
-      );
-      for (const requirement of scenario.requirements) {
-        const label = `${scenario.id}: ${requirement.anchor}`;
-        expect(
-          () =>
-            (historical ? assertHistoricalSourceProfileCitation : assertSourceProfileCitation)(
-              requirement.source,
-              requirement.anchor,
-              scenario.requiredProfile,
-              requirement.selectedText,
-            ),
-          label,
-        ).not.toThrow();
+      validateCatalogCitations(catalog, historical ? readHistoricalCitation692dSource : read);
+      for (const scenario of catalog.scenarios) {
+        // A valid excerpt repeated in place of another obligation is still lost
+        // traceability, even though every individual citation resolves.
+        const citations = scenario.requirements.map(({ source, anchor, selectedText }) =>
+          JSON.stringify([source, anchor, selectedText.replace(/\s+/g, " ").trim()]),
+        );
+        expect(new Set(citations).size, `${scenario.id}: distinct requirement citations`).toBe(
+          citations.length,
+        );
+        for (const requirement of scenario.requirements) {
+          const label = `${scenario.id}: ${requirement.anchor}`;
+          expect(
+            () =>
+              (historical ? assertHistoricalSourceProfileCitation : assertSourceProfileCitation)(
+                requirement.source,
+                requirement.anchor,
+                scenario.requiredProfile,
+                requirement.selectedText,
+              ),
+            label,
+          ).not.toThrow();
+        }
       }
-    }
-  });
+    },
+  );
 });
