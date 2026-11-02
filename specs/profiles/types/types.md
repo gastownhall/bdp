@@ -13,8 +13,9 @@ refinement, properties and graph validation, intrinsic publication, exact lookup
 and Types1 selection. [Core](../core/core.md) supplies common Resource identity,
 References, revisions, native ownership, authorization, discovery and reads.
 [Write](../write/write.md) supplies ordinary mutation, final publication,
-committed Event production and retained execution outcomes. Core defines the
-shared Event carriers and observation contract. Types adds interpretation; it does not replace
+committed Event production when Events is advertised, and retained execution
+outcomes. [Events](../events/events.md) defines the Event carriers and observation
+contract. Types adds interpretation; it does not replace
 those contracts or require a separate inventory/query engine. Mechanical schemas
 and immutable publication artifacts supplement this prose; they are not competing
 semantic authorities.

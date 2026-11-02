@@ -22,6 +22,7 @@ CANONICAL = (
     "docs/cli-design/bdp-cli.md",
 )
 ENTRY_POINTS = ("README.md", "specs/README.md", "docs/spec-review/README.md")
+AUTHORING_DOCS = ("specs/formats/README.md", "specs/formats/markdown-openapi.md", "specs/formats/markdown-type-definitions.md")
 EDITORIAL_TOOLING = {
     ".github/workflows/ci.yml", "scripts/check-spec-editorial.py",
     "scripts/check-spec-editorial-test.py", "scripts/spec-schema-fragments.mjs",
@@ -35,6 +36,90 @@ CORE_BUNDLES = {
     "packages/protocol/schemas/bdp-v0.1.schema.json",
 }
 CORE_OWNERSHIP = "x-bdp-core-definitions"
+# Original authored Core-name witness at0f80919, before the Events/Write factoring.
+# An existing foreign definition cannot become editable Core by owner relabelling.
+CORE_BASELINE_DEFINITIONS = frozenset((
+    'absoluteHttpUrl',
+    'absoluteUri',
+    'bdpVersion',
+    'beadCollection',
+    'beadRecord',
+    'capabilityAdvertisements',
+    'capabilityVersionAdvertisements',
+    'contextMessage',
+    'contextString',
+    'contextTime',
+    'coreAdvertisedLimits',
+    'coreDiscovery',
+    'countResult',
+    'currentBeadCollection',
+    'currentBeadRecord',
+    'currentLinkCollection',
+    'currentLinkRecord',
+    'dateTime',
+    'exactTypeDefinitionRecord',
+    'historicalBeadRecord',
+    'historicalLinkRecord',
+    'historyCapability',
+    'historyMissing',
+    'historyMissingItem',
+    'historyVersionRow',
+    'historyVersionsPage',
+    'historyWindow',
+    'iso8601Duration',
+    'jsonPointer',
+    'linkCollection',
+    'linkRecord',
+    'maximumEndpointMultiplicityPolicy',
+    'metadata',
+    'pinnedReference',
+    'pinnedTypeReference',
+    'positiveInteger',
+    'projectedBeadCollection',
+    'projectedBeadRecord',
+    'projectedLinkCollection',
+    'projectedLinkRecord',
+    'properties',
+    'readProblem',
+    'readProblemCode',
+    'reference',
+    'resourceIdentity',
+    'resourceKind',
+    'resourceProjectionCapabilityProblem',
+    'resourceProjectionCapabilityV1',
+    'resourceProjectionInventoryQueryV1',
+    'resourceProjectionMask',
+    'resourceProjectionPointQueryV1',
+    'resourceProjectionProblem',
+    'resourceProjectionSelection',
+    'retainedDeltaEffect',
+    'retainedDeltaEvent',
+    'retainedEvent',
+    'retainedEventCommon',
+    'retainedEventCoverage',
+    'retainedEventDeleted',
+    'retainedEventDerived',
+    'retainedEventPage',
+    'retainedEventPolicy',
+    'retainedEventProblem',
+    'retainedEventQuery',
+    'retainedEventSelection',
+    'retainedPostimageEffect',
+    'retainedPostimageEvent',
+    'retryDisposition',
+    'revision',
+    'revisionActor',
+    'revisionProvenance',
+    'selector',
+    'typeDefinitionReadCapabilityProblem',
+    'typeDefinitionReadCapabilityV1',
+    'typeDefinitionReadProblem',
+    'typeDefinitionReadQueryV1',
+    'typeDefinitionReadResult',
+    'typeDefinitionReadSelection',
+    'typeReference',
+    'wireToken',
+))
 PROFILE_OWNERSHIP = "x-bdp-schema-definitions"
 PROFILE_SOURCES = "x-bdp-schema-sources"
 FEATURE_BUNDLES = {"specs/profiles/write/id-root-v1.schema.json", "specs/profiles/types/types-v1.schema.json"}
@@ -124,8 +209,9 @@ def editorial_change(base, head):
             bodies[revision] = body.decode("utf-8")
         if not found:
             raise ValueError(f"cannot inspect changed path {path!r}")
-        # These are narrowly checked specification distributions/tool wiring,
-        # not a path exemption for arbitrary schema or dependency changes.
+        # Authored Core/Events changes are intentionally specification-only:
+        # this lane proves source consistency, never implementation conformance.
+        # Foreign schemas, identities and dependency changes remain protected.
         if path == "package.json" or path in CORE_BUNDLES or path in FEATURE_BUNDLES:
             if base not in bodies or head not in bodies:
                 return False
@@ -138,6 +224,13 @@ def editorial_change(base, head):
                 elif path in FEATURE_BUNDLES:
                     before = {k: v for k, v in before.items() if k not in (PROFILE_OWNERSHIP, PROFILE_SOURCES)}
                     after = {k: v for k, v in after.items() if k not in (PROFILE_OWNERSHIP, PROFILE_SOURCES)}
+                    # One exact documentation-pointer repair; feature constraints,
+                    # IDs and references remain protected by full value comparison.
+                    if path == "specs/profiles/types/types-v1.schema.json":
+                        old_comment = before.get("$comment")
+                        if isinstance(old_comment, str) and after.get("$comment") == old_comment.replace(
+                                "See types-binding.md", "See types.md#12-types1-capability-and-rejectable-selection"):
+                            after["$comment"] = old_comment
                     if before != after:
                         return False
                 elif not editorial_core_change(before, after):
@@ -171,7 +264,7 @@ def editorial_core_change(before, after):
     after = dict(after)
     old_owned = before.pop(PROFILE_OWNERSHIP, before.pop(CORE_OWNERSHIP, []))
     new_owned = after.pop(PROFILE_OWNERSHIP, after.pop(CORE_OWNERSHIP, None))
-    before.pop(PROFILE_SOURCES, None)
+    old_sources = before.pop(PROFILE_SOURCES, {})
     source_map = after.pop(PROFILE_SOURCES, None)
     write_owned = set()
     if source_map is not None:
@@ -189,6 +282,13 @@ def editorial_core_change(before, after):
     if len(set(new_owned)) != len(new_owned) or not set(old_owned) <= set(new_owned):
         return False
     old_defs = dict(before.pop("$defs"))
+    if source_map is not None:
+        prior_core = set(CORE_BASELINE_DEFINITIONS)
+        for source in ("specs/profiles/core/core.md", "specs/profiles/events/events.md"):
+            prior_core.update(old_sources.get(source, []))
+        assigned_core = set(source_map["specs/profiles/core/core.md"] + source_map["specs/profiles/events/events.md"])
+        if any(name in old_defs and name not in prior_core for name in assigned_core):
+            return False
     new_defs = dict(after.pop("$defs"))
     if not set(new_owned) <= new_defs.keys():
         return False
@@ -372,7 +472,7 @@ def check_documents():
     failures = []
     checked_json = 0
     comments = 0
-    documents = (*CANONICAL, *ENTRY_POINTS)
+    documents = (*CANONICAL, *ENTRY_POINTS, *AUTHORING_DOCS)
     for relative in documents:
         path = ROOT / relative
         if not path.is_file():
@@ -407,7 +507,7 @@ def check_documents():
             if not target.exists():
                 failures.append(f"{relative}: missing link target: {address}")
                 continue
-            if relative in CANONICAL and target.relative_to(ROOT).as_posix() in SUPERSEDED:
+            if relative in (*CANONICAL, *AUTHORING_DOCS) and target.relative_to(ROOT).as_posix() in SUPERSEDED:
                 failures.append(f"{relative}: links to superseded rule module: {address}")
             if url.fragment and target.suffix == ".md":
                 try:

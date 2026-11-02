@@ -12,7 +12,9 @@ import {
   idRootSchemaFile,
   media,
   operations,
+  parseComposition,
   parseOperationTables,
+  pathItem,
   root,
   schemaFile,
   transportSignatures,
@@ -752,4 +754,46 @@ test("Types1 uses an explicit rejectable subtype only on its selected ordinary o
       .$ref,
     /types-v1.schema.json/,
   );
+});
+
+test("feature composition source cannot be captured from examples, comments or duplicate blocks", () => {
+  const text = readFileSync(resolve(root, "specs/profiles/types/types.md"), "utf8");
+  const block = text.match(
+    /^<!-- bdp-composition:start types1 -->[\s\S]*?^<!-- bdp-composition:end types1 -->$/m,
+  )[0];
+  const real = parseComposition(block);
+  assert.equal(real.media, "application/vnd.bdp.v0.1.types.v1+json");
+  assert.deepEqual(parseComposition(`   ~~~markdown\n${block}\n   ~~~\n${block}`), real);
+  for (const bad of [
+    `~~~markdown\n${block}\n~~~`,
+    `<!-- Donna:\n${block}\n-->`,
+    `${block}\n${block}`,
+    block.replace("bdp-composition:end types1", "bdp-composition:end other"),
+    block.replace("| media |", "| unknown |"),
+    block.replace("### Composition: types1", "Ignored prose"),
+    block.replace("| version |", "| id |"),
+    block.replace('`"1"`', "`1`"),
+  ])
+    assert.throws(() => parseComposition(bad));
+});
+
+test("additional POST header restrictions cannot discard invariant operation-target guards", () => {
+  const create = rows.find((row) => row.id === "createBead");
+  const op = pathItem({ ...create, forbiddenHeaders: ["X-Private", "ETag"] }).post;
+  assert.deepEqual(op["x-bdp-forbidden-response-headers"], ["ETag", "Location", "X-Private"]);
+});
+
+test("landing discovery metadata is body-independent and generation fingerprints actual inputs", () => {
+  for (const method of ["get", "head"]) {
+    const op = catalog.components.pathItems.scopeLanding[method];
+    assert(!op.responses["304"].content);
+    assert.match(op.responses["304"].headers.Link.description, /Scope discovery navigation/);
+  }
+  for (const path of [
+    "docs/cli-design/bdp-cli.md",
+    "specs/profiles/types/types-v1.schema.json",
+    "scripts/generate-openapi.mjs",
+    "fixtures/openapi/bindings.json",
+  ])
+    assert.match(catalog["x-bdp-navigation"].sourceFingerprints[path], /^[0-9a-f]{64}$/);
 });

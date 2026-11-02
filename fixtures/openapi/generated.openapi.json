@@ -249,11 +249,17 @@
     "authoringSource": "Visible profile OpenAPI tables; shared native HTTP rules in Core",
     "sourceFingerprints": {
       "specs/profiles/core/core.md": "996ce10a9384c1765c0b87f506759b92eb2e71582ea4865a3a61b2bee3c467e3",
-      "specs/profiles/write/write.md": "0b7613ce47e67cabe05b6495042171b39a72c2d58cc541036a864debaec8d85f",
+      "specs/profiles/write/write.md": "f95b24a06518efb2b0d8bb2d35ecfe3383a019e11ec5b546a08c28a2b35fba02",
       "specs/profiles/events/events.md": "944fd2e286282f7ec4ab28c6cbde09223ed2b07aa2f84f856dc588f4890a487b",
-      "specs/profiles/types/types.md": "cf7bef742ab14b874dc92f8b23591ee0027a8e9349d8e5e9753f9570b6aaba5e",
+      "specs/profiles/types/types.md": "40540e0dcf408a80ff7115020aac14f13e31830a5104cdc893b678f2d353fb5b",
       "specs/profiles/transfer/transfer.md": "2c6dc6b60438e18b2785aaff4cc24d9023f0f17dc96f74c168b9a8f6fb5d4e74",
-      "specs/formats/markdown-openapi.md": "4cddc5a3384b52844439f7f0bc89a6c82db5a7c5be6f1b35c09f7a313d57ec51",
+      "specs/formats/markdown-openapi.md": "1c8bad3a2fec72c9db63f482a08caf490ba61a776f73af4dbc3c6771d71930f5",
+      "docs/cli-design/bdp-cli.md": "baf6bf3565bf78d0dc60d1921e907b5900567abf7def8022efae09ebb4967359",
+      "specs/profiles/types/types-v1.schema.json": "c02a57d5cddb2084154d924fc2ebfca3c150b35587f6fb43f0da9f93931f1571",
+      "scripts/generate-openapi.mjs": "3e2dec138511b67f4c08a9fa0a253e262bd65c9df4ffdc91ef20254f32afe67f",
+      "scripts/spec-schema-fragments.mjs": "fba67bf129d10ea9f0252e505c60ab262c780775fa65e28ec329ca29e234b326",
+      "fixtures/openapi/bindings.json": "2a7bc055015197298b3cc099ff5402201cc921b5c4d4e8fecdb1c52337dbd1c8",
+      "packages/protocol/schemas/bdp-v0.1.schema.json": "ea8e27bc70f92307ec91d30a562869ad6a3c7472bfe334321f812ba906555add",
       "specs/profiles/core/bdp-v0.1.schema.json": "ea8e27bc70f92307ec91d30a562869ad6a3c7472bfe334321f812ba906555add",
       "specs/profiles/write/id-root-v1.schema.json": "abbb5259009577e91f829d269540f2b2bde65fa52403dc542bf88a6a30ec291a"
     },
@@ -366,7 +372,7 @@
                   "x-bdp-required": true
                 },
                 "Link": {
-                  "description": "Required service-desc Link; human body is never parsed as discovery.",
+                  "description": "Scope discovery navigation; also valid on bodyless conditional success.",
                   "schema": {
                     "type": "string"
                   },
@@ -411,7 +417,7 @@
                   "x-bdp-required": true
                 },
                 "Link": {
-                  "description": "Required service-desc Link; human body is never parsed as discovery.",
+                  "description": "Scope discovery navigation; also valid on bodyless conditional success.",
                   "schema": {
                     "type": "string"
                   },
@@ -577,7 +583,7 @@
                   "x-bdp-required": true
                 },
                 "Link": {
-                  "description": "Required service-desc Link; human body is never parsed as discovery.",
+                  "description": "Scope discovery navigation; also valid on bodyless conditional success.",
                   "schema": {
                     "type": "string"
                   },
@@ -622,7 +628,7 @@
                   "x-bdp-required": true
                 },
                 "Link": {
-                  "description": "Required service-desc Link; human body is never parsed as discovery.",
+                  "description": "Scope discovery navigation; also valid on bodyless conditional success.",
                   "schema": {
                     "type": "string"
                   },

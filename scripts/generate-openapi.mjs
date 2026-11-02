@@ -135,6 +135,27 @@ const unwrapJSON = (cell) => {
   return JSON.parse(cell.slice(1, -1));
 };
 
+function commentAfter(line, comment) {
+  let ticks = 0;
+  for (let i = 0; i < line.length; ) {
+    if (comment) {
+      const end = line.indexOf("-->", i);
+      if (end < 0) break;
+      comment = false;
+      i = end + 3;
+    } else if (line[i] === "`") {
+      const run = /^`+/.exec(line.slice(i))[0].length;
+      if (!ticks) ticks = run;
+      else if (ticks === run) ticks = 0;
+      i += run;
+    } else if (!ticks && line.startsWith("<!--", i)) {
+      comment = true;
+      i += 4;
+    } else i++;
+  }
+  return comment;
+}
+
 // Complete-line delimiters outside code fences; no hidden or executable payload.
 export function parseOperationTables(markdown, sourceFile) {
   const rows = [];
@@ -143,10 +164,10 @@ export function parseOperationTables(markdown, sourceFile) {
   let comment = false;
   for (const [index, line] of markdown.split(/\r?\n/).entries()) {
     if (fence) {
-      if (new RegExp(`^${fence[0]}{${fence.length},}\\s*$`).test(line)) fence = null;
+      if (new RegExp(`^ {0,3}${fence[0]}{${fence.length},}\\s*$`).test(line)) fence = null;
       continue;
     }
-    const opening = /^(`{3,}|~{3,})/.exec(line);
+    const opening = !comment && /^ {0,3}(`{3,}|~{3,})/.exec(line);
     if (opening) {
       assert(!active, "Fenced payload inside operation table");
       fence = opening[1];
@@ -228,23 +249,7 @@ export function parseOperationTables(markdown, sourceFile) {
     }
     assert(comment || !/^\s*<!--\s*bdp-operation:/.test(line), "Malformed operation delimiter");
     // Hidden review comments cannot introduce or terminate an operation.
-    let ticks = 0;
-    for (let i = 0; i < line.length; ) {
-      if (comment) {
-        const end = line.indexOf("-->", i);
-        if (end < 0) break;
-        comment = false;
-        i = end + 3;
-      } else if (line[i] === "`") {
-        const run = /^`+/.exec(line.slice(i))[0].length;
-        if (!ticks) ticks = run;
-        else if (ticks === run) ticks = 0;
-        i += run;
-      } else if (!ticks && line.startsWith("<!--", i)) {
-        comment = true;
-        i += 4;
-      } else i++;
-    }
+    comment = commentAfter(line, comment);
     if (comment) continue;
     if (!active) continue;
     if (line === `### Operation: ${active.id}`) {
@@ -289,6 +294,107 @@ export function parseOperationTables(markdown, sourceFile) {
   return rows;
 }
 
+export function parseComposition(markdown, name = "types1") {
+  const blocks = [];
+  let active = null;
+  let fence = null;
+  let comment = false;
+  for (const line of markdown.split(/\r?\n/)) {
+    if (fence) {
+      if (new RegExp(`^ {0,3}${fence[0]}{${fence.length},}\\s*$`).test(line)) fence = null;
+      continue;
+    }
+    const opening = !comment && /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    if (opening) {
+      assert(!active, "Fenced composition payload");
+      fence = opening[1];
+      continue;
+    }
+    const marker =
+      !comment && /^<!-- bdp-composition:(start|end) ([A-Za-z][A-Za-z0-9]*) -->$/.exec(line);
+    if (marker) {
+      const [, action, id] = marker;
+      if (action === "start") {
+        assert(!active, "Nested composition");
+        active = { id, lines: [] };
+      } else {
+        assert(active?.id === id, "Unmatched composition end");
+        blocks.push(active);
+        active = null;
+      }
+      continue;
+    }
+    assert(comment || !/^\s*<!--\s*bdp-composition:/.test(line), "Malformed composition delimiter");
+    const wasComment = comment;
+    comment = commentAfter(line, comment);
+    if (active) {
+      assert(!wasComment && !comment, "Hidden composition source");
+      active.lines.push(line);
+    }
+  }
+  assert(!active && !fence && !comment, "Unclosed composition, fence or comment");
+  assert(
+    blocks.length === 1 && blocks[0].id === name,
+    "Missing, duplicate or unexpected composition",
+  );
+  const values = {};
+  let heading = false;
+  const allowed = [
+    "id",
+    "media",
+    "capability",
+    "version",
+    "operations",
+    "responseSchemas",
+    "selection",
+  ];
+  for (const line of blocks[0].lines) {
+    if (!line.trim()) continue;
+    if (line === `### Composition: ${name}`) {
+      assert(!heading, "Duplicate composition heading");
+      heading = true;
+      continue;
+    }
+    assert(line.startsWith("|") && line.endsWith("|"), "Unrecognized composition source line");
+    const cells = line
+      .slice(1, -1)
+      .split("|")
+      .map((cell) => cell.trim());
+    assert(cells.length === 2, "Malformed composition table");
+    const [key, value] = cells;
+    if (key === "Field" || cells.every((cell) => /^-+$/.test(cell))) continue;
+    assert(
+      allowed.includes(key) && !Object.hasOwn(values, key),
+      "Unknown/duplicate composition field",
+    );
+    values[key] = unwrapJSON(value);
+  }
+  assert(heading && allowed.every((key) => Object.hasOwn(values, key)), "Incomplete composition");
+  assert(
+    values.id === name &&
+      values.version === "1" &&
+      typeof values.media === "string" &&
+      values.media.length &&
+      typeof values.selection === "string" &&
+      values.selection.length,
+    "Invalid composition identity/selection",
+  );
+  assert(
+    Array.isArray(values.operations) &&
+      values.operations.every((id) => typeof id === "string") &&
+      new Set(values.operations).size === values.operations.length,
+    "Invalid composition targets",
+  );
+  assert(
+    values.responseSchemas &&
+      typeof values.responseSchemas === "object" &&
+      !Array.isArray(values.responseSchemas) &&
+      Object.values(values.responseSchemas).every((id) => typeof id === "string"),
+    "Invalid feature response schemas",
+  );
+  return values;
+}
+
 function cliSource(id) {
   const group = commandGroups.find((entry) => entry.signatures.includes(id));
   const command = group?.command ?? (id === "exactDefinition" ? null : "bd scope inspect");
@@ -312,7 +418,7 @@ export function operations() {
   return rows.map((row) => ({ ...row, cli: cliSource(row.id) }));
 }
 
-function pathItem(row) {
+export function pathItem(row) {
   return Object.fromEntries(
     row.methods.map((method) => {
       const post = method === "post",
@@ -342,6 +448,10 @@ function pathItem(row) {
           { type: "string" },
           false,
         );
+      if (row.landing)
+        headers.Link = header(
+          "Scope discovery navigation; also valid on bodyless conditional success.",
+        );
       const success = {
         description: row.alias
           ? "One-step alias redirect; no Resource body."
@@ -364,7 +474,9 @@ function pathItem(row) {
       }
       const bodyless = (description, successful = false) => ({
         description,
-        headers: successful ? headers : { "Cache-Control": headers["Cache-Control"] },
+        headers: successful
+          ? structuredClone(headers)
+          : { "Cache-Control": headers["Cache-Control"] },
       });
       const responses = {
         [row.alias ? "307" : "200"]: success,
@@ -493,17 +605,16 @@ function pathItem(row) {
         }
         op["x-bdp-forbidden-response-headers"] = ["ETag", "Location"];
       }
-      if (row.forbiddenHeaders) op["x-bdp-forbidden-response-headers"] = row.forbiddenHeaders;
+      if (post || row.forbiddenHeaders)
+        op["x-bdp-forbidden-response-headers"] = [
+          ...new Set([...(post ? ["ETag", "Location"] : []), ...(row.forbiddenHeaders ?? [])]),
+        ];
       if (row.event)
         op["x-bdp-query-rules"] +=
           " from and after conflict; finite JSON only; view is dispatch, not retainedEventQuery data. No progress from HEAD/304.";
       if (row.projection)
         op["x-bdp-response-selection"] =
           "fields supplied => projected arm and BDP-Projection; otherwise complete current/historical arm and no projection header. Exact requires History.";
-      if (row.landing)
-        success.headers.Link = header(
-          "Required service-desc Link; human body is never parsed as discovery.",
-        );
       return [method, op];
     }),
   );
@@ -553,6 +664,12 @@ export function generateArtifacts() {
       "specs/profiles/types/types.md",
       "specs/profiles/transfer/transfer.md",
       "specs/formats/markdown-openapi.md",
+      "docs/cli-design/bdp-cli.md",
+      "specs/profiles/types/types-v1.schema.json",
+      "scripts/generate-openapi.mjs",
+      "scripts/spec-schema-fragments.mjs",
+      "fixtures/openapi/bindings.json",
+      "packages/protocol/schemas/bdp-v0.1.schema.json",
       schemaFile,
       idRootSchemaFile,
     ].map((path) => [path, digest(readFileSync(resolve(root, path)))]),
@@ -564,43 +681,7 @@ export function generateArtifacts() {
     throw new Error("Canonical/mirror mismatch");
   const typesSource = "specs/profiles/types/types.md";
   const typesText = readFileSync(resolve(root, typesSource), "utf8");
-  const compositionBlock = typesText.match(
-    /^<!-- bdp-composition:start types1 -->\n([\s\S]*?)^<!-- bdp-composition:end types1 -->$/m,
-  );
-  assert(compositionBlock, "Missing Types1 visible composition");
-  const composition = {};
-  const compositionFields = [
-    "id",
-    "media",
-    "capability",
-    "version",
-    "operations",
-    "responseSchemas",
-    "selection",
-  ];
-  for (const line of compositionBlock[1].split("\n")) {
-    if (!line.startsWith("|")) continue;
-    const [key, value, ...extra] = line
-      .slice(1, -1)
-      .split("|")
-      .map((cell) => cell.trim());
-    if (key === "Field" || /^-+$/.test(key)) continue;
-    assert(
-      !extra.length && compositionFields.includes(key) && !Object.hasOwn(composition, key),
-      "Invalid composition field",
-    );
-    composition[key] = unwrapJSON(value);
-  }
-  assert(
-    compositionFields.every((key) => Object.hasOwn(composition, key)),
-    "Incomplete Types1 composition",
-  );
-  assert(
-    composition.id === "types1" &&
-      composition.version === "1" &&
-      typeof composition.media === "string",
-    "Invalid Types1 identity",
-  );
+  const composition = parseComposition(typesText);
   const rows = operations();
   const catalog = {
     openapi: "3.1.1",

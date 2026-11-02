@@ -971,7 +971,7 @@ When Events is advertised, Write MUST durably produce the [Events profile's requ
 together with its effects and terminal decision. The remainder of this subsection
 applies to that advertised support. Crash/retry cannot lose facts or mint duplicate transitions.
 Failure/rollback/no-op produces none; aliases and allocation-only outcomes produce
-no Resource lifecycle fact. Core owns the Event carrier, observation source,
+no Resource lifecycle fact. [Events](../events/events.md) owns the Event carrier, observation source,
 coverage, projection, replay, authorization and gap rules.
 
 For initially absent/finally live Resources produce one create fact; for live

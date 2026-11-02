@@ -54,7 +54,7 @@ class ClassificationTests(unittest.TestCase):
 
     def classify(self):
         head = self.commit()
-        with patch.object(editorial, "ROOT", self.root):
+        with patch.object(editorial, "ROOT", self.root), patch.object(editorial, "CORE_BASELINE_DEFINITIONS", {"coreRecord"}):
             return editorial.editorial_change(self.base, head)
 
     def test_cli_document_is_specification_only(self):
@@ -211,6 +211,30 @@ class ClassificationTests(unittest.TestCase):
         updated["$defs"]["beadRecord"]["type"] = "string"
         self.write(path, updated)
         self.assertFalse(self.classify())
+
+    def test_write_definition_cannot_be_relabelled_core_to_hide_a_semantic_edit(self):
+        updated = self.profile_adoption()
+        updated[editorial.PROFILE_SOURCES]["specs/profiles/core/core.md"].append("otherProfile")
+        updated[editorial.PROFILE_SOURCES]["specs/profiles/write/write.md"] = []
+        updated["$defs"]["otherProfile"]["const"] = 2
+        self.write_bundles(updated)
+        self.assertFalse(self.classify())
+
+    def test_authored_core_semantic_edits_are_checked_as_specs_not_runtime_conformance(self):
+        updated = self.profile_adoption()
+        updated["$defs"]["coreRecord"]["additionalProperties"] = False
+        self.write_bundles(updated)
+        self.assertTrue(self.classify())
+
+    def test_exact_feature_documentation_pointer_move_is_allowed_without_constraint_drift(self):
+        path = "specs/profiles/types/types-v1.schema.json"
+        original = {"$id": "https://example.invalid/types", "$comment": "See types-binding.md for status.", "$defs": {"one": {"type": "string"}}}
+        self.write(path, original)
+        self.base = self.commit()
+        updated = copy.deepcopy(original)
+        updated["$comment"] = "See types.md#12-types1-capability-and-rejectable-selection for status."
+        self.write(path, updated)
+        self.assertTrue(self.classify())
 
 
 if __name__ == "__main__":

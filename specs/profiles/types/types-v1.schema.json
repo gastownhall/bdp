@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/gastownhall/bdp/schemas/types-v1.schema.json",
   "title": "BDP Types version 1 structural projections",
-  "$comment": "Feature-owned supplement to unchanged BDP v0.1. Shape validation does not establish activation, registration, authority, exact closure or request admission. See types-binding.md for the selected binding status.",
+  "$comment": "Feature-owned supplement to unchanged BDP v0.1. Shape validation does not establish activation, registration, authority, exact closure or request admission. See types.md#12-types1-capability-and-rejectable-selection for the selected binding status.",
   "$defs": {
     "typesCapabilityV1": {
       "type": "object",

@@ -191,7 +191,7 @@ export function prepareProfileBundle(definitions, sources, bundle, migrate = fal
   );
   const owned = bundle[ownershipKey] ?? [];
   for (const [name, schema] of Object.entries(definitions))
-    if (migrate || !owned.includes(name))
+    if (Object.hasOwn(bundle.$defs, name) && (migrate || !owned.includes(name)))
       assert(isDeepStrictEqual(bundle.$defs[name], schema), `Adoption changes schema: ${name}`);
   const prepared = JSON.parse(prepareBundle(definitions, bundle));
   prepared["x-bdp-schema-sources"] = sources;
@@ -237,7 +237,12 @@ function main() {
   }
   // Validate every bundle before the first write; the two shared copies must agree.
   if (args[0] !== "--check") {
-    assert(outputs[0][1] === outputs[1][1], "Shared schema distribution mismatch");
+    const sharedOutputs = outputs.filter(([path]) => bundlePaths.includes(path));
+    assert(
+      sharedOutputs.length === bundlePaths.length &&
+        sharedOutputs.every(([, bytes]) => bytes === sharedOutputs[0][1]),
+      "Shared schema distribution mismatch",
+    );
     for (const [path, bytes] of outputs) writeFileSync(resolve(root, path), bytes);
   } else
     assert(

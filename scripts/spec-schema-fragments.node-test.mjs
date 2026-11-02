@@ -177,3 +177,18 @@ test("ownership moves require explicit migration and cannot hide schema drift or
   );
   assert.throws(() => prepareProfileBundle({}, {}, bundle, true), /Removed/);
 });
+
+test("explicit ownership migration can add a genuinely new fragment without hand-editing JSON", () => {
+  const bundle = {
+    $defs: { one: { type: "string" } },
+    "x-bdp-schema-definitions": ["one"],
+    "x-bdp-schema-sources": { "core.md": ["one"] },
+  };
+  const definitions = { ...bundle.$defs, two: { type: "number" } };
+  const sources = { "core.md": ["one", "two"] };
+  assert.throws(() => prepareProfileBundle(definitions, sources, bundle), /explicit/);
+  const added = JSON.parse(prepareProfileBundle(definitions, sources, bundle, true));
+  assert.deepEqual(added.$defs, definitions);
+  assert.deepEqual(added["x-bdp-schema-definitions"], ["one", "two"]);
+  assert.deepEqual(added["x-bdp-schema-sources"], sources);
+});

@@ -5,9 +5,9 @@ version: "0.1"
 
 # Markdown authoring for Bead and Link Type definitions
 
-This proposed format describes **Type definitions**, rather than arbitrary Bead or Link instances. A Bead-Type definition and a Link-Type definition are both definition **Beads**. Their own exact metatype affiliation is separate from the Type identity they define, and direct Refines declarations are owned Link records rather than a descriptor `refines` field. The [descriptor specification](../types/type-system/type-system.md) and [Types profile](../profiles/types/types.md) retain their meanings; this format supplies an editable representation and explicit file bindings.
+This proposed format describes **Type definitions**, rather than arbitrary Bead or Link instances. A Bead-Type definition and a Link-Type definition are both definition **Beads**. Their own exact metatype affiliation is separate from the Type identity they define, and direct Refines declarations are owned Link records rather than a descriptor `refines` field. The [descriptor specification](../profiles/types/types.md#2-definitions-identity-and-affiliation) and [Types profile](../profiles/types/types.md) retain their meanings; this format supplies an editable representation and explicit file bindings.
 
-The examples use the current [intrinsic-2 publication](../profiles/types/intrinsic-publication-2.md). They are not an installation package, public Type CLI, registration/default selection, transaction syntax or provider qualification. [Types1](../profiles/types/types-binding.md) retains its own selection and admission rules. The [experimental instance bundle format](../../experimental/formats/markdown-bead-bundles.md) is separate and acquires no new authority through this document.
+The examples use the current [intrinsic-2 publication](../profiles/types/types.md#23-shared-intrinsic-publication). They are not an installation package, public Type CLI, registration/default selection, transaction syntax or provider qualification. [Types1](../profiles/types/types.md#12-types1-capability-and-rejectable-selection) retains its own selection and admission rules. The [experimental instance bundle format](../../experimental/formats/markdown-bead-bundles.md) is separate and acquires no new authority through this document.
 
 ## Two modes: authoring intent and recorded state
 

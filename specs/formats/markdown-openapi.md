@@ -47,7 +47,9 @@ Meaning | Parsed schema`. Location is `query` or `header`; Required is `yes` or
 reference to a visible schema definition. Meaning is prose; an em dash means
 empty. Parsed schema is an optional JSON reference for a JSON-encoded query value;
 an em dash means none. Duplicate location/name pairs fail. Schema constraints
-remain constraints on the serialized parameter unless explicitly identified as
+Operation-table `$ref` values resolve from the generated catalog base
+`specs/openapi/`, not from the profile Markdown file. Schema fragments retain
+their separate bundle reference context. Constraints remain on the serialized parameter unless explicitly identified as
 its parsed representation.
 
 ## Projection and composition
@@ -79,7 +81,9 @@ catalog under specs/openapi is a current API artifact.
 ## Feature composition tables
 
 A complete-line `bdp-composition:start NAME` / `bdp-composition:end NAME` pair
-owns a visible Field/JSON value table. The closed fields are `id`, `media`,
+owns a visible Field/JSON value table. As with operations, fenced examples and
+review comments cannot supply a composition; hidden, duplicate, malformed or
+unrecognized source fails closed. The closed fields are `id`, `media`,
 `capability`, `version`, `operations`, `responseSchemas` and `selection`.
 `operations` explicitly lists existing families; it cannot create one.
 `responseSchemas` maps full ordinary output families to definitions in the

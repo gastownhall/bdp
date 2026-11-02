@@ -81,7 +81,9 @@ It uses the frozen workspace dependencies and repository-pinned hosted runtime.
 These checks qualify source consistency, not provider conformance or external
 OpenAPI meta-validation.
 
-The change classifier examines complete Git deltas and file modes. Its regression
+The change classifier examines complete Git deltas and file modes. Authored Core
+and Events schema edits may change the intended specification while this lane
+continues to report implementation as unqualified; that separation is deliberate. Its regression
 cases reject mixed product/dependency/unrelated-schema edits, missing owned
 schemas, negative-zero drift, mirror drift and symlinks. Newly authored Write and
 feature schemas must preserve their existing meaning; the prior reviewed removal
@@ -103,3 +105,9 @@ unadopted. [#336 was archived without merge](https://github.com/gastownhall/bdp/
 with branch, exact source and citation/test residuals preserved under Trish's
 alignment duties. No wholesale cherry-pick or inherited qualification follows.
 Historical v0 schemas remain evidence inputs, not the current specification.
+
+The legacy Python `scripts/check_type_examples.py` consumes pinned historical
+fixtures and retired source text. It is not a current canonical acceptance gate;
+its source re-key remains an explicit Trish-owned alignment duty, with original
+assertions and pins preserved. Current profile/source checks are the Node and
+document commands above.
