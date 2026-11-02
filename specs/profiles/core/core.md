@@ -101,6 +101,9 @@ alone establishes no Event compatibility. When Events is supported, this contrac
 
 ## Scopes and identity
 
+> Open relocation, foreign-reference and alias questions are indexed in the
+> [informative appendix](#appendix-open-design-questions); the identity rules below remain current.
+
 A **BDP Scope** contains Beads and Links. It is the boundary within which BDP
 interprets local identifiers and evaluates selections. Every Bead and Link
 belongs to exactly one Scope. URI path hierarchy does not create
@@ -348,6 +351,9 @@ rather than wrapping them in a second `href`/`value` envelope.
 
 ## Owned Links
 
+> Requested ownership reexamination is recorded in the
+> [informative appendix](#appendix-open-design-questions); current capture and authorization duties remain binding.
+
 Ownership is an applicable native or supported Types rule of a source Bead.
 Only Beads own Links, only outgoing Links can be owned, and nothing is owned by
 default. A Link remains an ordinary first-class Resource with independent identity,
@@ -469,6 +475,9 @@ next. Standardizing principal identity, delegation, impersonation, privacy,
 and attestation is deferred.
 
 ## Carried attribution
+
+> Broader Provenance direction and its scheduled review are recorded in the
+> [informative appendix](#appendix-open-design-questions); no historical carrier is adopted here.
 
 Every Bead and Link record MAY carry a **`revisionProvenance`** member: a
 common, generic member in a common place, so that no Type has to declare
@@ -1387,6 +1396,9 @@ capability is advertised, in addition to the fields required under
 [HTTP consistency, caching, and CORS fields](#http-consistency-caching-and-cors-fields).
 
 ### History recovery, imports and assurance
+
+> The [informative appendix](#appendix-open-design-questions) tracks optional delivery
+> and Transfer-time assurance questions separately from the mandatory fences below.
 
 Every History implementation enforces applicable erasure
 decisions on every controlled retained copy before further serving and preserves
@@ -5878,3 +5890,12 @@ their distinct schema resources. Generation does not qualify an implementation.
 | uri | query | yes | `{"$ref":"../profiles/core/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"}` | Exact canonical Type identity; no alias/default refresh. | — |
 | revision | query | yes | `{"$ref":"../profiles/core/bdp-v0.1.schema.json#/$defs/revision"}` | Opaque exact edition; form decode once; literal plus is %2B. | — |
 <!-- bdp-operation:end exactDefinition -->
+
+## Appendix: open design questions
+
+This informative appendix preserves unresolved work without changing the current contract. Deliberate deferrals and revisit ownership are indexed in the [registry](../../deferred.md).
+
+- **Identity and foreign references:** how should logical Scope identity, custody and serving location relate during relocation or replication? A separate logical identity and a URL-preserving relocation mechanism are alternatives requiring explicit design. Foreign expected-Type assertions and reader witnesses need honest assertion/validation and disclosure boundaries. Broader aliases remain outside the selected scope. See [CORE-ID](../../deferred.md#core-id--scope-relocation-and-generic-identity) and [CORE-REF](../../deferred.md#core-ref--foreign-expectations-witnesses-and-broader-aliases).
+- **Ownership:** reexamination has been requested; complete captures and current authorization/publication rules remain binding meanwhile. Lower-cost representations or different ownership semantics require a reviewed amendment rather than a partial implementation. See [OWN-REVIEW](../../deferred.md#own-review--owned-links-reexamination).
+- **History assurance:** generic witnesses, retention minima, sync/administrative reports and surviving-citation lifecycle remain deferred. Current complete-or-refuse and erasure duties remain mandatory. Reference History delivery is independently scheduled; Transfer must revisit retained continuity and publication races. See [HIST-DELIVERY](../../deferred.md#hist-delivery--optional-reference-history-adoption) and [XFER-RETAIN](../../deferred.md#xfer-retain--snapshot-minima-continuity-and-erasurepublication-races).
+- **Provenance next:** [PR183](https://github.com/gastownhall/bdp/pull/183) is direction for review immediately after stabilization and Donna's edit pass, not an addition to today's closed carrier. Actor/authority, submitter claims and source-completeness effects need explicit reconciliation with current carried data. See [PROV-NEXT](../../deferred.md#prov-next--broader-provenance-direction).
