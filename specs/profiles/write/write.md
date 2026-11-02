@@ -412,11 +412,84 @@ recorded endpoints, pins and affiliations.
 
 The following behavior is selected for the historical-update extension to
 `updateBead`, from the [approved historical Update decisions](https://github.com/gastownhall/beads/issues/7719).
-The concrete capability, terminal and output binding is being reconciled in the
-[current carrier crosswalk](../../../docs/design/historical-update-crosswalk.md#carrier-selection-requiring-a-concrete-ruling).
-That pending binding does not silently widen the ordinary closed request or
-advertise provider support. The initial extension applies to Beads; it adds no
+This is an optional discoverable capability, not a mandatory widening of Write.
+The terminal model/navigation and source-admission granularity remain explicitly
+open in the [current carrier crosswalk](../../../docs/design/historical-update-crosswalk.md#carrier-selection-requiring-a-concrete-ruling).
+No provider may claim complete support from partial structural carriers or
+internal retention alone. The initial extension applies to Beads; it adds no
 historical Link recovery, new `revert` operation, import or generic graph rollback.
+
+### Explicit historical-update1 selection and unchanged base carriers
+
+The capability identity is
+`https://github.com/gastownhall/bdp/capabilities/historical-update`, exact version
+`"1"`. Its closed detail is `{ "atomicBatch": BOOLEAN }`. Only Write advertises
+it; advertisement promises the complete selected historical Bead behavior and
+its concrete read/result binding, not a retained store or a flag alone.
+`atomicBatch:false` explicitly permits refusal of historical Update inside a
+batch. Co-advertising ordinary atomic-batch1 does not imply this composition.
+`atomicBatch:true` requires actual joint schema, atomicity, outcome and recovery
+support; it is not a test-result flag. No new profile or generic framework exists.
+
+Presence of grammar-owned `fromRevision` selects this fixed exact-token extension
+on the existing discovered `updateBead` target. A field of that name inside
+properties or metadata is ordinary document data. Its absence keeps the ordinary
+closed request. A base receiver rejects the unknown request member rather than
+ignoring it. The feature-owned schema resource is
+[historical-update-v1.schema.json](historical-update-v1.schema.json), with identity
+`https://github.com/gastownhall/bdp/schemas/historical-update-v1.schema.json`.
+The ordinary common bundle, Resource roots and mutation-result roots remain
+unchanged.
+
+A feature mutation sends and accepts
+`application/vnd.bdp.v0.1.historical-update.v1+json`. Successful feature results
+use that subtype; Problems remain `application/problem+json`. The client offers
+no base fallback and never retries after stripping source/feature intent. Selected
+media, exact feature version, source and original resolution witnesses participate
+in the same principal/key semantic identity and retained recovery rules. Unknown
+media is the ordinary pre-admission 415; no failed negotiation proves an earlier
+uncertain write did not occur. Passive capability advertisement is not selection.
+
+After ordinary carrier/key admission and known-key comparison, a fresh invocation
+without selected support receives feature-local `capability-not-supported`,
+request family/422/after-state-change, its capability URI, `capabilityVersion:"1"`
+and pointer `/fromRevision`. A provider accepting joint batch selection uses
+`/operations/N/fromRevision` for that selecting member. Missing advertisement
+causes a feature-aware client to refuse before fresh dispatch. A supporting
+receiver never silently discards the selector or substitutes current content.
+Other failures use their ordinary truthful Problems; admission/disclosure and
+known-key replay ordering remain unchanged. Issued no-reexecution obligations
+survive withdrawn fresh support.
+
+A successful selected mutation returns the closed wrapper
+`{result:MUTATION_RESULT,historicalUpdate?:CONTEXT}`. `result` is the unchanged
+ordinary complete updated outcome; the context is separate from the base Resource
+and base result schema. The closed context has exactly `fromRevision` and
+`previousRevision`, each an exact opaque token for the same enclosing Bead
+identity. It records the historical content source and actual replaced state,
+not the optional guard or two duplicate source aliases. A newly minted historical
+version requires this durable context. A no-op returns the context already bound
+to its original resulting version, or omits it if that version had none; it does
+not substitute the new request's source/current predecessor.
+
+A current live feature view explicitly selects the same subtype in `Accept` on
+the canonical Bead GET/HEAD and returns
+`{resource:BEAD,historicalUpdate?:CONTEXT}`. The enclosed complete Bead retains
+its base schema. No new projection, aggregate, exact-History or terminal branch
+is implied by this live carrier. An ordinary successful base read returns the
+unchanged ordinary Bead shape. Context is immutable per version and retained
+outside that base Resource; a later ordinary effectful write does not inherit a
+previous operation's historical context. A later no-op preserves the original
+version's context. Authorization and erasure apply to all controlled copies.
+
+Feature read success negotiates before conditional success and preserves `Vary:
+Accept`, HEAD bodylessness and representation-variant validator meaning. A base
+validator is not proof of the feature wrapper bytes. The existing current Scope
+navigation/kind and nondisclosure rules apply; a wrapper is not another identity.
+Terminal read model and navigation remain the separate open selection below.
+Combined Types-required/projection/History/batch selection requires an explicit
+supported binding; these feature carriers never silently drop another selected
+meaning or claim its capability.
 
 ### Exact source, current predecessor and independent guard
 
@@ -5081,3 +5154,431 @@ Problem schemas are idRootCreateProblem and idRootBatchProblem. Presence of
 `idRoot` selects this feature; absence keeps the base contract. Clients do not
 allocate IDs or invent a separate endpoint. The admission and composition rules
 in [Optional rooted creation](#optional-rooted-allocation-version-1) remain binding.
+
+## Historical-update1 feature schema resource
+
+These visible fragments own the feature resource above. They do not add members
+to common base schemas. Terminal carriers and source-admission permission scope
+remain receiving decisions, so structural validation alone cannot advertise the
+complete extension. The operation member form records offline intent; when
+`atomicBatch:false`, that form does not promise executable batch composition.
+
+<!-- bdp-schema:start historicalUpdateCapabilityV1 bundle=historical-update -->
+### Schema: "historicalUpdateCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["atomicBatch"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "atomicBatch" | boolean | yes | — | — |
+<!-- bdp-schema:end historicalUpdateCapabilityV1 bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateCapabilityAdvertisement bundle=historical-update -->
+### Schema: "historicalUpdateCapabilityAdvertisement"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/retainedDiscovery"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "const": "write"
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "https://github.com/gastownhall/bdp/capabilities/historical-update": {
+              "type": "object",
+              "properties": {
+                "1": {
+                  "$ref": "#/$defs/historicalUpdateCapabilityV1"
+                }
+              },
+              "required": [
+                "1"
+              ]
+            }
+          },
+          "required": [
+            "https://github.com/gastownhall/bdp/capabilities/historical-update"
+          ]
+        }
+      },
+      "required": [
+        "profile",
+        "capabilities"
+      ]
+    }
+  ]
+}
+```
+<!-- bdp-schema:end historicalUpdateCapabilityAdvertisement bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateContext bundle=historical-update -->
+### Schema: "historicalUpdateContext"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["fromRevision","previousRevision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "fromRevision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision" | yes | — | — |
+| "previousRevision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision" | yes | — | — |
+<!-- bdp-schema:end historicalUpdateContext bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateRequest bundle=historical-update -->
+### Schema: "historicalUpdateRequest"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["bead","fromRevision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "bead" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableResourceReference" | yes | — | — |
+| "expectedRevision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/expectedRevision" | no | — | — |
+| "fromRevision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision" | yes | — | — |
+| "metadata" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/metadata" | no | — | — |
+| "metadataChange" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/ordinaryUpdateChange" | no | — | — |
+| "properties" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/properties" | no | — | — |
+| "propertiesChange" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/ordinaryUpdateChange" | no | — | — |
+| "revisionProvenance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput" | no | — | — |
+| "type" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "not": {
+        "required": [
+          "properties",
+          "propertiesChange"
+        ]
+      }
+    },
+    {
+      "not": {
+        "required": [
+          "metadata",
+          "metadataChange"
+        ]
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end historicalUpdateRequest bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateOperation bundle=historical-update -->
+### Schema: "historicalUpdateOperation"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["operation","bead","fromRevision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "bead" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/resourceReference" | yes | — | — |
+| "expectedRevision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/expectedRevision" | no | — | — |
+| "fromRevision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision" | yes | — | — |
+| "metadata" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/metadata" | no | — | — |
+| "metadataChange" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/ordinaryUpdateChange" | no | — | — |
+| "operation" | schema | yes | — | — |
+| "properties" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/properties" | no | — | — |
+| "propertiesChange" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/ordinaryUpdateChange" | no | — | — |
+| "revisionProvenance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput" | no | — | — |
+| "type" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "not": {
+        "required": [
+          "properties",
+          "propertiesChange"
+        ]
+      }
+    },
+    {
+      "not": {
+        "required": [
+          "metadata",
+          "metadataChange"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "operation": {
+      "const": "updateBead"
+    }
+  }
+}
+```
+<!-- bdp-schema:end historicalUpdateOperation bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateResult bundle=historical-update -->
+### Schema: "historicalUpdateResult"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["result"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "historicalUpdate" | ref "#/$defs/historicalUpdateContext" | no | — | — |
+| "result" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "properties": {
+              "changed": {
+                "const": true
+              }
+            },
+            "required": [
+              "changed"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "historicalUpdate"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "result": {
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/mutationResult"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "updated"
+            },
+            "resource": {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/currentBeadRecord"
+            }
+          },
+          "required": [
+            "resource"
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end historicalUpdateResult bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateView bundle=historical-update -->
+### Schema: "historicalUpdateView"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["resource"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "historicalUpdate" | ref "#/$defs/historicalUpdateContext" | no | — | — |
+| "resource" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "resource": {
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/currentBeadRecord"
+        },
+        {
+          "not": {
+            "required": [
+              "links"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end historicalUpdateView bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateCapabilityProblem bundle=historical-update -->
+### Schema: "historicalUpdateCapabilityProblem"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["type","status","code","retry","capability","capabilityVersion","pointer"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capability" | schema | yes | — | — |
+| "capabilityVersion" | schema | yes | — | — |
+| "code" | schema | yes | — | — |
+| "detail" | text | no | — | — |
+| "instance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri" | no | — | — |
+| "pointer" | schema | yes | — | — |
+| "retry" | schema | yes | — | — |
+| "status" | schema | yes | — | — |
+| "title" | text | no | — | — |
+| "type" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capability": {
+      "const": "https://github.com/gastownhall/bdp/capabilities/historical-update"
+    },
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "code": {
+      "const": "capability-not-supported"
+    },
+    "pointer": {
+      "type": "string",
+      "pattern": "^(?:/fromRevision|/operations/(?:0|[1-9][0-9]*)/fromRevision)$"
+    },
+    "retry": {
+      "const": "after-state-change"
+    },
+    "status": {
+      "const": 422
+    },
+    "type": {
+      "const": "https://github.com/gastownhall/bdp/problems/request"
+    }
+  }
+}
+```
+<!-- bdp-schema:end historicalUpdateCapabilityProblem bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateProblem bundle=historical-update -->
+### Schema: "historicalUpdateProblem"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "anyOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
+    },
+    {
+      "$ref": "#/$defs/historicalUpdateCapabilityProblem"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end historicalUpdateProblem bundle=historical-update -->
