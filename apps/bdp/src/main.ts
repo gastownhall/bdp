@@ -152,7 +152,7 @@ export async function runBdp(args: readonly string[]): Promise<number> {
           status = await runCanonicalInvocation(invocation, config, {
             signal: interruption.signal,
             stdout: (text, signal) => writeCanonicalOutput(process.stdout, text, signal),
-            stderr: (text) => writeCanonicalOutput(process.stderr, text),
+            stderr: (text, signal) => writeCanonicalOutput(process.stderr, text, signal),
           });
         } finally {
           process.removeListener("SIGINT", interrupt);

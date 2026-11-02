@@ -120,7 +120,7 @@ export async function runCanonicalInvocation(
   config: CanonicalCliConfig,
   io: {
     readonly stdout: (text: string, signal?: AbortSignal) => void | Promise<void>;
-    readonly stderr: (text: string) => void | Promise<void>;
+    readonly stderr: (text: string, signal?: AbortSignal) => void | Promise<void>;
     readonly signal?: AbortSignal;
   },
 ): Promise<number> {
@@ -151,9 +151,13 @@ export async function runCanonicalInvocation(
   let known: CanonicalOutput | undefined;
   let stream: { raw: boolean; returned: number; next?: string | null } | undefined;
   const call = io.signal === undefined ? {} : { signal: io.signal };
+  // After interruption, allow a short best-effort terminal/recovery flush.
+  // A non-draining consumer must not prevent bounded cancellation settlement.
+  const failureSignal = (): AbortSignal | undefined =>
+    io.signal?.aborted ? AbortSignal.timeout(1000) : io.signal;
   const output = async (value: CanonicalOutput): Promise<void> => {
     const rendered = renderCanonicalOutput(value, options, scope);
-    await io.stdout(rendered, value.outcome === "success" ? io.signal : undefined);
+    await io.stdout(rendered, value.outcome === "success" ? io.signal : failureSignal());
     const raw = Array.isArray(options.omit) && options.omit.includes("envelope");
     if (
       value.outcome !== "success" &&
@@ -161,6 +165,7 @@ export async function runCanonicalInvocation(
     )
       await io.stderr(
         `${JSON.stringify({ error: value.error, ...(value.context?.recovery === undefined ? {} : { recovery: value.context.recovery }) })}\n`,
+        failureSignal(),
       );
   };
   try {
@@ -761,6 +766,8 @@ export async function runCanonicalInvocation(
         ? { origin: "bdp", problem: nativeProblem }
         : { origin: "cli", problem: { code, message } },
     };
+    const { data: _undeliverableData, ...failureDiagnostic } = failure;
+    let diagnostic: unknown = failureDiagnostic;
     try {
       if (stream !== undefined) {
         const terminal = {
@@ -774,14 +781,13 @@ export async function runCanonicalInvocation(
           ...(stream.next === undefined ? {} : { continuation: stream.next }),
           error: failure.error,
         };
-        if (stream.raw) await io.stderr(`${JSON.stringify(terminal)}\n`);
-        else await io.stdout(`${JSON.stringify(terminal)}\n`);
+        diagnostic = terminal;
+        if (stream.raw) await io.stderr(`${JSON.stringify(terminal)}\n`, failureSignal());
+        else await io.stdout(`${JSON.stringify(terminal)}\n`, failureSignal());
       } else await output(failure);
     } catch {
       await Promise.resolve(
-        io.stderr(
-          `${JSON.stringify({ error: { origin: "cli", problem: { code: "output_failed", message: "BDP output failed" } }, context: failure.context })}\n`,
-        ),
+        io.stderr(`${JSON.stringify(diagnostic)}\n`, AbortSignal.timeout(1000)),
       ).catch(() => undefined);
     }
     return status;
