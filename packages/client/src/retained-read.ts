@@ -3,6 +3,13 @@ import {
   parseHistoricalUpdateProblem,
   parseHistoricalUpdateRequest,
   parseHistoricalUpdateResult,
+  parseHistoricalUpdateView,
+  parseHistoricalUpdateTerminalView,
+  readHistoricalUpdateCapability,
+  parseRetainedWriteDiscovery,
+  stringifyJsonValue,
+  type HistoricalUpdateView,
+  type HistoricalUpdateTerminalView,
   parseCanonicalHttpUrl,
   parseCanonicalScope,
   parseLinkHeader,
@@ -556,6 +563,56 @@ export class RetainedClient {
           ...(aliased ? { subject: resource } : {}),
           ...(body === undefined ? {} : { body }),
         }),
+      });
+    });
+  }
+
+  /** Explicit current feature view. Terminal reads supply only the current
+   * body-free terminal version; this does not select full History. */
+  readHistoricalUpdate(
+    reference: string,
+    options: {
+      readonly terminal?: boolean;
+      readonly scope?: string;
+      readonly signal?: AbortSignal;
+    } = {},
+  ): Promise<RetainedReply<HistoricalUpdateView | HistoricalUpdateTerminalView>> {
+    if (
+      Object.keys(options).some((key) => !["terminal", "scope", "signal"].includes(key)) ||
+      (options.terminal !== undefined && typeof options.terminal !== "boolean")
+    )
+      throw new RetainedClientError("unsupported-feature");
+    const uri = parseCanonicalHttpUrl(reference);
+    if (new URL(uri).search || new URL(uri).hash) throw new RetainedClientError("invalid-input");
+    const selectedScope =
+      options.scope === undefined ? undefined : parseCanonicalScope(options.scope);
+    const transport = this.#historicalUpdateTransport;
+    if (transport === undefined) throw new RetainedClientError("unsupported-feature");
+    const terminal = options.terminal === true;
+    return this.#run(options.signal, async (signal) => {
+      const response = await transport.get(uri + (terminal ? "?view=terminal" : ""), { signal });
+      this.#check(signal);
+      const refused = failure(response, false, true);
+      if (refused) return refused;
+      if (response.headers["bdp-resource-kind"] !== "bead") return invalid();
+      privateNoStore(response);
+      const text = this.#document(response, HISTORICAL_UPDATE_MEDIA);
+      const value = terminal
+        ? parseHistoricalUpdateTerminalView(text)
+        : parseHistoricalUpdateView(text);
+      const subject = (terminal ? value.terminal : value.resource) as RetainedJsonObject;
+      if (subject.id !== uri) return invalid();
+      const discovery = await this.#discovery(description(response), selectedScope, signal);
+      if (discovery.kind !== "success") return discovery;
+      if (!uri.startsWith(discovery.value.scope) || discovery.value.profile !== "write")
+        return invalid();
+      const writeDiscovery = parseRetainedWriteDiscovery(stringifyJsonValue(discovery.value));
+      if (readHistoricalUpdateCapability(writeDiscovery) === undefined) return invalid();
+      return Object.freeze({
+        kind: "success",
+        value,
+        http: context(response),
+        nativeBody: nativeBody(response),
       });
     });
   }

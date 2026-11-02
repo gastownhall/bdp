@@ -741,3 +741,154 @@ test("delivery streams pages and settles interruption and closed stdout", async 
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("historical source Update undeletes same ID through emitted CLI and durable terminal recovery", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "bdp-cli-historical-"));
+  let reference,
+    dropNext = false;
+  const writes = [];
+  const proxy = createServer((incoming, outgoing) => {
+    const chunks = [];
+    incoming.on("data", (chunk) => chunks.push(chunk));
+    incoming.on("end", () => {
+      const body = Buffer.concat(chunks);
+      if (incoming.method === "POST")
+        writes.push({ body: body.toString("utf8"), headers: incoming.headers });
+      const address = new URL(reference.listenUrl);
+      const forward = request(
+        {
+          hostname: address.hostname,
+          port: address.port,
+          path: incoming.url,
+          method: incoming.method,
+          headers: incoming.headers,
+        },
+        (response) => {
+          const bytes = [];
+          response.on("data", (chunk) => bytes.push(chunk));
+          response.on("end", () => {
+            if (incoming.method === "POST" && dropNext) {
+              dropNext = false;
+              outgoing.destroy();
+              return;
+            }
+            outgoing.writeHead(response.statusCode, response.headers);
+            outgoing.end(Buffer.concat(bytes));
+          });
+        },
+      );
+      forward.on("error", () => outgoing.destroy());
+      forward.end(body);
+    });
+  });
+  const port = await listen(proxy),
+    scope = `http://127.0.0.1:${port}/work/`;
+  const serviceOptions = {
+    directory: path.join(directory, "store"),
+    create: true,
+    instance: "historical-cli",
+    scope,
+    credentials: [{ token, principal: "operator" }],
+    historicalUpdate: true,
+  };
+  const feature = "application/vnd.bdp.v0.1.historical-update.v1+json";
+  try {
+    reference = await startReferenceService(serviceOptions);
+    const first = success(
+      await cli(
+        [
+          "create",
+          "--id",
+          "a",
+          "--type",
+          "https://types.invalid/Old",
+          "--properties",
+          '{"title":"first"}',
+          ...json,
+        ],
+        directory,
+        scope,
+      ),
+      "mutation",
+    ).data.resource;
+    const last = success(
+      await cli(
+        [
+          "update",
+          "a",
+          "--type",
+          "https://types.invalid/Current",
+          "--properties",
+          '{"title":"last"}',
+          ...json,
+        ],
+        directory,
+        scope,
+      ),
+      "mutation",
+    ).data.resource;
+    const deleted = success(
+      await cli(
+        ["delete", "a", "--force", "--if-revision", last.revision, ...json],
+        directory,
+        scope,
+      ),
+      "mutation",
+    );
+    assert.equal(deleted.data.deleted.resource.revision, last.revision);
+    const terminalResponse = await fetch(`${first.id}?view=terminal`, {
+      headers: { authorization: `Bearer ${token}`, accept: feature },
+    });
+    assert.equal(terminalResponse.status, 200);
+    const { terminal } = await terminalResponse.json();
+    assert.notEqual(terminal.revision, last.revision);
+    dropNext = true;
+    const unknown = await cli(
+      [
+        "update",
+        "a",
+        "--from_revision",
+        `=${first.revision}`,
+        "--if-revision",
+        terminal.revision,
+        ...json,
+      ],
+      directory,
+      scope,
+    );
+    assert.equal(unknown.code, 1, unknown.stderr || unknown.stdout);
+    const failure = JSON.parse(unknown.stdout);
+    assert.equal(failure.outcome, "unknown");
+    const recoveryFile = failure.context.recovery.file;
+    const submitted = writes.at(-1);
+    assert.equal(submitted.headers.accept, feature);
+    assert.equal(submitted.headers["content-type"], feature);
+    assert.deepEqual(JSON.parse(submitted.body), {
+      bead: first.id,
+      fromRevision: first.revision,
+      expectedRevision: terminal.revision,
+    });
+    await reference.close();
+    reference = await startReferenceService({ ...serviceOptions, create: false });
+    const recovered = success(
+      await cli(["update", "--retry-file", recoveryFile, ...json], directory, scope),
+      "mutation",
+    ).data;
+    assert.deepEqual(writes.at(-1), submitted);
+    assert.equal(recovered.result.resource.id, first.id);
+    assert.equal(recovered.result.resource.type, last.type);
+    assert.deepEqual(recovered.result.resource.properties, first.properties);
+    assert.notEqual(recovered.result.resource.revision, first.revision);
+    assert.deepEqual(recovered.historicalUpdate, {
+      fromRevision: first.revision,
+      previousRevision: terminal.revision,
+    });
+    const base = success(await cli(["show", "a", ...json], directory, scope), "resource");
+    assert.deepEqual(base.data, recovered.result.resource);
+    assert.equal(base.data.historicalUpdate, undefined);
+  } finally {
+    await reference?.close();
+    await close(proxy);
+    await rm(directory, { recursive: true, force: true });
+  }
+});

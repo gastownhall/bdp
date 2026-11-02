@@ -88,3 +88,31 @@ it("selects only advertised exact version1 and keeps batch composition explicit"
   });
   expect(() => readHistoricalUpdateCapability(discovery({ "1": {} }))).toThrow();
 });
+
+it("admits only the body-free terminal view and feature read refusal", async () => {
+  const { parseHistoricalUpdateTerminalView, parseHistoricalUpdateProblem } = await import(
+    "./historical-update-values.js"
+  );
+  const terminal = { id: resource.id, revision: "D", state: "deleted", previousRevision: "R7" };
+  expect(parseHistoricalUpdateTerminalView(JSON.stringify({ terminal }))).toEqual({ terminal });
+  expect(() =>
+    parseHistoricalUpdateTerminalView(
+      JSON.stringify({ terminal: { ...terminal, properties: {} } }),
+    ),
+  ).toThrow();
+  expect(() =>
+    parseHistoricalUpdateTerminalView(
+      JSON.stringify({ terminal: { ...terminal, id: "urn:foreign" } }),
+    ),
+  ).toThrow();
+  const problem = {
+    type: "https://github.com/gastownhall/bdp/problems/request",
+    status: 422,
+    code: "capability-not-supported",
+    retry: "after-state-change",
+    capability: HISTORICAL_UPDATE_CAPABILITY,
+    capabilityVersion: "1",
+  };
+  expect(parseHistoricalUpdateProblem(JSON.stringify(problem), 422)).toEqual(problem);
+  expect(() => parseHistoricalUpdateProblem(JSON.stringify(problem), 409)).toThrow();
+});

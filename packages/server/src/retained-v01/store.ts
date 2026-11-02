@@ -12,6 +12,8 @@ import path from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import {
   decodeJsonDocument,
+  HISTORICAL_UPDATE_CAPABILITY,
+  type HistoricalUpdateContext,
   parseRevisionProvenanceInput,
   type RevisionProvenanceInput,
 } from "@bdp/protocol";
@@ -70,12 +72,14 @@ import {
 import {
   readAliasWitnesses,
   verifyAtomicBatchRecovery,
+  verifyHistoricalUpdateRecovery,
   verifyResourceRecovery,
 } from "./recovery.js";
 import { compareCapturedReferences, type ReferenceComparison } from "./reference-comparison.js";
 
 export const PRIVATE_STORE_FORMAT = "bdp-private-retained-v01-5";
 export const BATCH_STORE_FORMAT = "bdp-private-retained-v01-6";
+export const HISTORICAL_STORE_FORMAT = "bdp-private-retained-v01-7";
 export interface PrivateStoreOptions {
   readonly directory: string;
   readonly create: boolean;
@@ -85,6 +89,7 @@ export interface PrivateStoreOptions {
   readonly referenceCore?: true;
   /** Explicit new-store mode; never upgrades a format5 store. */
   readonly atomicBatch?: boolean;
+  readonly historicalUpdate?: boolean;
   readonly clock?: () => number;
   /** Fault timing only, private to the test process. No successful outcome injection. */
   readonly onPhase?: (phase: "resource-staged" | "alias-staged" | "committed") => void;
@@ -100,6 +105,7 @@ interface EditFields {
   readonly propertiesChange?: ObjectChange;
   readonly metadataChange?: ObjectChange;
   readonly expectedRevision?: string;
+  readonly fromRevision?: string;
   readonly provenance?: RevisionProvenanceInput;
   readonly source?: EndpointReference;
   readonly target?: EndpointReference;
@@ -134,12 +140,24 @@ CREATE TABLE decision_facts(decision INTEGER NOT NULL REFERENCES outcomes(decisi
 CREATE TABLE boundaries(position INTEGER PRIMARY KEY,token TEXT NOT NULL UNIQUE) STRICT;
 CREATE TABLE cursors(token TEXT PRIMARY KEY,principal TEXT NOT NULL,source TEXT NOT NULL,subject TEXT NOT NULL,after_position INTEGER NOT NULL,through_position INTEGER NOT NULL,page_limit INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('next','resume')),expires INTEGER NOT NULL) STRICT;
 `;
+const historicalSchema =
+  schema +
+  `
+CREATE TABLE historical_versions(id TEXT NOT NULL REFERENCES identities(id),revision TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('live','deleted')),body TEXT NOT NULL CHECK(retained_json(body)),position INTEGER NOT NULL UNIQUE REFERENCES events(position),PRIMARY KEY(id,revision)) STRICT;
+`;
 export function openPrivateRetainedStore(options: PrivateStoreOptions) {
   if (process.version !== "v24.22.1")
     throw new Error("private retained store requires Node v24.22.1");
   if (options.atomicBatch !== undefined && typeof options.atomicBatch !== "boolean")
     throw new TypeError("explicit boolean batch mode required");
   const batchMode = options.atomicBatch === true;
+  if (options.historicalUpdate !== undefined && typeof options.historicalUpdate !== "boolean")
+    throw new TypeError("explicit boolean historical-update mode required");
+  const historicalMode = options.historicalUpdate === true;
+  if (historicalMode && batchMode)
+    throw new TypeError("historical-update1 and atomicBatch composition is not supported");
+  if (historicalMode && options.referenceCore !== true)
+    throw new TypeError("historical-update1 requires the explicit reference Core composition");
   const navigation = captureNavigation(options.navigation);
   const aliasNamespace = captureAliasNamespace(navigation.scope, navigation.aliases);
   const reserved = navigationAddresses(navigation);
@@ -215,7 +233,12 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     }
   }
   const capture = serialized({
-    format: batchMode ? BATCH_STORE_FORMAT : PRIVATE_STORE_FORMAT,
+    format: historicalMode
+      ? HISTORICAL_STORE_FORMAT
+      : batchMode
+        ? BATCH_STORE_FORMAT
+        : PRIVATE_STORE_FORMAT,
+    ...(historicalMode ? { historicalUpdate: { capabilityVersion: "1", atomicBatch: false } } : {}),
     ...(batchMode ? { atomicBatch: { capabilityVersion: "1", ...BATCH_LIMITS } } : {}),
     specification: RETAINED_SPEC,
     media: RETAINED_MEDIA,
@@ -253,7 +276,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       throw new Error("durability mode unavailable");
     transaction(() => {
       if (options.create) {
-        db.exec(batchMode ? batchSchema : schema);
+        db.exec(historicalMode ? historicalSchema : batchMode ? batchSchema : schema);
         run("INSERT INTO metadata VALUES ('capture',?)", capture);
         run("INSERT INTO metadata VALUES ('decisions','0')");
         run("INSERT INTO boundaries VALUES (0,?)", randomUUID());
@@ -264,6 +287,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         "cursors",
         ...(batchMode ? ["decision_facts"] : []),
         "events",
+        ...(historicalMode ? ["historical_versions"] : []),
         "identities",
         "incidence",
         "metadata",
@@ -285,8 +309,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         !get("SELECT token FROM boundaries WHERE position=0")
       )
         throw new Error("retained store integrity failure");
-      if (batchMode) {
-        const definitions = batchSchema
+      if (batchMode || historicalMode) {
+        const definitions = (historicalMode ? historicalSchema : batchSchema)
           .trim()
           .split(";")
           .filter((sql) => sql.trim())
@@ -302,7 +326,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
           .all();
         if (serialized(actual) !== serialized(definitions))
           throw new Error("batch schema definition mismatch");
-        verifyAtomicBatchRecovery(db, navigation);
+        if (historicalMode) verifyHistoricalUpdateRecovery(db, navigation);
+        else verifyAtomicBatchRecovery(db, navigation);
       } else verifyResourceRecovery(db, navigation);
       run("UPDATE metadata SET value=value WHERE name='capture'");
     });
@@ -567,6 +592,14 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     if (row.kind === "link") return { kind: "link", resource: resource as RetainedLink };
     throw new Error("unknown stored Resource kind");
   }
+  function historicalVersion(id: string, revision?: string): JsonObject | undefined {
+    if (!historicalMode) return undefined;
+    const row =
+      revision === undefined
+        ? get("SELECT body FROM historical_versions WHERE id=? ORDER BY position DESC LIMIT 1", id)
+        : get("SELECT body FROM historical_versions WHERE id=? AND revision=?", id, revision);
+    return row === undefined ? undefined : (JSON.parse(String(row.body)) as JsonObject);
+  }
   function endpointRefusal(state: ResourceState): JsonObject | undefined {
     if (state.kind !== "link") return undefined;
     let local = false;
@@ -605,19 +638,36 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     before: ResourceState | undefined,
     time: string,
     text: string,
+    historical?: { readonly context: HistoricalUpdateContext; readonly recovering: boolean },
   ): StoredResponse & { readonly position?: number } {
     const position = head() + 1;
     if (!Number.isSafeInteger(position)) throw new Error("event ordering capacity unavailable");
+    const lifecycle = lifecycleFact(
+      verb,
+      state,
+      navigation.events,
+      randomUUID(),
+      randomUUID(),
+      time,
+      historical?.context.previousRevision ?? before?.resource.revision,
+    );
+    const terminal =
+      historicalMode && state.kind === "bead" && verb === "delete"
+        ? {
+            id: state.resource.id,
+            revision: randomUUID(),
+            state: "deleted",
+            previousRevision: state.resource.revision,
+          }
+        : undefined;
     const fact = serialized(
-      lifecycleFact(
-        verb,
-        state,
-        navigation.events,
-        randomUUID(),
-        randomUUID(),
-        time,
-        before?.resource.revision,
-      ),
+      terminal === undefined
+        ? lifecycle
+        : {
+            ...lifecycle,
+            revision: terminal.revision,
+            previousRevision: terminal.previousRevision,
+          },
     );
     if (Buffer.byteLength(text) > 262144 || Buffer.byteLength(fact) > 300000)
       return refusal(problem("limit-exceeded", 413));
@@ -626,10 +676,29 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       run("INSERT INTO identities VALUES (?,?)", id, state.kind);
       run("INSERT INTO resources VALUES (?,?)", id, serialized(state.resource));
     } else if (verb === "update") {
-      run("UPDATE resources SET body=? WHERE id=?", serialized(state.resource), id);
+      if (historical?.recovering)
+        run("INSERT INTO resources VALUES (?,?)", id, serialized(state.resource));
+      else run("UPDATE resources SET body=? WHERE id=?", serialized(state.resource), id);
     } else run("DELETE FROM resources WHERE id=?", id);
     options.onPhase?.("resource-staged");
     run("INSERT INTO events VALUES (?,?,?)", position, id, fact);
+    if (historicalMode && state.kind === "bead") {
+      const version =
+        terminal === undefined
+          ? {
+              resource: state.resource,
+              ...(historical === undefined ? {} : { historicalUpdate: historical.context }),
+            }
+          : { terminal };
+      run(
+        "INSERT INTO historical_versions VALUES (?,?,?,?,?)",
+        id,
+        terminal?.revision ?? state.resource.revision,
+        terminal === undefined ? "live" : "deleted",
+        serialized(version),
+        position,
+      );
+    }
     for (const bead of incidentBeads(
       navigation.scope,
       before,
@@ -676,10 +745,38 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     input: EditFields & { readonly refusal?: JsonObject },
   ) {
     if (input.refusal) return refusal(input.refusal);
-    const before = currentState(id, kind);
+    const selectedHistorical = input.fromRevision !== undefined;
+    if (selectedHistorical && !historicalMode)
+      return refusal({
+        ...problem("capability-not-supported", 422, "after-state-change"),
+        capability: HISTORICAL_UPDATE_CAPABILITY,
+        capabilityVersion: "1",
+        pointer: "/fromRevision",
+      });
+    const live = currentState(id, kind);
+    const currentVersion = selectedHistorical ? historicalVersion(id) : undefined;
+    const terminal = currentVersion?.terminal as JsonObject | undefined;
+    const recovering = live === undefined && terminal !== undefined;
+    const baseline = recovering
+      ? historicalVersion(id, terminal.previousRevision as string)?.resource
+      : undefined;
+    const before =
+      live ??
+      (baseline === undefined
+        ? undefined
+        : { kind: "bead" as const, resource: baseline as unknown as RetainedBead });
     if (!before) return refusal(problem("resource-not-found", 404, "after-state-change"));
-    if (input.expectedRevision !== undefined && input.expectedRevision !== before.resource.revision)
+    const previousRevision = recovering ? (terminal.revision as string) : before.resource.revision;
+    if (input.expectedRevision !== undefined && input.expectedRevision !== previousRevision)
       return refusal(problem("revision-mismatch", 409, "after-state-change"));
+    let source = before.resource;
+    if (selectedHistorical) {
+      const selected = historicalVersion(id, input.fromRevision);
+      if (selected === undefined)
+        return refusal(problem("revision-unknown", 404, "after-state-change"));
+      if (selected.resource === undefined) return refusal(problem("validation-failed", 422));
+      source = selected.resource as unknown as RetainedBead;
+    }
     if (exceedsEditLimits([input.propertiesChange ?? [], input.metadataChange ?? []]))
       return refusal(problem("limit-exceeded", 413));
     let document: "properties" | "metadata" = "properties";
@@ -689,14 +786,14 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       properties =
         input.properties ??
         (input.propertiesChange === undefined
-          ? before.resource.properties
-          : applyObjectChange(before.resource.properties, input.propertiesChange));
+          ? source.properties
+          : applyObjectChange(source.properties, input.propertiesChange));
       document = "metadata";
       metadata =
         input.metadata ??
         (input.metadataChange === undefined
-          ? before.resource.metadata
-          : applyObjectChange(before.resource.metadata, input.metadataChange));
+          ? source.metadata
+          : applyObjectChange(source.metadata, input.metadataChange));
     } catch (error) {
       if (!(error instanceof ObjectEditFailure)) throw error;
       return refusal({
@@ -726,6 +823,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     const invalid = endpointRefusal(candidate);
     if (invalid) return refusal(invalid);
     const changed =
+      recovering ||
       !jsonValueEqual(type, before.resource.type) ||
       !jsonValueEqual(properties, before.resource.properties) ||
       !jsonValueEqual(metadata, before.resource.metadata) ||
@@ -736,7 +834,16 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     if (!changed)
       return {
         status: 200,
-        text: serialized({ outcome: "updated", changed: false, resource: before.resource }),
+        text: serialized(
+          selectedHistorical
+            ? {
+                result: { outcome: "updated", changed: false, resource: before.resource },
+                ...(currentVersion?.historicalUpdate === undefined
+                  ? {}
+                  : { historicalUpdate: currentVersion.historicalUpdate }),
+              }
+            : { outcome: "updated", changed: false, resource: before.resource },
+        ),
       };
     const time = new Date(now()).toISOString();
     const state = resourceState(
@@ -754,12 +861,19 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       ),
       endpoints,
     );
+    const historical = selectedHistorical
+      ? { context: { fromRevision: input.fromRevision as string, previousRevision }, recovering }
+      : undefined;
+    const result = { outcome: "updated", changed: true, resource: state.resource };
     return complete(
       "update",
       state,
       before,
       time,
-      serialized({ outcome: "updated", changed: true, resource: state.resource }),
+      serialized(
+        historical === undefined ? result : { result, historicalUpdate: historical.context },
+      ),
+      historical,
     );
   }
   function performDelete(kind: ResourceKind, id: string, input: EditFields) {
@@ -892,6 +1006,12 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     navigation,
     get atomicBatchEnabled(): boolean {
       return batchMode;
+    },
+    get historicalUpdateEnabled(): boolean {
+      return historicalMode;
+    },
+    readHistoricalVersion(id: string, revision?: string): JsonObject | undefined {
+      return historicalVersion(id, revision);
     },
     batch(principal: string, input: PreparedBatch): StoredResponse {
       return applyBatch(principal, input);

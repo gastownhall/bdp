@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { stringifyJsonValue } from "./json-values.js";
 import { ProtocolArtifactValidationError } from "./protocol-errors.js";
-import { requireSchemaValidator } from "./read-values.js";
+import { parseCanonicalHttpUrl, requireSchemaValidator } from "./read-values.js";
 import {
   parseRetainedResource,
   parseRetainedWriteResult,
@@ -28,11 +28,15 @@ export type HistoricalUpdateView = RetainedJsonObject & {
   readonly resource: RetainedJsonObject;
   readonly historicalUpdate?: HistoricalUpdateContext;
 };
+export type HistoricalUpdateTerminalView = RetainedJsonObject & {
+  readonly terminal: RetainedJsonObject;
+};
 type Root =
   | "historicalUpdateCapabilityV1"
   | "historicalUpdateRequest"
   | "historicalUpdateResult"
   | "historicalUpdateView"
+  | "historicalUpdateTerminalView"
   | "historicalUpdateProblem";
 let validator: Ajv2020 | undefined;
 const checks = new Map<Root, ValidateFunction>();
@@ -93,6 +97,12 @@ export function parseHistoricalUpdateView(text: string): HistoricalUpdateView {
   validate("historicalUpdateView", value);
   parseRetainedResource(stringifyJsonValue(value.resource), "bead");
   return value as HistoricalUpdateView;
+}
+export function parseHistoricalUpdateTerminalView(text: string): HistoricalUpdateTerminalView {
+  const value = parseRetainedObject(text);
+  validate("historicalUpdateTerminalView", value);
+  parseCanonicalHttpUrl((value.terminal as RetainedJsonObject).id, "terminal identity");
+  return value as HistoricalUpdateTerminalView;
 }
 export function parseHistoricalUpdateProblem(text: string, status: number): RetainedJsonObject {
   const value = parseRetainedObject(text);

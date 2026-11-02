@@ -671,9 +671,11 @@ export {
   type HistoricalUpdateContext,
   type HistoricalUpdateResult,
   type HistoricalUpdateView,
+  type HistoricalUpdateTerminalView,
   readHistoricalUpdateCapability,
   parseHistoricalUpdateRequest,
   parseHistoricalUpdateProblem,
   parseHistoricalUpdateResult,
   parseHistoricalUpdateView,
+  parseHistoricalUpdateTerminalView,
 } from "./historical-update-values.js";

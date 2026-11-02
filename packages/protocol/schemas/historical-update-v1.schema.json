@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/gastownhall/bdp/schemas/historical-update-v1.schema.json",
   "title": "Historical-update1 feature-owned carriers",
-  "description": "Optional selected historical Bead Update. Common Resource and mutation-result schemas are unchanged. Terminal-model/navigation selection and source-admission granularity remain explicit receiving decisions; these structural carriers alone do not establish complete feature support.",
+  "description": "Optional selected historical Bead Update and same-identity recovery with body-free terminal versions. Base Resource and mutation-result schemas remain unchanged. Full History composition and exact source-admission granularity are separate explicit decisions; structural schema checks alone do not establish provider support.",
   "x-bdp-schema-definitions": [
     "historicalUpdateCapabilityAdvertisement",
     "historicalUpdateCapabilityProblem",
@@ -10,8 +10,11 @@
     "historicalUpdateContext",
     "historicalUpdateOperation",
     "historicalUpdateProblem",
+    "historicalUpdateReadCapabilityProblem",
     "historicalUpdateRequest",
     "historicalUpdateResult",
+    "historicalUpdateTerminalVersion",
+    "historicalUpdateTerminalView",
     "historicalUpdateView"
   ],
   "x-bdp-schema-sources": {
@@ -22,8 +25,11 @@
       "historicalUpdateContext",
       "historicalUpdateOperation",
       "historicalUpdateProblem",
+      "historicalUpdateReadCapabilityProblem",
       "historicalUpdateRequest",
       "historicalUpdateResult",
+      "historicalUpdateTerminalVersion",
+      "historicalUpdateTerminalView",
       "historicalUpdateView"
     ]
   },
@@ -318,8 +324,77 @@
         },
         {
           "$ref": "#/$defs/historicalUpdateCapabilityProblem"
+        },
+        {
+          "$ref": "#/$defs/historicalUpdateReadCapabilityProblem"
         }
       ]
+    },
+    "historicalUpdateTerminalVersion": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+        },
+        "revision": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision"
+        },
+        "state": {
+          "const": "deleted"
+        },
+        "previousRevision": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision"
+        },
+        "revisionProvenance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenance"
+        }
+      },
+      "required": ["id", "revision", "state", "previousRevision"],
+      "additionalProperties": false
+    },
+    "historicalUpdateTerminalView": {
+      "type": "object",
+      "properties": {
+        "terminal": {
+          "$ref": "#/$defs/historicalUpdateTerminalVersion"
+        }
+      },
+      "required": ["terminal"],
+      "additionalProperties": false
+    },
+    "historicalUpdateReadCapabilityProblem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "const": "https://github.com/gastownhall/bdp/capabilities/historical-update"
+        },
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "code": {
+          "const": "capability-not-supported"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri"
+        },
+        "retry": {
+          "const": "after-state-change"
+        },
+        "status": {
+          "const": 422
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request"
+        }
+      },
+      "required": ["type", "status", "code", "retry", "capability", "capabilityVersion"]
     }
   }
 }

@@ -85,7 +85,36 @@ function identityOperation(identity: unknown): string {
     throw new Error("invalid retained operation context");
   return value[1];
 }
+/** Read only a typed string path from the persisted tagged semantic identity. */
+function identityString(identity: string, ...path: string[]): string | undefined {
+  let node = JSON.parse(identity)[1];
+  for (const key of path) {
+    if (!Array.isArray(node) || node[0] !== "object" || !Array.isArray(node[1]))
+      throw new Error("invalid historical semantic identity");
+    const fields = node[1].filter((entry: unknown) => Array.isArray(entry) && entry[0] === key);
+    if (fields.length === 0) return undefined;
+    if (fields.length !== 1) throw new Error("duplicate historical semantic identity field");
+    node = fields[0][1];
+  }
+  if (!Array.isArray(node) || node[0] !== "string" || typeof node[1] !== "string")
+    throw new Error("invalid historical semantic string");
+  return node[1];
+}
 export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavigation): void {
+  verifySingletonRecovery(db, navigation, false);
+}
+/** Only the separately captured format7 may contain terminal versions/recovery. */
+export function verifyHistoricalUpdateRecovery(
+  db: DatabaseSync,
+  navigation: PrivateNavigation,
+): void {
+  verifySingletonRecovery(db, navigation, true);
+}
+function verifySingletonRecovery(
+  db: DatabaseSync,
+  navigation: PrivateNavigation,
+  historical: boolean,
+): void {
   const scope = navigation.scope;
   const source = navigation.events;
   const aliasNamespace = captureAliasNamespace(scope, navigation.aliases);
@@ -96,6 +125,9 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
   const versions = new Map<string, Set<string>>();
   const revisions = new Map<string, Set<string>>();
   const tombstones = new Map<string, ReturnType<typeof deletedIdentity>>();
+  const terminalTokens = new Map<string, string>();
+  const historicalBodies = new Map<string, Map<string, unknown>>();
+  let historicalCount = 0;
   let position = 0;
   let incidenceCount = 0;
   for (const row of db
@@ -109,6 +141,45 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
     const deleting = operation.startsWith("delete");
     const resource = deleting ? fact.effect.deleted?.resource : fact.effect.resource;
     const id = resource?.id;
+    const versionRow = historical
+      ? get(
+          "SELECT id,revision,state,body FROM historical_versions WHERE position=?",
+          row.position as SQLInputValue,
+        )
+      : undefined;
+    const version = versionRow === undefined ? undefined : JSON.parse(String(versionRow.body));
+    const terminal = version?.terminal;
+    const historicalContext = version?.historicalUpdate;
+    const recovered = historical && kind === "bead" && tombstones.has(id) && !deleting;
+    if (historical && kind === "bead") {
+      historicalCount++;
+      if (
+        !versionRow ||
+        versionRow.id !== id ||
+        versionRow.state !== (deleting ? "deleted" : "live") ||
+        versionRow.revision !== (deleting ? terminal?.revision : resource?.revision) ||
+        (deleting
+          ? serialized(version) !== serialized({ terminal })
+          : serialized(version) !==
+            serialized({
+              resource,
+              ...(historicalContext === undefined ? {} : { historicalUpdate: historicalContext }),
+            }))
+      )
+        throw new Error("inconsistent historical version record");
+      if (
+        historicalContext !== undefined &&
+        (operation !== "updateBead" ||
+          Object.keys(historicalContext).sort().join(",") !== "fromRevision,previousRevision" ||
+          !historicalBodies.get(id)?.has(historicalContext.fromRevision) ||
+          historicalContext.previousRevision !==
+            (recovered ? terminalTokens.get(id) : latest.get(id)?.resource.revision))
+      )
+        throw new Error("inconsistent historical source/predecessor context");
+      if (recovered && historicalContext === undefined)
+        throw new Error("recovery lacks historical source context");
+    } else if (versionRow !== undefined)
+      throw new Error("historical record for unsupported Resource kind");
     if (
       row.position !== ++position ||
       typeof id !== "string" ||
@@ -116,7 +187,7 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
       row.subject !== id ||
       fact.source !== source ||
       fact.representation !== "postimage" ||
-      tombstones.has(id) ||
+      (tombstones.has(id) && !recovered) ||
       !get("SELECT token FROM boundaries WHERE position=?", position)
     )
       throw new Error("inconsistent retained Event chain");
@@ -127,8 +198,10 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
       if (
         !before ||
         before.kind !== kind ||
-        fact.revision !== before.resource.revision ||
-        fact.previousRevision !== undefined ||
+        fact.revision !==
+          (historical && kind === "bead" ? terminal?.revision : before.resource.revision) ||
+        fact.previousRevision !==
+          (historical && kind === "bead" ? before.resource.revision : undefined) ||
         serialized(fact.effect) !==
           serialized({
             operation,
@@ -149,18 +222,40 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
       )
         throw new Error("retained deletion bypassed incident-Link guard");
       const deleted = deletedIdentity(before);
+      if (historical && kind === "bead") {
+        if (
+          typeof terminal?.revision !== "string" ||
+          !terminal.revision ||
+          revisions.get(id)?.has(terminal.revision) ||
+          terminal.id !== id ||
+          terminal.state !== "deleted" ||
+          terminal.previousRevision !== before.resource.revision ||
+          serialized(terminal) !==
+            serialized({
+              id,
+              revision: terminal.revision,
+              state: "deleted",
+              previousRevision: before.resource.revision,
+            })
+        )
+          throw new Error("invalid terminal version lineage");
+        revisions.get(id)?.add(terminal.revision);
+        terminalTokens.set(id, terminal.revision);
+      }
       expectedResult = { outcome: "deleted", changed: true, deleted };
       tombstones.set(id, deleted);
       latest.delete(id);
     } else {
       if (
-        operation !== `${before ? "update" : "create"}${kind === "bead" ? "Bead" : "Link"}` ||
+        operation !==
+          `${before || recovered ? "update" : "create"}${kind === "bead" ? "Bead" : "Link"}` ||
         (before && before.kind !== kind) ||
-        (before ? fact.effect[kind] : fact.effect.id) !== id ||
+        (before || recovered ? fact.effect[kind] : fact.effect.id) !== id ||
         typeof resource.revision !== "string" ||
         !resource.revision ||
         fact.revision !== resource.revision ||
-        fact.previousRevision !== before?.resource.revision ||
+        fact.previousRevision !==
+          (recovered ? terminalTokens.get(id) : before?.resource.revision) ||
         before?.resource.revision === resource.revision
       )
         throw new Error("inconsistent retained postimage chain");
@@ -182,7 +277,19 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
       versions.set(id, states);
       kinds.set(id, kind);
       latest.set(id, after);
-      expectedResult = { outcome: before ? "updated" : "created", changed: true, resource };
+      if (historical && kind === "bead") {
+        const bodies = historicalBodies.get(id) ?? new Map<string, unknown>();
+        bodies.set(resource.revision, resource);
+        historicalBodies.set(id, bodies);
+        tombstones.delete(id);
+      }
+      expectedResult = {
+        outcome: before || recovered ? "updated" : "created",
+        changed: true,
+        resource,
+      };
+      if (historicalContext !== undefined)
+        expectedResult = { result: expectedResult, historicalUpdate: historicalContext };
     }
     const incidence = incidentBeads(scope, before, after);
     const actual = db
@@ -204,6 +311,7 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
       throw new Error("missing or inconsistent retained transition outcome");
   }
   if (
+    (historical && get("SELECT count(*) AS n FROM historical_versions")?.n !== historicalCount) ||
     get("SELECT count(*) AS n FROM resources")?.n !== latest.size ||
     get("SELECT count(*) AS n FROM identities")?.n !== kinds.size ||
     get("SELECT count(*) AS n FROM incidence")?.n !== incidenceCount ||
@@ -220,6 +328,7 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
   }
   const live = new Map<string, ResourceState>();
   const committed = new Map<string, ResourceKind>();
+  const observedLiveRevisions = new Map<string, Set<string>>();
   const aliases = new Map<string, string>();
   let decision = 0;
   let transition = 0;
@@ -250,8 +359,44 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
       )
         throw new Error("inconsistent original alias comparison witness");
     }
-    const result = JSON.parse(String(row.body));
+    const nativeResult = JSON.parse(String(row.body));
+    const result =
+      historical && nativeResult.result !== undefined ? nativeResult.result : nativeResult;
     if (row.status === 200) {
+      if (historical && row.operation === "updateBead") {
+        const fromRevision = identityString(String(row.identity), "input", "fromRevision");
+        if ((fromRevision !== undefined) !== (nativeResult.result !== undefined))
+          throw new Error("historical result does not match selected request identity");
+        if (fromRevision !== undefined) {
+          const guard = identityString(String(row.identity), "input", "expectedRevision");
+          const versionRow = get(
+            "SELECT body FROM historical_versions WHERE id=? AND revision=?",
+            result.resource?.id,
+            result.resource?.revision,
+          );
+          const version =
+            versionRow === undefined ? undefined : JSON.parse(String(versionRow.body));
+          if (
+            !observedLiveRevisions.get(result.resource?.id)?.has(fromRevision) ||
+            version?.resource === undefined ||
+            serialized(nativeResult) !==
+              serialized({
+                result,
+                ...(version.historicalUpdate === undefined
+                  ? {}
+                  : { historicalUpdate: version.historicalUpdate }),
+              }) ||
+            (result.changed === true &&
+              (nativeResult.historicalUpdate?.fromRevision !== fromRevision ||
+                (guard !== undefined &&
+                  guard !== nativeResult.historicalUpdate?.previousRevision))) ||
+            (result.changed === false &&
+              guard !== undefined &&
+              guard !== live.get(result.resource?.id)?.resource.revision)
+          )
+            throw new Error("historical outcome differs from committed version/request context");
+        }
+      }
       if (row.operation === "putAlias" || row.operation === "deleteAlias") {
         if (
           witnesses.length ||
@@ -289,7 +434,7 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
       if (result.changed === true && row.event_position !== ++transition)
         throw new Error("retained decision and Event orders differ");
       if (result.outcome === "deleted") {
-        const deleted = tombstones.get(result.deleted?.resource?.id);
+        const deleted = historical ? result.deleted : tombstones.get(result.deleted?.resource?.id);
         if (
           !deleted ||
           result.changed !== true ||
@@ -328,10 +473,17 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
             throw new Error("retained creation reused a locator or identity");
           committed.set(id, kind);
         } else if (
-          !before ||
-          before.kind !== kind ||
+          (!before &&
+            !(
+              historical &&
+              kind === "bead" &&
+              result.changed === true &&
+              nativeResult.historicalUpdate !== undefined &&
+              committed.get(id) === "bead"
+            )) ||
+          (before !== undefined && before.kind !== kind) ||
           row.operation !== `update${kind === "bead" ? "Bead" : "Link"}` ||
-          (!result.changed && serialized(before.resource) !== serialized(result.resource))
+          (!result.changed && serialized(before?.resource) !== serialized(result.resource))
         )
           throw new Error("invalid retained update order");
         live.set(
@@ -340,6 +492,9 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
             ? { kind, resource: result.resource as RetainedBead }
             : { kind, resource: result.resource as RetainedLink },
         );
+        const observed = observedLiveRevisions.get(id) ?? new Set<string>();
+        observed.add(result.resource.revision);
+        observedLiveRevisions.set(id, observed);
       }
     } else if (
       typeof row.status !== "number" ||

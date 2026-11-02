@@ -151,3 +151,45 @@ it("accepts feature-local capability refusal without widening the base Problem p
   );
   expect(reply).toMatchObject({ kind: "problem", problem });
 });
+
+it("reads only the current terminal via feature media while owner discovery uses base media", async () => {
+  const description = "https://navigation.example/current-owner";
+  const terminal = { id, revision: "actual-D", state: "deleted", previousRevision: "R7" };
+  const calls: string[] = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const target = String(url);
+    calls.push(target);
+    const expected = target === description ? base : feature;
+    expect(new Headers(init?.headers).get("accept")).toBe(expected);
+    const value =
+      target === description
+        ? { ...discovery, capabilities: { [capability]: { "1": { atomicBatch: false } } } }
+        : { terminal };
+    const r = new Response(JSON.stringify(value), {
+      headers: {
+        "content-type": expected,
+        "cache-control": "private, no-store",
+        ...(target === description
+          ? {}
+          : {
+              "bdp-resource-kind": "bead",
+              link: `<${description}>; rel="service-desc"; type="${base}"`,
+            }),
+      },
+    });
+    Object.defineProperty(r, "url", { value: target });
+    return r;
+  };
+  const options = { limits, allowTarget: () => true, fetchImplementation: fetcher };
+  const c = new RetainedClient({
+    transport: createRetainedFetchTransport(options),
+    historicalUpdateTransport: createHistoricalUpdateFetchTransport(options),
+    maximumDocumentBytes: 65536,
+    maximumRequestBodyBytes: 65536,
+    operationTimeoutMs: 1000,
+  });
+  const reply = await c.readHistoricalUpdate(id, { terminal: true, scope });
+  expect(reply).toMatchObject({ kind: "success", value: { terminal } });
+  expect(calls).toEqual([`${id}?view=terminal`, description]);
+  expect(() => c.readHistoricalUpdate(`${id}?revision=actual-D`, { terminal: true })).toThrow();
+});
