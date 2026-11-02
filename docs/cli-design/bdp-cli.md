@@ -190,6 +190,8 @@ is the authority contract; retry-file is private client recovery, not a public A
 
 `--dry-run-mode batch` emits a member on ordinary CRUD commands and the complete
 native wrapper on `bd batch`, without execution, allocation or an admission claim.
+The initial CLI refuses historical `--from-revision` with batch emission; it does
+not produce a member for an unsupported historical-update/batch composition.
 Local ordinals and allocator-only --id-root cannot be silently resolved by the
 offline compiler; use exact tokens and explicit IDs, or receive an explicit refusal.
 Create `--batch-bind` is a batch-member emission label; ordinary execution refuses
@@ -400,6 +402,9 @@ An ordinal requires an actual authoritative adapter mapping and refuses absent
 support; page counting is never such a mapping. Explicit exact-token delivery
 requires no invented ordinal mapping. Reference selectors retain `@N` / `@=TOKEN`
 independently. No Link historical recovery is introduced.
+The initial historical-update CLI refuses `--from-revision` combined with
+`--dry-run-mode batch` before dispatch and emits no member. An offline operation
+schema alone does not establish CLI or provider batch-composition support.
 
 A write guard checks the current target; it does not select content to read.
 For example, a historical edit might copy content from revision 3 while
@@ -1049,7 +1054,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --from-revision REV | Resolve the admitted `N` / `=TOKEN` source to exact `fromRevision`; freeze source and feature intent in the ordinary request/journal. No guard is inferred. |
 | --if-revision TOKEN | Set `expectedRevision` to the exact flag value without ordinal lookup or prefix removal. |
 | --revision-provenance JSON | Set admitted `revisionProvenance` input. |
-| --dry-run-mode batch | Emit a member with `operation:"updateBead"` and the same inputs. |
+| --dry-run-mode batch | Emit an ordinary `operation:"updateBead"` member; the initial CLI refuses combination with `--from-revision` before dispatch and emits no member. |
 
 ##### Examples
 

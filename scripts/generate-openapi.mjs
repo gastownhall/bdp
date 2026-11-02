@@ -536,6 +536,10 @@ export function pathItem(row) {
         "Cache-Control": header("Authorization-dependent response: private, no-store."),
         ...contextHeaders(row.kind, row.collection),
       };
+      if (historical && !post)
+        headers.Vary = header(
+          "Negotiated feature representation; MUST include Accept, plus any actual additional variation.",
+        );
       if (row.history)
         headers["BDP-History-Lineage"] = header("Authorized retained lineage.", {
           enum: ["current", "replaced"],

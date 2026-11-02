@@ -861,6 +861,10 @@ test("historical feature catalogs five explicitly selected methods without widen
       } else {
         assert.equal(op.responses["200"].headers["BDP-Resource-Kind"].schema.const, "bead");
         assert(!op["x-bdp-request-media"].contentType);
+        for (const status of ["200", "304"]) {
+          assert.equal(op.responses[status].headers.Vary["x-bdp-required"], true);
+          assert.match(op.responses[status].headers.Vary.description, /MUST include Accept/);
+        }
         assert.equal(
           op.parameters.filter((p) => p.in === "query").length,
           id.endsWith("Terminal") ? 1 : 0,
