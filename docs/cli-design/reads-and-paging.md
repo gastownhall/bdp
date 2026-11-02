@@ -1,16 +1,16 @@
 # Canonical CLI: point and collection reads
 
 Paired #280 candidate, following [Scope/references](scope-and-references.md),
-[affiliations](affiliations-and-owned-state.md) and [read delivery](../../specs/profiles/core/read-delivery.md).
+[affiliations](affiliations-and-owned-state.md) and [read delivery](../../specs/profiles/core/core.md#collections-and-pagination).
 [Output and masking](read-output.md) reuse Cleo schema 2. This is paper source,
 not shipped client/provider support or a new History/Type/Events capability.
 
-The selected [shared Resource projection](../../specs/profiles/core/resource-projection.md)
+The selected [shared Resource projection](../../specs/profiles/core/core.md#optional-resource-projection)
 applies server-side to current GET, exact saved GET and ordinary List items through
 its independent capability. Resource `--include`/`--omit` lower to
 `projectionVersion=1` and encoded `fields`; unsupported support refuses rather than
 silently fetching a full record. Properties-view masks remain local rendering.
-The [Query draft](../../specs/profiles/core/query.md) adds proposed structured AST
+The [Query draft](../../specs/profiles/core/core.md#logical-resource-selection-and-graph-queries) adds proposed structured AST
 and result modes without reinterpreting the retained raw Selector.
 
 ## One point or one population
@@ -125,7 +125,7 @@ population, hide rows locally and reuse a misleading native cursor/count.
 
 Continuation retains the issued fully selected population, not a new ordinal/current
 lookup. Do not recompute applicability on later pages. This native baseline has
-no count request. The selected [List/Query extension](../../specs/profiles/core/query.md#results-and-projection)
+no count request. The selected [List/Query extension](../../specs/profiles/core/core.md#logical-results-and-projection)
 uses a shared service count result mode over the same selected population before
 paging. A qualified product adapter or explicitly admitted coherent client fallback
 is separate; neither page length nor unreported partial enumeration is exact count.
@@ -150,8 +150,11 @@ or silently apply an unadopted capability. Generic show does not fall back to th
 lookup without explicit definition intent/context; public Type CLI remains deferred. `versions`, `type list` and Events retain
 their own descriptors/contracts; this slice adopts none of their pagination/coverage.
 
-Finite reads can send `--head`, `--if-match`, `--if-none-match`,
-`--if-modified-since`, `--if-unmodified-since` where the selected request admits them.
+The CLI flags `--head`, `--if-match`, `--if-none-match`,
+`--if-modified-since` and `--if-unmodified-since` are
+[deferred](bdp-cli.md#deferred-http-read-conditions-and-metadata), not part of the
+selected CLI grammar. The remaining paragraphs record proposed client behavior
+for later review; Core HTTP requirements remain selected independently.
 These are actual HTTP controls, never `expectedRevision`; no quoting a Resource
 revision into a manufactured ETag. Properties and aggregate use their actual native
 validators. Authentication, cursor/query checks and applicable erasure checks precede

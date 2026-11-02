@@ -1,9 +1,12 @@
-# Required Events: CLI and mutation correspondence
+# Optional Events: CLI and mutation correspondence
 
-Paired with [Core Events](../../specs/profiles/core/events.md) and the [accepted
+Paired with [Core Events](../../specs/profiles/events/events.md#contract-and-advertisement) and the [accepted
 decisions](event-decisions-20261022.md). This is concrete draft source, not an
 implemented client. Postimage default and finite-JSON polling are author choices
-within the accepted minimum; neither needs another human ruling.
+within the advertised contract. Events is optional for both Core and Write.
+An Event command requires advertised support; absent support refuses without
+fallback to a Resource body. Ordinary reads and writes do not require an Event
+log. Once advertised, the complete postimage/coverage/replay obligations apply.
 
 ## Small command surface
 
@@ -43,10 +46,10 @@ unchanged; its issued context/limit cannot be resized. `--follow` has no total
 Event cap, implicit restart from now, or independent streaming-log requirement.
 Finite JSON is the baseline wire transport. An SSE adapter needs a future explicit
 binding; plain `text/event-stream` does not select this contract.
-The shared finite-read HTTP controls apply where admitted, including `--head` and
-conditional headers. Bodyless HEAD/304 use the existing metadata/read framing,
-never an empty caught-up page or fabricated cursor. These controls conflict with
-`--follow`; no conditional-response loop substitutes for Event continuation.
+The [HTTP CLI controls](bdp-cli.md#deferred-http-read-conditions-and-metadata)
+are deferred, including `--head` and conditional-header flags. They are not part
+of these commands. Core HTTP behavior does not select their CLI grammar; no
+conditional-response loop substitutes for Event continuation.
 
 Ordinary list predicates, Type filters, output masks, provenance suppression,
 JSONPath/Pointer property selection, History selectors and replica checkpoint
@@ -74,7 +77,7 @@ CLI quoting or promises the author's original edit spelling.
 For example, the emitted batch operation for:
 
 ```text
-bdp update task-42 --type Task@=definition-r4 --if-revision =resource-r7 --dry-run-mode batch
+bdp update task-42 --type Task@=definition-r4 --if-revision resource-r7 --dry-run-mode batch
 ```
 
 contains the authored Type pin and `expectedRevision`. Its resulting delta fact is:
@@ -114,7 +117,7 @@ Delta spans those two known records without inventing skipped r2/r3. If confirme
 absence follows r4, an observation-origin deletion reports r4's last-observed
 identity/affiliation/endpoints, not an unknown backend-final version or an
 authoritative delete receipt. Missing required prior context or unconfirmed
-absence uses the explicit gap/refusal path. See the [native interpretation](../../specs/profiles/core/events.md#observed-predecessors-and-disappearance)
+absence uses the explicit gap/refusal path. See the [native interpretation](../../specs/profiles/events/events.md#advertised-source-truthful-coverage)
 and the nonempty [observed examples](../../fixtures/retained-events/candidate.json).
 
 ## Derived owners and incident Links
@@ -131,11 +134,11 @@ without trying to express ownership exit as a fictitious Link deletion.
 A derived-only `updateBead` fact is not a legal authored update. `derived` is not
 a new CLI flag, public edit field or independent command. Link and owner facts
 share actual commit correlation, and consumers must not resubmit either fact as
-new intent. Under [selected final batch publication](../../specs/profiles/core/publication.md),
+new intent. Under [selected final batch publication](../../specs/profiles/write/write.md#final-atomic-publication),
 each affected initial/final owner captures final Link records and gets at most one
 new revision. A source correction can affect two distinct owners. The mutation
 result preserves their complete `ownerRevisions` final context; this is not an
-additional Event field. One final Resource transition produces one fact; no intermediate member has a published
+additional Event field. When Events is advertised, one final Resource transition produces one fact; no intermediate member has a published
 version. Net-zero and allocation-only decisions have no lifecycle facts. Ordinary
 per-version provenance conflicts refuse rather than silently selecting a member.
 

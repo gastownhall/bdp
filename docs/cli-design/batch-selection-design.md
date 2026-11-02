@@ -2,7 +2,7 @@
 
 **Review draft, updated October 27, 2026.** This accompanies the
 [batch overview](overview/06-batch.md). It does not amend the retained
-[version-1 batch](../../specs/profiles/write/atomic-batch.md), held schemas,
+[version-1 batch](../../specs/profiles/write/write.md#optional-atomic-batch-version-1), held schemas,
 runtime pins or implementations. The human decision pass is complete for the
 policies recorded below. Proposed version-2 names make the examples concrete; exact fields and read-grammar
 integration remain authoring work, not adopted capability fields or an

@@ -1,6 +1,6 @@
 # Canonical CLI: ordinary object edits
 
-Closed C1 edit-mode subset paired with [ordinary Write object edits](../../specs/profiles/write/object-edits.md),
+Closed C1 edit-mode subset paired with [ordinary Write object edits](../../specs/profiles/write/write.md#object-edits-and-endpoint-corrections),
 following [Scope/defaults](scope-and-references.md), [Type affiliations](affiliations-and-owned-state.md)
 and [contract binding](contract-binding.md). This is paper source, not an implemented
 parser. `bdp` follows the requested `bd <verb>` / `bd link <verb>` hierarchy.
@@ -101,5 +101,5 @@ ordinary update field using explicit replacement/patch/Type/guard/provenance opt
 Optional batch/result/recovery transport is separate source work; these shared
 ordinary fields add no non-atomic sequence, set-write operation or public receipt.
 The [accepted D1/D2 Event minimum](event-decisions-20261022.md) has a paired
-[source](events.md), and [final batch publication](../../specs/profiles/core/publication.md)
+[source](events.md), and [final batch publication](../../specs/profiles/write/write.md#final-atomic-publication)
 is selected. Types/source integration and qualification remain explicit gates.

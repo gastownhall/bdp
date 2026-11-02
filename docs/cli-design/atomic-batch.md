@@ -1,11 +1,11 @@
 # Canonical CLI: optional atomic batch
 
-CLI-first #152 source, paired with the [batch protocol](../../specs/profiles/write/atomic-batch.md)
+CLI-first #152 source, paired with the [batch protocol](../../specs/profiles/write/write.md#optional-atomic-batch-version-1)
 under sole #59. Use the ordinary [object edits](object-edits.md), [affiliations](affiliations-and-owned-state.md)
 and [Scope binding](scope-and-references.md). This is paper design, not an implemented
 compiler/provider. The concrete choices below extend C1; they are reviewable author
 choices, not new human rulings. [Event D1/D2 are now answered](event-decisions-20261022.md).
-Donna has also selected [final publication and net-no-op behavior](../../specs/profiles/core/publication.md).
+Donna has also selected [final publication and net-no-op behavior](../../specs/profiles/write/write.md#final-atomic-publication).
 The result shapes below replace the earlier unadopted per-member postimages.
 
 The newer [batch overview](overview/06-batch.md) and
@@ -18,7 +18,14 @@ historical authoring proposals, superseded by the reviewed
 [canonical CLI entry](bdp-cli.md#atomic-batch). They do not authorize raw CLI
 input in the current design.
 
-## One document, one decision
+## Historical authoring recipe
+
+The argv and tokenizer recipe in this section records an earlier proposal. It is
+not current accepted CLI syntax. Use the canonical CLI for input formats, emission
+and invocation grammar; the surviving v1 transaction rules below remain subject
+to the canonical Write contract.
+
+### One document, one decision
 
 ```sh
 bdp batch --file review.bdp --input-format cli
@@ -164,7 +171,7 @@ One final version has one attribution. Conflicting explicit provenance inputs fo
 that Resource (including applicable initial/final owned-Link contributions to an
 owner) refuse the whole batch; omission does not overwrite an explicit input.
 No version means no new provenance, even with valid supplied inputs. See the
-[common rules](../../specs/profiles/core/publication.md) for final owner capture,
+[common rules](../../specs/profiles/write/write.md#final-atomic-publication) for final owner capture,
 deletion/allocation, attribution, Events and durable recovery.
 
 For a staged Type change and restoration to its initial pin, the native result
@@ -253,7 +260,8 @@ original labels. These choices are explicit in the paired protocol.
 
 Future parameterized/stored batches must be explicitly selected/versioned and
 materialize this ordinary representation. No string substitution, result path,
-revision capture or template engine is specified. Events remain required under the
-paired [source](events.md); actual Types/source composition and qualification
-remain adoption gates. `serve`, runtime/Vickie/product pins and
+revision capture or template engine is specified. Events is optional for Core and
+Write; when advertised, the paired [source](events.md) supplies its complete
+observation contract. Specification requirements do not depend on current
+implementation limitations; implementation qualification is separate. `serve`, runtime/Vickie/product pins and
 Experimental stay held.

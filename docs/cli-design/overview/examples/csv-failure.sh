@@ -9,7 +9,7 @@ set -euo pipefail
     --properties '{"title":"Another CSV review"}' --dry-run-mode batch || exit
 
   # Describe an edit requiring the stale guide revision.
-  bd update csv-draft --if-revision =guide-h \
+  bd update csv-draft --if-revision guide-h \
     --set-metadata validation=pending --dry-run-mode batch || exit
 
 ) > csv-failure.jsonl

@@ -22,7 +22,7 @@ test("complete Markdown bundle preserves canonical structure, identity and both 
     createHash("sha256")
       .update(readFileSync(resolve(root, commonPath)))
       .digest("hex"),
-    "e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f",
+    load("fixtures/markdown-contracts/selected.json").sourceSHA256,
   );
   for (const edition of ["v0", "v0.1"])
     assert.deepEqual(

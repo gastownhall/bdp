@@ -1,18 +1,55 @@
-# Canonical BDP CLI: retained candidate
+---
+status: editorial-draft
+intended-status: normative-client-specification
+version: "0.1"
+---
 
-This is the finite retained CLI entry, composed from the reviewed paired modules,
-not the older private C1 paper or a shipping-client claim. It uses `bdp` as the
-executable name with the requested `bd <verb>` / `bd link <verb>` hierarchy.
-[Retained profiles](retained-profiles.md), [Core](../../specs/profiles/core/retained-core.md)
-and [Write](../../specs/profiles/write/retained-write.md) define the matching protocol.
-The [completion map](../design/bdp-v0.1-retained-cutline.md) identifies actual gates.
-There are no domain conveniences, public request/receipt/snapshot/changes/sequence
-commands, or new Type verbs. `serve` is reserved and undetailed.
-The [Preview3 alignment](preview3-alignment.md) records the settled shared CLI delta,
-product extensions and exact lowering limits. It changes CLI source, not the wire
-contract or an implementation/release pin. The separate
-[Memory CLI companion](memory-cli.md) defines an optional domain command package,
-with a task walkthrough and its own explicit Type-design dependency.
+# Beads Protocol — CLI
+
+This is the canonical CLI document in Donna's Core → Write → Types → CLI review
+corpus. It defines shared client behavior and its protocol correspondence; it is
+not a statement that an installed executable implements the draft.
+
+[Core](../../specs/profiles/core/core.md),
+[Write](../../specs/profiles/write/write.md) and
+[Types](../../specs/profiles/types/types.md) define the protocol contracts.
+CLI syntax, output framing and local convenience policy do not themselves add a
+wire operation, capability or Type lifecycle. The
+[CLI mismatch audit](../spec-review/cli-mismatches.md) identifies differences still
+to reconcile in this document and its companion design material. It records review
+work, not an amendment that readers must apply to reconstruct the protocol.
+
+This draft uses `bdp` as the executable name with the requested
+`bd <verb>` / `bd link <verb>` command hierarchy. Existing `bd` examples preserve
+that hierarchy. There are no domain conveniences, public request/receipt/snapshot/
+changes/sequence commands, or selected new Type verbs. `serve` is reserved and
+undetailed. [Preview3 alignment](preview3-alignment.md) records shared CLI choices
+and product extensions; the [Memory companion](memory-cli.md) is a separate domain
+command package with its own Type-design dependency.
+
+## CLI profiles and domain commands
+
+CLI profile selection is separate from the protocol's Core/Write capabilities,
+transport, backend graph mode, output format and domain command packages.
+The selected profiles are `canonical` and `compat`. The built-in default is
+`compat`; a saved default persists across invocations until changed or cleared.
+Clearing it restores `compat`. An explicit invocation override wins for that call
+and does not modify the saved default. Saved and effective profiles must be
+inspectable. Exact selector and configuration spellings remain deferred.
+
+Select the profile and register its admitted commands and flags before
+command-specific parsing. Hiding a flag from help or accepting it before a late
+refusal is not canonical-only registration. There is no automatic fallback into
+another profile after an error or missing capability. The compatibility adapter
+owns historical spellings, defaults and quirks and lowers them through the shared
+operation interface; it does not change protocol semantics.
+
+Domain commands are orthogonal: Issue/Dependency commands such as `ready` and
+Memory commands belong to their respective domain packages. Domain membership
+does not itself make a command compatibility-only. Output renderers own
+presentation, not profile selection, Type authority or execution policy. A product
+must account for semantic differences explicitly; cosmetic normalization may be
+staged separately. This does not select a Pack installation or wire format.
 
 ## Overview authoring sections
 
@@ -66,13 +103,13 @@ URL keeps literal identities containing @ selectable. `--id` is always literal. 
 
 | Position | Input | Meaning |
 | --- | --- | --- |
-| unpinned mutation target | --if-revision N or =TOKEN | Resolve the local number or use the exact expectedRevision token |
+| unpinned mutation target | --if-revision TOKEN | Use the exact opaque expectedRevision token unchanged |
 | authored --type | TYPE@N or TYPE@=TOKEN | Exact Type affiliation after authoritative ordinal resolution |
 | authored Link source/target | REF@N or REF@=TOKEN | Exact endpoint pin after authoritative ordinal resolution |
 
 Local ordinals require a truthful selected-store mapping and resolve to full tokens
 before transport or stored references; unavailable mapping refuses, never guesses.
-`--from-revision` uses the same `N` or `=TOKEN` grammar only on a separately
+`--from-revision` retains its separately specified `N` or `=TOKEN` grammar only on a
 specified historical-content adapter. Type/endpoint @current refuses as a pin;
 bare input is unpinned. Mutation targets remain unpinned. Type filter operands
 stay unpinned; Link incidence selectors have the explicit
@@ -80,8 +117,8 @@ stay unpinned; Link incidence selectors have the explicit
 contract. No GET-then-write current-pin emulation is added.
 
 There is no standalone canonical `--revision` or `--type-revision`, or `json:`
-Reference escape. The retained explicit Link-creation endpoint token flags remain
-literal and conflict with the corresponding suffix even when equal; they are not
+Reference escape. Link endpoint pins use `@N` or `@=TOKEN`; there are no
+canonical `--source-revision` / `--target-revision` flags. Endpoint pins are not
 write guards. Object/patch/provenance options use inline JSON, @FILE or @-.
 Inputs are UTF-8, frozen before transmission, with one stdin consumer; reject
 duplicate members, invalid Unicode and inadmissible numbers rather than round
@@ -97,14 +134,14 @@ substitutes for ordinary flags.
 | link show REF | Same read with actual Link assertion |
 | list [SCOPE] [FILTERS] | Bead inventory, no domain/Type default |
 | link list [ID1 [ID2]] [LINK-FILTERS] | Current Link inventory/incidence/pair, selected Scope explicit/default |
-| events [RESOURCE]; link events RESOURCE | Required postimage observation, optional selected delta; [Events](events.md) |
+| events [RESOURCE]; link events RESOURCE | Optional advertised Events; required postimages within that contract, optional delta; [Events](events.md) |
 | versions REF; link versions REF | Optional complete History versions page, below |
 | create [SCOPE] --type REF [--id ID] [INITIAL-OBJECTS] | createBead singleton; product allocation adapter may admit --id-root |
 | link create SOURCE TARGET --type REF [--id ID] [INITIAL-OBJECTS] | createLink; SOURCE --to TARGET or --from SOURCE --to TARGET also admitted |
-| update REF [--type REF] [OBJECT-EDITS] [--if-revision REV] | updateBead; at least one mutation input |
-| link update REF [--type REF] [--from REF] [--to REF] [OBJECT-EDITS] [--if-revision REV] | updateLink; whole endpoint corrections preserve Link identity |
-| delete REF --force [--if-revision REV] | deleteBead apply |
-| link delete REF --force [--if-revision REV] | deleteLink apply |
+| update REF [--type REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateBead; at least one mutation input |
+| link update REF [--type REF] [--from REF] [--to REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateLink; whole endpoint corrections preserve Link identity |
+| delete REF --force [--if-revision TOKEN] | deleteBead apply |
+| link delete REF --force [--if-revision TOKEN] | deleteLink apply |
 | alias resolve NAME | One-step alias Location, never target body |
 | alias put NAME --target REF | putAlias, canonical in-Scope unpinned Bead target |
 | alias delete NAME --force | deleteAlias, explicit apply intent |
@@ -146,7 +183,7 @@ same command/Scope/contract/capabilities/operands/input/key and original operati
 binding; no new semantic options/default resolution or changed files. Credentials
 are obtained currently, not saved in reusable artifacts. Journaling precedes first
 transmission. Capability/guard/conflict/unknown-result diagnoses never authorize a
-fresh key automatically. [Write durability](../../specs/profiles/write/retained-write.md#standalone-key-foundation-independent-of-sequence-and-replication)
+fresh key automatically. [Write durability](../../specs/profiles/write/write.md#idempotency-and-recovery)
 is the authority contract; retry-file is private client recovery, not a public API.
 
 `--dry-run-mode batch` emits a member on ordinary CRUD commands and the complete
@@ -192,7 +229,7 @@ Beads may additionally show a stable local SEQ timeline including deletion event
 these are not fabricated native historyVersionsPage rows. A deleted entry has no
 live Resource body to select. See [product History mapping](preview3-alignment.md#history-and-allocation-adapters).
 
-## Honest output, errors and required Events
+## Honest output, errors and optional Events
 
 Default point display is a shared human document and collections use shared rows.
 Create/Memory authoring success uses a brief acknowledgement plus the same row
@@ -232,19 +269,25 @@ scope_binding_conflict, invalid_value, unsupported_capability, retry_state_inval
 write_outcome_unknown, interrupted, output_failed and the declared read/alias codes.
 These are target author choices, not a renumbering of shipped Preview exits.
 
-Required Event signatures are events [RESOURCE], link events RESOURCE with
+Events is optional for both Core and Write. Commands require the advertised
+Event source and refuse absent support; an unsupported Event view never falls
+back to a Resource body. Ordinary mutations and batch do not require an Event
+log merely because they use Write.
+
+The Event signatures are events [RESOURCE], link events RESOURCE with
 --from retained|now or mutually exclusive --after TOKEN, optional --follow,
 --representation postimage|delta and --page-size N. [D1/D2 are answered](event-decisions-20261022.md):
-postimages required, deltas optional; declared observation coverage with bounded
+within advertised Events, postimages are required and deltas optional; declared observation coverage with bounded
 replay and explicit gaps. The paired [Event CLI](events.md) and
-[native source](../../specs/profiles/core/events.md) define postimage default,
+[native source](../../specs/profiles/events/events.md#contract-and-advertisement) define postimage default,
 finite JSON/polling, cursor/coverage and the six mutation-name delta vocabulary.
 No predicate language, masks, wire provenance suppression or changes command is
-added. Required unknown semantics stop progress. Actual Types/source integration
-and implementation qualification remain gates.
-[Final batch publication](../../specs/profiles/core/publication.md) emits facts for
-final Resource transitions, with at most one new revision per affected Resource;
-input mappings and unique final outcomes replace per-member postimages.
+added. Within advertised Events, unknown required semantics stop delivery. When Events is advertised,
+[final batch publication](../../specs/profiles/write/write.md#final-atomic-publication)
+emits facts for final Resource transitions. Write always preserves atomic final
+state, allocation, keys, outcomes and at most one new revision per affected
+Resource, whether or not Events is supported. Input mappings and unique final
+outcomes replace per-member postimages.
 
 > **Cleo — Finite surface:** Scope defaults, singular property flags, exact/family
 > filters, revision terminology and output roots stay as recorded in the paired
@@ -308,7 +351,7 @@ Deleting a Bead or Link does not make its ID available for reuse. A generated
 ID is its actual identity, not a shortened display name.
 
 `--id ID` sends `id`; `--id-root ROOT` sends `idRoot` under the selected
-[id-root allocation capability](../../specs/profiles/write/id-root.md). The service
+[id-root allocation capability](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1). The service
 chooses and reserves the complete ID atomically. Emission preserves the root and
 reserves nothing; absent support refuses without client allocation or fallback.
 
@@ -321,24 +364,26 @@ use revisions for two different purposes:
 
 | Flag | Meaning | When omitted |
 | --- | --- | --- |
-| `--if-revision REV` | Allow a write only if its target still has the selected revision. | No revision condition is supplied. |
+| `--if-revision TOKEN` | Allow a write only if its target still has the selected revision. | No revision condition is supplied. |
 | `--from-revision REV` | Use content from a saved revision in a command that supports historical editing or recovery. | Use the command's ordinary content inputs. |
 
-Both flags use the same value syntax:
+`--if-revision TOKEN` takes the exact opaque token, unchanged. For example,
+`--if-revision saved-r1` sends `expectedRevision:"saved-r1"`, and
+`--if-revision 3` sends the token `"3"`, not local ordinal 3. A leading `=` is
+ordinary token content: `--if-revision =saved-r1` means the literal token
+`"=saved-r1"`; it is not an escape. No local-number guard shorthand is selected.
+Shell quoting does not distinguish numeric tokens from ordinals.
 
-| Value | Meaning |
-| --- | --- |
-| `3` | Local revision number 3 for the Bead or Link being addressed. |
-| `=saved-r1` | The exact revision token `saved-r1`. |
-| `=3` | The exact token `3`, not local revision number 3. |
-
-An authoritative store adapter maps a local number to its full BDP token;
-page order or client counting cannot supply that mapping. Missing support refuses.
-Wire References keep URI/exact-token forms; the CLI removes the leading `=`.
+The separately specified historical-content adapter's `--from-revision REV`
+retains its own `N` / `=TOKEN` proposal: `3` means local revision number 3 and
+`=saved-r1` means the exact token `saved-r1`. It is not an ordinary BDP update
+field or permission to infer guard syntax. That adapter must establish an
+authoritative ordinal mapping and refuse absent support; page counting is never
+such a mapping. Reference selectors retain `@N` / `@=TOKEN` independently.
 
 A write guard checks the current target; it does not select content to read.
 For example, a historical edit might copy content from revision 3 while
-requiring that the current target is still at revision 7. Those are separate
+requiring the current target to retain a particular exact revision token. Those are separate
 choices. Each historical-edit command defines which content it copies.
 
 <a id="reference-syntax"></a>
@@ -394,10 +439,12 @@ See the [URL revision example](#show-examples).
 
 #### Types: `--type` and `--exact-type`
 
-The [Types companion](types-cli.md) presents the ordinary operations together;
-its [first local sequence](types-first-sequence.md) separates real metatype/definition
-work from the explicitly temporary instance-creation placeholder. The selected
-[Types1 binding](../../specs/profiles/types/types-binding.md) requires rejectable
+Type definitions are ordinary Bead records, read and written through the same
+Resource operations as other Beads. The [Types companion](types-cli.md) explains
+definition authoring, Refines Links and real persisted instances. Its
+[five-step sequence](types-first-sequence.md) is an acceptance plan, not a limit
+on specification semantics or a temporary unsaved-instance API. The selected
+[Types1 binding](../../specs/profiles/types/types.md#12-types1-capability-and-rejectable-selection) requires rejectable
 feature selection when an operation depends on Types semantics; no new user version
 flag or Type lifecycle command is implied.
 
@@ -466,7 +513,7 @@ are applied first, followed by omissions, using the original field paths.
 A Resource's ID, Type, revision and Link endpoints remain available as context.
 Field selection changes represented fields, not which records are selected.
 For Resource point reads and ordinary List, these flags select the independent
-[native projection capability](../../specs/profiles/core/resource-projection.md):
+[native projection capability](../../specs/profiles/core/core.md#optional-resource-projection):
 `projectionVersion=1` plus encoded `fields`. Unsupported support refuses.
 Properties-only masks apply locally to that native view. Other native views do
 not acquire this capability through display controls.
@@ -532,7 +579,7 @@ Scope, operands, Type, guard, inputs or key. It reuses the saved operation bindi
 and frozen bytes; it does not reread input files or resolve a new Type default.
 Credentials are obtained for the current attempt. An uncertain outcome stays
 uncertain until same-key recovery establishes its disposition. A failed render
-does not undo a known successful write. See [Write durability](../../specs/profiles/write/retained-write.md#standalone-key-foundation-independent-of-sequence-and-replication).
+does not undo a known successful write. See [Write durability](../../specs/profiles/write/write.md#idempotency-and-recovery).
 
 MODE is `batch` or `bdp`. Member mode emits one compact JSON object and a newline;
 batch-only references use `batch-ref::NAME` in admitted operand positions. The
@@ -570,7 +617,7 @@ result-level `source`/`sourceRevision` pair is not an
 alternative v0.1 spelling. Endpoint fields inside the Link record retain their
 ordinary meanings. Batch Link rows use the same complete context and include
 each owner's unique final Resource outcome. See the
-[complete result rules](../../specs/profiles/write/link-updates.md#complete-owner-revision-context).
+[complete result rules](../../specs/profiles/write/write.md#ordinary-results).
 
 <a id="collection-paging"></a>
 
@@ -855,7 +902,7 @@ Update one Bead, changing its Type, properties or metadata in one atomic operati
 ##### Usage
 
 ```text
-bd update REF [--type TYPE] [--scope SCOPE] [--if-revision REV]
+bd update REF [--type TYPE] [--scope SCOPE] [--if-revision TOKEN]
     [--properties JSON | --replace-properties JSON | --patch-properties JSON
        | [--set-property KEY=VALUE]... [--unset-property KEY]...]
     [--metadata JSON | --replace-metadata JSON | --patch-metadata JSON
@@ -889,7 +936,7 @@ bd update --retry-file FILE
 | `--unset-property KEY` | No keyed edit | Remove a literal top-level key idempotently. Repeatable; see [object inputs](#object-inputs). |
 | `--set-metadata KEY=VALUE` | No keyed edit | Set a literal top-level key. Repeatable; see [object inputs](#object-inputs). |
 | `--unset-metadata KEY` | No keyed edit | Remove a literal top-level key idempotently. Repeatable; see [object inputs](#object-inputs). |
-| `--if-revision REV` | No guard | Require the target revision; `N` or `=TOKEN`. See [write revisions](#write-revision-flags). |
+| `--if-revision TOKEN` | No guard | Require the exact opaque target revision token, unchanged. See [write revisions](#write-revision-flags). |
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
@@ -942,7 +989,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --type TYPE | Set the whole `type` Reference; omission remains omission. |
 | --replace-properties / --replace-metadata | Set distinct `properties` / `metadata` replacement members, not root patches. |
 | Merge, patch and keyed object edits | Lower to `propertiesChange` / `metadataChange` without changing edit intent or policy. |
-| --if-revision REV | Resolve the target-local number or strip `=` and set exact `expectedRevision`. |
+| --if-revision TOKEN | Set `expectedRevision` to the exact flag value without ordinal lookup or prefix removal. |
 | --revision-provenance JSON | Set admitted `revisionProvenance` input. |
 | --dry-run-mode batch | Emit a member with `operation:"updateBead"` and the same inputs. |
 
@@ -950,7 +997,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 
 ```sh
 # Set one property while requiring the current revision.
-bd update note-1 --set-property title=Reviewed --if-revision =saved-r7
+bd update note-1 --set-property title=Reviewed --if-revision saved-r7
 
 # Choose replacement for properties and keyed metadata editing.
 bd update note-1 --replace-properties '{"title":"Reviewed"}' --set-metadata reviewed=true
@@ -969,7 +1016,7 @@ Preview or apply deletion of one Bead.
 ```text
 bd delete REF [--scope SCOPE]
     [--output-format default|detail|json|jsonl] [--long]
-bd delete REF --force [--scope SCOPE] [--if-revision REV]
+bd delete REF --force [--scope SCOPE] [--if-revision TOKEN]
     [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd delete --retry-file FILE
@@ -988,7 +1035,7 @@ bd delete --retry-file FILE
 | --- | --- | --- |
 | `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--force` | Off | Apply deletion; without it, read the current record as an observational preview. See [write delivery](#mutation-delivery). |
-| `--if-revision REV` | No guard | Require the target revision; `N` or `=TOKEN`. See [write revisions](#write-revision-flags). |
+| `--if-revision TOKEN` | No guard | Require the exact opaque target revision token, unchanged. See [write revisions](#write-revision-flags). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
 | `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
@@ -1035,7 +1082,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --- | --- |
 | No --force | GET the current Resource; add only the CLI preview marker. |
 | REF with --force | POST `bead` to discovered `deleteBead` with an Idempotency-Key. |
-| --if-revision REV | Set exact `expectedRevision` after the shared revision conversion. |
+| --if-revision TOKEN | Set `expectedRevision` to the exact flag value unchanged. |
 | --force | Client apply intent only; no native field. |
 | --dry-run-mode batch | Emit `operation:"deleteBead"`; do not execute it. |
 
@@ -1046,7 +1093,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 bd delete note-1
 
 # Apply deletion with an exact revision guard.
-bd delete note-1 --force --if-revision =saved-r7
+bd delete note-1 --force --if-revision saved-r7
 
 # Emit an explicit deletion for batch composition.
 bd delete note-1 --force --dry-run-mode batch
@@ -1478,7 +1525,7 @@ atomic operation.
 
 ```text
 bd link update REF [--type TYPE] [--from REF] [--to REF]
-    [--scope SCOPE] [--if-revision REV]
+    [--scope SCOPE] [--if-revision TOKEN]
     [--properties JSON | --replace-properties JSON | --patch-properties JSON
        | [--set-property KEY=VALUE]... [--unset-property KEY]...]
     [--metadata JSON | --replace-metadata JSON | --patch-metadata JSON
@@ -1514,7 +1561,7 @@ bd link update --retry-file FILE
 | `--unset-property KEY` | No keyed edit | Remove a literal top-level key idempotently. Repeatable; see [object inputs](#object-inputs). |
 | `--set-metadata KEY=VALUE` | No keyed edit | Set a literal top-level key. Repeatable; see [object inputs](#object-inputs). |
 | `--unset-metadata KEY` | No keyed edit | Remove a literal top-level key idempotently. Repeatable; see [object inputs](#object-inputs). |
-| `--if-revision REV` | No guard | Require the target revision; `N` or `=TOKEN`. See [write revisions](#write-revision-flags). |
+| `--if-revision TOKEN` | No guard | Require the exact opaque target revision token, unchanged. See [write revisions](#write-revision-flags). |
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
@@ -1541,7 +1588,7 @@ Reference floats that endpoint and deliberately removes an earlier pin; a pinned
 Reference supplies the selected exact edition. Duplicate bindings refuse even
 when equal. Identity, Resource kind and owning Scope of the Link stay fixed.
 Ordinary endpoint kind, Scope/external-endpoint policy, exact Reference resolution
-and Type constraints still apply. See [endpoint corrections](../../specs/profiles/write/link-updates.md).
+and Type constraints still apply. See [endpoint corrections](../../specs/profiles/write/write.md#object-edits-and-endpoint-corrections).
 
 Endpoint and Type corrections can affect the initial and final source owners.
 The provider admits and publishes the Link and all induced owner effects
@@ -1580,7 +1627,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --from REF / --to REF | Set whole `source` / `target` replacements; omission preserves the preceding Reference and pin. |
 | --replace-properties / --replace-metadata | Set distinct `properties` / `metadata` replacement members, not root patches. |
 | Merge, patch and keyed object edits | Lower to `propertiesChange` / `metadataChange` without changing edit intent or policy. |
-| --if-revision REV | Resolve the target-local number or strip `=` and set exact `expectedRevision`. |
+| --if-revision TOKEN | Set `expectedRevision` to the exact flag value without ordinal lookup or prefix removal. |
 | --revision-provenance JSON | Set admitted `revisionProvenance` input. |
 | --dry-run-mode batch | Emit a member with `operation:"updateLink"` and the same inputs. |
 
@@ -1588,7 +1635,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 
 ```sh
 # Set one property while requiring the current revision.
-bd link update rel-1 --set-property title=Reviewed --if-revision =saved-r7
+bd link update rel-1 --set-property title=Reviewed --if-revision saved-r7
 
 # Choose replacement for properties and keyed metadata editing.
 bd link update rel-1 --replace-properties '{"title":"Reviewed"}' --set-metadata reviewed=true
@@ -1597,7 +1644,7 @@ bd link update rel-1 --replace-properties '{"title":"Reviewed"}' --set-metadata 
 bd link update rel-1 --type references@=type-r2
 
 # Correct the source while preserving the Link ID and omitted target pin.
-bd link update rel-1 --from note-2 --if-revision =saved-r7
+bd link update rel-1 --from note-2 --if-revision saved-r7
 
 # Replace the target with an exact pin, then explicitly float that target.
 bd link update rel-1 --to note-3@=note-r4
@@ -1614,7 +1661,7 @@ Preview or apply deletion of one Link.
 ```text
 bd link delete REF [--scope SCOPE]
     [--output-format default|detail|json|jsonl] [--long]
-bd link delete REF --force [--scope SCOPE] [--if-revision REV]
+bd link delete REF --force [--scope SCOPE] [--if-revision TOKEN]
     [--revision-provenance JSON]
     [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
@@ -1634,7 +1681,7 @@ bd link delete --retry-file FILE
 | --- | --- | --- |
 | `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
 | `--force` | Off | Apply deletion; without it, read the current record as an observational preview. See [write delivery](#mutation-delivery). |
-| `--if-revision REV` | No guard | Require the target revision; `N` or `=TOKEN`. See [write revisions](#write-revision-flags). |
+| `--if-revision TOKEN` | No guard | Require the exact opaque target revision token, unchanged. See [write revisions](#write-revision-flags). |
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
@@ -1683,7 +1730,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --- | --- |
 | No --force | GET the current Resource; add only the CLI preview marker. |
 | REF with --force | POST `link` to discovered `deleteLink` with an Idempotency-Key. |
-| --if-revision REV | Set exact `expectedRevision` after the shared revision conversion. |
+| --if-revision TOKEN | Set `expectedRevision` to the exact flag value unchanged. |
 | --revision-provenance JSON | Set attribution for an induced source revision where applicable. |
 | --force | Client apply intent only; no native field. |
 | --dry-run-mode batch | Emit `operation:"deleteLink"`; do not execute it. |
@@ -1695,7 +1742,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 bd link delete rel-1
 
 # Apply deletion with an exact revision guard.
-bd link delete rel-1 --force --if-revision =saved-r7
+bd link delete rel-1 --force --if-revision saved-r7
 
 # Emit an explicit deletion for batch composition.
 bd link delete rel-1 --force --dry-run-mode batch
@@ -1962,8 +2009,9 @@ bd events [RESOURCE] [--scope SCOPE]
 Resource operands must be unpinned; History selection is not an Event cursor.
 The default reads one retained postimage page. `--from now` captures a boundary
 and returns its empty page and cursor; with follow it observes later facts.
-Require and verify the source's selected contract, representation and declared
-coverage. Delta is optional and unsupported delta requests refuse.
+Require advertised Events support and verify the source's selected contract,
+representation and declared coverage. Absence refuses rather than reading the
+Resource body. Delta is optional and unsupported delta requests refuse.
 
 Follow drains each issued next URL unchanged, then polls with the completed
 page's cursor. It has no total Event cap or silent restart from now. An empty
@@ -2061,16 +2109,17 @@ bd link events RESOURCE [--scope SCOPE]
 Resource operands must be unpinned; History selection is not an Event cursor.
 The default reads one retained postimage page. `--from now` captures a boundary
 and returns its empty page and cursor; with follow it observes later facts.
-Require and verify the source's selected contract, representation and declared
-coverage. Delta is optional and unsupported delta requests refuse.
+Require advertised Events support and verify the source's selected contract,
+representation and declared coverage. Absence refuses rather than reading the
+Resource body. Delta is optional and unsupported delta requests refuse.
 
 Follow drains each issued next URL unchanged, then polls with the completed
 page's cursor. It has no total Event cap or silent restart from now. An empty
 poll does not end follow. Finite JSON cannot complete an endless follow, so
 `--follow --output-format json` is invalid; use JSONL, detail or table.
 
-A Bead source includes its lifecycle and incident Link facts, preserving each
-fact's actual mutation kind. Facts are committed postimages or realized deltas,
+A Link source includes that Link's lifecycle facts, preserving each fact's actual
+mutation kind. Facts are committed postimages or realized deltas,
 not later reads or commands that may be resubmitted. Explicit gaps, expired or
 foreign cursors, and unknown required messages stop delivery at the last good
 progress. Replaying an older completed cursor may redeliver facts.
@@ -2447,6 +2496,21 @@ optional version pin. Exact version-2 fields remain author proposals; examples
 use proposed encoder 2. This reviewed CLI direction does not amend the retained
 version-1 wire/schema or claim an implementation.
 
+##### Selected version-1 correspondence
+
+When targeting selected `atomic-batch1`, local create `--batch-bind NAME` lowers
+to that create member's `name`, and a later admitted `batch-ref::NAME` identity
+operand lowers to the native `@NAME` handle. It refers only to a prior create's
+identity, never its revision, arbitrary result fields or a forward reference.
+Preserve the selected six-CRUD wrapper, exact operation order, scalar identity
+mappings and unique complete final Resource outcomes.
+
+These local spellings do not authorize version-2 selection/set members. A
+compiler that cannot lower the invocation faithfully to the explicitly selected
+and supported version refuses; it does not downgrade, split or preselect through
+independent reads. The richer paragraphs below remain proposals wherever they
+require version 2, transactional List/Query or set bindings.
+
 ##### Arguments
 
 | Argument | Required | Meaning |
@@ -2474,7 +2538,7 @@ The selected version must be implemented by the compiler and advertised by the
 authority for execution. Every native request states the exact version; no
 provider-driven version choice, automatic downgrade or reinterpretation is
 allowed. Transaction-scoped List and Query are advertised independently.
-Unextended version 1 retains six CRUD members and creation captures; [id-root1](../../specs/profiles/write/id-root.md) separately selects rooted creation. Named List/Query selection and set targets belong
+Unextended version 1 retains six CRUD members and creation captures; [id-root1](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1) separately selects rooted creation. Named List/Query selection and set targets belong
 to the explicitly proposed version-2 grammar. Unsupported selection refuses;
 there is no downgrade, client-side preselection, independent-write fallback or
 automatic chunking.
@@ -2559,7 +2623,7 @@ JSONL output carries its complete compound result as one item.
 
 Member emission writes one compact JSON object and a newline. Batch emission
 writes one complete versioned native wrapper. Neither is a successful mutation
-result. See the [retained wire result contract](../../specs/profiles/write/atomic-batch.md#final-results-not-intermediate-postimages)
+result. See the [retained wire result contract](../../specs/profiles/write/write.md#atomic-batch-results-and-recovery)
 and [new selection examples](overview/06-batch.md).
 
 ##### Errors and exit status
@@ -2624,7 +2688,7 @@ the complete collection entries above specify `list` only.
 
 These details are retained for discussion. They are not agreed requirements.
 
-#### HTTP read conditions and metadata
+#### Deferred HTTP read conditions and metadata
 
 | Flag | Proposed HTTP meaning |
 | --- | --- |
@@ -2634,10 +2698,114 @@ These details are retained for discussion. They are not agreed requirements.
 | `--if-modified-since HTTP_DATE` | Send `If-Modified-Since`. |
 | `--if-unmodified-since HTTP_DATE` | Send `If-Unmodified-Since`. |
 
+Donna has deferred this entire CLI flag surface; none of these flags is part of
+the selected command grammar. Core's HTTP semantics remain unchanged.
+
 These proposed controls use HTTP validators, not Resource revision numbers
 or tokens. The proposal also covers bodyless responses and metadata output.
 They are omitted from the reviewed `show` entry for this pass. See
 [HTTP read details](reads-and-paging.md#existing-exact-reads-and-http-controls).
+
+### Proposed Transfer commands
+
+Review draft 1. This is the command mapping for the proposed
+[Transfer profile](../../specs/profiles/transfer/transfer.md), integrated into this
+single CLI document. It is not selected command grammar.
+
+This is a proposed command mapping within Donna's canonical CLI review corpus. It selects no shipped flag, registration, default flip, renderer implementation or new server endpoint. Semantic requirements below follow the Transfer proposal and recovered human outcomes; proposed syntax and descriptor additions need the ordinary CLI/schema correspondence review. Legacy compatibility stays separate.
+
+#### 1. Four independent selections
+
+| Selection | Meaning |
+| --- | --- |
+| CLI profile canonical/compat | Which command/flag grammar is registered before parsing. Keep the selected persistent default/one-invocation override rules; never infer protocol capability from the CLI profile name. |
+| Data family transfer/legacy | Which payload contract is produced or accepted. A legacy export cannot acquire a manifest and become Transfer without explicit family selection. |
+| JSON/JSONL encoding | Serialization of one selected Transfer package; both have identical logical contents. This does not select a weaker completeness mode. |
+| Presentation of operation result | Human detail or schema-2 JSON/JSONL for an import result/diagnostic. This is not the input package's encoding and does not modify its Resource bodies. |
+
+Do not overload one switch to mean all four. Do not select formats based on redirection, TTY, extension or a failed parse. An unsupported format/descriptor/profile combination refuses before dispatch. No fallback from native Transfer to legacy, from Types-required to Core-only, or from atomic to partial import.
+
+#### 2. Proposed command grammar
+
+The following spellings are a concrete review proposal, not a claim that the existing CLI implements them. Integration may reuse the receiving CLI's already selected equivalent spellings. The semantic distinctions in section 1 must survive.
+
+    bd export --format transfer --output-format json|jsonl [--output FILE]
+    bd import --format transfer --input-format json|jsonl FILE|-
+              [--mode upsert|insert-only] [--force] [--dry-run]
+              [--output-format default|detail|json|jsonl]
+
+New Transfer selection is explicit during the compatibility transition. This draft does not change the existing legacy export/import default. Under explicit Transfer selection, proposed export encoding default is JSONL; both encodings remain required. Exact flag registration/default must be recorded by the CLI owner before adoption. Import requires an explicit input encoding in this first grammar; extensions are advisory, not a decoder-selection authority. A future auto encoding choice would need a bounded unambiguous rule within the already selected Transfer family, not speculative fallback into legacy.
+
+For import the default mode is upsert. Insert-only rejects every destination lifetime-allocation collision. Force is explicit whole incoming Resource conflict resolution under upsert; reject force plus insert-only as conflicting arguments. Force cannot bypass kind/address/Types/erasure/authorization/ownership/nonreuse constraints. There is no automatic force after conflict and no field-wise merge.
+
+There is no Transfer ID-root/prefix/remapping option in the first same-Scope identity-preserving contract. If the product exposes an ID prefix for legacy conversion, it remains a separate explicit compatibility behavior. Neither Write's optional rooted fresh allocation nor a human short ID authorizes relocation of an original canonical identity.
+
+Import into a fresh target is the first delivery gate, not a different interpretation of upsert or removal of later populated modes. A target lacking a selected mode must refuse it; it cannot silently require an empty target while advertising general upsert. Exact Type registration/setup occurs separately before import, under its owning contract. No --install-types, --skip-validation or packet-supplied schema execution is introduced.
+
+#### 3. Export payload versus CLI envelopes
+
+Transfer export emits an artifact in the selected package grammar, not a List/Query result, page stream or rendered Resource collection. Stdout in payload-emission mode contains only package bytes; diagnostics/progress go to stderr. A generic schema-2 read envelope must not be inserted around or between package records. This uses the canonical CLI distinction between emission and framed operation results; a dedicated transfer-package descriptor/adapter still needs owner registration and schema review, not reuse of the six ordinary-read descriptor schemas by assertion.
+
+When writing FILE, stage in a newly owned temporary file, validate completion, then publish to the requested destination using the supported safe file-publication policy. Do not overwrite a preexisting unrelated file without the CLI's explicit selected replacement policy. Rename/flush details must state their actual filesystem durability limits. An export failure must not leave a file that claims successful completion. A stdout failure may leave a prefix with no completion and nonzero status; never append an error Resource or a second success object to repair it.
+
+No selected Transfer command accepts --include, --omit POINTER, field selectors, raw --omit envelope, partial history filters, seed IDs or graph queries that would project away required facts. Reject such inputs before dispatch. The first complete-profile command does not invent selection semantics. List/Query remains the appropriate representation/projection path. A later selected limited transfer profile must advertise its own honest coverage; it must not inherit all-retained status.
+
+Native IDs, complete References/revisions, properties, metadata, revisionProvenance and recorded owned state in package bytes are never shortened for human display. Do not substitute a local sequence number, display Type label, alias or path with a kind segment stripped.
+
+#### 4. Import input freezing, preview and commit
+
+Accept one input file or one stdin stream. Read with declared raw/decoded/record bounds into protected owned staging while preserving exact values. Reject multiple stdin consumers or attempts to reread stdin for an automatic retry. An import request freezes package/contract/Scope/mode/force/guard meaning and one invocation key before mutation dispatch. Keep recovery material private and stable; do not log secret-bearing package bytes or publish retry keys.
+
+Dry-run performs supported complete structural, inventory, prerequisite, authorization and current-target checks and reports a plan. It performs no graph publication, identity reservation, Type installation/registration, successful mutation-key claim or lease activation. A dry-run result states that it is observational and which checks require commit-time revalidation. If it cannot validate an essential property, report it as unvalidated/unsupported and do not call the preview a guaranteed successful import. A later non-dry-run operation is distinct new work with its own frozen invocation/key and current checks.
+
+No incremental per-line/chunked commit, --best-effort or automatic non-atomic fallback is selected. Oversized atomic packages refuse truthfully. Protected staging may be disk-backed; do not imply the whole upload requires an open DB transaction or resident memory. Partial native validation must not be advertised as a full dry run.
+
+#### 5. Import results and output controls
+
+Use Cleo's actual schema-2 common invocation/result framing once the new Transfer result descriptor is registered. The envelope identifies the real selected bdp_spec independently from Transfer capability/version and executable version. Do not invent a new result_kind literal without updating the owning registry/schema. A proposed adapter can carry the complete compound native Transfer result under the existing mutation descriptor only after that descriptor explicitly admits it; the current CRUD schema alone is not proof.
+
+Default/detail gives a brief acknowledgement with the same common row helpers where applicable, plus package identity, admitted/unchanged counts, selected mode and any conflict/unknown-result diagnosis. It does not print one successful line per parsed incoming record as if each had independently committed. JSON carries one complete result/Problem under the selected descriptor. JSONL result delivery is one complete compound import outcome plus its terminal framing, not a stream of committed per-Resource mutations. Only the actual original terminal result may say committed.
+
+Result masks do not rewrite native dispositions or remove recovery/control fields. No table presentation is newly admitted for this compound mutation. Progress, bounded escaped warnings, loss notices and diagnostics use stderr; stdout stays valid for the selected output mode. Before contract binding, schema-2 diagnosis has bdp_spec:null and must not forge a native BDP Problem. A local package diagnostic has origin cli; a genuine remote BDP Problem remains unchanged with origin bdp.
+
+Preserve three distinct outcomes: known committed success; known atomic refusal; unknown original mutation disposition. A known successful import followed by rendering/file/pipe failure is output failure with its known operation outcome, not rollback or an invented unknown outcome. Unknown disposition retains the same frozen invocation/key and private recovery path/argv. No auto new-key retry, relaxed mode, changed file, encoding or selected contract.
+
+#### 6. Status mapping
+
+Use the actual canonical CLI diagnosis/status policy at the selected PR337 baseline; do not renumber shipped compatibility exits through this draft.
+
+| Status | Transfer mapping |
+| --- | --- |
+| 0 | Complete export; successful committed import including proved no-op; successful clearly labeled dry-run. |
+| 2 | Local syntax/value/encoding-selection conflicts, malformed input or incompatible flags, according to the actual diagnostic origin. |
+| 3 | Diagnosed missing target/revision only; not every missing Type or integrity refusal. |
+| 4 | Diagnosed Resource revision mismatch only; not every HTTP409, retained-address corruption or divergence. |
+| 5 | Diagnosed unsupported required capability, format family, selected mode or operation. |
+| 130 | Interrupted delivery under the existing CLI rule, with original mutation disposition/recovery preserved. |
+| 1 | Other failure, access denial, integrity/completeness/conflict failure not assigned a more precise category, output failure or unknown import outcome. |
+
+New package-specific local codes and native Transfer Problems need the owner registry/schema correspondence (profile G6); this draft does not add them to closed Core enums by implication. Preserve precise native diagnoses. Do not leak denied identities, hidden conflicts or raw sensitive fields through warnings.
+
+#### 7. Legacy compatibility is separate
+
+Legacy 1.3→graph conversion remains limited to an empty destination where selected. Native populated upsert/force semantics must not silently change legacy collision, loss or atomicity behavior. The selected legacy policy fails by default on unsupported/lossy input. A separately selected ignore-unknown-fields escape applies only to genuine unknown fields, with bounded escaped field names/counts on stderr; it does not excuse recognized incomplete projections, unsupported known fields, malformed content or collisions.
+
+Legacy dependencies, comments/labels and memory key mapping need their own actual conversion model and owner correspondence; this Transfer draft does not remap them by reusing a Resource title or inventing comment associations. Do not confuse compatibility conversion with native identity-preserving restore. No rm/reset/reinit/user-workspace action is part of import syntax or this specification.
+
+#### 8. CLI correspondence cases (not executed)
+
+- Explicit transfer JSON/JSONL produces identical logical packages; redirected stdout does not choose a format or add a schema-2 wrapper to package bytes.
+- Field masks, force+insert-only, multiple stdin consumers, unsupported modes and remapping requests refuse before mutation.
+- A late invalid package leaves no imported prefix and no fake success terminal; a broken stdout export remains detectably incomplete.
+- Import JSON/JSONL input encoding and operation-result output encoding are independent. No header guessing falls into a legacy decoder.
+- Dry-run success is observational; target change before commit is detected under fresh guards.
+- Unknown import outcome retains frozen bytes/key/argv; changed input or force intent cannot be presented as the same invocation.
+- Committed import plus renderer failure preserves known success in machine diagnosis; no claimed rollback.
+- Profile canonical/compat selection precedes parser dispatch and does not imply Transfer, Types, History or Events support.
+
+#### 9. Integration decisions
+
+No new human decision is needed for default upsert, explicit whole-Resource force, package atomicity, preregistered Types, both encodings or selector refusal for a complete backup. The CLI owner should reconcile exact family/encoding flag names, explicit-new-family transition/default and descriptor/result registration with the actual registry. Scope identity, original admission proofs and protected recovery payloads follow the genuine protocol gaps G1–G6, not client-side emulation.
 
 ### Implementation correspondence
 
@@ -2648,7 +2816,7 @@ The reference above describes the proposed CLI. At Beads candidate
 | --- | --- |
 | Quoted `[URL]@REV` and separate Link endpoint selection | Already supported. Unwrapped absolute URLs remain literal. |
 | Reserving `@` in newly created local IDs | New design decision; that candidate still allows `@` in new local IDs. Existing identities must remain unchanged. |
-| Numbers and `=TOKEN` for write guards and historical content sources | New design decision. That candidate's explicit token flags still use their literal values, without this conversion. |
+| Bare exact `--if-revision TOKEN`; separate historical-content selector | Donna's current guard choice keeps tokens literal, including numeric-looking tokens. Historical-content syntax remains a separate adapter proposal; this source receipt does not qualify either implementation. |
 
 Janet and Cleo checked the existing parser and cases without running a new
 suite. See the [Reference parser](https://github.com/donnabox/beads/blob/79450c2d67ccab326b20b07cc3d66179fa148ec0/cmd/bd/graph_preview_reference.go)

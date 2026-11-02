@@ -7,7 +7,7 @@ version: "0.6"
 
 # Markdown schema tables for JSON Schema
 
-This BDP-local draft extends the imported version0.5 design with lossless complete-bundle projection. The original is preserved separately as [markdown-json-schema-v0.5.md](markdown-json-schema-v0.5.md); its version0.4 stress receipts remain historical and qualify neither this grammar nor current BDP. The unchanged OpenAPI0.4 sister continues to use its pinned older companion, not an implicit0.6 upgrade. See [format provenance](README.md).
+This BDP-local draft extends the imported version0.5 design with lossless complete-bundle projection. The original is preserved separately as [markdown-json-schema-v0.5.md](markdown-json-schema-v0.5.md); its version0.4 stress receipts remain historical and qualify neither this grammar nor current BDP. The BDP OpenAPI0.5 appendix notation is a separate current projection; original OpenAPI0.4 receipts remain historical. See [format provenance](README.md).
 
 ## Purpose, authority and boundary
 

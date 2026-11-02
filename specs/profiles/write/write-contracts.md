@@ -1,6 +1,6 @@
 # Write schema contracts
 
-This index applies the [Markdown JSON Schema notation](../../formats/markdown-json-schema.md) to the selected [Write entry](retained-write.md). The [complete schema companion](../core/bdp-v0.1.schema.md) preserves the entire canonical JSON bundle, including its original identity and reference topology. This index selects the actual entry points below; inherited definitions elsewhere in that bundle do not become selected operations. The JSON schema and protocol clauses keep their existing authority.
+This generated index is optional tooling support, not another authoring source. Core, Write and Events own visible schema and OpenAPI appendices. This index applies the [Markdown JSON Schema notation](../../formats/markdown-json-schema.md) to the selected [Write entry](write.md). The [complete schema companion](../core/bdp-v0.1.schema.md) preserves the entire canonical JSON bundle, including its original identity and reference topology. This index selects the actual entry points below; inherited definitions elsewhere in that bundle do not become selected operations. The JSON schema and protocol clauses keep their existing authority.
 
 The notation describes value shape. Authorization, discovery, exact request selection, HTTP decision order, pagination, Type interpretation and durable retry remain protocol rules. A schema-valid value alone does not establish those behaviors or provider conformance.
 
@@ -20,7 +20,7 @@ The notation describes value shape. Authorization, discovery, exact request sele
 
 ## Independently selected rooted allocation
 
-The optional [id-root1 amendment](id-root.md) adds separately selected createBead, createLink and atomicBatch request/Problem arms in its [feature-owned schema](id-root-v1.schema.json). The common-bundle roots and closure below describe the unextended requests; they do not include or advertise this supplement. Presence of idRoot selects rooted allocation on the same operation URLs, while ordinary requests retain their common shape. The [HTTP catalog](../../openapi/README.md) records the supplemental arms and their selection rules. This index does not merge the feature schema into the common schema identity.
+The optional [id-root1 composition](write.md#optional-rooted-allocation-version-1) adds separately selected createBead, createLink and atomicBatch request/Problem arms in its [feature-owned schema](id-root-v1.schema.json). The common-bundle roots and closure below describe the unextended requests; they do not include or advertise this supplement. Presence of idRoot selects rooted allocation on the same operation URLs, while ordinary requests retain their common shape. The [HTTP catalog](../../openapi/README.md) records the supplemental arms and their selection rules. This index does not merge the feature schema into the common schema identity.
 
 GET and HEAD share read selection; HEAD has no representation body. Alias resolution uses its bodyless redirect. Native 204/304/405/406/412/500 branches retain their actual bodyless rules rather than acquiring a Problem body. The informative [HTTP catalog](../../openapi/README.md) records headers, media, native query carriers and complete transport branches.
 

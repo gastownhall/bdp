@@ -122,11 +122,11 @@ function schemaLink(name, prefix) {
 function profileDocument(kind, rows, schema, closure) {
   const prefix = kind === "read" ? "" : "../core/";
   const link = (name) => schemaLink(name, prefix);
-  const entry = kind === "read" ? "retained-core.md" : "retained-write.md";
+  const entry = kind === "read" ? "core.md" : "write.md";
   const lines = [
     `# ${kind === "read" ? "Read" : "Write"} schema contracts`,
     "",
-    `This index applies the [Markdown JSON Schema notation](../../formats/markdown-json-schema.md) to the selected [${kind === "read" ? "Core/Read" : "Write"} entry](${entry}). The [complete schema companion](${prefix}bdp-v0.1.schema.md) preserves the entire canonical JSON bundle, including its original identity and reference topology. This index selects the actual entry points below; inherited definitions elsewhere in that bundle do not become selected operations. The JSON schema and protocol clauses keep their existing authority.`,
+    `This generated index is optional tooling support, not another authoring source. Core, Write and Events own visible schema and OpenAPI appendices. This index applies the [Markdown JSON Schema notation](../../formats/markdown-json-schema.md) to the selected [${kind === "read" ? "Core/Read" : "Write"} entry](${entry}). The [complete schema companion](${prefix}bdp-v0.1.schema.md) preserves the entire canonical JSON bundle, including its original identity and reference topology. This index selects the actual entry points below; inherited definitions elsewhere in that bundle do not become selected operations. The JSON schema and protocol clauses keep their existing authority.`,
     "",
     "The notation describes value shape. Authorization, discovery, exact request selection, HTTP decision order, pagination, Type interpretation and durable retry remain protocol rules. A schema-valid value alone does not establish those behaviors or provider conformance.",
     "",
@@ -138,8 +138,7 @@ function profileDocument(kind, rows, schema, closure) {
   for (const row of rows) {
     const response = [row.response].flat().filter(Boolean).map(link).join(" or ");
     const problem = row.projection ? "resourceProjectionProblem" : row.problem;
-    const support =
-      row.optional || (kind === "read" ? "Required retained Core" : "Required retained Write");
+    const support = row.optional || (kind === "read" ? "Required Core" : "Required Write");
     lines.push(
       `| ${row.id} | ${row.request ? link(row.request) : "No JSON request body"} | ${response ? response + (row.aggregate ? "; links is additionally required" : "") : row.alias ? "Bodyless alias redirect" : "Optional human landing body; no BDP JSON schema"} | ${link(problem)} | ${support} |`,
     );
@@ -150,7 +149,7 @@ function profileDocument(kind, rows, schema, closure) {
           "",
           "## Independently selected rooted allocation",
           "",
-          "The optional [id-root1 amendment](id-root.md) adds separately selected createBead, createLink and atomicBatch request/Problem arms in its [feature-owned schema](id-root-v1.schema.json). The common-bundle roots and closure below describe the unextended requests; they do not include or advertise this supplement. Presence of idRoot selects rooted allocation on the same operation URLs, while ordinary requests retain their common shape. The [HTTP catalog](../../openapi/README.md) records the supplemental arms and their selection rules. This index does not merge the feature schema into the common schema identity.",
+          "The optional [id-root1 composition](write.md#optional-rooted-allocation-version-1) adds separately selected createBead, createLink and atomicBatch request/Problem arms in its [feature-owned schema](id-root-v1.schema.json). The common-bundle roots and closure below describe the unextended requests; they do not include or advertise this supplement. Presence of idRoot selects rooted allocation on the same operation URLs, while ordinary requests retain their common shape. The [HTTP catalog](../../openapi/README.md) records the supplemental arms and their selection rules. This index does not merge the feature schema into the common schema identity.",
         ]
       : []),
     "",

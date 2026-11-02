@@ -16,7 +16,7 @@ and Link commands share mechanisms while preserving actual kind checks. HTTP
 HEAD is a transport form of a selected read, not an additional domain operation.
 
 `--id-root ROOT` sends `idRoot: ROOT` under independently selected
-[id-root1](../../specs/profiles/write/id-root.md), on the existing create URL.
+[id-root1](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1), on the existing create URL.
 The service allocates `ROOT/OPAQUE_SEGMENT` and commits its lifetime reservation
 with the original result. The client does not scan, reserve or retry guessed IDs.
 The same root field is available in the feature's explicit atomic-batch1

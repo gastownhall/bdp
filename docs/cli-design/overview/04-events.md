@@ -1,6 +1,6 @@
 ## Observe changes
 
-We have created Beads and a Link, edited them, changed their Types and removed part of the graph. Events let us inspect those changes as well as watch for new ones. An Event identifies the operation and the object it affected. By default, a creation or update includes a postimage: the complete record as it was after that change. The example's Event source covers and still retains the changes we just made; the displays here are abbreviated.
+We have created Beads and a Link, edited them, changed their Types and removed part of the graph. Events let us inspect those changes as well as watch for new ones. An Event identifies the operation and the object it affected. By default, a creation or update includes a postimage: the complete record as it was after that change. Events is optional for Core and Write; this example's Scope advertises it. Its source covers and still retains the changes we just made; the displays here are abbreviated.
 
 ### Read changes for the Scope
 

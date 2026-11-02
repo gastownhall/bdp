@@ -103,9 +103,15 @@ same-category endpoint requirements and inherited constraints.
 
 The [shared Link CLI](bdp-cli.md#bd-link-create) currently defines its ordinary
 positionals as `SOURCE TARGET`. Its explicit endpoint form for this declaration
-is consequently `--from DERIVED --to BASE`. The requested `BASE DERIVED`
-convenience needs an explicit, paired CLI-lowering reconciliation before it can
-be published as executable syntax. Do not silently reverse the stored relation
+is consequently `--from DERIVED --to BASE`. For an exact known base token, the ordinary command is:
+
+```text
+bd link create --type refines --from DERIVED --to BASE@=BASE_TOKEN
+```
+
+`BASE_TOKEN` is an explanatory exact-token placeholder, not a request to resolve
+the current default. The requested `BASE DERIVED` convenience still needs explicit
+paired CLI lowering before it is executable syntax. Do not silently reverse the stored relation
 or silently reinterpret all general Link positionals. Read the new declaration
 back and verify family matching and its exact captured target revision.
 

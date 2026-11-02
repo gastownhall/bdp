@@ -10,10 +10,12 @@ the corresponding source artifact is hosted. Dereferenceability is not part of
 its identity.
 _Avoid_: download URL
 
-**Normative schema bundle**:
-The single JSON Schema bundle containing BDP v0's normative JSON wire
-definitions.
-_Avoid_: schema fragments, implementation schema
+**Schema bundle**:
+A machine-readable distribution for an identified BDP specification baseline.
+The current Core definitions are authored beside their rules as visible Markdown
+schema fragments and distributed in the common v0.1 bundle. The retained v0
+bundles are historical evidence inputs, not current specification authority.
+_Avoid_: treating an old bundle or an unused helper as a current requirement
 
 **Reference / Pinned Reference**:
 How anything in BDP points at anything: a URI — or a Pinned Reference,

@@ -101,10 +101,9 @@ read, fabricate null, or fall back to returning every property.
 
 > **Design incorporation**
 >
-> Shared service-side Resource projection is accepted. The existing command
-> reference still contains earlier display-only descriptions. Its wire binding
-> must be amended explicitly; a client-only display mask does not implement this
-> target. The command examples here follow the accepted projection behavior.
+> Shared service-side Resource projection is selected in Core and mapped by the
+> canonical CLI. These examples follow that contract. A client-only display mask
+> does not implement the native capability; implementation conformance is separate.
 
 ### Inspect Links separately
 

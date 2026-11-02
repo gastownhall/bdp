@@ -2,7 +2,7 @@
 
 **Review draft, October 26, 2026.** Donna selected a small complete JSON AST as
 the place to start. This document explains its CLI correspondence. The semantic
-contract lives in [Resource selection and graph queries](../../specs/profiles/core/query.md).
+contract lives in [Resource selection and graph queries](../../specs/profiles/core/core.md#logical-resource-selection-and-graph-queries).
 The [schema](query-ir/query.schema.json) and [cases](query-ir/cases.json) propose
 the encoding; they are not an advertised service capability or an implemented CLI.
 
@@ -207,7 +207,7 @@ when no Link is found or depth is zero. The initial graph profile optionally res
 walk by Link Type and has no outer result filter. The canonical Graph direction
 facade maps in/out/both to incoming/outgoing/connected; the [complete CLI candidate](query-language.md) supplies its proposed flag grammar.
 
-Include/omit use the [shared Resource projection](../../specs/profiles/core/resource-projection.md)
+Include/omit use the [shared Resource projection](../../specs/profiles/core/core.md#optional-resource-projection)
 contract. Continuation retains its declared carrier. Retained Core uses authority-
 advertised order; the one-pointer sort proposal applies to full selected data
 before projection. The native binding supplies the explicit optional amendment.
@@ -246,7 +246,7 @@ active, rather than silently accepting relative wire References.
 
 Transport/discovery, capability identifiers, response completeness and sorting
 now have explicit review proposals. Graph component masks remain deferred. The
-[contract integration list](../../specs/profiles/core/query.md#integration-and-validation-still-required)
+[contract integration list](../../specs/profiles/core/core.md#logical-resource-selection-and-graph-queries)
 tracks adoption and implementation rather than leaving those proposals implicit.
 JSONPath is a possible future representation and a reference for selected local
 value semantics. The initial wire proposal contains no executable query strings.

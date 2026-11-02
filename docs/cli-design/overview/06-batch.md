@@ -107,7 +107,7 @@ published either. A failure belongs to the complete decision.
     --properties '{"title":"Another CSV review"}' --dry-run-mode batch || exit
 
   # Require a guide revision that has already been replaced.
-  bd update csv-draft --if-revision =guide-h \
+  bd update csv-draft --if-revision guide-h \
     --set-metadata validation=pending --dry-run-mode batch || exit
 
 ) > csv-failure.jsonl &&
@@ -276,7 +276,7 @@ edit of the guide. Its one new check is still `draft` when selection runs.
     --dry-run-mode batch || exit
 
   # Mark the guide only if it is still the revision we approved.
-  bd update csv-draft --if-revision =guide-i --set-metadata validation=pending \
+  bd update csv-draft --if-revision guide-i --set-metadata validation=pending \
     --dry-run-mode batch || exit
 
 ) > csv-review.jsonl &&

@@ -1,6 +1,6 @@
 # Canonical CLI: selected contract and truthful output
 
-Paired candidate for the [v0.1 protocol binding](../../specs/profiles/core/contract-binding.md), following the [Scope/reference design](scope-and-references.md). The command hierarchy, default Scope, Resource IDs and revision flags remain the C1 design. This step binds their wire meaning; it does not implement or adopt the complete CLI.
+Paired candidate for the [v0.1 protocol binding](../../specs/profiles/core/core.md#contract-and-conformance), following the [Scope/reference design](scope-and-references.md). The command hierarchy, default Scope, Resource IDs and revision flags remain the C1 design. This step binds their wire meaning; it does not implement or adopt the complete CLI.
 
 ## Ordinary commands select their implemented contract
 
@@ -12,7 +12,7 @@ bdp update task-42 --if-revision saved-r1 --set-property status=closed
 The user need not repeat a protocol-version flag. The client verifies discovery, chooses a contract it actually implements and binds the request/response to it. For the proposed v0.1 client, discovery `bdpVersion:"0.1"` maps to `https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json` and `application/vnd.bdp.v0.1+json`. An old-only client or service is not silently upgraded by similar JSON or by the presence of a new schema file.
 
 The CLI sends the selected JSON media in Accept and, for writes, Content-Type.
-For Types-required ordinary operations, the paired [Types1 binding](../../specs/profiles/types/types-binding.md)
+For Types-required ordinary operations, the paired [Types1 binding](../../specs/profiles/types/types.md#12-types1-capability-and-rejectable-selection)
 selects `application/vnd.bdp.v0.1.types.v1+json` in Accept for reads and mutations
 and in Content-Type for mutation bodies, with no base/wildcard fallback.
 This is a feature-owned subtype selection preserving the base payload;
@@ -57,4 +57,4 @@ The ordinary mutation journal freezes the selected identity/media/Scope and capa
 
 The eventual HTTP-to-executable adapter must verify the registered executable's selected contract and required capabilities **before** effectful dispatch. Checking `bdp_spec` only after execution is too late to prevent wrong-contract effects. Input/output binding must agree; post-execution mismatch cannot be reported as if nothing ran. This is a semantic translation requirement, not a hosting/registration design or permission to start `serve` work.
 
-The separately named v0.1 schema and JSON export are source artifacts. Existing v0 parsers, exported runtime constants, providers and fixtures remain held and unchanged. Their tests/results do not qualify the candidate. The [current source map](../design/bdp-v0.1-current-source-map.md) records the assembled Types/common-source contract; implementation and concrete consumer qualification remain separate. [final batch publication](../../specs/profiles/core/publication.md) is selected. [D1/D2 are answered](event-decisions-20261022.md); the paired [Event source](events.md) supplies the selected finite-JSON observation contract. No extra service endpoint, user-facing request family, hosting design or runtime migration follows from this binding slice.
+The separately named v0.1 schema and JSON export are source artifacts. Existing v0 parsers, exported runtime constants, providers and fixtures remain held and unchanged. Their tests/results do not qualify the candidate. The [current source map](../design/bdp-v0.1-current-source-map.md) records the assembled Types/common-source contract; implementation and concrete consumer qualification remain separate. [final batch publication](../../specs/profiles/write/write.md#final-atomic-publication) is selected. [D1/D2 are answered](event-decisions-20261022.md); the paired [Event source](events.md) supplies the selected finite-JSON observation contract. No extra service endpoint, user-facing request family, hosting design or runtime migration follows from this binding slice.

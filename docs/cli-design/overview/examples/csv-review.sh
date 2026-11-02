@@ -23,7 +23,7 @@ set -euo pipefail
     --dry-run-mode batch || exit
 
   # Describe the guide edit guarded by its approved revision.
-  bd update csv-draft --if-revision =guide-i --set-metadata validation=pending \
+  bd update csv-draft --if-revision guide-i --set-metadata validation=pending \
     --dry-run-mode batch || exit
 
 ) > csv-review.jsonl

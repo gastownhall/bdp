@@ -1,7 +1,7 @@
 # Canonical read CLI and query language
 
 **Complete surface candidate, October 26, 2026.** This is a review draft, not an
-installed command reference. The [query contract](../../specs/profiles/core/query.md)
+installed command reference. The [query contract](../../specs/profiles/core/core.md#logical-resource-selection-and-graph-queries)
 records the selected meanings. The exact flag grammar, keywords, and lowering
 rules below are author proposals that make those meanings implementable. They
 need parser tests and adoption before a client can advertise them.
@@ -397,7 +397,7 @@ Values are JSON literals, field reads, Resource bindings, endpoint navigation,
 and `id()`/`rev()`. Comparisons are typed; there is no implicit number/string
 conversion. `present(b.status)` tests physical presence. Arrays and objects may
 be literal comparison data; there is no expression that builds an output record.
-The [semantic contract](../../specs/profiles/core/query.md#predicates-and-values)
+The [semantic contract](../../specs/profiles/core/core.md#predicates-and-values)
 defines missing/null comparison and ordering. In particular, an absent field is
 not an empty string and does not equal null. Resource equality compares identity
 and selected revision; use `id(a) = id(b)` to ignore revision deliberately.

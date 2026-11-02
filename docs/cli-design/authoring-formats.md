@@ -1,3 +1,5 @@
+> The current BDP OpenAPI authoring notation is [the profile appendix format](../../specs/formats/markdown-openapi.md). References to the imported OpenAPI0.4 experiment below are historical design context, not the current API source.
+
 # Human-readable schema and operation tables
 
 New paired BDP sections use the table conventions developed in the Memory
@@ -44,11 +46,16 @@ These are human-readable BDP authoring conventions drawn from the experimental
 DSLs. A document using the tables is not automatically a strict DSL instance or
 a lossless projection of all JSON Schema/OpenAPI features. The experiment omits
 constructs used by BDP, including general composition/conditional schemas and
-reusable Path Items. Canonical schema files keep structural authority; paired
-protocol prose defines decisions, authorization, allocation, defaults and retry.
-OpenAPI and the command map remain informative projections.
+reusable Path Items. Core now owns its visible description-rich schema fragments beside the relevant
+prose; the existing lossless codec extracts those definitions into both JSON
+distribution copies. Other profiles retain their stated schema ownership until
+their deliberate authoring pass. Prose/schema disagreement is a defect to repair,
+not a precedence rule that silently overrides one source. OpenAPI and the command
+map remain informative projections.
 
-No automatic translator, DSL revision or whole-spec migration is introduced by
-this editorial step. The new [rooted-allocation section](../../specs/profiles/write/id-root.md)
+The notation links above preserve the earlier experiment's provenance, not a
+requirement to use its old codec. Core uses the repository's current lossless
+Markdown JSON Schema codec and HTML-delimited fragments. The
+[rooted-allocation section](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1)
 is the first concrete use in this follow-up; existing sections can adopt the
 same presentation during deliberate editorial passes.
