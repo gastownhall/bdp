@@ -10,6 +10,7 @@ import {
 export type { ProtocolProfile } from "@bdp/protocol";
 
 export type Mode = "local-test" | "production";
+export type CliProfile = "canonical" | "compat";
 
 /** Report formats a future conformance runner will emit. */
 export type ReportFormat = "json" | "text";
@@ -61,6 +62,7 @@ export const MAXIMUM_SERVER_READ_LIMITS: ServerReadLimitsConfig = Object.freeze(
  */
 export interface StartupConfig {
   readonly mode: Mode;
+  readonly cli?: { readonly profile: CliProfile };
   readonly scope: { readonly url: string };
   readonly auth: { readonly token?: string };
   readonly server: {
@@ -87,7 +89,7 @@ export interface StartupConfig {
   };
 }
 
-export type BdpStartupConfig = Pick<StartupConfig, "mode" | "scope" | "auth">;
+export type BdpStartupConfig = Pick<StartupConfig, "mode" | "scope" | "auth" | "cli">;
 export type BdptestStartupConfig = Pick<StartupConfig, "mode" | "scope" | "server" | "bdptest">;
 export type BdpbdStartupConfig = Pick<StartupConfig, "mode" | "scope" | "server" | "bd">;
 export type ConformanceStartupConfig = Pick<
@@ -177,6 +179,7 @@ export const REDACTED = "<redacted>";
 
 const FIELDS = [
   "mode",
+  "cli.profile",
   "scope.url",
   "auth.token",
   "server.host",
@@ -199,10 +202,11 @@ const FIELDS = [
 ] as const;
 
 type Field = (typeof FIELDS)[number];
-type Section = "scope" | "auth" | "server" | "bd" | "bdptest" | "conformance";
+type Section = "cli" | "scope" | "auth" | "server" | "bd" | "bdptest" | "conformance";
 
-const ENV_VARIABLE: Record<Field, string> = {
+const ENV_VARIABLE: Record<Field, string | undefined> = {
   mode: "BDP_MODE",
+  "cli.profile": undefined,
   "scope.url": "BDP_SCOPE_URL",
   "auth.token": "BDP_AUTH_TOKEN",
   "server.host": "BDP_SERVER_HOST",
@@ -225,6 +229,7 @@ const ENV_VARIABLE: Record<Field, string> = {
 };
 
 const KNOWN_SECTIONS: ReadonlySet<Section> = new Set<Section>([
+  "cli",
   "scope",
   "auth",
   "server",
@@ -249,7 +254,7 @@ const FIELD_SET = new Set<string>(FIELDS);
  * in `docs/design/startup-configuration.md` for the split.
  */
 const ROLE_SECTIONS: Record<Role, ReadonlySet<Section>> = {
-  bdp: new Set<Section>(["scope", "auth"]),
+  bdp: new Set<Section>(["cli", "scope", "auth"]),
   bdptest: new Set<Section>(["scope", "server", "bdptest"]),
   bdpbd: new Set<Section>(["scope", "server", "bd"]),
   conformance: new Set<Section>(["scope", "auth", "conformance"]),
@@ -308,6 +313,61 @@ export interface LoadOptions {
   readonly role?: Role;
 }
 
+/** Resolve registration policy before parsing commands, without selecting a
+ * Scope or starting a client. The shared file vocabulary remains checked. */
+export function loadCliProfile(options: LoadOptions): CliProfile {
+  const issues: ConfigIssue[] = [];
+  const path = selectConfigFile(options, issues);
+  const fields =
+    path === undefined
+      ? new Map<Field, unknown>()
+      : readConfigFile(path, options.readFile ?? defaultReadFile, issues);
+  const value = fields.get("cli.profile");
+  if (value !== undefined && value !== "canonical" && value !== "compat")
+    issues.push({ path: "cli.profile", message: "cli.profile must be 'canonical' or 'compat'" });
+  if (issues.length) throw new ConfigError(issues);
+  return value === "compat" ? "compat" : "canonical";
+}
+
+export interface CanonicalCliConfig {
+  readonly scope?: { readonly url: string };
+  readonly auth: { readonly token?: string };
+}
+/** Canonical commands have no implicit destination. In particular an absolute
+ * point read must work without inventing an owning Scope from its path. */
+export function loadCanonicalCliConfig(options: LoadOptions): CanonicalCliConfig {
+  const issues: ConfigIssue[] = [];
+  const path = selectConfigFile(options, issues);
+  const fields =
+    path === undefined
+      ? new Map<Field, unknown>()
+      : readConfigFile(path, options.readFile ?? defaultReadFile, issues);
+  const mode = readMode(options.env.BDP_MODE ?? fields.get("mode"), issues);
+  const rawScope = options.env.BDP_SCOPE_URL ?? fields.get("scope.url");
+  const token = readOptionalString(
+    "auth.token",
+    options.env.BDP_AUTH_TOKEN ?? fields.get("auth.token"),
+    issues,
+  );
+  let scope: string | undefined;
+  if (rawScope !== undefined) {
+    try {
+      scope = parseCanonicalScope(rawScope);
+      if (mode === "production" && usesReservedLocalTestPath(scope)) throw new Error();
+    } catch {
+      issues.push({
+        path: "scope.url",
+        message: "scope.url must be an admissible canonical Scope URL",
+      });
+    }
+  }
+  if (issues.length) throw new ConfigError(issues);
+  return {
+    ...(scope === undefined ? {} : { scope: { url: scope } }),
+    auth: token === undefined ? {} : { token },
+  };
+}
+
 /**
  * Resolve startup configuration from environment variables, then an optional JSON
  * file, then compiled-in local-test defaults. Precedence and names are pinned in
@@ -351,7 +411,8 @@ export function loadStartupConfig(
       : readConfigFile(configFile, options.readFile ?? defaultReadFile, issues);
 
   const rawRead = (field: Field): { value: unknown; explicit: boolean } => {
-    const fromEnv = options.env[ENV_VARIABLE[field]];
+    const variable = ENV_VARIABLE[field];
+    const fromEnv = variable === undefined ? undefined : options.env[variable];
     if (fromEnv !== undefined) return { value: fromEnv, explicit: true };
     if (fromFile.has(field)) return { value: fromFile.get(field), explicit: true };
     return { value: undefined, explicit: false };
@@ -569,6 +630,14 @@ export function loadStartupConfig(
   };
 
   const result: Record<string, unknown> = { mode, scope: { url } };
+  if (activeSections.has("cli") && fromFile.has("cli.profile")) {
+    const profile = fromFile.get("cli.profile");
+    if (profile !== "canonical" && profile !== "compat")
+      throw new ConfigError([
+        { path: "cli.profile", message: "cli.profile must be 'canonical' or 'compat'" },
+      ]);
+    result.cli = { profile };
+  }
   if (authOwned) result.auth = authSection;
   if (serverOwned) result.server = serverSection;
   if (bdOwned) result.bd = bdSection;

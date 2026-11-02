@@ -1,7 +1,6 @@
 import { createServer, type Server } from "node:http";
-
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { BdpClient } from "@bdp/client";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { runBdp } from "./main.js";
 
@@ -10,6 +9,40 @@ describe("bdp ready CLI", () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
+
+  it.each([false, true])(
+    "honors explicit Scope around the domain command (after=%s)",
+    async (after) => {
+      let ambientCalls = 0,
+        selectedCalls = 0;
+      const ambient = createServer((_request, response) => {
+        ambientCalls++;
+        response.statusCode = 502;
+        response.end();
+      });
+      const selected = createServer((_request, response) => {
+        selectedCalls++;
+        response.statusCode = 502;
+        response.end();
+      });
+      const ambientScope = await listen(ambient),
+        selectedScope = await listen(selected);
+      vi.stubEnv("BDP_SCOPE_URL", ambientScope);
+      vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+      vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+      try {
+        const args = after
+          ? ["bd", "ready", "--scope", selectedScope]
+          : ["--scope", selectedScope, "bd", "ready"];
+        await expect(runBdp(args)).resolves.toBe(1);
+        expect(selectedCalls).toBe(1);
+        expect(ambientCalls).toBe(0);
+      } finally {
+        await close(ambient);
+        await close(selected);
+      }
+    },
+  );
 
   it.each([false, true])(
     "reports a local transport failure without an unhandled rejection (json=%s)",

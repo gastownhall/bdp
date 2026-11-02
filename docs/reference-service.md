@@ -74,3 +74,39 @@ checking aggregate capacity: at most64MiB of snapshot-copy weight, in addition
 to the bounded32MiB input scan and ordinary object overhead. The32MiB retained
 budget is Scope-wide; principals share it, so another caller can temporarily
 receive503 until snapshots expire. These are resource bounds, not RSS limits.
+## Canonical CLI increment
+
+The reference `bdp` executable defaults to the canonical CLI profile. Use
+`--cli-profile compat` or startup configuration `{"cli":{"profile":"compat"}}`
+to select the retained compatibility surface. The parser and grouped `--help`
+output use the same Commander command definitions. The only imported product
+global is `--actor`, admitted as provenance on the five operations that support
+it; it is never authentication. Other product globals are not registered.
+
+```sh
+pnpm test:cli
+bdp --scope https://work.example/team/ scope inspect --output-format json
+bdp --scope https://work.example/team/ create --type https://types.example/Note --id note
+bdp --scope https://work.example/team/ show note
+```
+
+The current increment connects ordinary Core reads, eight singleton Write
+operations, lossless inputs, property masks, native paging, deletion previews,
+member emission, request previews and frozen same-key retries. Atomic batch
+submission is a separate pending client integration. Optional Events, History,
+Types interpretation and native Resource projection are not qualified by these
+tests. A changed credential is conservatively refused on retry because this
+executable has no authenticated principal-discovery contract; this does not claim
+same-principal credential-rotation support.
+
+`pnpm test:cli` builds and runs a small Node black-box suite against the actual
+emitted executable, an HTTP capture proxy, the reference service and an isolated
+SQLite directory. It does not inherit Vitest's historical admission mock. Pure
+parser, input and rendering tests remain ordinary Vitest tests. Original authored
+CLI fixtures remain historical inputs, not executable acceptance results.
+
+Keep the conformance runner's raw HTTP, bounds and report kernel for independent
+implementations. Current-contract wire assertions and reference regressions need
+separate subjects from installed legacy/private profile matrices. Existing matrix
+assertions remain intact until each has an explicit replacement or retained lane;
+this increment removes no test or CI gate and adds no testing framework.
