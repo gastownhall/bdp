@@ -8,6 +8,7 @@ it("pins the root and explicit development facade and refuses missing or broad e
   const exports = {
     ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
     "./development": { types: "./dist/development.d.ts", default: "./dist/development.js" },
+    "./reference": { types: "./dist/reference.d.ts", default: "./dist/reference.js" },
   };
   expect(() => assertServerExports({ exports })).not.toThrow();
   for (const candidate of [

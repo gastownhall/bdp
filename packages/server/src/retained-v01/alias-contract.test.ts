@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assertPreparedAlias, prepareAlias } from "./alias-contract.js";
-import { RetainedFixtureGap, RetainedRequestError } from "./contract.js";
+import { RetainedRequestError } from "./contract.js";
 
 const scope = "https://scope.invalid/acme/";
 describe("private alias singleton carrier, without storage or routes", () => {
@@ -86,14 +86,15 @@ describe("private alias singleton carrier, without storage or routes", () => {
     );
   });
   it.each(["a:b", "urn:example:one"])(
-    "keeps Reference ambiguity %s explicit, without adopting the proposal",
+    "preserves absolute URI %s and requires a full URL for a local colon spelling",
     (alias) => {
-      expect(() => prepareAlias(scope, "deleteAlias", JSON.stringify({ alias }), "key")).toThrow(
-        RetainedFixtureGap,
+      expect(prepareAlias(scope, "deleteAlias", JSON.stringify({ alias }), "key").alias).toBe(
+        alias,
       );
-      expect(() =>
-        prepareAlias(scope, "putAlias", JSON.stringify({ alias: "names/a", target: alias }), "key"),
-      ).toThrow(RetainedFixtureGap);
+      expect(
+        prepareAlias(scope, "putAlias", JSON.stringify({ alias: "names/a", target: alias }), "key")
+          .target,
+      ).toBe(alias);
       expect(
         prepareAlias(scope, "deleteAlias", JSON.stringify({ alias: scope + alias }), "key").alias,
       ).toBe(scope + alias);

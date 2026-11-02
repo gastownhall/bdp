@@ -2,12 +2,13 @@ import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const root = new URL("../../../", import.meta.url);
 const read = (path: string) => JSON.parse(readFileSync(new URL(path, root), "utf8"));
 const schema = read("specs/profiles/core/bdp-v0.1.schema.json");
 const paper = read("fixtures/link-updates/candidate.json");
-const ajv = new Ajv2020({ strict: true, allErrors: true });
+const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 formatsPlugin.default(ajv, { mode: "full" });
 ajv.addSchema(schema);
 function valid(name: string, value: unknown): boolean {

@@ -3,9 +3,9 @@ import { ProtocolArtifactValidationError } from "./protocol-errors.js";
 import { parseCanonicalHttpUrl, parseCanonicalScope } from "./read-values.js";
 import {
   parseRetainedObject,
-  validateRetainedValue,
   RETAINED_WRITE_OPERATIONS,
   type RetainedWriteOperation,
+  validateRetainedValue,
 } from "./retained-write-values.js";
 
 export type RetainedJsonObject = Readonly<Record<string, AdmittedJsonValue>>;
@@ -16,7 +16,7 @@ export type RetainedDiscovery = RetainedJsonObject & {
   readonly scope: AbsoluteHttpUrl;
   readonly beads: AbsoluteHttpUrl;
   readonly links: AbsoluteHttpUrl;
-  readonly events: AbsoluteHttpUrl;
+  readonly events?: AbsoluteHttpUrl;
 };
 
 /** Both selected profiles supply Core reads. Unknown advertisements are opaque;
@@ -106,4 +106,31 @@ export function parseRetainedWriteResult(
     }
   }
   return value;
+}
+
+export type RetainedCollection = RetainedJsonObject & {
+  readonly items: readonly RetainedJsonObject[];
+  readonly next: AbsoluteHttpUrl | null;
+};
+/** Full native page, with every item checked under the metadata-selected kind. */
+export function parseRetainedCollection(
+  text: string,
+  kind: RetainedResourceKind,
+): RetainedCollection {
+  if (kind !== "bead" && kind !== "link")
+    throw new ProtocolArtifactValidationError("invalid collection kind");
+  const value = parseRetainedObject(text);
+  validateRetainedValue(kind === "bead" ? "currentBeadCollection" : "currentLinkCollection", value);
+  const items = value.items as readonly RetainedJsonObject[];
+  const ids = new Set<string>();
+  for (const item of items) {
+    validateResourceIdentity(item);
+    if (item.links !== undefined)
+      throw new ProtocolArtifactValidationError("unselected aggregate in collection");
+    if (ids.has(item.id as string))
+      throw new ProtocolArtifactValidationError("duplicate collection identity");
+    ids.add(item.id as string);
+  }
+  if (value.next !== null) parseCanonicalHttpUrl(value.next, "collection.next");
+  return value as RetainedCollection;
 }

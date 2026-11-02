@@ -1,5 +1,5 @@
 /** Explicit private fixture, deliberately incomplete. Never public profile admission. */
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
   captureNavigation,
@@ -13,6 +13,7 @@ import {
   RetainedFixtureGap,
   serialized,
 } from "./contract.js";
+import { createRetainedCollections, inventoryRoute, REFERENCE_READ_LIMITS } from "./collections.js";
 import { parseEventSelection } from "./events.js";
 import { prepareLink } from "./link-contract.js";
 import { prepareAlias } from "./alias-contract.js";
@@ -22,8 +23,6 @@ export interface PrivateFixtureOptions extends PrivateStoreOptions {
   readonly credentials: readonly { readonly token: string; readonly principal: string }[];
 }
 export const PRIVATE_FIXTURE_GAPS = Object.freeze([
-  "Reference absolute-URI/local-path overlap awaiting paired-source clarification",
-  "general Core reads",
   "complete authorization/disclosure",
   "Event retention administration",
   "expiry/compaction",
@@ -32,6 +31,10 @@ export const PRIVATE_FIXTURE_GAPS = Object.freeze([
   "projection",
   "batch",
 ]);
+const referenceResponses = new WeakSet<ServerResponse>();
+function fixtureHeaders(response: ServerResponse): Record<string, string> {
+  return referenceResponses.has(response) ? {} : { "x-bdp-private-fixture": "incomplete" };
+}
 function one(request: IncomingMessage, name: string): string | undefined {
   const values: string[] = [];
   for (let i = 0; i < request.rawHeaders.length; i += 2)
@@ -66,7 +69,7 @@ function accepts(value: string | undefined): boolean {
 function empty(response: ServerResponse, status: number, allow?: string): void {
   response.writeHead(status, {
     "content-length": "0",
-    "x-bdp-private-fixture": "incomplete",
+    ...fixtureHeaders(response),
     ...(allow === undefined ? {} : { allow }),
   });
   response.end();
@@ -104,7 +107,7 @@ function conditionalRead(
   response.writeHead(status, {
     ...headers,
     "cache-control": "private, no-store",
-    "x-bdp-private-fixture": "incomplete",
+    ...fixtureHeaders(response),
     ...(status === 304 ? { "content-type": RETAINED_MEDIA } : { "content-length": "0" }),
   });
   response.end();
@@ -120,7 +123,7 @@ function json(
     "content-type": status >= 400 ? "application/problem+json" : RETAINED_MEDIA,
     "cache-control": "private, no-store",
     "content-length": String(Buffer.byteLength(text)),
-    "x-bdp-private-fixture": "incomplete",
+    ...fixtureHeaders(response),
     ...extra,
   });
   response.end(response.req.method === "HEAD" ? undefined : text);
@@ -142,7 +145,7 @@ async function receive(request: IncomingMessage): Promise<string> {
     throw new RetainedRequestError("malformed-request", 400);
   }
 }
-export async function startPrivateRetainedFixture(options: PrivateFixtureOptions) {
+export async function startRetainedListener(options: PrivateFixtureOptions) {
   const navigation = captureNavigation(options.navigation);
   const credentials = options.credentials.map((credential) => {
     if (!/^[A-Za-z0-9_-]{32,256}$/.test(credential.token) || !credential.principal)
@@ -152,6 +155,16 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
   if (!credentials.length || new Set(credentials.map((c) => c.token)).size !== credentials.length)
     throw new TypeError("unique private credentials required");
   const store = openPrivateRetainedStore({ ...options, navigation });
+  const collections = (() => {
+    try {
+      return createRetainedCollections(navigation, options.instance, (kind) =>
+        store.listRecords(kind),
+      );
+    } catch (error) {
+      store.close();
+      throw error;
+    }
+  })();
   const signature = (url: string) => {
     const target = new URL(url);
     return target.host + target.pathname + target.search;
@@ -166,6 +179,7 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
     ),
   ]);
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    if (options.referenceCore === true) referenceResponses.add(response);
     try {
       const authorization = one(request, "authorization") ?? "";
       const principal = credentials.find((credential) => {
@@ -183,10 +197,16 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
       const raw = request.url ?? "";
       if (!host || !raw.startsWith("/") || raw.startsWith("//"))
         throw new RetainedRequestError("malformed-request", 400);
+      if (
+        options.referenceCore === true &&
+        Buffer.byteLength(raw) > REFERENCE_READ_LIMITS.request.targetBytes
+      )
+        throw new RetainedRequestError("request-too-large", 413);
       const url = new URL(raw, `http://${host}`);
       if (url.pathname + url.search !== raw || url.hash)
         throw new RetainedRequestError("malformed-request", 400);
       const route = known.get(host + raw);
+      const inventory = inventoryRoute(url, navigation);
       const eventBase = new URL(navigation.events);
       const scopeEventQuery = new URL(url);
       let scopeEventRoute = host === eventBase.host && url.pathname === eventBase.pathname;
@@ -239,7 +259,7 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
       if (route === "scope") {
         response.writeHead(204, {
           link: `<${navigation.description}>; rel="service-desc"; type="${RETAINED_MEDIA}"`,
-          "x-bdp-private-fixture": "incomplete",
+          ...fixtureHeaders(response),
         });
         response.end();
         return;
@@ -250,7 +270,12 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
         host === scope.host && subjectUrl.href.startsWith(navigation.scope)
           ? subjectUrl.href
           : undefined;
-      if (resource !== undefined && route === undefined && !scopeEventRoute) {
+      if (
+        resource !== undefined &&
+        route === undefined &&
+        !scopeEventRoute &&
+        inventory === undefined
+      ) {
         const target = store.resolveAlias(resource);
         if (target === null || (target !== undefined && url.search))
           throw new RetainedRequestError("resource-not-found", 404, "after-state-change");
@@ -259,7 +284,7 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
             location: target,
             "content-length": "0",
             "cache-control": "private, no-store",
-            "x-bdp-private-fixture": "incomplete",
+            ...fixtureHeaders(response),
           });
           response.end();
           return;
@@ -280,7 +305,9 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
             beads: navigation.beads,
             links: navigation.links,
             aliases: navigation.aliases,
-            events: navigation.events,
+            ...(options.referenceCore === true
+              ? { limits: REFERENCE_READ_LIMITS }
+              : { events: navigation.events }),
             operations: navigation.operations,
           }),
         );
@@ -290,8 +317,46 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
         json(response, 200, serialized(navigation.targets));
         return;
       }
+      const incident =
+        inventory === undefined &&
+        resource !== undefined &&
+        url.searchParams.get("view") === "links";
+      if (inventory !== undefined || incident) {
+        if (incident) {
+          const subject = store.readRecord(resource!);
+          if (subject === undefined)
+            throw new RetainedRequestError("resource-not-found", 404, "after-state-change");
+          if (subject.kind !== "bead") throw new RetainedRequestError("invalid-parameter", 400);
+        }
+        const page = collections.read(
+          url,
+          principal,
+          inventory ?? "link",
+          incident ? resource : undefined,
+        );
+        const body = serialized(page);
+        const headers = {
+          "bdp-collection-kind": inventory ?? "link",
+          ...(incident ? { "bdp-resource-kind": "bead" } : {}),
+          etag: `"${createHash("sha256").update(body).digest("hex")}"`,
+          link: `<${navigation.description}>; rel="service-desc"; type="${RETAINED_MEDIA}"`,
+        };
+        if (conditionalRead(request, response, headers)) {
+          collections.discardUnissued(page);
+          return;
+        }
+        if (method === "HEAD") collections.discardUnissued(page);
+        json(response, 200, body, headers);
+        return;
+      }
       const isSubjectEvents = resource !== undefined && url.searchParams.get("view") === "events";
       if (scopeEventRoute || isSubjectEvents) {
+        if (options.referenceCore === true)
+          throw new RetainedRequestError(
+            isSubjectEvents ? "invalid-parameter" : "resource-not-found",
+            isSubjectEvents ? 400 : 404,
+            isSubjectEvents ? "never" : "after-state-change",
+          );
         const source = scopeEventRoute ? navigation.events : `${resource}?view=events`;
         // Resolve the authorized selection/cursor before a conditional shortcut.
         const body = serialized(
@@ -313,8 +378,11 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
         throw new RetainedRequestError("resource-not-found", 404, "after-state-change");
       // This bounded source increment implements current full/properties reads.
       // History/aggregate selection remains an explicit private fixture gap.
-      if (url.searchParams.has("revision") || url.searchParams.has("include"))
+      if (url.searchParams.has("revision") || url.searchParams.has("include")) {
+        if (options.referenceCore === true)
+          throw new RetainedRequestError("invalid-parameter", 400);
         throw new RetainedFixtureGap("History and aggregate reads remain unimplemented");
+      }
       const propertiesView = url.searchParams.get("view") === "properties";
       if (
         url.search &&
@@ -347,9 +415,15 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
       }
     }
   }
-  const server = createServer((request, response) => {
-    void handle(request, response);
-  });
+  // The selected reference must be able to read every identity whose complete
+  // record fits the existing262144-byte store bound. The private fixture keeps
+  // its original Node default; this is a finite product transport policy.
+  const server = createServer(
+    options.referenceCore === true ? { maxHeaderSize: 1024 * 1024 } : {},
+    (request, response) => {
+      void handle(request, response);
+    },
+  );
   server.requestTimeout = 10000;
   server.headersTimeout = 10000;
   try {
@@ -361,6 +435,7 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
       });
     });
   } catch (error) {
+    collections.close();
     store.close();
     throw error;
   }
@@ -372,14 +447,13 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
   }
   let closing: Promise<void> | undefined;
   return {
-    claimEligible: false as const,
-    missing: PRIVATE_FIXTURE_GAPS,
     navigation,
     listenUrl: `http://127.0.0.1:${address.port}`,
     close(): Promise<void> {
       closing ??= new Promise<void>((resolve, reject) => {
         server.close((error) => {
           try {
+            collections.close();
             store.close();
           } catch (failure) {
             reject(failure);
@@ -392,5 +466,14 @@ export async function startPrivateRetainedFixture(options: PrivateFixtureOptions
       });
       return closing;
     },
+  };
+}
+
+/** Historical fixture remains explicitly nonattesting. */
+export async function startPrivateRetainedFixture(options: PrivateFixtureOptions) {
+  return {
+    claimEligible: false as const,
+    missing: PRIVATE_FIXTURE_GAPS,
+    ...(await startRetainedListener(options)),
   };
 }

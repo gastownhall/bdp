@@ -1,8 +1,10 @@
+import { historicalArtifactSchema } from "../test-support/historical-artifact-source.js";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const root = new URL("../../../", import.meta.url);
 const bytes = (path: string) => readFileSync(new URL(path, root));
@@ -10,7 +12,7 @@ const read = (path: string) => JSON.parse(bytes(path).toString("utf8"));
 const common = read("specs/profiles/core/bdp-v0.1.schema.json");
 const feature = read("specs/profiles/write/id-root-v1.schema.json");
 const paper = read("fixtures/id-root/candidate.json");
-const ajv = new Ajv2020({ strict: true, allErrors: true });
+const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 formatsPlugin.default(ajv, { mode: "full" });
 ajv.addSchema(common);
 ajv.addSchema(feature);
@@ -29,14 +31,19 @@ describe("fixed id-root1 separate Write artifact", () => {
       expect(ajv.getSchema(`${feature.$id}#/$defs/${name}`), name).toBeDefined();
   });
 
-  it("preserves both common schema generations and distribution mirrors byte-for-byte", () => {
+  it("preserves both historical schema byte pins and current distribution mirrors", () => {
     for (const [version, hash] of [
       ["v0", "15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327"],
       ["v0.1", "e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f"],
     ]) {
-      const canonical = bytes(`specs/profiles/core/bdp-${version}.schema.json`);
+      const canonical =
+        version === "v0.1"
+          ? historicalArtifactSchema()
+          : bytes(`specs/profiles/core/bdp-${version}.schema.json`);
       expect(createHash("sha256").update(canonical).digest("hex")).toBe(hash);
-      expect(bytes(`packages/protocol/schemas/bdp-${version}.schema.json`)).toEqual(canonical);
+      expect(bytes(`packages/protocol/schemas/bdp-${version}.schema.json`)).toEqual(
+        bytes(`specs/profiles/core/bdp-${version}.schema.json`),
+      );
     }
   });
 

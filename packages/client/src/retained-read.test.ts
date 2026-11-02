@@ -883,3 +883,104 @@ describe("retained transport and native Write delivery", () => {
     expect(stream.locked).toBe(false);
   });
 });
+
+describe("native ordinary page delivery", () => {
+  const inventory = scope + "odd-list?fixed=%2F";
+  const next = scope + "odd-list?fixed=%2f&cursor=a%2Bb&limit=2";
+  function fetchPages(
+    value: unknown = { items: [record], next },
+    headers: Record<string, string> = {},
+  ) {
+    const calls: string[] = [];
+    const sdk = client(async (input) => {
+      const url = String(input);
+      calls.push(url);
+      if (url === scope) return response(url, null, { link: linkHeader }, 204);
+      if (url === description)
+        return response(url, { ...discovery(), beads: inventory, links: scope + "odd-edges" });
+      return response(url, value, { link: linkHeader, "bdp-collection-kind": "bead", ...headers });
+    });
+    return { calls, sdk };
+  }
+  it("discovers inventories, returns one complete native page and follows issued bytes exactly", async () => {
+    const { sdk, calls } = fetchPages();
+    const reply = await sdk.list({ scope, kind: "bead", limit: 1 });
+    expect(reply.kind).toBe("success");
+    if (reply.kind !== "success") throw new Error("expected page");
+    expect(reply.value.page).toEqual({ items: [record], next });
+    expect(new TextDecoder().decode(reply.nativeBody)).toBe(
+      JSON.stringify({ items: [record], next }),
+    );
+    expect(calls).toHaveLength(4);
+    expect(calls[2]).toBe(inventory + "&limit=1");
+    await sdk.readPage({ url: next, scope, collectionKind: "bead" });
+    expect(calls[4]).toBe(next);
+  });
+  it("requires actual collection metadata even for empty pages", async () => {
+    const { sdk } = fetchPages({ items: [], next: null }, { "bdp-collection-kind": "link" });
+    await expect(sdk.list({ scope, kind: "bead" })).rejects.toMatchObject({
+      code: "invalid-response",
+    });
+  });
+  it.each([
+    { items: [{ ...record, metadata: undefined }], next: null },
+    { items: [record, record], next: null },
+    { items: [{ ...record, links: { items: [], next: null } }], next: null },
+    { items: [], next: "https://foreign.example/cursor" },
+    { items: [], next: null, total: 0 },
+  ])("refuses invalid or foreign native page %j", async (value) => {
+    const { sdk } = fetchPages(value);
+    await expect(sdk.list({ scope, kind: "bead" })).rejects.toThrow();
+  });
+  it("does not silently fetch past an empty resumable page", async () => {
+    const { sdk, calls } = fetchPages({ items: [], next });
+    const reply = await sdk.list({ scope, kind: "bead" });
+    expect(reply.kind === "success" && reply.value.page).toEqual({ items: [], next });
+    expect(calls).not.toContain(next);
+  });
+});
+
+it("resolves a native alias by GET without fetching its target", async () => {
+  const alias = scope + "names/one";
+  const calls: string[] = [];
+  const sdk = client(async (input, init) => {
+    calls.push(String(input));
+    expect(init?.method).toBe("GET");
+    return response(String(input), null, { location: resource }, 307);
+  });
+  const reply = await sdk.resolveAlias(alias, scope);
+  expect(reply.kind === "success" && reply.value).toEqual({ alias, target: resource });
+  expect(calls).toEqual([alias]);
+});
+
+it("refuses unknown required options on list and incident before any network", () => {
+  const sdk = client(async () => {
+    throw new Error("must not dispatch");
+  });
+  expect(() =>
+    sdk.list({ scope, kind: "bead", fields: {} } as unknown as Parameters<typeof sdk.list>[0]),
+  ).toThrowError(expect.objectContaining({ code: "unsupported-feature" }));
+  expect(() =>
+    sdk.incident({
+      scope,
+      bead: resource,
+      conformsTo: "https://types.invalid/T",
+    } as unknown as Parameters<typeof sdk.incident>[0]),
+  ).toThrowError(expect.objectContaining({ code: "unsupported-feature" }));
+});
+
+it("refuses authorization-scoped pages without private/no-store response controls", async () => {
+  const sdk = client(async (input) => {
+    const url = String(input);
+    if (url === scope) return response(url, null, { link: linkHeader }, 204);
+    if (url === description) return response(url, { ...discovery(), beads: scope + "inventory" });
+    return response(
+      url,
+      { items: [], next: null },
+      { link: linkHeader, "bdp-collection-kind": "bead", "cache-control": "public" },
+    );
+  });
+  await expect(sdk.list({ scope, kind: "bead" })).rejects.toMatchObject({
+    code: "invalid-response",
+  });
+});

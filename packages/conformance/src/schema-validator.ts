@@ -1,10 +1,10 @@
+import { isJsonSchemaDateTime, isJsonSchemaUri, withBdpSourceAnnotations } from "@bdp/protocol";
 import {
   Ajv2020,
   type ErrorObject,
   type JSONSchemaType,
   type ValidateFunction,
 } from "ajv/dist/2020.js";
-import { isJsonSchemaDateTime, isJsonSchemaUri } from "@bdp/protocol";
 
 export interface SchemaValidationFailure {
   readonly instancePath: string;
@@ -27,7 +27,7 @@ export class SchemaValidatorError extends Error {
 export function createJsonSchemaValidator(
   bundle: JSONSchemaType<unknown> | Record<string, unknown>,
 ): SchemaValidator {
-  const ajv = new Ajv2020({ allErrors: false, strict: true });
+  const ajv = withBdpSourceAnnotations(new Ajv2020({ allErrors: false, strict: true }));
   ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
   ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
   const root = bundle as Record<string, unknown>;

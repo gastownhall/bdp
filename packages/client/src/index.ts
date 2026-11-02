@@ -1634,6 +1634,9 @@ export {
   type RetainedClientOptions,
   type RetainedClientCallOptions,
   type RetainedPointReadOptions,
+  type RetainedCollectionFilters,
+  type RetainedPageReadOptions,
+  type RetainedPageValue,
   type RetainedPointValue,
   type RetainedReply,
 } from "./retained-read.js";

@@ -108,8 +108,10 @@ with branch, exact source and citation/test residuals preserved under Trish's
 alignment duties. No wholesale cherry-pick or inherited qualification follows.
 Historical v0 schemas remain evidence inputs, not the current specification.
 
-The legacy Python `scripts/check_type_examples.py` consumes pinned historical
-fixtures and retired source text. It is not a current canonical acceptance gate;
-its source re-key remains an explicit Trish-owned alignment duty, with original
-assertions and pins preserved. Current profile/source checks are the Node and
-document commands above.
+The Python `scripts/check_type_examples.py` explicitly validates historical
+fixtures against their frozen shared schema and archived exact-definition text.
+Its original assertions and pins remain; it is not a current canonical acceptance
+gate. It requires `jsonschema[format]` and `referencing`, including URI format
+checking. Current profile/source checks are the Node and document commands above.
+The [historical alignment account](historical-alignment.md) records the preserved
+source boundaries.

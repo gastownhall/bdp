@@ -18,9 +18,9 @@ import {
 } from "./index.js";
 
 const CITATION = {
-  source: "docs/specs/bdp.md",
-  anchor: "#conformance-profiles-and-reading-guide",
-  selectedText: "Claiming a higher profile claims every lower profile:",
+  source: "specs/profiles/core/core.md",
+  anchor: "#resource-views",
+  selectedText: "The default `GET` of a Bead or Link URL returns its complete Resource record.",
 };
 
 function scenario(
@@ -180,12 +180,12 @@ describe("repository-aware requirement citations", () => {
     catalogVersion: 1,
     scenarios: [scenario("read.discovery", "read")],
   });
-  const markdown = `# BDP\n\n## Conformance profiles and reading guide\n\nClaiming a higher\nprofile claims every lower profile:\n\n### Detail\nStill in the section.\n\n## Other\nNot in the section.\n`;
+  const markdown = `# BDP\n\n## Resource views\n\nThe default \`GET\` of a Bead or Link URL returns its complete\nResource record.\n\n### Detail\nStill in the section.\n\n## Other\nNot in the section.\n`;
 
   it("accepts an existing source, anchor, and whitespace-normalized excerpt", () => {
     expect(() =>
       validateCatalogCitations(catalog, (source) =>
-        source === "docs/specs/bdp.md" ? markdown : undefined,
+        source === CITATION.source ? markdown : undefined,
       ),
     ).not.toThrow();
   });
@@ -205,7 +205,7 @@ describe("repository-aware requirement citations", () => {
   it("rejects excerpt drift within an otherwise valid section", () => {
     expectCitationIssue(
       catalog,
-      () => markdown.replace("every lower profile:", "some lower profiles."),
+      () => markdown.replace("Resource record.", "partial representation."),
       "$.scenarios[0].requirements[0].selectedText",
     );
   });

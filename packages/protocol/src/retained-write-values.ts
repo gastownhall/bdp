@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
-import { admitJsonNumbers, decodeJsonDocument, type AdmittedJsonValue } from "./json-admission.js";
-import { snapshotJsonValue } from "./json-values.js";
 import type { AbsoluteHttpUrl } from "./index.js";
+import { type AdmittedJsonValue, admitJsonNumbers, decodeJsonDocument } from "./json-admission.js";
+import { snapshotJsonValue } from "./json-values.js";
 import { ProtocolArtifactValidationError } from "./protocol-errors.js";
 import {
   parseCanonicalHttpUrl,
@@ -10,6 +10,7 @@ import {
   requireSchemaValidator,
 } from "./read-values.js";
 import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 export const RETAINED_V01_SPECIFICATION =
   "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json";
@@ -27,16 +28,16 @@ export const RETAINED_WRITE_OPERATIONS = Object.freeze([
 export type RetainedWriteOperation = (typeof RETAINED_WRITE_OPERATIONS)[number];
 export type RetainedWriteDirectory = Readonly<Record<RetainedWriteOperation, AbsoluteHttpUrl>>;
 type JsonObject = Readonly<Record<string, AdmittedJsonValue>>;
-export interface RetainedWriteDiscovery extends JsonObject {
+export type RetainedWriteDiscovery = JsonObject & {
   readonly bdpVersion: "0.1";
   readonly profile: "write";
   readonly scope: AbsoluteHttpUrl;
   readonly beads: AbsoluteHttpUrl;
   readonly links: AbsoluteHttpUrl;
-  readonly events: AbsoluteHttpUrl;
+  readonly events?: AbsoluteHttpUrl;
   readonly operations: AbsoluteHttpUrl;
   readonly aliases: AbsoluteHttpUrl;
-}
+};
 
 type SchemaRoot =
   | "writeDiscovery"
@@ -45,6 +46,10 @@ type SchemaRoot =
   | "retainedDiscovery"
   | "currentBeadRecord"
   | "currentLinkRecord"
+  | "currentBeadCollection"
+  | "currentLinkCollection"
+  | "beadCollection"
+  | "linkCollection"
   | "properties"
   | "mutationResult"
   | "aliasResult"
@@ -66,7 +71,7 @@ export function validateRetainedValue(root: SchemaRoot, value: JsonObject): void
         bundle.$id !== RETAINED_V01_SPECIFICATION
       )
         throw new ProtocolArtifactValidationError("retained v0.1 schema identity mismatch");
-      const ajv = new Ajv2020({ strict: true, allErrors: true });
+      const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
       ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
       ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
       ajv.addSchema(bundle as Record<string, unknown>);
@@ -112,7 +117,7 @@ export function parseRetainedWriteDiscovery(text: string): RetainedWriteDiscover
   validateRetainedValue("writeDiscovery", value);
   parseCanonicalScope(value.scope);
   for (const field of ["beads", "links", "events", "operations", "aliases"] as const)
-    parseCanonicalHttpUrl(value[field], `Write discovery.${field}`);
+    if (value[field] !== undefined) parseCanonicalHttpUrl(value[field], `Write discovery.${field}`);
   return value as RetainedWriteDiscovery;
 }
 

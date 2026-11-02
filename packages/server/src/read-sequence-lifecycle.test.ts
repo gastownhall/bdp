@@ -1548,6 +1548,7 @@ describe("G11 source qualification and private containment", () => {
     expect(manifest.exports).toEqual({
       ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
       "./development": { types: "./dist/development.d.ts", default: "./dist/development.js" },
+      "./reference": { types: "./dist/reference.d.ts", default: "./dist/reference.js" },
     });
   });
 });

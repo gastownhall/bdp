@@ -6,6 +6,7 @@ import {
   parseRetainedResource,
   parseRetainedWriteResult,
 } from "./retained-read-values.js";
+import { parseRetainedWriteDiscovery } from "./retained-write-values.js";
 
 const core = {
   bdpVersion: "0.1",
@@ -40,6 +41,22 @@ describe("retained Core carrier values", () => {
       expect(Object.isFrozen(parsed)).toBe(true);
     },
   );
+  it.each(["core", "write"])("accepts absent optional Events on %s", (profile) => {
+    const { events: _events, ...base } = core;
+    const value =
+      profile === "core"
+        ? base
+        : {
+            ...base,
+            profile: "write",
+            operations: "https://verbs.test/execute",
+            aliases: "https://records.test/work/names/",
+          };
+    expect(parseRetainedDiscovery(JSON.stringify(value))).toEqual(value);
+    if (profile === "write")
+      expect(parseRetainedWriteDiscovery(JSON.stringify(value))).toEqual(value);
+    expect(Object.hasOwn(parseRetainedDiscovery(JSON.stringify(value)), "events")).toBe(false);
+  });
   it("preserves opaque unknown capability versions without selecting them", () => {
     const capabilities = { "https://future.test/feature": { "99": { url: "literal" } } };
     expect(parseRetainedDiscovery(JSON.stringify({ ...core, capabilities })).capabilities).toEqual(
@@ -49,7 +66,7 @@ describe("retained Core carrier values", () => {
   it.each([
     ["old-version", { ...core, bdpVersion: "0" }],
     ["old-profile", { ...core, profile: "read" }],
-    ["missing-events", { ...core, events: undefined }],
+    ["malformed-events", { ...core, events: "relative-events" }],
     ["relative-inventory", { ...core, beads: "nodes" }],
     ["query-scope", { ...core, scope: "https://records.test/work/?tenant=1" }],
     ["new-required-root", { ...core, types: "https://types.test/" }],

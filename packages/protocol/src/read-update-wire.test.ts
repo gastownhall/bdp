@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
-import { readProtocolSpecification } from "../../conformance/test-support/spec-source.js";
+import { readHistoricalCitation692dSource } from "../../conformance/test-support/historical-citation-source.js";
 
 import { BDP_PROBLEM_FAMILY_PREFIX, BDP_V0_SCHEMA_ID, READ_PROBLEM_DEFINITIONS } from "./index.js";
 import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
@@ -24,7 +24,7 @@ const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const schema = JSON.parse(
   readFileSync(path.join(workspaceRoot, "specs", "profiles", "core", "bdp-v0.schema.json"), "utf8"),
 ) as SchemaRecord;
-const specification = readProtocolSpecification();
+const specification = readHistoricalCitation692dSource("docs/specs/bdp.md");
 const fixturesDirectory = path.join(workspaceRoot, "fixtures", "read-update");
 
 type SchemaRecord = Record<string, unknown>;
