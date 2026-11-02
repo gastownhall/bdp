@@ -45,10 +45,7 @@
         "cliMapping": {
           "flags": [
             {
-              "names": [
-                "--limit",
-                "-l"
-              ],
+              "names": ["--limit", "-l"],
               "parameter": "limit"
             }
           ],

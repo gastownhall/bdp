@@ -12,10 +12,7 @@
           "minLength": 1
         },
         "schema": {
-          "type": [
-            "object",
-            "boolean"
-          ]
+          "type": ["object", "boolean"]
         },
         "description": {
           "type": "string"
@@ -26,10 +23,7 @@
         "default": true
       },
       "additionalProperties": false,
-      "required": [
-        "name",
-        "schema"
-      ]
+      "required": ["name", "schema"]
     },
     "FlagMapping": {
       "type": "object",
@@ -49,10 +43,7 @@
         }
       },
       "additionalProperties": false,
-      "required": [
-        "names",
-        "parameter"
-      ]
+      "required": ["names", "parameter"]
     },
     "PositionalMapping": {
       "type": "object",
@@ -67,10 +58,7 @@
         }
       },
       "additionalProperties": false,
-      "required": [
-        "position",
-        "parameter"
-      ]
+      "required": ["position", "parameter"]
     },
     "CliMapping": {
       "type": "object",
@@ -99,16 +87,11 @@
         }
       },
       "additionalProperties": false,
-      "required": [
-        "binding"
-      ]
+      "required": ["binding"]
     },
     "Callable": {
       "type": "object",
-      "required": [
-        "description",
-        "parameters"
-      ],
+      "required": ["description", "parameters"],
       "properties": {
         "description": {
           "type": "string"
@@ -137,23 +120,15 @@
       },
       "oneOf": [
         {
-          "required": [
-            "body"
-          ],
+          "required": ["body"],
           "not": {
-            "required": [
-              "extern"
-            ]
+            "required": ["extern"]
           }
         },
         {
-          "required": [
-            "extern"
-          ],
+          "required": ["extern"],
           "not": {
-            "required": [
-              "body"
-            ]
+            "required": ["body"]
           }
         }
       ]
@@ -170,23 +145,15 @@
       },
       "oneOf": [
         {
-          "required": [
-            "body"
-          ],
+          "required": ["body"],
           "not": {
-            "required": [
-              "extern"
-            ]
+            "required": ["extern"]
           }
         },
         {
-          "required": [
-            "extern"
-          ],
+          "required": ["extern"],
           "not": {
-            "required": [
-              "body"
-            ]
+            "required": ["body"]
           }
         }
       ]
