@@ -1244,7 +1244,8 @@ Other fields: not allowed
 
 ## Discovery and capabilities
 
-<!-- Donna: DNS-neutral Scope identity is being checked against the earlier identity proposal before a new carrier is adopted. -->
+This draft does not define a separate DNS-neutral Scope ID or a Scope-relocation
+contract. Those identity changes remain a separate design decision.
 
 A Scope has one absolute canonical HTTP(S) URL ending in `/`, the base for local
 identifiers and durable relative references even when reached through a redirect
@@ -2230,8 +2231,8 @@ The current draft encoding below uses tagged JSON nodes with an `op` member.
 The traversal names `incoming`, `outgoing` and `connected` are represented in
 that draft by `op:"walk"` plus `direction`; `any` and `all` are separate
 quantifier nodes. These are two different operations, not rival names for the
-same node. The precise traversal opcode spelling remains reviewable; the
-selected traversal, binding and quantifier meanings do not depend on that spelling.
+same node. This draft retains `walk` plus `direction` for traversal and separate
+`any`/`all` quantifier nodes. Human expression syntax remains deferred.
 
 This member is an AST discriminator, not a new Resource property or a replacement for Bead/Link Types.
 Requests declare `ir: "bdp-query-design-1"`, a `profile`, a `selection`, and a
@@ -2243,8 +2244,6 @@ Here `profile` denotes an admitted AST subset; it does not change the native
 Core/Write discovery profile literal. Capability URI/version selection still
 requires a separately selected native discovery/invocation binding.
 
-
-<!-- Donna: Reconcile the selected all/any/incoming/outgoing vocabulary with the draft walk/direction encoding before treating that encoding as settled. -->
 
 ### Logical AST fields
 
