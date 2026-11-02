@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RetainedFixtureGap, RetainedRequestError } from "./contract.js";
+import { RetainedRequestError } from "./contract.js";
 import { assertPreparedLink, prepareLink } from "./link-contract.js";
 
 const scope = "https://scope.invalid/acme/";
@@ -168,11 +168,12 @@ describe("private Core-only Link admission", () => {
     expect(input.value.source).toBe(scope + source);
   });
   it.each(["a:b", "urn:example:one"])(
-    "keeps the unresolved Reference spelling %s as an explicit private fixture gap",
+    "keeps scheme-shaped endpoint %s opaque and full in-Scope colon paths local",
     (source) => {
-      expect(() =>
-        prepareLink(scope, "createLink", JSON.stringify({ type, source, target: "right" }), "key"),
-      ).toThrow(RetainedFixtureGap);
+      expect(
+        prepareLink(scope, "createLink", JSON.stringify({ type, source, target: "right" }), "key")
+          .value.source,
+      ).toBe(source);
       expect(
         prepareLink(
           scope,

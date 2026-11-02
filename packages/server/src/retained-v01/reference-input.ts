@@ -1,11 +1,6 @@
 /** Private lexical Reference admission. No store lookup or alias resolution. */
 import { isJsonSchemaUri } from "@bdp/protocol";
-import {
-  canonicalCreatedId,
-  canonicalLocalReference,
-  RetainedFixtureGap,
-  RetainedRequestError,
-} from "./contract.js";
+import { canonicalLocalReference, RetainedRequestError } from "./contract.js";
 
 export function inputReferenceUri(scope: string, value: string): string {
   if (!/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)) return canonicalLocalReference(scope, value);
@@ -15,16 +10,7 @@ export function inputReferenceUri(scope: string, value: string): string {
     if (new URL(value).href.startsWith(scope)) return canonicalLocalReference(scope, value);
     return value;
   }
-  let local = false;
-  try {
-    canonicalCreatedId(scope, value);
-    local = true;
-  } catch {
-    /* Not a local path. */
-  }
-  if (local)
-    throw new RetainedFixtureGap(
-      "absolute-URI/local-path overlap awaits paired-source clarification",
-    );
+  // RFC3986: a colon in the first segment selects an absolute URI. It is
+  // opaque external data; address a local colon ID with its full Scope URL.
   return value;
 }

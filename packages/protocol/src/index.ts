@@ -646,6 +646,8 @@ export {
 } from "./read-update-values.js";
 export {
   parseRetainedDiscovery,
+  parseRetainedCollection,
+  type RetainedCollection,
   parseRetainedProblem,
   parseRetainedProperties,
   parseRetainedResource,

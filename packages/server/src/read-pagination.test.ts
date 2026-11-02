@@ -767,3 +767,42 @@ describe("source-private pagination context", () => {
     pagination.close();
   });
 });
+
+describe("ordinary resizable continuations", () => {
+  it("resizes frozen boundaries without reading later mutations or extending expiry", () => {
+    const { pagination, advance } = harness({ resizable: true });
+    const records = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }];
+    const first = pagination.firstPage(firstInput(records, 2));
+    records[2]!.id = 99;
+    const token = tokenFrom(first.next);
+    const small = pagination.continuePage({ token, ...identity, limit: 1 });
+    expect(small.items).toEqual([{ id: 3 }]);
+    const large = pagination.continuePage({ token, ...identity, limit: 3 });
+    expect(large).toEqual({ items: [{ id: 3 }, { id: 4 }, { id: 5 }], next: null });
+    expect(pagination.continuePage({ token, ...identity, limit: 1 })).toEqual(small);
+    expect(
+      pagination.continuePage({ token: tokenFrom(small.next), ...identity, limit: 2 }).items,
+    ).toEqual([{ id: 4 }, { id: 5 }]);
+    advance(1000);
+    expectPaginationError(
+      () => pagination.continuePage({ token, ...identity, limit: 1 }),
+      "cursor-expired",
+      "expired",
+    );
+  });
+  it("reserves the worst-case resized traversal before exposing the first cursor", () => {
+    const { pagination } = harness({ resizable: true, maxRetainedCursorPositionsPerSnapshot: 2 });
+    expectPaginationError(
+      () => pagination.firstPage(firstInput([1, 2, 3, 4], 3)),
+      "capacity-exceeded",
+    );
+  });
+  it("preserves the original fixed-limit facade", () => {
+    const { pagination } = harness();
+    const first = pagination.firstPage(firstInput([1, 2, 3]));
+    expectPaginationError(
+      () => pagination.continuePage({ token: tokenFrom(first.next), ...identity, limit: 1 }),
+      "invalid-input",
+    );
+  });
+});

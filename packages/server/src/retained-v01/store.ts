@@ -68,6 +68,8 @@ export interface PrivateStoreOptions {
   readonly create: boolean;
   readonly instance: string;
   readonly navigation: PrivateNavigation;
+  /** Internal reference composition; captured durably, never a store migration. */
+  readonly referenceCore?: true;
   readonly clock?: () => number;
   /** Fault timing only, private to the test process. No successful outcome injection. */
   readonly onPhase?: (phase: "resource-staged" | "alias-staged" | "committed") => void;
@@ -111,6 +113,10 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
   const navigation = captureNavigation(options.navigation);
   const aliasNamespace = captureAliasNamespace(navigation.scope, navigation.aliases);
   const reserved = navigationAddresses(navigation);
+  const isReserved = (uri: string) =>
+    reserved.includes(uri) ||
+    (options.referenceCore === true &&
+      (uri === navigation.scope + "bdp" || uri.startsWith(navigation.scope + "bdp/")));
   const clock = options.clock ?? Date.now;
   if (
     !path.isAbsolute(options.directory) ||
@@ -185,6 +191,9 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     instance: options.instance,
     navigation,
     policy: EVENT_POLICY,
+    ...(options.referenceCore === true
+      ? { referenceCore: { events: false, namespace: "bdp" } }
+      : {}),
   });
   try {
     db.function("retained_json", { deterministic: true }, (value) => {
@@ -277,8 +286,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     return token;
   };
   function aliasLookup(uri: string): string | null | undefined {
-    if (get("SELECT id FROM identities WHERE id=?", uri) || reserved.includes(uri))
-      return undefined;
+    if (get("SELECT id FROM identities WHERE id=?", uri) || isReserved(uri)) return undefined;
     const alias = get("SELECT target FROM aliases WHERE locator=?", uri);
     if (alias) return String(alias.target);
     return aliasNamespace.contains(uri) ? null : undefined;
@@ -430,14 +438,14 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       while (
         get("SELECT id FROM identities WHERE id=?", id) ||
         get("SELECT locator FROM aliases WHERE locator=?", id) ||
-        reserved.includes(id)
+        isReserved(id)
       ) {
         if (++collisions > 32)
           throw new RetainedRequestError("temporarily-unavailable", 503, "after-delay");
         id = navigation.scope + randomUUID();
       }
     }
-    if (get("SELECT id FROM identities WHERE id=?", id) || reserved.includes(id))
+    if (get("SELECT id FROM identities WHERE id=?", id) || isReserved(id))
       return refusal(problem("identity-taken", 409));
     if (get("SELECT locator FROM aliases WHERE locator=?", id))
       return refusal(problem("alias-path-taken", 409, "after-state-change"));
@@ -626,7 +634,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         return refusal(problem("resource-not-found", 404, "after-state-change"));
       if (
         operation === "putAlias" &&
-        (get("SELECT id FROM identities WHERE id=?", input.alias) || reserved.includes(input.alias))
+        (get("SELECT id FROM identities WHERE id=?", input.alias) || isReserved(input.alias))
       )
         return refusal(problem("identity-taken", 409));
       const previous = get("SELECT target FROM aliases WHERE locator=?", input.alias);
@@ -735,6 +743,17 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         return aliasLookup(locator);
       });
     },
+    /** One SQLite observation; paging freezes this complete current set separately. */
+    listRecords(kind: ResourceKind): readonly JsonObject[] {
+      return transaction(() => {
+        const rows = db
+          .prepare(
+            "SELECT r.body FROM resources r JOIN identities i ON i.id=r.id WHERE i.kind=? ORDER BY r.id",
+          )
+          .all(kind);
+        return rows.map((row) => JSON.parse(String(row.body)) as JsonObject);
+      });
+    },
     readRecord(id: string): { readonly kind: ResourceKind; readonly body: string } | undefined {
       return transaction(() => {
         const row = currentRow(id);
@@ -802,6 +821,9 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
           ...(subject ? { subject } : {}),
           selection: { representation: "postimage" },
           policy: EVENT_POLICY,
+          ...(options.referenceCore === true
+            ? { referenceCore: { events: false, namespace: "bdp" } }
+            : {}),
           coverage: { start: boundary(0), retainedFrom: boundary(0), through: boundary(through) },
           events: selected.map((row) => ({ ...JSON.parse(String(row.body)), source })),
           cursor,

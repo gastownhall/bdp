@@ -46,6 +46,8 @@ type SchemaRoot =
   | "retainedDiscovery"
   | "currentBeadRecord"
   | "currentLinkRecord"
+  | "beadCollection"
+  | "linkCollection"
   | "properties"
   | "mutationResult"
   | "aliasResult"

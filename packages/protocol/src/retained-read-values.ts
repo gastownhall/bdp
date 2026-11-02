@@ -107,3 +107,28 @@ export function parseRetainedWriteResult(
   }
   return value;
 }
+
+export type RetainedCollection = RetainedJsonObject & {
+  readonly items: readonly RetainedJsonObject[];
+  readonly next: AbsoluteHttpUrl | null;
+};
+/** Full native page, with every item checked under the metadata-selected kind. */
+export function parseRetainedCollection(
+  text: string,
+  kind: RetainedResourceKind,
+): RetainedCollection {
+  if (kind !== "bead" && kind !== "link")
+    throw new ProtocolArtifactValidationError("invalid collection kind");
+  const value = parseRetainedObject(text);
+  validateRetainedValue(kind === "bead" ? "beadCollection" : "linkCollection", value);
+  const items = value.items as readonly RetainedJsonObject[];
+  const ids = new Set<string>();
+  for (const item of items) {
+    parseRetainedResource(JSON.stringify(item), kind);
+    if (ids.has(item.id as string))
+      throw new ProtocolArtifactValidationError("duplicate collection identity");
+    ids.add(item.id as string);
+  }
+  if (value.next !== null) parseCanonicalHttpUrl(value.next, "collection.next");
+  return value as RetainedCollection;
+}

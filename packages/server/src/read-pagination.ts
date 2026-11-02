@@ -1,6 +1,8 @@
 import { isProxy } from "node:util/types";
 
 export interface ReadPaginationOptions {
+  /** Ordinary Core only: permit page-size changes on the same frozen snapshot. */
+  readonly resizable?: boolean;
   /** Absolute canonical Scope URL, including its trailing slash. */
   readonly scope: string;
   readonly defaultPageItems: number;
@@ -44,6 +46,7 @@ export interface ReadFirstPageInput<Item> {
 }
 
 export interface ReadContinuationInput {
+  readonly limit?: number;
   readonly token: string;
   readonly authorizationView: string;
   readonly scopeEpoch: string;
@@ -141,6 +144,7 @@ export function createReadPagination<Item = unknown>(
 }
 
 interface PreparedOptions {
+  readonly resizable: boolean;
   readonly scope: URL;
   readonly defaultPageItems: number;
   readonly maxPageItems: number;
@@ -302,18 +306,26 @@ export function createContextualReadPagination<Item = unknown>(
     return token;
   };
 
-  const pageAt = (snapshot: Snapshot<Item>, offset: number): ReadPage<Item> => {
-    const cached = snapshot.pages.get(offset);
+  const pageAt = (
+    snapshot: Snapshot<Item>,
+    offset: number,
+    limit = snapshot.limit,
+  ): ReadPage<Item> => {
+    const cached = prepared.resizable ? undefined : snapshot.pages.get(offset);
     if (cached !== undefined) return cached;
 
-    const items = Object.freeze(snapshot.items.slice(offset, offset + snapshot.limit));
+    const items = Object.freeze(snapshot.items.slice(offset, offset + limit));
     const followingOffset = offset + items.length;
     const next =
       followingOffset < snapshot.items.length
-        ? continuationUrl(snapshot.continuationUrl, cursorFor(snapshot, followingOffset))
+        ? continuationUrl(
+            snapshot.continuationUrl,
+            cursorFor(snapshot, followingOffset),
+            prepared.resizable ? limit : undefined,
+          )
         : null;
     const page: ReadPage<Item> = Object.freeze({ items, next });
-    snapshot.pages.set(offset, page);
+    if (!prepared.resizable) snapshot.pages.set(offset, page);
     pageContexts.set(page, snapshot.sourceContext);
     return page;
   };
@@ -401,7 +413,9 @@ export function createContextualReadPagination<Item = unknown>(
       // Reserve every future cursor/page position atomically, but mint tokens lazily. This makes
       // traversal denial-free after admission without allocating one opaque token per page up
       // front, and keeps client-driven cursor/page metadata within the retained-state bound.
-      const reservedCursorPositions = Math.ceil(items.length / limit) - 1;
+      const reservedCursorPositions = prepared.resizable
+        ? items.length - 1
+        : Math.ceil(items.length / limit) - 1;
       if (reservedCursorPositions > prepared.maxRetainedCursorPositionsPerSnapshot) {
         throw localError(
           "capacity-exceeded",
@@ -479,7 +493,11 @@ export function createContextualReadPagination<Item = unknown>(
           "the pagination cursor belongs to another projection",
         );
       }
-      const page = pageAt(snapshot, binding.offset);
+      if (!prepared.resizable && input.limit !== undefined)
+        throw localError("invalid-input", "this continuation does not permit resizing");
+      const limit =
+        input.limit === undefined ? snapshot.limit : validateLimit(input.limit, prepared);
+      const page = pageAt(snapshot, binding.offset, limit);
       scheduleIdleCleanup();
       return page;
     },
@@ -555,7 +573,10 @@ function prepareOptions(options: ReadPaginationOptions): PreparedOptions {
   ) {
     throw localError("configuration-error", "idleCleanup must be 'timer' or 'on-demand'");
   }
+  if (options.resizable !== undefined && typeof options.resizable !== "boolean")
+    throw localError("configuration-error", "resizable must be boolean");
   return Object.freeze({
+    resizable: options.resizable ?? false,
     scope,
     defaultPageItems: options.defaultPageItems,
     maxPageItems: options.maxPageItems,
@@ -626,9 +647,10 @@ function validateContinuationUrl(value: unknown, scope: URL): string {
   return url.href;
 }
 
-function continuationUrl(base: string, token: string): string {
+function continuationUrl(base: string, token: string, limit?: number): string {
   const url = new URL(base);
   url.searchParams.set("cursor", token);
+  if (limit !== undefined) url.searchParams.set("limit", String(limit));
   return url.href;
 }
 

@@ -1,0 +1,60 @@
+/** Explicit Core + ordinary Write reference composition for the canonical draft. */
+import { parseCanonicalScope } from "@bdp/protocol";
+import {
+  ORDINARY_OPERATIONS,
+  type PrivateNavigation,
+  RETAINED_SPEC,
+} from "./retained-v01/contract.js";
+import { startRetainedListener } from "./retained-v01/http.js";
+
+export interface ReferenceServiceOptions {
+  /** Absolute owned local directory; creation requires it to be empty. */
+  readonly directory: string;
+  readonly create: boolean;
+  readonly instance: string;
+  /** Canonical externally routed Scope. The returned listener is loopback-only. */
+  readonly scope: string;
+  /** Every configured principal has complete Scope access; no partial disclosure model. */
+  readonly credentials: readonly { readonly token: string; readonly principal: string }[];
+}
+export function referenceNavigation(scope: string): PrivateNavigation {
+  const selected = parseCanonicalScope(scope);
+  const control = selected + "bdp";
+  return Object.freeze({
+    scope: selected,
+    description: control,
+    beads: control + "/beads",
+    links: control + "/links",
+    aliases: selected + "aliases/",
+    events: control + "/events",
+    operations: control + "/operations",
+    targets: Object.freeze(
+      Object.fromEntries(
+        ORDINARY_OPERATIONS.map((operation) => [operation, control + "/operations/" + operation]),
+      ) as Record<(typeof ORDINARY_OPERATIONS)[number], string>,
+    ),
+  });
+}
+/** No global installation, implicit provisioning, legacy admission or Type activation.
+ * Route the explicit canonical Scope to listenUrl through the deployment's proxy.
+ * Events/History/Types/projection/batch are deliberately unadvertised and refused.
+ */
+export async function startReferenceService(options: ReferenceServiceOptions) {
+  const navigation = referenceNavigation(options.scope);
+  const listener = await startRetainedListener({
+    directory: options.directory,
+    create: options.create,
+    instance: options.instance,
+    credentials: options.credentials,
+    navigation,
+    referenceCore: true,
+  });
+  return Object.freeze({
+    specification: RETAINED_SPEC,
+    profile: "write" as const,
+    scope: navigation.scope,
+    navigation,
+    listenUrl: listener.listenUrl,
+    close: listener.close,
+  });
+}

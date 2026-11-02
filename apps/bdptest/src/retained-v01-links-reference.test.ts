@@ -358,7 +358,7 @@ describe("Core-only Link wire correspondence", () => {
       JSON.parse((await wire(server.listenUrl, server.discovery.events)).text).events,
     ).toHaveLength(4);
   });
-  it("keeps the unresolved colon case visibly incomplete without binding a key", async () => {
+  it("classifies a scheme-shaped endpoint lexically and freezes its successful invocation", async () => {
     const server = await fixture();
     expect(
       (
@@ -376,19 +376,23 @@ describe("Core-only Link wire correspondence", () => {
       { ...payload, source: "a:b" },
       { "idempotency-key": "colon-edge" },
     );
-    expect(gap.status).toBe(501);
-    expect(gap.text).toBe("");
-    expect(gap.headers["content-type"]).toBeUndefined();
-    expect(server.missing).toContain(
-      "Reference absolute-URI/local-path overlap awaiting paired-source clarification",
+    expect(gap.status).toBe(200);
+    expect(JSON.parse(gap.text).resource.source).toBe("a:b");
+    const changed = await wire(
+      server.listenUrl,
+      server.targets.createLink,
+      { ...payload, source: scope + "a:b" },
+      { "idempotency-key": "colon-edge" },
     );
+    expect(changed.status).toBe(409);
+    expect(JSON.parse(changed.text).code).toBe("idempotency-conflict");
     expect(
       (
         await wire(
           server.listenUrl,
           server.targets.createLink,
-          { ...payload, source: scope + "a:b" },
-          { "idempotency-key": "colon-edge" },
+          { ...payload, id: "local-colon-edge", source: scope + "a:b" },
+          { "idempotency-key": "colon-edge-local" },
         )
       ).status,
     ).toBe(200);

@@ -104,3 +104,35 @@ projection's inherited optional-metadata expectation conflicts with current Core
 and old Type publication/read fixtures omit required current metadata. These are
 separate alignment families, not waived failures. No SQLite/service, installed
 artifact, full implementation suite or conformance claim follows from this unit.
+
+## Ordinary read/service repair
+
+The candidate now adds complete ordinary inventory/incident pages and retained SDK
+page/alias operations, using the shared bounded Selector and snapshot engine. Only
+ordinary continuations opt into page resizing; legacy fixed-page behavior remains.
+Worst-case cursor positions are reserved before admission; resized responses do
+not accumulate an unbounded page cache or extend expiry.
+
+The explicit `@bdp/server/reference` composition uses the standard `bdp/` namespace,
+complete Scope access for its configured principals, fresh explicit provisioning
+and the existing durable SQLite mutation/recovery engine. It does not advertise
+Events, Types, History, projection or batch. Its selected Core/control policy is
+captured in the store configuration: opening an old private fixture as this
+composition refuses a mismatch instead of migrating or reinterpreting it.
+
+The first real canonical HTTP/SQLite witness passes4 tests with independent wire
+assertions for inventory/incident metadata, snapshot resizing, HEAD/304, ordinary
+Type Beads, endpoint pins, aliases, reserved controls and reopen/retry. Private
+fixture qualification remains separate. An initial transport-origin bug and an
+incorrect credential callback in the new integration test were diagnosed and
+fixed; their original failed log is retained. The earlier expected422 for a
+scheme-shaped endpoint was an incorrect test oracle: its other endpoint is a
+live local Bead, so the native result is200 with the opaque URI preserved. A
+changed same-key invocation conflicts; a fresh full-URL local invocation succeeds.
+
+The observed historical artifact failures are the next bounded family. Harvest
+only the reviewed exact source loader/snapshots and citation controls from336,
+then explicitly bind historical byte-pin/prose tests to their original inputs.
+Immutable Type publications and their pins are preserved, with current metadata
+requirements tested separately. Do not rewrite publication1/2 records under old
+revision tokens or silently replace historical hashes with the current bundle.
