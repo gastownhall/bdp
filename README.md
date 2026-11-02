@@ -21,7 +21,7 @@ Start with **Core**, not a retained-profile wrapper or an amendment map. The doc
 
 The [editing routine](docs/spec-review/README.md) explains the VS Code comment/process/push loop. PR337 established the current working draft in main at `0bf00889b247491412703e02c1f2ce2b10fa3ff9`. Donna’s editorial review continues through small subsequent PRs. The reference client/service/tests align against that exact baseline in the single dependent [PR338](https://github.com/gastownhall/bdp/pull/338); its implementation checks and independent review remain separate from spec checks.
 
-[Specification status and supporting schemas](specs/README.md) · [CLI design](docs/cli-design/bdp-cli.md) · [Historical inputs](specs/history/pre-canonical-20261101/README.md)
+[Stabilization plan](docs/plans/bdp-stabilization.md) · [Specification status and supporting schemas](specs/README.md) · [CLI design](docs/cli-design/bdp-cli.md) · [Historical inputs](specs/history/pre-canonical-20261101/README.md)
 
 ## Implementation and evidence
 

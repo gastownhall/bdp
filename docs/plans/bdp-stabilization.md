@@ -39,8 +39,16 @@ not recorded as completed council review.
    [Beads #7719](https://github.com/gastownhall/beads/issues/7719) and
    [Beads PR141](https://github.com/gastownhall/beads/pull/141) is distinct from
    public BDP wire support. Spec and implementation siblings must agree on the
-   exact incoming contract and landed qualification.
-2. **Put the repository on rails.** Complete the inventory disposition review,
+   exact incoming contract and landed qualification. The selected design is an
+   optional discoverable capability: body-free deletion versions, a narrow
+   authorized terminal-state read, independently guarded same-ID undelete, and
+   explicitly selected source/predecessor context outside base Resource records.
+   Initial atomic-batch composition may refuse explicitly. Historical admission
+   requires the exact complete editable source content consumed plus the
+   independently authorized current protected baseline; unused old owned-Link
+   captures are not a prerequisite. None of this claims completed implementation
+   qualification.
+2. **Put the repository on rails.** Apply the completed inventory disposition review,
    preserve genuine residuals, implement the accepted testing policy below, and
    agree the small maintenance/edit-history routine. Record the exact coalesced
    main commit, checks, supported scope and remaining work. Reduce open work only
@@ -126,14 +134,19 @@ receipts. Harvest historical stacks before conditional archival; do not merge
 obsolete parent chains wholesale or treat accepted dispositions as completed
 harvests.
 
-Decisions 33–38 authorize harvest-first handling of PR154/155/156/157/158/160,
-with closure conditional on preserving residuals. Decisions 39–46 for
-PR161/162/166/167/168/169/170/179 are unanswered. Other unreviewed inventory also
-remains open. Preserve the explicit deferrals for foreign expected Type (#11),
+Donna completed disposition review of all 12 issues and 48 PRs in the
+post-landing inventory (decisions 11–78). Approved historical closures remain
+conditional on item-level harvesting, preserved evidence and published residual
+homes. The disposition ledger must distinguish reviewed, preserved, closed and
+implemented; these statuses are not interchangeable. Revisit replication feeds,
+retained Snapshot positions and publication races during Transfer. Existing
+owned-Link design is explicitly scheduled for reexamination; avoid costly
+expansion while preserving the currently admitted invariants. Preserve the explicit deferrals for foreign expected Type (#11),
 Scope relocation (#62) and broader aliases (#299). Finish #5 item by item; map
 #6 against current Memory rules and keep its pin/composition/lifecycle questions.
-Issue #1's History coordination replacement still needs discussion and a complete
-residual map. PR314 needs bounded independent security/URI-identity and consumer
+Replace issue #1's historical diary with Core's normative History rules,
+spec-owned questions, and named optional History implementation/conformance work
+under this plan and #320. Finish its requirement-to-destination map before closure. PR314 needs bounded independent security/URI-identity and consumer
 review before selection; dependency updates are not a substitute.
 
 ## Maintenance and remaining decisions
@@ -148,6 +161,15 @@ Before stabilization is complete, agree how ordinary changes keep the backlog,
 current main, specification edit history and implementation support map current.
 Discovery's possible immutable implemented-spec pin still needs a concrete
 contract and review; a pin alone is not conformance. Whether and how BDP CI
-validates the Beads product, the History coordination replacement, the N-language
-layout and unanswered inventory dispositions remain decisions to make. Keep
-these questions visible rather than turning recommendations into accepted work.
+validates the Beads product and the N-language layout remain open. The current
+open-source delete/prune/purge workflows need an explicit command-to-contract
+mapping before selecting stronger all-retained-copy erasure; command names alone
+are insufficient requirements.
+
+Donna has an existing agent responsible for the Beads side. BDP work must not
+start a competing Beads implementation or runtime campaign. After the accepted
+dispositions and residuals are published, provide that agent a compact handoff:
+selected contract and immutable source pins, CLI/SDK correspondence, qualification
+receipts, limitations, and named remaining product work. Native Beads delivery,
+public BDP support, draft design and verified implementation remain separate
+claims.
