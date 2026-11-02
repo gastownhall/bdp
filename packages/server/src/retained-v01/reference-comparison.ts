@@ -1,13 +1,13 @@
 /** Captured singleton comparison only. The owner supplies lookup inside its
  * transaction, before fresh liveness/guard/bounds checks. No body reads or writes.
  */
-import { UNBOUND_SEMANTIC_REFERENCE, type SemanticValue } from "../semantic-identity.js";
-import type { EndpointReference } from "./contract.js";
+import { type SemanticValue, UNBOUND_SEMANTIC_REFERENCE } from "../semantic-identity.js";
 import {
-  resolveAliasReferences,
   type AliasWitness,
   type ResolvedAliasReference,
+  resolveAliasReferences,
 } from "./alias-witness.js";
+import type { EndpointReference } from "./contract.js";
 
 export type ReferenceSlot = "bead" | "source" | "target";
 type Slots<T> = Readonly<Partial<Record<ReferenceSlot, T>>>;
@@ -87,18 +87,35 @@ export function compareCapturedReferences(
   invocation: InvocationIdentity,
   lookup: (locator: string) => string | null | undefined,
   prior?: readonly AliasWitness[],
+  fixedSlots: readonly ReferenceSlot[] = [],
 ): ReferenceComparison {
   const captured = capturedComparisons.get(invocation);
   if (!captured) throw new TypeError("uncaptured invocation comparison");
-  const resolution = resolveAliasReferences(captured.references, lookup, prior);
+  // Batch creation handles are fixed lexical slots, never alias lookups. Resolve
+  // only ordinary Reference slots; a literal equal-looking URL is still ordinary.
+  const indexes = captured.names
+    .map((name, index) => ({ name, index }))
+    .filter(({ name }) => !fixedSlots.includes(name));
+  const resolution = resolveAliasReferences(
+    indexes.map(({ index }) => captured.references[index]!),
+    lookup,
+    prior,
+  );
+  const resolved: ResolvedAliasReference[] = captured.references.map((reference) => ({
+    kind: "value" as const,
+    reference,
+  }));
+  indexes.forEach(({ index }, offset) => {
+    resolved[index] = resolution.references[offset]!;
+  });
   const references: Partial<Record<ReferenceSlot, ResolvedAliasReference>> = {};
   captured.names.forEach((name, index) => {
-    const reference = resolution.references[index];
+    const reference = resolved[index];
     if (!reference) throw new TypeError("missing resolved Reference slot");
     references[name] = reference;
   });
   return Object.freeze({
-    identity: captured.identityFor(semanticSlots(captured.names, resolution.references)),
+    identity: captured.identityFor(semanticSlots(captured.names, resolved)),
     references: Object.freeze(references),
     originalWitnesses: resolution.originalWitnesses,
   });
