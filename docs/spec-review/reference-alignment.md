@@ -1,0 +1,106 @@
+# Reference alignment to the canonical working draft
+
+Specification baseline: `0bf00889b247491412703e02c1f2ce2b10fa3ff9` (PR337).
+Its separate actual-main specification CI is [41406174292](https://github.com/gastownhall/bdp/actions/runs/41406174292).
+Donna authorized Trish to align and merge the BDP reference client, service and
+tests against this commit. Full editorial review continues. Other fleet work,
+Beads, queued handoffs and PR334 remain paused.
+
+## Intended submission contract
+
+The reference path supports required Core reads and the eight ordinary Write
+operations, with truthful optional Events advertisement. Inventories and incident
+Link reads return complete ordinary Resource pages with the specified metadata,
+filters, bounded selectors, snapshot context and resizable ordinary continuations.
+Clients follow discovered URLs and preserve native response/page boundaries.
+
+The reference service uses the standard `bdp/` control namespace by default and
+continues to advertise its actual URLs. Resources retain one shared identity
+space. Explicit configuration owns credentials, directory/provisioning and Scope;
+tests use newly owned temporary stores. Public entry points must expose only
+behavior actually qualified by the current contract.
+
+Types, History, projection, rooted allocation, richer/native Query, Transfer and
+atomic batch acquire no new advertisement through this work. Unsupported selected
+requests refuse explicitly. Ordinary Type-definition Beads remain ordinary records
+through generic creation, point reads and inventories. All existing pin, identity,
+endpoint, metadata, retry, authority and durable outcome rules remain binding.
+
+## Initial source gap inventory
+
+| Surface | Evidence at baseline | Required action |
+| --- | --- | --- |
+| Protocol discovery | `retained-read-values.ts` and `retained-write-values.ts` declare required Events; Write parsing always validates its URL | Make the member optional consistently; preserve full obligations where advertised. |
+| Schema loading | `retained-write-values.ts` uses strict Ajv with the full current bundle and no ownership-annotation registration | Retain strict validation and admit only the known non-validation source annotations. |
+| Reference client | `RetainedClient` exposes inspect, point full/properties read, bind and singleton submit | Complete ordinary collection/incident/alias access and bounded native continuation handling; optional Event access checks advertisement. |
+| v0.1 SQLite listener | `retained-v01/http.ts` explicitly reports a private incomplete fixture; advertised inventories are not routed | Implement the mandatory read surface and qualify an explicit reference composition; preserve existing private evidence and safety controls. |
+| Filtering/pagination | Existing shared selector and snapshot-pagination modules already own bounded parsing, retention, auth binding and cleanup | Reuse those modules; add ordinary continuation resizing without changing legacy behavior or weakening capacity/expiry checks. |
+| Endpoint URI overlap | `reference-input.ts` emits a private gap for scheme-shaped strings such as `a:b` | Pair the current Core URI/Write-relative-path rules with RFC3986 syntax and qualify deterministic parsing independently of store liveness. Escalate only an actual unresolved contract contradiction. |
+| Optional unsupported views | Private HTTP currently reports501 for History/aggregate gaps | The public reference surface must give the selected truthful refusal; leave optional capabilities unadvertised. |
+| Publication and tests | Canonical client is exported; v0.1 server source is excluded from installed package files and has no public reference entry | Publish a qualified reference entry with actual installed-client/service witnesses; retain legacy APIs and historical artifacts under their stated contracts. |
+| Historical validator | `check_type_examples.py` still consumes pinned historical fixtures/retired prose | Preserve pins and original controls; explicitly re-key or keep historical scope without claiming current coverage. |
+
+For endpoint References, a leading URI scheme distinguishes an absolute URI from
+a relative-path reference. RFC3986§4.2 excludes a colon from the first relative
+path segment; see [the primary syntax specification](https://www.rfc-editor.org/rfc/rfc3986.html#section-4.2).
+Core admits opaque absolute external URIs and Write admits relative local paths.
+The proposed repair therefore keeps scheme-shaped endpoints opaque; a local ID
+containing a colon remains addressable by its full canonical in-Scope URL.
+This interpretation must pass the existing schema and exact-reference/recovery
+controls before the old private gap is retired.
+
+## Implementation batches
+
+1. Establish the exact baseline failures on pinned Node24.22.1/pnpm11.20.0;
+   repair schema loading and optional discovery; publish the coherent first unit.
+2. Implement ordinary Resource inventory/incident reads and client page access,
+   reusing bounded selectors and snapshot pagination; cover opaque next URLs,
+   empty pages, kind/owning-Scope metadata and current authorization.
+3. Assemble the explicit reference service entry and standard control layout;
+   qualify native URI/ID/pin behavior, ordinary CRUD/aliases, optional Events,
+   refusal/no-effect, durable recovery and reopen through real HTTP/SQLite.
+4. Finish current/historical source accounting, installed-artifact witnesses,
+   normal full CI and independent review. Merge only the complete selected
+   candidate, then qualify its actual main commit separately.
+
+## Local validation and resource boundaries
+
+One command at a time, with full logs retained and clear terminal outcomes.
+Use the existing pinned local Node24.22.1 and corepack-selected pnpm11.20.0.
+First run the existing protocol/client retained suites and private store/HTTP
+witnesses; preserve original failures and private gap expectations. Build normally
+before child-process/installed-artifact tests. Add independent request/response
+oracles for each repaired requirement, then run the repository's normal typecheck,
+boundary, formatting, generated-source, test, preflight, smoke and evidence checks.
+The hosted implementation job retains its existing20-minute bound and required
+real bd matrix. No skip, assertion, hook, deadline, version pin or evidence gate
+is weakened to obtain a pass.
+
+All runtime state belongs to this candidate's fresh temporary directories.
+No shared Git, shared writer, old runtime grant, user store, manual binary,
+consumer pin, release/tag/default promotion, global install, fleet restart or
+parallel observer is part of this work. Optional feature gaps stay visible.
+
+## Stop-loss
+
+A genuine protocol choice, unsafe shared-resource dependency or unbounded change
+family stops that family for a concrete decision. Continue independent repairs.
+Do not edit the specification to accommodate an implementation gap, silently
+select provisional semantics, broaden into another profile, or call a private
+fixture conforming by changing a label. Revisit the plan before expanding a newly
+observed failure family. A passing subset is reported with its exact limits.
+
+## First repair results
+
+Pinned Node24.22.1/pnpm11.20.0: the baseline retained protocol/client subset
+failed69/147 tests before repair. Known passive schema-source annotations are
+now registered explicitly while strict unknown-keyword refusal remains enabled;
+Core and Write discovery accept omitted Events and reject malformed advertised
+Events. The five-file repaired subset passes154 tests; typecheck passes.
+
+A broader18-file artifact run passes351/363 tests, with12 failures preserved:
+historical prose/schema byte pins need explicit historical source binding,
+projection's inherited optional-metadata expectation conflicts with current Core,
+and old Type publication/read fixtures omit required current metadata. These are
+separate alignment families, not waived failures. No SQLite/service, installed
+artifact, full implementation suite or conformance claim follows from this unit.

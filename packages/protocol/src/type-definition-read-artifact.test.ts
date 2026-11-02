@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const addFormats = formatsPlugin.default;
 
@@ -13,7 +14,7 @@ const paper = read("fixtures/type-definition-read/candidate.json");
 const discovery = read("fixtures/read-delivery/candidate.json").finite.find(
   (x: { id: string }) => x.id === "scope-descriptor",
 ).value.data;
-const ajv = new Ajv2020({ strict: true, allErrors: true });
+const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 addFormats(ajv, { mode: "full" });
 ajv.addSchema(schema);
 ajv.addSchema(old);

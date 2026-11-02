@@ -1,23 +1,25 @@
+export { snapshotJsonValue, stringifyJsonValue } from "./json-values.js";
 export type {
-  PropertyValidationDiagnostic,
   PropertyDiagnosticEmitter,
+  PropertyValidationDiagnostic,
   PropertyValidationResult,
   PropertyValidator,
 } from "./property-validation.js";
-export { snapshotJsonValue, stringifyJsonValue } from "./json-values.js";
 export {
-  RETAINED_V01_SPECIFICATION,
-  RETAINED_V01_MEDIA_TYPE,
-  RETAINED_WRITE_OPERATIONS,
-  parseRetainedWriteDiscovery,
   parseRetainedWriteDirectory,
+  parseRetainedWriteDiscovery,
   parseRetainedWriteInput,
-  type RetainedWriteOperation,
+  RETAINED_V01_MEDIA_TYPE,
+  RETAINED_V01_SPECIFICATION,
+  RETAINED_WRITE_OPERATIONS,
   type RetainedWriteDirectory,
   type RetainedWriteDiscovery,
+  type RetainedWriteOperation,
 } from "./retained-write-values.js";
+
+import type { HistoryCapability, HistoryMissing, RevisionProvenance } from "./history-values.js";
 import { parseHistoryMissing } from "./history-values.js";
-import type { RevisionProvenance, HistoryCapability, HistoryMissing } from "./history-values.js";
+
 export * from "./history-values.js";
 
 /** Identifies this package. */
@@ -28,6 +30,11 @@ export const BDP_V0_SCHEMA_ID = "https://github.com/gastownhall/bdp/schemas/bdp-
 export const BDP_PROBLEM_FAMILY_PREFIX = "https://github.com/gastownhall/bdp/problems/";
 
 export {
+  type LinkHeaderParameter,
+  type LinkHeaderValue,
+  parseLinkHeader,
+} from "./link-header.js";
+export {
   REFERENCE_BEAD_TYPES,
   REFERENCE_BLOCKING_LINK_TYPE_ID,
   REFERENCE_TYPE_DESCRIPTORS,
@@ -35,16 +42,11 @@ export {
 } from "./reference-domain.js";
 export {
   createTypeConformanceIndex,
-  type TypeConformanceIndex,
   type MeasuredTypeConformanceIndex,
+  type TypeConformanceIndex,
   type TypeConformanceLimits,
   type TypeConformanceStatistics,
 } from "./type-conformance.js";
-export {
-  parseLinkHeader,
-  type LinkHeaderParameter,
-  type LinkHeaderValue,
-} from "./link-header.js";
 
 /**
  * The three cumulative BDP conformance profile tokens, as they appear on the
@@ -218,6 +220,8 @@ export interface LinkTypeDescriptor extends TypeDescriptorMembers {
 export type TypeDescriptor = BeadTypeDescriptor | LinkTypeDescriptor;
 
 export {
+  assertCanonicalPathSegments,
+  ProtocolArtifactValidationError,
   parseBeadCollection,
   parseBeadRecord,
   parseCanonicalHttpUrl,
@@ -231,9 +235,7 @@ export {
   parseTypeDescriptor,
   parseTypeInventory,
   parseTypeSummary,
-  ProtocolArtifactValidationError,
   READ_VALUE_SCHEMA_REFS,
-  assertCanonicalPathSegments,
   resolveCanonicalLocalResourceId,
 } from "./read-values.js";
 
@@ -589,44 +591,26 @@ export function historyUnretainedProblem(missing: HistoryMissing): ReadProblem {
 
 // Read+Update wire parsing never grants runtime admission or widens Read roots.
 export {
-  JsonSyntaxError,
-  JsonNumberLiteral,
-  JsonDiagnosticBudgetError,
-  decodeJsonDocument,
+  type AdmittedJsonValue,
   admitJsonNumbers,
+  decodeJsonDocument,
   isAdmissibleJsonNumber,
   isUnicodeScalarString,
-  type LosslessJsonValue,
-  type AdmittedJsonValue,
-  type JsonNumberOccurrence,
+  JsonDiagnosticBudgetError,
   type JsonNumberDiagnosticBudget,
+  JsonNumberLiteral,
+  type JsonNumberOccurrence,
   type JsonNumericAdmission,
+  JsonSyntaxError,
+  type LosslessJsonValue,
 } from "./json-admission.js";
 export {
-  READ_UPDATE_VALUE_SCHEMA_REFS,
-  ReadUpdateCarrierError,
-  parseReadUpdateRequest,
-  parseReadUpdateSequenceRequest,
-  admitReadUpdateOperationNumbers,
-  parseReadUpdateDiscovery,
-  parseReadUpdateOperationDirectory,
-  parseReadUpdateMutationResult,
-  parseReadUpdateAliasResult,
-  parseReadUpdateSequenceResponse,
-  type ReadUpdateOperation,
-  type ReadUpdateInputs,
-  type ReadUpdateInputReference,
-  type PropertyChange,
-  type UnadmittedReadUpdateOperation,
-  type ReadUpdateSequenceRequest,
-  type ReadUpdateNumericAdmission,
-  type ReadUpdateDiscovery,
-  type ReadUpdateOperationDirectory,
-  type ReadUpdateMutationResult,
-  type ReadUpdateAliasResult,
-  type ReadUpdateSequenceEntry,
-  type ReadUpdateSequenceResponse,
-} from "./read-update-values.js";
+  assertPreparedReadUpdateCarrier,
+  isHttpScopeCandidate,
+  type PreparedReadUpdateCarrier,
+  prepareReadUpdateSequence,
+  prepareReadUpdateSingleton,
+} from "./read-update-preflight.js";
 export {
   parseReadUpdateProblem,
   parseReadUpdateSequenceMemberProblem,
@@ -635,29 +619,45 @@ export {
   type ReadUpdateSequenceMemberProblem,
   type ValidationDiagnostic,
 } from "./read-update-problems.js";
-
 export {
-  prepareReadUpdateSingleton,
-  prepareReadUpdateSequence,
-  assertPreparedReadUpdateCarrier,
-  isHttpScopeCandidate,
-  type PreparedReadUpdateCarrier,
-} from "./read-update-preflight.js";
-
+  admitReadUpdateOperationNumbers,
+  type PropertyChange,
+  parseReadUpdateAliasResult,
+  parseReadUpdateDiscovery,
+  parseReadUpdateMutationResult,
+  parseReadUpdateOperationDirectory,
+  parseReadUpdateRequest,
+  parseReadUpdateSequenceRequest,
+  parseReadUpdateSequenceResponse,
+  READ_UPDATE_VALUE_SCHEMA_REFS,
+  type ReadUpdateAliasResult,
+  ReadUpdateCarrierError,
+  type ReadUpdateDiscovery,
+  type ReadUpdateInputReference,
+  type ReadUpdateInputs,
+  type ReadUpdateMutationResult,
+  type ReadUpdateNumericAdmission,
+  type ReadUpdateOperation,
+  type ReadUpdateOperationDirectory,
+  type ReadUpdateSequenceEntry,
+  type ReadUpdateSequenceRequest,
+  type ReadUpdateSequenceResponse,
+  type UnadmittedReadUpdateOperation,
+} from "./read-update-values.js";
+export {
+  parseRetainedDiscovery,
+  parseRetainedProblem,
+  parseRetainedProperties,
+  parseRetainedResource,
+  parseRetainedWriteResult,
+  type RetainedDiscovery,
+  type RetainedJsonObject,
+  type RetainedResourceKind,
+} from "./retained-read-values.js";
+export { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 export {
   parseTransactionalDiscovery,
   parseTransactionalOperationDirectory,
   type TransactionalDiscovery,
   type TransactionalOperationDirectory,
 } from "./transaction-discovery-values.js";
-
-export {
-  parseRetainedDiscovery,
-  parseRetainedResource,
-  parseRetainedProperties,
-  parseRetainedProblem,
-  parseRetainedWriteResult,
-  type RetainedDiscovery,
-  type RetainedJsonObject,
-  type RetainedResourceKind,
-} from "./retained-read-values.js";

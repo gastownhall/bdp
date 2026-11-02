@@ -4,6 +4,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
 import { parseSchema } from "../../../scripts/markdown-schema.mjs";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const root = new URL("../../../", import.meta.url);
 const read = (path: string) => JSON.parse(readFileSync(new URL(path, root), "utf8"));
@@ -14,7 +15,9 @@ const intrinsic = "specs/profiles/types/intrinsic-2/";
 const descriptor = read(`${intrinsic}type-definition.properties.schema.json`);
 const bead = read(`${intrinsic}bead-type-definition.properties.schema.json`);
 const link = read(`${intrinsic}link-type-definition.properties.schema.json`);
-const ajv = new Ajv2020({ strict: true, allErrors: true, useDefaults: false });
+const ajv = withBdpSourceAnnotations(
+  new Ajv2020({ strict: true, allErrors: true, useDefaults: false }),
+);
 formatsPlugin.default(ajv, { mode: "full" });
 for (const schema of [common, types, descriptor, bead, link]) ajv.addSchema(schema);
 function validator(id: string) {
@@ -80,7 +83,7 @@ describe("Type authoring examples against current descriptor artifacts; no Type-
     expect(value.schemaResources).toEqual({
       "https://schemas.example/shared-fields.json": resource,
     });
-    const offline = new Ajv2020({ strict: true });
+    const offline = withBdpSourceAnnotations(new Ajv2020({ strict: true }));
     offline.addSchema(resource);
     const validate = offline.compile(schema);
     expect(validate({ annotation: "reviewed" })).toBe(true);

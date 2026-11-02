@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const addFormats = formatsPlugin.default;
 
@@ -10,7 +11,7 @@ const read = (name: string) => readFileSync(new URL(name, root), "utf8");
 const schema = JSON.parse(read("specs/profiles/core/bdp-v0.1.schema.json"));
 const legacy = JSON.parse(read("specs/profiles/core/bdp-v0.schema.json"));
 const cases = JSON.parse(read("fixtures/object-edits/candidate.json"));
-const ajv = new Ajv2020({ strict: true, allErrors: true });
+const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 addFormats(ajv, { mode: "full" });
 ajv.addSchema(schema);
 ajv.addSchema(legacy);
@@ -122,7 +123,7 @@ describe("ordinary object-edit input artifact, without provider or CLI execution
     const block = [...read("specs/profiles/write/write.md").matchAll(/```json\n([\s\S]*?)\n```/g)]
       .map((match) => JSON.parse(match[1] ?? "null"))
       .find((value) => value.title === "BDP batch operation");
-    const sketch = new Ajv2020({ strict: true, allErrors: true });
+    const sketch = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
     addFormats(sketch, { mode: "full" });
     const validate = sketch.compile(block);
     for (const sample of cases.cliPairs) expect(validate(sample.operation), sample.id).toBe(true);

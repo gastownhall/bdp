@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const root = new URL("../../../", import.meta.url);
 const bytes = (path: string) => readFileSync(new URL(path, root));
@@ -10,7 +11,7 @@ const read = (path: string) => JSON.parse(bytes(path).toString("utf8"));
 const common = read("specs/profiles/core/bdp-v0.1.schema.json");
 const feature = read("specs/profiles/write/id-root-v1.schema.json");
 const paper = read("fixtures/id-root/candidate.json");
-const ajv = new Ajv2020({ strict: true, allErrors: true });
+const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 formatsPlugin.default(ajv, { mode: "full" });
 ajv.addSchema(common);
 ajv.addSchema(feature);

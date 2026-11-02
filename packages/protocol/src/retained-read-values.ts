@@ -3,9 +3,9 @@ import { ProtocolArtifactValidationError } from "./protocol-errors.js";
 import { parseCanonicalHttpUrl, parseCanonicalScope } from "./read-values.js";
 import {
   parseRetainedObject,
-  validateRetainedValue,
   RETAINED_WRITE_OPERATIONS,
   type RetainedWriteOperation,
+  validateRetainedValue,
 } from "./retained-write-values.js";
 
 export type RetainedJsonObject = Readonly<Record<string, AdmittedJsonValue>>;
@@ -16,7 +16,7 @@ export type RetainedDiscovery = RetainedJsonObject & {
   readonly scope: AbsoluteHttpUrl;
   readonly beads: AbsoluteHttpUrl;
   readonly links: AbsoluteHttpUrl;
-  readonly events: AbsoluteHttpUrl;
+  readonly events?: AbsoluteHttpUrl;
 };
 
 /** Both selected profiles supply Core reads. Unknown advertisements are opaque;
