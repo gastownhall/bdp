@@ -412,6 +412,9 @@ async function installPackedWorkspace() {
     const retainedModules = [
       "alias-contract",
       "alias-witness",
+      "batch-contract",
+      "batch-evaluate",
+      "batch-recovery",
       "collections",
       "contract",
       "events",
