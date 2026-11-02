@@ -193,3 +193,19 @@ it("reads only the current terminal via feature media while owner discovery uses
   expect(calls).toEqual([`${id}?view=terminal`, description]);
   expect(() => c.readHistoricalUpdate(`${id}?revision=actual-D`, { terminal: true })).toThrow();
 });
+
+it("does not admit the pointer-free read capability refusal as a singleton Write refusal", async () => {
+  const problem = {
+    type: "https://github.com/gastownhall/bdp/problems/request",
+    status: 422,
+    code: "capability-not-supported",
+    retry: "after-state-change",
+    capability,
+    capabilityVersion: "1",
+  };
+  await expect(
+    client(async () => response(problem, "application/problem+json", 422)).submit(
+      binding().prepareHistoricalUpdate(body, "key"),
+    ),
+  ).rejects.toMatchObject({ code: "invalid-response", submission: "unknown" });
+});

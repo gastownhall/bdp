@@ -593,6 +593,12 @@ export class RetainedClient {
       const response = await transport.get(uri + (terminal ? "?view=terminal" : ""), { signal });
       this.#check(signal);
       const refused = failure(response, false, true);
+      if (
+        refused?.kind === "problem" &&
+        refused.problem.code === "capability-not-supported" &&
+        refused.problem.pointer !== undefined
+      )
+        return invalid();
       if (refused) return refused;
       if (response.headers["bdp-resource-kind"] !== "bead") return invalid();
       privateNoStore(response);
@@ -667,6 +673,13 @@ export class RetainedClient {
       });
       try {
         const refused = failure(response, false, historical);
+        if (
+          historical &&
+          refused?.kind === "problem" &&
+          refused.problem.code === "capability-not-supported" &&
+          refused.problem.pointer !== "/fromRevision"
+        )
+          return invalid();
         if (refused) return refused;
         privateNoStore(response);
         const value = historical
