@@ -870,6 +870,18 @@ describe("ordinary resizable continuations", () => {
       const first = pagination.firstPage(firstInput([1, 2, 3], 1));
       pagination.releaseUnissuedPage(first);
     }
+    const issued = pagination.firstPage(firstInput([1, 2, 3], 1));
+    const token = tokenFrom(issued.next);
+    const continued = pagination.continuePage({ token, ...identity });
+    pagination.releaseUnissuedPage(continued);
+    expect(pagination.continuePage({ token, ...identity }).items).toEqual([2]);
+    pagination.releaseUnissuedPage(issued);
+    pagination.releaseUnissuedPage(issued);
+    expectPaginationError(
+      () => pagination.continuePage({ token, ...identity }),
+      "cursor-expired",
+      "unknown",
+    );
     expect(pagination.close()).toEqual({ releasedSnapshots: 0, releasedCursors: 0 });
   });
   it("preserves the original fixed-limit facade", () => {

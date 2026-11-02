@@ -98,11 +98,11 @@ export function createRetainedCollections(
       let limit: number | undefined;
       if (params.has("limit")) {
         const raw = params.get("limit")!;
-        if (!/^[1-9][0-9]*$/.test(raw) || !Number.isSafeInteger(Number(raw)))
-          throw new RetainedRequestError("invalid-parameter", 400);
-        limit = Number(raw);
-        if (limit > REFERENCE_READ_LIMITS.page.maximumItems)
+        if (!/^[1-9][0-9]*$/.test(raw)) throw new RetainedRequestError("invalid-parameter", 400);
+        const maximum = String(REFERENCE_READ_LIMITS.page.maximumItems);
+        if (raw.length > maximum.length || (raw.length === maximum.length && raw > maximum))
           throw new RetainedRequestError("limit-exceeded", 413);
+        limit = Number(raw);
       }
       const filters: Record<string, string> = {};
       for (const name of ["type", "source", "target", "endpoint"])
@@ -179,7 +179,7 @@ export function createRetainedCollections(
             Buffer.byteLength(largestNext.pathname + largestNext.search) >
             REFERENCE_READ_LIMITS.request.targetBytes
           )
-            throw new RetainedRequestError("request-too-large", 413);
+            throw new RetainedRequestError("limit-exceeded", 413);
         }
         const page = paging.firstPage({
           ...identity,

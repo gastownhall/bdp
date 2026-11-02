@@ -13,7 +13,9 @@ export interface ReadPaginationOptions {
   readonly retainedStateCapacity: number;
   /** Maximum future cursor/page positions one admitted snapshot may reserve. */
   readonly maxRetainedCursorPositionsPerSnapshot: number;
-  /** Maximum UTF-8 JSON byte weight retained across active snapshots. */
+  /** Maximum UTF-8 JSON byte weight retained across active snapshots. Resizable
+   * admission may copy one additional snapshot up to this bound before checking
+   * aggregate headroom (at most twice this snapshot-copy weight transiently). */
   readonly retainedSnapshotByteCapacity: number;
   /** Maximum JSON value/property positions retained across active snapshots. */
   readonly retainedSnapshotNodeCapacity: number;
@@ -189,6 +191,9 @@ export function createContextualReadPagination<Item = unknown>(
   const pageSnapshotIds = new WeakMap<ReadPage<Item>, string>();
   // Private implementation key. No client data or credentials enter it.
   const resizeKey = prepared.resizable ? randomBytes(32) : undefined;
+  const identityMask = resizeKey
+    ? createHmac("sha256", resizeKey).update("identity-mask").digest().subarray(0, 6)
+    : undefined;
   let resizeSequence = 0;
   const tag = (snapshot: Snapshot<Item>, offset: number) =>
     createHmac("sha256", snapshot.cursorKey!)
@@ -237,7 +242,7 @@ export function createContextualReadPagination<Item = unknown>(
       // when an injected entropy callback repeats. A new engine has a new key.
       const identityBytes = Buffer.alloc(6);
       identityBytes.writeUIntBE(++resizeSequence, 0, 6);
-      for (let i = 0; i < 6; i++) identityBytes[i] = identityBytes[i]! ^ resizeKey![i]!;
+      for (let i = 0; i < 6; i++) identityBytes[i] = identityBytes[i]! ^ identityMask![i]!;
       const cursorIdentity = identityBytes.toString("base64url");
       const cursorKey = createHmac("sha256", resizeKey!)
         .update(candidate)
@@ -399,7 +404,6 @@ export function createContextualReadPagination<Item = unknown>(
     const page: ReadPage<Item> = Object.freeze({ items, next });
     if (!prepared.resizable) snapshot.pages.set(offset, page);
     pageContexts.set(page, snapshot.sourceContext);
-    if (snapshot.cursorIdentity !== undefined) pageSnapshotIds.set(page, snapshot.cursorIdentity);
     return page;
   };
 
@@ -413,6 +417,7 @@ export function createContextualReadPagination<Item = unknown>(
     releaseUnissuedPage(page) {
       const id = pageSnapshotIds.get(page);
       if (id === undefined) return;
+      pageSnapshotIds.delete(page);
       const snapshot = resizedSnapshots.get(id);
       if (snapshot !== undefined) release(snapshot);
       scheduleIdleCleanup();
@@ -562,6 +567,10 @@ export function createContextualReadPagination<Item = unknown>(
       retainedCursorPositions += reservedCursorPositions;
       try {
         const page = pageAt(snapshot, 0);
+        // Only first pages carry withdrawal authority; a continuation can never
+        // release an already-issued snapshot through this private companion.
+        if (snapshot.cursorIdentity !== undefined)
+          pageSnapshotIds.set(page, snapshot.cursorIdentity);
         scheduleIdleCleanup();
         return page;
       } catch (error) {

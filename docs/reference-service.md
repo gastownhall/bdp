@@ -1,8 +1,9 @@
 # Canonical draft reference API
 
-The specification baseline is337/main0bf00889. The reference implementation is
-being qualified in338; source/build success alone is not a completed conformance
-claim. It selects ordinary Core and the eight singleton Write operations. Events,
+The specification baseline is PR337/main0bf00889. Reference implementation
+qualification is recorded in [PR338](https://github.com/gastownhall/bdp/pull/338);
+source/build success alone is not a completed conformance claim. This API selects
+ordinary Core and the eight singleton Write operations. Events,
 Types, History, projection, Transfer and batch are unadvertised and explicitly
 unsupported. Ordinary Type-definition Beads remain generic Bead records.
 
@@ -67,3 +68,9 @@ An inventory observation scans at most32MiB of serialized records before JSON
 materialization and retains at most32MiB/one million JSON positions across active
 snapshots. Genuine hard observation limits give413; temporary retained-capacity
 pressure gives503. No partial inventory is presented as exhaustion.
+
+Snapshot admission can temporarily hold one additional bounded copy before
+checking aggregate capacity: at most64MiB of snapshot-copy weight, in addition
+to the bounded32MiB input scan and ordinary object overhead. The32MiB retained
+budget is Scope-wide; principals share it, so another caller can temporarily
+receive503 until snapshots expire. These are resource bounds, not RSS limits.

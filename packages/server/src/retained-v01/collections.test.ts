@@ -86,9 +86,6 @@ describe("ordinary retained collection selection", () => {
     );
   });
   it.each([
-    "&limit=0",
-    "&limit=1001",
-    "&limit=1&limit=2",
     "&source=a",
     "&conformsTo=" + encodeURIComponent(type),
     "&unknown=x",
@@ -98,6 +95,19 @@ describe("ordinary retained collection selection", () => {
     // id is a valid Selector member; the final case is deliberately syntactically valid.
     if (suffix.includes("selector")) expect(read(nav.beads + suffix).items).toHaveLength(4);
     else expect(() => read(nav.beads + suffix)).toThrow();
+  });
+  it.each([
+    ["0", "invalid-parameter", 400],
+    ["01", "invalid-parameter", 400],
+    ["1.5", "invalid-parameter", 400],
+    ["1&limit=2", "invalid-parameter", 400],
+    ["1001", "limit-exceeded", 413],
+    ["99999999999999999999", "limit-exceeded", 413],
+  ])("classifies the exact requested limit %s", (limit, code, status) => {
+    const { read } = harness();
+    expect(() => read(nav.beads + "&limit=" + limit)).toThrowError(
+      expect.objectContaining({ code, status, retry: "never" }),
+    );
   });
   it("returns truthful empty exhaustion", () => {
     const { records, read } = harness();

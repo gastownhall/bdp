@@ -391,7 +391,7 @@ it("refuses a first page whose encoded native next would exceed its advertised t
   );
   const reply = await f.wire(first);
   expect(reply.status).toBe(413);
-  expect(JSON.parse(reply.text)).toMatchObject({ code: "request-too-large", retry: "never" });
+  expect(JSON.parse(reply.text)).toMatchObject({ code: "limit-exceeded", retry: "never" });
   expect(reply.headers["bdp-collection-kind"]).toBeUndefined();
   expect((await f.wire(scope + "one")).status).toBe(200);
 }, 30000);

@@ -27,8 +27,8 @@ profile/CLI qualification or claim that all wire admission stayed unchanged.
 
 The review repair passes111 tests across5 affected files plus typecheck. Original
 failures and the initial reservation implementation remain in Git/log history.
-A focused closure review, actual installed smoke and complete final qualification
-are still pending; no blocker is silently waived here.
+At that checkpoint, closure review, installed smoke and full qualification were
+pending. The subsequent results below supersede that checkpoint.
 
 The subsequent transport witness confirmed a separate18000-byte identity
 creation200/read431 mismatch. The reference-only finite HTTP envelope and
@@ -36,5 +36,30 @@ advertised/enforced request bounds are now coupled to committed record sizes;
 a prospective native next is checked after form serialization at maximum page
 size.20 transport/collection tests, typecheck and normal build pass. Actual packed
 smoke passes, including the new service/client page/alias/pin/reopen/original-replay
-witness and all existing public export/lifecycle/refusal controls. Full final
-suite, hosted required real-bd CI and focused closure review remain pending.
+witness and all existing public export/lifecycle/refusal controls. Full-suite and hosted qualification belong to the final
+[PR338 receipt](https://github.com/gastownhall/bdp/pull/338); the focused review
+result follows.
+
+## Focused closure review
+
+A second bounded read-only review completed against36f3a1c (712 seconds, no
+commands/writes/network/agents; source manifest unchanged). It closed all five
+original blockers, found no coupled-transport blocker and no new blocker. Four
+low-priority follow-ups are corrected: oversized positive integer limits retain
+413 limit-exceeded even beyond JavaScript's safe-integer range; continuation
+representation capacity uses limit-exceeded rather than claiming the inbound
+request exceeded its bound; the cursor identity mask is domain-separated from
+the MAC key; and withdrawal authority is recorded only on first pages inside
+the engine. Diagnosis and continuation-withdrawal controls hold these changes.
+
+The bounded transient copy and shared-principal snapshot budget are documented.
+The HEAD/304 repair remains scoped to the reference's resizable mode; no claim
+is made about the separate fixed-mode authority. The review is static and does
+not replace final whole-suite and hosted required real-bd qualification.
+
+The final incremental review checked the four localized corrections, completed
+normally with an unchanged source manifest and found no blocking finding or
+regression in the touched paths. Its remaining notes concern optional future
+hardening, private Events-fixture scope and documented bounded resource tradeoffs.
+The three affected runtime files pass64 focused controls plus typecheck/build.
+Final local/hosted results and the merge disposition are recorded in PR338.

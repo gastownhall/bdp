@@ -6,6 +6,11 @@ Donna authorized Trish to align and merge the BDP reference client, service and
 tests against this commit. Full editorial review continues. Other fleet work,
 Beads, queued handoffs and PR334 remain paused.
 
+Current candidate and terminal qualification are recorded in
+[PR338](https://github.com/gastownhall/bdp/pull/338). The checkpoints below preserve
+original failures and the repairs they motivated; their pending states describe
+those checkpoints, not a second active candidate.
+
 ## Intended submission contract
 
 The reference path supports required Core reads and the eight ordinary Write
