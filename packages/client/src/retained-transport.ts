@@ -1,4 +1,8 @@
-import { parseCanonicalScope, RETAINED_V01_MEDIA_TYPE } from "@bdp/protocol";
+import {
+  HISTORICAL_UPDATE_MEDIA,
+  parseCanonicalScope,
+  RETAINED_V01_MEDIA_TYPE,
+} from "@bdp/protocol";
 import {
   createBoundedFetchTransport,
   BoundedHttpTransportError,
@@ -36,6 +40,21 @@ export interface RetainedFetchTransportOptions {
 export function createRetainedFetchTransport(
   options: RetainedFetchTransportOptions,
 ): RetainedTransport {
+  return selectedFetchTransport(options, RETAINED_V01_MEDIA_TYPE);
+}
+
+/** Explicit feature transport; discovery and ordinary operations still use the
+ * base transport. Both share the same bounded delivery and authorization rules. */
+export function createHistoricalUpdateFetchTransport(
+  options: RetainedFetchTransportOptions,
+): RetainedTransport {
+  return selectedFetchTransport(options, HISTORICAL_UPDATE_MEDIA);
+}
+
+function selectedFetchTransport(
+  options: RetainedFetchTransportOptions,
+  mediaType: string,
+): RetainedTransport {
   const { allowTarget, limits, fetchImplementation, credentialForTarget } = options;
   if (typeof allowTarget !== "function")
     throw new RetainedTransportError("invalid-input", "not-submitted");
@@ -43,7 +62,7 @@ export function createRetainedFetchTransport(
     limits,
     ...(fetchImplementation === undefined ? {} : { fetchImplementation }),
     ...(credentialForTarget === undefined ? {} : { credentialForTarget }),
-    mediaType: RETAINED_V01_MEDIA_TYPE,
+    mediaType,
     captureNativeBody: true,
     validateEmptyMedia: true,
     allowConditionals: true,

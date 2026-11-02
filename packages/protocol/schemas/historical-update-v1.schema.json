@@ -1,0 +1,325 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/schemas/historical-update-v1.schema.json",
+  "title": "Historical-update1 feature-owned carriers",
+  "description": "Optional selected historical Bead Update. Common Resource and mutation-result schemas are unchanged. Terminal-model/navigation selection and source-admission granularity remain explicit receiving decisions; these structural carriers alone do not establish complete feature support.",
+  "x-bdp-schema-definitions": [
+    "historicalUpdateCapabilityAdvertisement",
+    "historicalUpdateCapabilityProblem",
+    "historicalUpdateCapabilityV1",
+    "historicalUpdateContext",
+    "historicalUpdateOperation",
+    "historicalUpdateProblem",
+    "historicalUpdateRequest",
+    "historicalUpdateResult",
+    "historicalUpdateView"
+  ],
+  "x-bdp-schema-sources": {
+    "specs/profiles/write/write.md": [
+      "historicalUpdateCapabilityAdvertisement",
+      "historicalUpdateCapabilityProblem",
+      "historicalUpdateCapabilityV1",
+      "historicalUpdateContext",
+      "historicalUpdateOperation",
+      "historicalUpdateProblem",
+      "historicalUpdateRequest",
+      "historicalUpdateResult",
+      "historicalUpdateView"
+    ]
+  },
+  "$defs": {
+    "historicalUpdateCapabilityV1": {
+      "type": "object",
+      "properties": {
+        "atomicBatch": {
+          "type": "boolean"
+        }
+      },
+      "required": ["atomicBatch"],
+      "additionalProperties": false
+    },
+    "historicalUpdateCapabilityAdvertisement": {
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/retainedDiscovery"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "profile": {
+              "const": "write"
+            },
+            "capabilities": {
+              "type": "object",
+              "properties": {
+                "https://github.com/gastownhall/bdp/capabilities/historical-update": {
+                  "type": "object",
+                  "properties": {
+                    "1": {
+                      "$ref": "#/$defs/historicalUpdateCapabilityV1"
+                    }
+                  },
+                  "required": ["1"]
+                }
+              },
+              "required": ["https://github.com/gastownhall/bdp/capabilities/historical-update"]
+            }
+          },
+          "required": ["profile", "capabilities"]
+        }
+      ]
+    },
+    "historicalUpdateContext": {
+      "type": "object",
+      "properties": {
+        "fromRevision": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision"
+        },
+        "previousRevision": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision"
+        }
+      },
+      "required": ["fromRevision", "previousRevision"],
+      "additionalProperties": false
+    },
+    "historicalUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "bead": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableResourceReference"
+        },
+        "fromRevision": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision"
+        },
+        "expectedRevision": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/expectedRevision"
+        },
+        "type": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeReference"
+        },
+        "properties": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/properties"
+        },
+        "propertiesChange": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/ordinaryUpdateChange"
+        },
+        "metadata": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/metadata"
+        },
+        "metadataChange": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/ordinaryUpdateChange"
+        },
+        "revisionProvenance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput"
+        }
+      },
+      "required": ["bead", "fromRevision"],
+      "allOf": [
+        {
+          "not": {
+            "required": ["properties", "propertiesChange"],
+            "properties": {
+              "properties": true,
+              "propertiesChange": true
+            }
+          }
+        },
+        {
+          "not": {
+            "required": ["metadata", "metadataChange"],
+            "properties": {
+              "metadata": true,
+              "metadataChange": true
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "historicalUpdateOperation": {
+      "type": "object",
+      "properties": {
+        "bead": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/resourceReference"
+        },
+        "fromRevision": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision"
+        },
+        "expectedRevision": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/expectedRevision"
+        },
+        "type": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeReference"
+        },
+        "properties": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/properties"
+        },
+        "propertiesChange": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/ordinaryUpdateChange"
+        },
+        "metadata": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/metadata"
+        },
+        "metadataChange": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/ordinaryUpdateChange"
+        },
+        "revisionProvenance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput"
+        },
+        "operation": {
+          "const": "updateBead"
+        }
+      },
+      "required": ["operation", "bead", "fromRevision"],
+      "allOf": [
+        {
+          "not": {
+            "required": ["properties", "propertiesChange"],
+            "properties": {
+              "properties": true,
+              "propertiesChange": true
+            }
+          }
+        },
+        {
+          "not": {
+            "required": ["metadata", "metadataChange"],
+            "properties": {
+              "metadata": true,
+              "metadataChange": true
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "historicalUpdateResult": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "allOf": [
+            {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/mutationResult"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "outcome": {
+                  "const": "updated"
+                },
+                "resource": {
+                  "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/currentBeadRecord"
+                }
+              },
+              "required": ["resource"]
+            }
+          ]
+        },
+        "historicalUpdate": {
+          "$ref": "#/$defs/historicalUpdateContext"
+        }
+      },
+      "required": ["result"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "properties": {
+                  "changed": {
+                    "const": true
+                  }
+                },
+                "required": ["changed"],
+                "type": "object"
+              }
+            },
+            "required": ["result"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["historicalUpdate"],
+            "properties": {
+              "historicalUpdate": true
+            }
+          }
+        }
+      ]
+    },
+    "historicalUpdateView": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "allOf": [
+            {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/currentBeadRecord"
+            },
+            {
+              "not": {
+                "required": ["links"],
+                "properties": {
+                  "links": true
+                },
+                "type": "object"
+              }
+            }
+          ]
+        },
+        "historicalUpdate": {
+          "$ref": "#/$defs/historicalUpdateContext"
+        }
+      },
+      "required": ["resource"],
+      "additionalProperties": false
+    },
+    "historicalUpdateCapabilityProblem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "const": "https://github.com/gastownhall/bdp/capabilities/historical-update"
+        },
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "code": {
+          "const": "capability-not-supported"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri"
+        },
+        "pointer": {
+          "type": "string",
+          "pattern": "^(?:/fromRevision|/operations/(?:0|[1-9][0-9]*)/fromRevision)$"
+        },
+        "retry": {
+          "const": "after-state-change"
+        },
+        "status": {
+          "const": 422
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request"
+        }
+      },
+      "required": ["type", "status", "code", "retry", "capability", "capabilityVersion", "pointer"]
+    },
+    "historicalUpdateProblem": {
+      "anyOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
+        },
+        {
+          "$ref": "#/$defs/historicalUpdateCapabilityProblem"
+        }
+      ]
+    }
+  }
+}

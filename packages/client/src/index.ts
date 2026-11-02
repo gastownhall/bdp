@@ -1618,6 +1618,7 @@ function legacyReadSession<T>(action: () => T): T {
 }
 
 export {
+  createHistoricalUpdateFetchTransport,
   createRetainedFetchTransport,
   RetainedTransportError,
   type RetainedFetchTransportOptions,

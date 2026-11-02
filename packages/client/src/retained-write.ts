@@ -1,14 +1,18 @@
 import {
+  HISTORICAL_UPDATE_MEDIA,
   type AbsoluteHttpUrl,
   isUnicodeScalarString,
   parseCanonicalScope,
   parseRetainedWriteDirectory,
   parseRetainedWriteDiscovery,
   parseRetainedWriteInput,
+  parseHistoricalUpdateRequest,
+  readHistoricalUpdateCapability,
   RETAINED_V01_MEDIA_TYPE,
   RETAINED_V01_SPECIFICATION,
   type RetainedWriteDirectory,
   type RetainedWriteOperation,
+  type RetainedWriteDiscovery,
 } from "@bdp/protocol";
 
 export interface RetainedWriteDocument {
@@ -32,8 +36,8 @@ export interface PreparedRetainedWrite {
   readonly url: AbsoluteHttpUrl;
   readonly method: "POST";
   readonly headers: Readonly<{
-    accept: typeof RETAINED_V01_MEDIA_TYPE;
-    "content-type": typeof RETAINED_V01_MEDIA_TYPE;
+    accept: typeof RETAINED_V01_MEDIA_TYPE | typeof HISTORICAL_UPDATE_MEDIA;
+    "content-type": typeof RETAINED_V01_MEDIA_TYPE | typeof HISTORICAL_UPDATE_MEDIA;
     "idempotency-key": string;
   }>;
   readonly bodyText: string;
@@ -47,6 +51,7 @@ export interface PreparedRetainedWrite {
 export class RetainedWriteBinding {
   readonly #scope: AbsoluteHttpUrl;
   readonly #directory: RetainedWriteDirectory;
+  readonly #discovery: RetainedWriteDiscovery;
   readonly #maximumRequestBodyBytes: number;
 
   constructor(options: RetainedWriteBindingOptions) {
@@ -66,6 +71,7 @@ export class RetainedWriteBinding {
     boundedText(directoryText, maximumDocumentBytes);
     this.#scope = parseCanonicalScope(scope);
     const discovery = parseRetainedWriteDiscovery(discoveryText);
+    this.#discovery = discovery;
     if (discovery.scope !== this.#scope)
       throw new TypeError("retained Write discovery does not match the verified owning Scope");
     this.#directory = parseRetainedWriteDirectory(directoryText);
@@ -73,10 +79,29 @@ export class RetainedWriteBinding {
     Object.freeze(this);
   }
 
+  get historicalUpdateSupported(): boolean {
+    return readHistoricalUpdateCapability(this.#discovery) !== undefined;
+  }
+
+  prepareHistoricalUpdate(bodyText: string, idempotencyKey: string): PreparedRetainedWrite {
+    if (!this.historicalUpdateSupported)
+      throw new TypeError("historical-update1 is not advertised by this provider");
+    return this.#prepare("updateBead", bodyText, idempotencyKey, HISTORICAL_UPDATE_MEDIA);
+  }
+
   prepare(
     operation: RetainedWriteOperation,
     bodyText: string,
     idempotencyKey: string,
+  ): PreparedRetainedWrite {
+    return this.#prepare(operation, bodyText, idempotencyKey, RETAINED_V01_MEDIA_TYPE);
+  }
+
+  #prepare(
+    operation: RetainedWriteOperation,
+    bodyText: string,
+    idempotencyKey: string,
+    selected: typeof RETAINED_V01_MEDIA_TYPE | typeof HISTORICAL_UPDATE_MEDIA,
   ): PreparedRetainedWrite {
     if (
       typeof idempotencyKey !== "string" ||
@@ -86,7 +111,8 @@ export class RetainedWriteBinding {
     )
       throw new TypeError("retained Write requires one valid Idempotency-Key");
     boundedText(bodyText, this.#maximumRequestBodyBytes);
-    parseRetainedWriteInput(operation, bodyText);
+    if (selected === HISTORICAL_UPDATE_MEDIA) parseHistoricalUpdateRequest(bodyText);
+    else parseRetainedWriteInput(operation, bodyText);
     return Object.freeze({
       specification: RETAINED_V01_SPECIFICATION,
       scope: this.#scope,
@@ -94,8 +120,8 @@ export class RetainedWriteBinding {
       url: this.#directory[operation],
       method: "POST",
       headers: Object.freeze({
-        accept: RETAINED_V01_MEDIA_TYPE,
-        "content-type": RETAINED_V01_MEDIA_TYPE,
+        accept: selected,
+        "content-type": selected,
         "idempotency-key": idempotencyKey,
       }),
       bodyText,

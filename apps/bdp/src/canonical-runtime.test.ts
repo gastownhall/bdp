@@ -1,5 +1,5 @@
 import { Writable } from "node:stream";
-import { RetainedClient } from "@bdp/client";
+import { RetainedClient, RetainedWriteBinding } from "@bdp/client";
 import { parseCanonicalHttpUrl, RETAINED_V01_SPECIFICATION } from "@bdp/protocol";
 import { expect, it, vi } from "vitest";
 import { writeCanonicalOutput } from "./canonical-io.js";
@@ -120,6 +120,108 @@ it.each([
     } finally {
       bind.mockRestore();
       read.mockRestore();
+    }
+  },
+);
+
+it.each([true, false])(
+  "selects historical media only for advertised source Update (advertised=%s)",
+  async (advertised) => {
+    const scope = "https://wire.example/work/";
+    const url = `${scope}custom-update`;
+    const directory = Object.fromEntries(
+      [
+        "createBead",
+        "updateBead",
+        "deleteBead",
+        "createLink",
+        "updateLink",
+        "deleteLink",
+        "putAlias",
+        "deleteAlias",
+      ].map((k) => [k, k === "updateBead" ? url : `${scope}${k}`]),
+    );
+    const binding = new RetainedWriteBinding({
+      scope,
+      discovery: {
+        contentType: "application/vnd.bdp.v0.1+json",
+        bodyText: JSON.stringify({
+          bdpVersion: "0.1",
+          profile: "write",
+          scope,
+          beads: `${scope}beads`,
+          links: `${scope}links`,
+          aliases: `${scope}aliases/`,
+          operations: `${scope}verbs`,
+          ...(advertised
+            ? {
+                capabilities: {
+                  "https://github.com/gastownhall/bdp/capabilities/historical-update": {
+                    "1": { atomicBatch: false },
+                  },
+                },
+              }
+            : {}),
+        }),
+      },
+      directory: {
+        contentType: "application/vnd.bdp.v0.1+json",
+        bodyText: JSON.stringify(directory),
+      },
+      maximumDocumentBytes: 65536,
+      maximumRequestBodyBytes: 65536,
+    });
+    const bind = vi.spyOn(RetainedClient.prototype, "bindWrite").mockResolvedValue({
+      kind: "success",
+      value: binding,
+      http: { status: 200, url, headers: {}, contentType: null, retryAfter: null },
+    });
+    const submit = vi.spyOn(RetainedClient.prototype, "submit");
+    let stdout = "";
+    let stderr = "";
+    try {
+      const status = await runCanonicalInvocation(
+        {
+          command: ["update"],
+          positionals: ["note"],
+          options: {
+            fromRevision: "=source + /@=",
+            ifRevision: "current + /@=",
+            dryRunMode: "bdp",
+          },
+          explicitOptions: ["fromRevision", "ifRevision", "dryRunMode"],
+        },
+        { scope: { url: scope }, auth: {} },
+        {
+          stdout: (text) => {
+            stdout += text;
+          },
+          stderr: (text) => {
+            stderr += text;
+          },
+        },
+      );
+      expect(status).toBe(advertised ? 0 : 5);
+      const value = JSON.parse(advertised ? stdout : stderr);
+      if (advertised)
+        expect(value).toMatchObject({
+          method: "POST",
+          url,
+          headers: {
+            accept: "application/vnd.bdp.v0.1.historical-update.v1+json",
+            "content-type": "application/vnd.bdp.v0.1.historical-update.v1+json",
+          },
+          body: {
+            bead: `${scope}note`,
+            fromRevision: "source + /@=",
+            expectedRevision: "current + /@=",
+          },
+        });
+      else expect(value.error.problem.code).toBe("unsupported_capability");
+      expect(submit).not.toHaveBeenCalled();
+    } finally {
+      bind.mockRestore();
+      submit.mockRestore();
     }
   },
 );
