@@ -146,6 +146,18 @@
     "/fixture/atomicBatch": {
       "$ref": "#/components/pathItems/atomicBatch",
       "x-bdp-exact-fixture-url": "https://bdp-tooling.invalid/fixture/atomicBatch"
+    },
+    "/fixture/historicalUpdateBead": {
+      "$ref": "#/components/pathItems/historicalUpdateBead",
+      "x-bdp-exact-fixture-url": "https://bdp-tooling.invalid/fixture/historicalUpdateBead"
+    },
+    "/fixture/historicalUpdateCurrent": {
+      "$ref": "#/components/pathItems/historicalUpdateCurrent",
+      "x-bdp-exact-fixture-url": "https://bdp-tooling.invalid/fixture/historicalUpdateCurrent"
+    },
+    "/fixture/historicalUpdateTerminal": {
+      "$ref": "#/components/pathItems/historicalUpdateTerminal",
+      "x-bdp-exact-fixture-url": "https://bdp-tooling.invalid/fixture/historicalUpdateTerminal?view=terminal"
     }
   },
   "x-bdp-cli-surface": {
@@ -168,7 +180,7 @@
       },
       {
         "command": "bd update",
-        "signatures": ["updateBead"]
+        "signatures": ["updateBead", "historicalUpdateBead"]
       },
       {
         "command": "bd delete",
@@ -242,26 +254,28 @@
       }
     ],
     "transport": ["scopeLanding", "writeDirectory"],
-    "deferredPublicCLI": ["exactDefinition"]
+    "deferredPublicCLI": ["exactDefinition", "historicalUpdateCurrent", "historicalUpdateTerminal"]
   },
   "x-bdp-navigation": {
     "status": "draft authoring/tooling metadata, not a wire capability",
     "authoringSource": "Visible profile OpenAPI tables; shared native HTTP rules in Core",
     "sourceFingerprints": {
-      "specs/profiles/core/core.md": "996ce10a9384c1765c0b87f506759b92eb2e71582ea4865a3a61b2bee3c467e3",
-      "specs/profiles/write/write.md": "f95b24a06518efb2b0d8bb2d35ecfe3383a019e11ec5b546a08c28a2b35fba02",
-      "specs/profiles/events/events.md": "944fd2e286282f7ec4ab28c6cbde09223ed2b07aa2f84f856dc588f4890a487b",
+      "specs/profiles/core/core.md": "16acfd5b97c1c8e683db2611449513cbccabdf50310a5481cddd8067cd08df65",
+      "specs/profiles/write/write.md": "2c426363e4afbddbf6096a105186ef81ec59e7b83c3125874675f8b91caa88d2",
+      "specs/profiles/events/events.md": "9b685907a554f1d26ee027d2d5cdbebe6e9a54795ffc343cc13af0c3769eb6e3",
       "specs/profiles/types/types.md": "40540e0dcf408a80ff7115020aac14f13e31830a5104cdc893b678f2d353fb5b",
       "specs/profiles/transfer/transfer.md": "2c6dc6b60438e18b2785aaff4cc24d9023f0f17dc96f74c168b9a8f6fb5d4e74",
       "specs/formats/markdown-openapi.md": "1ad51d3ae1a14503cb5d2955fa32044a52a1051c661c1e5c8f5640340e537bd8",
-      "docs/cli-design/bdp-cli.md": "4d015cbb2fd63ad738d5411b6a06aa4919d4d3ba0765fcf7d82e3c77697d3e14",
+      "docs/cli-design/bdp-cli.md": "eec60b89cfa21f030cc52692a9a93b9b89c1197a247048f51ec645660c467d17",
       "specs/profiles/types/types-v1.schema.json": "c02a57d5cddb2084154d924fc2ebfca3c150b35587f6fb43f0da9f93931f1571",
-      "scripts/generate-openapi.mjs": "56f1a3a84abcbc2afd0e211ada6a0e4118d05a74bdb5024252adad58af3d84f3",
-      "scripts/spec-schema-fragments.mjs": "fba67bf129d10ea9f0252e505c60ab262c780775fa65e28ec329ca29e234b326",
-      "fixtures/openapi/bindings.json": "2a7bc055015197298b3cc099ff5402201cc921b5c4d4e8fecdb1c52337dbd1c8",
+      "scripts/generate-openapi.mjs": "6e7fc62c32f8969d1c7f26ce77afa2c308ce08bf8e22029a5db3bec76c2986be",
+      "scripts/spec-schema-fragments.mjs": "ec234c9e9a0c289dcb7294f2d00fcc528bc2aa6df64a474907d9c3792e80eeff",
+      "fixtures/openapi/bindings.json": "450263cd5b28e21f2f2def3fddd1eebd1f23e1caf556320bbd05dc247fa7ed08",
       "packages/protocol/schemas/bdp-v0.1.schema.json": "ea8e27bc70f92307ec91d30a562869ad6a3c7472bfe334321f812ba906555add",
       "specs/profiles/core/bdp-v0.1.schema.json": "ea8e27bc70f92307ec91d30a562869ad6a3c7472bfe334321f812ba906555add",
-      "specs/profiles/write/id-root-v1.schema.json": "abbb5259009577e91f829d269540f2b2bde65fa52403dc542bf88a6a30ec291a"
+      "specs/profiles/write/id-root-v1.schema.json": "abbb5259009577e91f829d269540f2b2bde65fa52403dc542bf88a6a30ec291a",
+      "specs/profiles/write/historical-update-v1.schema.json": "5917bf5e5e6b9ef4a0d1660864d9e06df901f1d12b764a20beaceffd24dbec00",
+      "packages/protocol/schemas/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e"
     },
     "profileCompositions": [
       "specs/profiles/types/types.md#openapi",
@@ -291,12 +305,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5396
+              "line": 5444
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2192
+            "line": 2241
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -502,12 +516,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5396
+              "line": 5444
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2192
+            "line": 2241
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -708,12 +722,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5414
+              "line": 5462
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2192
+            "line": 2241
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -893,12 +907,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5414
+              "line": 5462
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2192
+            "line": 2241
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -1067,12 +1081,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5431
+              "line": 5479
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -1300,12 +1314,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5431
+              "line": 5479
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -1512,12 +1526,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5449
+              "line": 5497
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -1750,12 +1764,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5449
+              "line": 5497
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -1968,12 +1982,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5468
+              "line": 5516
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1117
+            "line": 1166
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -2248,12 +2262,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5468
+              "line": 5516
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1117
+            "line": 1166
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -2505,12 +2519,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5491
+              "line": 5539
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -2767,12 +2781,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5491
+              "line": 5539
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -3008,12 +3022,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5512
+              "line": 5560
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1218
+            "line": 1267
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -3245,12 +3259,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5512
+              "line": 5560
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1218
+            "line": 1267
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -3469,12 +3483,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5534
+              "line": 5582
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Resource projection1 current:true",
           "x-bdp-request-media": {
@@ -3750,12 +3764,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5534
+              "line": 5582
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Resource projection1 current:true",
           "x-bdp-request-media": {
@@ -4001,12 +4015,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5556
+              "line": 5604
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Resource projection1 exact:true plus complete History",
           "x-bdp-request-media": {
@@ -4311,12 +4325,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5556
+              "line": 5604
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Resource projection1 exact:true plus complete History",
           "x-bdp-request-media": {
@@ -4590,12 +4604,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5580
+              "line": 5628
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1117
+            "line": 1166
           },
           "x-bdp-support": "Resource projection1 list:true",
           "x-bdp-request-media": {
@@ -4919,12 +4933,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5580
+              "line": 5628
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1117
+            "line": 1166
           },
           "x-bdp-support": "Resource projection1 list:true",
           "x-bdp-request-media": {
@@ -5213,12 +5227,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5607
+              "line": 5655
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1414
+            "line": 1463
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -5446,12 +5460,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5607
+              "line": 5655
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1414
+            "line": 1463
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -5658,12 +5672,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5625
+              "line": 5673
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1414
+            "line": 1463
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -5896,12 +5910,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5625
+              "line": 5673
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1414
+            "line": 1463
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -6114,12 +6128,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5644
+              "line": 5692
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1766
+            "line": 1815
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -6424,12 +6438,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5644
+              "line": 5692
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1766
+            "line": 1815
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -6711,12 +6725,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5670
+              "line": 5718
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1414
+            "line": 1463
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -6973,12 +6987,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5670
+              "line": 5718
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1414
+            "line": 1463
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -7214,12 +7228,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5691
+              "line": 5739
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1899
+            "line": 1948
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -7451,12 +7465,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5691
+              "line": 5739
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1899
+            "line": 1948
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -7675,12 +7689,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5713
+              "line": 5761
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1414
+            "line": 1463
           },
           "x-bdp-support": "Resource projection1 current:true",
           "x-bdp-request-media": {
@@ -7956,12 +7970,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5713
+              "line": 5761
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1414
+            "line": 1463
           },
           "x-bdp-support": "Resource projection1 current:true",
           "x-bdp-request-media": {
@@ -8207,12 +8221,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5735
+              "line": 5783
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1414
+            "line": 1463
           },
           "x-bdp-support": "Resource projection1 exact:true plus complete History",
           "x-bdp-request-media": {
@@ -8517,12 +8531,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5735
+              "line": 5783
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1414
+            "line": 1463
           },
           "x-bdp-support": "Resource projection1 exact:true plus complete History",
           "x-bdp-request-media": {
@@ -8796,12 +8810,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5759
+              "line": 5807
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1766
+            "line": 1815
           },
           "x-bdp-support": "Resource projection1 list:true",
           "x-bdp-request-media": {
@@ -9155,12 +9169,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5759
+              "line": 5807
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1766
+            "line": 1815
           },
           "x-bdp-support": "Resource projection1 list:true",
           "x-bdp-request-media": {
@@ -9482,12 +9496,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5789
+              "line": 5837
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1766
+            "line": 1815
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -9828,12 +9842,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5789
+              "line": 5837
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1766
+            "line": 1815
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -10150,12 +10164,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5818
+              "line": 5866
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Outside minimum Core; no invented capability advertisement",
           "x-bdp-request-media": {
@@ -10423,12 +10437,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5818
+              "line": 5866
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 782
+            "line": 802
           },
           "x-bdp-support": "Outside minimum Core; no invented capability advertisement",
           "x-bdp-request-media": {
@@ -10659,12 +10673,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5841
+              "line": 5889
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2260
+            "line": 2309
           },
           "x-bdp-support": "Advertised aliases navigation",
           "x-bdp-request-media": {
@@ -10773,12 +10787,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5841
+              "line": 5889
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2260
+            "line": 2309
           },
           "x-bdp-support": "Advertised aliases navigation",
           "x-bdp-request-media": {
@@ -10884,12 +10898,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5860
+              "line": 5908
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 454
+            "line": 474
           },
           "x-bdp-support": "Narrow type-definition-read1; not Types or application History",
           "x-bdp-request-media": {
@@ -11099,12 +11113,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5860
+              "line": 5908
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 454
+            "line": 474
           },
           "x-bdp-support": "Narrow type-definition-read1; not Types or application History",
           "x-bdp-request-media": {
@@ -11301,12 +11315,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4785
+              "line": 5083
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2192
+            "line": 2241
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -11487,12 +11501,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4785
+              "line": 5083
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2192
+            "line": 2241
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -11661,12 +11675,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4803
+              "line": 5101
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 684
+            "line": 704
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -11852,12 +11866,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4822
+              "line": 5120
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 912
+            "line": 932
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12019,12 +12033,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4841
+              "line": 5139
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1024
+            "line": 1073
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12186,12 +12200,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4860
+              "line": 5158
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1300
+            "line": 1349
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12377,12 +12391,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4879
+              "line": 5177
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1533
+            "line": 1582
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12544,12 +12558,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4898
+              "line": 5196
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1669
+            "line": 1718
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12711,12 +12725,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4917
+              "line": 5215
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2329
+            "line": 2378
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12861,12 +12875,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4936
+              "line": 5234
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2408
+            "line": 2457
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -13012,12 +13026,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 4955
+              "line": 5253
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2488
+            "line": 2537
           },
           "x-bdp-support": "Write plus atomic-batch1",
           "x-bdp-request-media": {
@@ -13192,6 +13206,1151 @@
           }
         }
       },
+      "historicalUpdateBead": {
+        "post": {
+          "operationId": "historicalUpdateBeadPost",
+          "summary": "POST historicalUpdateBead",
+          "x-bdp-navigation": {
+            "draft": true,
+            "role": "write-directory-feature",
+            "member": "updateBead",
+            "feature": {
+              "capability": "https://github.com/gastownhall/bdp/capabilities/historical-update",
+              "version": "1",
+              "media": "application/vnd.bdp.v0.1.historical-update.v1+json",
+              "schema": "specs/profiles/write/historical-update-v1.schema.json"
+            }
+          },
+          "x-bdp-sources": [
+            {
+              "file": "specs/profiles/write/write.md",
+              "line": 5860
+            }
+          ],
+          "x-bdp-cli": {
+            "file": "docs/cli-design/bdp-cli.md",
+            "line": 932
+          },
+          "x-bdp-support": "Write plus historical-update1",
+          "x-bdp-request-media": {
+            "accept": "application/vnd.bdp.v0.1.historical-update.v1+json",
+            "contentType": "application/vnd.bdp.v0.1.historical-update.v1+json"
+          },
+          "x-bdp-continuation": "none",
+          "x-bdp-applicable-problem-codes": [
+            "malformed-request",
+            "invalid-parameter",
+            "unauthenticated",
+            "forbidden",
+            "resource-not-found",
+            "resource-pruned",
+            "resource-erased",
+            "request-too-large",
+            "limit-exceeded",
+            "rate-limited",
+            "temporarily-unavailable",
+            "capability-not-supported",
+            "unsupported-media-type",
+            "validation-failed",
+            "revision-mismatch",
+            "revision-unknown",
+            "revision-unretained",
+            "revision-reorganized",
+            "revision-not-tracked",
+            "revision-unrepresentable",
+            "idempotency-conflict",
+            "idempotency-in-progress",
+            "idempotency-expired",
+            "revision-allocation-unsafe"
+          ],
+          "x-bdp-query-rules": "No query members; no History, projection or aggregate selection.",
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Complete selected native representation; required semantics remain in cited source.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              },
+              "content": {
+                "application/vnd.bdp.v0.1.historical-update.v1+json": {
+                  "schema": {
+                    "$ref": "../../specs/profiles/write/historical-update-v1.schema.json#/$defs/historicalUpdateResult"
+                  }
+                }
+              }
+            },
+            "405": {
+              "description": "HTTP-native method rejection; no Problem body. OPTIONS only under actual CORS policy.",
+              "headers": {
+                "Allow": {
+                  "description": "POST, plus OPTIONS when CORS enabled.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "406": {
+              "description": "Unacceptable successful response media; bodyless, before new mutation effects.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "415": {
+              "description": "Unsupported request media, before admission; ordinary unsupported-media-type Problem, no feature execution.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              },
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Unexpected internal fault: bodyless; never a BDP Problem."
+            },
+            "default": {
+              "description": "Applicable cited BDP Problem only; native bodyless statuses are modeled separately.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "Retry-After": {
+                  "description": "When useful for after-delay; not a promise of automatic safe replay.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                }
+              },
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "allOf": [
+                      {
+                        "$ref": "../../specs/profiles/write/historical-update-v1.schema.json#/$defs/historicalUpdateProblem"
+                      },
+                      {
+                        "if": {
+                          "type": "object",
+                          "required": ["code"],
+                          "properties": {
+                            "code": {
+                              "const": "capability-not-supported"
+                            }
+                          }
+                        },
+                        "then": {
+                          "allOf": [
+                            {
+                              "$ref": "../../specs/profiles/write/historical-update-v1.schema.json#/$defs/historicalUpdateCapabilityProblem"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "pointer": {
+                                  "const": "/fromRevision"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/vnd.bdp.v0.1.historical-update.v1+json": {
+                "schema": {
+                  "$ref": "../../specs/profiles/write/historical-update-v1.schema.json#/$defs/historicalUpdateRequest"
+                }
+              }
+            }
+          },
+          "x-bdp-feature-selection": {
+            "capability": "https://github.com/gastownhall/bdp/capabilities/historical-update",
+            "version": "1",
+            "media": "application/vnd.bdp.v0.1.historical-update.v1+json",
+            "schema": "specs/profiles/write/historical-update-v1.schema.json",
+            "selection": "Both feature Content-Type and Accept; required fromRevision; same discovered updateBead URL"
+          },
+          "x-bdp-forbidden-response-headers": ["ETag", "Location"]
+        }
+      },
+      "historicalUpdateCurrent": {
+        "get": {
+          "operationId": "historicalUpdateCurrentGet",
+          "summary": "GET historicalUpdateCurrent",
+          "x-bdp-navigation": {
+            "draft": true,
+            "role": "canonical-resource",
+            "kind": "bead",
+            "feature": {
+              "capability": "https://github.com/gastownhall/bdp/capabilities/historical-update",
+              "version": "1",
+              "media": "application/vnd.bdp.v0.1.historical-update.v1+json",
+              "schema": "specs/profiles/write/historical-update-v1.schema.json"
+            }
+          },
+          "x-bdp-sources": [
+            {
+              "file": "specs/profiles/write/write.md",
+              "line": 5879
+            }
+          ],
+          "x-bdp-cli": {
+            "file": "docs/cli-design/bdp-cli.md",
+            "line": 411
+          },
+          "x-bdp-support": "historical-update1",
+          "x-bdp-request-media": {
+            "accept": "application/vnd.bdp.v0.1.historical-update.v1+json"
+          },
+          "x-bdp-continuation": "none",
+          "x-bdp-applicable-problem-codes": [
+            "malformed-request",
+            "invalid-parameter",
+            "unauthenticated",
+            "forbidden",
+            "resource-not-found",
+            "resource-pruned",
+            "resource-erased",
+            "request-too-large",
+            "limit-exceeded",
+            "rate-limited",
+            "temporarily-unavailable",
+            "capability-not-supported"
+          ],
+          "x-bdp-query-rules": "No query members; no History, projection or aggregate selection.",
+          "parameters": [
+            {
+              "name": "If-Match",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-None-Match",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-Modified-Since",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-Unmodified-Since",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Complete selected native representation; required semantics remain in cited source.",
+              "headers": {
+                "ETag": {
+                  "description": "Actual native authorized representation validator; never manufacture from a token.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                },
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "BDP-Resource-Kind": {
+                  "description": "Actual point-subject kind, including HEAD/304.",
+                  "schema": {
+                    "const": "bead"
+                  },
+                  "x-bdp-required": true
+                },
+                "Link": {
+                  "description": "Registered service-desc relation to owning Scope discovery.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              },
+              "content": {
+                "application/vnd.bdp.v0.1.historical-update.v1+json": {
+                  "schema": {
+                    "$ref": "../../specs/profiles/write/historical-update-v1.schema.json#/$defs/historicalUpdateView"
+                  }
+                }
+              }
+            },
+            "304": {
+              "description": "Not modified after ordinary authorization/query/cursor/History checks; no body.",
+              "headers": {
+                "ETag": {
+                  "description": "Actual native authorized representation validator; never manufacture from a token.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                },
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "BDP-Resource-Kind": {
+                  "description": "Actual point-subject kind, including HEAD/304.",
+                  "schema": {
+                    "const": "bead"
+                  },
+                  "x-bdp-required": true
+                },
+                "Link": {
+                  "description": "Registered service-desc relation to owning Scope discovery.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "405": {
+              "description": "HTTP-native method rejection; no Problem body. OPTIONS only under actual CORS policy.",
+              "headers": {
+                "Allow": {
+                  "description": "GET, HEAD, plus OPTIONS when CORS enabled.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "406": {
+              "description": "Unacceptable successful response media; bodyless, before new mutation effects.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "412": {
+              "description": "HTTP precondition failure; no Problem body or Resource revision-mismatch.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "500": {
+              "description": "Unexpected internal fault: bodyless; never a BDP Problem."
+            },
+            "default": {
+              "description": "Applicable cited BDP Problem only; native bodyless statuses are modeled separately.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "Retry-After": {
+                  "description": "When useful for after-delay; not a promise of automatic safe replay.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                }
+              },
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "allOf": [
+                      {
+                        "$ref": "../../specs/profiles/write/historical-update-v1.schema.json#/$defs/historicalUpdateProblem"
+                      },
+                      {
+                        "if": {
+                          "type": "object",
+                          "required": ["code"],
+                          "properties": {
+                            "code": {
+                              "const": "capability-not-supported"
+                            }
+                          }
+                        },
+                        "then": {
+                          "$ref": "../../specs/profiles/write/historical-update-v1.schema.json#/$defs/historicalUpdateReadCapabilityProblem"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "x-bdp-feature-selection": {
+            "capability": "https://github.com/gastownhall/bdp/capabilities/historical-update",
+            "version": "1",
+            "media": "application/vnd.bdp.v0.1.historical-update.v1+json",
+            "schema": "specs/profiles/write/historical-update-v1.schema.json",
+            "selection": "Feature Accept; canonical Bead URL; terminal requires exactly one view=terminal"
+          }
+        },
+        "head": {
+          "operationId": "historicalUpdateCurrentHead",
+          "summary": "HEAD historicalUpdateCurrent",
+          "x-bdp-navigation": {
+            "draft": true,
+            "role": "canonical-resource",
+            "kind": "bead",
+            "feature": {
+              "capability": "https://github.com/gastownhall/bdp/capabilities/historical-update",
+              "version": "1",
+              "media": "application/vnd.bdp.v0.1.historical-update.v1+json",
+              "schema": "specs/profiles/write/historical-update-v1.schema.json"
+            }
+          },
+          "x-bdp-sources": [
+            {
+              "file": "specs/profiles/write/write.md",
+              "line": 5879
+            }
+          ],
+          "x-bdp-cli": {
+            "file": "docs/cli-design/bdp-cli.md",
+            "line": 411
+          },
+          "x-bdp-support": "historical-update1",
+          "x-bdp-request-media": {
+            "accept": "application/vnd.bdp.v0.1.historical-update.v1+json"
+          },
+          "x-bdp-continuation": "none",
+          "x-bdp-applicable-problem-codes": [
+            "malformed-request",
+            "invalid-parameter",
+            "unauthenticated",
+            "forbidden",
+            "resource-not-found",
+            "resource-pruned",
+            "resource-erased",
+            "request-too-large",
+            "limit-exceeded",
+            "rate-limited",
+            "temporarily-unavailable",
+            "capability-not-supported"
+          ],
+          "x-bdp-query-rules": "No query members; no History, projection or aggregate selection.",
+          "parameters": [
+            {
+              "name": "If-Match",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-None-Match",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-Modified-Since",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-Unmodified-Since",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Complete selected native representation; required semantics remain in cited source.",
+              "headers": {
+                "ETag": {
+                  "description": "Actual native authorized representation validator; never manufacture from a token.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                },
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "BDP-Resource-Kind": {
+                  "description": "Actual point-subject kind, including HEAD/304.",
+                  "schema": {
+                    "const": "bead"
+                  },
+                  "x-bdp-required": true
+                },
+                "Link": {
+                  "description": "Registered service-desc relation to owning Scope discovery.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "304": {
+              "description": "Not modified after ordinary authorization/query/cursor/History checks; no body.",
+              "headers": {
+                "ETag": {
+                  "description": "Actual native authorized representation validator; never manufacture from a token.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                },
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "BDP-Resource-Kind": {
+                  "description": "Actual point-subject kind, including HEAD/304.",
+                  "schema": {
+                    "const": "bead"
+                  },
+                  "x-bdp-required": true
+                },
+                "Link": {
+                  "description": "Registered service-desc relation to owning Scope discovery.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "405": {
+              "description": "HTTP-native method rejection; no Problem body. OPTIONS only under actual CORS policy.",
+              "headers": {
+                "Allow": {
+                  "description": "GET, HEAD, plus OPTIONS when CORS enabled.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "406": {
+              "description": "Unacceptable successful response media; bodyless, before new mutation effects.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "412": {
+              "description": "HTTP precondition failure; no Problem body or Resource revision-mismatch.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "500": {
+              "description": "Unexpected internal fault: bodyless; never a BDP Problem."
+            },
+            "default": {
+              "description": "Applicable native Problem status with no HEAD body; use GET for typed diagnosis.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "Retry-After": {
+                  "description": "When useful for after-delay; not a promise of automatic safe replay.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                }
+              }
+            }
+          },
+          "x-bdp-feature-selection": {
+            "capability": "https://github.com/gastownhall/bdp/capabilities/historical-update",
+            "version": "1",
+            "media": "application/vnd.bdp.v0.1.historical-update.v1+json",
+            "schema": "specs/profiles/write/historical-update-v1.schema.json",
+            "selection": "Feature Accept; canonical Bead URL; terminal requires exactly one view=terminal"
+          }
+        }
+      },
+      "historicalUpdateTerminal": {
+        "get": {
+          "operationId": "historicalUpdateTerminalGet",
+          "summary": "GET historicalUpdateTerminal",
+          "x-bdp-navigation": {
+            "draft": true,
+            "role": "canonical-resource",
+            "kind": "bead",
+            "feature": {
+              "capability": "https://github.com/gastownhall/bdp/capabilities/historical-update",
+              "version": "1",
+              "media": "application/vnd.bdp.v0.1.historical-update.v1+json",
+              "schema": "specs/profiles/write/historical-update-v1.schema.json"
+            }
+          },
+          "x-bdp-sources": [
+            {
+              "file": "specs/profiles/write/write.md",
+              "line": 5898
+            }
+          ],
+          "x-bdp-cli": {
+            "file": "docs/cli-design/bdp-cli.md",
+            "line": 411
+          },
+          "x-bdp-support": "historical-update1",
+          "x-bdp-request-media": {
+            "accept": "application/vnd.bdp.v0.1.historical-update.v1+json"
+          },
+          "x-bdp-continuation": "none",
+          "x-bdp-applicable-problem-codes": [
+            "malformed-request",
+            "invalid-parameter",
+            "unauthenticated",
+            "forbidden",
+            "resource-not-found",
+            "resource-pruned",
+            "resource-erased",
+            "request-too-large",
+            "limit-exceeded",
+            "rate-limited",
+            "temporarily-unavailable",
+            "capability-not-supported"
+          ],
+          "x-bdp-query-rules": "Exactly one view=terminal; reject extras/repeats; current terminal only, live/unknown/undisclosable gives uniform404. No alias forwarding or exact-D read.",
+          "parameters": [
+            {
+              "name": "view",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "const": "terminal"
+              },
+              "description": "Current terminal state only; no exact revision or History selection."
+            },
+            {
+              "name": "If-Match",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-None-Match",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-Modified-Since",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-Unmodified-Since",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Complete selected native representation; required semantics remain in cited source.",
+              "headers": {
+                "ETag": {
+                  "description": "Actual native authorized representation validator; never manufacture from a token.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                },
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "BDP-Resource-Kind": {
+                  "description": "Actual point-subject kind, including HEAD/304.",
+                  "schema": {
+                    "const": "bead"
+                  },
+                  "x-bdp-required": true
+                },
+                "Link": {
+                  "description": "Registered service-desc relation to owning Scope discovery.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              },
+              "content": {
+                "application/vnd.bdp.v0.1.historical-update.v1+json": {
+                  "schema": {
+                    "$ref": "../../specs/profiles/write/historical-update-v1.schema.json#/$defs/historicalUpdateTerminalView"
+                  }
+                }
+              }
+            },
+            "304": {
+              "description": "Not modified after ordinary authorization/query/cursor/History checks; no body.",
+              "headers": {
+                "ETag": {
+                  "description": "Actual native authorized representation validator; never manufacture from a token.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                },
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "BDP-Resource-Kind": {
+                  "description": "Actual point-subject kind, including HEAD/304.",
+                  "schema": {
+                    "const": "bead"
+                  },
+                  "x-bdp-required": true
+                },
+                "Link": {
+                  "description": "Registered service-desc relation to owning Scope discovery.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "405": {
+              "description": "HTTP-native method rejection; no Problem body. OPTIONS only under actual CORS policy.",
+              "headers": {
+                "Allow": {
+                  "description": "GET, HEAD, plus OPTIONS when CORS enabled.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "406": {
+              "description": "Unacceptable successful response media; bodyless, before new mutation effects.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "412": {
+              "description": "HTTP precondition failure; no Problem body or Resource revision-mismatch.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "500": {
+              "description": "Unexpected internal fault: bodyless; never a BDP Problem."
+            },
+            "default": {
+              "description": "Applicable cited BDP Problem only; native bodyless statuses are modeled separately.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "Retry-After": {
+                  "description": "When useful for after-delay; not a promise of automatic safe replay.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                }
+              },
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "allOf": [
+                      {
+                        "$ref": "../../specs/profiles/write/historical-update-v1.schema.json#/$defs/historicalUpdateProblem"
+                      },
+                      {
+                        "if": {
+                          "type": "object",
+                          "required": ["code"],
+                          "properties": {
+                            "code": {
+                              "const": "capability-not-supported"
+                            }
+                          }
+                        },
+                        "then": {
+                          "$ref": "../../specs/profiles/write/historical-update-v1.schema.json#/$defs/historicalUpdateReadCapabilityProblem"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "x-bdp-feature-selection": {
+            "capability": "https://github.com/gastownhall/bdp/capabilities/historical-update",
+            "version": "1",
+            "media": "application/vnd.bdp.v0.1.historical-update.v1+json",
+            "schema": "specs/profiles/write/historical-update-v1.schema.json",
+            "selection": "Feature Accept; canonical Bead URL; terminal requires exactly one view=terminal"
+          }
+        },
+        "head": {
+          "operationId": "historicalUpdateTerminalHead",
+          "summary": "HEAD historicalUpdateTerminal",
+          "x-bdp-navigation": {
+            "draft": true,
+            "role": "canonical-resource",
+            "kind": "bead",
+            "feature": {
+              "capability": "https://github.com/gastownhall/bdp/capabilities/historical-update",
+              "version": "1",
+              "media": "application/vnd.bdp.v0.1.historical-update.v1+json",
+              "schema": "specs/profiles/write/historical-update-v1.schema.json"
+            }
+          },
+          "x-bdp-sources": [
+            {
+              "file": "specs/profiles/write/write.md",
+              "line": 5898
+            }
+          ],
+          "x-bdp-cli": {
+            "file": "docs/cli-design/bdp-cli.md",
+            "line": 411
+          },
+          "x-bdp-support": "historical-update1",
+          "x-bdp-request-media": {
+            "accept": "application/vnd.bdp.v0.1.historical-update.v1+json"
+          },
+          "x-bdp-continuation": "none",
+          "x-bdp-applicable-problem-codes": [
+            "malformed-request",
+            "invalid-parameter",
+            "unauthenticated",
+            "forbidden",
+            "resource-not-found",
+            "resource-pruned",
+            "resource-erased",
+            "request-too-large",
+            "limit-exceeded",
+            "rate-limited",
+            "temporarily-unavailable",
+            "capability-not-supported"
+          ],
+          "x-bdp-query-rules": "Exactly one view=terminal; reject extras/repeats; current terminal only, live/unknown/undisclosable gives uniform404. No alias forwarding or exact-D read.",
+          "parameters": [
+            {
+              "name": "view",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "const": "terminal"
+              },
+              "description": "Current terminal state only; no exact revision or History selection."
+            },
+            {
+              "name": "If-Match",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-None-Match",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-Modified-Since",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            },
+            {
+              "name": "If-Unmodified-Since",
+              "in": "header",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Native HTTP condition; never synthesize from a Resource revision."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Complete selected native representation; required semantics remain in cited source.",
+              "headers": {
+                "ETag": {
+                  "description": "Actual native authorized representation validator; never manufacture from a token.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                },
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "BDP-Resource-Kind": {
+                  "description": "Actual point-subject kind, including HEAD/304.",
+                  "schema": {
+                    "const": "bead"
+                  },
+                  "x-bdp-required": true
+                },
+                "Link": {
+                  "description": "Registered service-desc relation to owning Scope discovery.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "304": {
+              "description": "Not modified after ordinary authorization/query/cursor/History checks; no body.",
+              "headers": {
+                "ETag": {
+                  "description": "Actual native authorized representation validator; never manufacture from a token.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                },
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "BDP-Resource-Kind": {
+                  "description": "Actual point-subject kind, including HEAD/304.",
+                  "schema": {
+                    "const": "bead"
+                  },
+                  "x-bdp-required": true
+                },
+                "Link": {
+                  "description": "Registered service-desc relation to owning Scope discovery.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "405": {
+              "description": "HTTP-native method rejection; no Problem body. OPTIONS only under actual CORS policy.",
+              "headers": {
+                "Allow": {
+                  "description": "GET, HEAD, plus OPTIONS when CORS enabled.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "406": {
+              "description": "Unacceptable successful response media; bodyless, before new mutation effects.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "412": {
+              "description": "HTTP precondition failure; no Problem body or Resource revision-mismatch.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                }
+              }
+            },
+            "500": {
+              "description": "Unexpected internal fault: bodyless; never a BDP Problem."
+            },
+            "default": {
+              "description": "Applicable native Problem status with no HEAD body; use GET for typed diagnosis.",
+              "headers": {
+                "Cache-Control": {
+                  "description": "Authorization-dependent response: private, no-store.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": true
+                },
+                "Retry-After": {
+                  "description": "When useful for after-delay; not a promise of automatic safe replay.",
+                  "schema": {
+                    "type": "string"
+                  },
+                  "x-bdp-required": false
+                }
+              }
+            }
+          },
+          "x-bdp-feature-selection": {
+            "capability": "https://github.com/gastownhall/bdp/capabilities/historical-update",
+            "version": "1",
+            "media": "application/vnd.bdp.v0.1.historical-update.v1+json",
+            "schema": "specs/profiles/write/historical-update-v1.schema.json",
+            "selection": "Feature Accept; canonical Bead URL; terminal requires exactly one view=terminal"
+          }
+        }
+      },
       "beadEvents": {
         "get": {
           "operationId": "beadEventsGet",
@@ -13207,12 +14366,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 1857
+              "line": 1862
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1990
+            "line": 2039
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
@@ -13443,12 +14602,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 1857
+              "line": 1862
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1990
+            "line": 2039
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
@@ -13667,12 +14826,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 1881
+              "line": 1886
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2090
+            "line": 2139
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
@@ -13903,12 +15062,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 1881
+              "line": 1886
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2090
+            "line": 2139
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
@@ -14124,12 +15283,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 1905
+              "line": 1910
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1990
+            "line": 2039
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
@@ -14348,12 +15507,12 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 1905
+              "line": 1910
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1990
+            "line": 2039
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {

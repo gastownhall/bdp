@@ -394,8 +394,8 @@ the exact token `saved-r1`. `--from_revision` is the same option's compatibility
 spelling, not a second source selector. The resolved exact source token lowers
 to `fromRevision` under the
 [selected historical-update binding](../../specs/profiles/write/write.md#historical-base-bead-update-and-recovery).
-The concrete extension binding remains subject to its recorded carrier review;
-its presence does not grant a provider implementation or full History support.
+The explicitly selected extension binding does not establish a provider
+implementation or full History support.
 An ordinal requires an actual authoritative adapter mapping and refuses absent
 support; page counting is never such a mapping. Explicit exact-token delivery
 requires no invented ordinal mapping. Reference selectors retain `@N` / `@=TOKEN`
@@ -407,6 +407,20 @@ requiring the current target to retain a particular exact revision token. Those 
 choices. Each historical-edit command defines which content it copies.
 
 <a id="reference-syntax"></a>
+
+#### Historical-update feature reads
+
+The selected SDK/HTTP feature reads use feature Accept on the existing canonical
+Bead URL: no query for the live wrapper, or exactly one `view=terminal` for the
+current body-free terminal wrapper. They require no full History support. No
+public `bd show` terminal flag or new read verb is selected. A caller may acquire
+D through the authorized terminal SDK/HTTP read, then pass it literally to
+`bd update --from-revision =SOURCE --if-revision D`. Source and guard remain
+independent; terminal visibility does not grant source permission.
+
+The historical Update POST uses the discovered `updateBead` URL with both feature
+Content-Type and Accept, and required `fromRevision`. Base media does not acquire
+this input/output grammar. See the [HTTP signatures](../../specs/profiles/write/write.md#selected-historical-update-http-signatures).
 
 #### ID and revision syntax
 

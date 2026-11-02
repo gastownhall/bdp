@@ -5851,3 +5851,66 @@ Required order: ["type","status","code","retry","capability","capabilityVersion"
 }
 ```
 <!-- bdp-schema:end historicalUpdateReadCapabilityProblem bundle=historical-update -->
+
+
+## Selected historical-update HTTP signatures
+
+These informative signatures catalog the already selected [historical-update binding](#historical-base-bead-update-and-recovery). They use the existing discovered `updateBead` operation and canonical Bead URL, not new endpoints. The explicit feature media selects closed feature schemas; ordinary media keeps the base grammar. Current and terminal reads have SDK/HTTP correspondence only; no new CLI read flag or verb is selected. Feature composition with full History or Events is not inferred.
+
+<!-- bdp-operation:start historicalUpdateBead -->
+### Operation: historicalUpdateBead
+
+| Field | JSON value |
+| --- | --- |
+| id | `"historicalUpdateBead"` |
+| navigation | `{"role":"write-directory-feature","member":"updateBead","feature":{"capability":"https://github.com/gastownhall/bdp/capabilities/historical-update","version":"1","media":"application/vnd.bdp.v0.1.historical-update.v1+json","schema":"specs/profiles/write/historical-update-v1.schema.json"}}` |
+| methods | `["post"]` |
+| request | `"historicalUpdateRequest"` |
+| response | `"historicalUpdateResult"` |
+| problem | `"historicalUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","capability-not-supported","unsupported-media-type","validation-failed","revision-mismatch","revision-unknown","revision-unretained","revision-reorganized","revision-not-tracked","revision-unrepresentable","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| continuation | `"none"` |
+| optional | `"Write plus historical-update1"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end historicalUpdateBead -->
+
+<!-- bdp-operation:start historicalUpdateCurrent -->
+### Operation: historicalUpdateCurrent
+
+| Field | JSON value |
+| --- | --- |
+| id | `"historicalUpdateCurrent"` |
+| navigation | `{"role":"canonical-resource","kind":"bead","feature":{"capability":"https://github.com/gastownhall/bdp/capabilities/historical-update","version":"1","media":"application/vnd.bdp.v0.1.historical-update.v1+json","schema":"specs/profiles/write/historical-update-v1.schema.json"}}` |
+| methods | `["get","head"]` |
+| response | `"historicalUpdateView"` |
+| problem | `"historicalUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","capability-not-supported"]` |
+| continuation | `"none"` |
+| optional | `"historical-update1"` |
+| kind | `"bead"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end historicalUpdateCurrent -->
+
+<!-- bdp-operation:start historicalUpdateTerminal -->
+### Operation: historicalUpdateTerminal
+
+| Field | JSON value |
+| --- | --- |
+| id | `"historicalUpdateTerminal"` |
+| navigation | `{"role":"canonical-resource","kind":"bead","feature":{"capability":"https://github.com/gastownhall/bdp/capabilities/historical-update","version":"1","media":"application/vnd.bdp.v0.1.historical-update.v1+json","schema":"specs/profiles/write/historical-update-v1.schema.json"}}` |
+| methods | `["get","head"]` |
+| response | `"historicalUpdateTerminalView"` |
+| problem | `"historicalUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","capability-not-supported"]` |
+| continuation | `"none"` |
+| optional | `"historical-update1"` |
+| kind | `"bead"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+| view | query | yes | `{"const":"terminal"}` | Current terminal state only; no exact revision or History selection. | — |
+<!-- bdp-operation:end historicalUpdateTerminal -->

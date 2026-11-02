@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { operations } from "./generate-openapi.mjs";
+import { historicalSchemaFile, operations } from "./generate-openapi.mjs";
 import { definitionAnchor, parseSchema, renderSchema } from "./markdown-schema.mjs";
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -119,7 +119,7 @@ function schemaLink(name, prefix) {
   return `[${name}](${prefix}bdp-v0.1.schema.md#${definitionAnchor(name)})`;
 }
 
-function profileDocument(kind, rows, schema, closure) {
+function profileDocument(kind, rows, schema, closure, featureRows) {
   const prefix = kind === "read" ? "" : "../core/";
   const link = (name) => schemaLink(name, prefix);
   const entry = kind === "read" ? "core.md" : "write.md";
@@ -142,6 +142,26 @@ function profileDocument(kind, rows, schema, closure) {
     lines.push(
       `| ${row.id} | ${row.request ? link(row.request) : "No JSON request body"} | ${response ? response + (row.aggregate ? "; links is additionally required" : "") : row.alias ? "Bodyless alias redirect" : "Optional human landing body; no BDP JSON schema"} | ${link(problem)} | ${support} |`,
     );
+  }
+  if (featureRows.length) {
+    const featurePrefix = kind === "read" ? "../write/" : "";
+    const featureLink = (name) =>
+      `[${name}](${featurePrefix}historical-update-v1.schema.json#/$defs/${name})`;
+    lines.push(
+      "",
+      "## Independently selected historical Update",
+      "",
+      "These optional historical-update1 methods retain their independent feature schema resource and explicit feature media. They are not common-bundle roots or a full History/Events advertisement. The [selected HTTP binding](" +
+        featurePrefix +
+        "write.md#selected-historical-update-http-signatures) owns current/terminal selection and the unchanged ordinary-media behavior. No new public CLI read verb is implied.",
+      "",
+      "| Feature operation | Request | Success | Problem | Selection |",
+      "| --- | --- | --- | --- | --- |",
+    );
+    for (const row of featureRows)
+      lines.push(
+        `| ${row.id} | ${row.request ? featureLink(row.request) : "No JSON request body"} | ${featureLink(row.response)} | ${featureLink(row.problem)} | ${row.optional}; ${row.navigation.feature.media}${row.id.endsWith("Terminal") ? "; exactly one view=terminal" : ""} |`,
+      );
   }
   lines.push(
     ...(kind === "write"
@@ -198,7 +218,9 @@ export function generateMarkdownContracts() {
   const schema = load(commonPath);
   const markdown = renderSchema(schema, { title: "Complete BDP v0.1 schema bundle" });
   assert.deepEqual(parseSchema(markdown), schema, "Complete schema projection must be lossless");
-  const rows = operations();
+  const allRows = operations();
+  const featureRows = allRows.filter((row) => row.navigation.feature);
+  const rows = allRows.filter((row) => !row.navigation.feature);
   const read = rows.filter((row) => !row.methods.includes("post"));
   const write = rows.filter((row) => row.methods.includes("post"));
   const selections = Object.fromEntries(
@@ -212,12 +234,19 @@ export function generateMarkdownContracts() {
   );
   return {
     [companionPath]: markdown,
-    "specs/profiles/core/read-contracts.md": profileDocument("read", read, schema, selections.read),
+    "specs/profiles/core/read-contracts.md": profileDocument(
+      "read",
+      read,
+      schema,
+      selections.read,
+      featureRows.filter((row) => !row.methods.includes("post")),
+    ),
     "specs/profiles/write/write-contracts.md": profileDocument(
       "write",
       write,
       schema,
       selections.write,
+      featureRows.filter((row) => row.methods.includes("post")),
     ),
     "fixtures/markdown-contracts/selected.json": formattedJSON(
       "fixtures/markdown-contracts/selected.json",
@@ -229,6 +258,28 @@ export function generateMarkdownContracts() {
           .digest("hex"),
         selections,
         operations: { read: read.map((row) => row.id), write: write.map((row) => row.id) },
+        features: featureRows.length
+          ? [
+              {
+                source: historicalSchemaFile,
+                sourceSHA256: createHash("sha256")
+                  .update(readFileSync(resolve(root, historicalSchemaFile)))
+                  .digest("hex"),
+                ...definitionClosure(
+                  load(historicalSchemaFile),
+                  selectedRoots(featureRows).filter((name) => name !== "idempotencyKey"),
+                ),
+                operations: {
+                  read: featureRows
+                    .filter((row) => !row.methods.includes("post"))
+                    .map((row) => row.id),
+                  write: featureRows
+                    .filter((row) => row.methods.includes("post"))
+                    .map((row) => row.id),
+                },
+              },
+            ]
+          : [],
       },
     ),
   };

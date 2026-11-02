@@ -10,6 +10,86 @@ import { serializeSchemaJSON } from "./spec-schema-fragments.mjs";
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const media = "application/vnd.bdp.v0.1+json";
+export const historicalMedia = "application/vnd.bdp.v0.1.historical-update.v1+json";
+export const historicalSchemaFile = "specs/profiles/write/historical-update-v1.schema.json";
+const historicalRef = (name) => ({
+  $ref: `../profiles/write/historical-update-v1.schema.json#/$defs/${name}`,
+});
+const historicalTargets = {
+  historicalUpdateBead: {
+    role: "write-directory-feature",
+    member: "updateBead",
+    request: "historicalUpdateRequest",
+    response: "historicalUpdateResult",
+    methods: ["post"],
+  },
+  historicalUpdateCurrent: {
+    role: "canonical-resource",
+    kind: "bead",
+    response: "historicalUpdateView",
+    methods: ["get", "head"],
+  },
+  historicalUpdateTerminal: {
+    role: "canonical-resource",
+    kind: "bead",
+    response: "historicalUpdateTerminalView",
+    methods: ["get", "head"],
+  },
+};
+const historicalSelection = {
+  capability: "https://github.com/gastownhall/bdp/capabilities/historical-update",
+  version: "1",
+  media: historicalMedia,
+  schema: historicalSchemaFile,
+};
+function validateHistoricalRow(row) {
+  const target = historicalTargets[row.id];
+  if (!target && !row.navigation.feature) return;
+  assert(target, "Unknown historical feature target");
+  assert.deepEqual(
+    row.navigation.feature,
+    historicalSelection,
+    "Wrong historical feature media/schema selection",
+  );
+  assert.equal(row.navigation.role, target.role, "Wrong historical operation target");
+  assert.equal(row.navigation.member, target.member, "Wrong historical directory member");
+  assert.equal(row.navigation.kind, target.kind, "Wrong historical subject kind");
+  assert.deepEqual(
+    Object.keys(row.navigation).sort(),
+    ["role", ...(target.member ? ["member"] : ["kind"]), "feature"].sort(),
+    "Unknown historical navigation field",
+  );
+  assert.equal(row.kind, target.kind, "Wrong historical response kind");
+  assert.deepEqual(row.methods, target.methods, "Wrong historical methods");
+  assert.equal(row.request, target.request, "Wrong historical request");
+  assert.equal(row.response, target.response, "Wrong historical response");
+  assert.equal(row.problem, "historicalUpdateProblem", "Wrong historical Problem");
+  assert(
+    !row.history &&
+      !row.versions &&
+      !row.event &&
+      !row.projection &&
+      !row.aggregate &&
+      !row.alias &&
+      !row.landing,
+    "Historical feature does not select other optional views",
+  );
+  assert.deepEqual(
+    row.parameters,
+    row.id === "historicalUpdateTerminal"
+      ? [
+          {
+            name: "view",
+            in: "query",
+            required: true,
+            schema: { const: "terminal" },
+            description: "Current terminal state only; no exact revision or History selection.",
+          },
+        ]
+      : [],
+    "Wrong historical query selection",
+  );
+}
 export const schemaFile = "specs/profiles/core/bdp-v0.1.schema.json";
 const external = "../profiles/core/bdp-v0.1.schema.json#/$defs/";
 const load = (path) => JSON.parse(readFileSync(resolve(root, path), "utf8"));
@@ -85,7 +165,7 @@ export const commandGroups = [
       "beadAggregate",
     ],
   ],
-  ["bd update", ["updateBead"]],
+  ["bd update", ["updateBead", "historicalUpdateBead"]],
   ["bd delete", ["deleteBead"]],
   ["bd list", ["beadInventory", "projectedBeadInventory"]],
   ["bd versions", ["beadVersions"]],
@@ -107,7 +187,11 @@ export const commandGroups = [
   ["bd batch", ["atomicBatch"]],
 ].map(([command, signatures]) => ({ command, signatures }));
 export const transportSignatures = ["scopeLanding", "writeDirectory"];
-export const deferredSignatures = ["exactDefinition"];
+export const deferredSignatures = [
+  "exactDefinition",
+  "historicalUpdateCurrent",
+  "historicalUpdateTerminal",
+];
 
 const fields = new Set([
   "id",
@@ -248,6 +332,7 @@ export function parseOperationTables(markdown, sourceFile) {
             active.parameters.length,
           "Duplicate parameter",
         );
+        validateHistoricalRow({ ...row, parameters: active.parameters });
         rows.push({
           ...row,
           parameters: active.parameters,
@@ -408,12 +493,16 @@ export function parseComposition(markdown, name = "types1") {
 
 function cliSource(id) {
   const group = commandGroups.find((entry) => entry.signatures.includes(id));
-  const command = group?.command ?? (id === "exactDefinition" ? null : "bd scope inspect");
+  const command = group?.command ?? (deferredSignatures.includes(id) ? null : "bd scope inspect");
   const file = "docs/cli-design/bdp-cli.md";
   const lines = readFileSync(resolve(root, file), "utf8").split(/\r?\n/);
   const index = command
     ? lines.indexOf(`#### \`${command}\``)
-    : lines.indexOf("#### Types: `--type` and `--exact-type`");
+    : lines.indexOf(
+        id.startsWith("historicalUpdate")
+          ? "#### Historical-update feature reads"
+          : "#### Types: `--type` and `--exact-type`",
+      );
   assert(index >= 0, `Missing CLI correspondence for ${id}`);
   return { file, line: index + 1 };
 }
@@ -430,6 +519,10 @@ export function operations() {
 }
 
 export function pathItem(row) {
+  validateHistoricalRow(row);
+  const historical = Boolean(historicalTargets[row.id]);
+  const selectedMedia = historical ? historicalMedia : media;
+  const schemaRef = historical ? historicalRef : ref;
   return Object.fromEntries(
     row.methods.map((method) => {
       const post = method === "post",
@@ -479,9 +572,9 @@ export function pathItem(row) {
       if (!head && row.response) {
         let schema = Array.isArray(row.response)
           ? { anyOf: row.response.map(ref) }
-          : ref(row.response);
+          : schemaRef(row.response);
         if (row.aggregate) schema = { allOf: [schema, { type: "object", required: ["links"] }] };
-        success.content = { [media]: { schema } };
+        success.content = { [selectedMedia]: { schema } };
       }
       const bodyless = (description, successful = false) => ({
         description,
@@ -522,7 +615,7 @@ export function pathItem(row) {
             ? {
                 content: {
                   "application/problem+json": {
-                    schema: ref(row.projection ? "resourceProjectionProblem" : row.problem),
+                    schema: schemaRef(row.projection ? "resourceProjectionProblem" : row.problem),
                   },
                 },
               }
@@ -563,7 +656,7 @@ export function pathItem(row) {
           ? {
               note: "Ordinary HTTP; optional human HTML/Markdown or 204. Follow service-desc before selecting BDP vendor media.",
             }
-          : { accept: media, ...(post ? { contentType: media } : {}) },
+          : { accept: selectedMedia, ...(post ? { contentType: selectedMedia } : {}) },
         "x-bdp-continuation": row.continuation,
         "x-bdp-applicable-problem-codes": [
           ...row.codes,
@@ -589,8 +682,10 @@ export function pathItem(row) {
         op.requestBody = {
           required: true,
           content: {
-            [media]: {
-              schema: rooted ? { oneOf: [ref(row.request), rootedRef(rooted)] } : ref(row.request),
+            [selectedMedia]: {
+              schema: rooted
+                ? { oneOf: [ref(row.request), rootedRef(rooted)] }
+                : schemaRef(row.request),
             },
           },
         };
@@ -614,6 +709,49 @@ export function pathItem(row) {
           if (!op["x-bdp-applicable-problem-codes"].includes("capability-not-supported"))
             op["x-bdp-applicable-problem-codes"].push("capability-not-supported");
         }
+      }
+      if (historical) {
+        op["x-bdp-feature-selection"] = {
+          ...row.navigation.feature,
+          selection: post
+            ? "Both feature Content-Type and Accept; required fromRevision; same discovered updateBead URL"
+            : "Feature Accept; canonical Bead URL; terminal requires exactly one view=terminal",
+        };
+        if (!head) {
+          const capabilityProblem = post
+            ? {
+                allOf: [
+                  historicalRef("historicalUpdateCapabilityProblem"),
+                  { type: "object", properties: { pointer: { const: "/fromRevision" } } },
+                ],
+              }
+            : historicalRef("historicalUpdateReadCapabilityProblem");
+          op.responses.default.content["application/problem+json"].schema = {
+            allOf: [
+              historicalRef("historicalUpdateProblem"),
+              {
+                if: {
+                  type: "object",
+                  required: ["code"],
+                  properties: { code: { const: "capability-not-supported" } },
+                },
+                // biome-ignore lint/suspicious/noThenProperty: JSON Schema conditional keyword is passive schema data.
+                then: capabilityProblem,
+              },
+            ],
+          };
+        }
+        op["x-bdp-query-rules"] =
+          row.id === "historicalUpdateTerminal"
+            ? "Exactly one view=terminal; reject extras/repeats; current terminal only, live/unknown/undisclosable gives uniform404. No alias forwarding or exact-D read."
+            : "No query members; no History, projection or aggregate selection.";
+        if (post)
+          op.responses["415"] = {
+            description:
+              "Unsupported request media, before admission; ordinary unsupported-media-type Problem, no feature execution.",
+            headers: { "Cache-Control": headers["Cache-Control"] },
+            content: { "application/problem+json": { schema: ref("readUpdateProblem") } },
+          };
       }
       if (post || row.forbiddenHeaders)
         op["x-bdp-forbidden-response-headers"] = [
@@ -682,6 +820,8 @@ export function generateArtifacts() {
       "packages/protocol/schemas/bdp-v0.1.schema.json",
       schemaFile,
       idRootSchemaFile,
+      historicalSchemaFile,
+      "packages/protocol/schemas/historical-update-v1.schema.json",
     ].map((path) => [path, digest(readFileSync(resolve(root, path)))]),
   );
   const canonical = readFileSync(resolve(root, schemaFile));
@@ -689,6 +829,11 @@ export function generateArtifacts() {
     !canonical.equals(readFileSync(resolve(root, "packages/protocol/schemas/bdp-v0.1.schema.json")))
   )
     throw new Error("Canonical/mirror mismatch");
+  assert.deepEqual(
+    load(historicalSchemaFile),
+    load("packages/protocol/schemas/historical-update-v1.schema.json"),
+    "Historical feature canonical/mirror schema graph mismatch",
+  );
   const typesSource = "specs/profiles/types/types.md";
   const typesText = readFileSync(resolve(root, typesSource), "utf8");
   const composition = parseComposition(typesText);
@@ -835,7 +980,7 @@ export function generateArtifacts() {
   const commands = [
     "# Canonical commands first",
     "",
-    "Nineteen specified public command signatures own the wire variants below. These are design signatures, not a claim of shipped commands or nineteen generated SDK methods. The 35 wire signature families contain 26 GETs, their 26 HEAD counterparts and nine POSTs; options and transport forms do not add public commands.",
+    "Nineteen specified public command signatures own the wire variants below. These are design signatures, not a claim of shipped commands or nineteen generated SDK methods. The 38 wire signature families contain 28 GETs, their 28 HEAD counterparts and ten POSTs; options and transport forms do not add public commands.",
     "",
     "| Canonical command | Wire signature variants |",
     "| --- | --- |",
@@ -844,7 +989,7 @@ export function generateArtifacts() {
         `| \`${group.command}\` | ${group.signatures.map((name) => `\`${name}\``).join(", ")} |`,
     ),
     "",
-    "Scope landing and the Write directory are shared transport setup. Discovery also serves scope inspect. Exact-definition lookup is a selected interpreter operation whose public Type CLI remains deferred. HEAD and paging remain mechanics of the selected read.",
+    "Scope landing and the Write directory are shared transport setup. Discovery also serves scope inspect. Exact-definition lookup is a selected interpreter operation whose public Type CLI remains deferred. Historical-update current/terminal reads are explicit SDK/HTTP feature methods with no selected public CLI read flag or verb; bd update --from-revision selects the existing Update route with feature media. HEAD and paging remain mechanics of the selected read.",
     "",
     "[Command/wire exceptions and completion gaps](../../docs/cli-design/wire-correspondence.md) distinguish portable direct operations from host adapters, request composition and unfinished feature correspondence. [Wire coverage](coverage.md) retains all validation cases. Rooted allocation selects id-root1 on existing create/batch routes; it adds no public command or endpoint. Service-side Type default pinning requires no client definition prefetch.",
     "",
@@ -868,7 +1013,7 @@ export function generateArtifacts() {
         .map((x) => `[${x.file}:${x.line}](../../${x.file}#L${x.line})`)
         .join(", ");
       coverage.push(
-        `| ${op.operationId} | ${JSON.stringify(row.navigation)}; ${op["x-bdp-support"]} | ${method === "post" ? `${row.request}; Idempotency-Key; ${media}` : row.parameters.map((x) => x.name).join(", ") || "none"} | ${method === "head" ? "bodyless native status" : row.response || (row.alias ? "307 Location, no body" : "200 human/204 bodyless")} | response headers: ${Object.keys(op.responses[row.alias ? "307" : "200"].headers).join(", ")}; statuses ${Object.keys(op.responses).join(", ")}; ${method === "head" ? "no Problem body" : row.projection ? "resourceProjectionProblem" : row.problem} | ${refs}; [${row.cli.file}:${row.cli.line}](../../${row.cli.file}#L${row.cli.line}) |`,
+        `| ${op.operationId} | ${JSON.stringify(row.navigation)}; ${op["x-bdp-support"]} | ${method === "post" ? `${row.request}; Idempotency-Key; ${op["x-bdp-request-media"].contentType}` : row.parameters.map((x) => x.name).join(", ") || "none"} | ${method === "head" ? "bodyless native status" : row.response || (row.alias ? "307 Location, no body" : "200 human/204 bodyless")} | response headers: ${Object.keys(op.responses[row.alias ? "307" : "200"].headers).join(", ")}; statuses ${Object.keys(op.responses).join(", ")}; ${method === "head" ? "no Problem body" : row.projection ? "resourceProjectionProblem" : row.problem} | ${refs}; [${row.cli.file}:${row.cli.line}](../../${row.cli.file}#L${row.cli.line}) |`,
       );
     }
   coverage.push(

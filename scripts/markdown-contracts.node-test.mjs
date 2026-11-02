@@ -107,3 +107,36 @@ test("reference inventory never treats schema-looking literal instance data as a
   });
   assert.throws(() => definitionClosure(schema, ["missing"]), /Unknown canonical definition/);
 });
+
+test("historical feature projections preserve separate schema ownership and common selection", () => {
+  const manifest = load("fixtures/markdown-contracts/selected.json");
+  assert.equal(manifest.features.length, 1);
+  const feature = manifest.features[0];
+  assert.equal(feature.source, "specs/profiles/write/historical-update-v1.schema.json");
+  const schema = load(feature.source);
+  assert.equal(
+    feature.sourceSHA256,
+    createHash("sha256")
+      .update(readFileSync(resolve(root, feature.source)))
+      .digest("hex"),
+  );
+  assert.deepEqual(feature.operations, {
+    read: ["historicalUpdateCurrent", "historicalUpdateTerminal"],
+    write: ["historicalUpdateBead"],
+  });
+  for (const name of feature.definitions) assert(Object.hasOwn(schema.$defs, name));
+  assert(
+    feature.externalReferences.some((ref) => ref.startsWith(`${load(commonPath).$id}#/$defs/`)),
+  );
+  for (const selection of Object.values(manifest.selections))
+    assert(!selection.entryPoints.some((name) => name.startsWith("historicalUpdate")));
+  for (const path of [
+    "specs/profiles/core/read-contracts.md",
+    "specs/profiles/write/write-contracts.md",
+  ]) {
+    const text = readFileSync(resolve(root, path), "utf8");
+    assert(text.includes("historical-update-v1.schema.json#/$defs/historicalUpdateProblem"));
+    assert(!text.includes("bdp-v0.1.schema.md#historicalUpdate"));
+    assert(text.includes("not common-bundle roots"));
+  }
+});

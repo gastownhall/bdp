@@ -35,6 +35,15 @@ The notation describes value shape. Authorization, discovery, exact request sele
 | linkEvents | No JSON request body | [retainedEventPage](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkRXZlbnRQYWdlIg) | [retainedEventProblem](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkRXZlbnRQcm9ibGVtIg) | Advertised Events (optional for Core and Write) |
 | scopeEvents | No JSON request body | [retainedEventPage](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkRXZlbnRQYWdlIg) | [retainedEventProblem](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkRXZlbnRQcm9ibGVtIg) | Advertised Events (optional for Core and Write) |
 
+## Independently selected historical Update
+
+These optional historical-update1 methods retain their independent feature schema resource and explicit feature media. They are not common-bundle roots or a full History/Events advertisement. The [selected HTTP binding](../write/write.md#selected-historical-update-http-signatures) owns current/terminal selection and the unchanged ordinary-media behavior. No new public CLI read verb is implied.
+
+| Feature operation | Request | Success | Problem | Selection |
+| --- | --- | --- | --- | --- |
+| historicalUpdateCurrent | No JSON request body | [historicalUpdateView](../write/historical-update-v1.schema.json#/$defs/historicalUpdateView) | [historicalUpdateProblem](../write/historical-update-v1.schema.json#/$defs/historicalUpdateProblem) | historical-update1; application/vnd.bdp.v0.1.historical-update.v1+json |
+| historicalUpdateTerminal | No JSON request body | [historicalUpdateTerminalView](../write/historical-update-v1.schema.json#/$defs/historicalUpdateTerminalView) | [historicalUpdateProblem](../write/historical-update-v1.schema.json#/$defs/historicalUpdateProblem) | historical-update1; application/vnd.bdp.v0.1.historical-update.v1+json; exactly one view=terminal |
+
 GET and HEAD share read selection; HEAD has no representation body. Alias resolution uses its bodyless redirect. Native 204/304/405/406/412/500 branches retain their actual bodyless rules rather than acquiring a Problem body. The informative [HTTP catalog](../../openapi/README.md) records headers, media, native query carriers and complete transport branches.
 
 Projection alternatives overlap and remain inclusive: an explicit request selects the applicable full or projected arm. Ordinary full output cannot silently become a projection. The optional History, exact-definition and batch entries retain their independent capability/context requirements; a row in this index never advertises them.
