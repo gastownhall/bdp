@@ -41,9 +41,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "atomicBatch"
-      ],
+      "required": ["atomicBatch"],
       "additionalProperties": false
     },
     "historicalUpdateCapabilityAdvertisement": {
@@ -67,20 +65,13 @@
                       "$ref": "#/$defs/historicalUpdateCapabilityV1"
                     }
                   },
-                  "required": [
-                    "1"
-                  ]
+                  "required": ["1"]
                 }
               },
-              "required": [
-                "https://github.com/gastownhall/bdp/capabilities/historical-update"
-              ]
+              "required": ["https://github.com/gastownhall/bdp/capabilities/historical-update"]
             }
           },
-          "required": [
-            "profile",
-            "capabilities"
-          ]
+          "required": ["profile", "capabilities"]
         }
       ]
     },
@@ -94,10 +85,7 @@
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision"
         }
       },
-      "required": [
-        "fromRevision",
-        "previousRevision"
-      ],
+      "required": ["fromRevision", "previousRevision"],
       "additionalProperties": false
     },
     "historicalUpdateRequest": {
@@ -131,17 +119,11 @@
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput"
         }
       },
-      "required": [
-        "bead",
-        "fromRevision"
-      ],
+      "required": ["bead", "fromRevision"],
       "allOf": [
         {
           "not": {
-            "required": [
-              "properties",
-              "propertiesChange"
-            ],
+            "required": ["properties", "propertiesChange"],
             "properties": {
               "properties": true,
               "propertiesChange": true
@@ -150,10 +132,7 @@
         },
         {
           "not": {
-            "required": [
-              "metadata",
-              "metadataChange"
-            ],
+            "required": ["metadata", "metadataChange"],
             "properties": {
               "metadata": true,
               "metadataChange": true
@@ -197,18 +176,11 @@
           "const": "updateBead"
         }
       },
-      "required": [
-        "operation",
-        "bead",
-        "fromRevision"
-      ],
+      "required": ["operation", "bead", "fromRevision"],
       "allOf": [
         {
           "not": {
-            "required": [
-              "properties",
-              "propertiesChange"
-            ],
+            "required": ["properties", "propertiesChange"],
             "properties": {
               "properties": true,
               "propertiesChange": true
@@ -217,10 +189,7 @@
         },
         {
           "not": {
-            "required": [
-              "metadata",
-              "metadataChange"
-            ],
+            "required": ["metadata", "metadataChange"],
             "properties": {
               "metadata": true,
               "metadataChange": true
@@ -248,9 +217,7 @@
                   "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/currentBeadRecord"
                 }
               },
-              "required": [
-                "resource"
-              ]
+              "required": ["resource"]
             }
           ]
         },
@@ -258,9 +225,7 @@
           "$ref": "#/$defs/historicalUpdateContext"
         }
       },
-      "required": [
-        "result"
-      ],
+      "required": ["result"],
       "additionalProperties": false,
       "allOf": [
         {
@@ -272,21 +237,15 @@
                     "const": true
                   }
                 },
-                "required": [
-                  "changed"
-                ],
+                "required": ["changed"],
                 "type": "object"
               }
             },
-            "required": [
-              "result"
-            ],
+            "required": ["result"],
             "type": "object"
           },
           "then": {
-            "required": [
-              "historicalUpdate"
-            ],
+            "required": ["historicalUpdate"],
             "properties": {
               "historicalUpdate": true
             }
@@ -304,9 +263,7 @@
             },
             {
               "not": {
-                "required": [
-                  "links"
-                ],
+                "required": ["links"],
                 "properties": {
                   "links": true
                 },
@@ -319,9 +276,7 @@
           "$ref": "#/$defs/historicalUpdateContext"
         }
       },
-      "required": [
-        "resource"
-      ],
+      "required": ["resource"],
       "additionalProperties": false
     },
     "historicalUpdateCapabilityProblem": {
@@ -360,15 +315,7 @@
           "const": "https://github.com/gastownhall/bdp/problems/request"
         }
       },
-      "required": [
-        "type",
-        "status",
-        "code",
-        "retry",
-        "capability",
-        "capabilityVersion",
-        "pointer"
-      ]
+      "required": ["type", "status", "code", "retry", "capability", "capabilityVersion", "pointer"]
     },
     "historicalUpdateProblem": {
       "anyOf": [
@@ -402,12 +349,7 @@
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenance"
         }
       },
-      "required": [
-        "id",
-        "revision",
-        "state",
-        "previousRevision"
-      ],
+      "required": ["id", "revision", "state", "previousRevision"],
       "additionalProperties": false
     },
     "historicalUpdateTerminalView": {
@@ -417,9 +359,7 @@
           "$ref": "#/$defs/historicalUpdateTerminalVersion"
         }
       },
-      "required": [
-        "terminal"
-      ],
+      "required": ["terminal"],
       "additionalProperties": false
     },
     "historicalUpdateReadCapabilityProblem": {
@@ -454,14 +394,7 @@
           "const": "https://github.com/gastownhall/bdp/problems/request"
         }
       },
-      "required": [
-        "type",
-        "status",
-        "code",
-        "retry",
-        "capability",
-        "capabilityVersion"
-      ]
+      "required": ["type", "status", "code", "retry", "capability", "capabilityVersion"]
     }
   }
 }

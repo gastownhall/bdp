@@ -121,7 +121,7 @@
       "packages/protocol/schemas/bdp-v0.1.schema.json": "ea8e27bc70f92307ec91d30a562869ad6a3c7472bfe334321f812ba906555add",
       "specs/profiles/core/bdp-v0.1.schema.json": "ea8e27bc70f92307ec91d30a562869ad6a3c7472bfe334321f812ba906555add",
       "specs/profiles/write/id-root-v1.schema.json": "abbb5259009577e91f829d269540f2b2bde65fa52403dc542bf88a6a30ec291a",
-      "specs/profiles/write/historical-update-v1.schema.json": "5917bf5e5e6b9ef4a0d1660864d9e06df901f1d12b764a20beaceffd24dbec00",
+      "specs/profiles/write/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e",
       "packages/protocol/schemas/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e"
     },
     "profileCompositions": [

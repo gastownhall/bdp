@@ -275,7 +275,7 @@
   "features": [
     {
       "source": "specs/profiles/write/historical-update-v1.schema.json",
-      "sourceSHA256": "5917bf5e5e6b9ef4a0d1660864d9e06df901f1d12b764a20beaceffd24dbec00",
+      "sourceSHA256": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e",
       "definitions": [
         "historicalUpdateCapabilityProblem",
         "historicalUpdateContext",
