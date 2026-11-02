@@ -1,22 +1,29 @@
 /** Explicit private fixture, deliberately incomplete. Never public profile admission. */
+
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { prepareAlias } from "./alias-contract.js";
+import {
+  BATCH_CAPABILITY,
+  BATCH_LIMITS,
+  BATCH_OPERATIONS,
+  prepareBatch,
+} from "./batch-contract.js";
+import { createRetainedCollections, inventoryRoute, REFERENCE_READ_LIMITS } from "./collections.js";
 import {
   captureNavigation,
   ORDINARY_OPERATIONS,
   prepareCreate,
-  prepareUpdate,
   prepareDelete,
+  prepareUpdate,
   problem,
   RETAINED_MEDIA,
-  RetainedRequestError,
   RetainedFixtureGap,
+  RetainedRequestError,
   serialized,
 } from "./contract.js";
-import { createRetainedCollections, inventoryRoute, REFERENCE_READ_LIMITS } from "./collections.js";
 import { parseEventSelection } from "./events.js";
 import { prepareLink } from "./link-contract.js";
-import { prepareAlias } from "./alias-contract.js";
 import { openPrivateRetainedStore, type PrivateStoreOptions } from "./store.js";
 
 export interface PrivateFixtureOptions extends PrivateStoreOptions {
@@ -174,6 +181,9 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
     [signature(navigation.description), "description"],
     [signature(navigation.operations), "directory"],
     [signature(navigation.events), "events"],
+    ...(options.referenceCore === true
+      ? [[signature(navigation.scope + "bdp/batch"), "batch"] as const]
+      : []),
     ...ORDINARY_OPERATIONS.map(
       (operation) => [signature(navigation.targets[operation]), operation] as const,
     ),
@@ -217,6 +227,7 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
       }
       const method = request.method ?? "GET";
       if (
+        route === "batch" ||
         route === "createBead" ||
         route === "updateBead" ||
         route === "deleteBead" ||
@@ -240,15 +251,17 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
         if (key === undefined) throw new RetainedRequestError("malformed-request", 400);
         const text = await receive(request);
         const result =
-          route === "createBead"
-            ? store.create(principal, prepareCreate(navigation.scope, text, key))
-            : route === "updateBead"
-              ? store.update(principal, prepareUpdate(navigation.scope, text, key))
-              : route === "deleteBead"
-                ? store.deleteBead(principal, prepareDelete(navigation.scope, text, key))
-                : route === "putAlias" || route === "deleteAlias"
-                  ? store[route](principal, prepareAlias(navigation.scope, route, text, key))
-                  : store[route](principal, prepareLink(navigation.scope, route, text, key));
+          route === "batch"
+            ? store.batch(principal, prepareBatch(navigation.scope, text, key))
+            : route === "createBead"
+              ? store.create(principal, prepareCreate(navigation.scope, text, key))
+              : route === "updateBead"
+                ? store.update(principal, prepareUpdate(navigation.scope, text, key))
+                : route === "deleteBead"
+                  ? store.deleteBead(principal, prepareDelete(navigation.scope, text, key))
+                  : route === "putAlias" || route === "deleteAlias"
+                    ? store[route](principal, prepareAlias(navigation.scope, route, text, key))
+                    : store[route](principal, prepareLink(navigation.scope, route, text, key));
         if (!response.destroyed) json(response, result.status, result.text);
         return;
       }
@@ -306,7 +319,22 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
             links: navigation.links,
             aliases: navigation.aliases,
             ...(options.referenceCore === true
-              ? { limits: REFERENCE_READ_LIMITS }
+              ? {
+                  limits: REFERENCE_READ_LIMITS,
+                  ...(store.atomicBatchEnabled
+                    ? {
+                        capabilities: {
+                          [BATCH_CAPABILITY]: {
+                            "1": {
+                              operation: navigation.scope + "bdp/batch",
+                              operations: BATCH_OPERATIONS,
+                              ...BATCH_LIMITS,
+                            },
+                          },
+                        },
+                      }
+                    : {}),
+                }
               : { events: navigation.events }),
             operations: navigation.operations,
           }),

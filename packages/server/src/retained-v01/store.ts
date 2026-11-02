@@ -15,54 +15,67 @@ import {
   parseRevisionProvenanceInput,
   type RevisionProvenanceInput,
 } from "@bdp/protocol";
-import { isKnownNetworkFilesystem } from "../recovery-store.js";
 import { jsonValueEqual } from "../json-value-equality.js";
+import { isKnownNetworkFilesystem } from "../recovery-store.js";
+import {
+  type AliasOperation,
+  assertPreparedAlias,
+  captureAliasNamespace,
+  type PreparedAlias,
+} from "./alias-contract.js";
+import {
+  assertPreparedBatch,
+  BATCH_LIMITS,
+  batchCapabilityProblem,
+  compareBatch,
+  type PreparedBatch,
+} from "./batch-contract.js";
+import { type BatchEvaluation, evaluateBatch } from "./batch-evaluate.js";
 import {
   assertPreparedCreate,
-  assertPreparedUpdate,
   assertPreparedDelete,
-  captureNavigation,
+  assertPreparedUpdate,
   canonicalLocalReference,
+  captureNavigation,
   deletedIdentity,
+  type EndpointReference,
+  type JsonObject,
   materializeBead,
+  navigationAddresses,
+  type OrdinaryOperation,
+  type PreparedCreate,
+  type PreparedDelete,
+  type PreparedUpdate,
+  type PrivateNavigation,
   problem,
   RETAINED_MEDIA,
   RETAINED_SPEC,
-  RetainedRequestError,
-  serialized,
-  type PreparedCreate,
-  type PreparedUpdate,
-  type PreparedDelete,
-  type JsonObject,
-  type PrivateNavigation,
-  type RetainedBead,
-  type RetainedLink,
   type ResourceKind,
   type ResourceState,
-  type EndpointReference,
-  type TypeReference,
-  type OrdinaryOperation,
+  type RetainedBead,
+  type RetainedLink,
+  RetainedRequestError,
   referenceUri,
-  navigationAddresses,
+  serialized,
+  type TypeReference,
 } from "./contract.js";
-import { lifecycleFact, incidentBeads, EVENT_POLICY, type EventSelection } from "./events.js";
+import { EVENT_POLICY, type EventSelection, incidentBeads, lifecycleFact } from "./events.js";
+import { assertPreparedLink, type LinkOperation, type PreparedLink } from "./link-contract.js";
 import {
   applyObjectChange,
   exceedsEditLimits,
-  ObjectEditFailure,
   type ObjectChange,
+  ObjectEditFailure,
 } from "./object-edits.js";
-import { assertPreparedLink, type LinkOperation, type PreparedLink } from "./link-contract.js";
-import { readAliasWitnesses, verifyResourceRecovery } from "./recovery.js";
 import {
-  assertPreparedAlias,
-  captureAliasNamespace,
-  type AliasOperation,
-  type PreparedAlias,
-} from "./alias-contract.js";
+  readAliasWitnesses,
+  verifyAtomicBatchRecovery,
+  verifyResourceRecovery,
+} from "./recovery.js";
 import { compareCapturedReferences, type ReferenceComparison } from "./reference-comparison.js";
 
 export const PRIVATE_STORE_FORMAT = "bdp-private-retained-v01-5";
+export const BATCH_STORE_FORMAT = "bdp-private-retained-v01-6";
 export interface PrivateStoreOptions {
   readonly directory: string;
   readonly create: boolean;
@@ -70,6 +83,8 @@ export interface PrivateStoreOptions {
   readonly navigation: PrivateNavigation;
   /** Internal reference composition; captured durably, never a store migration. */
   readonly referenceCore?: true;
+  /** Explicit new-store mode; never upgrades a format5 store. */
+  readonly atomicBatch?: boolean;
   readonly clock?: () => number;
   /** Fault timing only, private to the test process. No successful outcome injection. */
   readonly onPhase?: (phase: "resource-staged" | "alias-staged" | "committed") => void;
@@ -107,9 +122,24 @@ CREATE TABLE outcomes(decision INTEGER PRIMARY KEY CHECK(decision>0),principal T
 CREATE TABLE boundaries(position INTEGER PRIMARY KEY,token TEXT NOT NULL UNIQUE) STRICT;
 CREATE TABLE cursors(token TEXT PRIMARY KEY,principal TEXT NOT NULL,source TEXT NOT NULL,subject TEXT NOT NULL,after_position INTEGER NOT NULL,through_position INTEGER NOT NULL,page_limit INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('next','resume')),expires INTEGER NOT NULL) STRICT;
 `;
+const batchSchema = `
+CREATE TABLE metadata(name TEXT PRIMARY KEY,value TEXT NOT NULL) STRICT;
+CREATE TABLE identities(id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('bead','link'))) STRICT;
+CREATE TABLE resources(id TEXT PRIMARY KEY REFERENCES identities(id),body TEXT NOT NULL CHECK(retained_json(body))) STRICT;
+CREATE TABLE aliases(locator TEXT PRIMARY KEY,target TEXT NOT NULL REFERENCES identities(id)) STRICT;
+CREATE TABLE events(position INTEGER PRIMARY KEY,subject TEXT NOT NULL REFERENCES identities(id),body TEXT NOT NULL CHECK(retained_json(body))) STRICT;
+CREATE TABLE incidence(position INTEGER NOT NULL REFERENCES events(position),bead TEXT NOT NULL REFERENCES identities(id),PRIMARY KEY(position,bead)) STRICT;
+CREATE TABLE outcomes(decision INTEGER PRIMARY KEY CHECK(decision>0),principal TEXT NOT NULL,key TEXT NOT NULL,operation TEXT NOT NULL CHECK(operation IN ('createBead','updateBead','deleteBead','createLink','updateLink','deleteLink','putAlias','deleteAlias','batch')),identity TEXT NOT NULL,witnesses TEXT NOT NULL CHECK(retained_json(witnesses)),status INTEGER NOT NULL,body TEXT NOT NULL CHECK(retained_json(body)),event_position INTEGER UNIQUE REFERENCES events(position),UNIQUE(principal,key)) STRICT;
+CREATE TABLE decision_facts(decision INTEGER NOT NULL REFERENCES outcomes(decision),position INTEGER NOT NULL UNIQUE REFERENCES events(position),PRIMARY KEY(decision,position)) STRICT;
+CREATE TABLE boundaries(position INTEGER PRIMARY KEY,token TEXT NOT NULL UNIQUE) STRICT;
+CREATE TABLE cursors(token TEXT PRIMARY KEY,principal TEXT NOT NULL,source TEXT NOT NULL,subject TEXT NOT NULL,after_position INTEGER NOT NULL,through_position INTEGER NOT NULL,page_limit INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('next','resume')),expires INTEGER NOT NULL) STRICT;
+`;
 export function openPrivateRetainedStore(options: PrivateStoreOptions) {
   if (process.version !== "v24.22.1")
     throw new Error("private retained store requires Node v24.22.1");
+  if (options.atomicBatch !== undefined && typeof options.atomicBatch !== "boolean")
+    throw new TypeError("explicit boolean batch mode required");
+  const batchMode = options.atomicBatch === true;
   const navigation = captureNavigation(options.navigation);
   const aliasNamespace = captureAliasNamespace(navigation.scope, navigation.aliases);
   const reserved = navigationAddresses(navigation);
@@ -185,7 +215,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     }
   }
   const capture = serialized({
-    format: PRIVATE_STORE_FORMAT,
+    format: batchMode ? BATCH_STORE_FORMAT : PRIVATE_STORE_FORMAT,
+    ...(batchMode ? { atomicBatch: { capabilityVersion: "1", ...BATCH_LIMITS } } : {}),
     specification: RETAINED_SPEC,
     media: RETAINED_MEDIA,
     instance: options.instance,
@@ -222,7 +253,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       throw new Error("durability mode unavailable");
     transaction(() => {
       if (options.create) {
-        db.exec(schema);
+        db.exec(batchMode ? batchSchema : schema);
         run("INSERT INTO metadata VALUES ('capture',?)", capture);
         run("INSERT INTO metadata VALUES ('decisions','0')");
         run("INSERT INTO boundaries VALUES (0,?)", randomUUID());
@@ -231,6 +262,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         "aliases",
         "boundaries",
         "cursors",
+        ...(batchMode ? ["decision_facts"] : []),
         "events",
         "identities",
         "incidence",
@@ -253,7 +285,25 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         !get("SELECT token FROM boundaries WHERE position=0")
       )
         throw new Error("retained store integrity failure");
-      verifyResourceRecovery(db, navigation);
+      if (batchMode) {
+        const definitions = batchSchema
+          .trim()
+          .split(";")
+          .filter((sql) => sql.trim())
+          .map((sql) => {
+            const definition = sql.trim();
+            const name = /^CREATE TABLE ([a-z_]+)\(/.exec(definition)?.[1];
+            if (!name) throw new Error("invalid explicit batch schema definition");
+            return { name, sql: definition };
+          })
+          .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+        const actual = db
+          .prepare("SELECT name,sql FROM sqlite_schema WHERE type='table' ORDER BY name")
+          .all();
+        if (serialized(actual) !== serialized(definitions))
+          throw new Error("batch schema definition mismatch");
+        verifyAtomicBatchRecovery(db, navigation);
+      } else verifyResourceRecovery(db, navigation);
       run("UPDATE metadata SET value=value WHERE name='capture'");
     });
   } catch (error) {
@@ -341,9 +391,161 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         outcome.text,
         outcome.position ?? null,
       );
+      if (batchMode && outcome.position !== undefined)
+        run("INSERT INTO decision_facts VALUES (?,?)", count + 1, outcome.position);
       run("UPDATE metadata SET value=? WHERE name='decisions'", String(count + 1));
       fresh = true;
       return { status: outcome.status, text: outcome.text };
+    });
+    if (fresh) options.onPhase?.("committed");
+    return result;
+  }
+  function applyBatch(principal: string, input: PreparedBatch): StoredResponse {
+    assertPreparedBatch(navigation.scope, input);
+    if (!principal) throw new TypeError("stable authenticated principal required");
+    let fresh = false;
+    const result = transaction(() => {
+      const previous = get(
+        "SELECT operation,identity,witnesses,status,body FROM outcomes WHERE principal=? AND key=?",
+        principal,
+        input.key,
+      );
+      if (previous && previous.operation !== "batch")
+        return { status: 409, text: serialized(problem("idempotency-conflict", 409)) };
+      if (previous) {
+        const comparison = compareBatch(
+          input,
+          aliasLookup,
+          readAliasWitnesses(previous.witnesses, navigation),
+        );
+        if (previous.identity !== comparison.identity)
+          return { status: 409, text: serialized(problem("idempotency-conflict", 409)) };
+        if (typeof previous.body !== "string" || typeof previous.status !== "number")
+          throw new Error("retained whole batch outcome missing");
+        if (previous.status !== 200) return { status: previous.status, text: previous.body };
+        // Only the requesting labels are projected; no current Resource/default read.
+        const saved = JSON.parse(previous.body);
+        saved.results = saved.results.map((mapping: Record<string, unknown>, index: number) => {
+          const name = input.members[index]?.name;
+          return {
+            operationIndex: mapping.operationIndex,
+            operation: mapping.operation,
+            id: mapping.id,
+            ...(name === undefined ? {} : { operationName: name }),
+          };
+        });
+        const text = serialized(saved);
+        return Buffer.byteLength(text) > BATCH_LIMITS.maximumResultBytes
+          ? { status: 413, text: serialized(problem("limit-exceeded", 413)) }
+          : { status: 200, text };
+      }
+      // Support preflight refuses without durably claiming the key.
+      if (!batchMode || input.capabilityVersion !== "1")
+        return { status: 422, text: serialized(batchCapabilityProblem(input.capabilityVersion)) };
+      const comparison = compareBatch(input, aliasLookup);
+      let evaluation: BatchEvaluation;
+      const failed = (code: string, status: number): BatchEvaluation => ({
+        status,
+        text: serialized(problem(code, status)),
+        allocations: [],
+        rows: [],
+        effects: [],
+      });
+      if (input.members.length > BATCH_LIMITS.maximumOperations)
+        evaluation = failed("limit-exceeded", 413);
+      else {
+        const initial = new Map<string, ResourceState>();
+        let bytes = 0;
+        for (const row of db
+          .prepare("SELECT r.body,i.kind FROM resources r JOIN identities i ON i.id=r.id")
+          .iterate()) {
+          bytes += Buffer.byteLength(String(row.body));
+          if (bytes > 32 * 1024 * 1024) break;
+          initial.set(JSON.parse(String(row.body)).id, {
+            kind: row.kind,
+            resource: JSON.parse(String(row.body)),
+          } as ResourceState);
+        }
+        evaluation =
+          bytes > 32 * 1024 * 1024
+            ? failed("limit-exceeded", 413)
+            : evaluateBatch(
+                input,
+                comparison,
+                initial,
+                { has: (id) => get("SELECT id FROM identities WHERE id=?", id) !== undefined },
+                (id) => get("SELECT locator FROM aliases WHERE locator=?", id) !== undefined,
+                isReserved,
+                new Date(now()).toISOString(),
+              );
+      }
+      const facts = evaluation.effects.map((effect) => {
+        const state = effect.after ?? effect.before!;
+        const verb = effect.after ? (effect.before ? "update" : "create") : "delete";
+        return {
+          effect,
+          state,
+          text: serialized(
+            lifecycleFact(
+              verb,
+              state,
+              navigation.events,
+              randomUUID(),
+              evaluation.transaction!,
+              new Date(now()).toISOString(),
+              effect.before?.resource.revision,
+            ),
+          ),
+        };
+      });
+      if (facts.some((fact) => Buffer.byteLength(fact.text) > 300000)) {
+        evaluation = failed("limit-exceeded", 413);
+        facts.length = 0;
+      }
+      const count = Number(get("SELECT value FROM metadata WHERE name='decisions'")?.value);
+      if (!Number.isSafeInteger(count + 1)) throw new Error("outcome capacity unavailable");
+      if (evaluation.status === 200) {
+        for (const allocation of evaluation.allocations)
+          run("INSERT INTO identities VALUES (?,?)", allocation.id, allocation.kind);
+        for (const row of evaluation.rows) {
+          if (!row.changed) continue;
+          if (row.resource !== undefined)
+            run(
+              "INSERT INTO resources VALUES (?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body",
+              row.id,
+              serialized(row.resource),
+            );
+          else run("DELETE FROM resources WHERE id=?", row.id);
+          options.onPhase?.("resource-staged");
+        }
+      }
+      const positions: number[] = [];
+      for (const fact of facts) {
+        const position = head() + 1;
+        if (!Number.isSafeInteger(position)) throw new Error("event ordering capacity unavailable");
+        run("INSERT INTO events VALUES (?,?,?)", position, fact.state.resource.id, fact.text);
+        for (const bead of incidentBeads(navigation.scope, fact.effect.before, fact.effect.after))
+          run("INSERT INTO incidence VALUES (?,?)", position, bead);
+        run("INSERT INTO boundaries VALUES (?,?)", position, randomUUID());
+        positions.push(position);
+      }
+      run(
+        "INSERT INTO outcomes VALUES (?,?,?,?,?,?,?,?,?)",
+        count + 1,
+        principal,
+        input.key,
+        "batch",
+        comparison.identity,
+        serialized(comparison.originalWitnesses),
+        evaluation.status,
+        evaluation.text,
+        positions[0] ?? null,
+      );
+      for (const position of positions)
+        run("INSERT INTO decision_facts VALUES (?,?)", count + 1, position);
+      run("UPDATE metadata SET value=? WHERE name='decisions'", String(count + 1));
+      fresh = true;
+      return { status: evaluation.status, text: evaluation.text };
     });
     if (fresh) options.onPhase?.("committed");
     return result;
@@ -688,6 +890,12 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     /** Local factory metadata only. Never serialized into discovery. */
     claimEligible: false as const,
     navigation,
+    get atomicBatchEnabled(): boolean {
+      return batchMode;
+    },
+    batch(principal: string, input: PreparedBatch): StoredResponse {
+      return applyBatch(principal, input);
+    },
     create(principal: string, input: PreparedCreate): StoredResponse {
       assertPreparedCreate(navigation.scope, input);
       return decide(principal, "createBead", input, () => performCreate("bead", input));

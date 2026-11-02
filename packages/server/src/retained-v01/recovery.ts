@@ -1,11 +1,14 @@
 /** Startup consistency within the owner's exclusive transaction. No repair or writes. */
+
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
+import { SEMANTIC_VALUE_FORMAT } from "../semantic-identity.js";
+import { captureAliasNamespace } from "./alias-contract.js";
+import type { AliasWitness } from "./alias-witness.js";
+import { verifyGroupedRecovery } from "./batch-recovery.js";
 import {
   canonicalCreatedId,
   deletedIdentity,
   eventDeleted,
-  referenceUri,
-  serialized,
   navigationAddresses,
   ORDINARY_OPERATIONS,
   type PrivateNavigation,
@@ -13,11 +16,10 @@ import {
   type ResourceState,
   type RetainedBead,
   type RetainedLink,
+  referenceUri,
+  serialized,
 } from "./contract.js";
 import { incidentBeads } from "./events.js";
-import { captureAliasNamespace } from "./alias-contract.js";
-import type { AliasWitness } from "./alias-witness.js";
-import { SEMANTIC_VALUE_FORMAT } from "../semantic-identity.js";
 
 export function readAliasWitnesses(
   value: unknown,
@@ -374,4 +376,39 @@ export function verifyResourceRecovery(db: DatabaseSync, navigation: PrivateNavi
     get("SELECT count(*) AS n FROM metadata")?.n !== 2
   )
     throw new Error("incomplete retained outcome census");
+}
+
+/** Explicit format6 entry; the format5 recovery entry above is unchanged. */
+export function verifyAtomicBatchRecovery(db: DatabaseSync, navigation: PrivateNavigation): void {
+  function operation(identity: unknown): string {
+    if (typeof identity !== "string") throw new Error("missing batch semantic identity");
+    const encoded = JSON.parse(identity);
+    if (
+      !Array.isArray(encoded) ||
+      encoded.length !== 2 ||
+      encoded[0] !== SEMANTIC_VALUE_FORMAT ||
+      !Array.isArray(encoded[1]) ||
+      encoded[1][0] !== "object" ||
+      !Array.isArray(encoded[1][1])
+    )
+      throw new Error("invalid batch semantic context");
+    const entries = encoded[1][1].filter(
+      (entry: unknown) => Array.isArray(entry) && entry[0] === "operation",
+    );
+    const value = entries[0]?.[1];
+    if (
+      entries.length !== 1 ||
+      !Array.isArray(value) ||
+      value.length !== 2 ||
+      value[0] !== "string" ||
+      typeof value[1] !== "string" ||
+      !(
+        value[1] === "batch" ||
+        ORDINARY_OPERATIONS.includes(value[1] as (typeof ORDINARY_OPERATIONS)[number])
+      )
+    )
+      throw new Error("invalid batch operation context");
+    return value[1];
+  }
+  verifyGroupedRecovery(db, navigation, readAliasWitnesses, operation);
 }
