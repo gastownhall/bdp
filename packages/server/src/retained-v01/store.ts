@@ -760,6 +760,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     const baseline = recovering
       ? historicalVersion(id, terminal.previousRevision as string)?.resource
       : undefined;
+    if (recovering && baseline === undefined)
+      throw new Error("historical current baseline index is inconsistent");
     const before =
       live ??
       (baseline === undefined
@@ -772,8 +774,17 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     let source = before.resource;
     if (selectedHistorical) {
       const selected = historicalVersion(id, input.fromRevision);
-      if (selected === undefined)
+      if (selected === undefined) {
+        if (
+          get(
+            "SELECT position FROM events WHERE subject=? AND json_extract(body,'$.revision')=? LIMIT 1",
+            id,
+            input.fromRevision as string,
+          )
+        )
+          throw new Error("historical source index is inconsistent");
         return refusal(problem("revision-unknown", 404, "after-state-change"));
+      }
       if (selected.resource === undefined)
         return refusal({
           ...problem("validation-failed", 422),

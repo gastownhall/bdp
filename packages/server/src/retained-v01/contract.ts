@@ -141,7 +141,7 @@ export function problem(code: string, status: number, retry = "never"): JsonObje
         code === "incident-links-exist" ||
         code === "alias-path-taken"
       ? "conflict"
-      : code === "resource-not-found"
+      : code === "resource-not-found" || code === "revision-unknown"
         ? "not-found"
         : code === "unauthenticated"
           ? "authentication"

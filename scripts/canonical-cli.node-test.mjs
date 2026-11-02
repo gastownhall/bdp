@@ -747,7 +747,9 @@ test("historical source Update undeletes same ID through emitted CLI and durable
   let reference,
     dropNext = false;
   const writes = [];
+  let exchanges = 0;
   const proxy = createServer((incoming, outgoing) => {
+    exchanges++;
     const chunks = [];
     incoming.on("data", (chunk) => chunks.push(chunk));
     incoming.on("end", () => {
@@ -842,6 +844,18 @@ test("historical source Update undeletes same ID through emitted CLI and durable
     assert.equal(terminalResponse.status, 200);
     const { terminal } = await terminalResponse.json();
     assert.notEqual(terminal.revision, last.revision);
+    const beforeBatch = writes.length;
+    const beforeBatchExchanges = exchanges;
+    const batchRefusal = await cli(
+      ["update", first.id, "--from-revision", `=${first.revision}`, "--dry-run-mode", "batch"],
+      directory,
+      scope,
+    );
+    assert.equal(batchRefusal.code, 5, batchRefusal.stderr || batchRefusal.stdout);
+    assert.equal(batchRefusal.stdout, "");
+    assert.equal(JSON.parse(batchRefusal.stderr).error.problem.code, "unsupported_capability");
+    assert.equal(writes.length, beforeBatch);
+    assert.equal(exchanges, beforeBatchExchanges);
     dropNext = true;
     const unknown = await cli(
       [

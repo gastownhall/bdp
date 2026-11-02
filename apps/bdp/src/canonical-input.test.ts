@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { decodeJsonDocument, admitJsonNumbers, stringifyJsonValue } from "@bdp/protocol";
 import {
   CanonicalInputError,
+  CanonicalUnsupportedInputError,
   compileCanonicalInput,
   parseCanonicalReference,
   type CanonicalInputRequest,
@@ -429,4 +430,10 @@ describe("exact historical Bead Update compilation", () => {
       ).rejects.toBeInstanceOf(CanonicalInputError);
     },
   );
+});
+
+it("refuses historical source member emission without a selected batch composition", async () => {
+  await expect(
+    compile("update", { fromRevision: "=R1", dryRunMode: "batch" }, ["note"]),
+  ).rejects.toBeInstanceOf(CanonicalUnsupportedInputError);
 });

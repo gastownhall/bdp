@@ -267,3 +267,40 @@ it.each(["resource-staged", "committed"] as const)(
     expect(store.update("p", invocation)).toEqual(result);
   },
 );
+
+it.each(["delete-one", "delete-two"])(
+  "binds %s outcome exactly to its Event across repeated deletion/recovery",
+  (key) => {
+    const f = setup();
+    const first = create(f.store);
+    f.store.deleteBead("p", prepareDelete(scope, JSON.stringify({ bead: "a" }), "delete-one"));
+    const terminal = f.store.readHistoricalVersion(first.id)?.terminal as Record<string, unknown>;
+    f.store.update(
+      "p",
+      sourced("a", first.revision, terminal.revision as string, "recover-between"),
+    );
+    f.store.deleteBead("p", prepareDelete(scope, JSON.stringify({ bead: "a" }), "delete-two"));
+    f.reopen().close();
+    const db = new DatabaseSync(path.join(f.directory, "retained-reference.sqlite"));
+    try {
+      db.function("retained_json", { deterministic: true }, (value) => {
+        if (typeof value !== "string") return 0;
+        try {
+          decodeJsonDocument(value);
+          return 1;
+        } catch {
+          return 0;
+        }
+      });
+      const row = db.prepare("SELECT body FROM outcomes WHERE key=?").get(key);
+      const result = JSON.parse(String(row?.body));
+      result.unexpected = "corrupt deletion outcome";
+      db.prepare("UPDATE outcomes SET body=? WHERE key=?").run(JSON.stringify(result), key);
+    } finally {
+      db.close();
+    }
+    expect(() => openPrivateRetainedStore({ ...f.config, create: false })).toThrow(
+      /transition outcome/,
+    );
+  },
+);

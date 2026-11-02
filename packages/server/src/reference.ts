@@ -14,7 +14,9 @@ export interface ReferenceServiceOptions {
   readonly instance: string;
   /** Fresh explicit batch-enabled format6; default preserves ordinary format5. */
   readonly atomicBatch?: boolean;
-  /** Fresh explicit historical-update1 store; no implicit format migration. */
+  /** Fresh explicit historical-update1 store; no implicit format migration.
+   * This reference retains every version; pruning/erasure administration and
+   * their qualification are outside this append-only composition. */
   readonly historicalUpdate?: boolean;
   /** Canonical externally routed Scope. The returned listener is loopback-only. */
   readonly scope: string;

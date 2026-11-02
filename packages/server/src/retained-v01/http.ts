@@ -341,11 +341,22 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
       const historicalRead =
         route === undefined &&
         resource !== undefined &&
-        accepts(request.headers.accept, HISTORICAL_UPDATE_MEDIA, true);
+        inventory === undefined &&
+        !scopeEventRoute &&
+        accepts(request.headers.accept, HISTORICAL_UPDATE_MEDIA, true) &&
+        !accepts(request.headers.accept);
       if (!historicalRead && !accepts(request.headers.accept)) {
         empty(response, 406);
         return;
       }
+      if (
+        historicalRead &&
+        url.search &&
+        (url.searchParams.get("view") !== "terminal" ||
+          url.searchParams.getAll("view").length !== 1 ||
+          [...url.searchParams.keys()].some((name) => name !== "view"))
+      )
+        throw new RetainedRequestError("invalid-parameter", 400);
       if (route === "description") {
         json(
           response,
@@ -512,6 +523,7 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
       const etag = `"${current.revision}"`;
       const headers = {
         etag,
+        vary: "Accept",
         "bdp-resource-kind": record.kind,
         link: `<${navigation.description}>; rel="service-desc"; type="${RETAINED_MEDIA}"`,
       };

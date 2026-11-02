@@ -215,7 +215,7 @@ it("refuses a last-live token masquerading as terminal D through the actual feat
   const options = {
     limits,
     allowTarget: () => true,
-    fetchImplementation: async (input: RequestInfo | URL) => {
+    fetchImplementation: async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       const payload =
         url === description

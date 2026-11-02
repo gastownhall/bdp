@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { DatabaseSync } from "node:sqlite";
+import { afterEach, expect, it, vi } from "vitest";
 import {
   RetainedClient,
   createRetainedFetchTransport,
@@ -207,75 +208,176 @@ it("advertises only selected capability and refuses unsupported composition/carr
   expect((await f.wire(first.id)).status).toBe(200);
 });
 
-it("delivers a terminal-version source refusal through actual HTTP and SDK as a known validation Problem", async () => {
+it.each(["terminal", "unknown"] as const)(
+  "delivers %s source refusal through actual HTTP and SDK as a known Problem",
+  async (sourceKind) => {
+    const f = await fixture();
+    const first = await f.node("terminal-source");
+    expect((await f.post("deleteBead", { bead: first.id }, "delete-source")).status).toBe(200);
+    const terminalRead = await f.wire(`${first.id}?view=terminal`, "GET", undefined, {
+      accept: feature,
+    });
+    const terminal = JSON.parse(terminalRead.text).terminal;
+    const fetchImplementation: typeof fetch = async (input, init) => {
+      const body =
+        init?.body === undefined
+          ? undefined
+          : JSON.parse(new TextDecoder().decode(init.body as Uint8Array));
+      const reply = await f.wire(
+        String(input),
+        init?.method ?? "GET",
+        body,
+        Object.fromEntries(new Headers(init?.headers)),
+      );
+      const headers = Object.fromEntries(
+        Object.entries(reply.headers).filter(
+          (entry): entry is [string, string] => typeof entry[1] === "string",
+        ),
+      );
+      const response = new Response(
+        reply.status === 204 || init?.method === "HEAD" ? null : reply.text,
+        { status: reply.status, headers },
+      );
+      Object.defineProperty(response, "url", { value: String(input) });
+      return response;
+    };
+    const options = {
+      limits: {
+        requestBodyBytes: 65536,
+        responseBodyBytes: 65536,
+        responseTimeoutMs: 1000,
+        cleanupTimeoutMs: 10,
+      },
+      allowTarget: () => true,
+      fetchImplementation,
+    };
+    const client = new RetainedClient({
+      transport: createRetainedFetchTransport(options),
+      historicalUpdateTransport: createHistoricalUpdateFetchTransport(options),
+      maximumDocumentBytes: 65536,
+      maximumRequestBodyBytes: 65536,
+      operationTimeoutMs: 1000,
+    });
+    const bound = await client.bindWrite(scope);
+    if (bound.kind !== "success") throw Error("Write binding unavailable");
+    const prepared = bound.value.prepareHistoricalUpdate(
+      JSON.stringify({
+        bead: first.id,
+        fromRevision: sourceKind === "terminal" ? terminal.revision : "genuine-unknown-revision",
+        expectedRevision: terminal.revision,
+      }),
+      "terminal-is-not-content",
+    );
+    const reply = await client.submit(prepared);
+    expect(reply).toMatchObject(
+      sourceKind === "terminal"
+        ? {
+            kind: "problem",
+            http: { status: 422 },
+            problem: {
+              code: "validation-failed",
+              diagnostics: [
+                { message: "Historical Update source must identify a retained live version" },
+              ],
+            },
+          }
+        : {
+            kind: "problem",
+            http: { status: 404 },
+            problem: {
+              type: "https://github.com/gastownhall/bdp/problems/not-found",
+              code: "revision-unknown",
+            },
+          },
+    );
+    if (reply.kind !== "problem") throw Error("missing known source refusal");
+    expect(reply.nativeBody).toEqual(new TextEncoder().encode(JSON.stringify(reply.problem)));
+    expect((await f.wire(first.id)).status).toBe(404);
+    expect(await client.submit(prepared)).toEqual(reply);
+  },
+);
+
+it("keeps feature-only reads in their selected point-view domain and preserves base variants", async () => {
   const f = await fixture();
-  const first = await f.node("terminal-source");
-  expect((await f.post("deleteBead", { bead: first.id }, "delete-source")).status).toBe(200);
-  const terminalRead = await f.wire(`${first.id}?view=terminal`, "GET", undefined, {
-    accept: feature,
+  const first = await f.node("negotiation");
+  expect(
+    (await f.wire(f.server.navigation.beads, "GET", undefined, { accept: feature })).status,
+  ).toBe(406);
+  expect(
+    (await f.wire(`${first.id}?view=links`, "GET", undefined, { accept: feature })).status,
+  ).toBe(400);
+  for (const accept of [media, `${media};q=1, ${feature};q=0.1`, `${media};q=1, ${feature};q=0`]) {
+    const reply = await f.wire(first.id, "GET", undefined, { accept });
+    expect(reply.status).toBe(200);
+    expect(reply.headers["content-type"]).toBe(media);
+    expect(reply.headers.vary).toBe("Accept");
+    expect(JSON.parse(reply.text)).toEqual(first);
+  }
+  const selected = await f.wire(first.id, "GET", undefined, {
+    accept: `${media};q=0, ${feature};q=1`,
   });
-  const terminal = JSON.parse(terminalRead.text).terminal;
-  const fetchImplementation: typeof fetch = async (input, init) => {
-    const body =
-      init?.body === undefined
-        ? undefined
-        : JSON.parse(new TextDecoder().decode(init.body as Uint8Array));
-    const reply = await f.wire(
-      String(input),
-      init?.method ?? "GET",
-      body,
-      Object.fromEntries(new Headers(init?.headers)),
-    );
-    const headers = Object.fromEntries(
-      Object.entries(reply.headers).filter(
-        (entry): entry is [string, string] => typeof entry[1] === "string",
-      ),
-    );
-    const response = new Response(
-      reply.status === 204 || init?.method === "HEAD" ? null : reply.text,
-      { status: reply.status, headers },
-    );
-    Object.defineProperty(response, "url", { value: String(input) });
-    return response;
-  };
-  const options = {
-    limits: {
-      requestBodyBytes: 65536,
-      responseBodyBytes: 65536,
-      responseTimeoutMs: 1000,
-      cleanupTimeoutMs: 10,
-    },
-    allowTarget: () => true,
-    fetchImplementation,
-  };
-  const client = new RetainedClient({
-    transport: createRetainedFetchTransport(options),
-    historicalUpdateTransport: createHistoricalUpdateFetchTransport(options),
-    maximumDocumentBytes: 65536,
-    maximumRequestBodyBytes: 65536,
-    operationTimeoutMs: 1000,
-  });
-  const bound = await client.bindWrite(scope);
-  if (bound.kind !== "success") throw Error("Write binding unavailable");
-  const prepared = bound.value.prepareHistoricalUpdate(
-    JSON.stringify({
-      bead: first.id,
-      fromRevision: terminal.revision,
-      expectedRevision: terminal.revision,
-    }),
-    "terminal-is-not-content",
-  );
-  const reply = await client.submit(prepared);
-  expect(reply).toMatchObject({
-    kind: "problem",
-    http: { status: 422 },
-    problem: {
-      code: "validation-failed",
-      diagnostics: [{ message: "Historical Update source must identify a retained live version" }],
-    },
-  });
-  if (reply.kind !== "problem") throw Error("missing known source refusal");
-  expect(reply.nativeBody).toEqual(new TextEncoder().encode(JSON.stringify(reply.problem)));
-  expect((await f.wire(first.id)).status).toBe(404);
-  expect(await client.submit(prepared)).toEqual(reply);
+  expect(selected.status).toBe(200);
+  expect(selected.headers["content-type"]).toBe(feature);
+  expect(JSON.parse(selected.text)).toEqual({ resource: first });
+  expect((await f.wire(first.id, "GET", undefined, { accept: `${feature};q=0` })).status).toBe(406);
 });
+
+it.each(["source", "baseline"] as const)(
+  "fails safely when the live %s index row disappears after a valid open",
+  async (missing) => {
+    // Capture the actual native connection only in the test, then restore its
+    // method before exercising HTTP. No production administration seam is added.
+    let owner: DatabaseSync | undefined;
+    const prepare = DatabaseSync.prototype.prepare;
+    const capture = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql,
+    ) {
+      owner = this;
+      return prepare.call(this, sql);
+    });
+    let f: Awaited<ReturnType<typeof fixture>>;
+    try {
+      f = await fixture();
+    } finally {
+      capture.mockRestore();
+    }
+    if (owner === undefined) throw Error("native owner connection was not observed");
+    const first = await f.node("index-corruption");
+    const updated = await f.post(
+      "updateBead",
+      { bead: first.id, properties: { title: "last" } },
+      "last-live",
+    );
+    const last = JSON.parse(updated.text).resource;
+    expect((await f.post("deleteBead", { bead: first.id }, "delete-index")).status).toBe(200);
+    const terminal = JSON.parse(
+      (await f.wire(`${first.id}?view=terminal`, "GET", undefined, { accept: feature })).text,
+    ).terminal;
+    const revision = missing === "source" ? first.revision : last.revision;
+    expect(
+      owner
+        .prepare(
+          "SELECT position FROM events WHERE subject=? AND json_extract(body,'$.revision')=?",
+        )
+        .get(first.id, revision),
+    ).toBeDefined();
+    const before = owner.prepare("SELECT count(*) AS n FROM outcomes").get();
+    owner
+      .prepare("DELETE FROM historical_versions WHERE id=? AND revision=?")
+      .run(first.id, revision);
+    const reply = await f.wire(
+      f.server.navigation.targets.updateBead,
+      "POST",
+      { bead: first.id, fromRevision: first.revision, expectedRevision: terminal.revision },
+      { accept: feature, "content-type": feature, "idempotency-key": "corrupt-index" },
+    );
+    expect(reply.status).toBe(500);
+    expect(reply.text).toBe("");
+    expect(owner.prepare("SELECT count(*) AS n FROM outcomes").get()).toEqual(before);
+    expect(
+      owner.prepare("SELECT key FROM outcomes WHERE key='corrupt-index'").get(),
+    ).toBeUndefined();
+    expect((await f.wire(first.id)).status).toBe(404);
+  },
+);

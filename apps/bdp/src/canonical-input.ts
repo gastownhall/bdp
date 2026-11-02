@@ -426,6 +426,10 @@ async function compile(request: CanonicalInputRequest): Promise<CompiledCanonica
   }
   if (has("fromRevision")) {
     if (operation !== "updateBead") return refuse("historical content requires Bead Update");
+    if (batch)
+      throw new CanonicalUnsupportedInputError(
+        "historical source has no selected atomic batch composition",
+      );
     body.fromRevision = parseHistoricalSourceSelector(option("fromRevision"));
   }
   if (has("ifRevision")) {
