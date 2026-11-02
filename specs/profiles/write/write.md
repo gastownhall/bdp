@@ -408,6 +408,106 @@ An unowned source acquires no invented owner effect. Link and all changed owners
 publish atomically. Historical Link editions and owner captures retain their
 recorded endpoints, pins and affiliations.
 
+## Historical-base Bead Update and recovery
+
+The following behavior is selected for the historical-update extension to
+`updateBead`, from the [approved historical Update decisions](https://github.com/gastownhall/beads/issues/7719).
+The concrete capability, terminal and output binding is being reconciled in the
+[current carrier crosswalk](../../../docs/design/historical-update-crosswalk.md#carrier-selection-requiring-a-concrete-ruling).
+That pending binding does not silently widen the ordinary closed request or
+advertise provider support. The initial extension applies to Beads; it adds no
+historical Link recovery, new `revert` operation, import or generic graph rollback.
+
+### Exact source, current predecessor and independent guard
+
+`fromRevision` selects one exact retained live revision of the target Bead.
+It is a nonempty opaque revision token, not a Reference, target identity,
+current-state guard, local ordinal or default-last-live instruction. The ordinary
+`bead` operand supplies the subject. The source MUST belong to that same identity
+and be authorized, available and faithfully reconstructable. A terminal deletion
+record is not a live content source. Unknown identity upsert, another subject's
+source, nearest/latest substitution and erasure bypass are forbidden.
+
+A source-only request is valid under the selected extension. Without the selector,
+ordinary Update keeps its existing edit-member admission rules. `expectedRevision`
+remains an independent optional current-state guard: source R1, actual current R7
+and expected R7 name three roles, even when two tokens happen to be equal. After
+an actual deletion D, recovery may guard against D independently of R1. The last
+live token R7 MUST NOT be substituted for a genuine deletion-state revision D.
+Omission follows ordinary optional-guard semantics; recovery introduces no
+mandatory guard. Ordinary nondisclosure/refusal precedence still governs these
+checks rather than exposing a new source/current-state oracle.
+
+### Historical editable content and current structural authority
+
+Source the exact historical editable properties and editable common metadata,
+then apply the request's explicit edits using ordinary replacement/patch semantics.
+The source is a content base, not a replacement Resource envelope. Only locations
+admitted as editable by the selected ordinary writer participate; unclassified
+fields are not implicitly editable.
+
+| State | Historical-source policy |
+| --- | --- |
+| Ordinary editable `properties` and common `metadata` | Source their historical values, then apply explicit object edits atomically. |
+| Immutable, protected and initialization-only locations | Preserve independently established authoritative current/last-current values; apply their existing ordinary edit rules. |
+| Service-managed fields | Remain with the current writer; regenerate only where its existing rules permit. |
+| Identity, kind, Scope and allocation | Preserve the existing subject and allocation; no reallocation or unknown-ID upsert. |
+| Type affiliation and selected definition | Preserve current accepted meaning unless explicitly edited under ordinary Type rules; never take them implicitly from R1. |
+| Owned Links, incidence, endpoints and pins | Preserve actual current graph state and apply current constraints; no historical snapshot replay or Link resurrection. |
+| Revision and operation actor/time/provenance | Describe the actual new operation and actual predecessor, with historical source distinguished separately; never copy old operation facts as new ones. |
+
+A native adapter MUST publish its explicit editable-field crosswalk and preserve
+its ordinary domain authority. A readable serialized field does not establish
+that a generic Update may write it. In particular, historical native Issue content
+must use its admitted setters, nullable/empty representation, notes overwrite and
+assignment fences, and retained initialization facts. Unknown changed native
+members require an explicit mapping or refusal. The
+[native correspondence table](../../../docs/design/historical-update-crosswalk.md#native-issue-correspondence)
+records the integrated Beads boundary without requiring a generic provider to
+import domain code or treating native wrappers as public BDP schema.
+
+Recovery MUST independently establish the authoritative last-current Type,
+selected definition and required immutable/initialization facts. A readable R1
+plus a guardable D does not prove that baseline. Use positively bound retained
+allocation/native/terminal-associated facts or an authorized exact predecessor
+under the existing authority policy; do not substitute a convenient source or
+latest retained body. Missing, erased, pruned, malformed, unauthorized or
+unavailable required facts cause atomic refusal under the applicable truthful
+diagnosis. Current Type, protected-field, ownership and graph validation apply to
+the complete composed candidate through commit.
+
+### One atomic transition and truthful recovery
+
+Resolve/authorize the source and actual current target, independently check any
+guard, compose editable content, validate the current final graph and commit as
+one authoritative operation. Source retention and erasure fences apply during
+acquisition and through commit. Respect actual cumulative source/current/baseline
+bounds; truncation is not a valid historical source. Failure leaves no partial
+content, allocation, history, revision, owner or applicable Event effect.
+
+For a live Bead, a final state equal to the complete current covered state is the
+ordinary no-op. Admission, source authorization/availability, guard and final
+validation still run. Return the entire unchanged recorded envelope, including
+any earlier historical-source context. Do not remove that context, replace it
+with the later selector, mint a revision or provenance-only write, or emit a
+lifecycle Event. Retain the ordinary durable successful retry outcome.
+
+Deleted-to-live recovery changes presence and mints a fresh live revision under
+the existing identity, even when editable content equals an earlier live record.
+It preserves deletion/history evidence and current initialization authority,
+uses the accepted recovery Inception direction, and revives no Link. Ordinary
+deleted Resource reads remain unchanged. Effects describe the actual current-to-
+result transition, never a patch against R1 presented as if R1 were current.
+
+The exact selector and selected feature intent participate in semantic request
+identity. Changing R1 with the same key conflicts. A retained success/no-op
+replays its original complete outcome under current disclosure/erasure rules;
+it MUST NOT resolve a newer source or execute again after source removal.
+Unknown transport disposition uses ordinary same-key recovery, not a fresh key,
+client read/replace simulation or automatic fallback. Optional batch composition
+requires its own explicit supported binding and preserves one atomic decision;
+no singleton loop or partial execution is inferred.
+
 ## Revisions, owners and attribution
 
 <a id="mutation-revisions-and-guards"></a>

@@ -1221,6 +1221,34 @@ current visibility. Current-plane owned-source/hidden-target closure and the
 incident-Link deletion refusal remain unchanged. The alternative Memory
 surviving-citation lifecycle is deferred.
 
+### Historical Update source and deletion evidence
+
+[Historical-base Bead Update](../write/write.md#historical-base-bead-update-and-recovery)
+uses a retained live same-subject revision as editable content, independently of
+the actual current predecessor and optional current guard. Read access to an old
+body is not permission to recover a deleted subject or to disclose its current
+state. Current/source/terminal disclosure each requires the permission applicable
+to that surface. Ordinary deleted GET remains governed by
+[Reads after deletion](#reads-after-deletion); it does not become a fabricated
+empty Resource or an automatic successful terminal read.
+
+A recovery guard must use a genuine authoritative deletion-state revision D,
+not the last-live revision R7. Terminal evidence identifies deletion without
+copying a live body, Type, properties, metadata, endpoints or owned Links into a
+successful deleted Resource. Required protected/initialization facts for recovery
+must be established separately under the current authority; a source R1 and D
+alone do not establish them. Retention or erasure of necessary evidence cannot
+be bypassed by substituting R7 or another retained body.
+
+The [terminal/carrier crosswalk](../../../docs/design/historical-update-crosswalk.md#carrier-selection-requiring-a-concrete-ruling)
+records the concrete binding still requiring selection. This semantic requirement
+does not amend unextended History's complete-Resource success arm, infer full
+History from internal retained-source storage, or add undeclared base fields.
+A selected terminal/History extension must define explicit closed unions,
+request selection, independent disclosure and erasure behavior before support
+is advertised. Enumeration, if selected, must bind observed current-state evidence
+to its own snapshot without promising that a later guard still matches.
+
 ### Historical diagnoses and missing state
 
 Ordinary non-History reads use the discretionary disclosure under
