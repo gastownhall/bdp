@@ -110,4 +110,3 @@ implementations. Current-contract wire assertions and reference regressions need
 separate subjects from installed legacy/private profile matrices. Existing matrix
 assertions remain intact until each has an explicit replacement or retained lane;
 this increment removes no test or CI gate and adds no testing framework.
-
