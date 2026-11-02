@@ -431,11 +431,13 @@ batch. Co-advertising ordinary atomic-batch1 does not imply this composition.
 `atomicBatch:true` requires actual joint schema, atomicity, outcome and recovery
 support; it is not a test-result flag. No new profile or generic framework exists.
 
-Presence of grammar-owned `fromRevision` selects this fixed exact-token extension
-on the existing discovered `updateBead` target. A field of that name inside
-properties or metadata is ordinary document data. Its absence keeps the ordinary
-closed request. A base receiver rejects the unknown request member rather than
-ignoring it. The feature-owned schema resource is
+The required grammar-owned `fromRevision` member selects this fixed exact-token
+request within the explicitly selected feature media on the existing discovered
+`updateBead` target. A field of that name inside properties or metadata is ordinary
+document data. An ordinary base-media request retains its closed base grammar
+and refuses an extra `fromRevision` rather than switching interpretation. A
+feature-media mutation missing the selector is malformed; no automatic downgrade
+to an ordinary edit is allowed. The feature-owned schema resource is
 [historical-update-v1.schema.json](historical-update-v1.schema.json), with identity
 `https://github.com/gastownhall/bdp/schemas/historical-update-v1.schema.json`.
 The ordinary common bundle, Resource roots and mutation-result roots remain
