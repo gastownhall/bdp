@@ -33,6 +33,7 @@ export function verifyGroupedRecovery(
   const aliases = new Map<string, string>();
   const revisions = new Map<string, Set<string>>();
   const factIds = new Set<string>();
+  const transactions = new Set<string>();
   const namespace = captureAliasNamespace(navigation.scope, navigation.aliases);
   const reserved = navigationAddresses(navigation);
   let decision = 0,
@@ -172,20 +173,56 @@ export function verifyGroupedRecovery(
         !Array.isArray(encodedInput[1])
       )
         fail();
-      const operations = encodedInput[1].map((member: unknown) => {
-        if (!Array.isArray(member) || member[0] !== "object" || !Array.isArray(member[1])) fail();
-        const entries = member[1].filter(
-          (entry: unknown) => Array.isArray(entry) && entry[0] === "operation",
-        );
-        const operation = entries[0]?.[1];
+      // Read only persisted tagged identity nodes: no admission, alias lookup,
+      // current body read or operation reexecution is permitted during recovery.
+      const objectNode = (node: unknown): Map<string, unknown> => {
         if (
-          entries.length !== 1 ||
-          !Array.isArray(operation) ||
-          operation[0] !== "string" ||
-          typeof operation[1] !== "string"
+          !Array.isArray(node) ||
+          node.length !== 2 ||
+          node[0] !== "object" ||
+          !Array.isArray(node[1])
         )
           fail();
-        return operation[1] as string;
+        const fields = new Map<string, unknown>();
+        for (const entry of node[1]) {
+          if (
+            !Array.isArray(entry) ||
+            entry.length !== 2 ||
+            typeof entry[0] !== "string" ||
+            fields.has(entry[0])
+          )
+            fail();
+          fields.set(entry[0], entry[1]);
+        }
+        return fields;
+      };
+      const stringNode = (node: unknown): string => {
+        if (
+          !Array.isArray(node) ||
+          node.length !== 2 ||
+          node[0] !== "string" ||
+          typeof node[1] !== "string"
+        )
+          fail();
+        return node[1];
+      };
+      const operations = encodedInput[1].map((member: unknown) => {
+        const fields = objectNode(member);
+        const operation = stringNode(fields.get("operation"));
+        const memberIdentity = JSON.parse(stringNode(fields.get("identity")));
+        if (
+          !Array.isArray(memberIdentity) ||
+          memberIdentity.length !== 2 ||
+          memberIdentity[0] !== "ru-semantic-value-1"
+        )
+          fail();
+        const normalized = objectNode(memberIdentity[1]);
+        if (stringNode(normalized.get("operation")) !== operation) fail();
+        return {
+          operation,
+          input: objectNode(normalized.get("input")),
+          handles: objectNode(fields.get("handles")),
+        };
       });
       if (result.results.length !== operations.length) fail();
       rows = result.resources;
@@ -199,12 +236,55 @@ export function verifyGroupedRecovery(
         if (
           !keys(mapping, ["operationIndex", "operation", "id", "operationName"]) ||
           mapping.operationIndex !== index ||
-          mapping.operation !== operations[index] ||
+          mapping.operation !== operations[index]!.operation ||
           typeof mapping.operation !== "string" ||
           !BATCH_OPERATIONS.includes(mapping.operation as (typeof BATCH_OPERATIONS)[number]) ||
           !canonical(mapping.id)
         )
           fail();
+        const member = operations[index]!;
+        const creating = mapping.operation.startsWith("create");
+        const subject = mapping.operation.endsWith("Bead") ? "bead" : "link";
+        const allowedHandles = creating
+          ? subject === "link"
+            ? ["source", "target"]
+            : []
+          : subject === "bead"
+            ? ["bead"]
+            : mapping.operation === "updateLink"
+              ? ["link", "source", "target"]
+              : ["link"];
+        for (const [field, encodedCreator] of member.handles) {
+          const creatorText = stringNode(encodedCreator);
+          if (!allowedHandles.includes(field) || !/^(0|[1-9][0-9]*)$/.test(creatorText)) fail();
+          const creatorIndex = Number(creatorText);
+          if (!Number.isSafeInteger(creatorIndex) || creatorIndex >= index) fail();
+          const creator = result.results[creatorIndex];
+          if (
+            !creator ||
+            !creator.operation.startsWith("create") ||
+            creator.operation.endsWith("Bead") !== (field !== "link")
+          )
+            fail();
+          const reference = member.input.get(field);
+          const placeholder =
+            Array.isArray(reference) && reference[0] === "object"
+              ? stringNode(objectNode(reference).get("uri"))
+              : stringNode(reference);
+          if (placeholder !== `${navigation.scope}batch-binding-${creatorIndex}`) fail();
+        }
+        if (creating) {
+          if (member.input.has("id") && mapping.id !== stringNode(member.input.get("id"))) fail();
+        } else {
+          const creator = member.handles.get(subject);
+          const expected =
+            creator === undefined
+              ? stringNode(member.input.get(subject))
+              : result.results[Number(stringNode(creator))].id;
+          // Compared subjects already contain the original alias target. The
+          // retained witnesses above validate that original decision baseline.
+          if (mapping.id !== expected) fail();
+        }
         const row = rowIds.get(mapping.id);
         if (!row || row.resourceKind !== (mapping.operation.endsWith("Bead") ? "bead" : "link"))
           fail();
@@ -359,6 +439,22 @@ export function verifyGroupedRecovery(
       }
     if (memberships.length !== effects.length || stored.event_position !== (memberships[0] ?? null))
       fail();
+    const groupTransaction = batching
+      ? result.changed
+        ? result.transaction
+        : undefined
+      : effects.length
+        ? JSON.parse(
+            String(
+              get("SELECT body FROM events WHERE position=?", memberships[0] as SQLInputValue)
+                ?.body,
+            ),
+          ).transaction
+        : undefined;
+    if (groupTransaction !== undefined) {
+      if (!nonempty(groupTransaction) || transactions.has(groupTransaction)) fail();
+      transactions.add(groupTransaction);
+    }
     for (const [index, effect] of effects.entries()) {
       const currentPosition = ++position;
       if (memberships[index] !== currentPosition) fail();

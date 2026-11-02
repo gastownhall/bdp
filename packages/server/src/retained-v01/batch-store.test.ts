@@ -400,6 +400,153 @@ describe("atomic batch durable whole outcomes and final publication", () => {
     }
     expect(() => openPrivateRetainedStore({ ...config, create: false })).toThrow();
   });
+  it("refuses in-set swaps of explicit create mappings despite intact final rows and facts", () => {
+    const { store, config } = setup();
+    const input = batch([
+      { operation: "createBead", id: "first", type, name: "a" },
+      { operation: "createBead", id: "second", type, name: "b" },
+    ]);
+    expect(store.batch("p", input).status).toBe(200);
+    store.close();
+    const db = new DatabaseSync(path.join(config.directory, "retained-reference.sqlite"));
+    try {
+      db.function("retained_json", { deterministic: true }, (_value) => 1);
+      const result = JSON.parse(
+        String(db.prepare("SELECT body FROM outcomes WHERE operation='batch'").get()!.body),
+      );
+      [result.results[0].id, result.results[1].id] = [result.results[1].id, result.results[0].id];
+      db.prepare("UPDATE outcomes SET body=? WHERE operation='batch'").run(JSON.stringify(result));
+    } finally {
+      db.close();
+    }
+    expect(() => openPrivateRetainedStore({ ...config, create: false })).toThrow();
+  });
+  it.each(["handles", "direct", "aliases"])(
+    "binds recovered %s subjects to their original creator or comparison",
+    (mode) => {
+      const { store, config } = setup();
+      let operations: unknown[];
+      let indexes: [number, number] = [0, 1];
+      if (mode === "handles") {
+        operations = [
+          { operation: "createBead", type, name: "a" },
+          { operation: "createBead", type, name: "b" },
+          { operation: "updateBead", bead: "@a", metadata: {} },
+          { operation: "updateBead", bead: "@b", metadata: {} },
+        ];
+        indexes = [2, 3];
+      } else {
+        for (const id of ["first", "second"]) {
+          expect(
+            store.create("p", prepareCreate(scope, JSON.stringify({ id, type }), "seed-" + id))
+              .status,
+          ).toBe(200);
+          if (mode === "aliases")
+            expect(
+              store.putAlias(
+                "p",
+                prepareAlias(
+                  scope,
+                  "putAlias",
+                  JSON.stringify({ alias: "aliases/" + id, target: id }),
+                  "alias-" + id,
+                ),
+              ).status,
+            ).toBe(200);
+        }
+        operations = ["first", "second"].map((id) => ({
+          operation: "updateBead",
+          bead: (mode === "aliases" ? "aliases/" : "") + id,
+          metadata: {},
+        }));
+      }
+      const input = batch(operations);
+      const first = store.batch("p", input);
+      expect(first.status).toBe(200);
+      store.close();
+      const valid = openPrivateRetainedStore({ ...config, create: false });
+      try {
+        expect(valid.batch("p", input)).toEqual(first);
+      } finally {
+        valid.close();
+      }
+      const db = new DatabaseSync(path.join(config.directory, "retained-reference.sqlite"));
+      try {
+        db.function("retained_json", { deterministic: true }, (_value) => 1);
+        const result = JSON.parse(
+          String(db.prepare("SELECT body FROM outcomes WHERE operation='batch'").get()!.body),
+        );
+        const [a, b] = indexes;
+        [result.results[a].id, result.results[b].id] = [result.results[b].id, result.results[a].id];
+        db.prepare("UPDATE outcomes SET body=? WHERE operation='batch'").run(
+          JSON.stringify(result),
+        );
+      } finally {
+        db.close();
+      }
+      expect(() => openPrivateRetainedStore({ ...config, create: false })).toThrow();
+    },
+  );
+  it("keeps generated IDs stable across reopen and alpha-renamed creation handles", () => {
+    const { store, config } = setup();
+    const request = (name: string) =>
+      batch([
+        { operation: "createBead", type, name },
+        { operation: "updateBead", bead: "@" + name, properties: { final: true } },
+      ]);
+    const first = store.batch("p", request("original"));
+    expect(first.status).toBe(200);
+    store.close();
+    const reopened = openPrivateRetainedStore({ ...config, create: false });
+    cleanups.push(() => reopened.close());
+    const saved = JSON.parse(first.text);
+    const replay = JSON.parse(reopened.batch("p", request("renamed")).text);
+    expect(replay).toEqual({
+      ...saved,
+      results: saved.results.map((entry: Record<string, unknown>, index: number) =>
+        index === 0 ? { ...entry, operationName: "renamed" } : entry,
+      ),
+    });
+  });
+  it.each(["facts", "allocation-only"])(
+    "refuses reused transaction correlation across %s decisions",
+    (mode) => {
+      const { store, config } = setup();
+      for (const id of ["first", "second"]) {
+        const operations: unknown[] = [{ operation: "createBead", id, type, name: "new" }];
+        if (mode === "allocation-only") operations.push({ operation: "deleteBead", bead: "@new" });
+        expect(store.batch("p", batch(operations, id)).status).toBe(200);
+      }
+      store.close();
+      const db = new DatabaseSync(path.join(config.directory, "retained-reference.sqlite"));
+      try {
+        db.function("retained_json", { deterministic: true }, (_value) => 1);
+        const outcomes = db.prepare("SELECT decision,body FROM outcomes ORDER BY decision").all();
+        const transaction = JSON.parse(String(outcomes[0]!.body)).transaction;
+        const result = JSON.parse(String(outcomes[1]!.body));
+        result.transaction = transaction;
+        db.prepare("UPDATE outcomes SET body=? WHERE decision=?").run(
+          JSON.stringify(result),
+          Number(outcomes[1]!.decision),
+        );
+        for (const event of db
+          .prepare(
+            "SELECT position,body FROM events WHERE position IN (SELECT position FROM decision_facts WHERE decision=?)",
+          )
+          .all(Number(outcomes[1]!.decision))) {
+          const fact = JSON.parse(String(event.body));
+          fact.transaction = transaction;
+          db.prepare("UPDATE events SET body=? WHERE position=?").run(
+            JSON.stringify(fact),
+            Number(event.position),
+          );
+        }
+      } finally {
+        db.close();
+      }
+      expect(() => openPrivateRetainedStore({ ...config, create: false })).toThrow();
+    },
+  );
   it.each(["membership", "allocation", "mapping"])(
     "refuses corrupted %s closure on reopen",
     (fault) => {
