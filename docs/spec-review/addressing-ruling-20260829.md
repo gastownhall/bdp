@@ -11,17 +11,17 @@ canonical documents at `a415d4155`. Current rules live only in those documents.
 | 3 | One segment grammar for all segments | Core § Discovery and navigation, local spelling rules (nonempty safe segments; no `.`/`..`, controls, backslashes, encoded separators; one percent decode; no Unicode normalization) | Absorbed |
 | 4 | Paths are identifiers, not containers | Core § Scopes and identity ("Segments imply neither containment nor a child Scope"); Write ("Hierarchy authored in an ID implies neither containment nor a nested Scope") | Absorbed |
 | 5 | Reject, never trim | Write § Creation and identity allocation ("rejected, never trimmed, decoded twice or normalized into another identity") | Absorbed |
-| 6 | Aliases live under a fixed root `{scope}alias/`, so canonical versus alias is decidable from the string | Core § Aliases ("beneath the advertised `aliases` base. The authority chooses that base; it MAY be the canonical Scope URL itself. BDP reserves no `alias/` spelling"); Core discovery ("Aliases navigation is an in-Scope base, possibly the Scope itself") | **Superseded.** Ruled 2026-11-02: Core stands. Classification is by discovery and `HEAD`, not by path word |
+| 6 | Aliases live under a fixed root `{scope}alias/`, so canonical versus alias is decidable from the string | Core § Aliases ("beneath the advertised `aliases` base. The authority chooses that base; it MAY be the canonical Scope URL itself. BDP reserves no `alias/` spelling"); Core discovery ("Aliases navigation is an in-Scope base, possibly the Scope itself") | **Superseded by Core at `a415d4155`.** Classification is by discovery and `HEAD`, not by path word |
 | 7 | Redirect-only resolution: `307` with `Location`, no body; `HEAD` as the resolve primitive; no representation at the alias URL | Core § Alias resolution | Absorbed |
 | 8 | No chains; exactly one hop | Core § Aliases and § Alias resolution; Write alias target rules (an alias, Link or external URI target is `validation-failed`) | Absorbed |
 | 9 | Unknown alias is the uniform `404`, authorization-projected; aliases are not Resources | Core § Alias resolution; Core § Aliases | Absorbed |
-| 10 | Reuse rules split by root; references at rest are always canonical | Core § Aliases (repointable, reusable after deletion; canonical identity never released); Write ("stored/served References never contain the alias or follow a later repoint") | Absorbed |
-| 11 | Resolution is capability-honest through an optional `aliases` discovery member; lifecycle is write surface | Core discovery (optional `aliases`), § Alias resolution; Write `putAlias` and `deleteAlias` | Absorbed; the profile names changed with the consolidation (resolution is Core, lifecycle is Write) |
+| 10 | Reuse rules split by root; references at rest are always canonical | Core § Aliases (repointable, reusable after deletion; canonical identity never released); Write ("stored/served References never contain the alias or follow a later repoint") | Absorbed; the root-split framing is superseded with #6 |
+| 11 | Resolution is capability-honest through an optional `aliases` discovery member; lifecycle is write surface | Core discovery (optional `aliases`), § Alias resolution; Write discovery (required `aliases`) and `putAlias` / `deleteAlias` | Absorbed; the profile names changed with the consolidation (resolution is Core, lifecycle is Write) |
 | — | Relation to `gastownhall/beads#5877`: collapse `key + aliases` into `canonical path + aliases` | Outside BDP | Open on the beads side |
 
-### Original note (2026-08-29), unchanged
+## Original note (2026-08-29), historical provenance
 
-## Ruling: creation-time identity and aliases
+### Ruling: creation-time identity and aliases
 
 Adjudicated with the operator (design worked jointly with the beads side). This settles the addressing story raised here and feeds a clarification back to gastownhall/beads#5877.
 
