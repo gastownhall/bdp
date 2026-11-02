@@ -110,8 +110,8 @@ artifact, full implementation suite or conformance claim follows from this unit.
 The candidate now adds complete ordinary inventory/incident pages and retained SDK
 page/alias operations, using the shared bounded Selector and snapshot engine. Only
 ordinary continuations opt into page resizing; legacy fixed-page behavior remains.
-Worst-case cursor positions are reserved before admission; resized responses do
-not accumulate an unbounded page cache or extend expiry.
+The original605cc30 reservation implementation was superseded by the independent
+review repair below; it is preserved in Git and its original test evidence.
 
 The explicit `@bdp/server/reference` composition uses the standard `bdp/` namespace,
 complete Scope access for its configured principals, fresh explicit provisioning
@@ -136,3 +136,55 @@ then explicitly bind historical byte-pin/prose tests to their original inputs.
 Immutable Type publications and their pins are preserved, with current metadata
 requirements tested separately. Do not rewrite publication1/2 records under old
 revision tokens or silently replace historical hashes with the current bundle.
+
+## Historical validation result
+
+The preserved catalogs still contain305 rows/569 quotations and retain all six
+original byte pins. Their loader refuses source drift, missing/alternate inputs
+and malformed encoded Write storage. The original metadata-omitting Type
+publication/lookup fixtures now have an explicit historical schema subject and
+current rejection controls. No immutable publication was edited or re-pinned.
+
+The Python historical checker passes its original shape, exact-read and altered-copy
+controls in a task-owned Python3.13 environment with jsonschema4.23.0 (format extra)
+and referencing0.35.1; the dependency freeze is retained outside the repository.
+The first attempt lacked jsonschema; the next lacked URI format dependencies.
+Those failures are retained, not suppressed. No global Python environment changed.
+
+Applicable retained168/126 guards were recovered before the broad runtime suite.
+Their Beads shared-resource/native campaigns remain paused and unrun here. This
+BDP reference uses only this candidate’s fresh temporary SQLite/test workspaces.
+
+## Broad local run and next bounded controls
+
+The first full local run completed normally in234.371 seconds:10076PASS,19FAIL,
+2existing optional skips (real bd matrix and real-bd demo; user-installed binaries
+were excluded). No timeout. All remaining failures were identified in eight files:
+historical Problem/prose and diagnostic-source readers, old navigation/layout
+anchors, exact package export controls, and the schema-graph interpretation-policy
+tripwire for the expanded protocol export barrel. The original complete log and
+source manifest are retained. This is not required hosted real-bd qualification.
+
+Historical Problem/cumulative tests now use the closed pinned reader. The current
+source helper reads the actual named file and no longer synthesizes a phantom
+monolith behind the old navigation path. Old anchor maps lead explicitly to the
+archive; current entry links lead directly to the four selected profiles. Private
+lifecycle/snapshot containment checks include the new reference entry without
+exposing their private facilities. The policy hash remains deliberately unrefreshed
+until an independent reviewer checks interpretation and the private version rule.
+
+## Independent review repair
+
+Review01 completed normally with substantive findings. Its large-set/capacity/HEAD
+findings are repaired by authenticated offsets over one retained snapshot identity,
+nonrepeating masked per-engine counters, per-snapshot MAC keys and source-private
+unissued-page release. Existing snapshot byte/node/state/TTL limits are unchanged;
+hard per-observation limits are distinguished from temporary active-snapshot
+pressure. SQLite scans are bounded before materialization.111 targeted tests and
+typecheck pass, including10002 records, tampering, repeated entropy after expiry,
+actual HEAD/304 pressure and an oversized scan with readable committed data.
+
+The [review disposition](reference-review.md) records every finding, explicit
+policy-version reasoning and remaining closure/installed/full-CI duties. The pin
+refresh was applied only after the independent decision and a hash comparison of
+all14 guarded inputs. There is no readiness or merge claim at this point.

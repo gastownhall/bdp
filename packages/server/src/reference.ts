@@ -40,6 +40,23 @@ export function referenceNavigation(scope: string): PrivateNavigation {
  * Events/History/Types/projection/batch are deliberately unadvertised and refused.
  */
 export async function startReferenceService(options: ReferenceServiceOptions) {
+  if (
+    Object.keys(options).some(
+      (name) => !["directory", "create", "instance", "scope", "credentials"].includes(name),
+    ) ||
+    !Array.isArray(options.credentials) ||
+    options.credentials.some(
+      (credential) =>
+        credential === null ||
+        typeof credential !== "object" ||
+        typeof credential.token !== "string" ||
+        typeof credential.principal !== "string" ||
+        credential.principal.length === 0,
+    )
+  )
+    throw new TypeError(
+      "explicit reference configuration required; unknown options are unsupported",
+    );
   const navigation = referenceNavigation(options.scope);
   const listener = await startRetainedListener({
     directory: options.directory,

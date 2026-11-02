@@ -6,6 +6,7 @@ export function assertServerExports(manifest) {
   const expected = {
     ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
     "./development": { types: "./dist/development.d.ts", default: "./dist/development.js" },
+    "./reference": { types: "./dist/reference.d.ts", default: "./dist/reference.js" },
   };
   if (!isDeepStrictEqual(manifest.exports, expected))
     throw new Error(

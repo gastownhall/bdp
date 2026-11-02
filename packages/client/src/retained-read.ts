@@ -228,6 +228,12 @@ export class RetainedClient {
     readonly limit?: number;
     readonly signal?: AbortSignal;
   }): Promise<RetainedReply<RetainedPageValue>> {
+    if (
+      Object.keys(options).some(
+        (name) => !["scope", "kind", "filters", "limit", "signal"].includes(name),
+      )
+    )
+      throw new RetainedClientError("unsupported-feature");
     const scope = parseCanonicalScope(options.scope);
     const { kind, limit, signal } = options;
     if (kind !== "bead" && kind !== "link") throw new RetainedClientError("invalid-input");
@@ -286,6 +292,12 @@ export class RetainedClient {
     readonly limit?: number;
     readonly signal?: AbortSignal;
   }): Promise<RetainedReply<RetainedPageValue>> {
+    if (
+      Object.keys(options).some(
+        (name) => !["scope", "bead", "direction", "limit", "signal"].includes(name),
+      )
+    )
+      throw new RetainedClientError("unsupported-feature");
     const bead = parseCanonicalHttpUrl(options.bead);
     if (bead.includes("?")) throw new RetainedClientError("invalid-input");
     if (
@@ -344,6 +356,9 @@ export class RetainedClient {
       controls.ifNoneMatch === undefined &&
       controls.ifModifiedSince === undefined
     )
+      return invalid();
+    privateNoStore(response);
+    if (response.contentType !== null && media(response.contentType) !== RETAINED_V01_MEDIA_TYPE)
       return invalid();
     let page: RetainedCollection | undefined;
     if (method === "HEAD" || response.status === 304) {

@@ -120,11 +120,13 @@ export function parseRetainedCollection(
   if (kind !== "bead" && kind !== "link")
     throw new ProtocolArtifactValidationError("invalid collection kind");
   const value = parseRetainedObject(text);
-  validateRetainedValue(kind === "bead" ? "beadCollection" : "linkCollection", value);
+  validateRetainedValue(kind === "bead" ? "currentBeadCollection" : "currentLinkCollection", value);
   const items = value.items as readonly RetainedJsonObject[];
   const ids = new Set<string>();
   for (const item of items) {
-    parseRetainedResource(JSON.stringify(item), kind);
+    validateResourceIdentity(item);
+    if (item.links !== undefined)
+      throw new ProtocolArtifactValidationError("unselected aggregate in collection");
     if (ids.has(item.id as string))
       throw new ProtocolArtifactValidationError("duplicate collection identity");
     ids.add(item.id as string);

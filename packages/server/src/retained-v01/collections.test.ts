@@ -105,3 +105,14 @@ describe("ordinary retained collection selection", () => {
     expect(read(nav.beads)).toEqual({ items: [], next: null });
   });
 });
+
+it("does not confuse a large selected set with a per-offset metadata cap", () => {
+  const records = Array.from({ length: 10002 }, (_, n) => bead(String(n).padStart(5, "0")));
+  const pages = createRetainedCollections(nav, "epoch", () => records);
+  closers.push(pages.close);
+  const first = pages.read(new URL(nav.beads + "&limit=1000"), "p", "bead");
+  expect(first.items).toHaveLength(1000);
+  const next = new URL(first.next!);
+  next.searchParams.set("limit", "1");
+  expect(pages.read(next, "p", "bead").items[0]?.id).toBe(scope + "01000");
+});

@@ -925,6 +925,7 @@ describe("native ordinary page delivery", () => {
   it.each([
     { items: [{ ...record, metadata: undefined }], next: null },
     { items: [record, record], next: null },
+    { items: [{ ...record, links: { items: [], next: null } }], next: null },
     { items: [], next: "https://foreign.example/cursor" },
     { items: [], next: null, total: 0 },
   ])("refuses invalid or foreign native page %j", async (value) => {
@@ -950,4 +951,36 @@ it("resolves a native alias by GET without fetching its target", async () => {
   const reply = await sdk.resolveAlias(alias, scope);
   expect(reply.kind === "success" && reply.value).toEqual({ alias, target: resource });
   expect(calls).toEqual([alias]);
+});
+
+it("refuses unknown required options on list and incident before any network", () => {
+  const sdk = client(async () => {
+    throw new Error("must not dispatch");
+  });
+  expect(() =>
+    sdk.list({ scope, kind: "bead", fields: {} } as unknown as Parameters<typeof sdk.list>[0]),
+  ).toThrowError(expect.objectContaining({ code: "unsupported-feature" }));
+  expect(() =>
+    sdk.incident({
+      scope,
+      bead: resource,
+      conformsTo: "https://types.invalid/T",
+    } as unknown as Parameters<typeof sdk.incident>[0]),
+  ).toThrowError(expect.objectContaining({ code: "unsupported-feature" }));
+});
+
+it("refuses authorization-scoped pages without private/no-store response controls", async () => {
+  const sdk = client(async (input) => {
+    const url = String(input);
+    if (url === scope) return response(url, null, { link: linkHeader }, 204);
+    if (url === description) return response(url, { ...discovery(), beads: scope + "inventory" });
+    return response(
+      url,
+      { items: [], next: null },
+      { link: linkHeader, "bdp-collection-kind": "bead", "cache-control": "public" },
+    );
+  });
+  await expect(sdk.list({ scope, kind: "bead" })).rejects.toMatchObject({
+    code: "invalid-response",
+  });
 });

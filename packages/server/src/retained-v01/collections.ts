@@ -1,7 +1,7 @@
 /** Ordinary Core selection, followed by bounded immutable snapshot pagination. */
 import { randomBytes } from "node:crypto";
 import { parseCanonicalHttpUrl } from "@bdp/protocol";
-import { createReadPagination, ReadPaginationError } from "../read-pagination.js";
+import { createContextualReadPagination, ReadPaginationError } from "../read-pagination.js";
 import { selectReadResources, ReadSelectorError } from "../read-selector.js";
 import {
   type JsonObject,
@@ -43,7 +43,7 @@ export function createRetainedCollections(
   epoch: string,
   list: (kind: ResourceKind) => readonly JsonObject[],
 ) {
-  const paging = createReadPagination<JsonObject>({
+  const paging = createContextualReadPagination<JsonObject>({
     scope: navigation.scope,
     resizable: true,
     defaultPageItems: 100,
@@ -59,7 +59,14 @@ export function createRetainedCollections(
     clock: Date.now,
     generateOpaqueToken: () => randomBytes(24).toString("base64url"),
   });
+  const unissuedFirstPages = new WeakSet<object>();
   return {
+    discardUnissued(page: { readonly items: readonly JsonObject[]; readonly next: string | null }) {
+      if (unissuedFirstPages.has(page)) {
+        paging.releaseUnissuedPage(page);
+        unissuedFirstPages.delete(page);
+      }
+    },
     close: () => paging.close(),
     read(url: URL, principal: string, kind: ResourceKind, subject?: string) {
       const params = new URLSearchParams(url.search);
@@ -154,18 +161,22 @@ export function createRetainedCollections(
         items.sort((a, b) =>
           String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0,
         );
-        return paging.firstPage({
+        const page = paging.firstPage({
           ...identity,
           items,
           continuationUrl: new URL(url.pathname + url.search, navigation.scope).href,
           ...(limit === undefined ? {} : { limit }),
         });
+        unissuedFirstPages.add(page);
+        return page;
       } catch (error) {
         if (error instanceof ReadPaginationError) {
           if (error.code === "foreign-view")
             throw new RetainedRequestError("foreign-view", 409, "after-state-change");
           if (error.code === "cursor-expired")
             throw new RetainedRequestError("cursor-expired", 410, "after-state-change");
+          if (error.code === "snapshot-limit-exceeded")
+            throw new RetainedRequestError("limit-exceeded", 413);
           if (error.code === "capacity-exceeded")
             throw new RetainedRequestError("temporarily-unavailable", 503, "after-delay");
           if (error.code === "foreign-projection" || error.code === "invalid-limit")

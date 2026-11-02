@@ -155,9 +155,16 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
   if (!credentials.length || new Set(credentials.map((c) => c.token)).size !== credentials.length)
     throw new TypeError("unique private credentials required");
   const store = openPrivateRetainedStore({ ...options, navigation });
-  const collections = createRetainedCollections(navigation, options.instance, (kind) =>
-    store.listRecords(kind),
-  );
+  const collections = (() => {
+    try {
+      return createRetainedCollections(navigation, options.instance, (kind) =>
+        store.listRecords(kind),
+      );
+    } catch (error) {
+      store.close();
+      throw error;
+    }
+  })();
   const signature = (url: string) => {
     const target = new URL(url);
     return target.host + target.pathname + target.search;
@@ -303,27 +310,46 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
         json(response, 200, serialized(navigation.targets));
         return;
       }
-      const incident = resource !== undefined && url.searchParams.get("view") === "links";
+      const incident =
+        inventory === undefined &&
+        resource !== undefined &&
+        url.searchParams.get("view") === "links";
       if (inventory !== undefined || incident) {
-        if (incident && store.readRecord(resource!)?.kind !== "bead")
-          throw new RetainedRequestError("resource-not-found", 404, "after-state-change");
-        const body = serialized(
-          collections.read(url, principal, inventory ?? "link", incident ? resource : undefined),
+        if (incident) {
+          const subject = store.readRecord(resource!);
+          if (subject === undefined)
+            throw new RetainedRequestError("resource-not-found", 404, "after-state-change");
+          if (subject.kind !== "bead") throw new RetainedRequestError("invalid-parameter", 400);
+        }
+        const page = collections.read(
+          url,
+          principal,
+          inventory ?? "link",
+          incident ? resource : undefined,
         );
+        const body = serialized(page);
         const headers = {
           "bdp-collection-kind": inventory ?? "link",
           ...(incident ? { "bdp-resource-kind": "bead" } : {}),
           etag: `"${createHash("sha256").update(body).digest("hex")}"`,
           link: `<${navigation.description}>; rel="service-desc"; type="${RETAINED_MEDIA}"`,
         };
-        if (conditionalRead(request, response, headers)) return;
+        if (conditionalRead(request, response, headers)) {
+          collections.discardUnissued(page);
+          return;
+        }
+        if (method === "HEAD") collections.discardUnissued(page);
         json(response, 200, body, headers);
         return;
       }
       const isSubjectEvents = resource !== undefined && url.searchParams.get("view") === "events";
       if (scopeEventRoute || isSubjectEvents) {
         if (options.referenceCore === true)
-          throw new RetainedRequestError("invalid-parameter", 400);
+          throw new RetainedRequestError(
+            isSubjectEvents ? "invalid-parameter" : "resource-not-found",
+            isSubjectEvents ? 400 : 404,
+            isSubjectEvents ? "never" : "after-state-change",
+          );
         const source = scopeEventRoute ? navigation.events : `${resource}?view=events`;
         // Resolve the authorized selection/cursor before a conditional shortcut.
         const body = serialized(

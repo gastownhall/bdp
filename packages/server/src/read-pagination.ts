@@ -1,3 +1,4 @@
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { isProxy } from "node:util/types";
 
 export interface ReadPaginationOptions {
@@ -64,6 +65,7 @@ export type ReadPaginationErrorCode =
   | "invalid-limit"
   | "invalid-snapshot"
   | "capacity-exceeded"
+  | "snapshot-limit-exceeded"
   | "token-generation-failed"
   | "cursor-expired"
   | "foreign-view"
@@ -92,6 +94,9 @@ interface CursorBinding<Item> {
 }
 
 interface Snapshot<Item> {
+  /** Resizable pages retain one authority identity, not one entry per offset. */
+  readonly cursorIdentity?: string;
+  readonly cursorKey?: Uint8Array;
   readonly items: readonly Item[];
   readonly limit: number;
   readonly authorizationView: string;
@@ -131,6 +136,8 @@ export interface ContextualReadPagination<Item> extends ReadPagination<Item> {
   ): ReadPage<Item>;
   /** Paired metadata is not a traversal or expiry capability. */
   sourceContext(page: ReadPage<Item>): ReadSourceContext | undefined;
+  /** Same-owner only: withdraw a first page whose cursor was never delivered. */
+  releaseUnissuedPage(page: ReadPage<Item>): void;
 }
 
 /** Preserve the original public facade. Extra properties/arguments on a public
@@ -178,6 +185,68 @@ export function createContextualReadPagination<Item = unknown>(
   // outlive cursor expiry; their context is collectible with the page itself.
   const pageContexts = new WeakMap<ReadPage<Item>, ReadSourceContext | undefined>();
   const cursorIndex = new Map<string, CursorBinding<Item>>();
+  const resizedSnapshots = new Map<string, Snapshot<Item>>();
+  const pageSnapshotIds = new WeakMap<ReadPage<Item>, string>();
+  // Private implementation key. No client data or credentials enter it.
+  const resizeKey = prepared.resizable ? randomBytes(32) : undefined;
+  let resizeSequence = 0;
+  const tag = (snapshot: Snapshot<Item>, offset: number) =>
+    createHmac("sha256", snapshot.cursorKey!)
+      .update(`${snapshot.cursorIdentity}:${offset}`)
+      .digest()
+      .subarray(0, 16)
+      .toString("base64url");
+  const lookupResized = (token: string): CursorBinding<Item> | undefined => {
+    if (typeof token !== "string") return undefined;
+    const match = /^([A-Za-z0-9_-]{8})_([0-9a-z]{1,7})_([A-Za-z0-9_-]{22})$/.exec(token);
+    if (!match) return undefined;
+    const id = match[1]!,
+      raw = match[2]!,
+      supplied = match[3]!;
+    const snapshot = resizedSnapshots.get(id),
+      offset = Number.parseInt(raw, 36);
+    if (
+      !snapshot ||
+      offset <= 0 ||
+      offset >= snapshot.items.length ||
+      offset.toString(36) !== raw ||
+      !timingSafeEqual(Buffer.from(supplied), Buffer.from(tag(snapshot, offset)))
+    )
+      return undefined;
+    return { snapshot, offset };
+  };
+  const freshResizeIdentity = (): { cursorIdentity: string; cursorKey: Uint8Array } => {
+    for (let attempt = 0; attempt < prepared.tokenGenerationAttempts; attempt += 1) {
+      let candidate: unknown;
+      try {
+        candidate = prepared.generateOpaqueToken();
+      } catch {
+        throw localError("token-generation-failed", "opaque identity generation failed");
+      }
+      if (
+        typeof candidate !== "string" ||
+        candidate.length === 0 ||
+        candidate.length > prepared.maxOpaqueTokenLength ||
+        !OPAQUE_TOKEN.test(candidate)
+      )
+        continue;
+      if (resizeSequence >= 0xffffffffffff)
+        throw localError("token-generation-failed", "resizable snapshot identity space exhausted");
+      // A nonrepeating counter (masked under this engine's random key) prevents
+      // any expired token or old page object from binding a later snapshot, even
+      // when an injected entropy callback repeats. A new engine has a new key.
+      const identityBytes = Buffer.alloc(6);
+      identityBytes.writeUIntBE(++resizeSequence, 0, 6);
+      for (let i = 0; i < 6; i++) identityBytes[i] = identityBytes[i]! ^ resizeKey![i]!;
+      const cursorIdentity = identityBytes.toString("base64url");
+      const cursorKey = createHmac("sha256", resizeKey!)
+        .update(candidate)
+        .update(cursorIdentity)
+        .digest();
+      return { cursorIdentity, cursorKey };
+    }
+    throw localError("token-generation-failed", "opaque identity generation exhausted");
+  };
   let retainedSnapshotBytes = 0;
   let retainedSnapshotNodes = 0;
   let retainedCursorPositions = 0;
@@ -205,6 +274,7 @@ export function createContextualReadPagination<Item = unknown>(
 
   const release = (snapshot: Snapshot<Item>): number => {
     if (!snapshots.delete(snapshot)) return 0;
+    if (snapshot.cursorIdentity !== undefined) resizedSnapshots.delete(snapshot.cursorIdentity);
     retainedSnapshotBytes -= snapshot.retainedBytes;
     retainedSnapshotNodes -= snapshot.retainedNodes;
     retainedCursorPositions -= snapshot.reservedCursorPositions;
@@ -298,6 +368,8 @@ export function createContextualReadPagination<Item = unknown>(
   };
 
   const cursorFor = (snapshot: Snapshot<Item>, offset: number): string => {
+    if (snapshot.cursorIdentity !== undefined)
+      return `${snapshot.cursorIdentity}_${offset.toString(36)}_${tag(snapshot, offset)}`;
     const existing = snapshot.cursors.get(offset);
     if (existing !== undefined) return existing;
     const token = generateToken();
@@ -327,6 +399,7 @@ export function createContextualReadPagination<Item = unknown>(
     const page: ReadPage<Item> = Object.freeze({ items, next });
     if (!prepared.resizable) snapshot.pages.set(offset, page);
     pageContexts.set(page, snapshot.sourceContext);
+    if (snapshot.cursorIdentity !== undefined) pageSnapshotIds.set(page, snapshot.cursorIdentity);
     return page;
   };
 
@@ -336,6 +409,14 @@ export function createContextualReadPagination<Item = unknown>(
       maxPageItems: prepared.maxPageItems,
       cursorTtlMs: prepared.cursorTtlMs,
     }),
+
+    releaseUnissuedPage(page) {
+      const id = pageSnapshotIds.get(page);
+      if (id === undefined) return;
+      const snapshot = resizedSnapshots.get(id);
+      if (snapshot !== undefined) release(snapshot);
+      scheduleIdleCleanup();
+    },
 
     sourceContext(page) {
       if (!pageContexts.has(page)) throw localError("invalid-input", "foreign pagination page");
@@ -373,16 +454,34 @@ export function createContextualReadPagination<Item = unknown>(
 
       const willRetain =
         Array.isArray(input.items) && !isProxy(input.items) && input.items.length > limit;
-      const byteCapacity = willRetain
-        ? prepared.retainedSnapshotByteCapacity - retainedSnapshotBytes
-        : prepared.retainedSnapshotByteCapacity;
-      const nodeCapacity = willRetain
-        ? prepared.retainedSnapshotNodeCapacity - retainedSnapshotNodes
-        : prepared.retainedSnapshotNodeCapacity;
+      const byteCapacity =
+        willRetain && !prepared.resizable
+          ? prepared.retainedSnapshotByteCapacity - retainedSnapshotBytes
+          : prepared.retainedSnapshotByteCapacity;
+      const nodeCapacity =
+        willRetain && !prepared.resizable
+          ? prepared.retainedSnapshotNodeCapacity - retainedSnapshotNodes
+          : prepared.retainedSnapshotNodeCapacity;
+      const boundedCopy = <Value>(copy: () => Value): Value => {
+        try {
+          return copy();
+        } catch (error) {
+          if (
+            prepared.resizable &&
+            error instanceof ReadPaginationError &&
+            error.code === "capacity-exceeded"
+          )
+            throw localError(
+              "snapshot-limit-exceeded",
+              "this selected snapshot exceeds the configured byte/node bound",
+            );
+          throw error;
+        }
+      };
       const contextCopy =
         sourceContext === undefined
           ? undefined
-          : snapshotJson(sourceContext, byteCapacity, nodeCapacity);
+          : boundedCopy(() => snapshotJson(sourceContext, byteCapacity, nodeCapacity));
       let capturedContext: ReadSourceContext | undefined;
       if (contextCopy !== undefined) {
         const value = contextCopy.value;
@@ -395,10 +494,12 @@ export function createContextualReadPagination<Item = unknown>(
           throw localError("invalid-snapshot", "source context must be a string record");
         capturedContext = value as ReadSourceContext;
       }
-      const copied = snapshotItems(
-        input.items,
-        byteCapacity - (contextCopy?.retainedBytes ?? 0),
-        nodeCapacity - (contextCopy?.retainedNodes ?? 0),
+      const copied = boundedCopy(() =>
+        snapshotItems(
+          input.items,
+          byteCapacity - (contextCopy?.retainedBytes ?? 0),
+          nodeCapacity - (contextCopy?.retainedNodes ?? 0),
+        ),
       );
       const retainedBytes = copied.retainedBytes + (contextCopy?.retainedBytes ?? 0);
       const retainedNodes = copied.retainedNodes + (contextCopy?.retainedNodes ?? 0);
@@ -410,24 +511,32 @@ export function createContextualReadPagination<Item = unknown>(
         return page;
       }
 
-      // Reserve every future cursor/page position atomically, but mint tokens lazily. This makes
-      // traversal denial-free after admission without allocating one opaque token per page up
-      // front, and keeps client-driven cursor/page metadata within the retained-state bound.
-      const reservedCursorPositions = prepared.resizable
-        ? items.length - 1
-        : Math.ceil(items.length / limit) - 1;
+      // Fixed pages preserve their original reserved-position accounting. Resizable
+      // pages authenticate an offset under one retained snapshot identity; they hold
+      // neither per-offset tokens nor a page cache. Data and snapshot bounds remain.
+      const reservedCursorPositions = prepared.resizable ? 0 : Math.ceil(items.length / limit) - 1;
       if (reservedCursorPositions > prepared.maxRetainedCursorPositionsPerSnapshot) {
         throw localError(
           "capacity-exceeded",
           "this pagination snapshot exceeds the per-snapshot retained-state limit",
         );
       }
+      if (
+        prepared.resizable &&
+        (retainedSnapshotBytes + retainedBytes > prepared.retainedSnapshotByteCapacity ||
+          retainedSnapshotNodes + retainedNodes > prepared.retainedSnapshotNodeCapacity)
+      )
+        throw localError(
+          "capacity-exceeded",
+          "active snapshots exhaust the retained byte/node capacity",
+        );
       assertRetainedStateCapacity(reservedCursorPositions);
       const expiresAt = now + prepared.cursorTtlMs;
       if (!Number.isFinite(expiresAt)) {
         throw localError("configuration-error", "the cursor expiry time is outside range");
       }
       const snapshot: Snapshot<Item> = {
+        ...(prepared.resizable ? freshResizeIdentity() : {}),
         items,
         limit,
         authorizationView,
@@ -446,6 +555,8 @@ export function createContextualReadPagination<Item = unknown>(
       // Register the snapshot first so the capacity count accounts for it. Roll back if first-
       // cursor construction fails; no partially continuable snapshot escapes.
       snapshots.add(snapshot);
+      if (snapshot.cursorIdentity !== undefined)
+        resizedSnapshots.set(snapshot.cursorIdentity, snapshot);
       retainedSnapshotBytes += retainedBytes;
       retainedSnapshotNodes += retainedNodes;
       retainedCursorPositions += reservedCursorPositions;
@@ -463,14 +574,16 @@ export function createContextualReadPagination<Item = unknown>(
     continuePage(input: ReadContinuationInput): ReadPage<Item> {
       requireOpen();
       const now = clock();
-      const direct = cursorIndex.get(input.token);
+      const direct = prepared.resizable ? lookupResized(input.token) : cursorIndex.get(input.token);
       if (direct !== undefined && now >= direct.snapshot.expiresAt) {
         release(direct.snapshot);
         scheduleIdleCleanup();
         throw localError("cursor-expired", "the pagination cursor expired", "expired");
       }
       cleanupAt(now);
-      const binding = cursorIndex.get(input.token);
+      const binding = prepared.resizable
+        ? lookupResized(input.token)
+        : cursorIndex.get(input.token);
       if (binding === undefined) {
         throw localError("cursor-expired", "the pagination cursor is unavailable", "unknown");
       }
@@ -562,6 +675,11 @@ function prepareOptions(options: ReadPaginationOptions): PreparedOptions {
   requirePositiveInteger(options.retainedSnapshotByteCapacity, "retainedSnapshotByteCapacity");
   requirePositiveInteger(options.retainedSnapshotNodeCapacity, "retainedSnapshotNodeCapacity");
   requirePositiveInteger(options.maxOpaqueTokenLength, "maxOpaqueTokenLength");
+  if (options.resizable === true && options.maxOpaqueTokenLength < 39)
+    throw localError(
+      "configuration-error",
+      "resizable cursor bound must admit its 39-character maximum",
+    );
   requirePositiveInteger(options.tokenGenerationAttempts, "tokenGenerationAttempts");
   if (typeof options.clock !== "function" || typeof options.generateOpaqueToken !== "function") {
     throw localError("configuration-error", "pagination dependencies must be functions");

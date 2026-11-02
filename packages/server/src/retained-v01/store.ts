@@ -746,12 +746,21 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     /** One SQLite observation; paging freezes this complete current set separately. */
     listRecords(kind: ResourceKind): readonly JsonObject[] {
       return transaction(() => {
+        const records: JsonObject[] = [];
+        let bytes = 0;
         const rows = db
           .prepare(
-            "SELECT r.body FROM resources r JOIN identities i ON i.id=r.id WHERE i.kind=? ORDER BY r.id",
+            "SELECT r.body,length(CAST(r.body AS BLOB)) AS bytes FROM resources r JOIN identities i ON i.id=r.id WHERE i.kind=? ORDER BY r.id",
           )
-          .all(kind);
-        return rows.map((row) => JSON.parse(String(row.body)) as JsonObject);
+          .iterate(kind);
+        for (const row of rows) {
+          bytes += Number(row.bytes);
+          // Bound the scan before JSON materialization; selection/pagination never
+          // pretend a truncated prefix is the complete inventory.
+          if (bytes > 32 * 1024 * 1024) throw new RetainedRequestError("limit-exceeded", 413);
+          records.push(JSON.parse(String(row.body)) as JsonObject);
+        }
+        return records;
       });
     },
     readRecord(id: string): { readonly kind: ResourceKind; readonly body: string } | undefined {

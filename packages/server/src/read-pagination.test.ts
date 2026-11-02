@@ -790,12 +790,87 @@ describe("ordinary resizable continuations", () => {
       "expired",
     );
   });
-  it("reserves the worst-case resized traversal before exposing the first cursor", () => {
-    const { pagination } = harness({ resizable: true, maxRetainedCursorPositionsPerSnapshot: 2 });
+  it("supports more than10001 offsets without retaining per-offset positions", () => {
+    const { pagination } = harness<number>({
+      resizable: true,
+      retainedStateCapacity: 2,
+      maxRetainedCursorPositionsPerSnapshot: 1,
+      retainedSnapshotByteCapacity: 200000,
+      retainedSnapshotNodeCapacity: 30000,
+    });
+    const first = pagination.firstPage({
+      ...firstInput(
+        Array.from({ length: 10002 }, (_, n) => n),
+        2,
+      ),
+      items: Array.from({ length: 10002 }, (_, n) => n),
+    });
+    expect(first.next!.length).toBeGreaterThan(0);
+    expect(tokenFrom(first.next).length).toBeLessThanOrEqual(40);
+    let token = tokenFrom(first.next);
+    for (let n = 2; n < 102; n++) {
+      const page = pagination.continuePage({ token, ...identity, limit: 1 });
+      expect(page.items).toEqual([n]);
+      token = tokenFrom(page.next);
+    }
+    const second = pagination.firstPage({ ...firstInput([1, 2, 3], 1), items: [1, 2, 3] });
     expectPaginationError(
-      () => pagination.firstPage(firstInput([1, 2, 3, 4], 3)),
+      () => pagination.firstPage({ ...firstInput([1, 2, 3], 1), items: [1, 2, 3] }),
       "capacity-exceeded",
     );
+    pagination.releaseUnissuedPage(second);
+    expect(pagination.firstPage({ ...firstInput([1, 2, 3], 1), items: [1, 2, 3] }).items).toEqual([
+      1,
+    ]);
+    expect(
+      pagination.continuePage({ token: tokenFrom(first.next), ...identity, limit: 3 }).items,
+    ).toEqual([2, 3, 4]);
+  });
+  it("authenticates offsets and preserves principal/projection/expiry checks", () => {
+    const { pagination } = harness({ resizable: true });
+    const first = pagination.firstPage(firstInput([1, 2, 3, 4], 1));
+    const token = tokenFrom(first.next);
+    const forged = token.slice(0, -1) + (token.endsWith("A") ? "B" : "A");
+    expectPaginationError(
+      () => pagination.continuePage({ token: forged, ...identity }),
+      "cursor-expired",
+      "unknown",
+    );
+    const offsetForgery = token.replace(/^(.{8})_[0-9a-z]+_/, "$1_2_");
+    expectPaginationError(
+      () => pagination.continuePage({ token: offsetForgery, ...identity }),
+      "cursor-expired",
+      "unknown",
+    );
+    expectPaginationError(
+      () => pagination.continuePage({ token, ...identity, authorizationView: "other" }),
+      "foreign-view",
+    );
+    expect(pagination.continuePage({ token, ...identity }).items).toEqual([2]);
+  });
+  it("separates a hard snapshot bound from temporary active-snapshot pressure", () => {
+    const { pagination } = harness({ resizable: true, retainedSnapshotByteCapacity: 12 });
+    pagination.firstPage(firstInput([1, 2, 3], 1));
+    expectPaginationError(
+      () => pagination.firstPage(firstInput([1, 2, 3], 1)),
+      "capacity-exceeded",
+    );
+    expectPaginationError(
+      () => pagination.firstPage(firstInput(["far too large for twelve bytes"], 1)),
+      "snapshot-limit-exceeded",
+    );
+  });
+  it("releases undelivered first pages without withdrawing issued continuation context", () => {
+    const { pagination } = harness({
+      resizable: true,
+      retainedStateCapacity: 2,
+      maxRetainedCursorPositionsPerSnapshot: 1,
+    });
+    for (let i = 0; i < 20; i++) {
+      const first = pagination.firstPage(firstInput([1, 2, 3], 1));
+      pagination.releaseUnissuedPage(first);
+    }
+    expect(pagination.close()).toEqual({ releasedSnapshots: 0, releasedCursors: 0 });
   });
   it("preserves the original fixed-limit facade", () => {
     const { pagination } = harness();
@@ -805,4 +880,22 @@ describe("ordinary resizable continuations", () => {
       "invalid-input",
     );
   });
+});
+
+it("never rebinds an expired resizable token or stale page when entropy repeats", () => {
+  const { pagination, advance } = harness({
+    resizable: true,
+    generateOpaqueToken: () => "repeated",
+  });
+  const old = pagination.firstPage(firstInput([1, 2, 3], 1));
+  advance(1000);
+  const fresh = pagination.firstPage(firstInput([9, 8, 7], 1));
+  expect(fresh.next).not.toBe(old.next);
+  expectPaginationError(
+    () => pagination.continuePage({ token: tokenFrom(old.next), ...identity }),
+    "cursor-expired",
+    "unknown",
+  );
+  pagination.releaseUnissuedPage(old);
+  expect(pagination.continuePage({ token: tokenFrom(fresh.next), ...identity }).items).toEqual([8]);
 });

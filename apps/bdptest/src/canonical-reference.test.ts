@@ -195,6 +195,8 @@ describe("canonical reference Core and ordinary Write", () => {
     expect(alias.text).toBe("");
     expect(alias.headers["bdp-resource-kind"]).toBeUndefined();
     expect((await f.wire(scope + "aliases/one?view=properties")).status).toBe(404);
+    expect((await f.wire(scope + "edge?view=links")).status).toBe(400);
+    expect((await f.wire(scope + "absent?view=links")).status).toBe(404);
     await f.reopen();
     expect(
       (
@@ -236,6 +238,9 @@ describe("canonical reference Core and ordinary Write", () => {
     ])
       expect((await f.wire(scope + "a?" + query)).status).toBe(400);
     for (const query of [
+      "view=links",
+      "view=properties",
+      "include=links",
       "conformsTo=" + encodeURIComponent("https://types.invalid/T"),
       "unknown=1",
       "limit=1&limit=2",
@@ -290,3 +295,33 @@ describe("canonical reference Core and ordinary Write", () => {
     ]);
   });
 });
+
+it("bounds a large SQLite scan before materialization and preserves readable committed state", async () => {
+  const f = await fixture();
+  const blob = "x".repeat(60000);
+  for (let n = 0; n < 570; n++) {
+    const reply = await f.post(
+      "createBead",
+      { id: "large-" + n, type: "https://types.invalid/T", properties: { blob } },
+      "large-" + n,
+    );
+    expect(reply.status).toBe(200);
+    if (n === 199) {
+      // Each complete observation is about12MiB. Three undiscarded snapshots
+      // would exceed the unchanged32MiB bound; these bodyless reads deliver no cursor.
+      for (let attempt = 0; attempt < 4; attempt++) {
+        expect((await f.wire(scope + "bdp/beads?limit=1", "HEAD")).status).toBe(200);
+        expect(
+          (await f.wire(scope + "bdp/beads?limit=1", "GET", undefined, { "if-none-match": "*" }))
+            .status,
+        ).toBe(304);
+      }
+    }
+  }
+  const refused = await f.wire(scope + "bdp/beads?limit=1");
+  expect(refused.status).toBe(413);
+  expect(JSON.parse(refused.text)).toMatchObject({ code: "limit-exceeded", retry: "never" });
+  const point = await f.wire(scope + "large-569");
+  expect(point.status).toBe(200);
+  expect(JSON.parse(point.text).properties.blob).toBe(blob);
+}, 30000);
