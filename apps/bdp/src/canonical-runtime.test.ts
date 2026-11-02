@@ -84,3 +84,42 @@ it("bounds a blocked failure terminal after interruption between complete pages"
     fetch.mockRestore();
   }
 }, 3000);
+
+it.each([
+  ["1", 5, "unsupported_capability"],
+  ["=", 2, "invalid_value"],
+  ["bare-token", 2, "invalid_value"],
+] as const)(
+  "refuses unresolved historical source %s before discovering or reading an absolute target",
+  async (source, status, code) => {
+    const bind = vi.spyOn(RetainedClient.prototype, "bindWrite");
+    const read = vi.spyOn(RetainedClient.prototype, "read");
+    let stdout = "";
+    try {
+      expect(
+        await runCanonicalInvocation(
+          {
+            command: ["update"],
+            positionals: ["https://wire.example/work/note"],
+            options: { fromRevision: source, outputFormat: "json" },
+            explicitOptions: ["fromRevision", "outputFormat"],
+          },
+          { auth: {} },
+          {
+            stdout: (text) => {
+              stdout += text;
+            },
+            stderr: () => undefined,
+          },
+        ),
+      ).toBe(status);
+      expect(JSON.parse(stdout).error.problem.code).toBe(code);
+      expect(JSON.parse(stdout).bdp_spec).toBeNull();
+      expect(bind).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+    } finally {
+      bind.mockRestore();
+      read.mockRestore();
+    }
+  },
+);

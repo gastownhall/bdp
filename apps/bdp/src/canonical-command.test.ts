@@ -47,7 +47,7 @@ describe("canonical command registration and generated help", () => {
           for (const option of ancestor.options) if (option.long) allowed.add(option.long);
         }
         for (const option of node.options) if (option.long) expect(help).toContain(option.long);
-        for (const match of help.matchAll(/--[a-z][a-z-]*/g))
+        for (const match of help.matchAll(/--[a-z][a-z_-]*/g))
           expect(allowed.has(match[0]), `${node.name()}: ${match[0]}`).toBe(true);
         for (const child of node.commands) {
           expect(help).toContain(child.name());
@@ -324,5 +324,32 @@ describe("canonical invocation data and structural admission", () => {
       CommanderError,
     );
     expect(result.invocations).toEqual([]);
+  });
+});
+
+describe("historical Bead Update authoring", () => {
+  it.each(["--from-revision", "--from_revision"])(
+    "accepts source-only Update using %s",
+    async (flag) => {
+      const invocation = onlyInvocation(
+        (await parse(["update", "note", flag, "=source", "--if-revision", "current"])).invocations,
+      );
+      expect(invocation.options).toEqual({ fromRevision: "=source", ifRevision: "current" });
+      expect(invocation.explicitOptions).toContain("fromRevision");
+    },
+  );
+  it("refuses duplicate source selectors across both spellings", async () => {
+    await expect(
+      parse(["update", "note", "--from-revision", "=a", "--from_revision", "=b"]),
+    ).rejects.toBeInstanceOf(CommanderError);
+  });
+  it.each([
+    ["create", "--type", "Task"],
+    ["delete", "note", "--force"],
+    ["link", "update", "edge", "--metadata", "{}"],
+  ])("does not widen another operation: %s", async (...args) => {
+    await expect(parse([...args, "--from-revision", "=source"])).rejects.toBeInstanceOf(
+      CommanderError,
+    );
   });
 });

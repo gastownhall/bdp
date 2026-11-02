@@ -21,6 +21,8 @@ import {
 import type { CanonicalInvocation } from "./canonical-command.js";
 import {
   CanonicalInputError,
+  CanonicalUnsupportedInputError,
+  parseHistoricalSourceSelector,
   compileCanonicalInput,
   parseCanonicalReference,
 } from "./canonical-input.js";
@@ -218,6 +220,8 @@ export async function runCanonicalInvocation(
         2,
         "supply a Scope or configure scope.url / BDP_SCOPE_URL",
       );
+    const historicalSource = stringOption(options, "fromRevision");
+    if (historicalSource !== undefined) parseHistoricalSourceSelector(historicalSource);
     const reader = canonicalInputReader(io.signal);
     const dryRun = stringOption(options, "dryRunMode");
     if (dryRun !== undefined && !mutation)
@@ -699,6 +703,10 @@ export async function runCanonicalInvocation(
     if (error instanceof CliError) {
       status = error.status;
       code = error.code;
+      message = error.message;
+    } else if (error instanceof CanonicalUnsupportedInputError) {
+      status = 5;
+      code = "unsupported_capability";
       message = error.message;
     } else if (error instanceof CanonicalInputError || error instanceof CanonicalProjectionError) {
       status = 2;

@@ -46,6 +46,19 @@ export class CanonicalInputError extends Error {
     this.name = "CanonicalInputError";
   }
 }
+export class CanonicalUnsupportedInputError extends CanonicalInputError {}
+/** This boundary has no authoritative ordinal lookup; an exact selector never
+ * becomes a Reference, current-state guard or inferred latest/last-live source. */
+export function parseHistoricalSourceSelector(input: string): string {
+  text(input, "historical source");
+  if (/^[1-9][0-9]*$/.test(input))
+    throw new CanonicalUnsupportedInputError(
+      "historical ordinals require an authoritative mapping",
+    );
+  if (!input.startsWith("=") || input.length === 1)
+    return refuse("historical source requires an exact =TOKEN or authoritative ordinal");
+  return input.slice(1);
+}
 function refuse(message: string): never {
   throw new CanonicalInputError(message);
 }
@@ -231,14 +244,7 @@ async function compile(request: CanonicalInputRequest): Promise<CompiledCanonica
   if (has("scope") && options.scope !== scope)
     return refuse("explicit Scope contradicts selected Scope");
   const option = (name: string): string => text(options[name], `--${name}`);
-  for (const flag of [
-    "revision",
-    "typeRevision",
-    "sourceRevision",
-    "targetRevision",
-    "fromRevision",
-    "source",
-  ])
+  for (const flag of ["revision", "typeRevision", "sourceRevision", "targetRevision", "source"])
     if (has(flag)) return refuse(`unsupported canonical option --${flag}`);
   const mode = has("dryRunMode") ? option("dryRunMode") : undefined;
   if (mode !== undefined && mode !== "batch" && mode !== "bdp")
@@ -418,6 +424,10 @@ async function compile(request: CanonicalInputRequest): Promise<CompiledCanonica
       body[`${plane}Change`] = changes;
     }
   }
+  if (has("fromRevision")) {
+    if (operation !== "updateBead") return refuse("historical content requires Bead Update");
+    body.fromRevision = parseHistoricalSourceSelector(option("fromRevision"));
+  }
   if (has("ifRevision")) {
     if (create || alias) return refuse("Resource guards require update/delete");
     body.expectedRevision = option("ifRevision"); // A bare opaque token, not a Reference selector.
@@ -453,6 +463,7 @@ async function compile(request: CanonicalInputRequest): Promise<CompiledCanonica
       "metadata",
       "propertiesChange",
       "metadataChange",
+      "fromRevision",
     ].some((key) => Object.hasOwn(body, key))
   )
     return refuse("update requires a mutation input, not just guard or provenance");

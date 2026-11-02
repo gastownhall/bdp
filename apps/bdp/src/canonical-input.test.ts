@@ -388,3 +388,45 @@ describe("frozen JSON inputs and finite offline member emission", () => {
     await expect(compile("create", { type: "Task", ...options })).rejects.toThrow();
   });
 });
+
+describe("exact historical Bead Update compilation", () => {
+  it("lowers source-only content separately from the actual-current guard", async () => {
+    expect(
+      await body(compile("update", { fromRevision: "==saved", ifRevision: "current-D" }, ["note"])),
+    ).toEqual({ bead: `${scope}note`, fromRevision: "=saved", expectedRevision: "current-D" });
+  });
+  it("preserves ordinary explicit Type and object edits alongside the source", async () => {
+    expect(
+      await body(
+        compile(
+          "update",
+          { fromRevision: "=R1", type: "CurrentType", setProperty: ["title=edited"] },
+          ["note"],
+        ),
+      ),
+    ).toEqual({
+      bead: `${scope}note`,
+      fromRevision: "R1",
+      type: `${scope}CurrentType`,
+      propertiesChange: [{ op: "add", path: "/title", value: "edited" }],
+    });
+  });
+  it.each(["", "=", "R1", "01", "0", "1"])(
+    "does not silently reinterpret unresolved source %s",
+    async (source) => {
+      await expect(compile("update", { fromRevision: source }, ["note"])).rejects.toBeInstanceOf(
+        CanonicalInputError,
+      );
+    },
+  );
+  it.each(["create", "delete", "link update", "link delete", "alias put"])(
+    "keeps historical content out of %s",
+    async (command) => {
+      await expect(
+        compile(command, { fromRevision: "=R1", type: "Task", properties: "{}", target: "note" }, [
+          "note",
+        ]),
+      ).rejects.toBeInstanceOf(CanonicalInputError);
+    },
+  );
+});
