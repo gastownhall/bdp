@@ -5296,7 +5296,11 @@ Required order: ["bead","fromRevision"]
         "required": [
           "properties",
           "propertiesChange"
-        ]
+        ],
+        "properties": {
+          "properties": true,
+          "propertiesChange": true
+        }
       }
     },
     {
@@ -5304,7 +5308,11 @@ Required order: ["bead","fromRevision"]
         "required": [
           "metadata",
           "metadataChange"
-        ]
+        ],
+        "properties": {
+          "metadata": true,
+          "metadataChange": true
+        }
       }
     }
   ]
@@ -5352,7 +5360,11 @@ Required order: ["operation","bead","fromRevision"]
         "required": [
           "properties",
           "propertiesChange"
-        ]
+        ],
+        "properties": {
+          "properties": true,
+          "propertiesChange": true
+        }
       }
     },
     {
@@ -5360,7 +5372,11 @@ Required order: ["operation","bead","fromRevision"]
         "required": [
           "metadata",
           "metadataChange"
-        ]
+        ],
+        "properties": {
+          "metadata": true,
+          "metadataChange": true
+        }
       }
     }
   ],
@@ -5423,7 +5439,10 @@ Required order: ["result"]
       "then": {
         "required": [
           "historicalUpdate"
-        ]
+        ],
+        "properties": {
+          "historicalUpdate": true
+        }
       }
     }
   ],
@@ -5490,7 +5509,11 @@ Required order: ["resource"]
           "not": {
             "required": [
               "links"
-            ]
+            ],
+            "properties": {
+              "links": true
+            },
+            "type": "object"
           }
         }
       ]

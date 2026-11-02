@@ -76,6 +76,11 @@ These modes materially change the operation and must remain visible in review.
 | `blocked --flags`, `--raw`; `ready --explain` | Computed external dependency policy, raw derived state and explanation evidence are different views. | [ready/blocked modes](https://github.com/donnabox/beads/blob/2c56673347b2bfb38022b3917580b58c7b2f6642/cmd/bd/ready.go#L819) |
 | `duplicates --auto-merge`; label propagation/rename | Client acquisition and planning + typed writes; retain heuristics and actual per-step/transaction error behavior. | [duplicate merging](https://github.com/donnabox/beads/blob/2c56673347b2bfb38022b3917580b58c7b2f6642/cmd/bd/duplicates.go#L375), [label rename](https://github.com/donnabox/beads/blob/2c56673347b2bfb38022b3917580b58c7b2f6642/cmd/bd/label.go#L807) |
 
+The current [Bead historical-update extension](../../specs/profiles/write/write.md#historical-base-bead-update-and-recovery)
+now supplies the Bead content-source/independent-guard/recovery contract. The row
+above records inspected historical product flags; its Link flag does not select
+generic Link historical recovery. The initial shared amendment remains Bead-only.
+
 ## Individual data and workflow paths
 
 Each primary path appears once. Source links identify the actual declaration or

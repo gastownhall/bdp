@@ -135,7 +135,11 @@
             "required": [
               "properties",
               "propertiesChange"
-            ]
+            ],
+            "properties": {
+              "properties": true,
+              "propertiesChange": true
+            }
           }
         },
         {
@@ -143,7 +147,11 @@
             "required": [
               "metadata",
               "metadataChange"
-            ]
+            ],
+            "properties": {
+              "metadata": true,
+              "metadataChange": true
+            }
           }
         }
       ],
@@ -194,7 +202,11 @@
             "required": [
               "properties",
               "propertiesChange"
-            ]
+            ],
+            "properties": {
+              "properties": true,
+              "propertiesChange": true
+            }
           }
         },
         {
@@ -202,7 +214,11 @@
             "required": [
               "metadata",
               "metadataChange"
-            ]
+            ],
+            "properties": {
+              "metadata": true,
+              "metadataChange": true
+            }
           }
         }
       ],
@@ -264,7 +280,10 @@
           "then": {
             "required": [
               "historicalUpdate"
-            ]
+            ],
+            "properties": {
+              "historicalUpdate": true
+            }
           }
         }
       ]
@@ -281,7 +300,11 @@
               "not": {
                 "required": [
                   "links"
-                ]
+                ],
+                "properties": {
+                  "links": true
+                },
+                "type": "object"
               }
             }
           ]
