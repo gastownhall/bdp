@@ -1,17 +1,18 @@
 # CLI and retained profile discovery
 
 The [canonical CLI](bdp-cli.md) uses one v0.1 binding and the positive
-[Core](../../specs/profiles/core/retained-core.md)/[Write](../../specs/profiles/write/retained-write.md)
-entries. This completes independent discovery/factoring source; actual Types/source
-composition and qualification still block adoption. [Events](events.md) has its accepted
-postimage/replay minimum. CLI command availability cannot be
+[Core](../../specs/profiles/core/core.md)/[Write](../../specs/profiles/write/write.md)
+entries. These are specification contracts, independent of current implementation
+coverage. Optional [Events](events.md), when advertised, has its complete
+postimage/replay contract. CLI command availability cannot be
 inferred from a schema file, a path suffix or a parked exploration.
 
 scope inspect preserves native discovery. Clients understand retainedDiscovery's
 core and write arms even if they execute only Core commands. Write adds eight
 individually atomic targets, not different read/result meanings. Discovery URLs are
 absolute; aliases remain Scope-relative names within their advertised base. Both
-profiles require events navigation under the paired [Event source](events.md). Core
+profiles permit Events to be absent. Advertised Events requires the full paired
+[Event contract](events.md); ordinary Write does not require an Event log. Core
 needs no Type inventory. type list remains deferred until its owning Type contract
 provides navigation/payload, without a guessed catalog path.
 
@@ -20,6 +21,7 @@ provides navigation/payload, without a guessed catalog path.
 | Core read | core or write | Same selected read contract; ignore unused operation navigation |
 | Singleton write | write | Follow one of eight directory targets; complete inline result and same-key recovery |
 | Atomic batch | write plus selected atomic-batch version1 | One atomic invocation/result; refuse absent/unsupported subset before new effects |
+| Event observation | advertised Events | Complete finite observation contract; absence refuses, never falls back to a Resource body |
 | Exact application read/versions | advertised complete History | Existing full contract and own cursor rules; absence refuses |
 | Exact Type interpretation | selected type-definition-read version1 | Explicit interpreting Scope and complete wrapper/origin; no generic show fallback |
 | Base use after new optional capability appears | either profile | Ignore unknown optional detail; preserve base values/keys/cursors/observations |

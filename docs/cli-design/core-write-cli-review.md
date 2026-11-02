@@ -1,5 +1,9 @@
 # Core/Write canonical CLI review
 
+> Historical review receipt. Donna's current editorial direction keeps
+> `--if-revision TOKEN` literal (including numeric-looking tokens), superseding
+> this receipt's earlier uniform `N` / `=TOKEN` guard description.
+
 Working review map, October 25, 2026. This is a discussion companion, not a new
 command contract or an implementation assignment. The goal is a usable minimal
 CLI covering the selected BDP surface, with explicit translations from broader

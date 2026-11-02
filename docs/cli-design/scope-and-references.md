@@ -22,7 +22,7 @@ Every relative primary Resource ID, authored Type ID and Link endpoint uses the 
 ```sh
 bdp show https://work.example/acme/task-42
 bdp show '[https://work.example/acme/task-42]@=saved-r1'
-bdp --scope https://work.example/acme/ update task-42 --if-revision =saved-r1 --set-property title=Reviewed
+bdp --scope https://work.example/acme/ update task-42 --if-revision saved-r1 --set-property title=Reviewed
 ```
 
 An absolute point read needs no configured Scope or inventory lookup. A configured default never rewrites it. An absolute mutation uses a verified owning-Scope/operation binding, either explicitly supplied, already established in context, or obtained through the Resource response's `service-desc` relation. The returned discovery document supplies canonical `scope` and operation navigation. Do not strip path segments from the Resource URL, treat a Type/endpoint URL as the destination, or use an unrelated ambient default as ownership evidence.
@@ -57,15 +57,16 @@ Deletion ordinals identify events, not readable bodies; no nearest-live fallback
 Different stores can number the same portable revision differently.
 
 Resolve an admitted ordinal to the exact full token before transport, persistence
-or a guarded operation. `--if-revision` and admitted historical-content
-`--from-revision` use `N` for a local ordinal or `=TOKEN` for an exact token;
-the CLI removes the leading `=` before transport. There is no standalone
+or a stored Reference. `--if-revision TOKEN` instead takes an exact opaque token
+unchanged, including numeric-looking tokens and literal leading `=`. There is no
+ordinal guard shorthand. The separately specified historical-content
+`--from-revision` adapter retains its own `N` / `=TOKEN` proposal; it does not
+define guard syntax. There is no standalone
 canonical `--revision`, `--type-revision` or `json:` Reference escape.
 Type and endpoint pins use the shared Reference suffixes, including the quoted
 bracketed absolute-URL form. `@current` is not an authored durable pin.
-The retained explicit Link-creation `--source-revision`/`--target-revision` options
-remain literal token options and conflict with a corresponding suffix even when
-equal. The separate [Beads typed endpoint-flag operations](preview3-alignment.md#product-endpoint-pin-operations)
+Canonical Link creation has no `--source-revision` / `--target-revision` flags;
+use the shared `@N` / `@=TOKEN` endpoint suffixes. The separate [Beads typed endpoint-flag operations](preview3-alignment.md#product-endpoint-pin-operations)
 are product adapter intents; exact @=current/@=unpinned still name literal tokens.
 Point mutation subjects stay unpinned. A separately specified historical-content
 adapter copies retained content; it is not a new generic BDP write field.
@@ -81,14 +82,14 @@ Successful BDP point-read responses supply `BDP-Resource-Kind: bead|link`, inclu
 
 ```sh
 bdp link show task-42 --properties-only
-bdp link show https://work.example/acme/task-42 --head
+bdp link show https://work.example/acme/task-42
 ```
 
-These commands cannot silently succeed on a Bead simply because a body is absent or properties resemble Link fields. A generic `show --head` reports response metadata. Conditions and exact revision selection retain their separate selected meanings; this patch does not define new Type or History lifecycle commands.
+These commands cannot silently succeed on a Bead simply because a body is absent or properties resemble Link fields. Core HEAD/conditional-read semantics and exact revision selection remain distinct. Their CLI flags are [deferred](bdp-cli.md#deferred-http-read-conditions-and-metadata); this example selects no HTTP flag grammar or new Type/History lifecycle command.
 
 ## Discover inventories and operations
 
-`scope inspect` returns the advertised description. `list`, `link list` and the deferred Type CLI's sole placeholder `type list` use its respective inventory URL. They do not append known suffixes or assume that records sit beneath the inventory path. A Scope may advertise `/inventory/items` while assigning a Bead `/task-42`.
+`scope inspect` returns the advertised description. `list` and `link list` use their respective advertised inventory URLs. The future `type list` location selects neither a Type inventory nor its navigation/payload; those requirements belong to the developing Types and packaging contracts. Clients do not append known suffixes or assume that records sit beneath an inventory path. A Scope may advertise `/inventory/items` while assigning a Bead `/task-42`.
 
 CRUD uses the discovered operation directory and selected operation kind. An implementation's existing fixed-root constructors are accepted-target deltas; they are not universal parsing rules. No domain default, native Issue classification, public template engine or domain convenience is added.
 

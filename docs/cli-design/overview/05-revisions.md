@@ -114,9 +114,9 @@ Revision: guide-a
 
 ```
 
-This projection is the accepted service-side target. Its native request binding
-must explicitly extend the old revision-only query restriction. A client that
-only masks a full response does not thereby implement that capability.
+This projection uses Core's selected service-side capability and its canonical
+CLI mapping. A client that only masks a full response does not thereby implement
+that capability; these examples do not claim installed conformance.
 
 ### Use a local revision number when available
 
@@ -222,14 +222,14 @@ example adapter to resolve local revision number 8 instead.
 
 ```console
 # Approve the title only if the guide is still at the state we reviewed.
-> bd update csv-draft --if-revision =guide-h \
+> bd update csv-draft --if-revision guide-h \
   --set-property title='CSV export guide (approved)'
 Updated
 csv-draft [guide] CSV export guide (approved)
 Revision: guide-i
 
 # Try a different edit with the stale guard; it must leave the guide unchanged.
-> bd update csv-draft --if-revision =guide-h \
+> bd update csv-draft --if-revision guide-h \
   --set-property title='CSV export guide (needs another review)'
 Error: revision-mismatch
 
@@ -248,7 +248,7 @@ automatic concurrency check.
 > A product with the historical-content adapter can offer `--from-revision` to
 > use a retained same-identity state as the base of a new edit. For example, an
 > *optional alternative continuation* after the approval above is
-> `bd update csv-draft --from-revision 7 --if-revision 9`. It copies historical
+> `bd update csv-draft --from-revision 7 --if-revision guide-i`. It copies historical
 > properties and metadata from state 7 while requiring current state 9, preserves
 > the current Type, and creates a new current state. Explicit edits then apply
 > under that adapter's contract. It does not rewrite history or revive the old

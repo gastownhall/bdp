@@ -1,7 +1,7 @@
 # Canonical Types CLI
 
 This companion explains how to use Type contracts through the
-[general canonical CLI](bdp-cli.md). The [Type definitions](../../specs/types/type-system/type-system.md)
+[general canonical CLI](bdp-cli.md). The [Type definitions](../../specs/profiles/types/types.md)
 describe Type, BeadType, LinkType and Refines; the
 [Types profile](../../specs/profiles/types/types.md) specifies their detailed
 semantics. The companion uses the overview, connected walkthrough and command
@@ -20,7 +20,7 @@ native creation. Only then come real BeadType/LinkType authoring, user-authored
 Refines Links, persisted custom-instance create/update and the whole sequence in
 batch. The earlier unsaved-instance placeholder is superseded. These are delivery
 requirements, not claims about the current executable or a finalized public
-lifecycle API. The [Types1 source binding](../../specs/profiles/types/types-binding.md)
+lifecycle API. The [Types1 source binding](../../specs/profiles/types/types.md#12-types1-capability-and-rejectable-selection)
 remains an independent protocol-selection obligation.
 
 Generic graph services treat definition Beads as ordinary Beads. Query, filtering,
@@ -169,8 +169,8 @@ duplicating their definitions.
 | Family and nominal filters | [Type selection](affiliations-and-owned-state.md#select-by-nominal-type-or-family). |
 | Paging and completeness | [Reads and paging](reads-and-paging.md). |
 | Human and machine output | [Read output descriptors](read-output.md). |
-| Exact definition interpretation | [Explicit interpreting-context seam](exact-definition-read.md) and the [common definition-read contract](../../specs/profiles/core/type-definition-read.md). |
-| Errors, writes and required observations | [Shared output and errors](bdp-cli.md#honest-output-errors-and-required-events). |
+| Exact definition interpretation | [Explicit interpreting-context seam](exact-definition-read.md) and the [common definition-read contract](../../specs/profiles/core/core.md#optional-exact-type-definition-lookup). |
+| Errors, writes and required observations | [Shared output and errors](bdp-cli.md#honest-output-errors-and-optional-events). |
 
 The `bd` spelling used in the examples follows the canonical hierarchy. The
 retained general candidate also uses `bdp` as its executable name; that naming
@@ -319,8 +319,8 @@ The descriptor specification owns field meanings, and the Types profile owns
 detailed conformance and enforcement. The general CLI owns shared syntax and
 wire mapping; this companion owns its explanatory Type workflow and the visible
 status of the Type-command reference. Changes crossing those boundaries need
-paired review. The general CLI needs a paired navigation link to this companion; its source is owned by the
-common CLI workstream and is unchanged in this editorial pass.
+paired review. The general CLI links directly to this companion; shared command syntax remains
+in that canonical document.
 
 The documentation structure follows the completed Memory editorial pass and the
 [Memory specification's organization](https://github.com/gastownhall/bdp/blob/21fa91d3e189bff3832bd977c3d6be49f2b5d93c/specs/types/memory/memory.md).
