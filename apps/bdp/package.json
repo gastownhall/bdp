@@ -14,6 +14,7 @@
     "@bdp/bd-domain": "workspace:*",
     "@bdp/client": "workspace:*",
     "@bdp/config": "workspace:*",
-    "@bdp/protocol": "workspace:*"
+    "@bdp/protocol": "workspace:*",
+    "commander": "15.0.0"
   }
 }
