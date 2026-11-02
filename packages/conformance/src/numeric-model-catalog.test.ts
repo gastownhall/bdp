@@ -139,7 +139,7 @@ describe("draft numeric-model catalog", () => {
   });
 
   it("mirrors the specification's Numeric-model conformance rows exactly and in order", () => {
-    const specification = readText("docs/specs/bdp.md");
+    const specification = readHistoricalCitation692dSource("docs/specs/bdp.md");
     const start = specification.indexOf("\n#### Numeric-model conformance rows\n");
     expect(start).toBeGreaterThan(0);
     const section = specification.slice(start + 1);

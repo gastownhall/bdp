@@ -98,7 +98,7 @@ describe("draft owned-Link wildcard catalog", () => {
   });
 
   it("mirrors the specification's Owned-Link wildcard conformance rows exactly and in order", () => {
-    const specification = readText("docs/specs/bdp.md");
+    const specification = readHistoricalCitation692dSource("docs/specs/bdp.md");
     const start = specification.indexOf("\n#### Owned-Link wildcard conformance rows\n");
     expect(start).toBeGreaterThan(0);
     const section = specification.slice(start + 1);

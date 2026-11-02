@@ -18,7 +18,7 @@ import {
 } from "./index.js";
 
 const CITATION = {
-  source: "docs/specs/bdp.md",
+  source: "specs/profiles/core/core.md",
   anchor: "#resource-views",
   selectedText: "The default `GET` of a Bead or Link URL returns its complete Resource record.",
 };
@@ -185,7 +185,7 @@ describe("repository-aware requirement citations", () => {
   it("accepts an existing source, anchor, and whitespace-normalized excerpt", () => {
     expect(() =>
       validateCatalogCitations(catalog, (source) =>
-        source === "docs/specs/bdp.md" ? markdown : undefined,
+        source === CITATION.source ? markdown : undefined,
       ),
     ).not.toThrow();
   });

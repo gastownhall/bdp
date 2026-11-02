@@ -1,15 +1,13 @@
 import {
   readHistoricalCitation692dCatalog,
   readHistoricalCitation692dSource,
+  isHistoricalCitation692dProtocolSource as isProtocolSpecificationSource,
 } from "../test-support/historical-citation-source.js";
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import {
-  isProtocolSpecificationSource,
-  readSpecificationSource,
-} from "../test-support/spec-source.js";
+import { readSpecificationSource } from "../test-support/spec-source.js";
 
 import {
   loadExecutableScenarioManifestJson,
@@ -214,7 +212,7 @@ describe("draft Transactional catalog", () => {
   });
 
   it("mirrors the specification's Transactional conformance rows exactly and in order", () => {
-    const specification = readText("docs/specs/bdp.md");
+    const specification = readHistoricalCitation692dSource("docs/specs/bdp.md");
     const start = specification.indexOf("\n#### Transactional conformance rows\n");
     expect(start).toBeGreaterThan(0);
     const section = specification.slice(start + 1);

@@ -25,7 +25,7 @@ describe("History catalog remains unbound metadata", () => {
       expect(row.kind).toBe("normative");
       expect(["read", "read-update", "transactional"]).toContain(row.requiredProfile);
     }
-    const specification = read("docs/specs/bdp.md");
+    const specification = readHistoricalCitation692dSource("docs/specs/bdp.md");
     const section = specification
       .split("#### History conformance rows\n")[1]
       ?.split("#### Read+Update conformance rows")[0];

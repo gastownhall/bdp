@@ -210,3 +210,15 @@ client/service witness, exact pins, aliases, expiry after reopen and durable
 original response replay). Package private-process exclusion and closed module/
 export inventories passed against the installed tarballs. Final whole-suite/
 required hosted qualification and focused review closure remain mandatory.
+
+## Final historical reader closure
+
+The second full local run on2bb35cf completed234.532 seconds with10096PASS10FAIL
+and the same two existing optional skips. All ten were explicit test-source
+bindings left behind when the phantom monolith reader was removed: seven test
+files still read the navigation stub as cumulative prose or applied current
+source classification to historical rows. Their table/retirement/CORS assertions
+now explicitly use the same closed historical reader; the synthetic current
+citation points directly to current Core. All212 tests across those seven files
+pass. No catalog bytes/row counts/pins or assertions were removed. This source
+repair changes no runtime product code. A final complete run remains required.
